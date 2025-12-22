@@ -1,4 +1,5 @@
 // src/app/layout.tsx
+import { CartProvider } from "@/components/CartProvider";
 import "./globals.css";
 
 export const metadata = {
@@ -13,8 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-stone-50 text-stone-900">
-        {children}
+      <body className="min-h-screen bg-stone-50 text-stone-900">
+        <CartProvider>
+          {children}
+        </CartProvider>
       </body>
     </html>
   );

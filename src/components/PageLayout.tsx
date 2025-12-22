@@ -10,9 +10,9 @@ type PageLayoutProps = {
 
 export default function PageLayout({ children }: PageLayoutProps) {
   return (
-    <main className="bg-stone-200">
+    <main className="min-h-screen bg-stone-200 flex flex-col">
         <AnnouncementBar />
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-6xl px-6 flex-1 w-full">
             <Navbar />
     
             {children}

@@ -5,6 +5,23 @@ export function filterProducts(
     filters: ProductFilters
 ): Product[] {
     return products.filter((product) => {
+        const query = (filters.searchQuery ?? "").trim().toLowerCase();
+        if (query) {
+            const collectionTitles = product.collections?.map((c) => c.title).join(" ") ?? "";
+            const haystack = [
+                product.title,
+                product.vendor,
+                product.productType,
+                collectionTitles,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            if (!haystack.includes(query)) {
+                return false;
+            }
+        }
+
         // Vendor Filter
         if (filters.vendors.length > 0) {
             if (!filters.vendors.includes(product.vendor)) {
