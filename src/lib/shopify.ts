@@ -1,8 +1,18 @@
+import { Product } from "@/data/types"
+
 const domain = process.env.SHOPIFY_STORE_DOMAIN!;
 const token = process.env.SHOPIFY_STOREFRONT_TOKEN!;
 const apiVersion = process.env.SHOPIFY_API_VERSION || "2024-04";
 
 const endpoint = `https://${domain}/api/${apiVersion}/graphql.json`;
+
+type ShopifyProductsResponse = {
+  products: {
+    edges: Array<{
+      node: Product;
+    }>;
+  };
+}
 
 export async function shopifyFetch<T>(
   query: string,
@@ -28,43 +38,47 @@ export async function shopifyFetch<T>(
   return json.data;
 }
 
-export async function getProducts(limit = 10) {
+export async function getProducts(limit = 10): Promise<Product[]> {
   const query = /* GraphQL */ `
-  query Products($first: Int!) {
-    products(first: $first) {
-      edges {
-        node {
-          id
-          handle
-          title
-          vendor        # Hersteller
-          productType   # "Kategorie" (optional)
-          collections(first: 10) {  # Kategorien über Collections (empfohlen)
-            edges {
-              node {
-                id
-                handle
-                title
+    query Products($first: Int!) {
+      products(first: $first) {
+        edges {
+          node {
+            id
+            handle
+            title
+            vendor
+            productType
+            collections(first: 10) {
+              edges {
+                node {
+                  id
+                  handle
+                  title
+                }
               }
             }
-          }
-          featuredImage {
-            url
-            altText
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
+            featuredImage {
+              url
+              altText
+            }
+            priceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
             }
           }
         }
       }
     }
-  }
-`;
+  `;
 
-
-  const data = await shopifyFetch<{ products: any }>(query, { first: limit });
-  return data.products.edges.map((e: any) => e.node);
+  const data = await shopifyFetch<ShopifyProductsResponse>(query, { first: limit });
+  
+  // Transformiere die Shopify-Struktur in eine sauberere Form
+  return data.products.edges.map((edge) => ({
+    ...edge.node,
+    collections: edge.node.collections.edges.map(e => e.node),
+  }));
 }

@@ -2,6 +2,8 @@ import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
 import { getProducts } from "@/lib/shopify";
 import DisplayProducts from "@/lib/displayProducts";
+import ProductFilter from "@/components/ProductFilter";
+import DisplayFilteredProducts from "@/lib/filterPanel";
 
 export default async function ProductsPage() {
   const products = await getProducts();
@@ -25,8 +27,7 @@ export default async function ProductsPage() {
                 </p>
             </div>
             
-
-            <DisplayProducts cols={4} />
+            <DisplayProducts />
         </div>
     </main>
   );

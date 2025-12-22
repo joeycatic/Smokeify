@@ -7,7 +7,7 @@ import {
 
 export function Navbar() {
   return (
-    <nav className="relative w-full">
+    <nav className="relative w-full mb-4">
       <div className="mx-auto max-w-7xl px-5 py-16">
         <div className="relative flex h-16 items-center justify-between">
 
