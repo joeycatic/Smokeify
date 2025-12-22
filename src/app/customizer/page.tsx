@@ -9,7 +9,7 @@ export default async function CustomizerPage() {
 
   return (
     <PageLayout>
-        
+        <h1>Placeholder</h1>
     </PageLayout>
   );
 }

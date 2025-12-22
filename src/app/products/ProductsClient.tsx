@@ -82,7 +82,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       </div>
 
       {/* Products Grid */}
-      <div className="text-center py-12">
+      <div className="text-center">
         <h1 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
             Our Products
         </h1>
