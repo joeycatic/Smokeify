@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ProductVariant } from "@/lib/shopify";
+import { useCart } from "@/components/CartProvider";
 
 export default function ProductDetailClient({
   product,
@@ -25,6 +26,9 @@ export default function ProductDetailClient({
     ? `€ ${Number(selectedVariant.price.amount).toFixed(2)}`
     : "";
 
+  const { cart, addToCart } = useCart();
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  
   return (
     <div className="space-y-6">
       <div>
@@ -74,11 +78,47 @@ export default function ProductDetailClient({
       <button
         type="button"
         disabled={!selectedVariant?.availableForSale}
-        onClick={() => console.log("Add to cart TODO", { selectedVariantId, quantity })}
+        onClick={async () => {
+          if (!selectedVariantId) {
+            setToast({ type: "error", text: "Keine Variante gewahlt." });
+            setTimeout(() => setToast(null), 1500);
+            return;
+          }
+
+          const beforeQty =
+            cart?.lines.find((line) => line.merchandise.id === selectedVariantId)
+              ?.quantity ?? 0;
+
+          try {
+            const updated = await addToCart(selectedVariantId, quantity);
+            const afterQty =
+              updated?.lines.find((line) => line.merchandise.id === selectedVariantId)
+                ?.quantity ?? 0;
+
+            if (afterQty > beforeQty) {
+              setToast({ type: "success", text: "Zum Warenkorb hinzugefugt." });
+            } else {
+              setToast({ type: "error", text: "Nicht genug Bestand." });
+            }
+          } catch (e) {
+            setToast({ type: "error", text: "Hinzufugen fehlgeschlagen." });
+          } finally {
+            setTimeout(() => setToast(null), 1500);
+          }
+        }}
         className="h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
       >
         {selectedVariant?.availableForSale ? "Add to Cart" : "Sold out"}
       </button>
+      {toast && (
+        <div
+          className={`rounded-md px-3 py-2 text-sm ${
+            toast.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"
+          }`}
+        >
+          {toast.text}
+        </div>
+      )}
 
       <div className="pt-4 border-t border-black/10">
         <p className="text-sm font-semibold mb-2 text-black/80">Description</p>

@@ -60,29 +60,14 @@ export default function ProductsClient({ initialProducts }: Props) {
       collections: [],
       priceMin: priceMinBound,
       priceMax: priceMaxBound,
+      searchQuery: "",
     });
   };
 
   return (
     <div className="w-full text-stone-800">
-      {/* Header + Filter Button */}
-      <div className="ml-auto mb-10">
-        
-
-        <FilterDrawer
-          filters={filters}
-          setFilters={setFilters}
-          availableVendors={availableVendors}
-          availableCollections={availableCollections}
-          priceMinBound={priceMinBound}
-          priceMaxBound={priceMaxBound}
-          resultCount={filteredProducts.length}
-          onReset={resetFilters}
-        />
-      </div>
-
       {/* Products Grid */}
-      <div className="text-center">
+      <div className="mt-8 text-center">
         <h1 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
             Our Products
         </h1>
@@ -93,6 +78,28 @@ export default function ProductsClient({ initialProducts }: Props) {
         <p className="text-stone-600 text-lg font-medium">
             Premium equipment for professional results
         </p>
+      </div>
+
+      <div className="mt-4 mb-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <input
+          type="search"
+          value={filters.searchQuery ?? ""}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+          }
+          placeholder="Search products..."
+          className="h-11 w-full sm:max-w-xs rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30"
+        />
+        <FilterDrawer
+          filters={filters}
+          setFilters={setFilters}
+          availableVendors={availableVendors}
+          availableCollections={availableCollections}
+          priceMinBound={priceMinBound}
+          priceMaxBound={priceMaxBound}
+          resultCount={filteredProducts.length}
+          onReset={resetFilters}
+        />
       </div>
 
       <DisplayProducts products={filteredProducts} cols={3} />
