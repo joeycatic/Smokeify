@@ -117,14 +117,11 @@ export default function FilterDrawer({
         <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 border border-black/20 rounded-md text-sm font-semibold"
+            className="flex items-center gap-2 px-4 py-3 border border-black/20 rounded-md text-sm font-semibold"
         >
             FILTER ↔
         </button>
       )}
-
-
-
 
       <AnimatePresence>
         {open && (

@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { AnnouncementBar } from './AnnouncementBar';
 import { Navbar } from './Navbar';
+import Footer from './Footer';
 
 type PageLayoutProps = {
   children: ReactNode
@@ -16,6 +17,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
     
             {children}
          </div>
+         <Footer />
     </main>
   );
 }

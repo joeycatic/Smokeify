@@ -2,7 +2,7 @@ import type { Product, ProductFilters } from "@/data/types";
 
 export function filterProducts(
     products: Product[],
-    filters: ProductFilters[]
+    filters: ProductFilters
 ): Product[] {
     return products.filter((product) => {
         // Vendor Filter
@@ -15,7 +15,9 @@ export function filterProducts(
         // Collection Filter
         if (filters.collections.length > 0) {
             const productCollectionHandles = product.collections.map(c => c.handle);
-            const hasMatchingCollection = filters.collections.some(filterCollection => productCollectionHandles.includes(filterCollection));
+            const hasMatchingCollection = filters.collections.some(
+                (filterCollection: string) => productCollectionHandles.includes(filterCollection)
+            );
 
             if (!hasMatchingCollection) {
                 return false;
