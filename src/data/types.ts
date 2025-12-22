@@ -30,6 +30,7 @@ export type Product = {
 export type ProductFilters = {
   vendors: string[];        
   collections: string[];    
-  priceRange: [number, number];
-  searchQuery: string;
+  priceMin: number; 
+  priceMax: number;
+  searchQuery?: string;
 }

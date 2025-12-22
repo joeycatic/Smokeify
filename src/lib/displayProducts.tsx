@@ -1,16 +1,14 @@
 import { getProducts } from "./shopify";
 
 type Props = {
-  setProducts?: any[];
+  products?: any[];
   cols?: number;
 };
 
-export default async function DisplayProducts({setProducts, cols = 4,}: Props) {
-  const products = setProducts ?? await getProducts();
-
+export default function DisplayProducts({products, cols = 4,}: Props) {
     return (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {products.map((p) => (
+            {products?.map((p) => (
             <article
                 key={p.id}
                 className="
