@@ -1,0 +1,33 @@
+import type { Product, ProductFilters } from "@/data/types";
+
+export function filterProducts(
+    products: Product[],
+    filters: ProductFilters[]
+): Product[] {
+    return products.filter((product) => {
+        // Vendor Filter
+        if (filters.vendors.length > 0) {
+            if (!filters.vendors.includes(product.vendor)) {
+                return false;
+            }
+        }
+    
+        // Collection Filter
+        if (filters.collections.length > 0) {
+            const productCollectionHandles = product.collections.map(c => c.handle);
+            const hasMatchingCollection = filters.collections.some(filterCollection => productCollectionHandles.includes(filterCollection));
+
+            if (!hasMatchingCollection) {
+                return false;
+            }
+        }
+        
+        // Price Filter
+        const price = parseFloat(product.priceRange.minVariantPrice.amount);
+        if (price < filters.priceMin || price > filters.priceMax) {
+            return false;
+        }
+
+        return true;
+    })
+}

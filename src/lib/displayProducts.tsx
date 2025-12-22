@@ -1,12 +1,14 @@
 import { getProducts } from "./shopify";
 
+type Props = {
+  products?: any[];
+  cols?: number;
+};
 
-export default async function DisplayProducts({ cols = 4 }: { cols?: number }) {
-    const products = await getProducts();
-
+export default function DisplayProducts({products, cols = 4,}: Props) {
     return (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {products.map((p) => (
+            {products?.map((p) => (
             <article
                 key={p.id}
                 className="
@@ -40,7 +42,7 @@ export default async function DisplayProducts({ cols = 4 }: { cols?: number }) {
 
                     {/* Price */}
                     <p className="mt-2 text-base font-semibold text-stone-900">
-                    {formatPrice(p.priceRange?.minVariantPrice)}
+                        {formatPrice(p.priceRange?.minVariantPrice)}
                     </p>
                 </div>
                 </article>
