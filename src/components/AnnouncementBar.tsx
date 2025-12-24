@@ -15,7 +15,7 @@ export function AnnouncementBar() {
           </Item>
 
           <Item icon={<CheckBadgeIcon className="h-4 w-4" />}>
-            Top Onlineshop 2015–2023
+            Top Onlineshop 2025–2026
           </Item>
 
           <Item icon={<TruckIcon className="h-4 w-4" />}>
