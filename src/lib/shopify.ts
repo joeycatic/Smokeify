@@ -1,4 +1,4 @@
-import { Product } from "@/data/types"
+import { Product, ProductImage } from "@/data/types"
 
 const domain = process.env.SHOPIFY_STORE_DOMAIN!;
 const token = process.env.SHOPIFY_STOREFRONT_TOKEN!;
@@ -12,10 +12,20 @@ type ShopifyCollectionNode = {
   title: string;
 };
 
-type ShopifyProductNode = Omit<Product, "collections"> & {
+type ShopifyProductNode = Omit<Product, "collections" | "images"> & {
   collections: {
     edges: Array<{
       node: ShopifyCollectionNode;
+    }>;
+  };
+  images?: {
+    edges: Array<{
+      node: ProductImage;
+    }>;
+  };
+  variants?: {
+    edges: Array<{
+      node: { id: string };
     }>;
   };
 };
@@ -63,6 +73,7 @@ export async function getProducts(limit = 10): Promise<Product[]> {
             title
             vendor
             productType
+            availableForSale
             collections(first: 10) {
               edges {
                 node {
@@ -75,6 +86,25 @@ export async function getProducts(limit = 10): Promise<Product[]> {
             featuredImage {
               url
               altText
+              width
+              height
+            }
+            images(first: 6) {
+              edges {
+                node {
+                  url
+                  altText
+                  width
+                  height
+                }
+              }
+            }
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
             }
             priceRange {
               minVariantPrice {
@@ -93,18 +123,81 @@ export async function getProducts(limit = 10): Promise<Product[]> {
   // Transformiere die Shopify-Struktur in eine sauberere Form
   return data.products.edges.map((edge) => ({
     ...edge.node,
+    defaultVariantId: edge.node.variants?.edges?.[0]?.node?.id ?? null,
     collections: edge.node.collections.edges.map((e) => e.node),
+    images: edge.node.images?.edges?.map((e) => e.node) ?? [],
   }));
 }
 
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  if (!ids.length) return [];
 
-// ========== PRODUCT DETAIL TYPES ==========
-export type ProductImage = {
-  url: string;
-  altText: string | null;
-  width?: number | null;
-  height?: number | null;
-};
+  const query = /* GraphQL */ `
+    query ProductsByIds($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Product {
+          id
+          handle
+          title
+          vendor
+          productType
+          availableForSale
+          featuredImage {
+            url
+            altText
+            width
+            height
+          }
+          images(first: 6) {
+            edges {
+              node {
+                url
+                altText
+                width
+                height
+              }
+            }
+          }
+          variants(first: 1) {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          collections(first: 10) {
+            edges {
+              node {
+                id
+                handle
+                title
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<{ nodes: Array<ShopifyProductNode | null> }>(query, {
+    ids,
+  });
+
+  return data.nodes
+    .filter((node): node is ShopifyProductNode => Boolean(node))
+    .map((node) => ({
+      ...node,
+      defaultVariantId: node.variants?.edges?.[0]?.node?.id ?? null,
+      collections: node.collections.edges.map((e) => e.node),
+      images: node.images?.edges?.map((e) => e.node) ?? [],
+    }));
+}
 
 export type ProductVariant = {
   id: string;
@@ -153,6 +246,7 @@ export async function getProductByHandle(handle: string): Promise<ProductDetail 
         title
         vendor
         productType
+        availableForSale
 
         descriptionHtml
 
@@ -231,6 +325,7 @@ export async function getProductByHandle(handle: string): Promise<ProductDetail 
               title
               vendor
               productType
+              availableForSale
               descriptionHtml
               featuredImage {
                 url

@@ -1,0 +1,317 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import type { MouseEvent } from "react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  HeartIcon as HeartIconOutline,
+  ShoppingCartIcon,
+} from "@heroicons/react/24/outline";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import { useCart } from "@/components/CartProvider";
+import { useWishlist } from "@/hooks/useWishlist";
+
+type Props = {
+  products?: any[];
+  cols?: number;
+};
+
+export default function DisplayProducts({products, cols = 4,}: Props) {
+    const { isWishlisted, toggle } = useWishlist();
+    return (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {products?.map((p) => (
+            <Link key={p.id} href={`/products/${p.handle}`} className="block">
+                <article
+                    key={p.id}
+                    className="
+                        group rounded-xl border border-stone-200 bg-white
+                        transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
+                    "
+                    >
+                    {/* Image */}
+                    <ProductImageCarousel
+                      images={getProductImages(p)}
+                      alt={p.title}
+                      className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
+                      imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+
+                    {/* Content */}
+                    <div className="p-4">
+                        {/* Vendor */}
+                        <p className="text-xs uppercase tracking-wide text-stone-900">
+                        {p.vendor}
+                        </p>
+
+                        {/* Title */}
+                        <h2 className="mt-1 line-clamp-2 font-bold" style={{ color: '#000000ff' }}>
+                            {p.title}
+                        </h2>
+                        {typeof p.availableForSale === "boolean" && (
+                          <p
+                            className={`mt-1 text-xs font-semibold ${
+                              p.availableForSale ? "text-green-700" : "text-red-600"
+                            }`}
+                          >
+                            {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
+                          </p>
+                        )}
+
+                        {/* Price */}
+                        <p className="mt-2 text-base font-semibold text-stone-900">
+                            {formatPrice(p.priceRange?.minVariantPrice)}
+                        </p>
+                        <div className="mt-3 flex items-center gap-2">
+                          <WishlistButton
+                            wishlisted={isWishlisted(p.id)}
+                            onToggle={() => toggle(p.id)}
+                          />
+                          <AddToCartButton
+                            variantId={p.defaultVariantId ?? null}
+                            available={p.availableForSale}
+                          />
+                        </div>
+                    </div>
+                    </article>
+                </Link>
+            ))}
+        </div>
+    );
+}
+
+export function DisplayProductsList({ products }: Props) {
+  const { isWishlisted, toggle } = useWishlist();
+  return (
+    <div className="mt-6 grid grid-cols-1 gap-4">
+      {products?.map((p) => (
+        <article
+          key={p.id}
+          className="group flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
+        >
+          <Link href={`/products/${p.handle}`} className="block sm:w-56 md:w-64">
+            <ProductImageCarousel
+              images={getProductImages(p)}
+              alt={p.title}
+              className="aspect-square overflow-hidden rounded-lg bg-stone-100"
+              imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            />
+          </Link>
+
+          <div className="flex flex-1 flex-col justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-stone-900">{p.vendor}</p>
+              <h2 className="text-lg font-bold" style={{ color: "#000000ff" }}>
+                {p.title}
+              </h2>
+              {typeof p.availableForSale === "boolean" && (
+                <p
+                  className={`text-s font-semibold ${
+                    p.availableForSale ? "text-green-700" : "text-red-600"
+                  }`}
+                >
+                  {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
+                </p>
+              )}
+              {p.description && (
+                <p className="text-sm text-stone-600 line-clamp-3">{p.description}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-semibold text-stone-900">
+                {formatPrice(p.priceRange?.minVariantPrice)}
+              </p>
+              <div className="flex items-center gap-2">
+                <WishlistButton
+                  wishlisted={isWishlisted(p.id)}
+                  onToggle={() => toggle(p.id)}
+                />
+                <AddToCartButton
+                  variantId={p.defaultVariantId ?? null}
+                  available={p.availableForSale}
+                />
+                <Link
+                  href={`/products/${p.handle}`}
+                  className="rounded-md bg-[#196e41ff] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+                >
+                  Zum Produkt
+                </Link>
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function WishlistButton({
+  wishlisted,
+  onToggle,
+}: {
+  wishlisted: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={wishlisted ? "Von Wunschliste entfernen" : "Zur Wunschliste"}
+      aria-pressed={wishlisted}
+      title="Zur Wunschliste"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={`rounded-full border p-2 transition ${
+        wishlisted
+          ? "border-green-200 text-green-700"
+          : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
+      }`}
+    >
+      {wishlisted ? (
+        <HeartIconSolid className="h-4 w-4" />
+      ) : (
+        <HeartIconOutline className="h-4 w-4" />
+      )}
+    </button>
+  );
+}
+
+function AddToCartButton({
+  variantId,
+  available,
+}: {
+  variantId: string | null;
+  available: boolean;
+}) {
+  const { addToCart } = useCart();
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  const canAdd = Boolean(variantId) && available && !adding;
+
+  return (
+    <button
+      type="button"
+      disabled={!canAdd}
+      onClick={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!variantId) return;
+        setAdding(true);
+        try {
+          await addToCart(variantId, 1);
+          setAdded(true);
+          setTimeout(() => setAdded(false), 1200);
+        } finally {
+          setAdding(false);
+        }
+      }}
+      aria-label="In den Warenkorb"
+      title="In den Warenkorb"
+      className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+        canAdd
+          ? "border-green-200 text-green-800 hover:bg-green-50"
+          : "border-stone-200 text-stone-400"
+      }`}
+    >
+      <ShoppingCartIcon className="h-4 w-4" />
+      {added ? "Hinzugefuegt" : "In den Warenkorb"}
+    </button>
+  );
+}
+
+function ProductImageCarousel({
+  images,
+  alt,
+  className,
+  imageClassName,
+}: {
+  images: Array<{ url: string; altText?: string | null }>;
+  alt: string;
+  className?: string;
+  imageClassName?: string;
+}) {
+  const [index, setIndex] = useState(0);
+  const count = images.length;
+  const current = images[index];
+
+  const handlePrev = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (count <= 1) return;
+    setIndex((prev) => (prev - 1 + count) % count);
+  };
+
+  const handleNext = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (count <= 1) return;
+    setIndex((prev) => (prev + 1) % count);
+  };
+
+  return (
+    <div className={`relative ${className ?? ""}`}>
+      {current && (
+        <img
+          src={current.url}
+          alt={current.altText ?? alt}
+          className={imageClassName}
+        />
+      )}
+      {count > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Vorheriges Bild"
+            onClick={handlePrev}
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Naechstes Bild"
+            onClick={handleNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function formatPrice(price?: {
+  amount: string
+  currencyCode: string
+}) {
+  if (!price) return null
+
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: price.currencyCode,
+    minimumFractionDigits: 2,
+  }).format(Number(price.amount))
+}
+
+function getProductImages(product: any) {
+  const fromArray = Array.isArray(product?.images) ? product.images : [];
+  const fromEdges = Array.isArray(product?.images?.edges)
+    ? product.images.edges.map((edge: any) => edge.node).filter(Boolean)
+    : [];
+  const images = fromArray.length ? fromArray : fromEdges;
+  const featured = product?.featuredImage ?? null;
+
+  if (featured && !images.some((img: any) => img?.url === featured.url)) {
+    return [featured, ...images];
+  }
+
+  if (images.length) return images;
+  return featured ? [featured] : [];
+}

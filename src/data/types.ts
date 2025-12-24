@@ -1,6 +1,8 @@
-type ShopifyImage = {
+export type ProductImage = {
   url: string;
   altText: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 type ShopifyCollection = {
@@ -20,8 +22,11 @@ export type Product = {
   title: string;
   vendor: string;
   productType: string;
+  availableForSale: boolean;
+  defaultVariantId?: string | null;
   collections: ShopifyCollection[];
-  featuredImage: ShopifyImage | null;
+  featuredImage: ProductImage | null;
+  images?: ProductImage[];
   priceRange: {
     minVariantPrice: ShopifyPrice;
   };

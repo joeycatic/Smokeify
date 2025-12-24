@@ -1,7 +1,7 @@
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
-import DisplayProducts from "@/lib/displayProducts";
+import DisplayProducts from "@/components/DisplayProducts";
 import { getProducts } from "@/lib/shopify";
 import Link from "next/link";
 

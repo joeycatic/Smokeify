@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProductFilters } from "@/data/types";
 
 function Accordion({
@@ -30,7 +30,7 @@ function Accordion({
           className="text-black/70"
           aria-hidden
         >
-          ⌄
+          ▾
         </motion.span>
       </button>
 
@@ -71,7 +71,9 @@ export default function FilterDrawer({
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [section, setSection] = useState<"price" | "cat" | "vendor">("price");
+  const [section, setSection] = useState<"price" | "cat" | "vendor" | null>("price");
+  const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
 
   // ESC schließt + body lock
   useEffect(() => {
@@ -107,6 +109,33 @@ export default function FilterDrawer({
       collections: prev.collections.includes(handle)
         ? prev.collections.filter((c) => c !== handle)
         : [...prev.collections, handle],
+    }));
+  };
+
+  const priceRange = Math.max(priceMaxBound - priceMinBound, 1);
+  const minPercent = ((filters.priceMin - priceMinBound) / priceRange) * 100;
+  const maxPercent = ((filters.priceMax - priceMinBound) / priceRange) * 100;
+
+  const valueFromClientX = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return priceMinBound;
+    const ratio = (clientX - rect.left) / rect.width;
+    const clamped = Math.min(1, Math.max(0, ratio));
+    const raw = priceMinBound + clamped * (priceMaxBound - priceMinBound);
+    return Number(raw.toFixed(2));
+  };
+
+  const updateMin = (value: number) => {
+    setFilters((f) => ({
+      ...f,
+      priceMin: Math.min(value, f.priceMax),
+    }));
+  };
+
+  const updateMax = (value: number) => {
+    setFilters((f) => ({
+      ...f,
+      priceMax: Math.max(value, f.priceMin),
     }));
   };
 
@@ -168,48 +197,68 @@ export default function FilterDrawer({
                 <Accordion
                   title="PRICE"
                   open={section === "price"}
-                  onToggle={() => setSection((s) => (s === "price" ? "cat" : "price"))}
+                  onToggle={() => setSection((s) => (s === "price" ? null : "price"))}
                 >
                   <div className="flex items-center justify-between text-sm mb-3">
                     <span>€ {Number(filters.priceMin).toFixed(2)}</span>
                     <span>€ {Number(filters.priceMax).toFixed(2)}</span>
                   </div>
 
-                  {/* Simple double range (min/max) */}
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-black/60 mb-1">Min</p>
-                      <input
-                        type="range"
-                        min={priceMinBound}
-                        max={priceMaxBound}
-                        value={filters.priceMin}
-                        onChange={(e) => {
-                          const nextMin = Number(e.target.value);
-                          setFilters((f) => ({
-                            ...f,
-                            priceMin: Math.min(nextMin, f.priceMax),
-                          }));
+                  {/* Single bar with two thumbs */}
+                  <div className="relative mt-2 h-5">
+                    <div
+                      ref={trackRef}
+                      className="absolute left-2 right-2 top-0 h-5 select-none touch-none"
+                      onPointerDown={(e) => {
+                        const value = valueFromClientX(e.clientX);
+                        const distToMin = Math.abs(value - filters.priceMin);
+                        const distToMax = Math.abs(value - filters.priceMax);
+                        const nextThumb = distToMin <= distToMax ? "min" : "max";
+                        setActiveThumb(nextThumb);
+                        if (nextThumb === "min") updateMin(value);
+                        else updateMax(value);
+                        trackRef.current?.setPointerCapture(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!activeThumb) return;
+                        const value = valueFromClientX(e.clientX);
+                        if (activeThumb === "min") updateMin(value);
+                        else updateMax(value);
+                      }}
+                      onPointerUp={(e) => {
+                        setActiveThumb(null);
+                        trackRef.current?.releasePointerCapture(e.pointerId);
+                      }}
+                      onPointerCancel={(e) => {
+                        setActiveThumb(null);
+                        trackRef.current?.releasePointerCapture(e.pointerId);
+                      }}
+                    >
+                      <div className="absolute left-0 top-2 h-1 w-full rounded-full bg-black/10" />
+                      <div
+                        className="absolute top-2 h-1 rounded-full bg-black"
+                        style={{
+                          left: `${Math.max(0, Math.min(100, minPercent))}%`,
+                          right: `${Math.max(0, Math.min(100, 100 - maxPercent))}%`,
                         }}
-                        className="w-full"
                       />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-black/60 mb-1">Max</p>
-                      <input
-                        type="range"
-                        min={priceMinBound}
-                        max={priceMaxBound}
-                        value={filters.priceMax}
-                        onChange={(e) => {
-                          const nextMax = Number(e.target.value);
-                          setFilters((f) => ({
-                            ...f,
-                            priceMax: Math.max(nextMax, f.priceMin),
-                          }));
+                      <div
+                        className={`absolute top-1.5 h-3 w-3 rounded-full border border-black bg-white shadow ${
+                          activeThumb === "min" ? "z-30" : "z-20"
+                        }`}
+                        style={{
+                          left: `${Math.max(0, Math.min(100, minPercent))}%`,
+                          transform: "translateX(-50%)",
                         }}
-                        className="w-full"
+                      />
+                      <div
+                        className={`absolute top-1.5 h-3 w-3 rounded-full border border-black bg-white shadow ${
+                          activeThumb === "max" ? "z-30" : "z-20"
+                        }`}
+                        style={{
+                          left: `${Math.max(0, Math.min(100, maxPercent))}%`,
+                          transform: "translateX(-50%)",
+                        }}
                       />
                     </div>
                   </div>
@@ -219,7 +268,7 @@ export default function FilterDrawer({
                 <Accordion
                   title="CATEGORIES"
                   open={section === "cat"}
-                  onToggle={() => setSection((s) => (s === "cat" ? "vendor" : "cat"))}
+                  onToggle={() => setSection((s) => (s === "cat" ? null : "cat"))}
                 >
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {availableCollections.map(([handle, title]) => (
@@ -242,7 +291,7 @@ export default function FilterDrawer({
                 <Accordion
                   title="MANUFACTURER"
                   open={section === "vendor"}
-                  onToggle={() => setSection((s) => (s === "vendor" ? "price" : "vendor"))}
+                  onToggle={() => setSection((s) => (s === "vendor" ? null : "vendor"))}
                 >
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {availableVendors.map((vendor) => (

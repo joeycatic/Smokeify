@@ -28,6 +28,7 @@ export default function ProductDetailClient({
 
   const { cart, addToCart } = useCart();
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [addedPulse, setAddedPulse] = useState(false);
   
   return (
     <div className="space-y-6">
@@ -97,6 +98,8 @@ export default function ProductDetailClient({
 
             if (afterQty > beforeQty) {
               setToast({ type: "success", text: "Zum Warenkorb hinzugefugt." });
+              setAddedPulse(true);
+              setTimeout(() => setAddedPulse(false), 250);
             } else {
               setToast({ type: "error", text: "Nicht genug Bestand." });
             }
@@ -106,7 +109,9 @@ export default function ProductDetailClient({
             setTimeout(() => setToast(null), 1500);
           }
         }}
-        className="h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+        className={`h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white transition-transform duration-200 hover:opacity-90 disabled:opacity-40 ${
+          addedPulse ? "scale-[1.03]" : "scale-100"
+        }`}
       >
         {selectedVariant?.availableForSale ? "Add to Cart" : "Sold out"}
       </button>
