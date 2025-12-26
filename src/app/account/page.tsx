@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import type { SavedSetup } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
 import SignOutButton from "@/components/SignOutButton";
+import AccountDashboardClient from "./AccountDashboardClient";
 
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
@@ -30,7 +32,7 @@ export default async function AccountPage() {
     );
   }
 
-  const [setups, wishlistCount] = await Promise.all([
+  const [setups, wishlistCount, user] = await Promise.all([
     prisma.savedSetup.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -39,7 +41,23 @@ export default async function AccountPage() {
     prisma.wishlistItem.count({
       where: { userId: session.user.id },
     }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        name: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        address: true,
+      },
+    }),
   ]);
+  const typedSetups = setups as SavedSetup[];
+  const setupItems = typedSetups.map((setup) => ({
+    id: setup.id,
+    name: setup.name ?? "Saved setup",
+    createdAt: setup.createdAt.toISOString(),
+  }));
 
   return (
     <PageLayout>
@@ -50,58 +68,24 @@ export default async function AccountPage() {
           </h1>
           <p className="text-sm text-stone-600">
             Eingeloggt als {session.user.email ?? "User"}
-            {session.user.role === "ADMIN" ? ` · Rolle: ${session.user.role}` : ""}
+            {session.user.role === "ADMIN" ? ` - Rolle: ${session.user.role}` : ""}
           </p>
           <div className="mt-4">
             <SignOutButton />
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-xl border border-black/10 bg-white p-6">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              SAVED SETUPS
-            </h2>
-            {setups.length === 0 ? (
-              <p className="text-sm text-stone-600">
-                Noch keine gespeicherten Setups.
-              </p>
-            ) : (
-              <ul className="space-y-3 text-sm">
-                {setups.map((setup) => (
-                  <li
-                    key={setup.id}
-                    className="rounded-lg border border-black/10 bg-stone-50 px-3 py-2"
-                  >
-                    <div className="font-semibold">{setup.name}</div>
-                    <div className="text-xs text-stone-500">
-                      {new Date(setup.createdAt).toLocaleDateString("de-DE")}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="rounded-xl border border-black/10 bg-white p-6">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              WISHLIST & ORDERS
-            </h2>
-            <div className="space-y-4 text-sm text-stone-700">
-              <div className="flex items-center justify-between rounded-lg border border-black/10 bg-stone-50 px-3 py-2">
-                <span>Wunschliste</span>
-                <span className="font-semibold">{wishlistCount}</span>
-              </div>
-              <div className="rounded-lg border border-black/10 bg-stone-50 px-3 py-2">
-                <p className="font-semibold">Order history</p>
-                <p className="text-xs text-stone-500">
-                  Shopify-Anbindung folgt. Sobald verknuepft, erscheinen hier die
-                  Bestellungen.
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
+        <AccountDashboardClient
+          profile={{
+            name: user?.name ?? "",
+            email: user?.email ?? "",
+            firstName: user?.firstName ?? "",
+            lastName: user?.lastName ?? "",
+            address: user?.address ?? "",
+          }}
+          wishlistCount={wishlistCount}
+          setups={setupItems}
+        />
       </div>
     </PageLayout>
   );
