@@ -29,3 +29,19 @@ body {
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.badge-pop {
+  animation: badge-pop 220ms ease-out;
+}

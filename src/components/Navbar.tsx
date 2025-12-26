@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import {
   HeartIcon,
   ShoppingBagIcon,
@@ -26,6 +27,22 @@ export function Navbar() {
 
   const count = loading ? 0 : cart?.totalQuantity ?? 0;
   const wishlistCount = ids.length;
+  const [cartPop, setCartPop] = useState(false);
+  const [wishlistPop, setWishlistPop] = useState(false);
+
+  useEffect(() => {
+    if (count === 0) return;
+    setCartPop(true);
+    const timer = setTimeout(() => setCartPop(false), 250);
+    return () => clearTimeout(timer);
+  }, [count]);
+
+  useEffect(() => {
+    if (wishlistCount === 0) return;
+    setWishlistPop(true);
+    const timer = setTimeout(() => setWishlistPop(false), 250);
+    return () => clearTimeout(timer);
+  }, [wishlistCount]);
   return (
     <nav className="relative w-full border-b border-black/10">
       <div className="mx-auto max-w-7xl px-5 py-8">
@@ -59,7 +76,11 @@ export function Navbar() {
               <Link href="/cart" className="relative hover:opacity-70">
                 <ShoppingBagIcon className="h-5 w-5" />
                 {count > 0 && (
-                  <span className="absolute -right-2 -top-2 rounded-full bg-black px-1.5 text-xs text-white bg-red-600">
+                  <span
+                    className={`absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white ${
+                      cartPop ? "badge-pop" : ""
+                    }`}
+                  >
                     {count}
                   </span>
                 )}
@@ -142,7 +163,11 @@ export function Navbar() {
             <Link href="/wishlist" className="relative hover:opacity-70">
               <HeartIcon className="h-5 w-5" />
               {wishlistCount > 0 && (
-                <span className="absolute -right-2 -top-2 rounded-full bg-black px-1.5 text-xs text-white bg-red-600">
+                <span
+                  className={`absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white ${
+                    wishlistPop ? "badge-pop" : ""
+                  }`}
+                >
                   {wishlistCount}
                 </span>
               )}
