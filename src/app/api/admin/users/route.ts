@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+function requireAdmin(session: Awaited<ReturnType<typeof getServerSession>>) {
+  if (!session?.user?.id || session.user.role !== "ADMIN") {
+    return false;
+  }
+  return true;
+}
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+
+  return NextResponse.json({
+    users: users.map((user) => ({
+      ...user,
+      createdAt: user.createdAt.toISOString(),
+    })),
+  });
+}
+
+export async function PATCH(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = (await request.json()) as { id?: string; role?: string };
+  if (!body.id || !body.role) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const role = body.role.toUpperCase();
+  if (!["USER", "ADMIN", "STAFF"].includes(role)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
+
+  await prisma.user.update({
+    where: { id: body.id },
+    data: { role: role as "USER" | "ADMIN" | "STAFF" },
+  });
+
+  return NextResponse.json({ ok: true });
+}

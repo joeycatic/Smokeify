@@ -18,7 +18,7 @@ export function HeroBanner() {
   const slide = heroSlides[index];
 
   return (
-    <section className="relative h-[70vh] w-full overflow-hidden mb-10">
+    <section className="relative h-[70vh] w-full overflow-hidden mb-10 mt-5">
       {/* Background Image */}
       <img
         key={slide.image}

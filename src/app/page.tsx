@@ -20,7 +20,7 @@ export default async function StorePage() {
         <section className="pt-16 pb-12">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
-              Bestsellers
+              Bestseller
             </h2>
             <div 
               className="mx-auto mb-4 rounded-xl" 

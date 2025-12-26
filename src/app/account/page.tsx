@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
-import type { SavedSetup } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
@@ -48,12 +47,15 @@ export default async function AccountPage() {
         email: true,
         firstName: true,
         lastName: true,
-        address: true,
+        street: true,
+        houseNumber: true,
+        postalCode: true,
+        city: true,
+        country: true,
       },
     }),
   ]);
-  const typedSetups = setups as SavedSetup[];
-  const setupItems = typedSetups.map((setup) => ({
+  const setupItems = setups.map((setup: { id: string; name: string | null; createdAt: Date }) => ({
     id: setup.id,
     name: setup.name ?? "Saved setup",
     createdAt: setup.createdAt.toISOString(),
@@ -73,6 +75,16 @@ export default async function AccountPage() {
           <div className="mt-4">
             <SignOutButton />
           </div>
+          {session.user.role === "ADMIN" && (
+            <div className="mt-3">
+              <Link
+                href="/admin"
+                className="inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              >
+                Zum Admin Panel
+              </Link>
+            </div>
+          )}
         </div>
 
         <AccountDashboardClient
@@ -81,7 +93,11 @@ export default async function AccountPage() {
             email: user?.email ?? "",
             firstName: user?.firstName ?? "",
             lastName: user?.lastName ?? "",
-            address: user?.address ?? "",
+            street: user?.street ?? "",
+            houseNumber: user?.houseNumber ?? "",
+            postalCode: user?.postalCode ?? "",
+            city: user?.city ?? "",
+            country: user?.country ?? "",
           }}
           wishlistCount={wishlistCount}
           setups={setupItems}

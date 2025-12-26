@@ -15,7 +15,11 @@ type Profile = {
   email: string;
   firstName: string;
   lastName: string;
-  address: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  city: string;
+  country: string;
 };
 
 type Props = {
@@ -70,7 +74,11 @@ export default function AccountDashboardClient({
             initialEmail={profile.email}
             initialFirstName={profile.firstName}
             initialLastName={profile.lastName}
-            initialAddress={profile.address}
+            initialStreet={profile.street}
+            initialHouseNumber={profile.houseNumber}
+            initialPostalCode={profile.postalCode}
+            initialCity={profile.city}
+            initialCountry={profile.country}
           />
         )}
 

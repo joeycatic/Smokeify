@@ -14,25 +14,43 @@ export async function POST(request: Request) {
     email?: string;
     firstName?: string;
     lastName?: string;
-    address?: string;
+    street?: string;
+    houseNumber?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
   };
 
   const email = body.email?.trim().toLowerCase() || undefined;
+  const name = body.name?.trim() || undefined;
   if (email && email !== session.user.email) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing && existing.id !== session.user.id) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }
   }
+  if (name) {
+    const existing = await prisma.user.findFirst({
+      where: { name, NOT: { id: session.user.id } },
+      select: { id: true },
+    });
+    if (existing) {
+      return NextResponse.json({ error: "Username already in use" }, { status: 409 });
+    }
+  }
 
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data: {
-      name: body.name?.trim() || undefined,
+      name,
       email,
       firstName: body.firstName?.trim() || undefined,
       lastName: body.lastName?.trim() || undefined,
-      address: body.address?.trim() || undefined,
+      street: body.street?.trim() || undefined,
+      houseNumber: body.houseNumber?.trim() || undefined,
+      postalCode: body.postalCode?.trim() || undefined,
+      city: body.city?.trim() || undefined,
+      country: body.country?.trim() || undefined,
     },
     select: {
       id: true,
@@ -40,7 +58,11 @@ export async function POST(request: Request) {
       name: true,
       firstName: true,
       lastName: true,
-      address: true,
+      street: true,
+      houseNumber: true,
+      postalCode: true,
+      city: true,
+      country: true,
     },
   });
 

@@ -15,7 +15,11 @@ export default function SignInPage() {
   const [registerName, setRegisterName] = useState("");
   const [registerFirstName, setRegisterFirstName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
-  const [registerAddress, setRegisterAddress] = useState("");
+  const [registerStreet, setRegisterStreet] = useState("");
+  const [registerHouseNumber, setRegisterHouseNumber] = useState("");
+  const [registerPostalCode, setRegisterPostalCode] = useState("");
+  const [registerCity, setRegisterCity] = useState("");
+  const [registerCountry, setRegisterCountry] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerLoading, setRegisterLoading] = useState(false);
@@ -119,14 +123,18 @@ export default function SignInPage() {
                   const res = await fetch("/api/auth/register", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: registerName,
-                  firstName: registerFirstName,
-                  lastName: registerLastName,
-                  address: registerAddress,
-                  email: registerEmail,
-                  password: registerPassword,
-                }),
+                    body: JSON.stringify({
+                      name: registerName,
+                      firstName: registerFirstName,
+                      lastName: registerLastName,
+                      street: registerStreet,
+                      houseNumber: registerHouseNumber,
+                      postalCode: registerPostalCode,
+                      city: registerCity,
+                      country: registerCountry,
+                      email: registerEmail,
+                      password: registerPassword,
+                    }),
                   });
                   if (!res.ok) {
                     const data = (await res.json()) as { error?: string };
@@ -170,12 +178,48 @@ export default function SignInPage() {
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">
-                Adresse
+                Street
               </label>
               <input
                 type="text"
-                value={registerAddress}
-                onChange={(event) => setRegisterAddress(event.target.value)}
+                value={registerStreet}
+                onChange={(event) => setRegisterStreet(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                House number
+              </label>
+              <input
+                type="text"
+                value={registerHouseNumber}
+                onChange={(event) => setRegisterHouseNumber(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                Postcode
+              </label>
+              <input
+                type="text"
+                value={registerPostalCode}
+                onChange={(event) => setRegisterPostalCode(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                City
+              </label>
+              <input
+                type="text"
+                value={registerCity}
+                onChange={(event) => setRegisterCity(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                Country
+              </label>
+              <input
+                type="text"
+                value={registerCountry}
+                onChange={(event) => setRegisterCountry(event.target.value)}
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">

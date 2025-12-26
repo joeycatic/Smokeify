@@ -11,7 +11,11 @@ export async function POST(request: Request) {
     name?: string;
     firstName?: string;
     lastName?: string;
-    address?: string;
+    street?: string;
+    houseNumber?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
   };
 
   const email = body.email?.trim().toLowerCase();
@@ -19,7 +23,11 @@ export async function POST(request: Request) {
   const name = body.name?.trim();
   const firstName = body.firstName?.trim();
   const lastName = body.lastName?.trim();
-  const address = body.address?.trim();
+  const street = body.street?.trim();
+  const houseNumber = body.houseNumber?.trim();
+  const postalCode = body.postalCode?.trim();
+  const city = body.city?.trim();
+  const country = body.country?.trim();
 
   if (!email || !password) {
     return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
@@ -29,6 +37,15 @@ export async function POST(request: Request) {
   if (existing) {
     return NextResponse.json({ error: "Email already in use" }, { status: 409 });
   }
+  if (name) {
+    const existingName = await prisma.user.findFirst({
+      where: { name },
+      select: { id: true },
+    });
+    if (existingName) {
+      return NextResponse.json({ error: "Username already in use" }, { status: 409 });
+    }
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
@@ -37,7 +54,11 @@ export async function POST(request: Request) {
       name,
       firstName,
       lastName,
-      address,
+      street,
+      houseNumber,
+      postalCode,
+      city,
+      country,
       passwordHash,
     },
   });

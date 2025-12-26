@@ -20,10 +20,14 @@ enum VerificationPurpose {
 
 model User {
   id             String         @id @default(cuid())
-  name           String?
+  name           String?        @unique
   firstName      String?
   lastName       String?
-  address        String?
+  street         String?
+  houseNumber    String?
+  postalCode     String?
+  city           String?
+  country        String?
   email          String?        @unique
   emailVerified  DateTime?
   image          String?

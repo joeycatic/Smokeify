@@ -5,6 +5,13 @@ import { useSession } from "next-auth/react";
 
 const STORAGE_KEY = "wishlist";
 
+function emitWishlistChange(ids: string[]) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("wishlist:change", { detail: { ids } })
+  );
+}
+
 function readStoredIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -19,7 +26,7 @@ function readStoredIds(): string[] {
 function writeStoredIds(ids: string[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  window.dispatchEvent(new Event("wishlist:change"));
+  emitWishlistChange(ids);
 }
 
 export function useWishlist() {
@@ -28,13 +35,19 @@ export function useWishlist() {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (isAuthenticated) return;
-    setIds(readStoredIds());
+    if (!isAuthenticated) setIds(readStoredIds());
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) setIds(readStoredIds());
     };
-    const onWishlistChange = () => setIds(readStoredIds());
+    const onWishlistChange = (event: Event) => {
+      const custom = event as CustomEvent<{ ids?: string[] }>;
+      if (custom.detail?.ids) {
+        setIds(custom.detail.ids);
+      } else {
+        setIds(readStoredIds());
+      }
+    };
     window.addEventListener("storage", onStorage);
     window.addEventListener("wishlist:change", onWishlistChange);
     return () => {
@@ -74,13 +87,17 @@ export function useWishlist() {
 
     const willRemove = ids.includes(id);
     setIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    const next = willRemove ? ids.filter((p) => p !== id) : [...ids, id];
+    setIds(next);
+    emitWishlistChange(next);
     const method = willRemove ? "DELETE" : "POST";
     fetch("/api/wishlist/items", {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId: id }),
     }).catch(() => {
-      setIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+      setIds(ids);
+      emitWishlistChange(ids);
     });
   };
 
@@ -90,7 +107,10 @@ export function useWishlist() {
     if (!isAuthenticated) {
       setIds([]);
       writeStoredIds([]);
+      return;
     }
+    setIds([]);
+    emitWishlistChange([]);
   };
 
   return { ids, isWishlisted, toggle, clear };

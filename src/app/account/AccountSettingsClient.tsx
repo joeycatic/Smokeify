@@ -7,7 +7,11 @@ type Props = {
   initialEmail: string;
   initialFirstName: string;
   initialLastName: string;
-  initialAddress: string;
+  initialStreet: string;
+  initialHouseNumber: string;
+  initialPostalCode: string;
+  initialCity: string;
+  initialCountry: string;
 };
 
 export default function AccountSettingsClient({
@@ -15,13 +19,21 @@ export default function AccountSettingsClient({
   initialEmail,
   initialFirstName,
   initialLastName,
-  initialAddress,
+  initialStreet,
+  initialHouseNumber,
+  initialPostalCode,
+  initialCity,
+  initialCountry,
 }: Props) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [firstName, setFirstName] = useState(initialFirstName);
   const [lastName, setLastName] = useState(initialLastName);
-  const [address, setAddress] = useState(initialAddress);
+  const [street, setStreet] = useState(initialStreet);
+  const [houseNumber, setHouseNumber] = useState(initialHouseNumber);
+  const [postalCode, setPostalCode] = useState(initialPostalCode);
+  const [city, setCity] = useState(initialCity);
+  const [country, setCountry] = useState(initialCountry);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [profileError, setProfileError] = useState("");
 
@@ -43,7 +55,11 @@ export default function AccountSettingsClient({
           email,
           firstName,
           lastName,
-          address,
+          street,
+          houseNumber,
+          postalCode,
+          city,
+          country,
         }),
       });
       if (!res.ok) {
@@ -146,12 +162,48 @@ export default function AccountSettingsClient({
             className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
           />
           <label className="block text-xs font-semibold text-stone-600">
-            Address
+            Street
           </label>
           <input
             type="text"
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
+            value={street}
+            onChange={(event) => setStreet(event.target.value)}
+            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+          />
+          <label className="block text-xs font-semibold text-stone-600">
+            House number
+          </label>
+          <input
+            type="text"
+            value={houseNumber}
+            onChange={(event) => setHouseNumber(event.target.value)}
+            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+          />
+          <label className="block text-xs font-semibold text-stone-600">
+            Postcode
+          </label>
+          <input
+            type="text"
+            value={postalCode}
+            onChange={(event) => setPostalCode(event.target.value)}
+            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+          />
+          <label className="block text-xs font-semibold text-stone-600">
+            City
+          </label>
+          <input
+            type="text"
+            value={city}
+            onChange={(event) => setCity(event.target.value)}
+            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+          />
+          <label className="block text-xs font-semibold text-stone-600">
+            Country
+          </label>
+          <input
+            type="text"
+            value={country}
+            onChange={(event) => setCountry(event.target.value)}
             className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
           />
           {profileError && <p className="text-xs text-red-600">{profileError}</p>}
