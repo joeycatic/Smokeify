@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   HeartIcon,
   ShoppingBagIcon,
@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -24,6 +25,11 @@ function formatPrice(amount: string, currencyCode: string) {
 export function Navbar() {
   const { cart, loading } = useCart();
   const { ids } = useWishlist();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">("idle");
+  const accountRef = useRef<HTMLDivElement | null>(null);
 
   const count = loading ? 0 : cart?.totalQuantity ?? 0;
   const wishlistCount = ids.length;
@@ -43,13 +49,24 @@ export function Navbar() {
     const timer = setTimeout(() => setWishlistPop(false), 250);
     return () => clearTimeout(timer);
   }, [wishlistCount]);
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (!accountRef.current) return;
+      if (!accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   return (
     <nav className="relative w-full border-b border-black/10">
       <div className="mx-auto max-w-7xl px-5 py-8">
         <div className="relative flex items-center justify-between">
 
           {/* LEFT */}
-          <div className="flex items-center gap-8 text-sm font-semibold text-stone-800">
+          <div className="flex items-center gap-8 text-m font-semibold text-stone-800">
             <Link href="/products" className="hover:opacity-70 hover:underline underline-offset-4">
               Products
             </Link>
@@ -160,7 +177,7 @@ export function Navbar() {
                 )}
               </div>
             </div>
-            <Link href="/wishlist" className="relative hover:opacity-70">
+            <Link href="/wishlist" className="relative hover:opacity-70 pb-3 -mb-3">
               <HeartIcon className="h-5 w-5" />
               {wishlistCount > 0 && (
                 <span
@@ -172,9 +189,100 @@ export function Navbar() {
                 </span>
               )}
             </Link>
-            <Link href="/account" className="hover:opacity-70">
-              <UserCircleIcon className="h-5 w-5" />
-            </Link>
+            <div className="relative pb-3 -mb-3 -mr-1" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((prev) => !prev)}
+                className="flex h-5 w-5 items-center justify-center hover:opacity-70"
+                aria-expanded={accountOpen}
+                aria-haspopup="true"
+              >
+                <UserCircleIcon className="h-5 w-5" />
+              </button>
+              {accountOpen && (
+                <div className="absolute right-0 top-full z-20 mt-3 w-80 rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl">
+                  <p className="mb-3 text-xs font-semibold tracking-widest text-black/60">
+                    ACCOUNT
+                  </p>
+                  {!isAuthenticated && (
+                    <form
+                      onSubmit={async (event) => {
+                        event.preventDefault();
+                        setLoginStatus("idle");
+                        const form = event.currentTarget as HTMLFormElement;
+                        const formData = new FormData(form);
+                        const res = await signIn("credentials", {
+                          email: String(formData.get("email") ?? ""),
+                          password: String(formData.get("password") ?? ""),
+                          redirect: false,
+                        });
+                        if (res?.ok) {
+                          setLoginStatus("ok");
+                          return;
+                        }
+                        setLoginStatus("error");
+                      }}
+                      className="space-y-2"
+                    >
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="Email"
+                      className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                    />
+                    <input
+                      name="password"
+                      type="password"
+                      required
+                      placeholder="Password"
+                      className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full rounded-md bg-black px-3 py-2.5 text-sm font-semibold text-white"
+                    >
+                      Login
+                    </button>
+                      {loginStatus === "ok" && (
+                        <p className="text-xs text-green-700">
+                          Erfolgreich angemeldet.
+                        </p>
+                      )}
+                      {loginStatus === "error" && (
+                        <p className="text-xs text-red-600">
+                          Login fehlgeschlagen.
+                        </p>
+                      )}
+                    </form>
+                  )}
+                  <div className="mt-4 flex items-center gap-3">
+                    <Link
+                      href="/account"
+                      className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                    >
+                      View profile
+                    </Link>
+                    {isAuthenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => signOut({ redirect: false })}
+                        className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                      >
+                        Log out
+                      </button>
+                    ) : (
+                      <Link
+                        href="/auth/verify"
+                        className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                      >
+                        Verify code
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
@@ -182,4 +290,3 @@ export function Navbar() {
     </nav>
   );
 }
-

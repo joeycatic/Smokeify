@@ -10,6 +10,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">("idle");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [registerName, setRegisterName] = useState("");
@@ -38,7 +39,14 @@ export default function SignInPage() {
     if (emailParam) {
       setEmail(emailParam);
     }
+    setLoginStatus("idle");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!email || !password) {
+      setLoginStatus("idle");
+    }
+  }, [email, password]);
 
   return (
     <PageLayout>
@@ -56,28 +64,31 @@ export default function SignInPage() {
               LOGIN
             </h2>
             <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setError("");
-                setNotice("");
-                const res = await signIn("credentials", {
-                  email,
-                  password,
-                  redirect: false,
-                  callbackUrl: "/account",
-                });
-                if (res?.ok) {
-                  router.push("/account");
-                  return;
-                }
-                if (res?.error === "NEW_DEVICE") {
-                  router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
-                  return;
-                }
-                setError("Login fehlgeschlagen. Bitte pruefe deine Daten.");
-              }}
-              className="space-y-2"
-            >
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setError("");
+              setNotice("");
+              setLoginStatus("idle");
+              const res = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
+                callbackUrl: "/account",
+              });
+              if (res?.ok) {
+                setLoginStatus("ok");
+                setTimeout(() => router.push("/account"), 600);
+                return;
+              }
+              if (res?.error === "NEW_DEVICE") {
+                router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
+                return;
+              }
+              setError("Login fehlgeschlagen. Bitte pruefe deine Daten.");
+              setLoginStatus("error");
+            }}
+            className="space-y-2"
+          >
               <label className="block text-xs font-semibold text-stone-600">
                 Email
               </label>
@@ -99,10 +110,13 @@ export default function SignInPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
-              {notice && <p className="text-xs text-green-700">{notice}</p>}
-              {error && <p className="text-xs text-red-600">{error}</p>}
-              <button
-                type="submit"
+            {notice && <p className="text-xs text-green-700">{notice}</p>}
+            {loginStatus === "ok" && (
+              <p className="text-xs text-green-700">Erfolgreich angemeldet.</p>
+            )}
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button
+              type="submit"
                 className="w-full rounded-md bg-black px-4 py-2 text-sm font-semibold text-white"
               >
                 Login
