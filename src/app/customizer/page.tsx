@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
 
 type Option = {
@@ -43,10 +44,13 @@ function formatPrice(amount: number) {
 }
 
 export default function CustomizerPage() {
+  const { status } = useSession();
   const [sizeId, setSizeId] = useState("m");
   const [lightId, setLightId] = useState("led-300");
   const [ventId, setVentId] = useState("vent-basic");
   const [extras, setExtras] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const selectedSize = SIZE_OPTIONS.find((o) => o.id === sizeId);
   const selectedLight = LIGHT_OPTIONS.find((o) => o.id === lightId);
@@ -62,6 +66,35 @@ export default function CustomizerPage() {
     (selectedLight?.price ?? 0) +
     (selectedVent?.price ?? 0) +
     extrasTotal;
+
+  const handleSave = async () => {
+    if (status !== "authenticated") {
+      await signIn();
+      return;
+    }
+    setSaving(true);
+    setSaved(false);
+    try {
+      await fetch("/api/setups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${selectedSize?.label ?? "Setup"} / ${selectedLight?.label ?? ""}`.trim(),
+          data: {
+            sizeId,
+            lightId,
+            ventId,
+            extras,
+            total,
+          },
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <PageLayout>
@@ -215,9 +248,11 @@ export default function CustomizerPage() {
             <div className="mt-6 space-y-2">
               <button
                 type="button"
-                className="w-full rounded-md bg-black px-4 py-3 text-sm font-semibold text-white"
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full rounded-md bg-black px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
               >
-                Setup speichern
+                {saving ? "Speichern..." : saved ? "Gespeichert" : "Setup speichern"}
               </button>
               <button
                 type="button"
