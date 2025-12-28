@@ -112,7 +112,7 @@ export default function CartPage() {
             </div>
             <a
             href={cart.checkoutUrl}
-            className="rounded-md bg-black px-5 py-3 text-sm font-semibold text-white"
+            className="rounded-md border border-green-900 bg-green-800 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-900"
             >
             Zur Kasse
             </a>

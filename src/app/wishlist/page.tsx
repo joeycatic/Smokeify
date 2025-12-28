@@ -40,7 +40,7 @@ export default function WishlistPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-10 text-stone-800">
+      <div className="mx-auto max-w-5xl px-6 py-10 text-black/80">
         <h1 className="text-3xl font-bold mb-6" style={{ color: "#2f3e36" }}>
           Wunschliste
         </h1>

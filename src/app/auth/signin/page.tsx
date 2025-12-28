@@ -93,11 +93,11 @@ export default function SignInPage() {
                 Email
               </label>
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
+                placeholder="Email or username"
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">

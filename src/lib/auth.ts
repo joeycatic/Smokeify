@@ -17,12 +17,20 @@ providers.push(
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const email = credentials?.email?.toLowerCase().trim();
+      const identifier = credentials?.email?.trim() ?? "";
+      const identifierLower = identifier.toLowerCase();
       const password = credentials?.password ?? "";
-      if (!email || !password) return null;
+      if (!identifier || !password) return null;
 
-      const user = await prisma.user.findUnique({ where: { email } });
-      if (!user || !user.passwordHash) return null;
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: identifierLower, mode: "insensitive" } },
+            { name: { equals: identifier, mode: "insensitive" } },
+          ],
+        },
+      });
+      if (!user || !user.passwordHash || !user.email) return null;
 
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) return null;
@@ -55,14 +63,18 @@ providers.push(
       await prisma.verificationCode.create({
         data: {
           userId: user.id,
-          email,
+          email: user.email,
           codeHash,
           purpose: "NEW_DEVICE",
           expiresAt,
         },
       });
 
-      await sendVerificationCodeEmail({ email, code, purpose: "NEW_DEVICE" });
+      await sendVerificationCodeEmail({
+        email: user.email,
+        code,
+        purpose: "NEW_DEVICE",
+      });
 
       throw new Error("NEW_DEVICE");
     },
