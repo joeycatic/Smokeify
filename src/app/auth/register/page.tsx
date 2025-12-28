@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,14 +16,17 @@ export default function RegisterPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
-        <h1 className="text-3xl font-bold mb-3" style={{ color: "#2f3e36" }}>
-          Register
-        </h1>
-        <p className="text-sm text-stone-600 mb-8">
-          Erstelle ein Konto. Du erhaeltst einen Code zur Bestaetigung.
-        </p>
+        <div className="rounded-md border border-black/10 bg-white p-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
+              Registrieren
+            </h1>
+            <p className="text-sm text-stone-600 mb-6">
+              Erstelle ein Konto. Du erhältst einen Code zur Bestaetigung.
+            </p>
+          </div>
 
-        <form
+          <form
           onSubmit={async (event) => {
             event.preventDefault();
             setError("");
@@ -38,24 +42,33 @@ export default function RegisterPage() {
                 setError(data.error ?? "Registrierung fehlgeschlagen.");
                 return;
               }
-              router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
+              const returnTo = searchParams.get("returnTo") || "/";
+              sessionStorage.setItem("smokeify_verify_email", email);
+              sessionStorage.setItem("smokeify_verify_password", password);
+              sessionStorage.setItem("smokeify_return_to", returnTo);
+              router.push(
+                `/auth/verify?email=${encodeURIComponent(
+                  email
+                )}&returnTo=${encodeURIComponent(returnTo)}`
+              );
             } finally {
               setLoading(false);
             }
           }}
-          className="space-y-3 rounded-md border border-black/10 bg-white p-4"
-        >
+          className="space-y-3"
+          >
           <label className="block text-xs font-semibold text-stone-600">
-            Name
+            Username *
           </label>
           <input
             type="text"
+            required
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
           />
           <label className="block text-xs font-semibold text-stone-600">
-            Email
+            Email *
           </label>
           <input
             type="email"
@@ -65,7 +78,7 @@ export default function RegisterPage() {
             className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
           />
           <label className="block text-xs font-semibold text-stone-600">
-            Passwort
+            Passwort *
           </label>
           <input
             type="password"
@@ -78,18 +91,19 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="h-12 w-full cursor-pointer rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {loading ? "Bitte warten..." : "Register"}
+            {loading ? "Bitte warten..." : "Registrieren"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/auth/signin")}
-            className="w-full rounded-md border border-black/10 px-4 py-2 text-sm font-semibold text-stone-700"
+            className="h-12 w-full cursor-pointer rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
           >
-            Back to login
+            Zurück zum login
           </button>
         </form>
+        </div>
       </div>
     </PageLayout>
   );

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { MouseEvent } from "react";
 import {
   ArrowTopRightOnSquareIcon,
@@ -281,6 +282,7 @@ function ProductImageCarousel({
   imageClassName?: string;
 }) {
   const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
   const count = images.length;
   const current = images[index];
 
@@ -288,6 +290,7 @@ function ProductImageCarousel({
     event.preventDefault();
     event.stopPropagation();
     if (count <= 1) return;
+    setDirection(-1);
     setIndex((prev) => (prev - 1 + count) % count);
   };
 
@@ -295,18 +298,31 @@ function ProductImageCarousel({
     event.preventDefault();
     event.stopPropagation();
     if (count <= 1) return;
+    setDirection(1);
     setIndex((prev) => (prev + 1) % count);
   };
 
   return (
     <div className={`relative ${className ?? ""}`}>
-      {current && (
-        <img
-          src={current.url}
-          alt={current.altText ?? alt}
-          className={imageClassName}
-        />
-      )}
+      <AnimatePresence initial={false} mode="wait">
+        {current && (
+          <motion.img
+            key={`${current.url}-${index}`}
+            src={current.url}
+            alt={current.altText ?? alt}
+            className={`absolute inset-0 ${imageClassName ?? ""}`}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            variants={{
+              enter: { opacity: 0 },
+              center: { opacity: 1 },
+              exit: { opacity: 0 },
+            }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          />
+        )}
+      </AnimatePresence>
       {count > 1 && (
         <>
           <button

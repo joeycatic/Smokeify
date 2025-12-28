@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 
@@ -14,7 +15,12 @@ export default function VerifyPage() {
 
   useEffect(() => {
     const initialEmail = searchParams.get("email");
-    if (initialEmail) setEmail(initialEmail);
+    if (initialEmail) {
+      setEmail(initialEmail);
+      return;
+    }
+    const storedEmail = sessionStorage.getItem("smokeify_verify_email");
+    if (storedEmail) setEmail(storedEmail);
   }, [searchParams]);
 
   return (
@@ -43,7 +49,36 @@ export default function VerifyPage() {
                 setError(data.error ?? "Code ungueltig.");
                 return;
               }
-              router.push(`/auth/signin?verified=1&email=${encodeURIComponent(email)}`);
+              const storedEmail =
+                sessionStorage.getItem("smokeify_verify_email") || email;
+              const storedPassword = sessionStorage.getItem(
+                "smokeify_verify_password"
+              );
+              const returnTo =
+                searchParams.get("returnTo") ||
+                sessionStorage.getItem("smokeify_return_to") ||
+                "/account";
+
+              sessionStorage.removeItem("smokeify_verify_email");
+              sessionStorage.removeItem("smokeify_verify_password");
+              sessionStorage.removeItem("smokeify_return_to");
+
+              if (storedPassword) {
+                const signInResult = await signIn("credentials", {
+                  email: storedEmail,
+                  password: storedPassword,
+                  redirect: false,
+                  callbackUrl: returnTo,
+                });
+                if (signInResult?.ok) {
+                  router.push(returnTo);
+                  return;
+                }
+              }
+
+              router.push(
+                `/auth/signin?verified=1&email=${encodeURIComponent(email)}`
+              );
             } finally {
               setLoading(false);
             }

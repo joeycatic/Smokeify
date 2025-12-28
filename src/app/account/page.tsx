@@ -55,26 +55,27 @@ export default async function AccountPage() {
       },
     }),
   ]);
-  const setupItems = setups.map((setup: { id: string; name: string | null; createdAt: Date }) => ({
-    id: setup.id,
-    name: setup.name ?? "Saved setup",
-    createdAt: setup.createdAt.toISOString(),
-  }));
+  const setupItems = setups.map(
+    (setup: { id: string; name: string | null; createdAt: Date }) => ({
+      id: setup.id,
+      name: setup.name ?? "Saved setup",
+      createdAt: setup.createdAt.toISOString(),
+    })
+  );
 
   return (
     <PageLayout>
       <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
             Account
           </h1>
           <p className="text-sm text-stone-600">
             Eingeloggt als {session.user.email ?? "User"}
-            {session.user.role === "ADMIN" ? ` - Rolle: ${session.user.role}` : ""}
+            {session.user.role === "ADMIN"
+              ? ` - Rolle: ${session.user.role}`
+              : ""}
           </p>
-          <div className="mt-4">
-            <SignOutButton />
-          </div>
           {session.user.role === "ADMIN" && (
             <div className="mt-3">
               <Link
@@ -102,6 +103,9 @@ export default async function AccountPage() {
           wishlistCount={wishlistCount}
           setups={setupItems}
         />
+        <div className="mt-4">
+          <SignOutButton />
+        </div>
       </div>
     </PageLayout>
   );

@@ -7,9 +7,9 @@ export default function SignOutButton() {
     <button
       type="button"
       onClick={() => signOut({ callbackUrl: "/" })}
-      className="inline-flex rounded-md border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-black/20"
+      className="inline-flex h-12 items-center rounded-md border border-black/15 bg-white px-5 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
     >
-      Sign out
+      Ausloggen
     </button>
   );
 }

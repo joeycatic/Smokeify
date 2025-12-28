@@ -71,7 +71,9 @@ export default function FilterDrawer({
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [section, setSection] = useState<"price" | "cat" | "vendor" | null>("price");
+  const [section, setSection] = useState<"price" | "cat" | "vendor" | null>(
+    "price"
+  );
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,7 +92,8 @@ export default function FilterDrawer({
     let c = 0;
     c += filters.vendors.length;
     c += filters.collections.length;
-    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) c += 1;
+    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound)
+      c += 1;
     return c;
   }, [filters, priceMinBound, priceMaxBound]);
 
@@ -142,13 +145,13 @@ export default function FilterDrawer({
   return (
     <>
       {/* Trigger */}
-            {!open && (
+      {!open && (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:border-black/40"
+          className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-[#E4C56C] px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:opacity-90"
         >
-          Filters
+          Filter
           {activeCount > 0 && (
             <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-semibold text-black/70">
               {activeCount}
@@ -185,7 +188,9 @@ export default function FilterDrawer({
               {/* Header */}
               <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
                 <div className="w-8" />
-                <div className="text-sm font-semibold tracking-widest">FILTER</div>
+                <div className="text-sm font-semibold tracking-widest">
+                  FILTER
+                </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -202,7 +207,9 @@ export default function FilterDrawer({
                 <Accordion
                   title="PRICE"
                   open={section === "price"}
-                  onToggle={() => setSection((s) => (s === "price" ? null : "price"))}
+                  onToggle={() =>
+                    setSection((s) => (s === "price" ? null : "price"))
+                  }
                 >
                   <div className="flex items-center justify-between text-sm mb-3">
                     <span>€ {Number(filters.priceMin).toFixed(2)}</span>
@@ -218,7 +225,8 @@ export default function FilterDrawer({
                         const value = valueFromClientX(e.clientX);
                         const distToMin = Math.abs(value - filters.priceMin);
                         const distToMax = Math.abs(value - filters.priceMax);
-                        const nextThumb = distToMin <= distToMax ? "min" : "max";
+                        const nextThumb =
+                          distToMin <= distToMax ? "min" : "max";
                         setActiveThumb(nextThumb);
                         if (nextThumb === "min") updateMin(value);
                         else updateMax(value);
@@ -244,7 +252,10 @@ export default function FilterDrawer({
                         className="absolute top-2 h-1 rounded-full bg-black"
                         style={{
                           left: `${Math.max(0, Math.min(100, minPercent))}%`,
-                          right: `${Math.max(0, Math.min(100, 100 - maxPercent))}%`,
+                          right: `${Math.max(
+                            0,
+                            Math.min(100, 100 - maxPercent)
+                          )}%`,
                         }}
                       />
                       <div
@@ -273,7 +284,9 @@ export default function FilterDrawer({
                 <Accordion
                   title="CATEGORIES"
                   open={section === "cat"}
-                  onToggle={() => setSection((s) => (s === "cat" ? null : "cat"))}
+                  onToggle={() =>
+                    setSection((s) => (s === "cat" ? null : "cat"))
+                  }
                 >
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {availableCollections.map(([handle, title]) => (
@@ -296,7 +309,9 @@ export default function FilterDrawer({
                 <Accordion
                   title="MANUFACTURER"
                   open={section === "vendor"}
-                  onToggle={() => setSection((s) => (s === "vendor" ? null : "vendor"))}
+                  onToggle={() =>
+                    setSection((s) => (s === "vendor" ? null : "vendor"))
+                  }
                 >
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {availableVendors.map((vendor) => (
@@ -340,4 +355,3 @@ export default function FilterDrawer({
     </>
   );
 }
-

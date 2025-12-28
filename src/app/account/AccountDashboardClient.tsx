@@ -57,8 +57,8 @@ export default function AccountDashboardClient({
               onClick={() => setActiveTab(tab.id as TabId)}
               className={`w-full rounded-md px-3 py-2 text-left font-semibold transition ${
                 activeTab === tab.id
-                  ? "bg-black text-white"
-                  : "text-stone-700 hover:bg-black/5"
+                  ? "bg-[#E4C56C] text-[#2f3e36]"
+                  : "text-stone-700 hover:bg-stone-200"
               }`}
             >
               {tab.label}
