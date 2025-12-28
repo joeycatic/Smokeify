@@ -10,12 +10,17 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">("idle");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [registerName, setRegisterName] = useState("");
   const [registerFirstName, setRegisterFirstName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
-  const [registerAddress, setRegisterAddress] = useState("");
+  const [registerStreet, setRegisterStreet] = useState("");
+  const [registerHouseNumber, setRegisterHouseNumber] = useState("");
+  const [registerPostalCode, setRegisterPostalCode] = useState("");
+  const [registerCity, setRegisterCity] = useState("");
+  const [registerCountry, setRegisterCountry] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerLoading, setRegisterLoading] = useState(false);
@@ -34,7 +39,14 @@ export default function SignInPage() {
     if (emailParam) {
       setEmail(emailParam);
     }
+    setLoginStatus("idle");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!email || !password) {
+      setLoginStatus("idle");
+    }
+  }, [email, password]);
 
   return (
     <PageLayout>
@@ -52,37 +64,40 @@ export default function SignInPage() {
               LOGIN
             </h2>
             <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setError("");
-                setNotice("");
-                const res = await signIn("credentials", {
-                  email,
-                  password,
-                  redirect: false,
-                  callbackUrl: "/account",
-                });
-                if (res?.ok) {
-                  router.push("/account");
-                  return;
-                }
-                if (res?.error === "NEW_DEVICE") {
-                  router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
-                  return;
-                }
-                setError("Login fehlgeschlagen. Bitte pruefe deine Daten.");
-              }}
-              className="space-y-2"
-            >
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setError("");
+              setNotice("");
+              setLoginStatus("idle");
+              const res = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
+                callbackUrl: "/account",
+              });
+              if (res?.ok) {
+                setLoginStatus("ok");
+                setTimeout(() => router.push("/account"), 600);
+                return;
+              }
+              if (res?.error === "NEW_DEVICE") {
+                router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
+                return;
+              }
+              setError("Login fehlgeschlagen. Bitte pruefe deine Daten.");
+              setLoginStatus("error");
+            }}
+            className="space-y-2"
+          >
               <label className="block text-xs font-semibold text-stone-600">
                 Email
               </label>
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
+                placeholder="Email or username"
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">
@@ -95,10 +110,13 @@ export default function SignInPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
-              {notice && <p className="text-xs text-green-700">{notice}</p>}
-              {error && <p className="text-xs text-red-600">{error}</p>}
-              <button
-                type="submit"
+            {notice && <p className="text-xs text-green-700">{notice}</p>}
+            {loginStatus === "ok" && (
+              <p className="text-xs text-green-700">Erfolgreich angemeldet.</p>
+            )}
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button
+              type="submit"
                 className="w-full rounded-md bg-black px-4 py-2 text-sm font-semibold text-white"
               >
                 Login
@@ -119,14 +137,18 @@ export default function SignInPage() {
                   const res = await fetch("/api/auth/register", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: registerName,
-                  firstName: registerFirstName,
-                  lastName: registerLastName,
-                  address: registerAddress,
-                  email: registerEmail,
-                  password: registerPassword,
-                }),
+                    body: JSON.stringify({
+                      name: registerName,
+                      firstName: registerFirstName,
+                      lastName: registerLastName,
+                      street: registerStreet,
+                      houseNumber: registerHouseNumber,
+                      postalCode: registerPostalCode,
+                      city: registerCity,
+                      country: registerCountry,
+                      email: registerEmail,
+                      password: registerPassword,
+                    }),
                   });
                   if (!res.ok) {
                     const data = (await res.json()) as { error?: string };
@@ -170,12 +192,48 @@ export default function SignInPage() {
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">
-                Adresse
+                Street
               </label>
               <input
                 type="text"
-                value={registerAddress}
-                onChange={(event) => setRegisterAddress(event.target.value)}
+                value={registerStreet}
+                onChange={(event) => setRegisterStreet(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                House number
+              </label>
+              <input
+                type="text"
+                value={registerHouseNumber}
+                onChange={(event) => setRegisterHouseNumber(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                Postcode
+              </label>
+              <input
+                type="text"
+                value={registerPostalCode}
+                onChange={(event) => setRegisterPostalCode(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                City
+              </label>
+              <input
+                type="text"
+                value={registerCity}
+                onChange={(event) => setRegisterCity(event.target.value)}
+                className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              />
+              <label className="block text-xs font-semibold text-stone-600">
+                Country
+              </label>
+              <input
+                type="text"
+                value={registerCountry}
+                onChange={(event) => setRegisterCountry(event.target.value)}
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">

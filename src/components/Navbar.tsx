@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   HeartIcon,
   ShoppingBagIcon,
@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -24,6 +25,14 @@ function formatPrice(amount: string, currencyCode: string) {
 export function Navbar() {
   const { cart, loading } = useCart();
   const { ids } = useWishlist();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">("idle");
+  const accountRef = useRef<HTMLDivElement | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const cartRef = useRef<HTMLDivElement | null>(null);
+  const cartPanelRef = useRef<HTMLElement | null>(null);
 
   const count = loading ? 0 : cart?.totalQuantity ?? 0;
   const wishlistCount = ids.length;
@@ -43,13 +52,31 @@ export function Navbar() {
     const timer = setTimeout(() => setWishlistPop(false), 250);
     return () => clearTimeout(timer);
   }, [wishlistCount]);
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (!accountRef.current) return;
+      if (!accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+      if (!cartRef.current) return;
+      const target = event.target as Node;
+      const clickInsideToggle = cartRef.current.contains(target);
+      const clickInsidePanel = cartPanelRef.current?.contains(target) ?? false;
+      if (!clickInsideToggle && !clickInsidePanel) {
+        setCartOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   return (
     <nav className="relative w-full border-b border-black/10">
       <div className="mx-auto max-w-7xl px-5 py-8">
         <div className="relative flex items-center justify-between">
 
           {/* LEFT */}
-          <div className="flex items-center gap-8 text-sm font-semibold text-stone-800">
+          <div className="flex items-center gap-8 text-m font-semibold text-stone-800">
             <Link href="/products" className="hover:opacity-70 hover:underline underline-offset-4">
               Products
             </Link>
@@ -72,8 +99,14 @@ export function Navbar() {
 
           {/* RIGHT */}
           <div className="flex items-center gap-6 text-stone-800">
-            <div className="relative group pb-3 -mb-3">
-              <Link href="/cart" className="relative hover:opacity-70">
+            <div className="relative pb-3 -mb-3" ref={cartRef}>
+              <button
+                type="button"
+                onClick={() => setCartOpen((prev) => !prev)}
+                className="relative hover:opacity-70"
+                aria-expanded={cartOpen}
+                aria-haspopup="true"
+              >
                 <ShoppingBagIcon className="h-5 w-5" />
                 {count > 0 && (
                   <span
@@ -84,83 +117,10 @@ export function Navbar() {
                     {count}
                   </span>
                 )}
-              </Link>
-              <div className="invisible absolute right-0 top-full z-20 mt-3 w-80 translate-y-1 rounded-xl border border-black/10 bg-white p-4 text-sm opacity-0 shadow-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                {loading ? (
-                  <p className="text-stone-500">Warenkorb wird geladen...</p>
-                ) : !cart || cart.lines.length === 0 ? (
-                  <p className="text-stone-500">Warenkorb ist leer.</p>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-3">
-                      {cart.lines.slice(0, 4).map((line) => {
-                        const lineTotal = (
-                          Number(line.merchandise.price.amount) * line.quantity
-                        ).toFixed(2);
-                        return (
-                          <div key={line.id} className="flex items-center gap-3">
-                            {line.merchandise.image?.url ? (
-                              <img
-                                src={line.merchandise.image.url}
-                                alt={
-                                  line.merchandise.image.altText ??
-                                  line.merchandise.product.title
-                                }
-                                className="h-10 w-10 rounded-md object-cover"
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-md bg-stone-100" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs text-stone-500">
-                                {line.merchandise.product.title}
-                              </p>
-                              <p className="truncate text-sm font-semibold">
-                                {line.merchandise.title}
-                              </p>
-                              <p className="text-xs text-stone-500">
-                                {line.quantity} ×{" "}
-                                {formatPrice(
-                                  line.merchandise.price.amount,
-                                  line.merchandise.price.currencyCode
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-right text-xs font-semibold text-black/80">
-                              {formatPrice(
-                                lineTotal,
-                                line.merchandise.price.currencyCode
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {cart.lines.length > 4 && (
-                      <p className="text-xs text-stone-500">
-                        + {cart.lines.length - 4} weitere Artikel
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between border-t border-black/10 pt-3">
-                      <span className="text-xs text-stone-500">Gesamt</span>
-                      <span className="text-sm font-semibold text-black/80">
-                        {formatPrice(
-                          cart.cost.totalAmount.amount,
-                          cart.cost.totalAmount.currencyCode
-                        )}
-                      </span>
-                    </div>
-                    <Link
-                      href="/cart"
-                      className="block w-full rounded-md bg-black px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-90"
-                    >
-                      Zum Warenkorb
-                    </Link>
-                  </div>
-                )}
-              </div>
+              </button>
+              
             </div>
-            <Link href="/wishlist" className="relative hover:opacity-70">
+            <Link href="/wishlist" className="relative hover:opacity-70 pb-3 -mb-3">
               <HeartIcon className="h-5 w-5" />
               {wishlistCount > 0 && (
                 <span
@@ -172,14 +132,230 @@ export function Navbar() {
                 </span>
               )}
             </Link>
-            <Link href="/account" className="hover:opacity-70">
-              <UserCircleIcon className="h-5 w-5" />
-            </Link>
+            <div className="relative pb-3 -mb-3 -mr-1" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((prev) => !prev)}
+                className="flex h-5 w-5 items-center justify-center hover:opacity-70"
+                aria-expanded={accountOpen}
+                aria-haspopup="true"
+              >
+                <UserCircleIcon className="h-5 w-5" />
+              </button>
+              {accountOpen && (
+                <div className="absolute right-0 top-full z-20 mt-3 w-80 rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl">
+                  <p className="mb-3 text-xs font-semibold tracking-widest text-black/60">
+                    ACCOUNT
+                  </p>
+                  {!isAuthenticated && (
+                    <form
+                      onSubmit={async (event) => {
+                        event.preventDefault();
+                        setLoginStatus("idle");
+                        const form = event.currentTarget as HTMLFormElement;
+                        const formData = new FormData(form);
+                        const res = await signIn("credentials", {
+                          email: String(formData.get("email") ?? ""),
+                          password: String(formData.get("password") ?? ""),
+                          redirect: false,
+                        });
+                        if (res?.ok) {
+                          setLoginStatus("ok");
+                          return;
+                        }
+                        setLoginStatus("error");
+                      }}
+                      className="space-y-2"
+                    >
+                    <input
+                      name="email"
+                      type="text"
+                      required
+                      placeholder="Email or username"
+                      className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                    />
+                    <input
+                      name="password"
+                      type="password"
+                      required
+                      placeholder="Password"
+                      className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full rounded-md bg-black px-3 py-2.5 text-sm font-semibold text-white"
+                    >
+                      Login
+                    </button>
+                      {loginStatus === "ok" && (
+                        <p className="text-xs text-green-700">
+                          Erfolgreich angemeldet.
+                        </p>
+                      )}
+                      {loginStatus === "error" && (
+                        <p className="text-xs text-red-600">
+                          Login fehlgeschlagen.
+                        </p>
+                      )}
+                    </form>
+                  )}
+                  <div className="mt-4 flex items-center gap-3">
+                    <Link
+                      href="/account"
+                      className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                    >
+                      View profile
+                    </Link>
+                    {isAuthenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => signOut({ redirect: false })}
+                        className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                      >
+                        Log out
+                      </button>
+                    ) : (
+                      <Link
+                        href="/auth/verify"
+                        className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                      >
+                        Verify code
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
       </div>
-    </nav>
+      {cartOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close cart"
+            onClick={() => setCartOpen(false)}
+            className="fixed inset-0 z-40 bg-black/35 cart-overlay-fade"
+          />
+          <aside
+            ref={cartPanelRef}
+            className="fixed right-0 top-0 z-50 h-dvh w-full max-w-sm bg-white shadow-xl cart-slide-in"
+          >
+            <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
+              <div className="text-sm font-semibold tracking-widest">WARENKORB</div>
+              <button
+                type="button"
+                onClick={() => setCartOpen(false)}
+                className="text-xl text-black/60 hover:text-black"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex h-full flex-col">
+              <div className="overflow-y-auto px-5 py-4 text-sm">
+                {loading ? (
+                  <p className="text-stone-500">Warenkorb wird geladen...</p>
+                ) : !cart || cart.lines.length === 0 ? (
+                  <p className="text-stone-500">Warenkorb ist leer.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {cart.lines.slice(0, 6).map((line) => {
+                      const lineTotal = (
+                        Number(line.merchandise.price.amount) * line.quantity
+                      ).toFixed(2);
+                      return (
+                        <div key={line.id} className="flex items-center gap-3">
+                          {line.merchandise.image?.url ? (
+                            <img
+                              src={line.merchandise.image.url}
+                              alt={
+                                line.merchandise.image.altText ??
+                                line.merchandise.product.title
+                              }
+                              className="h-12 w-12 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="h-12 w-12 rounded-md bg-stone-100" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs text-stone-500">
+                              {line.merchandise.product.title}
+                            </p>
+                            <p className="truncate text-sm font-semibold">
+                              {line.merchandise.title}
+                            </p>
+                            <p className="text-xs text-stone-500">
+                              {line.quantity} ×{" "}
+                              {formatPrice(
+                                line.merchandise.price.amount,
+                                line.merchandise.price.currencyCode
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right text-xs font-semibold text-black/80">
+                            {formatPrice(
+                              lineTotal,
+                              line.merchandise.price.currencyCode
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {cart.lines.length > 6 && (
+                      <p className="text-xs text-stone-500">
+                        + {cart.lines.length - 6} weitere Artikel
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-black/10 px-5 py-4 text-sm">
+                {!loading && cart && cart.lines.length > 0 && (
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs text-stone-500">Gesamt</span>
+                    <span className="text-sm font-semibold text-black/80">
+                      {formatPrice(
+                        cart.cost.totalAmount.amount,
+                        cart.cost.totalAmount.currencyCode
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Link
+                    href="/cart"
+                    className="block w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30"
+                  >
+                    Warenkorb editieren
+                  </Link>
+                  {cart?.checkoutUrl ? (
+                    <a
+                      href={cart.checkoutUrl}
+                      className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900"
+                    >
+                      Zur Kasse
+                    </a>
+                  ) : (
+                    <Link
+                      href="/cart"
+                      className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900"
+                    >
+                      Zur Kasse
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </>
+      )}</nav>
   );
 }
+
+
+
+
+
 

@@ -45,3 +45,76 @@ body {
 .badge-pop {
   animation: badge-pop 220ms ease-out;
 }
+
+@keyframes cart-slide-in {
+  0% {
+    transform: translateX(100%);
+  }
+  99% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.cart-slide-in {
+  animation: cart-slide-in 260ms ease-out both;
+  transform: none;
+}
+
+@keyframes cart-overlay-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.cart-overlay-fade {
+  animation: cart-overlay-fade 200ms ease-out;
+}
+
+@keyframes add-to-cart-sweep {
+  0% {
+    transform: translateX(-160%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(160%);
+    opacity: 0;
+  }
+}
+
+.add-to-cart-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.add-to-cart-sweep::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -60%;
+  width: 80%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.95) 50%,
+    transparent 100%
+  );
+  transform: translateX(-160%);
+  opacity: 0.1;
+  mix-blend-mode: screen;
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.add-to-cart-sweep:hover::after {
+  animation: add-to-cart-sweep 560ms ease-out;
+}

@@ -78,6 +78,40 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   return (
     <div className="w-full text-stone-800">
+      <div className="mt-6 overflow-x-auto pb-1">
+        <div className="flex min-w-max items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFilters((prev) => ({ ...prev, collections: [] }))}
+            className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+              filters.collections.length === 0
+                ? "border-black bg-black text-white"
+                : "border-black/10 bg-white text-black/70 hover:border-black/20"
+            }`}
+          >
+            All
+          </button>
+          {availableCollections.map(([handle, title]) => {
+            const active = filters.collections.includes(handle);
+            return (
+              <button
+                key={handle}
+                type="button"
+                onClick={() => toggleCollection(handle)}
+                aria-pressed={active}
+                className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+                  active
+                    ? "border-black bg-black text-white"
+                    : "border-black/10 bg-white text-black/70 hover:border-black/20"
+                }`}
+              >
+                {title}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Products Grid */}
       <div className="mt-8 text-center">
         <h1 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
@@ -138,58 +172,12 @@ export default function ProductsClient({ initialProducts }: Props) {
         </div>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-8">
-        <aside className="hidden lg:block">
-          <div className="mt-6 rounded-xl border border-black/10 bg-white p-4">
-            <button
-              type="button"
-              onClick={() => setCategoriesOpen((s) => !s)}
-              className="flex w-full items-center justify-between text-xs font-semibold tracking-widest text-black/60"
-              aria-expanded={categoriesOpen}
-            >
-              CATEGORIES
-              <span className="text-base">{categoriesOpen ? "−" : "+"}</span>
-            </button>
-            {categoriesOpen && (
-              <div className="mt-3 flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, collections: [] }))}
-                  className={`rounded-md px-2 py-1 text-left text-sm transition ${
-                    filters.collections.length === 0
-                      ? "bg-black text-white"
-                      : "text-black/70 hover:bg-black/5"
-                  }`}
-                >
-                  All
-                </button>
-                {availableCollections.map(([handle, title]) => (
-                  <button
-                    key={handle}
-                    type="button"
-                    onClick={() => toggleCollection(handle)}
-                    aria-pressed={filters.collections.includes(handle)}
-                    className={`rounded-md px-2 py-1 text-left text-sm transition ${
-                      filters.collections.includes(handle)
-                        ? "bg-black text-white"
-                        : "text-black/70 hover:bg-black/5"
-                    }`}
-                  >
-                    {title}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <div>
-          {layout === "grid" ? (
-            <DisplayProducts products={filteredProducts} cols={4} />
-          ) : (
-            <DisplayProductsList products={filteredProducts} />
-          )}
-        </div>
+      <div>
+        {layout === "grid" ? (
+          <DisplayProducts products={filteredProducts} cols={4} />
+        ) : (
+          <DisplayProductsList products={filteredProducts} />
+        )}
       </div>
 
       {filteredProducts.length === 0 && (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { MouseEvent } from "react";
 import {
+  ArrowTopRightOnSquareIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   HeartIcon as HeartIconOutline,
@@ -64,15 +65,19 @@ export default function DisplayProducts({products, cols = 4,}: Props) {
                         <p className="mt-2 text-base font-semibold text-stone-900">
                             {formatPrice(p.priceRange?.minVariantPrice)}
                         </p>
-                        <div className="mt-3 flex items-center gap-2">
+                        <div className="mt-3 flex items-center justify-center gap-2">
                           <WishlistButton
                             wishlisted={isWishlisted(p.id)}
                             onToggle={() => toggle(p.id)}
                           />
-                          <AddToCartButton
-                            variantId={p.defaultVariantId ?? null}
-                            available={p.availableForSale}
-                          />
+                <AddToCartButton
+                  variantId={p.defaultVariantId ?? null}
+                  available={p.availableForSale}
+                  itemTitle={p.title}
+                  itemImageUrl={p.featuredImage?.url}
+                  itemImageAlt={p.featuredImage?.altText ?? p.title}
+                  itemQuantity={1}
+                />
                         </div>
                     </div>
                     </article>
@@ -89,9 +94,9 @@ export function DisplayProductsList({ products }: Props) {
       {products?.map((p) => (
         <article
           key={p.id}
-          className="group flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
+          className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
         >
-          <Link href={`/products/${p.handle}`} className="block sm:w-56 md:w-64">
+          <Link href={`/products/${p.handle}`} className="group block sm:w-56 md:w-64">
             <ProductImageCarousel
               images={getProductImages(p)}
               alt={p.title}
@@ -100,7 +105,7 @@ export function DisplayProductsList({ products }: Props) {
             />
           </Link>
 
-          <div className="flex flex-1 flex-col justify-between gap-4">
+          <div className="flex flex-1 flex-col gap-4">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wide text-stone-900">{p.vendor}</p>
               <h2 className="text-lg font-bold" style={{ color: "#000000ff" }}>
@@ -120,25 +125,34 @@ export function DisplayProductsList({ products }: Props) {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="mt-auto space-y-2">
               <p className="text-lg font-semibold text-stone-900">
                 {formatPrice(p.priceRange?.minVariantPrice)}
               </p>
-              <div className="flex items-center gap-2">
-                <WishlistButton
-                  wishlisted={isWishlisted(p.id)}
-                  onToggle={() => toggle(p.id)}
-                />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <WishlistButton
+                    wishlisted={isWishlisted(p.id)}
+                    onToggle={() => toggle(p.id)}
+                    size="lg"
+                  />
+                  <Link
+                    href={`/products/${p.handle}`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    Zum Produkt
+                  </Link>
+                </div>
                 <AddToCartButton
                   variantId={p.defaultVariantId ?? null}
                   available={p.availableForSale}
+                  size="lg"
+                  itemTitle={p.title}
+                  itemImageUrl={p.featuredImage?.url}
+                  itemImageAlt={p.featuredImage?.altText ?? p.title}
+                  itemQuantity={1}
                 />
-                <Link
-                  href={`/products/${p.handle}`}
-                  className="rounded-md bg-[#196e41ff] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
-                >
-                  Zum Produkt
-                </Link>
               </div>
             </div>
           </div>
@@ -151,10 +165,14 @@ export function DisplayProductsList({ products }: Props) {
 function WishlistButton({
   wishlisted,
   onToggle,
+  size = "sm",
 }: {
   wishlisted: boolean;
   onToggle: () => void;
+  size?: "sm" | "lg";
 }) {
+  const iconClass = size === "lg" ? "h-5 w-5" : "h-4 w-4";
+  const buttonClass = size === "lg" ? "rounded-full border p-3 transition" : "rounded-full border p-2 transition";
   return (
     <button
       type="button"
@@ -166,16 +184,16 @@ function WishlistButton({
         e.stopPropagation();
         onToggle();
       }}
-      className={`rounded-full border p-2 transition ${
+      className={`${buttonClass} cursor-pointer ${
         wishlisted
           ? "border-green-200 text-green-700"
           : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
       }`}
     >
       {wishlisted ? (
-        <HeartIconSolid className="h-4 w-4" />
+        <HeartIconSolid className={iconClass} />
       ) : (
-        <HeartIconOutline className="h-4 w-4" />
+        <HeartIconOutline className={iconClass} />
       )}
     </button>
   );
@@ -184,14 +202,22 @@ function WishlistButton({
 function AddToCartButton({
   variantId,
   available,
+  size = "sm",
+  itemTitle,
+  itemImageUrl,
+  itemImageAlt,
+  itemQuantity = 1,
 }: {
   variantId: string | null;
   available: boolean;
+  size?: "sm" | "lg";
+  itemTitle?: string;
+  itemImageUrl?: string | null;
+  itemImageAlt?: string | null;
+  itemQuantity?: number;
 }) {
-  const { addToCart } = useCart();
+  const { cart, addToCart, openAddedModal, openOutOfStockModal } = useCart();
   const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(false);
-
   const canAdd = Boolean(variantId) && available && !adding;
 
   return (
@@ -204,23 +230,41 @@ function AddToCartButton({
         if (!variantId) return;
         setAdding(true);
         try {
-          await addToCart(variantId, 1);
-          setAdded(true);
-          setTimeout(() => setAdded(false), 1200);
+          const beforeQty =
+            cart?.lines.find((line) => line.merchandise.id === variantId)
+              ?.quantity ?? 0;
+          const updated = await addToCart(variantId, 1);
+          const afterQty =
+            updated.lines.find((line) => line.merchandise.id === variantId)
+              ?.quantity ?? 0;
+          if (afterQty <= beforeQty) {
+            openOutOfStockModal();
+            return;
+          }
+          if (itemTitle) {
+            openAddedModal({
+              title: itemTitle,
+              imageUrl: itemImageUrl ?? undefined,
+              imageAlt: itemImageAlt ?? undefined,
+              quantity: itemQuantity,
+            });
+          }
+        } catch {
+          openOutOfStockModal();
         } finally {
           setAdding(false);
         }
       }}
       aria-label="In den Warenkorb"
       title="In den Warenkorb"
-      className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+      className={`add-to-cart-sweep inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
         canAdd
-          ? "border-green-200 text-green-800 hover:bg-green-50"
+          ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
           : "border-stone-200 text-stone-400"
-      }`}
+      } ${size === "lg" ? "px-6 py-3 text-sm" : "px-3 py-2 text-xs"}`}
     >
-      <ShoppingCartIcon className="h-4 w-4" />
-      {added ? "Hinzugefuegt" : "In den Warenkorb"}
+      <ShoppingCartIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
+      In den Warenkorb
     </button>
   );
 }

@@ -1,7 +1,17 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import AddedToCartModal from "@/components/AddedToCartModal";
+import OutOfStockModal from "@/components/OutOfStockModal";
 import type { ShopifyCart } from "@/lib/shopifyCart";
+
+type AddedItem = {
+  title: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  quantity: number;
+  productHandle?: string;
+};
 
 type CartCtx = {
   cart: ShopifyCart | null;
@@ -10,6 +20,10 @@ type CartCtx = {
   addToCart: (variantId: string, quantity?: number) => Promise<ShopifyCart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
   removeLines: (lineIds: string[]) => Promise<void>;
+  openAddedModal: (item: AddedItem) => void;
+  closeAddedModal: () => void;
+  openOutOfStockModal: () => void;
+  closeOutOfStockModal: () => void;
 };
 
 const CartContext = createContext<CartCtx | null>(null);
@@ -34,6 +48,9 @@ async function apiCartAction(payload: any): Promise<ShopifyCart> {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<ShopifyCart | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
+  const [addedOpen, setAddedOpen] = useState(false);
+  const [outOfStockOpen, setOutOfStockOpen] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -66,11 +83,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ cart, loading, refresh, addToCart, updateLine, removeLines }),
+    () => ({
+      cart,
+      loading,
+      refresh,
+      addToCart,
+      updateLine,
+      removeLines,
+      openAddedModal: (item: AddedItem) => {
+        setAddedItem(item);
+        setAddedOpen(true);
+      },
+      closeAddedModal: () => setAddedOpen(false),
+      openOutOfStockModal: () => setOutOfStockOpen(true),
+      closeOutOfStockModal: () => setOutOfStockOpen(false),
+    }),
     [cart, loading]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      <AddedToCartModal
+        open={addedOpen}
+        item={addedItem}
+        onClose={() => setAddedOpen(false)}
+      />
+      <OutOfStockModal
+        open={outOfStockOpen}
+        onClose={() => setOutOfStockOpen(false)}
+      />
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {

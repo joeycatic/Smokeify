@@ -142,13 +142,18 @@ export default function FilterDrawer({
   return (
     <>
       {/* Trigger */}
-      {!open && (
+            {!open && (
         <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-2 px-4 py-3 border border-black/20 rounded-md text-sm font-semibold"
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:border-black/40"
         >
-            FILTER ↔
+          Filters
+          {activeCount > 0 && (
+            <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-semibold text-black/70">
+              {activeCount}
+            </span>
+          )}
         </button>
       )}
 
@@ -335,3 +340,4 @@ export default function FilterDrawer({
     </>
   );
 }
+
