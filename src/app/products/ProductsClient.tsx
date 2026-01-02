@@ -141,7 +141,7 @@ export default function ProductsClient({ initialProducts }: Props) {
             <button
               type="button"
               onClick={() => setLayout("grid")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1 text-xs font-semibold transition ${
+              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
                 layout === "grid"
                   ? "bg-[#3a4b41] text-white"
                   : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
@@ -153,7 +153,7 @@ export default function ProductsClient({ initialProducts }: Props) {
             <button
               type="button"
               onClick={() => setLayout("list")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1 text-xs font-semibold transition ${
+              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
                 layout === "list"
                   ? "bg-[#3a4b41] text-white"
                   : "text-[#2f3e36] hover:bg-[#3a4b41]/10"

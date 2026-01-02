@@ -131,29 +131,30 @@ export function DisplayProductsList({ products }: Props) {
                 {formatPrice(p.priceRange?.minVariantPrice)}
               </p>
               <div className="flex items-center justify-between gap-4">
+                <WishlistButton
+                  wishlisted={isWishlisted(p.id)}
+                  onToggle={() => toggle(p.id)}
+                  size="lg"
+                />
                 <div className="flex items-center gap-2">
-                  <WishlistButton
-                    wishlisted={isWishlisted(p.id)}
-                    onToggle={() => toggle(p.id)}
+                  <AddToCartButton
+                    variantId={p.defaultVariantId ?? null}
+                    available={p.availableForSale}
                     size="lg"
+                    itemTitle={p.title}
+                    itemImageUrl={p.featuredImage?.url}
+                    itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemQuantity={1}
                   />
                   <Link
                     href={`/products/${p.handle}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                    className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                    aria-label="Zum Produkt"
+                    title="Zum Produkt"
                   >
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                    Zum Produkt
+                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
                   </Link>
                 </div>
-                <AddToCartButton
-                  variantId={p.defaultVariantId ?? null}
-                  available={p.availableForSale}
-                  size="lg"
-                  itemTitle={p.title}
-                  itemImageUrl={p.featuredImage?.url}
-                  itemImageAlt={p.featuredImage?.altText ?? p.title}
-                  itemQuantity={1}
-                />
               </div>
             </div>
           </div>

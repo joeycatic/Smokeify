@@ -11,7 +11,7 @@ import {
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -29,6 +29,7 @@ export function Navbar() {
   const { status } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const isAuthenticated = status === "authenticated";
   const [accountOpen, setAccountOpen] = useState(false);
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
@@ -198,14 +199,26 @@ export function Navbar() {
                         setLogoutStatus("idle");
                         const form = event.currentTarget as HTMLFormElement;
                         const formData = new FormData(form);
+                        const email = String(formData.get("email") ?? "");
+                        const password = String(formData.get("password") ?? "");
                         const res = await signIn("credentials", {
-                          email: String(formData.get("email") ?? ""),
-                          password: String(formData.get("password") ?? ""),
+                          email,
+                          password,
                           redirect: false,
                         });
                         if (res?.ok) {
                           setLoginStatus("ok");
                           setLogoutStatus("idle");
+                          return;
+                        }
+                        if (res?.error === "NEW_DEVICE") {
+                          sessionStorage.setItem("smokeify_verify_email", email);
+                          sessionStorage.setItem("smokeify_return_to", returnTo);
+                          router.push(
+                            `/auth/verify?email=${encodeURIComponent(
+                              email
+                            )}&returnTo=${encodeURIComponent(returnTo)}`
+                          );
                           return;
                         }
                         setLoginStatus("error");
@@ -421,3 +434,4 @@ export function Navbar() {
     </nav>
   );
 }
+
