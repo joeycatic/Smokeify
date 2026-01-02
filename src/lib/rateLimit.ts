@@ -7,6 +7,18 @@ export const LOGIN_RATE_LIMIT = {
   windowMs: 10 * 60 * 1000,
 } as const;
 
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+let lastCleanup = 0;
+
+async function cleanupOldRateLimits(now: Date) {
+  const nowMs = now.getTime();
+  if (nowMs - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = nowMs;
+  await prisma.rateLimit.deleteMany({
+    where: { resetAt: { lt: now } },
+  });
+}
+
 type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -23,6 +35,7 @@ export async function checkRateLimit({
   windowMs: number;
 }): Promise<RateLimitResult> {
   const now = new Date();
+  await cleanupOldRateLimits(now);
   const existing = await prisma.rateLimit.findUnique({ where: { key } });
 
   if (!existing || existing.resetAt <= now) {

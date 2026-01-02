@@ -25,8 +25,12 @@ function readConsent(): ConsentValue {
 }
 
 function persistConsent(value: Exclude<ConsentValue, null>) {
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:";
   window.localStorage.setItem(STORAGE_KEY, value);
-  document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}`;
+  document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${
+    secure ? "; Secure" : ""
+  }`;
 }
 
 export default function CookieConsent() {

@@ -61,7 +61,10 @@ export async function POST(request: Request) {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+    return NextResponse.json(
+      { error: "Registration failed" },
+      { status: 400 }
+    );
   }
   if (name) {
     const existingName = await prisma.user.findFirst({
@@ -69,7 +72,10 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     if (existingName) {
-      return NextResponse.json({ error: "Username already in use" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Registration failed" },
+        { status: 400 }
+      );
     }
   }
 
