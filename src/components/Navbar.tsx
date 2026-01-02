@@ -35,6 +35,7 @@ export function Navbar() {
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
     "idle"
   );
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [logoutStatus, setLogoutStatus] = useState<"idle" | "ok">("idle");
   const accountRef = useRef<HTMLDivElement | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -196,6 +197,7 @@ export function Navbar() {
                       onSubmit={async (event) => {
                         event.preventDefault();
                         setLoginStatus("idle");
+                        setLoginMessage(null);
                         setLogoutStatus("idle");
                         const form = event.currentTarget as HTMLFormElement;
                         const formData = new FormData(form);
@@ -208,11 +210,22 @@ export function Navbar() {
                         });
                         if (res?.ok) {
                           setLoginStatus("ok");
+                          setLoginMessage("Erfolgreich angemeldet.");
                           setLogoutStatus("idle");
+                          return;
+                        }
+                        if (res?.error === "EMAIL_NOT_VERIFIED") {
+                          setLoginStatus("error");
+                          setLoginMessage(
+                            "Bitte verifiziere deine Email, bevor du dich einloggst."
+                          );
                           return;
                         }
                         if (res?.error === "RATE_LIMIT") {
                           setLoginStatus("error");
+                          setLoginMessage(
+                            "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                          );
                           return;
                         }
                         if (res?.error === "NEW_DEVICE") {
@@ -238,6 +251,9 @@ export function Navbar() {
                               };
                               if (data.limited) {
                                 setLoginStatus("error");
+                                setLoginMessage(
+                                  "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                                );
                                 return;
                               }
                             }
@@ -246,6 +262,7 @@ export function Navbar() {
                           }
                         }
                         setLoginStatus("error");
+                        setLoginMessage("Login fehlgeschlagen.");
                       }}
                       className="space-y-2"
                     >
@@ -316,9 +333,7 @@ export function Navbar() {
                       >
                         {logoutStatus === "ok"
                           ? "Erfolgreich abgemeldet."
-                          : loginStatus === "error"
-                          ? "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
-                          : "Erfolgreich angemeldet."}
+                          : loginMessage ?? "Login fehlgeschlagen."}
                       </p>
                     )}
                   {isAuthenticated && loginStatus === "ok" && (

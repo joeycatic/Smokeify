@@ -76,6 +76,13 @@ export default function SignInPage() {
                   setTimeout(() => router.push("/account"), 600);
                   return;
                 }
+                if (res?.error === "EMAIL_NOT_VERIFIED") {
+                  setError(
+                    "Bitte verifiziere deine Email, bevor du dich einloggst."
+                  );
+                  setLoginStatus("error");
+                  return;
+                }
                 if (res?.error === "NEW_DEVICE") {
                   const returnTo = searchParams.get("returnTo") || "/";
                   sessionStorage.setItem("smokeify_verify_email", email);

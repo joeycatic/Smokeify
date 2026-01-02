@@ -55,6 +55,10 @@ providers.push(
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) return null;
 
+      if (!user.emailVerified) {
+        throw new Error("EMAIL_NOT_VERIFIED");
+      }
+
       const cookieStore = await cookies();
       const deviceToken = cookieStore.get("smokeify_device")?.value;
       if (deviceToken) {
