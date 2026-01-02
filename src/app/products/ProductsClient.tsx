@@ -133,7 +133,7 @@ export default function ProductsClient({ initialProducts }: Props) {
           onChange={(e) =>
             setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
           }
-          placeholder="Search products..."
+          placeholder="Suche produkte..."
           className="h-11 w-full sm:max-w-xs rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30"
         />
         <div className="flex items-center gap-3">
@@ -141,8 +141,10 @@ export default function ProductsClient({ initialProducts }: Props) {
             <button
               type="button"
               onClick={() => setLayout("grid")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1 text-xs font-semibold transition ${
-                layout === "grid" ? "bg-black text-white" : "text-black/70"
+              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
+                layout === "grid"
+                  ? "bg-[#3a4b41] text-white"
+                  : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
               }`}
             >
               <Squares2X2Icon className="h-4 w-4" />
@@ -151,8 +153,10 @@ export default function ProductsClient({ initialProducts }: Props) {
             <button
               type="button"
               onClick={() => setLayout("list")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1 text-xs font-semibold transition ${
-                layout === "list" ? "bg-black text-white" : "text-black/70"
+              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
+                layout === "list"
+                  ? "bg-[#3a4b41] text-white"
+                  : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
               }`}
             >
               <Bars3BottomLeftIcon className="h-4 w-4" />

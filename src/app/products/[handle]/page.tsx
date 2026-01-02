@@ -45,6 +45,7 @@ export default async function ProductDetailPage({
 
                 <ProductDetailClient
                     product={{
+                        id: product.id,
                         title: product.title,
                         vendor: product.vendor,
                         descriptionHtml: product.descriptionHtml,

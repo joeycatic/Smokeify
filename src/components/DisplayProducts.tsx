@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { MouseEvent } from "react";
 import {
   ArrowTopRightOnSquareIcon,
@@ -130,29 +131,30 @@ export function DisplayProductsList({ products }: Props) {
                 {formatPrice(p.priceRange?.minVariantPrice)}
               </p>
               <div className="flex items-center justify-between gap-4">
+                <WishlistButton
+                  wishlisted={isWishlisted(p.id)}
+                  onToggle={() => toggle(p.id)}
+                  size="lg"
+                />
                 <div className="flex items-center gap-2">
-                  <WishlistButton
-                    wishlisted={isWishlisted(p.id)}
-                    onToggle={() => toggle(p.id)}
+                  <AddToCartButton
+                    variantId={p.defaultVariantId ?? null}
+                    available={p.availableForSale}
                     size="lg"
+                    itemTitle={p.title}
+                    itemImageUrl={p.featuredImage?.url}
+                    itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemQuantity={1}
                   />
                   <Link
                     href={`/products/${p.handle}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                    className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                    aria-label="Zum Produkt"
+                    title="Zum Produkt"
                   >
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                    Zum Produkt
+                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
                   </Link>
                 </div>
-                <AddToCartButton
-                  variantId={p.defaultVariantId ?? null}
-                  available={p.availableForSale}
-                  size="lg"
-                  itemTitle={p.title}
-                  itemImageUrl={p.featuredImage?.url}
-                  itemImageAlt={p.featuredImage?.altText ?? p.title}
-                  itemQuantity={1}
-                />
               </div>
             </div>
           </div>
@@ -281,6 +283,7 @@ function ProductImageCarousel({
   imageClassName?: string;
 }) {
   const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
   const count = images.length;
   const current = images[index];
 
@@ -288,6 +291,7 @@ function ProductImageCarousel({
     event.preventDefault();
     event.stopPropagation();
     if (count <= 1) return;
+    setDirection(-1);
     setIndex((prev) => (prev - 1 + count) % count);
   };
 
@@ -295,18 +299,31 @@ function ProductImageCarousel({
     event.preventDefault();
     event.stopPropagation();
     if (count <= 1) return;
+    setDirection(1);
     setIndex((prev) => (prev + 1) % count);
   };
 
   return (
     <div className={`relative ${className ?? ""}`}>
-      {current && (
-        <img
-          src={current.url}
-          alt={current.altText ?? alt}
-          className={imageClassName}
-        />
-      )}
+      <AnimatePresence initial={false} mode="wait">
+        {current && (
+          <motion.img
+            key={`${current.url}-${index}`}
+            src={current.url}
+            alt={current.altText ?? alt}
+            className={`absolute inset-0 ${imageClassName ?? ""}`}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            variants={{
+              enter: { opacity: 0 },
+              center: { opacity: 1 },
+              exit: { opacity: 0 },
+            }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          />
+        )}
+      </AnimatePresence>
       {count > 1 && (
         <>
           <button

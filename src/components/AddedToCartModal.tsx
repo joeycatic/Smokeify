@@ -59,14 +59,14 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-md border border-black/15 bg-[#f2c94c] px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-md border border-black/5 bg-[#E4C56C] px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90"
           >
             Weiter shoppen
           </button>
           <Link
             href="/cart"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-md bg-green-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800"
+            className="inline-flex items-center border-black/5 justify-center rounded-md bg-green-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800"
           >
             Warenkorb anzeigen
           </Link>
