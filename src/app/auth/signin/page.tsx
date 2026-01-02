@@ -87,6 +87,36 @@ export default function SignInPage() {
                   );
                   return;
                 }
+                if (res?.error === "RATE_LIMIT") {
+                  setError(
+                    "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                  );
+                  setLoginStatus("error");
+                  return;
+                }
+                if (res?.error) {
+                  try {
+                    const rateRes = await fetch("/api/auth/rate-limit", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ identifier: email }),
+                    });
+                    if (rateRes.ok) {
+                      const data = (await rateRes.json()) as {
+                        limited?: boolean;
+                      };
+                      if (data.limited) {
+                        setError(
+                          "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                        );
+                        setLoginStatus("error");
+                        return;
+                      }
+                    }
+                  } catch {
+                    // Ignore rate-limit status failures and fall back to generic error.
+                  }
+                }
                 setError("Login fehlgeschlagen. Bitte pruefe deine Daten.");
                 setLoginStatus("error");
               }}

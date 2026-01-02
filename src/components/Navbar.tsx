@@ -211,6 +211,10 @@ export function Navbar() {
                           setLogoutStatus("idle");
                           return;
                         }
+                        if (res?.error === "RATE_LIMIT") {
+                          setLoginStatus("error");
+                          return;
+                        }
                         if (res?.error === "NEW_DEVICE") {
                           sessionStorage.setItem("smokeify_verify_email", email);
                           sessionStorage.setItem("smokeify_return_to", returnTo);
@@ -220,6 +224,26 @@ export function Navbar() {
                             )}&returnTo=${encodeURIComponent(returnTo)}`
                           );
                           return;
+                        }
+                        if (res?.error) {
+                          try {
+                            const rateRes = await fetch("/api/auth/rate-limit", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ identifier: email }),
+                            });
+                            if (rateRes.ok) {
+                              const data = (await rateRes.json()) as {
+                                limited?: boolean;
+                              };
+                              if (data.limited) {
+                                setLoginStatus("error");
+                                return;
+                              }
+                            }
+                          } catch {
+                            // Ignore rate-limit status failures.
+                          }
                         }
                         setLoginStatus("error");
                       }}
@@ -293,7 +317,7 @@ export function Navbar() {
                         {logoutStatus === "ok"
                           ? "Erfolgreich abgemeldet."
                           : loginStatus === "error"
-                          ? "Login fehlgeschlagen."
+                          ? "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
                           : "Erfolgreich angemeldet."}
                       </p>
                     )}

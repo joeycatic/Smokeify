@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateDeviceToken, hashToken } from "@/lib/security";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const DEVICE_COOKIE = "smokeify_device";
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request.headers);
   const body = (await request.json()) as {
     email?: string;
     code?: string;
@@ -15,6 +17,18 @@ export async function POST(request: Request) {
 
   if (!email || !code) {
     return NextResponse.json({ error: "Missing email or code" }, { status: 400 });
+  }
+
+  const verifyLimit = await checkRateLimit({
+    key: `verify:${email}:${ip}`,
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!verifyLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 }
+    );
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
