@@ -38,6 +38,12 @@ export default function RegisterPage() {
                 body: JSON.stringify({ name, email, password }),
               });
               if (!res.ok) {
+                if (res.status === 429) {
+                  setError(
+                    "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                  );
+                  return;
+                }
                 const data = (await res.json()) as { error?: string };
                 setError(data.error ?? "Registrierung fehlgeschlagen.");
                 return;

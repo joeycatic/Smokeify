@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { generateVerificationCode, hashToken } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp, LOGIN_RATE_LIMIT } from "@/lib/rateLimit";
 
 const providers: NextAuthOptions["providers"] = [];
 
@@ -16,11 +17,30 @@ providers.push(
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, req) {
       const identifier = credentials?.email?.trim() ?? "";
       const identifierLower = identifier.toLowerCase();
       const password = credentials?.password ?? "";
       if (!identifier || !password) return null;
+
+      const ip = getClientIp(req?.headers ?? new Headers());
+      const ipLimit = await checkRateLimit({
+        key: `login:ip:${ip}`,
+        limit: LOGIN_RATE_LIMIT.ipLimit,
+        windowMs: LOGIN_RATE_LIMIT.windowMs,
+      });
+      if (!ipLimit.allowed) {
+        throw new Error("RATE_LIMIT");
+      }
+
+      const loginLimit = await checkRateLimit({
+        key: `login:identifier:${identifierLower}`,
+        limit: LOGIN_RATE_LIMIT.identifierLimit,
+        windowMs: LOGIN_RATE_LIMIT.windowMs,
+      });
+      if (!loginLimit.allowed) {
+        throw new Error("RATE_LIMIT");
+      }
 
       const user = await prisma.user.findFirst({
         where: {
@@ -34,6 +54,10 @@ providers.push(
 
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) return null;
+
+      if (!user.emailVerified) {
+        throw new Error("EMAIL_NOT_VERIFIED");
+      }
 
       const cookieStore = await cookies();
       const deviceToken = cookieStore.get("smokeify_device")?.value;
@@ -93,7 +117,17 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        return token;
       }
+
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: String(token.id) },
+          select: { role: true },
+        });
+        token.role = dbUser?.role ?? "USER";
+      }
+
       return token;
     },
     session({ session, token }) {

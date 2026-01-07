@@ -3,8 +3,22 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { generateVerificationCode, hashToken } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `register:ip:${ip}`,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 }
+    );
+  }
+
   const body = (await request.json()) as {
     email?: string;
     password?: string;
@@ -33,9 +47,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
   }
 
+  const emailLimit = await checkRateLimit({
+    key: `register:email:${email}`,
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!emailLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 }
+    );
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+    return NextResponse.json(
+      { error: "Registration failed" },
+      { status: 400 }
+    );
   }
   if (name) {
     const existingName = await prisma.user.findFirst({
@@ -43,7 +72,10 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     if (existingName) {
-      return NextResponse.json({ error: "Username already in use" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Registration failed" },
+        { status: 400 }
+      );
     }
   }
 

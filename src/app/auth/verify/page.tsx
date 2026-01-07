@@ -11,6 +11,9 @@ export default function VerifyPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resendStatus, setResendStatus] = useState<
+    "idle" | "sending" | "sent" | "limited" | "error"
+  >("idle");
 
   useEffect(() => {
     const initialEmail = searchParams.get("email");
@@ -50,6 +53,12 @@ export default function VerifyPage() {
                   body: JSON.stringify({ email, code }),
                 });
                 if (!res.ok) {
+                  if (res.status === 429) {
+                    setError(
+                      "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                    );
+                    return;
+                  }
                   const data = (await res.json()) as { error?: string };
                   setError(data.error ?? "Code ungueltig.");
                   return;
@@ -97,12 +106,59 @@ export default function VerifyPage() {
               className="w-full rounded-md border border-black/10 px-3 py-2 text-sm tracking-[0.3em] outline-none focus:border-black/30"
             />
             {error && <p className="text-xs text-red-600">{error}</p>}
+            {resendStatus === "sent" && (
+              <p className="text-xs text-green-700">
+                Code wurde erneut gesendet.
+              </p>
+            )}
+            {resendStatus === "limited" && (
+              <p className="text-xs text-red-600">
+                Zu viele Versuche. Bitte spaeter erneut versuchen.
+              </p>
+            )}
+            {resendStatus === "error" && (
+              <p className="text-xs text-red-600">
+                Senden fehlgeschlagen. Bitte spaeter erneut versuchen.
+              </p>
+            )}
             <button
               type="submit"
               disabled={loading}
               className="h-12 w-full cursor-pointer rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {loading ? "Bitte warten..." : "Bestaetigen"}
+            </button>
+            <button
+              type="button"
+              disabled={resendStatus === "sending"}
+              onClick={async () => {
+                if (!email) {
+                  setError("Bitte Email eingeben.");
+                  return;
+                }
+                setResendStatus("sending");
+                try {
+                  const res = await fetch("/api/auth/resend-verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email }),
+                  });
+                  if (res.status === 429) {
+                    setResendStatus("limited");
+                    return;
+                  }
+                  if (!res.ok) {
+                    setResendStatus("error");
+                    return;
+                  }
+                  setResendStatus("sent");
+                } catch {
+                  setResendStatus("error");
+                }
+              }}
+              className="h-12 w-full cursor-pointer rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 disabled:opacity-60"
+            >
+              Code erneut senden
             </button>
             <button
               type="button"
