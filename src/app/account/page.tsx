@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
 import SignOutButton from "@/components/SignOutButton";
+import DeleteAccountButton from "@/components/DeleteAccountButton";
 import AccountDashboardClient from "./AccountDashboardClient";
 
 export default async function AccountPage() {
@@ -103,8 +104,9 @@ export default async function AccountPage() {
           wishlistCount={wishlistCount}
           setups={setupItems}
         />
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-start gap-3">
           <SignOutButton />
+          <DeleteAccountButton />
         </div>
       </div>
     </PageLayout>
