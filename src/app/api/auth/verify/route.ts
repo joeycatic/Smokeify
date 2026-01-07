@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       email,
       codeHash,
       expiresAt: { gt: now },
+      purpose: { in: ["SIGNUP", "NEW_DEVICE"] },
     },
     orderBy: { createdAt: "desc" },
   });

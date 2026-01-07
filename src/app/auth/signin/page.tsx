@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED:
-    "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
     "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
@@ -66,7 +66,7 @@ export default function SignInPage() {
               className="text-3xl font-bold mb-2"
               style={{ color: "#2f3e36" }}
             >
-              Account
+              Account Login
             </h1>
             <p className="text-sm text-stone-600 mb-6">
               Melde dich an oder erstelle ein Konto mit Passwort und
@@ -75,19 +75,14 @@ export default function SignInPage() {
           </div>
 
           <section>
-            <h2 className="text-xs font-semibold tracking-widest text-black/60 mb-3">
-              LOGIN
-            </h2>
             <form
               onSubmit={async (event) => {
                 event.preventDefault();
                 setError("");
                 setNotice("");
                 setLoginStatus("idle");
-                let res:
-                  | Awaited<ReturnType<typeof signIn>>
-                  | undefined
-                  | null = null;
+                let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
+                  null;
                 try {
                   res = await signIn("credentials", {
                     email,
@@ -170,6 +165,14 @@ export default function SignInPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
+              <div className="flex justify-end">
+                <Link
+                  href="/auth/reset"
+                  className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+                >
+                  Passwort vergessen?
+                </Link>
+              </div>
               {notice && <p className="text-xs text-green-700">{notice}</p>}
               {loginStatus === "ok" && (
                 <p className="text-xs text-green-700">
@@ -206,4 +209,3 @@ export default function SignInPage() {
     </PageLayout>
   );
 }
-

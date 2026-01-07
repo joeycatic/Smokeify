@@ -300,6 +300,14 @@ export function Navbar() {
                         placeholder="Passwort"
                         className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
                       />
+                      <div className="flex justify-end">
+                        <Link
+                          href="/auth/reset"
+                          className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+                        >
+                          Passwort vergessen?
+                        </Link>
+                      </div>
                       <button
                         type="submit"
                         className="h-12 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-base font-semibold text-white transition hover:opacity-90"
