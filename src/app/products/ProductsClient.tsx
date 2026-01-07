@@ -64,6 +64,11 @@ export default function ProductsClient({ initialProducts }: Props) {
     );
   }, [initialProducts]);
 
+  const collectionTitleByHandle = useMemo(
+    () => new Map(availableCollections),
+    [availableCollections]
+  );
+
   const resetFilters = () => {
     setFilters({
       vendors: [],
@@ -82,6 +87,79 @@ export default function ProductsClient({ initialProducts }: Props) {
         : [...prev.collections, handle],
     }));
   };
+
+  const removeCollection = (handle: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      collections: prev.collections.filter((c) => c !== handle),
+    }));
+  };
+
+  const removeVendor = (vendor: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      vendors: prev.vendors.filter((v) => v !== vendor),
+    }));
+  };
+
+  const resetPrice = () => {
+    setFilters((prev) => ({
+      ...prev,
+      priceMin: priceMinBound,
+      priceMax: priceMaxBound,
+    }));
+  };
+
+  const clearSearch = () => {
+    setFilters((prev) => ({ ...prev, searchQuery: "" }));
+  };
+
+  const activeChips = useMemo(() => {
+    const chips: Array<{
+      key: string;
+      label: string;
+      onRemove: () => void;
+    }> = [];
+
+    filters.collections.forEach((handle) => {
+      chips.push({
+        key: `collection-${handle}`,
+        label: collectionTitleByHandle.get(handle) ?? handle,
+        onRemove: () => removeCollection(handle),
+      });
+    });
+
+    filters.vendors.forEach((vendor) => {
+      chips.push({
+        key: `vendor-${vendor}`,
+        label: vendor,
+        onRemove: () => removeVendor(vendor),
+      });
+    });
+
+    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
+      chips.push({
+        key: "price",
+        label: `EUR ${filters.priceMin.toFixed(2)} - EUR ${filters.priceMax.toFixed(2)}`,
+        onRemove: resetPrice,
+      });
+    }
+
+    if (filters.searchQuery?.trim()) {
+      chips.push({
+        key: "search",
+        label: `Search: ${filters.searchQuery.trim()}`,
+        onRemove: clearSearch,
+      });
+    }
+
+    return chips;
+  }, [
+    filters,
+    collectionTitleByHandle,
+    priceMinBound,
+    priceMaxBound,
+  ]);
 
   return (
     <div className="w-full text-stone-800">
@@ -182,6 +260,28 @@ export default function ProductsClient({ initialProducts }: Props) {
           />
         </div>
       </div>
+      {activeChips.length > 0 && (
+        <div className="mb-8 flex flex-wrap items-center gap-2">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={chip.onRemove}
+              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+            >
+              <span>{chip.label}</span>
+              <span className="text-sm">x</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       <div>
         {layout === "grid" ? (

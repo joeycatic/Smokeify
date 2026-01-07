@@ -23,7 +23,7 @@ function Accordion({
         className="w-full flex items-center justify-between py-4"
         aria-expanded={open}
       >
-        <span className="text-sm font-semibold tracking-wide">{title}</span>
+        <span className="text-sm font-semibold text-stone-800">{title}</span>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.18 }}
@@ -75,6 +75,8 @@ export default function FilterDrawer({
     "price"
   );
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
+  const [vendorQuery, setVendorQuery] = useState("");
+  const [collectionQuery, setCollectionQuery] = useState("");
   const trackRef = useRef<HTMLDivElement | null>(null);
 
   // ESC schließt + body lock
@@ -94,6 +96,7 @@ export default function FilterDrawer({
     c += filters.collections.length;
     if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound)
       c += 1;
+    if (filters.searchQuery?.trim()) c += 1;
     return c;
   }, [filters, priceMinBound, priceMaxBound]);
 
@@ -115,6 +118,77 @@ export default function FilterDrawer({
     }));
   };
 
+  const collectionMap = useMemo(
+    () => new Map(availableCollections),
+    [availableCollections]
+  );
+
+  const filteredCollections = useMemo(() => {
+    if (!collectionQuery.trim()) return availableCollections;
+    const query = collectionQuery.trim().toLowerCase();
+    return availableCollections.filter(([, title]) =>
+      title.toLowerCase().includes(query)
+    );
+  }, [availableCollections, collectionQuery]);
+
+  const filteredVendors = useMemo(() => {
+    if (!vendorQuery.trim()) return availableVendors;
+    const query = vendorQuery.trim().toLowerCase();
+    return availableVendors.filter((vendor) =>
+      vendor.toLowerCase().includes(query)
+    );
+  }, [availableVendors, vendorQuery]);
+
+  const activeFilters = useMemo(() => {
+    const items: Array<{
+      key: string;
+      label: string;
+      onRemove: () => void;
+    }> = [];
+
+    filters.collections.forEach((handle) => {
+      const title = collectionMap.get(handle) ?? handle;
+      items.push({
+        key: `collection-${handle}`,
+        label: `Category: ${title}`,
+        onRemove: () => toggleCollection(handle),
+      });
+    });
+
+    filters.vendors.forEach((vendor) => {
+      items.push({
+        key: `vendor-${vendor}`,
+        label: `Brand: ${vendor}`,
+        onRemove: () => toggleVendor(vendor),
+      });
+    });
+
+    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
+      items.push({
+        key: "price",
+        label: `Price: EUR ${filters.priceMin.toFixed(
+          2
+        )} - EUR ${filters.priceMax.toFixed(2)}`,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            priceMin: priceMinBound,
+            priceMax: priceMaxBound,
+          })),
+      });
+    }
+
+    if (filters.searchQuery?.trim()) {
+      items.push({
+        key: "search",
+        label: `Search: ${filters.searchQuery.trim()}`,
+        onRemove: () => setFilters((prev) => ({ ...prev, searchQuery: "" })),
+      });
+    }
+
+    return items;
+  }, [filters, collectionMap, priceMinBound, priceMaxBound, setFilters]);
+
   const priceRange = Math.max(priceMaxBound - priceMinBound, 1);
   const minPercent = ((filters.priceMin - priceMinBound) / priceRange) * 100;
   const maxPercent = ((filters.priceMax - priceMinBound) / priceRange) * 100;
@@ -125,20 +199,22 @@ export default function FilterDrawer({
     const ratio = (clientX - rect.left) / rect.width;
     const clamped = Math.min(1, Math.max(0, ratio));
     const raw = priceMinBound + clamped * (priceMaxBound - priceMinBound);
-    return Number(raw.toFixed(2));
+    return Math.max(1, Math.round(raw));
   };
 
   const updateMin = (value: number) => {
+    const nextValue = Math.max(1, Math.round(value));
     setFilters((f) => ({
       ...f,
-      priceMin: Math.min(value, f.priceMax),
+      priceMin: Math.min(nextValue, f.priceMax),
     }));
   };
 
   const updateMax = (value: number) => {
+    const nextValue = Math.max(1, Math.round(value));
     setFilters((f) => ({
       ...f,
-      priceMax: Math.max(value, f.priceMin),
+      priceMax: Math.max(nextValue, f.priceMin),
     }));
   };
 
@@ -149,7 +225,7 @@ export default function FilterDrawer({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-[#E4C56C] px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-black/20"
         >
           Filter
           {activeCount > 0 && (
@@ -168,7 +244,7 @@ export default function FilterDrawer({
               type="button"
               aria-label="Close filter"
               onClick={() => setOpen(false)}
-              className="fixed inset-0 bg-black/35 z-40"
+              className="fixed inset-0 bg-black/30 z-40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -188,8 +264,8 @@ export default function FilterDrawer({
               {/* Header */}
               <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
                 <div className="w-8" />
-                <div className="text-sm font-semibold tracking-widest">
-                  FILTER
+                <div className="text-sm font-semibold text-stone-800">
+                  Filter
                 </div>
                 <button
                   type="button"
@@ -203,24 +279,94 @@ export default function FilterDrawer({
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto px-5">
+                <div className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-stone-500">
+                      Active filters
+                    </p>
+                    {activeFilters.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={onReset}
+                        className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {activeFilters.length === 0 ? (
+                    <p className="mt-2 text-xs text-stone-500">
+                      No filters applied.
+                    </p>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {activeFilters.map((filter) => (
+                        <button
+                          key={filter.key}
+                          type="button"
+                          onClick={filter.onRemove}
+                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-stone-50 px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+                        >
+                          <span>{filter.label}</span>
+                          <span className="text-sm">x</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* PRICE */}
                 <Accordion
-                  title="PRICE"
+                  title="Price"
                   open={section === "price"}
                   onToggle={() =>
                     setSection((s) => (s === "price" ? null : "price"))
                   }
                 >
-                  <div className="flex items-center justify-between text-sm mb-3">
-                    <span>€ {Number(filters.priceMin).toFixed(2)}</span>
-                    <span>€ {Number(filters.priceMax).toFixed(2)}</span>
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-stone-500">Min</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={filters.priceMax}
+                        step="1"
+                        value={String(
+                          Math.max(1, Math.round(filters.priceMin))
+                        )}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === "") return;
+                          updateMin(Number(raw));
+                        }}
+                        className="h-9 rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-stone-500">Max</span>
+                      <input
+                        type="number"
+                        min={Math.max(1, Math.round(filters.priceMin))}
+                        max={Math.max(1, Math.round(priceMaxBound))}
+                        step="1"
+                        value={String(
+                          Math.max(1, Math.round(filters.priceMax))
+                        )}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === "") return;
+                          updateMax(Number(raw));
+                        }}
+                        className="h-9 rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                      />
+                    </label>
                   </div>
 
                   {/* Single bar with two thumbs */}
-                  <div className="relative mt-2 h-5">
+                  <div className="relative mt-2 h-6">
                     <div
                       ref={trackRef}
-                      className="absolute left-2 right-2 top-0 h-5 select-none touch-none"
+                      className="absolute left-2 right-2 top-0 h-6 select-none touch-none"
                       onPointerDown={(e) => {
                         const value = valueFromClientX(e.clientX);
                         const distToMin = Math.abs(value - filters.priceMin);
@@ -247,9 +393,9 @@ export default function FilterDrawer({
                         trackRef.current?.releasePointerCapture(e.pointerId);
                       }}
                     >
-                      <div className="absolute left-0 top-2 h-1 w-full rounded-full bg-black/10" />
+                      <div className="absolute left-0 top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-black/10" />
                       <div
-                        className="absolute top-2 h-1 rounded-full bg-black"
+                        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-green-700"
                         style={{
                           left: `${Math.max(0, Math.min(100, minPercent))}%`,
                           right: `${Math.max(
@@ -259,7 +405,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1.5 h-3 w-3 rounded-full border border-black bg-white shadow ${
+                        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "min" ? "z-30" : "z-20"
                         }`}
                         style={{
@@ -268,7 +414,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1.5 h-3 w-3 rounded-full border border-black bg-white shadow ${
+                        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "max" ? "z-30" : "z-20"
                         }`}
                         style={{
@@ -282,14 +428,21 @@ export default function FilterDrawer({
 
                 {/* CATEGORIES */}
                 <Accordion
-                  title="CATEGORIES"
+                  title="Categories"
                   open={section === "cat"}
                   onToggle={() =>
                     setSection((s) => (s === "cat" ? null : "cat"))
                   }
                 >
+                  <input
+                    type="search"
+                    value={collectionQuery}
+                    onChange={(e) => setCollectionQuery(e.target.value)}
+                    placeholder="Search categories"
+                    className="mb-3 h-9 w-full rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                  />
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {availableCollections.map(([handle, title]) => (
+                    {filteredCollections.map(([handle, title]) => (
                       <label
                         key={handle}
                         className="flex items-center gap-2 cursor-pointer hover:bg-black/5 p-1 rounded"
@@ -307,14 +460,21 @@ export default function FilterDrawer({
 
                 {/* MANUFACTURER */}
                 <Accordion
-                  title="MANUFACTURER"
+                  title="Brands"
                   open={section === "vendor"}
                   onToggle={() =>
                     setSection((s) => (s === "vendor" ? null : "vendor"))
                   }
                 >
+                  <input
+                    type="search"
+                    value={vendorQuery}
+                    onChange={(e) => setVendorQuery(e.target.value)}
+                    placeholder="Search brands"
+                    className="mb-3 h-9 w-full rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                  />
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {availableVendors.map((vendor) => (
+                    {filteredVendors.map((vendor) => (
                       <label
                         key={vendor}
                         className="flex items-center gap-2 cursor-pointer hover:bg-black/5 p-1 rounded"
@@ -336,16 +496,16 @@ export default function FilterDrawer({
                 <button
                   type="button"
                   onClick={onReset}
-                  className="flex-1 h-11 px-5 py-3 border border-black/15 text-sm font-semibold tracking-wide text-black/50 bg-black/5"
+                  className="flex-1 h-11 rounded-md border border-black/10 text-sm font-semibold text-stone-600 hover:border-black/20"
                 >
-                  CLEAR
+                  Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex-1 h-11 bg-black text-white text-sm font-semibold tracking-wide"
+                  className="flex-1 h-11 rounded-md bg-black text-white text-sm font-semibold"
                 >
-                  VIEW [{resultCount}]
+                  View ({resultCount})
                 </button>
               </div>
             </motion.aside>
