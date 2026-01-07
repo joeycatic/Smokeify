@@ -33,8 +33,11 @@ export default async function AccountPasswordPage() {
       <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
         <div className="rounded-md border border-black/10 bg-white p-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
-              Password
+            <h1
+              className="text-3xl font-bold mb-2"
+              style={{ color: "#2f3e36" }}
+            >
+              Passwort
             </h1>
             <p className="text-sm text-stone-600 mb-6">
               Aktualisiere dein Passwort.

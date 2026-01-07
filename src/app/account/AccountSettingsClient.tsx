@@ -76,11 +76,11 @@ export default function AccountSettingsClient({
   return (
     <section className="rounded-xl border border-black/10 bg-white p-6">
       <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-        ACCOUNT SETTINGS
+        ACCOUNT AKTUALISIEREN
       </h2>
       <div className="mx-auto max-w-3xl">
         <p className="text-xs font-semibold tracking-widest text-black/60 mb-3">
-          PROFILE
+          PROFIL
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -107,7 +107,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              First name
+              Vorname
             </label>
             <input
               type="text"
@@ -118,7 +118,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Last name
+              Nachname
             </label>
             <input
               type="text"
@@ -129,7 +129,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Street
+              Straße
             </label>
             <input
               type="text"
@@ -140,7 +140,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              House number
+              Hausnummer
             </label>
             <input
               type="text"
@@ -151,7 +151,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Postcode
+              Postleitzahl
             </label>
             <input
               type="text"
@@ -162,7 +162,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              City
+              Stadt
             </label>
             <input
               type="text"
@@ -173,7 +173,7 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Country
+              Land
             </label>
             <input
               type="text"

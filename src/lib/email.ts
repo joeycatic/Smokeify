@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 type SendCodeInput = {
   email: string;
   code: string;
-  purpose: "SIGNUP" | "NEW_DEVICE";
+  purpose: "SIGNUP" | "NEW_DEVICE" | "PASSWORD_RESET";
 };
 
 export async function sendVerificationCodeEmail({
@@ -21,14 +21,22 @@ export async function sendVerificationCodeEmail({
   const subject =
     purpose === "SIGNUP"
       ? "Verify your Smokeify account"
-      : "New device verification";
+      : purpose === "NEW_DEVICE"
+      ? "New device verification"
+      : "Reset your Smokeify password";
 
   const lines = [
-    "Your verification code:",
+    purpose === "PASSWORD_RESET"
+      ? "Your password reset code:"
+      : "Your verification code:",
     code,
     "",
     "This code expires in 10 minutes.",
   ];
+
+  if (purpose === "PASSWORD_RESET") {
+    lines.push("If you did not request a password reset, you can ignore this email.");
+  }
 
   await transporter.sendMail({
     to: email,
@@ -37,9 +45,18 @@ export async function sendVerificationCodeEmail({
     text: lines.join("\n"),
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5;">
-        <p>Your verification code:</p>
+        <p>${
+          purpose === "PASSWORD_RESET"
+            ? "Your password reset code:"
+            : "Your verification code:"
+        }</p>
         <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${code}</p>
         <p>This code expires in 10 minutes.</p>
+        ${
+          purpose === "PASSWORD_RESET"
+            ? "<p>If you did not request a password reset, you can ignore this email.</p>"
+            : ""
+        }
       </div>
     `,
   });

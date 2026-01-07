@@ -16,6 +16,7 @@ enum UserRole {
 enum VerificationPurpose {
   SIGNUP
   NEW_DEVICE
+  PASSWORD_RESET
 }
 
 model User {

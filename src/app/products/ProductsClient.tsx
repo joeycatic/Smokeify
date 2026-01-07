@@ -2,10 +2,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bars3BottomLeftIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
+import {
+  Bars3BottomLeftIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
 import type { Product, ProductFilters } from "@/data/types";
 import { filterProducts } from "@/lib/filterProducts";
-import DisplayProducts, { DisplayProductsList } from "@/components/DisplayProducts";
+import DisplayProducts, {
+  DisplayProductsList,
+} from "@/components/DisplayProducts";
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
 
 type Props = {
@@ -40,7 +45,9 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   // verfügbare Hersteller
   const availableVendors = useMemo(() => {
-    const vendors = new Set(initialProducts.map((p) => p.vendor).filter(Boolean));
+    const vendors = new Set(
+      initialProducts.map((p) => p.vendor).filter(Boolean)
+    );
     return Array.from(vendors).sort();
   }, [initialProducts]);
 
@@ -56,6 +63,11 @@ export default function ProductsClient({ initialProducts }: Props) {
       a[1].localeCompare(b[1])
     );
   }, [initialProducts]);
+
+  const collectionTitleByHandle = useMemo(
+    () => new Map(availableCollections),
+    [availableCollections]
+  );
 
   const resetFilters = () => {
     setFilters({
@@ -75,6 +87,79 @@ export default function ProductsClient({ initialProducts }: Props) {
         : [...prev.collections, handle],
     }));
   };
+
+  const removeCollection = (handle: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      collections: prev.collections.filter((c) => c !== handle),
+    }));
+  };
+
+  const removeVendor = (vendor: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      vendors: prev.vendors.filter((v) => v !== vendor),
+    }));
+  };
+
+  const resetPrice = () => {
+    setFilters((prev) => ({
+      ...prev,
+      priceMin: priceMinBound,
+      priceMax: priceMaxBound,
+    }));
+  };
+
+  const clearSearch = () => {
+    setFilters((prev) => ({ ...prev, searchQuery: "" }));
+  };
+
+  const activeChips = useMemo(() => {
+    const chips: Array<{
+      key: string;
+      label: string;
+      onRemove: () => void;
+    }> = [];
+
+    filters.collections.forEach((handle) => {
+      chips.push({
+        key: `collection-${handle}`,
+        label: collectionTitleByHandle.get(handle) ?? handle,
+        onRemove: () => removeCollection(handle),
+      });
+    });
+
+    filters.vendors.forEach((vendor) => {
+      chips.push({
+        key: `vendor-${vendor}`,
+        label: vendor,
+        onRemove: () => removeVendor(vendor),
+      });
+    });
+
+    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
+      chips.push({
+        key: "price",
+        label: `EUR ${filters.priceMin.toFixed(2)} - EUR ${filters.priceMax.toFixed(2)}`,
+        onRemove: resetPrice,
+      });
+    }
+
+    if (filters.searchQuery?.trim()) {
+      chips.push({
+        key: "search",
+        label: `Search: ${filters.searchQuery.trim()}`,
+        onRemove: clearSearch,
+      });
+    }
+
+    return chips;
+  }, [
+    filters,
+    collectionTitleByHandle,
+    priceMinBound,
+    priceMaxBound,
+  ]);
 
   return (
     <div className="w-full text-stone-800">
@@ -114,15 +199,15 @@ export default function ProductsClient({ initialProducts }: Props) {
 
       {/* Products Grid */}
       <div className="mt-8 text-center">
-        <h1 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
-            Our Products
+        <h1 className="text-3xl font-bold mb-4" style={{ color: "#2f3e36" }}>
+          Unsere Produkte
         </h1>
-        <div 
-            className="mx-auto mb-4 rounded-xl" 
-            style={{ width: '80px', height: '3px', backgroundColor: '#16a34a' }}
+        <div
+          className="mx-auto mb-4 rounded-xl"
+          style={{ width: "80px", height: "3px", backgroundColor: "#16a34a" }}
         ></div>
         <p className="text-stone-600 text-lg font-medium">
-            Premium equipment for professional results
+          Premium equipment für premium Ergebnisse
         </p>
       </div>
 
@@ -175,6 +260,28 @@ export default function ProductsClient({ initialProducts }: Props) {
           />
         </div>
       </div>
+      {activeChips.length > 0 && (
+        <div className="mb-8 flex flex-wrap items-center gap-2">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={chip.onRemove}
+              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+            >
+              <span>{chip.label}</span>
+              <span className="text-sm">x</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       <div>
         {layout === "grid" ? (
@@ -198,4 +305,3 @@ export default function ProductsClient({ initialProducts }: Props) {
     </div>
   );
 }
-
