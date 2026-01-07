@@ -4,7 +4,7 @@ import { generateVerificationCode, hashToken } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
-const RESEND_WINDOW_MS = 60 * 60 * 1000;
+const RESEND_WINDOW_MS = 10 * 60 * 1000;
 const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const RECENT_NEW_DEVICE_MS = 60 * 60 * 1000;
 
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   });
   const emailLimit = await checkRateLimit({
     key: `resend:email:${email}`,
-    limit: 3,
+    limit: 5,
     windowMs: RESEND_WINDOW_MS,
   });
 

@@ -8,6 +8,7 @@ import {
   ShoppingBagIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
+import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -24,8 +25,7 @@ function formatPrice(amount: string, currencyCode: string) {
 }
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED:
-    "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
     "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
@@ -41,6 +41,11 @@ const getLoginErrorMessage = (code?: string) => {
     LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
   );
 };
+
+const pixelNavFont = Pixelify_Sans({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 export function Navbar() {
   const { cart, loading } = useCart();
@@ -128,13 +133,13 @@ export function Navbar() {
           <div className="flex items-center gap-8 text-m font-semibold text-stone-800">
             <Link
               href="/products"
-              className="hover:opacity-70 hover:underline underline-offset-4"
+              className={`${pixelNavFont.className} text-base sm:text-lg hover:opacity-70 hover:underline underline-offset-4`}
             >
-              Products
+              Produkte
             </Link>
             <Link
               href="/customizer"
-              className="hover:opacity-70 hover:underline underline-offset-4"
+              className={`${pixelNavFont.className} text-base sm:text-lg hover:opacity-70 hover:underline underline-offset-4`}
             >
               Customizer
             </Link>
@@ -246,8 +251,14 @@ export function Navbar() {
                           return;
                         }
                         if (res?.error === "NEW_DEVICE") {
-                          sessionStorage.setItem("smokeify_verify_email", email);
-                          sessionStorage.setItem("smokeify_return_to", returnTo);
+                          sessionStorage.setItem(
+                            "smokeify_verify_email",
+                            email
+                          );
+                          sessionStorage.setItem(
+                            "smokeify_return_to",
+                            returnTo
+                          );
                           router.push(
                             `/auth/verify?email=${encodeURIComponent(
                               email
@@ -257,11 +268,14 @@ export function Navbar() {
                         }
                         if (res?.error) {
                           try {
-                            const rateRes = await fetch("/api/auth/rate-limit", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ identifier: email }),
-                            });
+                            const rateRes = await fetch(
+                              "/api/auth/rate-limit",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ identifier: email }),
+                              }
+                            );
                             if (rateRes.ok) {
                               const data = (await rateRes.json()) as {
                                 limited?: boolean;
@@ -282,7 +296,9 @@ export function Navbar() {
                           return;
                         }
                         setLoginStatus("error");
-                        setLoginMessage(getLoginErrorMessage(res?.error ?? undefined));
+                        setLoginMessage(
+                          getLoginErrorMessage(res?.error ?? undefined)
+                        );
                       }}
                       className="space-y-2"
                     >
@@ -300,7 +316,13 @@ export function Navbar() {
                         placeholder="Passwort"
                         className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
                       />
-                      <div className="flex justify-end">
+                      <div className="flex justify-between">
+                        <Link
+                          href="/auth/verify"
+                          className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+                        >
+                          Account verifizieren
+                        </Link>
                         <Link
                           href="/auth/reset"
                           className="text-xs font-semibold text-stone-500 hover:text-stone-800"
@@ -310,7 +332,7 @@ export function Navbar() {
                       </div>
                       <button
                         type="submit"
-                        className="h-12 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-base font-semibold text-white transition hover:opacity-90"
+                        className="h-10 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-sm font-semibold text-white transition hover:opacity-90"
                       >
                         Login
                       </button>
@@ -342,7 +364,7 @@ export function Navbar() {
                         href={`/auth/register?returnTo=${encodeURIComponent(
                           returnTo
                         )}`}
-                        className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-[#E4C56C] px-4 text-base font-semibold text-[#2f3e36] transition hover:opacity-90"
+                        className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#E4C56C] px-4 text-sm font-semibold text-[#2f3e36] transition hover:opacity-90"
                       >
                         Registrieren
                       </Link>
@@ -501,4 +523,3 @@ export function Navbar() {
     </nav>
   );
 }
-

@@ -2,10 +2,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bars3BottomLeftIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
+import {
+  Bars3BottomLeftIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
 import type { Product, ProductFilters } from "@/data/types";
 import { filterProducts } from "@/lib/filterProducts";
-import DisplayProducts, { DisplayProductsList } from "@/components/DisplayProducts";
+import DisplayProducts, {
+  DisplayProductsList,
+} from "@/components/DisplayProducts";
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
 
 type Props = {
@@ -40,7 +45,9 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   // verfügbare Hersteller
   const availableVendors = useMemo(() => {
-    const vendors = new Set(initialProducts.map((p) => p.vendor).filter(Boolean));
+    const vendors = new Set(
+      initialProducts.map((p) => p.vendor).filter(Boolean)
+    );
     return Array.from(vendors).sort();
   }, [initialProducts]);
 
@@ -114,15 +121,15 @@ export default function ProductsClient({ initialProducts }: Props) {
 
       {/* Products Grid */}
       <div className="mt-8 text-center">
-        <h1 className="text-3xl font-bold mb-4" style={{ color: '#2f3e36' }}>
-            Our Products
+        <h1 className="text-3xl font-bold mb-4" style={{ color: "#2f3e36" }}>
+          Unsere Produkte
         </h1>
-        <div 
-            className="mx-auto mb-4 rounded-xl" 
-            style={{ width: '80px', height: '3px', backgroundColor: '#16a34a' }}
+        <div
+          className="mx-auto mb-4 rounded-xl"
+          style={{ width: "80px", height: "3px", backgroundColor: "#16a34a" }}
         ></div>
         <p className="text-stone-600 text-lg font-medium">
-            Premium equipment for professional results
+          Premium equipment für premium Ergebnisse
         </p>
       </div>
 
@@ -198,4 +205,3 @@ export default function ProductsClient({ initialProducts }: Props) {
     </div>
   );
 }
-

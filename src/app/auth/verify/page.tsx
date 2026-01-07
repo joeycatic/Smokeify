@@ -108,7 +108,7 @@ export default function VerifyPage() {
             {error && <p className="text-xs text-red-600">{error}</p>}
             {resendStatus === "sent" && (
               <p className="text-xs text-green-700">
-                Code wurde erneut gesendet.
+                Wenn ein Konto existiert, wurde ein Code gesendet.
               </p>
             )}
             {resendStatus === "limited" && (
@@ -126,7 +126,7 @@ export default function VerifyPage() {
               disabled={loading}
               className="h-12 w-full cursor-pointer rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {loading ? "Bitte warten..." : "Bestaetigen"}
+              {loading ? "Bitte warten..." : "Bestätigen"}
             </button>
             <button
               type="button"
@@ -165,7 +165,7 @@ export default function VerifyPage() {
               onClick={() => router.push("/auth/signin")}
               className="h-12 w-full cursor-pointer rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
             >
-              Zurueck zum login
+              Zurück zum Login
             </button>
           </form>
         </div>
@@ -173,3 +173,4 @@ export default function VerifyPage() {
     </PageLayout>
   );
 }
+

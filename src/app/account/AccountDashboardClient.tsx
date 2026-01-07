@@ -38,10 +38,10 @@ export default function AccountDashboardClient({
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const tabs = useMemo(
     () => [
-      { id: "profile", label: "Update profile" },
-      { id: "orders", label: "Order history" },
-      { id: "wishlist", label: "Wishlist" },
-      { id: "setups", label: "Saved setups" },
+      { id: "profile", label: "Account aktualisieren" },
+      { id: "orders", label: "Bestellungen" },
+      { id: "wishlist", label: "Wunschliste" },
+      { id: "setups", label: "Gespeicherte Konfigurationen" },
     ],
     []
   );
