@@ -64,10 +64,22 @@ export async function checkRateLimit({
   };
 }
 
-export function getClientIp(headers: Headers) {
-  const forwarded = headers.get("x-forwarded-for");
+export function getClientIp(
+  headers: Headers | Record<string, string | string[] | undefined> | undefined
+) {
+  const readHeader = (name: string) => {
+    if (!headers) return undefined;
+    if (typeof (headers as Headers).get === "function") {
+      return (headers as Headers).get(name) ?? undefined;
+    }
+    const record = headers as Record<string, string | string[] | undefined>;
+    const value = record[name] ?? record[name.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
+  };
+
+  const forwarded = readHeader("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return headers.get("x-real-ip") ?? "unknown";
+  return readHeader("x-real-ip") ?? "unknown";
 }
 
 export async function getRateLimitStatus({
@@ -84,3 +96,5 @@ export async function getRateLimitStatus({
   }
   return { limited: record.count >= limit, resetAt: record.resetAt };
 }
+
+

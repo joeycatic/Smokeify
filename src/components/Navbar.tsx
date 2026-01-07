@@ -23,6 +23,25 @@ function formatPrice(amount: string, currencyCode: string) {
   }).format(value);
 }
 
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  EMAIL_NOT_VERIFIED:
+    "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
+  NEW_DEVICE:
+    "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
+  CredentialsSignin: "Email oder Passwort ist falsch.",
+  AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+};
+
+const getLoginErrorMessage = (code?: string) => {
+  if (!code) {
+    return "Login fehlgeschlagen. Bitte pruefe deine Daten.";
+  }
+  return (
+    LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
+  );
+};
+
 export function Navbar() {
   const { cart, loading } = useCart();
   const { ids } = useWishlist();
@@ -203,29 +222,27 @@ export function Navbar() {
                         const formData = new FormData(form);
                         const email = String(formData.get("email") ?? "");
                         const password = String(formData.get("password") ?? "");
-                        const res = await signIn("credentials", {
-                          email,
-                          password,
-                          redirect: false,
-                        });
+                        let res:
+                          | Awaited<ReturnType<typeof signIn>>
+                          | undefined
+                          | null = null;
+                        try {
+                          res = await signIn("credentials", {
+                            email,
+                            password,
+                            redirect: false,
+                          });
+                        } catch {
+                          setLoginStatus("error");
+                          setLoginMessage(
+                            "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut."
+                          );
+                          return;
+                        }
                         if (res?.ok) {
                           setLoginStatus("ok");
                           setLoginMessage("Erfolgreich angemeldet.");
                           setLogoutStatus("idle");
-                          return;
-                        }
-                        if (res?.error === "EMAIL_NOT_VERIFIED") {
-                          setLoginStatus("error");
-                          setLoginMessage(
-                            "Bitte verifiziere deine Email, bevor du dich einloggst."
-                          );
-                          return;
-                        }
-                        if (res?.error === "RATE_LIMIT") {
-                          setLoginStatus("error");
-                          setLoginMessage(
-                            "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
-                          );
                           return;
                         }
                         if (res?.error === "NEW_DEVICE") {
@@ -260,9 +277,12 @@ export function Navbar() {
                           } catch {
                             // Ignore rate-limit status failures.
                           }
+                          setLoginStatus("error");
+                          setLoginMessage(getLoginErrorMessage(res.error));
+                          return;
                         }
                         setLoginStatus("error");
-                        setLoginMessage("Login fehlgeschlagen.");
+                        setLoginMessage(getLoginErrorMessage(res?.error ?? undefined));
                       }}
                       className="space-y-2"
                     >
