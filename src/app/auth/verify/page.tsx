@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -126,7 +127,17 @@ export default function VerifyPage() {
               disabled={loading}
               className="h-12 w-full cursor-pointer rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {loading ? "Bitte warten..." : "Bestätigen"}
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner
+                    size="sm"
+                    className="border-white/40 border-t-white"
+                  />
+                  Bitte warten...
+                </span>
+              ) : (
+                "Bestätigen"
+              )}
             </button>
             <button
               type="button"
@@ -158,7 +169,14 @@ export default function VerifyPage() {
               }}
               className="h-12 w-full cursor-pointer rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 disabled:opacity-60"
             >
-              Code erneut senden
+              {resendStatus === "sending" ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Senden...
+                </span>
+              ) : (
+                "Code erneut senden"
+              )}
             </button>
             <button
               type="button"

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
-import type { ShopifyCart } from "@/lib/shopifyCart";
+import type { Cart } from "@/lib/cart";
 
 type AddedItem = {
   title: string;
@@ -14,10 +14,10 @@ type AddedItem = {
 };
 
 type CartCtx = {
-  cart: ShopifyCart | null;
+  cart: Cart | null;
   loading: boolean;
   refresh: () => Promise<void>;
-  addToCart: (variantId: string, quantity?: number) => Promise<ShopifyCart>;
+  addToCart: (variantId: string, quantity?: number) => Promise<Cart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
   removeLines: (lineIds: string[]) => Promise<void>;
   openAddedModal: (item: AddedItem) => void;
@@ -28,13 +28,13 @@ type CartCtx = {
 
 const CartContext = createContext<CartCtx | null>(null);
 
-async function apiGetCart(): Promise<ShopifyCart> {
+async function apiGetCart(): Promise<Cart> {
   const res = await fetch("/api/cart", { method: "GET" });
   if (!res.ok) throw new Error("Failed to load cart");
   return res.json();
 }
 
-async function apiCartAction(payload: any): Promise<ShopifyCart> {
+async function apiCartAction(payload: any): Promise<Cart> {
   const res = await fetch("/api/cart", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,7 +46,7 @@ async function apiCartAction(payload: any): Promise<ShopifyCart> {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<ShopifyCart | null>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -194,7 +195,17 @@ export default function RegisterPage() {
               disabled={loading}
               className="h-12 w-full cursor-pointer rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {loading ? "Bitte warten..." : "Registrieren"}
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner
+                    size="sm"
+                    className="border-white/40 border-t-white"
+                  />
+                  Bitte warten...
+                </span>
+              ) : (
+                "Registrieren"
+              )}
             </button>
             <button
               type="button"

@@ -7,12 +7,15 @@ export function filterProducts(
     return products.filter((product) => {
         const query = (filters.searchQuery ?? "").trim().toLowerCase();
         if (query) {
-            const collectionTitles = product.collections?.map((c) => c.title).join(" ") ?? "";
+            const collectionTitles =
+                product.collections?.map((c) => c.title).join(" ") ?? "";
+            const categoryTitles =
+                product.categories?.map((c) => c.title).join(" ") ?? "";
             const haystack = [
                 product.title,
-                product.vendor,
-                product.productType,
+                product.description,
                 collectionTitles,
+                categoryTitles,
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -21,22 +24,15 @@ export function filterProducts(
                 return false;
             }
         }
-
-        // Vendor Filter
-        if (filters.vendors.length > 0) {
-            if (!filters.vendors.includes(product.vendor)) {
-                return false;
-            }
-        }
     
-        // Collection Filter
-        if (filters.collections.length > 0) {
-            const productCollectionHandles = product.collections.map(c => c.handle);
-            const hasMatchingCollection = filters.collections.some(
-                (filterCollection: string) => productCollectionHandles.includes(filterCollection)
+        // Category Filter
+        if (filters.categories.length > 0) {
+            const productCategoryHandles = product.categories.map((c) => c.handle);
+            const hasMatchingCategory = filters.categories.some(
+                (filterCategory: string) => productCategoryHandles.includes(filterCategory)
             );
 
-            if (!hasMatchingCollection) {
+            if (!hasMatchingCategory) {
                 return false;
             }
         }

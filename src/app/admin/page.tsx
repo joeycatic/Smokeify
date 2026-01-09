@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
 import AdminUsersClient from "./AdminUsersClient";
+import Link from "next/link";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -92,6 +93,14 @@ export default async function AdminPage() {
           <p className="text-sm text-stone-600">
             Nutzerverwaltung und Rollensteuerung.
           </p>
+          <div className="mt-3">
+            <Link
+              href="/admin/catalog"
+              className="inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+            >
+              Manage catalog
+            </Link>
+          </div>
         </div>
         <AdminUsersClient initialUsers={users.map((user) => ({
           ...user,

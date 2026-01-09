@@ -49,17 +49,26 @@ export default function Footer() {
             <p className="text-sm font-semibold text-white">Shop</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/products">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/products"
+                >
                   Alle Produkte
                 </Link>
               </li>
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/collections/new">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/collections/new"
+                >
                   Neuheiten
                 </Link>
               </li>
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/collections/bestseller">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/collections/bestseller"
+                >
                   Bestseller
                 </Link>
               </li>
@@ -71,22 +80,34 @@ export default function Footer() {
             <p className="text-sm font-semibold text-white">Hilfe</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/pages/shipping">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/shipping"
+                >
                   Versand
                 </Link>
               </li>
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/pages/returns">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/returns"
+                >
                   Rückgabe
                 </Link>
               </li>
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/contact">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/contact"
+                >
                   Kontakt
                 </Link>
               </li>
               <li>
-                <Link className="text-white/70 hover:text-white transition" href="/pages/faq">
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/pages/faq"
+                >
                   FAQ
                 </Link>
               </li>
@@ -99,22 +120,34 @@ export default function Footer() {
               <p className="text-sm font-semibold text-white">Rechtliches</p>
               <ul className="mt-4 space-y-2 text-sm">
                 <li>
-                  <Link className="text-white/70 hover:text-white transition" href="/policies/privacy-policy">
+                  <Link
+                    className="text-white/70 hover:text-white transition"
+                    href="/policies/privacy-policy"
+                  >
                     Datenschutz
                   </Link>
                 </li>
                 <li>
-                  <Link className="text-white/70 hover:text-white transition" href="/policies/terms-of-service">
+                  <Link
+                    className="text-white/70 hover:text-white transition"
+                    href="/agb"
+                  >
                     AGB
                   </Link>
                 </li>
                 <li>
-                  <Link className="text-white/70 hover:text-white transition" href="/policies/refund-policy">
+                  <Link
+                    className="text-white/70 hover:text-white transition"
+                    href="/policies/refund-policy"
+                  >
                     Widerruf
                   </Link>
                 </li>
                 <li>
-                  <Link className="text-white/70 hover:text-white transition" href="/pages/imprint">
+                  <Link
+                    className="text-white/70 hover:text-white transition"
+                    href="/pages/imprint"
+                  >
                     Impressum
                   </Link>
                 </li>
@@ -148,13 +181,22 @@ export default function Footer() {
           </p>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
-            <Link className="text-white/60 hover:text-white transition" href="/policies/privacy-policy">
+            <Link
+              className="text-white/60 hover:text-white transition"
+              href="/policies/privacy-policy"
+            >
               Datenschutz
             </Link>
-            <Link className="text-white/60 hover:text-white transition" href="/policies/terms-of-service">
+            <Link
+              className="text-white/60 hover:text-white transition"
+              href="/policies/terms-of-service"
+            >
               AGB
             </Link>
-            <Link className="text-white/60 hover:text-white transition" href="/pages/imprint">
+            <Link
+              className="text-white/60 hover:text-white transition"
+              href="/pages/imprint"
+            >
               Impressum
             </Link>
           </div>

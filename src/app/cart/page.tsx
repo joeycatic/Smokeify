@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const SHIPPING_BASE = {
   DE: 4.9,
@@ -42,8 +43,11 @@ export default function CartPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <p className="text-stone-600">Warenkorb wird geladen...</p>
+      <div className="mx-auto flex min-h-[60vh] max-w-4xl items-center justify-center px-6 py-10 text-center">
+        <div className="flex items-center gap-3 text-stone-600">
+          <LoadingSpinner size="md" />
+          <span>Warenkorb wird geladen...</span>
+        </div>
       </div>
     );
   }
@@ -261,12 +265,22 @@ export default function CartPage() {
               <p className="text-xs text-stone-500">
                 Schätzungen können je nach Versanddienst abweichen.
               </p>
-              <a
-                href={cart.checkoutUrl}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900"
-              >
-                Zur Kasse
-              </a>
+              {cart.checkoutUrl ? (
+                <a
+                  href={cart.checkoutUrl}
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900"
+                >
+                  Zur Kasse
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-black/10 bg-stone-200 px-6 py-3 text-sm font-semibold text-stone-500"
+                >
+                  Checkout bald verfuegbar
+                </button>
+              )}
             </div>
           </div>
         </div>

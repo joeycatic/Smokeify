@@ -31,74 +31,55 @@ export default function ProductsClient({ initialProducts }: Props) {
   const priceMinBound = 0;
 
   const [filters, setFilters] = useState<ProductFilters>({
-    vendors: [],
-    collections: [],
+    categories: [],
     priceMin: priceMinBound,
     priceMax: priceMaxBound,
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
-  const [categoriesOpen, setCategoriesOpen] = useState(true);
 
   const filteredProducts = useMemo(() => {
     return filterProducts(initialProducts, filters);
   }, [initialProducts, filters]);
 
-  // verfügbare Hersteller
-  const availableVendors = useMemo(() => {
-    const vendors = new Set(
-      initialProducts.map((p) => p.vendor).filter(Boolean)
-    );
-    return Array.from(vendors).sort();
-  }, [initialProducts]);
-
-  // verfügbare Kategorien (Collections)
-  const availableCollections = useMemo(() => {
-    const collections = new Map<string, string>();
+  const availableCategories = useMemo(() => {
+    const categories = new Map<string, string>();
     initialProducts.forEach((p) => {
-      p.collections?.forEach((c) => {
-        collections.set(c.handle, c.title);
+      p.categories?.forEach((c) => {
+        categories.set(c.handle, c.title);
       });
     });
-    return Array.from(collections.entries()).sort((a, b) =>
+    return Array.from(categories.entries()).sort((a, b) =>
       a[1].localeCompare(b[1])
     );
   }, [initialProducts]);
 
-  const collectionTitleByHandle = useMemo(
-    () => new Map(availableCollections),
-    [availableCollections]
+  const categoryTitleByHandle = useMemo(
+    () => new Map(availableCategories),
+    [availableCategories]
   );
 
   const resetFilters = () => {
     setFilters({
-      vendors: [],
-      collections: [],
+      categories: [],
       priceMin: priceMinBound,
       priceMax: priceMaxBound,
       searchQuery: "",
     });
   };
 
-  const toggleCollection = (handle: string) => {
+  const toggleCategory = (handle: string) => {
     setFilters((prev) => ({
       ...prev,
-      collections: prev.collections.includes(handle)
-        ? prev.collections.filter((c) => c !== handle)
-        : [...prev.collections, handle],
+      categories: prev.categories.includes(handle)
+        ? prev.categories.filter((c) => c !== handle)
+        : [...prev.categories, handle],
     }));
   };
 
-  const removeCollection = (handle: string) => {
+  const removeCategory = (handle: string) => {
     setFilters((prev) => ({
       ...prev,
-      collections: prev.collections.filter((c) => c !== handle),
-    }));
-  };
-
-  const removeVendor = (vendor: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      vendors: prev.vendors.filter((v) => v !== vendor),
+      categories: prev.categories.filter((c) => c !== handle),
     }));
   };
 
@@ -121,22 +102,13 @@ export default function ProductsClient({ initialProducts }: Props) {
       onRemove: () => void;
     }> = [];
 
-    filters.collections.forEach((handle) => {
+    filters.categories.forEach((handle) => {
       chips.push({
-        key: `collection-${handle}`,
-        label: collectionTitleByHandle.get(handle) ?? handle,
-        onRemove: () => removeCollection(handle),
+        key: `category-${handle}`,
+        label: categoryTitleByHandle.get(handle) ?? handle,
+        onRemove: () => removeCategory(handle),
       });
     });
-
-    filters.vendors.forEach((vendor) => {
-      chips.push({
-        key: `vendor-${vendor}`,
-        label: vendor,
-        onRemove: () => removeVendor(vendor),
-      });
-    });
-
     if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
       chips.push({
         key: "price",
@@ -156,7 +128,7 @@ export default function ProductsClient({ initialProducts }: Props) {
     return chips;
   }, [
     filters,
-    collectionTitleByHandle,
+    categoryTitleByHandle,
     priceMinBound,
     priceMaxBound,
   ]);
@@ -167,22 +139,22 @@ export default function ProductsClient({ initialProducts }: Props) {
         <div className="flex min-w-max items-center justify-center gap-3">
           <button
             type="button"
-            onClick={() => setFilters((prev) => ({ ...prev, collections: [] }))}
+            onClick={() => setFilters((prev) => ({ ...prev, categories: [] }))}
             className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
-              filters.collections.length === 0
+              filters.categories.length === 0
                 ? "border-black bg-black text-white"
                 : "border-black/10 bg-white text-black/70 hover:border-black/20"
             }`}
           >
             All
           </button>
-          {availableCollections.map(([handle, title]) => {
-            const active = filters.collections.includes(handle);
+          {availableCategories.map(([handle, title]) => {
+            const active = filters.categories.includes(handle);
             return (
               <button
                 key={handle}
                 type="button"
-                onClick={() => toggleCollection(handle)}
+                onClick={() => toggleCategory(handle)}
                 aria-pressed={active}
                 className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
                   active
@@ -251,8 +223,7 @@ export default function ProductsClient({ initialProducts }: Props) {
           <FilterDrawer
             filters={filters}
             setFilters={setFilters}
-            availableVendors={availableVendors}
-            availableCollections={availableCollections}
+            availableCategories={availableCategories}
             priceMinBound={priceMinBound}
             priceMaxBound={priceMaxBound}
             resultCount={filteredProducts.length}

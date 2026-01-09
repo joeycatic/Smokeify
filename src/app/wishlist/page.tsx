@@ -5,6 +5,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import type { Product } from "@/data/types";
 import PageLayout from "@/components/PageLayout";
 import { DisplayProductsList } from "@/components/DisplayProducts";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function WishlistPage() {
   const { ids } = useWishlist();
@@ -44,7 +45,12 @@ export default function WishlistPage() {
         <h1 className="text-3xl font-bold mb-6" style={{ color: "#2f3e36" }}>
           Wunschliste
         </h1>
-        {loading && <p className="text-stone-600">Wunschliste wird geladen...</p>}
+        {loading && (
+          <div className="mt-10 flex min-h-[40vh] items-center justify-center gap-3 text-center text-stone-600">
+            <LoadingSpinner size="sm" />
+            <span>Wunschliste wird geladen...</span>
+          </div>
+        )}
         {!loading && ids.length === 0 && (
           <p className="text-stone-600">Deine Wunschliste ist leer.</p>
         )}
@@ -53,4 +59,3 @@ export default function WishlistPage() {
     </PageLayout>
   );
 }
-

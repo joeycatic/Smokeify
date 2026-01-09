@@ -18,6 +18,10 @@ type Props = {
 
 export default function ProductImageCarousel({ images, alt }: Props) {
   const [index, setIndex] = useState(0);
+  const [swerveDirection, setSwerveDirection] = useState<
+    "left" | "right" | null
+  >(null);
+  const [swerveKey, setSwerveKey] = useState(0);
   const count = images.length;
   const current = images[index];
 
@@ -25,25 +29,40 @@ export default function ProductImageCarousel({ images, alt }: Props) {
 
   const handlePrev = () => {
     if (count <= 1) return;
+    setSwerveDirection("left");
+    setSwerveKey((prev) => prev + 1);
     setIndex((prev) => (prev - 1 + count) % count);
   };
 
   const handleNext = () => {
     if (count <= 1) return;
+    setSwerveDirection("right");
+    setSwerveKey((prev) => prev + 1);
     setIndex((prev) => (prev + 1) % count);
   };
 
   return (
     <div className="space-y-4">
       <div className="group relative p-3">
-        <Image
-          src={current.url}
-          alt={current.altText ?? alt}
-          width={900}
-          height={900}
-          className="h-auto w-full rounded-xl object-cover"
-          priority
-        />
+        <div
+          key={swerveKey}
+          style={
+            swerveDirection
+              ? {
+                  animation: `image-swerve-${swerveDirection} 420ms ease`,
+                }
+              : undefined
+          }
+        >
+          <Image
+            src={current.url}
+            alt={current.altText ?? alt}
+            width={900}
+            height={900}
+            className="h-auto w-full rounded-xl object-cover"
+            priority
+          />
+        </div>
         {count > 1 && (
           <>
             <button
