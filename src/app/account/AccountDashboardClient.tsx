@@ -48,14 +48,14 @@ export default function AccountDashboardClient({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-      <aside className="rounded-xl border border-black/10 bg-white p-4">
-        <nav className="space-y-2 text-sm">
+      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:border-black/10 lg:bg-white lg:p-4">
+        <nav className="flex gap-2 overflow-x-auto pb-1 text-sm lg:block lg:space-y-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as TabId)}
-              className={`w-full rounded-md px-3 py-2 text-left font-semibold transition ${
+              className={`whitespace-nowrap rounded-md px-3 py-2 text-left font-semibold transition lg:w-full ${
                 activeTab === tab.id
                   ? "bg-[#E4C56C] text-[#2f3e36]"
                   : "text-stone-700 hover:bg-stone-200"

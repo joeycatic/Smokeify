@@ -14,12 +14,18 @@ type LayoutSectionProps = {
 
 function PageShell({ children }: LayoutSectionProps) {
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col">{children}</main>
+    <main className="min-h-screen bg-stone-100 flex flex-col overflow-x-hidden">
+      {children}
+    </main>
   );
 }
 
 function PageContainer({ children }: LayoutSectionProps) {
-  return <div className="mx-auto max-w-6xl px-6 flex-1 w-full">{children}</div>;
+  return (
+    <div className="mx-auto w-full flex-1 px-4 sm:px-6 lg:max-w-6xl">
+      {children}
+    </div>
+  );
 }
 
 export default function PageLayout({ children }: PageLayoutProps) {

@@ -66,7 +66,7 @@ export default async function AccountPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
+      <div className="mx-auto max-w-5xl px-6 py-8 text-stone-800">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
             Account
