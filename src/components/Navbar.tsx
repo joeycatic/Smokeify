@@ -13,6 +13,7 @@ import { useCart } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -425,7 +426,10 @@ export function Navbar() {
             <div className="flex h-full flex-col">
               <div className="overflow-y-auto px-5 py-4 text-sm">
                 {loading ? (
-                  <p className="text-stone-500">Warenkorb wird geladen...</p>
+                  <div className="flex items-center gap-2 text-stone-500">
+                    <LoadingSpinner size="sm" />
+                    <span>Warenkorb wird geladen...</span>
+                  </div>
                 ) : !cart || cart.lines.length === 0 ? (
                   <p className="text-stone-500">Warenkorb ist leer.</p>
                 ) : (

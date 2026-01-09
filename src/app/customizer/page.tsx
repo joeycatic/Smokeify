@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 type Option = {
   id: string;
@@ -73,8 +74,11 @@ export default function CustomizerPage() {
   if (status === "loading") {
     return (
       <PageLayout>
-        <div className="mx-auto max-w-6xl px-6 py-12 text-stone-700">
-          <p>Customizer wird geladen…</p>
+        <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center px-6 py-12 text-center text-stone-700">
+          <div className="flex items-center gap-3">
+            <LoadingSpinner size="md" />
+            <span>Customizer wird geladen...</span>
+          </div>
         </div>
       </PageLayout>
     );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function DeleteAccountButton() {
   const [status, setStatus] = useState<"idle" | "loading">("idle");
@@ -21,7 +22,14 @@ export default function DeleteAccountButton() {
         disabled={status === "loading"}
         className="inline-flex h-12 items-center rounded-md border border-red-200 bg-red-50 px-5 text-base font-semibold text-red-700 transition hover:border-red-300 hover:opacity-90 disabled:opacity-60"
       >
-        {status === "loading" ? "Löschen..." : "Account löschen"}
+        {status === "loading" ? (
+          <span className="inline-flex items-center gap-2">
+            <LoadingSpinner size="sm" />
+            Löschen...
+          </span>
+        ) : (
+          "Account löschen"
+        )}
       </button>
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -85,7 +93,17 @@ export default function DeleteAccountButton() {
                 disabled={status === "loading"}
                 className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {status === "loading" ? "Löschen..." : "Löschen"}
+                {status === "loading" ? (
+                  <span className="inline-flex items-center gap-2">
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-white/40 border-t-white"
+                    />
+                    Löschen...
+                  </span>
+                ) : (
+                  "Löschen"
+                )}
               </button>
             </div>
           </div>

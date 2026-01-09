@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const SHIPPING_BASE = {
   DE: 4.9,
@@ -42,8 +43,11 @@ export default function CartPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <p className="text-stone-600">Warenkorb wird geladen...</p>
+      <div className="mx-auto flex min-h-[60vh] max-w-4xl items-center justify-center px-6 py-10 text-center">
+        <div className="flex items-center gap-3 text-stone-600">
+          <LoadingSpinner size="md" />
+          <span>Warenkorb wird geladen...</span>
+        </div>
       </div>
     );
   }

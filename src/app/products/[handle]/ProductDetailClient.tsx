@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProductVariant } from "@/lib/shopify";
 import { useCart } from "@/components/CartProvider";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function ProductDetailClient({
   product,
@@ -208,7 +209,14 @@ export default function ProductDetailClient({
               disabled={notifyStatus === "loading"}
               className="h-10 rounded-md border border-black/20 px-4 text-sm font-semibold text-black/70 hover:border-black/40 disabled:opacity-50"
             >
-              Benachrichtigen
+              {notifyStatus === "loading" ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Bitte warten...
+                </span>
+              ) : (
+                "Benachrichtigen"
+              )}
             </button>
           </div>
           {notifyMessage && (
