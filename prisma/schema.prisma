@@ -19,6 +19,13 @@ enum VerificationPurpose {
   PASSWORD_RESET
 }
 
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -151,6 +158,128 @@ model BackInStockRequest {
   @@index([userId])
 }
 
+
+
+model Product {
+  id          String         @id @default(cuid())
+  title       String
+  handle      String         @unique
+  description String?
+  manufacturer String?
+  tags        String[]       @default([])
+  status      ProductStatus  @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  variants    Variant[]
+  images      ProductImage[]
+  categories  ProductCategory[]
+  collections ProductCollection[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  altText   String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+}
+
+model Variant {
+  id        String   @id @default(cuid())
+  productId String
+  title     String
+  sku       String?  @unique
+  priceCents Int
+  costCents  Int      @default(0)
+  lowStockThreshold Int @default(5)
+  compareAtCents Int?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options   VariantOption[]
+  inventory VariantInventory?
+
+  @@index([productId, position])
+}
+
+model VariantOption {
+  id        String @id @default(cuid())
+  variantId String
+  name      String
+  value     String
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, name])
+}
+
+model VariantInventory {
+  id            String   @id @default(cuid())
+  variantId     String   @unique
+  quantityOnHand Int     @default(0)
+  reserved      Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  handle      String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products ProductCategory[]
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  handle      String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products ProductCollection[]
+}
+
+model ProductCategory {
+  id         String   @id @default(cuid())
+  productId  String
+  categoryId String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@index([categoryId, position])
+}
+
+model ProductCollection {
+  id           String   @id @default(cuid())
+  productId    String
+  collectionId String
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, collectionId])
+  @@index([collectionId, position])
+}
 model RateLimit {
   key       String   @id
   count     Int

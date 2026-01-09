@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ProductVariant } from "@/lib/shopify";
 import { useCart } from "@/components/CartProvider";
+
+type ProductVariant = {
+  id: string;
+  title: string;
+  availableForSale: boolean;
+  price: { amount: string; currencyCode: string };
+};
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function ProductDetailClient({
   product,
   variants,
 }: {
-  product: { id: string; title: string; vendor: string; descriptionHtml: string };
+  product: { id: string; title: string; descriptionHtml: string };
   variants: ProductVariant[];
-  options: { name: string; values: string[] }[];
 }) {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -46,7 +51,6 @@ export default function ProductDetailClient({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-black/60">{product.vendor}</p>
         <h1 className="mt-1 text-3xl text-black font-semibold">{product.title}</h1>
         {selectedVariant && <p className="mt-3 text-xl font-semibold" style={{ color: '#196e41ff' }} >{priceLabel}</p>}
       </div>

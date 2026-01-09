@@ -54,8 +54,7 @@ function Accordion({
 export default function FilterDrawer({
   filters,
   setFilters,
-  availableVendors,
-  availableCollections,
+  availableCategories,
   priceMinBound = 0,
   priceMaxBound = 10000,
   resultCount,
@@ -63,20 +62,16 @@ export default function FilterDrawer({
 }: {
   filters: ProductFilters;
   setFilters: React.Dispatch<React.SetStateAction<ProductFilters>>;
-  availableVendors: string[];
-  availableCollections: Array<[handle: string, title: string]>;
+  availableCategories: Array<[handle: string, title: string]>;
   priceMinBound?: number;
   priceMaxBound?: number;
   resultCount: number;
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [section, setSection] = useState<"price" | "cat" | "vendor" | null>(
-    "price"
-  );
+  const [section, setSection] = useState<"price" | "cat" | null>("price");
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
-  const [vendorQuery, setVendorQuery] = useState("");
-  const [collectionQuery, setCollectionQuery] = useState("");
+  const [categoryQuery, setCategoryQuery] = useState("");
   const trackRef = useRef<HTMLDivElement | null>(null);
 
   // ESC schließt + body lock
@@ -92,52 +87,34 @@ export default function FilterDrawer({
 
   const activeCount = useMemo(() => {
     let c = 0;
-    c += filters.vendors.length;
-    c += filters.collections.length;
+    c += filters.categories.length;
     if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound)
       c += 1;
     if (filters.searchQuery?.trim()) c += 1;
     return c;
   }, [filters, priceMinBound, priceMaxBound]);
 
-  const toggleVendor = (vendor: string) => {
+  const toggleCategory = (handle: string) => {
     setFilters((prev) => ({
       ...prev,
-      vendors: prev.vendors.includes(vendor)
-        ? prev.vendors.filter((v) => v !== vendor)
-        : [...prev.vendors, vendor],
+      categories: prev.categories.includes(handle)
+        ? prev.categories.filter((c) => c !== handle)
+        : [...prev.categories, handle],
     }));
   };
 
-  const toggleCollection = (handle: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      collections: prev.collections.includes(handle)
-        ? prev.collections.filter((c) => c !== handle)
-        : [...prev.collections, handle],
-    }));
-  };
-
-  const collectionMap = useMemo(
-    () => new Map(availableCollections),
-    [availableCollections]
+  const categoryMap = useMemo(
+    () => new Map(availableCategories),
+    [availableCategories]
   );
 
-  const filteredCollections = useMemo(() => {
-    if (!collectionQuery.trim()) return availableCollections;
-    const query = collectionQuery.trim().toLowerCase();
-    return availableCollections.filter(([, title]) =>
+  const filteredCategories = useMemo(() => {
+    if (!categoryQuery.trim()) return availableCategories;
+    const query = categoryQuery.trim().toLowerCase();
+    return availableCategories.filter(([, title]) =>
       title.toLowerCase().includes(query)
     );
-  }, [availableCollections, collectionQuery]);
-
-  const filteredVendors = useMemo(() => {
-    if (!vendorQuery.trim()) return availableVendors;
-    const query = vendorQuery.trim().toLowerCase();
-    return availableVendors.filter((vendor) =>
-      vendor.toLowerCase().includes(query)
-    );
-  }, [availableVendors, vendorQuery]);
+  }, [availableCategories, categoryQuery]);
 
   const activeFilters = useMemo(() => {
     const items: Array<{
@@ -146,20 +123,12 @@ export default function FilterDrawer({
       onRemove: () => void;
     }> = [];
 
-    filters.collections.forEach((handle) => {
-      const title = collectionMap.get(handle) ?? handle;
+    filters.categories.forEach((handle) => {
+      const title = categoryMap.get(handle) ?? handle;
       items.push({
-        key: `collection-${handle}`,
+        key: `category-${handle}`,
         label: `Category: ${title}`,
-        onRemove: () => toggleCollection(handle),
-      });
-    });
-
-    filters.vendors.forEach((vendor) => {
-      items.push({
-        key: `vendor-${vendor}`,
-        label: `Brand: ${vendor}`,
-        onRemove: () => toggleVendor(vendor),
+        onRemove: () => toggleCategory(handle),
       });
     });
 
@@ -187,7 +156,7 @@ export default function FilterDrawer({
     }
 
     return items;
-  }, [filters, collectionMap, priceMinBound, priceMaxBound, setFilters]);
+  }, [filters, categoryMap, priceMinBound, priceMaxBound, setFilters]);
 
   const priceRange = Math.max(priceMaxBound - priceMinBound, 1);
   const minPercent = ((filters.priceMin - priceMinBound) / priceRange) * 100;
@@ -436,21 +405,21 @@ export default function FilterDrawer({
                 >
                   <input
                     type="search"
-                    value={collectionQuery}
-                    onChange={(e) => setCollectionQuery(e.target.value)}
+                    value={categoryQuery}
+                    onChange={(e) => setCategoryQuery(e.target.value)}
                     placeholder="Search categories"
                     className="mb-3 h-9 w-full rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
                   />
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {filteredCollections.map(([handle, title]) => (
+                    {filteredCategories.map(([handle, title]) => (
                       <label
                         key={handle}
                         className="flex items-center gap-2 cursor-pointer hover:bg-black/5 p-1 rounded"
                       >
                         <input
                           type="checkbox"
-                          checked={filters.collections.includes(handle)}
-                          onChange={() => toggleCollection(handle)}
+                          checked={filters.categories.includes(handle)}
+                          onChange={() => toggleCategory(handle)}
                         />
                         <span className="text-sm">{title}</span>
                       </label>
@@ -458,37 +427,6 @@ export default function FilterDrawer({
                   </div>
                 </Accordion>
 
-                {/* MANUFACTURER */}
-                <Accordion
-                  title="Brands"
-                  open={section === "vendor"}
-                  onToggle={() =>
-                    setSection((s) => (s === "vendor" ? null : "vendor"))
-                  }
-                >
-                  <input
-                    type="search"
-                    value={vendorQuery}
-                    onChange={(e) => setVendorQuery(e.target.value)}
-                    placeholder="Search brands"
-                    className="mb-3 h-9 w-full rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
-                  />
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {filteredVendors.map((vendor) => (
-                      <label
-                        key={vendor}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-black/5 p-1 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.vendors.includes(vendor)}
-                          onChange={() => toggleVendor(vendor)}
-                        />
-                        <span className="text-sm">{vendor}</span>
-                      </label>
-                    ))}
-                  </div>
-                </Accordion>
               </div>
 
               {/* Footer */}

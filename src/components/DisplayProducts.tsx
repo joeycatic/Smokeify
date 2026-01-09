@@ -14,9 +14,10 @@ import {
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
+import type { Product } from "@/data/types";
 
 type Props = {
-  products?: any[];
+  products?: Product[];
   cols?: number;
 };
 
@@ -43,11 +44,6 @@ export default function DisplayProducts({products, cols = 4,}: Props) {
 
                     {/* Content */}
                     <div className="p-4">
-                        {/* Vendor */}
-                        <p className="text-xs uppercase tracking-wide text-stone-900">
-                        {p.vendor}
-                        </p>
-
                         {/* Title */}
                         <h2 className="mt-1 line-clamp-2 font-bold" style={{ color: '#000000ff' }}>
                             {p.title}
@@ -108,7 +104,6 @@ export function DisplayProductsList({ products }: Props) {
 
           <div className="flex flex-1 flex-col gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-stone-900">{p.vendor}</p>
               <h2 className="text-lg font-bold" style={{ color: "#000000ff" }}>
                 {p.title}
               </h2>
@@ -361,18 +356,8 @@ function formatPrice(price?: {
   }).format(Number(price.amount))
 }
 
-function getProductImages(product: any) {
-  const fromArray = Array.isArray(product?.images) ? product.images : [];
-  const fromEdges = Array.isArray(product?.images?.edges)
-    ? product.images.edges.map((edge: any) => edge.node).filter(Boolean)
-    : [];
-  const images = fromArray.length ? fromArray : fromEdges;
-  const featured = product?.featuredImage ?? null;
-
-  if (featured && !images.some((img: any) => img?.url === featured.url)) {
-    return [featured, ...images];
-  }
-
+function getProductImages(product: Product) {
+  const images = product.images ?? [];
   if (images.length) return images;
-  return featured ? [featured] : [];
+  return product.featuredImage ? [product.featuredImage] : [];
 }

@@ -1,41 +1,46 @@
 export type ProductImage = {
   url: string;
   altText: string | null;
-  width?: number | null;
-  height?: number | null;
-}
+};
 
-type ShopifyCollection = {
+export type ProductCollection = {
   id: string;
   handle: string;
   title: string;
-}
+};
 
-type ShopifyPrice = {
+export type ProductCategory = {
+  id: string;
+  handle: string;
+  title: string;
+};
+
+export type ProductPrice = {
   amount: string;
   currencyCode: string;
-}
+};
 
 export type Product = {
   id: string;
   handle: string;
   title: string;
-  vendor: string;
-  productType: string;
+  description: string | null;
+  manufacturer: string | null;
+  tags: string[];
   availableForSale: boolean;
-  defaultVariantId?: string | null;
-  collections: ShopifyCollection[];
+  defaultVariantId: string | null;
+  collections: ProductCollection[];
+  categories: ProductCategory[];
   featuredImage: ProductImage | null;
-  images?: ProductImage[];
+  images: ProductImage[];
   priceRange: {
-    minVariantPrice: ShopifyPrice;
+    minVariantPrice: ProductPrice;
   };
-}
+};
 
 export type ProductFilters = {
-  vendors: string[];        
-  collections: string[];    
-  priceMin: number; 
+  categories: string[];
+  priceMin: number;
   priceMax: number;
   searchQuery?: string;
-}
+};

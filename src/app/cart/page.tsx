@@ -265,12 +265,22 @@ export default function CartPage() {
               <p className="text-xs text-stone-500">
                 Schätzungen können je nach Versanddienst abweichen.
               </p>
-              <a
-                href={cart.checkoutUrl}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900"
-              >
-                Zur Kasse
-              </a>
+              {cart.checkoutUrl ? (
+                <a
+                  href={cart.checkoutUrl}
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900"
+                >
+                  Zur Kasse
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-black/10 bg-stone-200 px-6 py-3 text-sm font-semibold text-stone-500"
+                >
+                  Checkout bald verfuegbar
+                </button>
+              )}
             </div>
           </div>
         </div>

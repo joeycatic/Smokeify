@@ -1,6 +1,6 @@
 // src/app/products/[handle]/page.tsx
 import { notFound } from "next/navigation";
-import { getProductByHandle } from "@/lib/shopify";
+import { getProductByHandle } from "@/lib/catalog";
 import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import PageLayout from "@/components/PageLayout";
@@ -14,20 +14,7 @@ export default async function ProductDetailPage({
   const product = await getProductByHandle(handle);
   if (!product) return notFound();
 
-  // supports both shapes: edges OR array
-  const images =
-    (product as any).images?.edges?.map((e: any) => e.node) ??
-    (product as any).images ??
-    [];
-  const featuredImage = product.featuredImage ?? null;
-  const galleryImages = featuredImage && !images.some((img: any) => img?.url === featuredImage.url)
-    ? [featuredImage, ...images]
-    : images;
-
-  const variants =
-    (product as any).variants?.edges?.map((e: any) => e.node) ??
-    (product as any).variants ??
-    [];
+  const images = product.images ?? [];
 
   return (
     <PageLayout>
@@ -35,10 +22,7 @@ export default async function ProductDetailPage({
             <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
                 <div className="space-y-4">
                     <div className="overflow-hidden rounded-2xl border border-black/10 bg-stone-100">
-                        <ProductImageCarousel
-                          images={galleryImages}
-                          alt={product.title}
-                        />
+                    <ProductImageCarousel images={images} alt={product.title} />
                     </div>
 
                     </div>
@@ -47,11 +31,9 @@ export default async function ProductDetailPage({
                     product={{
                         id: product.id,
                         title: product.title,
-                        vendor: product.vendor,
-                        descriptionHtml: product.descriptionHtml,
+                        descriptionHtml: product.description ?? "",
                     }}
-                    variants={variants}
-                    options={product.options ?? []}
+                    variants={product.variants}
                 />
             </div>
         </main>

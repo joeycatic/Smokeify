@@ -1,5 +1,5 @@
 // app/products/page.tsx (Server Component)
-import { getProducts } from '@/lib/shopify';
+import { getProducts } from "@/lib/catalog";
 import ProductsClient from './ProductsClient';
 import PageLayout from '@/components/PageLayout';
 

@@ -3,11 +3,11 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
-import { getProducts } from "@/lib/shopify";
+import { getProducts } from "@/lib/catalog";
 import Link from "next/link";
 
 export default async function StorePage() {
-  const products = await getProducts();
+  const products = await getProducts(8);
 
   return (
     <main className="bg-stone-50">
@@ -31,7 +31,7 @@ export default async function StorePage() {
             </p>
           </div>
 
-          <DisplayProducts cols={4} />
+          <DisplayProducts products={products} cols={4} />
         </section>
 
         {/* Optional: View All Button */}
