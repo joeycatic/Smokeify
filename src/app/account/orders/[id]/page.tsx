@@ -85,6 +85,12 @@ export default async function OrderDetailPage({
                   {formatPrice(order.amountShipping, order.currency)}
                 </span>
               </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-stone-600">Steuern</span>
+                <span className="font-semibold text-stone-900">
+                  {formatPrice(order.amountTax, order.currency)}
+                </span>
+              </div>
               <div className="mt-2 flex items-center justify-between text-base">
                 <span className="font-semibold text-stone-900">Gesamt</span>
                 <span className="font-semibold text-stone-900">
@@ -122,6 +128,25 @@ export default async function OrderDetailPage({
           </div>
 
           <div className="mt-8">
+            {order.items.some((item) => item.imageUrl) && (
+              <div className="mb-6">
+                <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
+                  Artikelbilder
+                </h2>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {order.items
+                    .filter((item) => item.imageUrl)
+                    .map((item) => (
+                      <img
+                        key={item.id}
+                        src={item.imageUrl as string}
+                        alt={item.name}
+                        className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
             <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
               Artikel
             </h2>

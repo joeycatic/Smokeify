@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         id: existing.id,
         createdAt: existing.createdAt,
         amountSubtotal: existing.amountSubtotal,
+        amountTax: existing.amountTax,
         amountShipping: existing.amountShipping,
         amountTotal: existing.amountTotal,
         currency: existing.currency,
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
 
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
+    expand: ["data.price.product"],
   });
 
   const shipping = checkoutSession.shipping_details;
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
   const subtotal = checkoutSession.amount_subtotal ?? 0;
   const total = checkoutSession.amount_total ?? 0;
   const shippingAmount = checkoutSession.total_details?.amount_shipping ?? 0;
+  const taxAmount = checkoutSession.total_details?.amount_tax ?? 0;
   const currency = (checkoutSession.currency ?? "eur").toUpperCase();
 
   const created = await prisma.order.create({
@@ -94,6 +97,7 @@ export async function POST(request: Request) {
       paymentStatus: checkoutSession.payment_status ?? "unpaid",
       currency,
       amountSubtotal: subtotal,
+      amountTax: taxAmount,
       amountShipping: shippingAmount,
       amountTotal: total,
       customerEmail: checkoutSession.customer_details?.email ?? undefined,
@@ -104,13 +108,45 @@ export async function POST(request: Request) {
       shippingCity: address?.city ?? undefined,
       shippingCountry: address?.country ?? undefined,
       items: {
-        create: (lineItems.data ?? []).map((item) => ({
-          name: item.description ?? "Item",
-          quantity: item.quantity ?? 0,
-          unitAmount: item.price?.unit_amount ?? 0,
-          totalAmount: item.amount_total ?? 0,
-          currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
-        })),
+        create: await Promise.all(
+          (lineItems.data ?? []).map(async (item) => {
+            const product = item.price?.product as Stripe.Product | null | undefined;
+            const variantId =
+              product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+            let name = item.description ?? "Item";
+            let imageUrl = product?.images?.[0] ?? null;
+            const productId = product?.metadata?.productId || item.price?.metadata?.productId || "";
+
+            if (variantId) {
+              const variant = await prisma.variant.findUnique({
+                where: { id: variantId },
+                include: {
+                  product: { include: { images: { orderBy: { position: "asc" } } } },
+                },
+              });
+              if (variant) {
+                const productName = variant.product.title;
+                const variantTitle = variant.title?.trim();
+                name =
+                  variantTitle && variantTitle !== productName
+                    ? `${productName} - ${variantTitle}`
+                    : productName;
+                imageUrl = variant.product.images[0]?.url ?? imageUrl;
+              }
+            }
+
+            return {
+              name,
+              quantity: item.quantity ?? 0,
+              unitAmount: item.price?.unit_amount ?? 0,
+              totalAmount: item.amount_total ?? 0,
+              currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
+              imageUrl,
+              productId: productId || undefined,
+              variantId: variantId || undefined,
+            };
+          })
+        ),
       },
     },
     include: { items: true },
@@ -122,6 +158,7 @@ export async function POST(request: Request) {
       id: created.id,
       createdAt: created.createdAt,
       amountSubtotal: created.amountSubtotal,
+      amountTax: created.amountTax,
       amountShipping: created.amountShipping,
       amountTotal: created.amountTotal,
       currency: created.currency,

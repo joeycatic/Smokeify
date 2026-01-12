@@ -92,7 +92,9 @@ export default function AdminCatalogClient({
         }
         return;
       }
-      setProducts((prev) => [data.product, ...prev]);
+      const created = data.product;
+      if (!created) return;
+      setProducts((prev) => [created, ...prev]);
       setTitle("");
       setHandle("");
       setStatus("DRAFT");

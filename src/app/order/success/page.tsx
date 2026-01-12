@@ -15,12 +15,14 @@ type OrderItem = {
   unitAmount: number;
   totalAmount: number;
   currency: string;
+  imageUrl?: string | null;
 };
 
 type OrderSummary = {
   id: string;
   createdAt: string;
   amountSubtotal: number;
+  amountTax: number;
   amountShipping: number;
   amountTotal: number;
   currency: string;
@@ -144,6 +146,25 @@ export default function OrderSuccessPage() {
 
           {order && loadStatus === "ok" ? (
             <div className="space-y-6">
+              {order.items.some((item) => item.imageUrl) && (
+                <div>
+                  <h2 className="text-xs font-semibold tracking-widest text-black/60 mb-2">
+                    Artikelbilder
+                  </h2>
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {order.items
+                      .filter((item) => item.imageUrl)
+                      .map((item) => (
+                        <img
+                          key={item.id}
+                          src={item.imageUrl as string}
+                          alt={item.name}
+                          className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
+                        />
+                      ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-stone-400">
@@ -234,6 +255,10 @@ export default function OrderSuccessPage() {
                   <span>
                     {formatPrice(order.amountShipping, order.currency)}
                   </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span>Steuern</span>
+                  <span>{formatPrice(order.amountTax, order.currency)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-base font-semibold">
                   <span>Gesamt</span>

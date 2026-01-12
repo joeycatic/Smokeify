@@ -299,6 +299,7 @@ model Order {
   paymentStatus        String
   currency             String
   amountSubtotal       Int
+  amountTax            Int       @default(0)
   amountShipping       Int
   amountTotal          Int
   customerEmail        String?
@@ -325,6 +326,9 @@ model OrderItem {
   unitAmount   Int
   totalAmount  Int
   currency     String
+  imageUrl     String?
+  productId    String?
+  variantId    String?
 
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
