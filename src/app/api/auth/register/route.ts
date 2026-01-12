@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     postalCode?: string;
     city?: string;
     country?: string;
+    birthDate?: string;
   };
 
   const email = body.email?.trim().toLowerCase();
@@ -42,9 +43,28 @@ export async function POST(request: Request) {
   const postalCode = body.postalCode?.trim();
   const city = body.city?.trim();
   const country = body.country?.trim();
+  const birthDateRaw = body.birthDate?.trim();
+  const birthDate = birthDateRaw ? new Date(birthDateRaw) : undefined;
 
   if (!email || !password) {
     return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
+  }
+  if (
+    !firstName ||
+    !lastName ||
+    !street ||
+    !houseNumber ||
+    !postalCode ||
+    !city ||
+    !country
+  ) {
+    return NextResponse.json(
+      { error: "Missing required profile fields" },
+      { status: 400 }
+    );
+  }
+  if (birthDateRaw && (!birthDate || Number.isNaN(birthDate.getTime()))) {
+    return NextResponse.json({ error: "Invalid birth date" }, { status: 400 });
   }
 
   const emailLimit = await checkRateLimit({
@@ -91,6 +111,7 @@ export async function POST(request: Request) {
       postalCode,
       city,
       country,
+      birthDate,
       passwordHash,
     },
   });

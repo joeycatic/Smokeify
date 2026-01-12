@@ -26,14 +26,33 @@ type Props = {
   profile: Profile;
   setups: SetupItem[];
   wishlistCount: number;
+  orders: OrderSummary[];
 };
 
 type TabId = "profile" | "orders" | "wishlist" | "setups";
+
+type OrderSummary = {
+  id: string;
+  createdAt: string;
+  amountTotal: number;
+  currency: string;
+  paymentStatus: string;
+  status: string;
+  itemsCount: number;
+};
+
+const formatPrice = (amount: number, currency: string) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amount / 100);
 
 export default function AccountDashboardClient({
   profile,
   setups,
   wishlistCount,
+  orders,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const tabs = useMemo(
@@ -85,12 +104,55 @@ export default function AccountDashboardClient({
         {activeTab === "orders" && (
           <section className="rounded-xl border border-black/10 bg-white p-6">
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              ORDER HISTORY
+              BESTELLUNGEN
             </h2>
-            <p className="text-sm text-stone-600">
-              Shopify-Anbindung folgt. Sobald verknuepft, erscheinen hier die
-              Bestellungen.
-            </p>
+            {orders.length === 0 ? (
+              <p className="text-sm text-stone-600">
+                Noch keine Bestellungen vorhanden.
+              </p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {orders.map((order) => (
+                  <li key={order.id}>
+                    <Link
+                      href={`/account/orders/${order.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-xl border border-black/10 bg-gradient-to-br from-white via-emerald-50 to-amber-50 px-4 py-3 shadow-sm transition hover:border-black/20 hover:bg-white"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">
+                            Bestellung {order.id.slice(0, 8).toUpperCase()}
+                          </div>
+                          <div className="text-xs text-stone-500">
+                            {new Date(order.createdAt).toLocaleDateString(
+                              "de-DE"
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-emerald-900">
+                            {formatPrice(order.amountTotal, order.currency)}
+                          </div>
+                          <div className="text-xs text-stone-500">
+                            {order.itemsCount} Artikel
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
+                        <span className="rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
+                          Status: {order.status}
+                        </span>
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                          Zahlung: {order.paymentStatus}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 

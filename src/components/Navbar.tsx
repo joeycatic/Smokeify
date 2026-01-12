@@ -66,11 +66,16 @@ export function Navbar() {
   const [cartOpen, setCartOpen] = useState(false);
   const cartRef = useRef<HTMLDivElement | null>(null);
   const cartPanelRef = useRef<HTMLElement | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
 
   const count = loading ? 0 : cart?.totalQuantity ?? 0;
   const wishlistCount = ids.length;
   const [cartPop, setCartPop] = useState(false);
   const [wishlistPop, setWishlistPop] = useState(false);
+  const canCheckout =
+    !loading && !!cart && cart.lines.length > 0 && checkoutStatus !== "loading";
   const returnTo = useMemo(() => {
     if (pathname?.startsWith("/auth")) return "/";
     const query = searchParams?.toString();
@@ -126,6 +131,37 @@ export function Navbar() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const startCheckout = async () => {
+    if (!cart || cart.lines.length === 0) {
+      router.push("/cart");
+      return;
+    }
+    if (!isAuthenticated) {
+      router.push(
+        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`
+      );
+      return;
+    }
+    setCheckoutStatus("loading");
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: "DE" }),
+      });
+      const data = (await res.json()) as { url?: string };
+      if (!res.ok || !data.url) {
+        setCheckoutStatus("error");
+        router.push("/cart");
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
+      setCheckoutStatus("error");
+      router.push("/cart");
+    }
+  };
   return (
     <nav className="relative w-full border-b border-black/10">
       <div className="mx-auto max-w-7xl px-5 py-8">
@@ -453,11 +489,13 @@ export function Navbar() {
                             <div className="h-12 w-12 rounded-md bg-stone-100" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs text-stone-500">
-                              {line.merchandise.product.title}
-                            </p>
+                            {line.merchandise.product.manufacturer && (
+                              <p className="truncate text-[11px] uppercase tracking-wide text-stone-400">
+                                {line.merchandise.product.manufacturer}
+                              </p>
+                            )}
                             <p className="truncate text-sm font-semibold">
-                              {line.merchandise.title}
+                              {line.merchandise.product.title}
                             </p>
                             <p className="text-xs text-stone-500">
                               {line.quantity} ×{" "}
@@ -503,21 +541,14 @@ export function Navbar() {
                   >
                     Warenkorb editieren
                   </Link>
-                  {cart?.checkoutUrl ? (
-                    <a
-                      href={cart.checkoutUrl}
-                      className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900"
-                    >
-                      Zur Kasse
-                    </a>
-                  ) : (
-                    <Link
-                      href="/cart"
-                      className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900"
-                    >
-                      Zur Kasse
-                    </Link>
-                  )}
+                  <button
+                    type="button"
+                    onClick={startCheckout}
+                    disabled={!canCheckout}
+                    className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900 disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-stone-200 disabled:text-stone-500"
+                  >
+                    {checkoutStatus === "loading" ? "Weiterleitung..." : "Zur Kasse"}
+                  </button>
                 </div>
               </div>
             </div>

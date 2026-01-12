@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  CubeIcon,
+  DocumentTextIcon,
+  PlusIcon,
+} from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
 
 type ProductVariant = {
@@ -23,9 +28,9 @@ export default function ProductDetailClient({
     variants?.[0]?.id ?? ""
   );
   const [notifyEmail, setNotifyEmail] = useState("");
-  const [notifyStatus, setNotifyStatus] = useState<"idle" | "loading" | "ok" | "error">(
-    "idle"
-  );
+  const [notifyStatus, setNotifyStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
   const selectedVariant = useMemo(
@@ -38,7 +43,10 @@ export default function ProductDetailClient({
     : "";
 
   const { cart, addToCart } = useCart();
-  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [addedPulse, setAddedPulse] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
@@ -47,12 +55,21 @@ export default function ProductDetailClient({
     setNotifyStatus("idle");
     setNotifyMessage(null);
   }, [selectedVariantId, isAvailable]);
-  
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="mt-1 text-3xl text-black font-semibold">{product.title}</h1>
-        {selectedVariant && <p className="mt-3 text-xl font-semibold" style={{ color: '#196e41ff' }} >{priceLabel}</p>}
+        <h1 className="mt-1 text-3xl text-black font-semibold">
+          {product.title}
+        </h1>
+        {selectedVariant && (
+          <p
+            className="mt-3 text-xl font-semibold"
+            style={{ color: "#196e41ff" }}
+          >
+            {priceLabel}
+          </p>
+        )}
       </div>
 
       {variants.length > 1 && (
@@ -125,17 +142,22 @@ export default function ProductDetailClient({
             }
 
             const beforeQty =
-              cart?.lines.find((line) => line.merchandise.id === selectedVariantId)
-                ?.quantity ?? 0;
+              cart?.lines.find(
+                (line) => line.merchandise.id === selectedVariantId
+              )?.quantity ?? 0;
 
             try {
               const updated = await addToCart(selectedVariantId, quantity);
               const afterQty =
-                updated?.lines.find((line) => line.merchandise.id === selectedVariantId)
-                  ?.quantity ?? 0;
+                updated?.lines.find(
+                  (line) => line.merchandise.id === selectedVariantId
+                )?.quantity ?? 0;
 
               if (afterQty > beforeQty) {
-                setToast({ type: "success", text: "Zum Warenkorb hinzugefugt." });
+                setToast({
+                  type: "success",
+                  text: "Zum Warenkorb hinzugefugt.",
+                });
                 setAddedPulse(true);
                 setTimeout(() => setAddedPulse(false), 250);
               } else {
@@ -188,11 +210,15 @@ export default function ProductDetailClient({
                 throw new Error(data?.error || "Request failed");
               }
               setNotifyStatus("ok");
-              setNotifyMessage("Wir benachrichtigen dich, sobald der Artikel verfugbar ist.");
+              setNotifyMessage(
+                "Wir benachrichtigen dich, sobald der Artikel verfugbar ist."
+              );
               setNotifyEmail("");
             } catch (error) {
               setNotifyStatus("error");
-              setNotifyMessage("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+              setNotifyMessage(
+                "Speichern fehlgeschlagen. Bitte erneut versuchen."
+              );
             }
           }}
         >
@@ -237,19 +263,65 @@ export default function ProductDetailClient({
       {toast && (
         <div
           className={`rounded-md px-3 py-2 text-sm ${
-            toast.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"
+            toast.type === "success"
+              ? "bg-green-50 text-green-800"
+              : "bg-red-50 text-red-700"
           }`}
         >
           {toast.text}
         </div>
       )}
 
-      <div className="pt-4 border-t border-black/10">
-        <p className="text-sm font-semibold mb-2 text-black/80">Description</p>
-        <div
-          className="prose prose-sm max-w-none text-black/80"
-          dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-        />
+      <div className="space-y-3">
+        <div className="rounded-md border border-black/10">
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                <DocumentTextIcon className="h-5 w-5 text-black/70" />
+                Beschreibung
+              </span>
+              <PlusIcon className="h-5 w-5 text-black/70 transition-transform group-open:rotate-45" />
+            </summary>
+            <div className="px-4 pb-4">
+              <div
+                className="prose prose-sm max-w-none text-black/80"
+                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+              />
+            </div>
+          </details>
+        </div>
+
+        <div className="rounded-md border border-black/10">
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                <CubeIcon className="h-5 w-5 text-black/70" />
+                Versand & Rücksendungen
+              </span>
+              <PlusIcon className="h-5 w-5 text-black/70 transition-transform group-open:rotate-45" />
+            </summary>
+            <div className="px-4 pb-4 text-sm text-black/70">
+              <p>
+                Lieferzeit in der Regel 1-3 Werktage. Ruecksendungen innerhalb
+                von 14 Tagen moeglich.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
+                <a
+                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60"
+                  href="/shipping"
+                >
+                  Versanddetails
+                </a>
+                <a
+                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60"
+                  href="/returns"
+                >
+                  Rücksendungen
+                </a>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     </div>
   );

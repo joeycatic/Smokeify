@@ -35,6 +35,13 @@ export async function POST(request: Request) {
     handle?: string;
     description?: string | null;
     manufacturer?: string | null;
+    supplier?: string | null;
+    leadTimeDays?: number | null;
+    weightGrams?: number | null;
+    lengthMm?: number | null;
+    widthMm?: number | null;
+    heightMm?: number | null;
+    shippingClass?: string | null;
     tags?: string[];
     status?: string;
   };
@@ -78,6 +85,15 @@ export async function POST(request: Request) {
       handle,
       description: body.description?.trim() || null,
       manufacturer: body.manufacturer?.trim() || null,
+      supplier: body.supplier?.trim() || null,
+      leadTimeDays:
+        typeof body.leadTimeDays === "number" ? body.leadTimeDays : null,
+      weightGrams:
+        typeof body.weightGrams === "number" ? body.weightGrams : null,
+      lengthMm: typeof body.lengthMm === "number" ? body.lengthMm : null,
+      widthMm: typeof body.widthMm === "number" ? body.widthMm : null,
+      heightMm: typeof body.heightMm === "number" ? body.heightMm : null,
+      shippingClass: body.shippingClass?.trim() || null,
       tags: Array.isArray(body.tags)
         ? body.tags.map((tag) => tag.trim()).filter(Boolean)
         : [],

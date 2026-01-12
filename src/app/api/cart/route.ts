@@ -85,6 +85,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
         product: {
           title: variant.product.title,
           handle: variant.product.handle,
+          manufacturer: variant.product.manufacturer ?? null,
         },
         image: image
           ? { url: image.url, altText: image.altText }
@@ -186,6 +187,11 @@ export async function POST(req: Request) {
     const nextItems = items.filter((item) => !lineIds.includes(item.variantId));
     await writeCartItems(nextItems);
     return NextResponse.json(await buildCart(nextItems));
+  }
+
+  if (action === "clear") {
+    await writeCartItems([]);
+    return NextResponse.json(await buildCart([]));
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

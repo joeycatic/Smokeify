@@ -38,6 +38,13 @@ type ProductDetail = {
   handle: string;
   description: string | null;
   manufacturer: string | null;
+  supplier: string | null;
+  leadTimeDays: number | null;
+  weightGrams: number | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  shippingClass: string | null;
   tags: string[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   createdAt: string;
@@ -76,6 +83,13 @@ export default function AdminProductClient({
     handle: product.handle,
     description: product.description ?? "",
     manufacturer: product.manufacturer ?? "",
+    supplier: product.supplier ?? "",
+    leadTimeDays: product.leadTimeDays ?? "",
+    weightGrams: product.weightGrams ?? "",
+    lengthMm: product.lengthMm ?? "",
+    widthMm: product.widthMm ?? "",
+    heightMm: product.heightMm ?? "",
+    shippingClass: product.shippingClass ?? "",
     tags: (product.tags ?? []).join(", "),
     status: product.status,
   });
@@ -113,6 +127,7 @@ export default function AdminProductClient({
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [shippingOpen, setShippingOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
 
   const [newImage, setNewImage] = useState({
@@ -141,10 +156,20 @@ export default function AdminProductClient({
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean);
+      const toNumberOrNull = (value: number | string) =>
+        value === "" ? null : Number(value);
       const res = await fetch(`/api/admin/products/${product.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...details, tags }),
+        body: JSON.stringify({
+          ...details,
+          tags,
+          leadTimeDays: toNumberOrNull(details.leadTimeDays),
+          weightGrams: toNumberOrNull(details.weightGrams),
+          lengthMm: toNumberOrNull(details.lengthMm),
+          widthMm: toNumberOrNull(details.widthMm),
+          heightMm: toNumberOrNull(details.heightMm),
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -212,12 +237,13 @@ export default function AdminProductClient({
       body: JSON.stringify(payload),
     });
     const data = (await res.json()) as { image?: ImageItem; error?: string };
-    if (!res.ok || !data.image) {
+    const image = data.image;
+    if (!res.ok || !image) {
       setError(data.error ?? "Add image failed");
       return null;
     }
-    setImages((prev) => [...prev, data.image]);
-    return data.image;
+    setImages((prev) => [...prev, image]);
+    return image;
   };
 
   const addImage = async () => {
@@ -430,11 +456,12 @@ export default function AdminProductClient({
       }),
     });
     const data = (await res.json()) as { variant?: VariantItem; error?: string };
-    if (!res.ok || !data.variant) {
+    const variant = data.variant;
+    if (!res.ok || !variant) {
       setError(data.error ?? "Add variant failed");
       return;
     }
-    setVariants((prev) => [...prev, data.variant]);
+    setVariants((prev) => [...prev, variant]);
     setNewVariant({
       title: "",
       sku: "",
@@ -492,27 +519,35 @@ export default function AdminProductClient({
   }, [variants]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-black/60">
-            CATALOG / PRODUCT
-          </p>
-          <h1 className="text-3xl font-bold" style={{ color: "#2f3e36" }}>
-            {product.title}
-          </h1>
+    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
+              CATALOG / PRODUCT
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold">{product.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
+              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
+                {product.status}
+              </span>
+              <span className="rounded-full bg-white/10 px-3 py-1">
+                Updated {new Date(product.updatedAt).toLocaleDateString("de-DE")}
+              </span>
+            </div>
+          </div>
+          <Link
+            href="/admin/catalog"
+            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+          >
+            Back to catalog
+          </Link>
         </div>
-        <Link
-          href="/admin/catalog"
-          className="text-sm font-semibold text-stone-600 hover:text-stone-900"
-        >
-          Back to catalog
-        </Link>
       </div>
 
       {(message || error) && (
         <div
-          className={`rounded-md border px-4 py-2 text-sm ${
+          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
             error
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-green-200 bg-green-50 text-green-700"
@@ -522,10 +557,16 @@ export default function AdminProductClient({
         </div>
       )}
 
-      <section className="rounded-xl border border-[#2f3e36]/15 bg-white p-6">
-          <h2 className="text-sm font-semibold tracking-widest text-[#2f3e36] mb-4">
-            DETAILS
-          </h2>
+      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">01</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Details</p>
+              <p className="text-xs text-stone-500">Core product information.</p>
+            </div>
+          </div>
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-stone-600">
             Title
@@ -565,6 +606,151 @@ export default function AdminProductClient({
             className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
           />
         </label>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="text-xs font-semibold text-stone-600">
+            Supplier
+            <input
+              value={details.supplier}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, supplier: event.target.value }))
+              }
+              placeholder="e.g. Primary distributor"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Lead time (days)
+            <input
+              type="number"
+              min={0}
+              value={details.leadTimeDays}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  leadTimeDays: event.target.value === "" ? "" : Number(event.target.value),
+                }))
+              }
+              placeholder="e.g. 3"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+        </div>
+        <div className="mt-4 rounded-lg border border-[#2f3e36]/10 bg-[#f8fbf6] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-[#2f3e36]">
+              Shipping & dimensions
+            </p>
+            <button
+              type="button"
+              onClick={() => setShippingOpen((prev) => !prev)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#2f3e36]/20 text-[#2f3e36] transition hover:border-[#2f3e36]/40"
+              aria-label={
+                shippingOpen ? "Collapse shipping & dimensions" : "Expand shipping & dimensions"
+              }
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 transition-transform ${shippingOpen ? "rotate-180" : "rotate-0"}`}
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          {shippingOpen && (
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="text-xs font-semibold text-stone-600">
+                Weight (g)
+                <input
+                  type="number"
+                  min={0}
+                  value={details.weightGrams}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      weightGrams:
+                        event.target.value === "" ? "" : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 1200"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Shipping class
+                <input
+                  value={details.shippingClass}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      shippingClass: event.target.value,
+                    }))
+                  }
+                  placeholder="e.g. bulky"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Length (mm)
+                <input
+                  type="number"
+                  min={0}
+                  value={details.lengthMm}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      lengthMm:
+                        event.target.value === "" ? "" : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 600"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Width (mm)
+                <input
+                  type="number"
+                  min={0}
+                  value={details.widthMm}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      widthMm:
+                        event.target.value === "" ? "" : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 400"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Height (mm)
+                <input
+                  type="number"
+                  min={0}
+                  value={details.heightMm}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      heightMm:
+                        event.target.value === "" ? "" : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 300"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+            </div>
+          )}
+        </div>
         <label className="mt-3 block text-xs font-semibold text-stone-600">
           Tags
           <input
@@ -617,10 +803,14 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-xl border border-[#2f3e36]/15 bg-white p-6">
-        <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-          CATEGORIES & COLLECTIONS
-        </h2>
+      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">02</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Categories & collections</p>
+            <p className="text-xs text-stone-500">Organize where this product appears.</p>
+          </div>
+        </div>
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
             <p className="text-xs font-semibold text-stone-600 mb-2">Categories</p>
@@ -695,10 +885,14 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-xl border border-[#2f3e36]/15 bg-white p-6">
-        <h2 className="text-sm font-semibold tracking-widest text-[#2f3e36] mb-4">
-          IMAGES
-        </h2>
+      <section className="rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">03</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Images</p>
+            <p className="text-xs text-stone-500">Upload, reorder, and describe media.</p>
+          </div>
+        </div>
         <div className="rounded-md border border-dashed border-[#2f3e36]/20 bg-[#f8fbf6] px-4 py-3 mb-5">
           <p className="text-xs font-semibold text-stone-600">Upload images</p>
           <p className="mt-1 text-xs text-stone-500">
@@ -838,10 +1032,14 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-xl border border-[#2f3e36]/15 bg-white p-6">
-        <h2 className="text-sm font-semibold tracking-widest text-[#2f3e36] mb-4">
-          VARIANTS & STOCK
-        </h2>
+      <section className="rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">04</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">Variants & stock</p>
+            <p className="text-xs text-stone-500">Pricing, inventory, and options.</p>
+          </div>
+        </div>
         <div className="space-y-6">
           {variantRows.map((variant) => (
             <div

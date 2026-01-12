@@ -21,52 +21,55 @@ type Props = {
   cols?: number;
 };
 
-export default function DisplayProducts({products, cols = 4,}: Props) {
-    const { isWishlisted, toggle } = useWishlist();
-    return (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {products?.map((p) => (
-            <Link key={p.id} href={`/products/${p.handle}`} className="block">
-                <article
-                    key={p.id}
-                    className="
+export default function DisplayProducts({ products, cols = 4 }: Props) {
+  const { isWishlisted, toggle } = useWishlist();
+  return (
+    <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {products?.map((p) => (
+        <Link key={p.id} href={`/products/${p.handle}`} className="block">
+          <article
+            key={p.id}
+            className="
                         group rounded-xl border border-stone-200 bg-white
                         transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                     "
-                    >
-                    {/* Image */}
-                    <ProductImageCarousel
-                      images={getProductImages(p)}
-                      alt={p.title}
-                      className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
-                      imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
+          >
+            {/* Image */}
+            <ProductImageCarousel
+              images={getProductImages(p)}
+              alt={p.title}
+              className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
+              imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            />
 
-                    {/* Content */}
-                    <div className="p-4">
-                        {/* Title */}
-                        <h2 className="mt-1 line-clamp-2 font-bold" style={{ color: '#000000ff' }}>
-                            {p.title}
-                        </h2>
-                        {typeof p.availableForSale === "boolean" && (
-                          <p
-                            className={`mt-1 text-xs font-semibold ${
-                              p.availableForSale ? "text-green-700" : "text-red-600"
-                            }`}
-                          >
-                            {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
-                          </p>
-                        )}
+            {/* Content */}
+            <div className="p-4">
+              {/* Title */}
+              <h2
+                className="mt-1 line-clamp-2 font-bold"
+                style={{ color: "#000000ff" }}
+              >
+                {p.title}
+              </h2>
+              {typeof p.availableForSale === "boolean" && (
+                <p
+                  className={`mt-1 text-xs font-semibold ${
+                    p.availableForSale ? "text-green-700" : "text-red-600"
+                  }`}
+                >
+                  {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
+                </p>
+              )}
 
-                        {/* Price */}
-                        <p className="mt-2 text-base font-semibold text-stone-900">
-                            {formatPrice(p.priceRange?.minVariantPrice)}
-                        </p>
-                        <div className="mt-3 flex items-center justify-center gap-2">
-                          <WishlistButton
-                            wishlisted={isWishlisted(p.id)}
-                            onToggle={() => toggle(p.id)}
-                          />
+              {/* Price */}
+              <p className="mt-2 text-base font-semibold text-stone-900">
+                {formatPrice(p.priceRange?.minVariantPrice)}
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <WishlistButton
+                  wishlisted={isWishlisted(p.id)}
+                  onToggle={() => toggle(p.id)}
+                />
                 <AddToCartButton
                   variantId={p.defaultVariantId ?? null}
                   available={p.availableForSale}
@@ -75,13 +78,13 @@ export default function DisplayProducts({products, cols = 4,}: Props) {
                   itemImageAlt={p.featuredImage?.altText ?? p.title}
                   itemQuantity={1}
                 />
-                        </div>
-                    </div>
-                    </article>
-                </Link>
-            ))}
-        </div>
-    );
+              </div>
+            </div>
+          </article>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 export function DisplayProductsList({ products }: Props) {
@@ -93,7 +96,10 @@ export function DisplayProductsList({ products }: Props) {
           key={p.id}
           className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
         >
-          <Link href={`/products/${p.handle}`} className="group block sm:w-56 md:w-64">
+          <Link
+            href={`/products/${p.handle}`}
+            className="group block sm:w-56 md:w-64"
+          >
             <ProductImageCarousel
               images={getProductImages(p)}
               alt={p.title}
@@ -117,7 +123,9 @@ export function DisplayProductsList({ products }: Props) {
                 </p>
               )}
               {p.description && (
-                <p className="text-sm text-stone-600 line-clamp-3">{p.description}</p>
+                <p className="text-sm text-stone-600 line-clamp-3">
+                  {p.description}
+                </p>
               )}
             </div>
 
@@ -169,7 +177,10 @@ function WishlistButton({
   size?: "sm" | "lg";
 }) {
   const iconClass = size === "lg" ? "h-5 w-5" : "h-4 w-4";
-  const buttonClass = size === "lg" ? "rounded-full border p-3 transition" : "rounded-full border p-2 transition";
+  const buttonClass =
+    size === "lg"
+      ? "rounded-full border p-3 transition"
+      : "rounded-full border p-2 transition";
   return (
     <button
       type="button"
@@ -343,17 +354,14 @@ function ProductImageCarousel({
   );
 }
 
-function formatPrice(price?: {
-  amount: string
-  currencyCode: string
-}) {
-  if (!price) return null
+function formatPrice(price?: { amount: string; currencyCode: string }) {
+  if (!price) return null;
 
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
     currency: price.currencyCode,
     minimumFractionDigits: 2,
-  }).format(Number(price.amount))
+  }).format(Number(price.amount));
 }
 
 function getProductImages(product: Product) {

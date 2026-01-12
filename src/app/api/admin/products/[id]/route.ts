@@ -59,6 +59,13 @@ export async function PATCH(
     handle?: string;
     description?: string | null;
     manufacturer?: string | null;
+    supplier?: string | null;
+    leadTimeDays?: number | null;
+    weightGrams?: number | null;
+    lengthMm?: number | null;
+    widthMm?: number | null;
+    heightMm?: number | null;
+    shippingClass?: string | null;
     tags?: string[];
     status?: string;
   };
@@ -68,6 +75,13 @@ export async function PATCH(
     handle?: string;
     description?: string | null;
     manufacturer?: string | null;
+    supplier?: string | null;
+    leadTimeDays?: number | null;
+    weightGrams?: number | null;
+    lengthMm?: number | null;
+    widthMm?: number | null;
+    heightMm?: number | null;
+    shippingClass?: string | null;
     tags?: string[];
     status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   } = {};
@@ -107,6 +121,36 @@ export async function PATCH(
 
   if (typeof body.manufacturer !== "undefined") {
     updates.manufacturer = body.manufacturer?.trim() || null;
+  }
+
+  if (typeof body.supplier !== "undefined") {
+    updates.supplier = body.supplier?.trim() || null;
+  }
+
+  if (typeof body.leadTimeDays !== "undefined") {
+    updates.leadTimeDays =
+      typeof body.leadTimeDays === "number" ? body.leadTimeDays : null;
+  }
+
+  if (typeof body.weightGrams !== "undefined") {
+    updates.weightGrams =
+      typeof body.weightGrams === "number" ? body.weightGrams : null;
+  }
+
+  if (typeof body.lengthMm !== "undefined") {
+    updates.lengthMm = typeof body.lengthMm === "number" ? body.lengthMm : null;
+  }
+
+  if (typeof body.widthMm !== "undefined") {
+    updates.widthMm = typeof body.widthMm === "number" ? body.widthMm : null;
+  }
+
+  if (typeof body.heightMm !== "undefined") {
+    updates.heightMm = typeof body.heightMm === "number" ? body.heightMm : null;
+  }
+
+  if (typeof body.shippingClass !== "undefined") {
+    updates.shippingClass = body.shippingClass?.trim() || null;
   }
 
   if (Array.isArray(body.tags)) {
