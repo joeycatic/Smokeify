@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -35,11 +36,163 @@ function getShippingEstimate(country: ShippingCountry, itemCount: number) {
   return base + Math.max(itemCount, 0) * perItem;
 }
 
+function normalizeCountryInput(value?: string | null): ShippingCountry | null {
+  if (!value) return null;
+  const raw = value.trim().toUpperCase();
+  if (raw in SHIPPING_BASE) return raw as ShippingCountry;
+
+  const aliases: Record<string, ShippingCountry> = {
+    DE: "DE",
+    DEU: "DE",
+    GERMANY: "DE",
+    DEUTSCHLAND: "DE",
+    AT: "AT",
+    AUT: "AT",
+    AUSTRIA: "AT",
+    OESTERREICH: "AT",
+    CH: "CH",
+    CHE: "CH",
+    SWITZERLAND: "CH",
+    SCHWEIZ: "CH",
+    UK: "UK",
+    GB: "UK",
+    GBR: "UK",
+    "UNITED KINGDOM": "UK",
+    "GREAT BRITAIN": "UK",
+    "VEREINIGTES KOENIGREICH": "UK",
+    US: "US",
+    USA: "US",
+    "UNITED STATES": "US",
+  };
+
+  return aliases[raw] ?? null;
+}
+
 export default function CartPage() {
   const { cart, loading, updateLine, removeLines } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const [country, setCountry] = useState<ShippingCountry>("DE");
   const [postalCode, setPostalCode] = useState("");
+  const [countryTouched, setCountryTouched] = useState(false);
+  const [postalTouched, setPostalTouched] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [orderConfirmStatus, setOrderConfirmStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+  const [checkoutStatus, setCheckoutStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
+  const [checkoutError, setCheckoutError] = useState("");
+
+  const canCheckout = checkoutStatus !== "loading";
+
+  const startCheckout = async () => {
+    if (!cart || cart.lines.length === 0) return;
+    if (status === "loading") return;
+    if (!isAuthenticated) {
+      router.push(
+        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`
+      );
+      return;
+    }
+    setCheckoutStatus("loading");
+    setCheckoutError("");
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country, postalCode }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setCheckoutStatus("error");
+        setCheckoutError(data.error ?? "Checkout fehlgeschlagen.");
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
+      setCheckoutStatus("error");
+      setCheckoutError("Checkout fehlgeschlagen.");
+    }
+  };
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (checkoutStatus !== "idle") return;
+    if (searchParams.get("startCheckout") !== "1") return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("startCheckout");
+    router.replace(params.toString() ? `/cart?${params.toString()}` : "/cart");
+    void startCheckout();
+  }, [checkoutStatus, router, searchParams, startCheckout, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (profileLoaded) return;
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        const res = await fetch("/api/account/profile", { method: "GET" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          user?: { postalCode?: string | null; country?: string | null };
+        };
+        if (cancelled) return;
+        const normalizedCountry = normalizeCountryInput(data.user?.country);
+        if (!countryTouched && normalizedCountry) {
+          setCountry(normalizedCountry);
+        }
+        if (!postalTouched && data.user?.postalCode) {
+          setPostalCode(data.user.postalCode);
+        }
+      } finally {
+        if (!cancelled) {
+          setProfileLoaded(true);
+        }
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [countryTouched, postalTouched, profileLoaded, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (orderConfirmStatus !== "idle") return;
+    const checkoutStatus = searchParams.get("checkout");
+    const sessionId = searchParams.get("session_id");
+    if (checkoutStatus !== "success" || !sessionId) return;
+
+    const confirmOrder = async () => {
+      setOrderConfirmStatus("loading");
+      try {
+        const res = await fetch("/api/orders/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        if (!res.ok) {
+          setOrderConfirmStatus("error");
+          return;
+        }
+        setOrderConfirmStatus("ok");
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("checkout");
+        params.delete("session_id");
+        router.replace(params.toString() ? `/cart?${params.toString()}` : "/cart");
+      } catch {
+        setOrderConfirmStatus("error");
+      }
+    };
+
+    void confirmOrder();
+  }, [orderConfirmStatus, router, searchParams, status]);
 
   if (loading) {
     return (
@@ -60,7 +213,7 @@ export default function CartPage() {
             Dein Warenkorb ist leer
           </h1>
           <p className="text-stone-600 mb-6">
-            Fuge Produkte hinzu und komm hierher zur Ubersicht.
+            Füge Produkte hinzu und komm hierher zur Übersicht.
           </p>
           <Link href="/products" className="text-green-700 font-semibold">
             Zu den Produkten
@@ -122,9 +275,11 @@ export default function CartPage() {
                 )}
 
                 <div className="flex-1">
-                  <p className="text-xs uppercase tracking-wide text-stone-400">
-                    {line.merchandise.product.title}
-                  </p>
+                  {line.merchandise.product.manufacturer && (
+                    <p className="text-xs uppercase tracking-wide text-stone-400">
+                      {line.merchandise.product.manufacturer}
+                    </p>
+                  )}
                   <p className="text-base font-semibold text-stone-900">
                     {line.merchandise.product.title}
                   </p>
@@ -188,51 +343,55 @@ export default function CartPage() {
 
         <div className="my-8 h-px w-full bg-black/10" />
 
-        <div className="mt-8 rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
-          <div className="grid gap-6 sm:grid-cols-[1.3fr_1fr]">
-            <div>
-              <p className="text-xs font-semibold tracking-widest text-black/60">
-                Versandkostenkalkulator
-              </p>
-              <p className="mt-2 text-sm text-stone-600">
-                Trage Land und Postleitzahl ein, um eine Schätzung zu erhalten.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-semibold text-stone-600">
-                    Land
-                  </label>
-                  <select
-                    value={country}
-                    onChange={(event) =>
-                      setCountry(event.target.value as ShippingCountry)
-                    }
-                    className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30"
-                  >
-                    <option value="DE">Deutschland</option>
-                    <option value="AT">Österreich</option>
-                    <option value="CH">Schweiz</option>
-                    <option value="EU">EU (sonstige)</option>
-                    <option value="UK">Vereinigtes Königreich</option>
-                    <option value="US">USA</option>
-                    <option value="OTHER">Andere</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-stone-600">
-                    Postleitzahl
-                  </label>
-                  <input
-                    type="text"
-                    value={postalCode}
-                    onChange={(event) => setPostalCode(event.target.value)}
-                    placeholder="z.B. 10115"
-                    className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-                  />
-                </div>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1.2fr]">
+          <div className="rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+            <p className="text-xs font-semibold tracking-widest text-black/60">
+              Versandkostenkalkulator
+            </p>
+            <p className="mt-2 text-sm text-stone-600">
+              Trage Land und Postleitzahl ein, um eine Schätzung zu erhalten.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Land
+                </label>
+                <select
+                  value={country}
+                  onChange={(event) => {
+                    setCountryTouched(true);
+                    setCountry(event.target.value as ShippingCountry);
+                  }}
+                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30"
+                >
+                  <option value="DE">Deutschland</option>
+                  <option value="AT">Österreich</option>
+                  <option value="CH">Schweiz</option>
+                  <option value="EU">EU (sonstige)</option>
+                  <option value="UK">Vereinigtes Königreich</option>
+                  <option value="US">USA</option>
+                  <option value="OTHER">Andere</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Postleitzahl
+                </label>
+                <input
+                  type="text"
+                  value={postalCode}
+                  onChange={(event) => {
+                    setPostalTouched(true);
+                    setPostalCode(event.target.value);
+                  }}
+                  placeholder="z.B. 10115"
+                  className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                />
               </div>
             </div>
+          </div>
 
+          <div className="rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
             <div className="space-y-3 text-right">
               <div>
                 <p className="text-xs uppercase tracking-wide text-stone-400">
@@ -247,9 +406,7 @@ export default function CartPage() {
                   Versand (Schätzung)
                 </p>
                 <p className="text-sm font-semibold text-stone-900">
-                  {hasLocation
-                    ? formatPrice(shippingEstimate, currencyCode)
-                    : "--"}
+                  {hasLocation ? formatPrice(shippingEstimate, currencyCode) : "--"}
                 </p>
               </div>
               <div>
@@ -257,30 +414,25 @@ export default function CartPage() {
                   Gesamt (Schätzung)
                 </p>
                 <p className="text-xl font-semibold text-stone-900">
-                  {hasLocation
-                    ? formatPrice(totalEstimate, currencyCode)
-                    : "--"}
+                  {hasLocation ? formatPrice(totalEstimate, currencyCode) : "--"}
                 </p>
               </div>
               <p className="text-xs text-stone-500">
                 Schätzungen können je nach Versanddienst abweichen.
               </p>
-              {cart.checkoutUrl ? (
-                <a
-                  href={cart.checkoutUrl}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900"
-                >
-                  Zur Kasse
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-black/10 bg-stone-200 px-6 py-3 text-sm font-semibold text-stone-500"
-                >
-                  Checkout bald verfuegbar
-                </button>
+              {checkoutError && (
+                <p className="text-xs font-semibold text-red-600">
+                  {checkoutError}
+                </p>
               )}
+              <button
+                type="button"
+                onClick={startCheckout}
+                disabled={!canCheckout}
+                className="inline-flex w-full items-center justify-center rounded-lg border border-green-900 bg-green-800 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-900 disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-stone-200 disabled:text-stone-500"
+              >
+                {checkoutStatus === "loading" ? "Weiterleitung..." : "Zur Kasse"}
+              </button>
             </div>
           </div>
         </div>

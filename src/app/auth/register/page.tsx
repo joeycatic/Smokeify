@@ -10,7 +10,16 @@ export default function RegisterPage() {
   const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [street, setStreet] = useState("");
+  const [houseNumber, setHouseNumber] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("DE");
+  const [birthDate, setBirthDate] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,6 +75,10 @@ export default function RegisterPage() {
               setError("");
               setLoading(true);
               try {
+                if (password !== confirmPassword) {
+                  setError("Passwoerter stimmen nicht ueberein.");
+                  return;
+                }
                 if (!hasSymbol) {
                   setError("Passwort braucht mindestens ein Symbol.");
                   return;
@@ -73,7 +86,19 @@ export default function RegisterPage() {
                 const res = await fetch("/api/auth/register", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ name, email, password }),
+                  body: JSON.stringify({
+                    name,
+                    email,
+                    firstName,
+                    lastName,
+                    street,
+                    houseNumber,
+                    postalCode,
+                    city,
+                    country,
+                    birthDate: birthDate || undefined,
+                    password,
+                  }),
                 });
                 if (!res.ok) {
                   if (res.status === 429) {
@@ -98,76 +123,202 @@ export default function RegisterPage() {
                 setLoading(false);
               }
             }}
-            className="space-y-3"
+            className="space-y-4"
           >
-            <label className="block text-xs font-semibold text-stone-600">
-              Username *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-            <label className="block text-xs font-semibold text-stone-600">
-              Email *
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-            <label className="block text-xs font-semibold text-stone-600">
-              Passwort *
-            </label>
-            <div className="relative">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Username *
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Email *
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Vorname *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Nachname *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Straße *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={street}
+                  onChange={(event) => setStreet(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Hausnummer *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={houseNumber}
+                  onChange={(event) => setHouseNumber(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Postleitzahl *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={postalCode}
+                  onChange={(event) => setPostalCode(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Stadt *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Land *
+              </label>
+              <select
+                required
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+              >
+                <option value="DE">Deutschland</option>
+                <option value="AT">Oesterreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="EU">EU (sonstige)</option>
+                <option value="UK">Vereinigtes Koenigreich</option>
+                <option value="US">USA</option>
+                <option value="OTHER">Andere</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Geburtstag (optional)
+              </label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(event) => setBirthDate(event.target.value)}
+              className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Passwort *
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 pr-12 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-600 hover:text-stone-800"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  ) : (
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M4 4l16 16" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-stone-600">
+                Passwort bestätigen *
+              </label>
               <input
                 type={showPassword ? "text" : "password"}
                 required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-md border border-black/10 px-3 py-2 pr-12 text-sm outline-none focus:border-black/30"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-600 hover:text-stone-800"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                ) : (
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z" />
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M4 4l16 16" />
-                  </svg>
-                )}
-              </button>
             </div>
             <div className="space-y-1">
               <div

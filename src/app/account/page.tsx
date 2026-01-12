@@ -32,7 +32,7 @@ export default async function AccountPage() {
     );
   }
 
-  const [setups, wishlistCount, user] = await Promise.all([
+  const [setups, wishlistCount, user, orders] = await Promise.all([
     prisma.savedSetup.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -55,6 +55,20 @@ export default async function AccountPage() {
         country: true,
       },
     }),
+    prisma.order.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        createdAt: true,
+        amountTotal: true,
+        currency: true,
+        paymentStatus: true,
+        status: true,
+        _count: { select: { items: true } },
+      },
+    }),
   ]);
   const setupItems = setups.map(
     (setup: { id: string; name: string | null; createdAt: Date }) => ({
@@ -63,6 +77,15 @@ export default async function AccountPage() {
       createdAt: setup.createdAt.toISOString(),
     })
   );
+  const orderItems = orders.map((order) => ({
+    id: order.id,
+    createdAt: order.createdAt.toISOString(),
+    amountTotal: order.amountTotal,
+    currency: order.currency,
+    paymentStatus: order.paymentStatus,
+    status: order.status,
+    itemsCount: order._count.items,
+  }));
 
   return (
     <PageLayout>
@@ -103,6 +126,7 @@ export default async function AccountPage() {
           }}
           wishlistCount={wishlistCount}
           setups={setupItems}
+          orders={orderItems}
         />
         <div className="mt-4 flex flex-wrap items-start gap-3">
           <SignOutButton />

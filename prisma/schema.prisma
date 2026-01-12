@@ -36,6 +36,7 @@ model User {
   postalCode     String?
   city           String?
   country        String?
+  birthDate      DateTime?
   email          String?        @unique
   emailVerified  DateTime?
   image          String?
@@ -45,6 +46,7 @@ model User {
   sessions       Session[]
   wishlistItems  WishlistItem[]
   savedSetups    SavedSetup[]
+  orders         Order[]
   devices        Device[]
   verificationCodes VerificationCode[]
   backInStockRequests BackInStockRequest[]
@@ -166,6 +168,13 @@ model Product {
   handle      String         @unique
   description String?
   manufacturer String?
+  supplier    String?
+  leadTimeDays Int?
+  weightGrams Int?
+  lengthMm    Int?
+  widthMm     Int?
+  heightMm    Int?
+  shippingClass String?
   tags        String[]       @default([])
   status      ProductStatus  @default(DRAFT)
   createdAt   DateTime       @default(now())
@@ -280,6 +289,48 @@ model ProductCollection {
   @@unique([productId, collectionId])
   @@index([collectionId, position])
 }
+
+model Order {
+  id                   String      @id @default(cuid())
+  userId               String
+  stripeSessionId      String      @unique
+  stripePaymentIntent  String?
+  status               String
+  paymentStatus        String
+  currency             String
+  amountSubtotal       Int
+  amountShipping       Int
+  amountTotal          Int
+  customerEmail        String?
+  shippingName         String?
+  shippingLine1        String?
+  shippingLine2        String?
+  shippingPostalCode   String?
+  shippingCity         String?
+  shippingCountry      String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+
+  @@index([userId, createdAt])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  name         String
+  quantity     Int
+  unitAmount   Int
+  totalAmount  Int
+  currency     String
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
 model RateLimit {
   key       String   @id
   count     Int
