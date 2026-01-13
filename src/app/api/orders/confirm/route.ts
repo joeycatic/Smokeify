@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendResendEmail } from "@/lib/resend";
+import { buildOrderEmail } from "@/lib/orderEmail";
 
 export const runtime = "nodejs";
 
@@ -151,6 +153,49 @@ export async function POST(request: Request) {
     },
     include: { items: true },
   });
+
+  try {
+    const origin = request.headers.get("origin") ?? "http://localhost:3000";
+    const orderUrl = `${origin}/account/orders/${created.id}`;
+    const email = buildOrderEmail("confirmation", created, orderUrl);
+    if (created.customerEmail) {
+      await sendResendEmail({
+        to: created.customerEmail,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      });
+    }
+  } catch {
+    // Don't block order creation on email failures.
+  }
+
+  const variantCounts = new Map<string, number>();
+  for (const item of lineItems.data ?? []) {
+    const product = item.price?.product as Stripe.Product | null | undefined;
+    const variantId =
+      product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+    if (!variantId) continue;
+    const qty = Math.max(0, item.quantity ?? 0);
+    if (!qty) continue;
+    variantCounts.set(variantId, (variantCounts.get(variantId) ?? 0) + qty);
+  }
+
+  if (variantCounts.size > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const [variantId, qty] of variantCounts) {
+        const inventory = await tx.variantInventory.findUnique({
+          where: { variantId },
+        });
+        if (!inventory) continue;
+        const nextQuantity = Math.max(0, inventory.quantityOnHand - qty);
+        await tx.variantInventory.update({
+          where: { variantId },
+          data: { quantityOnHand: nextQuantity },
+        });
+      }
+    });
+  }
 
   return NextResponse.json({
     ok: true,

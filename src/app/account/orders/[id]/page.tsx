@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import ReturnRequestForm from "./ReturnRequestForm";
 import PageLayout from "@/components/PageLayout";
 
 const formatPrice = (amount: number, currency: string) =>
@@ -14,16 +15,17 @@ const formatPrice = (amount: number, currency: string) =>
 export default async function OrderDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     notFound();
   }
 
+  const { id } = await params;
   const order = await prisma.order.findFirst({
-    where: { id: params.id, userId: session.user.id },
-    include: { items: true },
+    where: { id, userId: session.user.id },
+    include: { items: true, returnRequests: true },
   });
 
   if (!order) {
@@ -125,6 +127,47 @@ export default async function OrderDetailPage({
                 {order.customerEmail ?? "-"}
               </div>
             </div>
+            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+              <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+                Versand-Tracking
+              </h2>
+              <div className="space-y-1 text-sm text-stone-700">
+                <div>
+                  <span className="font-semibold text-stone-500">Carrier:</span>{" "}
+                  {order.trackingCarrier ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-stone-500">Nummer:</span>{" "}
+                  {order.trackingNumber ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-stone-500">URL:</span>{" "}
+                  {order.trackingUrl ? (
+                    <a
+                      href={order.trackingUrl}
+                      className="text-emerald-700 underline"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Tracking öffnen
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+            <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+              Rueckgabe
+            </h2>
+            <ReturnRequestForm
+              orderId={order.id}
+              existingStatus={order.returnRequests[0]?.status ?? null}
+              adminNote={order.returnRequests[0]?.adminNote ?? null}
+            />
           </div>
 
           <div className="mt-8">

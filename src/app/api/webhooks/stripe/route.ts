@@ -1,6 +1,8 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendResendEmail } from "@/lib/resend";
+import { buildOrderEmail } from "@/lib/orderEmail";
 
 export const runtime = "nodejs";
 
@@ -36,7 +38,7 @@ const createOrderFromSession = async (
   const taxAmount = session.total_details?.amount_tax ?? 0;
   const currency = (session.currency ?? "eur").toUpperCase();
 
-  await prisma.order.create({
+  const created = await prisma.order.create({
     data: {
       userId,
       stripeSessionId: session.id,
@@ -101,6 +103,50 @@ const createOrderFromSession = async (
       },
     },
   });
+
+  const variantCounts = new Map<string, number>();
+  for (const item of lineItems.data ?? []) {
+    const product = item.price?.product as Stripe.Product | null | undefined;
+    const variantId =
+      product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+    if (!variantId) continue;
+    const qty = Math.max(0, item.quantity ?? 0);
+    if (!qty) continue;
+    variantCounts.set(variantId, (variantCounts.get(variantId) ?? 0) + qty);
+  }
+
+  if (variantCounts.size > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const [variantId, qty] of variantCounts) {
+        const inventory = await tx.variantInventory.findUnique({
+          where: { variantId },
+        });
+        if (!inventory) continue;
+        const nextQuantity = Math.max(0, inventory.quantityOnHand - qty);
+        await tx.variantInventory.update({
+          where: { variantId },
+          data: { quantityOnHand: nextQuantity },
+        });
+      }
+    });
+  }
+
+  try {
+    if (created.customerEmail) {
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const orderUrl = `${origin}/account/orders/${created.id}`;
+      const email = buildOrderEmail("confirmation", created, orderUrl);
+      await sendResendEmail({
+        to: created.customerEmail,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      });
+    }
+  } catch {
+    // Ignore email errors for webhook processing.
+  }
 };
 
 export async function POST(request: Request) {
@@ -139,6 +185,61 @@ export async function POST(request: Request) {
   ) {
     const session = event.data.object as Stripe.Checkout.Session;
     await createOrderFromSession(stripe, session);
+  }
+  if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const paymentIntent =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id;
+    if (paymentIntent) {
+      await prisma.order.updateMany({
+        where: { stripePaymentIntent: paymentIntent },
+        data: { status: "failed", paymentStatus: "failed" },
+      });
+    }
+  }
+  if (event.type === "payment_intent.payment_failed") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    await prisma.order.updateMany({
+      where: { stripePaymentIntent: intent.id },
+      data: { status: "failed", paymentStatus: "failed" },
+    });
+  }
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    const paymentIntent =
+      typeof charge.payment_intent === "string"
+        ? charge.payment_intent
+        : charge.payment_intent?.id;
+    if (paymentIntent) {
+      const order = await prisma.order.findFirst({
+        where: { stripePaymentIntent: paymentIntent },
+      });
+      if (order) {
+        const refunded = charge.amount_refunded ?? 0;
+        const fullyRefunded = refunded >= order.amountTotal;
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            amountRefunded: refunded,
+            status: fullyRefunded ? "refunded" : order.status,
+            paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+          },
+        });
+      }
+    }
+  }
+  if (event.type === "payment_intent.refunded") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    await prisma.order.updateMany({
+      where: { stripePaymentIntent: intent.id },
+      data: {
+        amountRefunded: intent.amount_received ?? 0,
+        status: "refunded",
+        paymentStatus: "refunded",
+      },
+    });
   }
 
   return NextResponse.json({ received: true });

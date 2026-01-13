@@ -25,6 +25,12 @@ enum ProductStatus {
   ARCHIVED
 }
 
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 
 model User {
   id             String         @id @default(cuid())
@@ -47,6 +53,7 @@ model User {
   wishlistItems  WishlistItem[]
   savedSetups    SavedSetup[]
   orders         Order[]
+  returnRequests ReturnRequest[]
   devices        Device[]
   verificationCodes VerificationCode[]
   backInStockRequests BackInStockRequest[]
@@ -302,6 +309,7 @@ model Order {
   amountTax            Int       @default(0)
   amountShipping       Int
   amountTotal          Int
+  amountRefunded       Int       @default(0)
   customerEmail        String?
   shippingName         String?
   shippingLine1        String?
@@ -309,13 +317,34 @@ model Order {
   shippingPostalCode   String?
   shippingCity         String?
   shippingCountry      String?
+  trackingCarrier      String?
+  trackingNumber       String?
+  trackingUrl          String?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     OrderItem[]
+  returnRequests ReturnRequest[]
 
   @@index([userId, createdAt])
+}
+
+model ReturnRequest {
+  id          String       @id @default(cuid())
+  orderId     String
+  userId      String
+  status      ReturnStatus @default(PENDING)
+  reason      String
+  adminNote   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([userId])
 }
 
 model OrderItem {
