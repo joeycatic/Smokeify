@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import ReturnRequestForm from "./ReturnRequestForm";
 import PageLayout from "@/components/PageLayout";
 
 const formatPrice = (amount: number, currency: string) =>
@@ -14,16 +15,17 @@ const formatPrice = (amount: number, currency: string) =>
 export default async function OrderDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     notFound();
   }
 
+  const { id } = await params;
   const order = await prisma.order.findFirst({
-    where: { id: params.id, userId: session.user.id },
-    include: { items: true },
+    where: { id, userId: session.user.id },
+    include: { items: true, returnRequests: true },
   });
 
   if (!order) {
@@ -85,6 +87,12 @@ export default async function OrderDetailPage({
                   {formatPrice(order.amountShipping, order.currency)}
                 </span>
               </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-stone-600">Steuern</span>
+                <span className="font-semibold text-stone-900">
+                  {formatPrice(order.amountTax, order.currency)}
+                </span>
+              </div>
               <div className="mt-2 flex items-center justify-between text-base">
                 <span className="font-semibold text-stone-900">Gesamt</span>
                 <span className="font-semibold text-stone-900">
@@ -119,9 +127,75 @@ export default async function OrderDetailPage({
                 {order.customerEmail ?? "-"}
               </div>
             </div>
+            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+              <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+                Versand-Tracking
+              </h2>
+              <div className="space-y-1 text-sm text-stone-700">
+                <div>
+                  <span className="font-semibold text-stone-500">Carrier:</span>{" "}
+                  {order.trackingCarrier ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-stone-500">Nummer:</span>{" "}
+                  {order.trackingNumber ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-stone-500">URL:</span>{" "}
+                  {order.trackingUrl ? (
+                    <a
+                      href={order.trackingUrl}
+                      className="text-emerald-700 underline"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Tracking öffnen
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+            <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+              Rueckgabe
+            </h2>
+            <ReturnRequestForm
+              orderId={order.id}
+              existingStatus={order.returnRequests[0]?.status ?? null}
+              adminNote={order.returnRequests[0]?.adminNote ?? null}
+              items={order.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl,
+              }))}
+            />
           </div>
 
           <div className="mt-8">
+            {order.items.some((item) => item.imageUrl) && (
+              <div className="mb-6">
+                <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
+                  Artikelbilder
+                </h2>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {order.items
+                    .filter((item) => item.imageUrl)
+                    .map((item) => (
+                      <img
+                        key={item.id}
+                        src={item.imageUrl as string}
+                        alt={item.name}
+                        className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
             <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
               Artikel
             </h2>

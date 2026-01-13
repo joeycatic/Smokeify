@@ -255,6 +255,10 @@ export async function POST(req: Request) {
         product_data: {
           name,
           images: image && image.startsWith("http") ? [image] : undefined,
+          metadata: {
+            variantId: variant.id,
+            productId: variant.product.id,
+          },
         },
       },
     });
@@ -301,6 +305,7 @@ export async function POST(req: Request) {
         },
       },
     ],
+    automatic_tax: { enabled: true },
     success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/cart?checkout=cancel`,
     metadata: {

@@ -35,12 +35,19 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                     "
           >
             {/* Image */}
-            <ProductImageCarousel
-              images={getProductImages(p)}
-              alt={p.title}
-              className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
-              imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            />
+            <div className="relative">
+              <ProductImageCarousel
+                images={getProductImages(p)}
+                alt={p.title}
+                className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
+                imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+              {p.compareAtPrice && (
+                <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                  Sale
+                </span>
+              )}
+            </div>
 
             {/* Content */}
             <div className="p-4">
@@ -62,9 +69,16 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
               )}
 
               {/* Price */}
-              <p className="mt-2 text-base font-semibold text-stone-900">
-                {formatPrice(p.priceRange?.minVariantPrice)}
-              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                {p.compareAtPrice && (
+                  <span className="text-sm font-semibold text-yellow-600 line-through">
+                    {formatPrice(p.compareAtPrice)}
+                  </span>
+                )}
+                <span className="text-base font-semibold text-stone-900">
+                  {formatPrice(p.priceRange?.minVariantPrice)}
+                </span>
+              </div>
               <div className="mt-3 flex items-center justify-center gap-2">
                 <WishlistButton
                   wishlisted={isWishlisted(p.id)}
@@ -100,12 +114,19 @@ export function DisplayProductsList({ products }: Props) {
             href={`/products/${p.handle}`}
             className="group block sm:w-56 md:w-64"
           >
-            <ProductImageCarousel
-              images={getProductImages(p)}
-              alt={p.title}
-              className="aspect-square overflow-hidden rounded-lg bg-stone-100"
-              imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            />
+            <div className="relative">
+              <ProductImageCarousel
+                images={getProductImages(p)}
+                alt={p.title}
+                className="aspect-square overflow-hidden rounded-lg bg-stone-100"
+                imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+              {p.compareAtPrice && (
+                <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                  Sale
+                </span>
+              )}
+            </div>
           </Link>
 
           <div className="flex flex-1 flex-col gap-4">
@@ -130,9 +151,16 @@ export function DisplayProductsList({ products }: Props) {
             </div>
 
             <div className="mt-auto space-y-2">
-              <p className="text-lg font-semibold text-stone-900">
-                {formatPrice(p.priceRange?.minVariantPrice)}
-              </p>
+              <div className="text-lg font-semibold text-stone-900">
+                <div className="flex items-baseline gap-2">
+                  {p.compareAtPrice && (
+                    <span className="text-sm font-semibold text-yellow-600 line-through">
+                      {formatPrice(p.compareAtPrice)}
+                    </span>
+                  )}
+                  <span>{formatPrice(p.priceRange?.minVariantPrice)}</span>
+                </div>
+              </div>
               <div className="flex items-center justify-between gap-4">
                 <WishlistButton
                   wishlisted={isWishlisted(p.id)}
