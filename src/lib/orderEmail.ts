@@ -12,8 +12,10 @@ type OrderEmailInput = {
   amountSubtotal: number;
   amountTax: number;
   amountShipping: number;
+  amountDiscount: number;
   amountTotal: number;
   amountRefunded?: number;
+  discountCode?: string | null;
   customerEmail?: string | null;
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
@@ -63,12 +65,22 @@ export function buildOrderEmail(
   orderUrl?: string
 ) {
   const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const discountLabel = order.discountCode
+    ? `Rabatt (${order.discountCode})`
+    : "Rabatt";
+  const discountLine =
+    order.amountDiscount > 0
+      ? `${discountLabel}: -${formatPrice(order.amountDiscount, order.currency)}`
+      : null;
   const totalsText = [
     `Zwischensumme: ${formatPrice(order.amountSubtotal, order.currency)}`,
+    discountLine,
     `Steuern: ${formatPrice(order.amountTax, order.currency)}`,
     `Versand: ${formatPrice(order.amountShipping, order.currency)}`,
     `Gesamt: ${formatPrice(order.amountTotal, order.currency)}`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const trackingLines = [
     order.trackingCarrier ? `Carrier: ${order.trackingCarrier}` : null,
@@ -100,6 +112,14 @@ export function buildOrderEmail(
               order.amountSubtotal,
               order.currency
             )}<br />
+            ${
+              order.amountDiscount > 0
+                ? `<strong>${discountLabel}:</strong> -${formatPrice(
+                    order.amountDiscount,
+                    order.currency
+                  )}<br />`
+                : ""
+            }
             <strong>Steuern:</strong> ${formatPrice(
               order.amountTax,
               order.currency

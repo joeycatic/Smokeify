@@ -331,6 +331,7 @@ export default function ProductDetailClient({
           </details>
         </div>
       </div>
+
     </div>
   );
 }

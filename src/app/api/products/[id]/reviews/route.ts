@@ -1,0 +1,223 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+const parseRating = (value: unknown) => {
+  const rating = Number(value);
+  if (!Number.isFinite(rating)) return null;
+  const rounded = Math.round(rating);
+  if (rounded < 1 || rounded > 5) return null;
+  return rounded;
+};
+
+const normalizeText = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  return value.trim();
+};
+
+const canUserReview = async (userId: string, productId: string) => {
+  const variants = await prisma.variant.findMany({
+    where: { productId },
+    select: { id: true },
+  });
+  const variantIds = variants.map((variant) => variant.id);
+  const filters = [{ productId }];
+  if (variantIds.length) {
+    filters.push({ variantId: { in: variantIds } });
+  }
+  const purchase = await prisma.orderItem.findFirst({
+    where: {
+      order: { userId },
+      OR: filters,
+    },
+  });
+  return Boolean(purchase);
+};
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const session = await getServerSession(authOptions);
+
+  const [reviews, summary, userReview] = await Promise.all([
+    prisma.review.findMany({
+      where: { productId: id, status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.review.aggregate({
+      where: { productId: id, status: "APPROVED" },
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
+    session?.user?.id
+      ? prisma.review.findUnique({
+          where: {
+            productId_userId: { productId: id, userId: session.user.id },
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  let canReview = false;
+  if (session?.user?.id) {
+    canReview = await canUserReview(session.user.id, id);
+    if (userReview) {
+      canReview = true;
+    }
+  }
+
+  return NextResponse.json({
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      createdAt: review.createdAt.toISOString(),
+      userName: review.user?.name ?? "Anonymous",
+    })),
+    summary: {
+      average: summary._avg.rating ?? 0,
+      count: summary._count.rating ?? 0,
+    },
+    userReview: userReview
+      ? {
+          id: userReview.id,
+          rating: userReview.rating,
+          title: userReview.title,
+          body: userReview.body,
+          createdAt: userReview.createdAt.toISOString(),
+        }
+      : null,
+    canReview,
+  });
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const body = (await request.json().catch(() => ({}))) as {
+    rating?: number;
+    title?: string;
+    body?: string;
+  };
+
+  const rating = parseRating(body.rating);
+  const title = normalizeText(body.title);
+  const content = normalizeText(body.body);
+  if (!rating) {
+    return NextResponse.json({ error: "Rating must be 1-5." }, { status: 400 });
+  }
+  if (content.length < 10) {
+    return NextResponse.json(
+      { error: "Review text is too short." },
+      { status: 400 }
+    );
+  }
+
+  const existing = await prisma.review.findUnique({
+    where: { productId_userId: { productId: id, userId: session.user.id } },
+  });
+  if (existing) {
+    return NextResponse.json({ error: "Review already exists." }, { status: 409 });
+  }
+
+  const allowed = await canUserReview(session.user.id, id);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Purchase required to review." },
+      { status: 403 }
+    );
+  }
+
+  const created = await prisma.review.create({
+    data: {
+      productId: id,
+      userId: session.user.id,
+      rating,
+      title: title || null,
+      body: content,
+      status: "APPROVED",
+    },
+  });
+
+  return NextResponse.json({
+    review: {
+      id: created.id,
+      rating: created.rating,
+      title: created.title,
+      body: created.body,
+      createdAt: created.createdAt.toISOString(),
+    },
+  });
+}
+
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const existing = await prisma.review.findUnique({
+    where: { productId_userId: { productId: id, userId: session.user.id } },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Review not found." }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    rating?: number;
+    title?: string;
+    body?: string;
+  };
+  const rating = typeof body.rating === "undefined" ? null : parseRating(body.rating);
+  const title = normalizeText(body.title);
+  const content = normalizeText(body.body);
+
+  if (rating === null && !title && !content) {
+    return NextResponse.json({ error: "No updates provided." }, { status: 400 });
+  }
+  if (rating === null && typeof body.rating !== "undefined") {
+    return NextResponse.json({ error: "Rating must be 1-5." }, { status: 400 });
+  }
+  if (content && content.length < 10) {
+    return NextResponse.json(
+      { error: "Review text is too short." },
+      { status: 400 }
+    );
+  }
+
+  const updated = await prisma.review.update({
+    where: { id: existing.id },
+    data: {
+      rating: rating ?? existing.rating,
+      title: title || null,
+      body: content || existing.body,
+    },
+  });
+
+  return NextResponse.json({
+    review: {
+      id: updated.id,
+      rating: updated.rating,
+      title: updated.title,
+      body: updated.body,
+      createdAt: updated.createdAt.toISOString(),
+    },
+  });
+}

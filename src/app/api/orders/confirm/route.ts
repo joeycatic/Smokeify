@@ -49,10 +49,12 @@ export async function POST(request: Request) {
         amountSubtotal: existing.amountSubtotal,
         amountTax: existing.amountTax,
         amountShipping: existing.amountShipping,
+        amountDiscount: existing.amountDiscount,
         amountTotal: existing.amountTotal,
         currency: existing.currency,
         paymentStatus: existing.paymentStatus,
         status: existing.status,
+        discountCode: existing.discountCode,
         customerEmail: existing.customerEmail,
         shippingName: existing.shippingName,
         shippingLine1: existing.shippingLine1,
@@ -65,7 +67,9 @@ export async function POST(request: Request) {
     });
   }
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["discounts", "discounts.promotion_code"],
+  });
   if (!checkoutSession) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
@@ -85,6 +89,13 @@ export async function POST(request: Request) {
   const total = checkoutSession.amount_total ?? 0;
   const shippingAmount = checkoutSession.total_details?.amount_shipping ?? 0;
   const taxAmount = checkoutSession.total_details?.amount_tax ?? 0;
+  const discountTotal = checkoutSession.total_details?.amount_discount ?? 0;
+  let discountCode = checkoutSession.metadata?.discountCode ?? undefined;
+  const sessionDiscount = checkoutSession.discounts?.[0];
+  const promotion = sessionDiscount?.promotion_code;
+  if (promotion && typeof promotion !== "string" && promotion.code) {
+    discountCode = promotion.code;
+  }
   const currency = (checkoutSession.currency ?? "eur").toUpperCase();
 
   const created = await prisma.order.create({
@@ -101,7 +112,9 @@ export async function POST(request: Request) {
       amountSubtotal: subtotal,
       amountTax: taxAmount,
       amountShipping: shippingAmount,
+      amountDiscount: discountTotal,
       amountTotal: total,
+      discountCode: discountCode || undefined,
       customerEmail: checkoutSession.customer_details?.email ?? undefined,
       shippingName: shipping?.name ?? undefined,
       shippingLine1: address?.line1 ?? undefined,
@@ -205,10 +218,12 @@ export async function POST(request: Request) {
       amountSubtotal: created.amountSubtotal,
       amountTax: created.amountTax,
       amountShipping: created.amountShipping,
+      amountDiscount: created.amountDiscount,
       amountTotal: created.amountTotal,
       currency: created.currency,
       paymentStatus: created.paymentStatus,
       status: created.status,
+      discountCode: created.discountCode,
       customerEmail: created.customerEmail,
       shippingName: created.shippingName,
       shippingLine1: created.shippingLine1,

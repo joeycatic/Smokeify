@@ -79,6 +79,7 @@ export default function CartPage() {
   const [countryTouched, setCountryTouched] = useState(false);
   const [postalTouched, setPostalTouched] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
     "idle" | "loading" | "ok" | "error"
   >("idle");
@@ -101,10 +102,15 @@ export default function CartPage() {
     setCheckoutStatus("loading");
     setCheckoutError("");
     try {
+      const normalizedDiscountCode = discountCode.trim();
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ country, postalCode }),
+        body: JSON.stringify({
+          country,
+          postalCode,
+          discountCode: normalizedDiscountCode || undefined,
+        }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
@@ -420,6 +426,18 @@ export default function CartPage() {
               <p className="text-xs text-stone-500">
                 Schätzungen können je nach Versanddienst abweichen.
               </p>
+              <div className="text-left">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Rabattcode
+                </label>
+                <input
+                  type="text"
+                  value={discountCode}
+                  onChange={(event) => setDiscountCode(event.target.value)}
+                  placeholder="Code eingeben"
+                  className="mt-2 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                />
+              </div>
               {checkoutError && (
                 <p className="text-xs font-semibold text-red-600">
                   {checkoutError}

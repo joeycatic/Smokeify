@@ -22,12 +22,14 @@ type OrderRow = {
   amountSubtotal: number;
   amountTax: number;
   amountShipping: number;
+  amountDiscount: number;
   amountTotal: number;
   amountRefunded: number;
   stripePaymentIntent: string | null;
   trackingCarrier: string | null;
   trackingNumber: string | null;
   trackingUrl: string | null;
+  discountCode: string | null;
   user: { email: string | null; name: string | null };
   items: OrderItem[];
 };
@@ -408,6 +410,17 @@ export default function AdminOrdersClient({ orders }: Props) {
                           <span>Subtotal</span>
                           <span>{formatPrice(order.amountSubtotal, order.currency)}</span>
                         </div>
+                        {order.amountDiscount > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span>
+                              Discount
+                              {order.discountCode ? ` (${order.discountCode})` : ""}
+                            </span>
+                            <span>
+                              -{formatPrice(order.amountDiscount, order.currency)}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <span>Shipping</span>
                           <span>{formatPrice(order.amountShipping, order.currency)}</span>
