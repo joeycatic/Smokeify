@@ -24,6 +24,7 @@ const mapProduct = (product: {
     id: string;
     title: string;
     priceCents: number;
+    compareAtCents: number | null;
     position: number;
     inventory: { quantityOnHand: number; reserved: number } | null;
   }>;
@@ -34,10 +35,15 @@ const mapProduct = (product: {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
   const featuredImage = sortedImages[0] ?? null;
   const variants = [...product.variants].sort((a, b) => a.position - b.position);
-  const minPriceCents = variants.reduce(
-    (min, variant) => Math.min(min, variant.priceCents),
-    variants.length ? variants[0].priceCents : 0
-  );
+  const minPriceVariant = variants.reduce((min, variant) => {
+    if (!min) return variant;
+    return variant.priceCents < min.priceCents ? variant : min;
+  }, variants[0] ?? null);
+  const minPriceCents = minPriceVariant?.priceCents ?? 0;
+  const compareAtCents =
+    minPriceVariant?.compareAtCents && minPriceVariant.compareAtCents > minPriceCents
+      ? minPriceVariant.compareAtCents
+      : null;
   const defaultVariantId = variants[0]?.id ?? null;
   const availableForSale = variants.some((variant) => {
     const available = getAvailability(
@@ -79,6 +85,9 @@ const mapProduct = (product: {
         currencyCode: CURRENCY_CODE,
       },
     },
+    compareAtPrice: compareAtCents
+      ? { amount: toAmount(compareAtCents), currencyCode: CURRENCY_CODE }
+      : null,
   };
 };
 
@@ -125,6 +134,10 @@ export async function getProductByHandle(handle: string) {
       variant.inventory?.quantityOnHand ?? 0,
       variant.inventory?.reserved ?? 0
     );
+    const compareAtCents =
+      variant.compareAtCents && variant.compareAtCents > variant.priceCents
+        ? variant.compareAtCents
+        : null;
     return {
       id: variant.id,
       title: variant.title,
@@ -133,6 +146,9 @@ export async function getProductByHandle(handle: string) {
         amount: toAmount(variant.priceCents),
         currencyCode: CURRENCY_CODE,
       },
+      compareAt: compareAtCents
+        ? { amount: toAmount(compareAtCents), currencyCode: CURRENCY_CODE }
+        : null,
     };
   });
 

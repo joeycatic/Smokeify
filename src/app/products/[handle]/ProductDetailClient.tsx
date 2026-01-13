@@ -13,6 +13,7 @@ type ProductVariant = {
   title: string;
   availableForSale: boolean;
   price: { amount: string; currencyCode: string };
+  compareAt?: { amount: string; currencyCode: string } | null;
 };
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -38,9 +39,12 @@ export default function ProductDetailClient({
     [variants, selectedVariantId]
   );
 
-  const priceLabel = selectedVariant
-    ? `€ ${Number(selectedVariant.price.amount).toFixed(2)}`
-    : "";
+  const priceLabel = selectedVariant ? formatPrice(selectedVariant.price) : "";
+  const compareAtLabel =
+    selectedVariant?.compareAt &&
+    selectedVariant.compareAt.amount !== selectedVariant.price.amount
+      ? formatPrice(selectedVariant.compareAt)
+      : null;
 
   const { cart, addToCart } = useCart();
   const [toast, setToast] = useState<{
@@ -63,12 +67,16 @@ export default function ProductDetailClient({
           {product.title}
         </h1>
         {selectedVariant && (
-          <p
-            className="mt-3 text-xl font-semibold"
-            style={{ color: "#196e41ff" }}
-          >
-            {priceLabel}
-          </p>
+          <div className="mt-3 flex items-baseline gap-2">
+            {compareAtLabel && (
+              <span className="text-base font-semibold text-yellow-600 line-through">
+                {compareAtLabel}
+              </span>
+            )}
+            <span className="text-xl font-semibold text-black">
+              {priceLabel}
+            </span>
+          </div>
         )}
       </div>
 
@@ -325,4 +333,13 @@ export default function ProductDetailClient({
       </div>
     </div>
   );
+}
+
+function formatPrice(price?: { amount: string; currencyCode: string }) {
+  if (!price) return "";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: price.currencyCode,
+    minimumFractionDigits: 2,
+  }).format(Number(price.amount));
 }

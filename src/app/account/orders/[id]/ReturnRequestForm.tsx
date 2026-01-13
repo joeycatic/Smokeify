@@ -6,27 +6,37 @@ type Props = {
   orderId: string;
   existingStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   adminNote: string | null;
+  items: Array<{ id: string; name: string; quantity: number; imageUrl?: string | null }>;
 };
 
 export default function ReturnRequestForm({
   orderId,
   existingStatus,
   adminNote,
+  items,
 }: Props) {
   const [reason, setReason] = useState("");
+  const [selection, setSelection] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
   );
   const [error, setError] = useState("");
+  const selectedCount = Object.values(selection).reduce(
+    (sum, qty) => sum + (qty > 0 ? 1 : 0),
+    0
+  );
 
   const submit = async () => {
     setError("");
     setStatus("loading");
     try {
+      const selectedItems = Object.entries(selection)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, quantity]) => ({ id, quantity }));
       const res = await fetch("/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, reason }),
+        body: JSON.stringify({ orderId, reason, items: selectedItems }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -58,6 +68,61 @@ export default function ReturnRequestForm({
       <p className="text-sm text-stone-600">
         Beantrage eine Rueckgabe fuer diese Bestellung.
       </p>
+      <div className="space-y-2 text-sm">
+        {items.map((item) => {
+          const qty = selection[item.id] ?? 0;
+          const isSelected = qty > 0;
+          return (
+            <div
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white px-3 py-2"
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(event) =>
+                    setSelection((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.checked ? 1 : 0,
+                    }))
+                  }
+                />
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="h-10 w-10 rounded-lg border border-black/10 object-cover"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
+                )}
+                <div>
+                  <div className="font-semibold">{item.name}</div>
+                  <div className="text-xs text-stone-500">
+                    Menge: {item.quantity}
+                  </div>
+                </div>
+              </div>
+              {item.quantity > 1 && (
+                <input
+                  type="number"
+                  min={0}
+                  max={item.quantity}
+                  value={qty}
+                  onChange={(event) =>
+                    setSelection((prev) => ({
+                      ...prev,
+                      [item.id]: Number(event.target.value),
+                    }))
+                  }
+                  className="h-8 w-14 rounded-md border border-black/10 px-0 text-[11px] text-center"
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
       <label className="block text-xs font-semibold text-stone-600">
         Grund
         <textarea
@@ -77,7 +142,7 @@ export default function ReturnRequestForm({
       <button
         type="button"
         onClick={submit}
-        disabled={!reason.trim() || status === "loading"}
+        disabled={!reason.trim() || status === "loading" || selectedCount === 0}
         className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white disabled:opacity-50"
       >
         {status === "loading" ? "Senden..." : "Rueckgabe anfragen"}

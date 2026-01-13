@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     orderId?: string;
     reason?: string;
+    items?: Array<{ id: string; quantity?: number }>;
   };
 
   const orderId = body.orderId?.trim();
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId: session.user.id },
+    include: { items: true },
   });
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -40,11 +42,33 @@ export async function POST(request: Request) {
     );
   }
 
+  const items = Array.isArray(body.items) ? body.items : [];
+  const itemMap = new Map(order.items.map((item) => [item.id, item]));
+  const selected = items
+    .map((item) => {
+      const orderItem = itemMap.get(item.id);
+      if (!orderItem) return null;
+      const quantity = Math.max(1, Number(item.quantity ?? 1));
+      return {
+        orderItemId: orderItem.id,
+        quantity: Math.min(quantity, orderItem.quantity),
+      };
+    })
+    .filter(Boolean) as { orderItemId: string; quantity: number }[];
+
+  if (!selected.length) {
+    return NextResponse.json(
+      { error: "Select items to return" },
+      { status: 400 }
+    );
+  }
+
   const created = await prisma.returnRequest.create({
     data: {
       orderId,
       userId: session.user.id,
       reason,
+      items: { create: selected },
     },
   });
 

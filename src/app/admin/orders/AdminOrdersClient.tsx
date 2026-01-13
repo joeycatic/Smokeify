@@ -438,12 +438,26 @@ export default function AdminOrdersClient({ orders }: Props) {
                       {order.items.map((item) => {
                         const selection = refundSelection[order.id] ?? {};
                         const selectedQty = selection[item.id] ?? 0;
+                        const isSelected = selectedQty > 0;
                         return (
                           <div
                             key={item.id}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
                           >
                             <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(event) =>
+                                  setRefundSelection((prev) => ({
+                                    ...prev,
+                                    [order.id]: {
+                                      ...selection,
+                                      [item.id]: event.target.checked ? 1 : 0,
+                                    },
+                                  }))
+                                }
+                              />
                               {item.imageUrl ? (
                                 <img
                                   src={item.imageUrl}
@@ -461,22 +475,24 @@ export default function AdminOrdersClient({ orders }: Props) {
                               </div>
                             </div>
                             <div className="ml-auto flex items-center gap-3">
-                              <input
-                                type="number"
-                                min={0}
-                                max={item.quantity}
-                                value={selectedQty}
-                                onChange={(event) =>
-                                  setRefundSelection((prev) => ({
-                                    ...prev,
-                                    [order.id]: {
-                                      ...selection,
-                                      [item.id]: Number(event.target.value),
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-12 rounded-md border border-black/10 px-0 text-[11px] text-center"
-                              />
+                              {item.quantity > 1 && (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={item.quantity}
+                                  value={selectedQty}
+                                  onChange={(event) =>
+                                    setRefundSelection((prev) => ({
+                                      ...prev,
+                                      [order.id]: {
+                                        ...selection,
+                                        [item.id]: Number(event.target.value),
+                                      },
+                                    }))
+                                  }
+                                  className="h-7 w-12 rounded-md border border-black/10 px-0 text-[11px] text-center"
+                                />
+                              )}
                               <div className="w-20 text-right text-sm font-semibold">
                                 {formatPrice(item.totalAmount, item.currency)}
                               </div>

@@ -342,6 +342,7 @@ model ReturnRequest {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ReturnItem[]
 
   @@index([orderId])
   @@index([userId])
@@ -360,8 +361,23 @@ model OrderItem {
   variantId    String?
 
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnItems  ReturnItem[]
 
   @@index([orderId])
+}
+
+model ReturnItem {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  orderItemId     String
+  quantity        Int           @default(1)
+
+  request  ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
+  @@unique([returnRequestId, orderItemId])
 }
 
 model RateLimit {

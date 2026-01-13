@@ -36,6 +36,7 @@ export type Product = {
   priceRange: {
     minVariantPrice: ProductPrice;
   };
+  compareAtPrice?: ProductPrice | null;
 };
 
 export type ProductFilters = {

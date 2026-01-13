@@ -167,6 +167,12 @@ export default async function OrderDetailPage({
               orderId={order.id}
               existingStatus={order.returnRequests[0]?.status ?? null}
               adminNote={order.returnRequests[0]?.adminNote ?? null}
+              items={order.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl,
+              }))}
             />
           </div>
 
