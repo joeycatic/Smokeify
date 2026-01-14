@@ -118,6 +118,12 @@ export default async function AdminPage() {
             >
               Manage discounts
             </Link>
+            <Link
+              href="/admin/analytics"
+              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+            >
+              Analytics
+            </Link>
           </div>
         </div>
         <AdminUsersClient initialUsers={users.map((user) => ({

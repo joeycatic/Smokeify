@@ -82,15 +82,15 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-white/70 hover:text-white transition"
-                  href="/shipping"
+                  href="/pages/shipping"
                 >
-                  Versand
+                  Versand & Zahlungsbedingungen
                 </Link>
               </li>
               <li>
                 <Link
                   className="text-white/70 hover:text-white transition"
-                  href="/returns"
+                  href="/pages/return"
                 >
                   Rückgabe
                 </Link>
@@ -98,7 +98,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-white/70 hover:text-white transition"
-                  href="/contact"
+                  href="/pages/contact"
                 >
                   Kontakt
                 </Link>
@@ -122,7 +122,7 @@ export default function Footer() {
                 <li>
                   <Link
                     className="text-white/70 hover:text-white transition"
-                    href="/policies/privacy-policy"
+                    href="/pages/privacy"
                   >
                     Datenschutz
                   </Link>
@@ -130,7 +130,7 @@ export default function Footer() {
                 <li>
                   <Link
                     className="text-white/70 hover:text-white transition"
-                    href="/agb"
+                    href="/pages/agb"
                   >
                     AGB
                   </Link>
@@ -138,7 +138,7 @@ export default function Footer() {
                 <li>
                   <Link
                     className="text-white/70 hover:text-white transition"
-                    href="/policies/refund-policy"
+                    href="/pages/refund"
                   >
                     Widerruf
                   </Link>
@@ -183,13 +183,13 @@ export default function Footer() {
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
             <Link
               className="text-white/60 hover:text-white transition"
-              href="/policies/privacy-policy"
+              href="/pages/privacy"
             >
               Datenschutz
             </Link>
             <Link
               className="text-white/60 hover:text-white transition"
-              href="/policies/terms-of-service"
+              href="/pages/agb"
             >
               AGB
             </Link>

@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["discounts", "discounts.promotion_code"],
+    expand: ["total_details.breakdown.discounts.discount"],
   });
   if (!checkoutSession) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
@@ -91,8 +91,9 @@ export async function POST(request: Request) {
   const taxAmount = checkoutSession.total_details?.amount_tax ?? 0;
   const discountTotal = checkoutSession.total_details?.amount_discount ?? 0;
   let discountCode = checkoutSession.metadata?.discountCode ?? undefined;
-  const sessionDiscount = checkoutSession.discounts?.[0];
-  const promotion = sessionDiscount?.promotion_code;
+  const breakdownDiscount =
+    checkoutSession.total_details?.breakdown?.discounts?.[0]?.discount;
+  const promotion = breakdownDiscount?.promotion_code;
   if (promotion && typeof promotion !== "string" && promotion.code) {
     discountCode = promotion.code;
   }

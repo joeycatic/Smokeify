@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ const mapPromotionCode = (promotion: Stripe.PromotionCode) => ({
 });
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAdmin();
