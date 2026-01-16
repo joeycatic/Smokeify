@@ -21,176 +21,230 @@ type Props = {
   cols?: number;
 };
 
+const getProductLowStockState = (product: Product, cartQuantity: number) => {
+  const effectiveAvailable =
+    (product.defaultVariantAvailableQuantity ?? 0) - cartQuantity;
+  const cartLowStock =
+    product.defaultVariantAvailableQuantity !== undefined &&
+    product.defaultVariantLowStockThreshold !== undefined &&
+    effectiveAvailable > 0 &&
+    effectiveAvailable <= product.defaultVariantLowStockThreshold;
+  return Boolean(product.lowStock || cartLowStock);
+};
+
 export default function DisplayProducts({ products, cols = 4 }: Props) {
+  const { cart } = useCart();
   const { isWishlisted, toggle } = useWishlist();
   return (
     <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {products?.map((p) => (
-        <Link key={p.id} href={`/products/${p.handle}`} className="block">
-          <article
-            key={p.id}
-            className="
+      {products?.map((p) => {
+        const cartQuantity =
+          cart?.lines.find((line) => line.merchandise.id === p.defaultVariantId)
+            ?.quantity ?? 0;
+        const showLowStock = getProductLowStockState(p, cartQuantity);
+        return (
+          <Link key={p.id} href={`/products/${p.handle}`} className="block">
+            <article
+              key={p.id}
+              className="
                         group rounded-xl border border-stone-200 bg-white
                         transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                     "
-          >
-            {/* Image */}
-            <div className="relative">
-              <ProductImageCarousel
-                images={getProductImages(p)}
-                alt={p.title}
-                className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
-                imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
-              {p.compareAtPrice && (
-                <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
-                  Sale
-                </span>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="p-4">
-              {/* Title */}
-              <h2
-                className="mt-1 line-clamp-2 font-bold"
-                style={{ color: "#000000ff" }}
-              >
-                {p.title}
-              </h2>
-              {typeof p.availableForSale === "boolean" && (
-                <p
-                  className={`mt-1 text-xs font-semibold ${
-                    p.availableForSale ? "text-green-700" : "text-red-600"
-                  }`}
-                >
-                  {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
-                </p>
-              )}
-
-              {/* Price */}
-              <div className="mt-2 flex items-baseline gap-2">
+            >
+              {/* Image */}
+              <div className="relative">
+                <ProductImageCarousel
+                  images={getProductImages(p)}
+                  alt={p.title}
+                  className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
+                  imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
                 {p.compareAtPrice && (
-                  <span className="text-sm font-semibold text-yellow-600 line-through">
-                    {formatPrice(p.compareAtPrice)}
+                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                    Sale
                   </span>
                 )}
-                <span className="text-base font-semibold text-stone-900">
-                  {formatPrice(p.priceRange?.minVariantPrice)}
-                </span>
+                {p.availableForSale && showLowStock && (
+                  <span className="absolute left-3 top-3 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
+                    Low stock
+                  </span>
+                )}
               </div>
-              <div className="mt-3 flex items-center justify-center gap-2">
-                <WishlistButton
-                  wishlisted={isWishlisted(p.id)}
-                  onToggle={() => toggle(p.id)}
-                />
-                <AddToCartButton
-                  variantId={p.defaultVariantId ?? null}
-                  available={p.availableForSale}
-                  itemTitle={p.title}
-                  itemImageUrl={p.featuredImage?.url}
-                  itemImageAlt={p.featuredImage?.altText ?? p.title}
-                  itemQuantity={1}
-                />
-              </div>
-            </div>
-          </article>
-        </Link>
-      ))}
-    </div>
-  );
-}
 
-export function DisplayProductsList({ products }: Props) {
-  const { isWishlisted, toggle } = useWishlist();
-  return (
-    <div className="mt-6 grid grid-cols-1 gap-4">
-      {products?.map((p) => (
-        <article
-          key={p.id}
-          className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
-        >
-          <Link
-            href={`/products/${p.handle}`}
-            className="group block sm:w-56 md:w-64"
-          >
-            <div className="relative">
-              <ProductImageCarousel
-                images={getProductImages(p)}
-                alt={p.title}
-                className="aspect-square overflow-hidden rounded-lg bg-stone-100"
-                imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
-              {p.compareAtPrice && (
-                <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
-                  Sale
-                </span>
-              )}
-            </div>
-          </Link>
-
-          <div className="flex flex-1 flex-col gap-4">
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold" style={{ color: "#000000ff" }}>
-                {p.title}
-              </h2>
-              {typeof p.availableForSale === "boolean" && (
-                <p
-                  className={`text-s font-semibold ${
-                    p.availableForSale ? "text-green-700" : "text-red-600"
-                  }`}
+              {/* Content */}
+              <div className="p-4">
+                {/* Title */}
+                <h2
+                  className="mt-1 line-clamp-2 font-bold"
+                  style={{ color: "#000000ff" }}
                 >
-                  {p.availableForSale ? "Verfügbar" : "Ausverkauft"}
-                </p>
-              )}
-              {p.description && (
-                <p className="text-sm text-stone-600 line-clamp-3">
-                  {p.description}
-                </p>
-              )}
-            </div>
+                  {p.title}
+                </h2>
+                {typeof p.availableForSale === "boolean" && (
+                  <p
+                    className={`mt-1 text-xs font-semibold ${
+                      p.availableForSale
+                        ? showLowStock
+                          ? "text-amber-700"
+                          : "text-green-700"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {p.availableForSale
+                      ? showLowStock
+                        ? "Verfügbar · Geringer Bestand"
+                        : "Verfügbar"
+                      : "Ausverkauft"}
+                  </p>
+                )}
 
-            <div className="mt-auto space-y-2">
-              <div className="text-lg font-semibold text-stone-900">
-                <div className="flex items-baseline gap-2">
+                {/* Price */}
+                <div className="mt-2 flex items-baseline gap-2">
                   {p.compareAtPrice && (
                     <span className="text-sm font-semibold text-yellow-600 line-through">
                       {formatPrice(p.compareAtPrice)}
                     </span>
                   )}
-                  <span>{formatPrice(p.priceRange?.minVariantPrice)}</span>
+                  <span className="text-base font-semibold text-stone-900">
+                    {formatPrice(p.priceRange?.minVariantPrice)}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <WishlistButton
-                  wishlisted={isWishlisted(p.id)}
-                  onToggle={() => toggle(p.id)}
-                  size="lg"
-                />
-                <div className="flex items-center gap-2">
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <WishlistButton
+                    wishlisted={isWishlisted(p.id)}
+                    onToggle={() => toggle(p.id)}
+                  />
                   <AddToCartButton
                     variantId={p.defaultVariantId ?? null}
                     available={p.availableForSale}
-                    size="lg"
                     itemTitle={p.title}
                     itemImageUrl={p.featuredImage?.url}
                     itemImageAlt={p.featuredImage?.altText ?? p.title}
                     itemQuantity={1}
                   />
-                  <Link
-                    href={`/products/${p.handle}`}
-                    className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
-                    aria-label="Zum Produkt"
-                    title="Zum Produkt"
+                </div>
+              </div>
+            </article>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+export function DisplayProductsList({ products }: Props) {
+  const { cart } = useCart();
+  const { isWishlisted, toggle } = useWishlist();
+  return (
+    <div className="mt-6 grid grid-cols-1 gap-4">
+      {products?.map((p) => {
+        const cartQuantity =
+          cart?.lines.find((line) => line.merchandise.id === p.defaultVariantId)
+            ?.quantity ?? 0;
+        const showLowStock = getProductLowStockState(p, cartQuantity);
+        return (
+          <article
+            key={p.id}
+            className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
+          >
+            <Link
+              href={`/products/${p.handle}`}
+              className="group block sm:w-56 md:w-64"
+            >
+              <div className="relative">
+                <ProductImageCarousel
+                  images={getProductImages(p)}
+                  alt={p.title}
+                  className="aspect-square overflow-hidden rounded-lg bg-stone-100"
+                  imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
+                {p.compareAtPrice && (
+                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                    Sale
+                  </span>
+                )}
+                {p.availableForSale && showLowStock && (
+                  <span className="absolute left-3 top-12 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
+                    Low stock
+                  </span>
+                )}
+              </div>
+            </Link>
+
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="space-y-2">
+                <h2
+                  className="text-lg font-bold"
+                  style={{ color: "#000000ff" }}
+                >
+                  {p.title}
+                </h2>
+                {typeof p.availableForSale === "boolean" && (
+                  <p
+                    className={`text-s font-semibold ${
+                      p.availableForSale
+                        ? showLowStock
+                          ? "text-amber-700"
+                          : "text-green-700"
+                        : "text-red-600"
+                    }`}
                   >
-                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-                  </Link>
+                    {p.availableForSale
+                      ? showLowStock
+                        ? "Verfügbar · Geringer Bestand"
+                        : "Verfügbar"
+                      : "Ausverkauft"}
+                  </p>
+                )}
+                {p.description && (
+                  <p className="text-sm text-stone-600 line-clamp-3">
+                    {p.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-auto space-y-2">
+                <div className="text-lg font-semibold text-stone-900">
+                  <div className="flex items-baseline gap-2">
+                    {p.compareAtPrice && (
+                      <span className="text-sm font-semibold text-yellow-600 line-through">
+                        {formatPrice(p.compareAtPrice)}
+                      </span>
+                    )}
+                    <span>{formatPrice(p.priceRange?.minVariantPrice)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <WishlistButton
+                    wishlisted={isWishlisted(p.id)}
+                    onToggle={() => toggle(p.id)}
+                    size="lg"
+                  />
+                  <div className="flex items-center gap-2">
+                    <AddToCartButton
+                      variantId={p.defaultVariantId ?? null}
+                      available={p.availableForSale}
+                      size="lg"
+                      itemTitle={p.title}
+                      itemImageUrl={p.featuredImage?.url}
+                      itemImageAlt={p.featuredImage?.altText ?? p.title}
+                      itemQuantity={1}
+                    />
+                    <Link
+                      href={`/products/${p.handle}`}
+                      className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                      aria-label="Zum Produkt"
+                      title="Zum Produkt"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }

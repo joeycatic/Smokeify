@@ -74,9 +74,12 @@ export default function OrderSuccessPage() {
 
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [loadStatus, setLoadStatus] = useState<
-    "idle" | "loading" | "ok" | "error"
+    "idle" | "loading" | "pending" | "ok" | "error"
   >("idle");
   const [cartCleared, setCartCleared] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 20;
+  const retryDelayMs = 3000;
 
   useEffect(() => {
     if (!sessionId) return;
@@ -95,17 +98,25 @@ export default function OrderSuccessPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId }),
         });
+        const data = (await res.json().catch(() => ({}))) as {
+          order?: OrderSummary;
+          pending?: boolean;
+        };
+        if (res.status === 202 || data.pending) {
+          setLoadStatus("pending");
+          return;
+        }
         if (!res.ok) {
           setLoadStatus("error");
           return;
         }
-        const data = (await res.json()) as { order?: OrderSummary };
         if (!data.order) {
           setLoadStatus("error");
           return;
         }
         setOrder(data.order);
         setLoadStatus("ok");
+        setRetryCount(0);
       } catch {
         setLoadStatus("error");
       }
@@ -113,6 +124,19 @@ export default function OrderSuccessPage() {
 
     void loadOrder();
   }, [loadStatus, returnTo, router, sessionId, status]);
+
+  useEffect(() => {
+    if (loadStatus !== "pending") return;
+    if (retryCount >= maxRetries) {
+      setLoadStatus("error");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setLoadStatus("idle");
+      setRetryCount((prev) => prev + 1);
+    }, retryDelayMs);
+    return () => clearTimeout(timer);
+  }, [loadStatus, maxRetries, retryCount, retryDelayMs]);
 
   useEffect(() => {
     if (!order || cartCleared) return;
@@ -148,6 +172,13 @@ export default function OrderSuccessPage() {
             <div className="flex items-center justify-center gap-3 py-8 text-stone-600">
               <LoadingSpinner size="sm" />
               <span>Bestellung wird geladen...</span>
+            </div>
+          ) : null}
+
+          {loadStatus === "pending" ? (
+            <div className="flex items-center justify-center gap-3 py-6 text-stone-600">
+              <LoadingSpinner size="sm" />
+              <span>Zahlung wird bestaetigt. Bitte warten...</span>
             </div>
           ) : null}
 
