@@ -51,8 +51,10 @@ export async function POST(
     amountSubtotal: order.amountSubtotal,
     amountTax: order.amountTax,
     amountShipping: order.amountShipping,
+    amountDiscount: order.amountDiscount,
     amountTotal: order.amountTotal,
     amountRefunded: order.amountRefunded,
+    discountCode: order.discountCode,
     customerEmail: order.customerEmail,
     trackingCarrier: order.trackingCarrier,
     trackingNumber: order.trackingNumber,
@@ -65,6 +67,18 @@ export async function POST(
     subject: email.subject,
     html: email.html,
     text: email.text,
+  });
+
+  const sentAtUpdate =
+    type === "confirmation"
+      ? { confirmationEmailSentAt: new Date() }
+      : type === "shipping"
+      ? { shippingEmailSentAt: new Date() }
+      : { refundEmailSentAt: new Date() };
+
+  await prisma.order.update({
+    where: { id },
+    data: sentAtUpdate,
   });
 
   return NextResponse.json({ ok: true });

@@ -202,6 +202,14 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
+  const rawDiscountCode =
+    typeof body?.discountCode === "string" ? body.discountCode.trim() : "";
+  if (rawDiscountCode && rawDiscountCode.length > 64) {
+    return NextResponse.json(
+      { error: "Rabattcode ungueltig." },
+      { status: 400 }
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { id: authSession.user.id },
     select: {
@@ -276,10 +284,35 @@ export async function POST(req: Request) {
   const shippingAmount = getShippingEstimate(country, itemCount);
   const shippingCents = Math.max(0, Math.round(shippingAmount * 100));
 
+  let promotionCodeId: string | undefined;
+  let appliedDiscountCode: string | undefined;
+  if (rawDiscountCode) {
+    const promotionCodes = await stripe.promotionCodes.list({
+      code: rawDiscountCode,
+      active: true,
+      limit: 1,
+    });
+    const promotionCode = promotionCodes.data[0];
+    if (!promotionCode || !promotionCode.active || !promotionCode.coupon?.valid) {
+      return NextResponse.json(
+        { error: "Rabattcode ungueltig." },
+        { status: 400 }
+      );
+    }
+    promotionCodeId = promotionCode.id;
+    appliedDiscountCode = promotionCode.code ?? rawDiscountCode;
+  }
+
+  const metadata: Record<string, string> = { country };
+  if (appliedDiscountCode) {
+    metadata.discountCode = appliedDiscountCode;
+  }
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card", "paypal"],
     line_items: lineItems,
+    discounts: promotionCodeId ? [{ promotion_code: promotionCodeId }] : undefined,
     customer: customerId ?? undefined,
     customer_email: customerId ? undefined : user?.email ?? undefined,
     customer_update: customerId
@@ -308,9 +341,7 @@ export async function POST(req: Request) {
     automatic_tax: { enabled: true },
     success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/cart?checkout=cancel`,
-    metadata: {
-      country,
-    },
+    metadata,
   });
 
   return NextResponse.json({ url: checkoutSession.url });

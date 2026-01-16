@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type OrderItem = {
   id: string;
@@ -22,12 +23,23 @@ type OrderRow = {
   amountSubtotal: number;
   amountTax: number;
   amountShipping: number;
+  amountDiscount: number;
   amountTotal: number;
   amountRefunded: number;
   stripePaymentIntent: string | null;
   trackingCarrier: string | null;
   trackingNumber: string | null;
   trackingUrl: string | null;
+  shippingName: string | null;
+  shippingLine1: string | null;
+  shippingLine2: string | null;
+  shippingPostalCode: string | null;
+  shippingCity: string | null;
+  shippingCountry: string | null;
+  confirmationEmailSentAt: string | null;
+  shippingEmailSentAt: string | null;
+  refundEmailSentAt: string | null;
+  discountCode: string | null;
   user: { email: string | null; name: string | null };
   items: OrderItem[];
 };
@@ -43,6 +55,49 @@ const formatPrice = (amount: number, currency: string) =>
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
+const normalizeStatus = (value: string) => value.trim().toLowerCase();
+
+const buildShippingLines = (order: OrderRow) => {
+  const lines = [
+    order.shippingName,
+    order.shippingLine1,
+    order.shippingLine2,
+    [order.shippingPostalCode, order.shippingCity].filter(Boolean).join(" "),
+    order.shippingCountry,
+  ];
+  return lines.filter((line) => Boolean(line?.trim())) as string[];
+};
+
+const getFulfillmentBadge = (status: string, paymentStatus: string) => {
+  const normalizedStatus = normalizeStatus(status);
+  const normalizedPayment = normalizeStatus(paymentStatus);
+
+  if (normalizedStatus === "fulfilled") {
+    return {
+      label: "Fulfillment: fulfilled",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+  if (
+    ["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)
+  ) {
+    return {
+      label: "Fulfillment: closed",
+      className: "border-stone-200 bg-stone-100 text-stone-700",
+    };
+  }
+  if (normalizedPayment === "paid" || normalizedPayment === "succeeded") {
+    return {
+      label: "Fulfillment: ready",
+      className: "border-sky-200 bg-sky-50 text-sky-800",
+    };
+  }
+  return {
+    label: "Fulfillment: not ready",
+    className: "border-amber-200 bg-amber-50 text-amber-800",
+  };
+};
+
 export default function AdminOrdersClient({ orders }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
@@ -53,6 +108,19 @@ export default function AdminOrdersClient({ orders }: Props) {
   const [refundId, setRefundId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [shippingEmailSent, setShippingEmailSent] = useState<
+    Record<string, boolean>
+  >({});
+  const [confirmationEmailSent, setConfirmationEmailSent] = useState<
+    Record<string, boolean>
+  >({});
+  const [refundEmailSent, setRefundEmailSent] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [sendingEmail, setSendingEmail] = useState<{
+    orderId: string;
+    type: "confirmation" | "shipping" | "refund";
+  } | null>(null);
   const [refundSelection, setRefundSelection] = useState<
     Record<string, Record<string, number>>
   >({});
@@ -60,8 +128,35 @@ export default function AdminOrdersClient({ orders }: Props) {
     orderId: string;
     mode: "full" | "items";
   } | null>(null);
+  const [confirmShippingResend, setConfirmShippingResend] = useState<{
+    orderId: string;
+  } | null>(null);
+  const [confirmEmailResend, setConfirmEmailResend] = useState<{
+    orderId: string;
+    type: "confirmation" | "refund";
+  } | null>(null);
 
   const sorted = useMemo(() => orders, [orders]);
+  const fulfilledCount = useMemo(
+    () =>
+      orders.reduce((count, order) => {
+        const normalizedStatus = normalizeStatus(order.status);
+        return normalizedStatus === "fulfilled" ||
+          normalizedStatus === "refunded"
+          ? count + 1
+          : count;
+      }, 0),
+    [orders]
+  );
+
+  const isConfirmationEmailSent = (order: OrderRow) =>
+    confirmationEmailSent[order.id] || Boolean(order.confirmationEmailSentAt);
+
+  const isShippingEmailSent = (order: OrderRow) =>
+    shippingEmailSent[order.id] || Boolean(order.shippingEmailSentAt);
+
+  const isRefundEmailSent = (order: OrderRow) =>
+    refundEmailSent[order.id] || Boolean(order.refundEmailSentAt);
 
   const updateOrder = async (orderId: string) => {
     setError("");
@@ -86,6 +181,36 @@ export default function AdminOrdersClient({ orders }: Props) {
       }
     } catch {
       setError("Update failed");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const saveTrackingDrafts = async (orderId: string) => {
+    const tracking = trackingDrafts[orderId];
+    if (!tracking) return true;
+    setError("");
+    setNotice("");
+    setSavingId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackingCarrier: tracking.carrier || undefined,
+          trackingNumber: tracking.number || undefined,
+          trackingUrl: tracking.url || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error ?? "Update failed");
+        return false;
+      }
+      return true;
+    } catch {
+      setError("Update failed");
+      return false;
     } finally {
       setSavingId(null);
     }
@@ -161,10 +286,17 @@ export default function AdminOrdersClient({ orders }: Props) {
 
   const sendEmail = async (
     orderId: string,
-    type: "confirmation" | "shipping" | "refund"
+    type: "confirmation" | "shipping" | "refund",
+    options?: { force?: boolean }
   ) => {
     setError("");
     setNotice("");
+    setSendingEmail({ orderId, type });
+    if (type === "shipping" && shippingEmailSent[orderId] && !options?.force) {
+      setNotice("Shipping email already sent.");
+      setSendingEmail(null);
+      return;
+    }
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/email`, {
         method: "POST",
@@ -176,10 +308,67 @@ export default function AdminOrdersClient({ orders }: Props) {
         setError(data.error ?? "Email failed");
         return;
       }
+      if (type === "shipping") {
+        setShippingEmailSent((prev) => ({ ...prev, [orderId]: true }));
+        setNotice("Shipping email sent.");
+        return;
+      }
+      if (type === "confirmation") {
+        setConfirmationEmailSent((prev) => ({ ...prev, [orderId]: true }));
+      }
+      if (type === "refund") {
+        setRefundEmailSent((prev) => ({ ...prev, [orderId]: true }));
+      }
       setNotice("Email sent.");
     } catch {
       setError("Email failed");
+    } finally {
+      setSendingEmail(null);
     }
+  };
+
+  const requestShippingEmail = async (orderId: string) => {
+    const order = orders.find((entry) => entry.id === orderId);
+    if (order && isShippingEmailSent(order)) {
+      setConfirmShippingResend({ orderId });
+      return;
+    }
+    const saved = await saveTrackingDrafts(orderId);
+    if (!saved) return;
+    await sendEmail(orderId, "shipping");
+  };
+
+  const confirmShippingResendAction = async () => {
+    if (!confirmShippingResend) return;
+    const { orderId } = confirmShippingResend;
+    setConfirmShippingResend(null);
+    const saved = await saveTrackingDrafts(orderId);
+    if (!saved) return;
+    await sendEmail(orderId, "shipping", { force: true });
+  };
+
+  const requestEmail = async (
+    orderId: string,
+    type: "confirmation" | "refund"
+  ) => {
+    const order = orders.find((entry) => entry.id === orderId);
+    const alreadySent =
+      order &&
+      (type === "confirmation"
+        ? isConfirmationEmailSent(order)
+        : isRefundEmailSent(order));
+    if (alreadySent) {
+      setConfirmEmailResend({ orderId, type });
+      return;
+    }
+    await sendEmail(orderId, type);
+  };
+
+  const confirmEmailResendAction = async () => {
+    if (!confirmEmailResend) return;
+    const { orderId, type } = confirmEmailResend;
+    setConfirmEmailResend(null);
+    await sendEmail(orderId, type, { force: true });
   };
 
   return (
@@ -195,8 +384,12 @@ export default function AdminOrdersClient({ orders }: Props) {
               <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
                 {sorted.length} orders
               </span>
+              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
+                {fulfilledCount} fulfilled
+              </span>
             </div>
           </div>
+          <AdminThemeToggle />
         </div>
       </div>
 
@@ -220,6 +413,11 @@ export default function AdminOrdersClient({ orders }: Props) {
             url: order.trackingUrl ?? "",
           };
           const status = statusDrafts[order.id] ?? order.status;
+          const fulfillmentBadge = getFulfillmentBadge(
+            order.status,
+            order.paymentStatus
+          );
+          const shippingLines = buildShippingLines(order);
 
           return (
             <div
@@ -229,7 +427,7 @@ export default function AdminOrdersClient({ orders }: Props) {
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}
-                className="flex w-full flex-wrap items-center justify-between gap-3 text-left"
+                className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <div className="text-sm font-semibold text-stone-900">
@@ -247,6 +445,16 @@ export default function AdminOrdersClient({ orders }: Props) {
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
                         Payment: {order.paymentStatus}
                       </span>
+                      <span
+                        className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
+                      >
+                        {fulfillmentBadge.label}
+                      </span>
+                      {isShippingEmailSent(order) && (
+                        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
+                          Shipping email: sent
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -269,12 +477,33 @@ export default function AdminOrdersClient({ orders }: Props) {
                     <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
                       Payment: {order.paymentStatus}
                     </span>
+                    <span
+                      className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
+                    >
+                      {fulfillmentBadge.label}
+                    </span>
+                    {isShippingEmailSent(order) && (
+                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
+                        Shipping email: sent
+                      </span>
+                    )}
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-xl border border-black/10 bg-stone-50 p-4">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="text-xs font-semibold text-stone-600">
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr]">
+                    <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-white via-stone-50 to-emerald-50/60 p-5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-700/70">
+                            Quick Actions
+                          </p>
+                          <h3 className="mt-2 text-sm font-semibold text-stone-900">
+                            Status & confirmation
+                          </h3>
+                        </div>
+                        <div className="h-1 w-12 rounded-full bg-emerald-400/70" />
+                      </div>
+                      <div className="mt-4 rounded-xl border border-emerald-100/70 bg-white/70 px-4 py-3 text-center">
+                        <label className="text-xs font-semibold text-stone-600 text-center">
                           Status
                           <input
                             value={status}
@@ -284,60 +513,19 @@ export default function AdminOrdersClient({ orders }: Props) {
                                 [order.id]: event.target.value,
                               }))
                             }
-                            className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                            className="mt-2 h-10 w-full max-w-[220px] rounded-md border border-black/10 bg-white px-3 text-center text-sm shadow-inner"
                           />
-                        </label>
-                        <label className="text-xs font-semibold text-stone-600">
-                          Tracking carrier
-                          <input
-                            value={tracking.carrier}
-                            onChange={(event) =>
-                              setTrackingDrafts((prev) => ({
-                                ...prev,
-                                [order.id]: {
-                                  ...tracking,
-                                  carrier: event.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-stone-600">
-                          Tracking number
-                          <input
-                            value={tracking.number}
-                            onChange={(event) =>
-                              setTrackingDrafts((prev) => ({
-                                ...prev,
-                                [order.id]: {
-                                  ...tracking,
-                                  number: event.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-stone-600">
-                          Tracking URL
-                          <input
-                            value={tracking.url}
-                            onChange={(event) =>
-                              setTrackingDrafts((prev) => ({
-                                ...prev,
-                                [order.id]: { ...tracking, url: event.target.value },
-                              }))
-                            }
-                            className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                          />
+                          <span className="mt-2 block text-[11px] font-normal text-stone-500">
+                            Tip: "complete" is the Stripe checkout status. Use
+                            "fulfilled" once the order is shipped.
+                          </span>
                         </label>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
                         <button
                           type="button"
                           onClick={() => updateOrder(order.id)}
-                          className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
+                          className="h-10 w-full rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
                           disabled={savingId === order.id}
                         >
                           {savingId === order.id ? "Saving..." : "Save changes"}
@@ -350,7 +538,7 @@ export default function AdminOrdersClient({ orders }: Props) {
                               [order.id]: "fulfilled",
                             }))
                           }
-                          className="h-10 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                          className="h-10 w-full rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
                         >
                           Mark fulfilled
                         </button>
@@ -362,59 +550,162 @@ export default function AdminOrdersClient({ orders }: Props) {
                               [order.id]: "canceled",
                             }))
                           }
-                          className="h-10 rounded-md border border-amber-200 px-3 text-xs font-semibold text-amber-800 hover:border-amber-300"
+                          className="h-10 w-full rounded-md border border-amber-200 px-3 text-xs font-semibold text-amber-800 hover:border-amber-300"
                         >
                           Mark canceled
                         </button>
                         <button
                           type="button"
-                          onClick={() => sendEmail(order.id, "confirmation")}
-                          className="h-10 rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700 hover:border-black/20"
-                        >
-                          Send confirmation
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => sendEmail(order.id, "shipping")}
-                          className="h-10 rounded-md border border-sky-200 px-3 text-xs font-semibold text-sky-700 hover:border-sky-300"
-                        >
-                          Send shipping
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => sendEmail(order.id, "refund")}
-                          className="h-10 rounded-md border border-rose-200 px-3 text-xs font-semibold text-rose-700 hover:border-rose-300"
-                        >
-                          Send refund
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setConfirmRefund({ orderId: order.id, mode: "full" })
+                          onClick={() => requestEmail(order.id, "confirmation")}
+                          className="h-10 w-full rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700 hover:border-black/20"
+                          disabled={
+                            sendingEmail?.orderId === order.id &&
+                            sendingEmail?.type === "confirmation"
                           }
-                          className="h-10 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
-                          disabled={refundId === order.id}
                         >
-                          {refundId === order.id ? "Refunding..." : "Refund"}
+                          {sendingEmail?.orderId === order.id &&
+                          sendingEmail?.type === "confirmation"
+                            ? "Sending..."
+                            : isConfirmationEmailSent(order)
+                            ? "Resend confirmation"
+                            : "Send confirmation"}
                         </button>
                       </div>
                     </div>
-                    <div className="rounded-xl border border-black/10 bg-white p-4">
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
                       <div className="text-xs font-semibold text-stone-600">
-                        Totals
+                        Shipping information
                       </div>
-                      <div className="mt-2 space-y-1 text-sm text-stone-700">
+                      <div className="mt-3 space-y-3 text-sm text-stone-700">
+                        {shippingLines.length > 0 ? (
+                          <div className="rounded-xl border border-black/10 bg-stone-50 px-3 py-2">
+                            {shippingLines.map((line, index) => (
+                              <div key={`${line}-${index}`}>{line}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-stone-500">
+                            No shipping address yet.
+                          </div>
+                        )}
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <label className="text-xs font-semibold text-stone-600">
+                            Tracking carrier
+                            <input
+                              value={tracking.carrier}
+                              onChange={(event) =>
+                                setTrackingDrafts((prev) => ({
+                                  ...prev,
+                                  [order.id]: {
+                                    ...tracking,
+                                    carrier: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-stone-600">
+                            Tracking number
+                            <input
+                              value={tracking.number}
+                              onChange={(event) =>
+                                setTrackingDrafts((prev) => ({
+                                  ...prev,
+                                  [order.id]: {
+                                    ...tracking,
+                                    number: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-stone-600 sm:col-span-2">
+                            Tracking URL
+                            <input
+                              value={tracking.url}
+                              onChange={(event) =>
+                                setTrackingDrafts((prev) => ({
+                                  ...prev,
+                                  [order.id]: {
+                                    ...tracking,
+                                    url: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => requestShippingEmail(order.id)}
+                            className="h-9 rounded-md border border-sky-200 px-3 text-xs font-semibold text-sky-700 hover:border-sky-300"
+                            disabled={
+                              sendingEmail?.orderId === order.id &&
+                              sendingEmail?.type === "shipping"
+                            }
+                          >
+                            {sendingEmail?.orderId === order.id &&
+                            sendingEmail?.type === "shipping"
+                              ? "Sending..."
+                              : isShippingEmailSent(order)
+                              ? "Resend shipping"
+                              : "Send shipping"}
+                          </button>
+                          {isShippingEmailSent(order) && (
+                            <span className="text-[11px] text-stone-500">
+                              Already sent. Resending will notify the customer
+                              again.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
+                        <span>Totals</span>
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
+                          {order.currency}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1 text-sm text-stone-700">
                         <div className="flex items-center justify-between">
                           <span>Subtotal</span>
-                          <span>{formatPrice(order.amountSubtotal, order.currency)}</span>
+                          <span>
+                            {formatPrice(order.amountSubtotal, order.currency)}
+                          </span>
                         </div>
+                        {order.amountDiscount > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span>
+                              Discount
+                              {order.discountCode
+                                ? ` (${order.discountCode})`
+                                : ""}
+                            </span>
+                            <span>
+                              -
+                              {formatPrice(
+                                order.amountDiscount,
+                                order.currency
+                              )}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <span>Shipping</span>
-                          <span>{formatPrice(order.amountShipping, order.currency)}</span>
+                          <span>
+                            {formatPrice(order.amountShipping, order.currency)}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Tax</span>
-                          <span>{formatPrice(order.amountTax, order.currency)}</span>
+                          <span>
+                            {formatPrice(order.amountTax, order.currency)}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Refunded</span>
@@ -422,9 +713,11 @@ export default function AdminOrdersClient({ orders }: Props) {
                             {formatPrice(order.amountRefunded, order.currency)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between font-semibold">
+                        <div className="mt-2 flex items-center justify-between rounded-lg bg-stone-50 px-2 py-1 font-semibold">
                           <span>Total</span>
-                          <span>{formatPrice(order.amountTotal, order.currency)}</span>
+                          <span>
+                            {formatPrice(order.amountTotal, order.currency)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -501,10 +794,11 @@ export default function AdminOrdersClient({ orders }: Props) {
                         );
                       })}
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-                      <p className="text-xs text-stone-500">
-                        Set a quantity per item to refund.
-                      </p>
+                    <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-3">
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        <p className="text-xs text-stone-600">
+                          Set a quantity per item to refund.
+                        </p>
                       <button
                         type="button"
                         onClick={() =>
@@ -517,6 +811,33 @@ export default function AdminOrdersClient({ orders }: Props) {
                           ? "Refunding..."
                           : "Refund selected items"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => requestEmail(order.id, "refund")}
+                        className="h-9 rounded-md border border-rose-200 px-3 text-xs font-semibold text-rose-700 hover:border-rose-300"
+                        disabled={
+                          sendingEmail?.orderId === order.id &&
+                          sendingEmail?.type === "refund"
+                        }
+                      >
+                        {sendingEmail?.orderId === order.id &&
+                        sendingEmail?.type === "refund"
+                          ? "Sending..."
+                          : isRefundEmailSent(order)
+                          ? "Resend refund"
+                          : "Send refund"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfirmRefund({ orderId: order.id, mode: "full" })
+                        }
+                        className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                        disabled={refundId === order.id}
+                      >
+                        {refundId === order.id ? "Refunding..." : "Full refund"}
+                      </button>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -554,6 +875,75 @@ export default function AdminOrdersClient({ orders }: Props) {
                 className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
               >
                 Rueckerstatten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmShippingResend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmShippingResend(null)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Resend shipping email?
+            </h3>
+            <p className="mt-2 text-sm text-stone-600">
+              This order already has a shipping email sent. Resend it anyway?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmShippingResend(null)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmShippingResendAction}
+                className="h-10 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white"
+              >
+                Resend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmEmailResend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmEmailResend(null)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Resend {confirmEmailResend.type} email?
+            </h3>
+            <p className="mt-2 text-sm text-stone-600">
+              This order already has a {confirmEmailResend.type} email sent.
+              Resend it anyway?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmEmailResend(null)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmEmailResendAction}
+                className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white"
+              >
+                Resend
               </button>
             </div>
           </div>

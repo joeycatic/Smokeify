@@ -316,7 +316,7 @@ export default function ProductDetailClient({
               <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
                 <a
                   className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60"
-                  href="/shipping"
+                  href="/pages/shipping"
                 >
                   Versanddetails
                 </a>
@@ -331,6 +331,7 @@ export default function ProductDetailClient({
           </details>
         </div>
       </div>
+
     </div>
   );
 }

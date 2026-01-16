@@ -14,6 +14,34 @@ const getStripe = () => {
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
+const enrichItemsWithManufacturer = async <
+  T extends { productId: string | null }
+>(
+  items: T[]
+): Promise<Array<T & { manufacturer: string | null }>> => {
+  const productIds = Array.from(
+    new Set(items.map((item) => item.productId).filter(Boolean))
+  ) as string[];
+  if (productIds.length === 0) {
+    return items.map((item) => ({ ...item, manufacturer: null }));
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, manufacturer: true },
+  });
+  const manufacturerMap = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null])
+  );
+
+  return items.map((item) => ({
+    ...item,
+    manufacturer: item.productId
+      ? manufacturerMap.get(item.productId) ?? null
+      : null,
+  }));
+};
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -41,6 +69,7 @@ export async function POST(request: Request) {
     include: { items: true },
   });
   if (existing) {
+    const items = await enrichItemsWithManufacturer(existing.items);
     return NextResponse.json({
       ok: true,
       order: {
@@ -49,10 +78,12 @@ export async function POST(request: Request) {
         amountSubtotal: existing.amountSubtotal,
         amountTax: existing.amountTax,
         amountShipping: existing.amountShipping,
+        amountDiscount: existing.amountDiscount,
         amountTotal: existing.amountTotal,
         currency: existing.currency,
         paymentStatus: existing.paymentStatus,
         status: existing.status,
+        discountCode: existing.discountCode,
         customerEmail: existing.customerEmail,
         shippingName: existing.shippingName,
         shippingLine1: existing.shippingLine1,
@@ -60,12 +91,14 @@ export async function POST(request: Request) {
         shippingPostalCode: existing.shippingPostalCode,
         shippingCity: existing.shippingCity,
         shippingCountry: existing.shippingCountry,
-        items: existing.items,
+        items,
       },
     });
   }
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["total_details.breakdown.discounts.discount"],
+  });
   if (!checkoutSession) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
@@ -85,6 +118,14 @@ export async function POST(request: Request) {
   const total = checkoutSession.amount_total ?? 0;
   const shippingAmount = checkoutSession.total_details?.amount_shipping ?? 0;
   const taxAmount = checkoutSession.total_details?.amount_tax ?? 0;
+  const discountTotal = checkoutSession.total_details?.amount_discount ?? 0;
+  let discountCode = checkoutSession.metadata?.discountCode ?? undefined;
+  const breakdownDiscount =
+    checkoutSession.total_details?.breakdown?.discounts?.[0]?.discount;
+  const promotion = breakdownDiscount?.promotion_code;
+  if (promotion && typeof promotion !== "string" && promotion.code) {
+    discountCode = promotion.code;
+  }
   const currency = (checkoutSession.currency ?? "eur").toUpperCase();
 
   const created = await prisma.order.create({
@@ -101,7 +142,9 @@ export async function POST(request: Request) {
       amountSubtotal: subtotal,
       amountTax: taxAmount,
       amountShipping: shippingAmount,
+      amountDiscount: discountTotal,
       amountTotal: total,
+      discountCode: discountCode || undefined,
       customerEmail: checkoutSession.customer_details?.email ?? undefined,
       shippingName: shipping?.name ?? undefined,
       shippingLine1: address?.line1 ?? undefined,
@@ -153,6 +196,7 @@ export async function POST(request: Request) {
     },
     include: { items: true },
   });
+  const items = await enrichItemsWithManufacturer(created.items);
 
   try {
     const origin = request.headers.get("origin") ?? "http://localhost:3000";
@@ -205,10 +249,12 @@ export async function POST(request: Request) {
       amountSubtotal: created.amountSubtotal,
       amountTax: created.amountTax,
       amountShipping: created.amountShipping,
+      amountDiscount: created.amountDiscount,
       amountTotal: created.amountTotal,
       currency: created.currency,
       paymentStatus: created.paymentStatus,
       status: created.status,
+      discountCode: created.discountCode,
       customerEmail: created.customerEmail,
       shippingName: created.shippingName,
       shippingLine1: created.shippingLine1,
@@ -216,7 +262,7 @@ export async function POST(request: Request) {
       shippingPostalCode: created.shippingPostalCode,
       shippingCity: created.shippingCity,
       shippingCountry: created.shippingCountry,
-      items: created.items,
+      items,
     },
   });
 }

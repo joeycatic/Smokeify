@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type ImageItem = {
   id: string;
@@ -536,12 +537,15 @@ export default function AdminProductClient({
               </span>
             </div>
           </div>
-          <Link
-            href="/admin/catalog"
-            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-          >
-            Back to catalog
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminThemeToggle />
+            <Link
+              href="/admin/catalog"
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+            >
+              Back to catalog
+            </Link>
+          </div>
         </div>
       </div>
 

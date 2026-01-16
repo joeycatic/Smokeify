@@ -31,6 +31,11 @@ enum ReturnStatus {
   REJECTED
 }
 
+enum ReviewStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
 
 model User {
   id             String         @id @default(cuid())
@@ -54,6 +59,7 @@ model User {
   savedSetups    SavedSetup[]
   orders         Order[]
   returnRequests ReturnRequest[]
+  reviews        Review[]
   devices        Device[]
   verificationCodes VerificationCode[]
   backInStockRequests BackInStockRequest[]
@@ -191,6 +197,7 @@ model Product {
   images      ProductImage[]
   categories  ProductCategory[]
   collections ProductCollection[]
+  reviews     Review[]
 }
 
 model ProductImage {
@@ -299,6 +306,7 @@ model ProductCollection {
 
 model Order {
   id                   String      @id @default(cuid())
+  orderNumber          Int         @unique @default(autoincrement())
   userId               String
   stripeSessionId      String      @unique
   stripePaymentIntent  String?
@@ -308,7 +316,9 @@ model Order {
   amountSubtotal       Int
   amountTax            Int       @default(0)
   amountShipping       Int
+  amountDiscount       Int       @default(0)
   amountTotal          Int
+  discountCode         String?
   amountRefunded       Int       @default(0)
   customerEmail        String?
   shippingName         String?
@@ -320,6 +330,9 @@ model Order {
   trackingCarrier      String?
   trackingNumber       String?
   trackingUrl          String?
+  confirmationEmailSentAt DateTime?
+  shippingEmailSentAt  DateTime?
+  refundEmailSentAt    DateTime?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -378,6 +391,24 @@ model ReturnItem {
   @@index([returnRequestId])
   @@index([orderItemId])
   @@unique([returnRequestId, orderItemId])
+}
+
+model Review {
+  id        String       @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  title     String?
+  body      String?
+  status    ReviewStatus @default(APPROVED)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId, status, createdAt])
 }
 
 model RateLimit {

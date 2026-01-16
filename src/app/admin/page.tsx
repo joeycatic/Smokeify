@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import AdminUsersClient from "./AdminUsersClient";
 import Link from "next/link";
 
@@ -87,12 +88,20 @@ export default async function AdminPage() {
     <PageLayout>
       <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
-            Admin
-          </h1>
-          <p className="text-sm text-stone-600">
-            Nutzerverwaltung und Rollensteuerung.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1
+                className="text-3xl font-bold mb-2"
+                style={{ color: "#2f3e36" }}
+              >
+                Admin
+              </h1>
+              <p className="text-sm text-stone-600">
+                Nutzerverwaltung und Rollensteuerung.
+              </p>
+            </div>
+            <AdminThemeToggle />
+          </div>
           <div className="mt-3">
             <Link
               href="/admin/catalog"
@@ -111,6 +120,18 @@ export default async function AdminPage() {
               className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
             >
               Manage returns
+            </Link>
+            <Link
+              href="/admin/discounts"
+              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+            >
+              Manage discounts
+            </Link>
+            <Link
+              href="/admin/analytics"
+              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+            >
+              Analytics
             </Link>
           </div>
         </div>
