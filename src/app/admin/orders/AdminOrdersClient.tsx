@@ -55,6 +55,9 @@ export default function AdminOrdersClient({ orders }: Props) {
   const [refundId, setRefundId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [shippingEmailSent, setShippingEmailSent] = useState<
+    Record<string, boolean>
+  >({});
   const [refundSelection, setRefundSelection] = useState<
     Record<string, Record<string, number>>
   >({});
@@ -167,6 +170,10 @@ export default function AdminOrdersClient({ orders }: Props) {
   ) => {
     setError("");
     setNotice("");
+    if (type === "shipping" && shippingEmailSent[orderId]) {
+      setNotice("Shipping email already sent.");
+      return;
+    }
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/email`, {
         method: "POST",
@@ -176,6 +183,11 @@ export default function AdminOrdersClient({ orders }: Props) {
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Email failed");
+        return;
+      }
+      if (type === "shipping") {
+        setShippingEmailSent((prev) => ({ ...prev, [orderId]: true }));
+        setNotice("Shipping email sent.");
         return;
       }
       setNotice("Email sent.");

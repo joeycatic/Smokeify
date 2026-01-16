@@ -14,6 +14,34 @@ const getStripe = () => {
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
+const enrichItemsWithManufacturer = async <
+  T extends { productId: string | null }
+>(
+  items: T[]
+): Promise<Array<T & { manufacturer: string | null }>> => {
+  const productIds = Array.from(
+    new Set(items.map((item) => item.productId).filter(Boolean))
+  ) as string[];
+  if (productIds.length === 0) {
+    return items.map((item) => ({ ...item, manufacturer: null }));
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, manufacturer: true },
+  });
+  const manufacturerMap = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null])
+  );
+
+  return items.map((item) => ({
+    ...item,
+    manufacturer: item.productId
+      ? manufacturerMap.get(item.productId) ?? null
+      : null,
+  }));
+};
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -41,6 +69,7 @@ export async function POST(request: Request) {
     include: { items: true },
   });
   if (existing) {
+    const items = await enrichItemsWithManufacturer(existing.items);
     return NextResponse.json({
       ok: true,
       order: {
@@ -62,7 +91,7 @@ export async function POST(request: Request) {
         shippingPostalCode: existing.shippingPostalCode,
         shippingCity: existing.shippingCity,
         shippingCountry: existing.shippingCountry,
-        items: existing.items,
+        items,
       },
     });
   }
@@ -167,6 +196,7 @@ export async function POST(request: Request) {
     },
     include: { items: true },
   });
+  const items = await enrichItemsWithManufacturer(created.items);
 
   try {
     const origin = request.headers.get("origin") ?? "http://localhost:3000";
@@ -232,7 +262,7 @@ export async function POST(request: Request) {
       shippingPostalCode: created.shippingPostalCode,
       shippingCity: created.shippingCity,
       shippingCountry: created.shippingCountry,
-      items: created.items,
+      items,
     },
   });
 }

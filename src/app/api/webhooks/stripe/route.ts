@@ -23,23 +23,97 @@ const getDiscountDetails = (session: Stripe.Checkout.Session) => {
   return { discountTotal, discountCode };
 };
 
+const formatAmountWithComma = (amountMinor: number, currency: string) => {
+  const total = Math.round(amountMinor);
+  const major = Math.floor(Math.abs(total) / 100);
+  const minor = Math.abs(total) % 100;
+  const sign = total < 0 ? "-" : "";
+  return `${sign}${major},${minor.toString().padStart(2, "0")} ${currency}`;
+};
+
+const enrichItemsWithManufacturer = async <
+  T extends { productId?: string | null }
+>(
+  items: T[] | null | undefined
+): Promise<Array<T & { manufacturer: string | null }>> => {
+  const safeItems = items ?? [];
+  const productIds = Array.from(
+    new Set(safeItems.map((item) => item.productId).filter(Boolean))
+  ) as string[];
+  if (productIds.length === 0) {
+    return safeItems.map((item) => ({ ...item, manufacturer: null }));
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, manufacturer: true },
+  });
+  const manufacturerMap = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null])
+  );
+
+  return safeItems.map((item) => ({
+    ...item,
+    manufacturer: item.productId
+      ? manufacturerMap.get(item.productId) ?? null
+      : null,
+  }));
+};
+
+const formatItemName = (name: string, manufacturer?: string | null) => {
+  const defaultSuffix = / - Default( Title)?$/i;
+  if (!defaultSuffix.test(name)) return name;
+  const trimmed = manufacturer?.trim();
+  if (trimmed) {
+    return name.replace(defaultSuffix, ` - ${trimmed}`);
+  }
+  return name.replace(defaultSuffix, "");
+};
+
+const sendTelegramMessage = async (text: string) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return { ok: false, status: 0 };
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    });
+    return { ok: response.ok, status: response.status };
+  } catch {
+    // Ignore Telegram errors for webhook processing.
+    return { ok: false, status: 0 };
+  }
+};
+
 const createOrderFromSession = async (
   stripe: Stripe,
   session: Stripe.Checkout.Session
 ) => {
   const sessionId = session.id;
-  if (!sessionId) return;
+  if (!sessionId) {
+    console.warn("[stripe webhook] Missing session id.");
+    return;
+  }
   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ["discounts", "discounts.promotion_code"],
   });
   const userId = checkoutSession.client_reference_id ?? "";
-  if (!userId) return;
+  if (!userId) {
+    console.warn("[stripe webhook] Missing client_reference_id.");
+    return;
+  }
 
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
     include: { items: true },
   });
-  if (existing) return;
+  if (existing) {
+    console.info("[stripe webhook] Order already exists for session.");
+    return;
+  }
 
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
@@ -120,6 +194,12 @@ const createOrderFromSession = async (
         ),
       },
     },
+    include: { items: true },
+  });
+  console.info("[stripe webhook] Order created.", {
+    id: created.id,
+    amountTotal: created.amountTotal,
+    currency: created.currency,
   });
 
   const variantCounts = new Map<string, number>();
@@ -165,6 +245,68 @@ const createOrderFromSession = async (
   } catch {
     // Ignore email errors for webhook processing.
   }
+
+  const orderLabel = created.id.slice(0, 8).toUpperCase();
+  const orderNumber = created.orderNumber;
+  const orderCurrency = created.currency;
+  const customer = created.customerEmail ?? "unknown";
+  const enrichedItems = await enrichItemsWithManufacturer(created.items);
+  const itemSummary = enrichedItems
+    .map((item) => {
+      const qty = item.quantity ?? 0;
+      const name = formatItemName(item.name, item.manufacturer);
+      return qty > 0 ? `${qty}x ${name}` : "";
+    })
+    .filter(Boolean)
+    .join("; ");
+  let paymentMethod = "unknown";
+  const paymentIntentId =
+    typeof checkoutSession.payment_intent === "string"
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id;
+  if (paymentIntentId) {
+    try {
+      const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge"],
+      });
+      const latestCharge = intent.latest_charge as Stripe.Charge | null;
+      const chargeMethod = latestCharge?.payment_method_details?.type;
+      paymentMethod =
+        chargeMethod ??
+        intent.payment_method_types?.[0] ??
+        checkoutSession.payment_method_types?.[0] ??
+        paymentMethod;
+    } catch {
+      paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
+    }
+  } else {
+    paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
+  }
+  const orderTime = new Date(created.createdAt).toLocaleString("de-DE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+  const formattedAmount = formatAmountWithComma(created.amountTotal, orderCurrency);
+  const telegramEnvOk = Boolean(
+    process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID
+  );
+  console.info("[stripe webhook] Telegram env present:", telegramEnvOk);
+  const telegramResult = await sendTelegramMessage(
+    [
+      "",
+      `New order #${orderNumber} (${orderLabel})`,
+      "",
+      `Items: ${itemSummary || "unknown"}`,
+      `Amount: ${formattedAmount}`,
+      `Payment: ${paymentMethod}`,
+      `Customer: ${customer}`,
+      `Time: ${orderTime}`,
+      "",
+    ].join("\n")
+  );
+  if (!telegramResult.ok) {
+    console.warn("[stripe webhook] Telegram send failed.", telegramResult);
+  }
 };
 
 export async function POST(request: Request) {
@@ -196,6 +338,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
+  console.info("[stripe webhook] Event received:", event.type);
 
   if (
     event.type === "checkout.session.completed" ||

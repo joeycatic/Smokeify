@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendResendEmail } from "@/lib/resend";
-import { buildOrderEmail } from "@/lib/orderEmail";
 
 export async function PATCH(
   request: Request,
@@ -60,31 +58,6 @@ export async function PATCH(
     data: updates,
     include: { items: true },
   });
-
-  const trackingUpdated =
-    (updates.trackingCarrier || updates.trackingNumber || updates.trackingUrl) &&
-    (!existing.trackingCarrier &&
-      !existing.trackingNumber &&
-      !existing.trackingUrl);
-
-  if (trackingUpdated && updated.customerEmail) {
-    try {
-      const origin =
-        request.headers.get("origin") ??
-        process.env.NEXT_PUBLIC_APP_URL ??
-        "http://localhost:3000";
-      const orderUrl = `${origin}/account/orders/${updated.id}`;
-      const email = buildOrderEmail("shipping", updated, orderUrl);
-      await sendResendEmail({
-        to: updated.customerEmail,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-    } catch {
-      // Ignore email errors for admin updates.
-    }
-  }
 
   return NextResponse.json({ order: updated });
 }

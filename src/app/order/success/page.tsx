@@ -16,6 +16,7 @@ type OrderItem = {
   totalAmount: number;
   currency: string;
   imageUrl?: string | null;
+  manufacturer?: string | null;
 };
 
 type OrderSummary = {
@@ -46,6 +47,16 @@ const formatPrice = (amount: number, currency: string) =>
     currency,
     minimumFractionDigits: 2,
   }).format(amount / 100);
+
+const formatItemName = (item: OrderItem) => {
+  const defaultSuffix = / - Default( Title)?$/i;
+  if (!defaultSuffix.test(item.name)) return item.name;
+  const manufacturer = item.manufacturer?.trim();
+  if (manufacturer) {
+    return item.name.replace(defaultSuffix, ` - ${manufacturer}`);
+  }
+  return item.name.replace(defaultSuffix, "");
+};
 
 export default function OrderSuccessPage() {
   const router = useRouter();
@@ -123,7 +134,7 @@ export default function OrderSuccessPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-4xl px-6 py-10 text-stone-800">
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+        <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-[#fef7e7] via-white to-[#e7f5ff] p-6 shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
           <div className="mb-6 text-center">
             <h1 className="text-3xl font-bold" style={{ color: "#2f3e36" }}>
               Bestellung erfolgreich
@@ -148,25 +159,6 @@ export default function OrderSuccessPage() {
 
           {order && loadStatus === "ok" ? (
             <div className="space-y-6">
-              {order.items.some((item) => item.imageUrl) && (
-                <div>
-                  <h2 className="text-xs font-semibold tracking-widest text-black/60 mb-2">
-                    Artikelbilder
-                  </h2>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {order.items
-                      .filter((item) => item.imageUrl)
-                      .map((item) => (
-                        <img
-                          key={item.id}
-                          src={item.imageUrl as string}
-                          alt={item.name}
-                          className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
-                        />
-                      ))}
-                  </div>
-                </div>
-              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-stone-400">
@@ -186,7 +178,7 @@ export default function OrderSuccessPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-black/10 bg-stone-50 px-4 py-3 text-sm">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span>Status: {order.status}</span>
                   <span>Zahlung: {order.paymentStatus}</span>
@@ -208,7 +200,9 @@ export default function OrderSuccessPage() {
                         {order.shippingCity ?? ""}
                       </div>
                     )}
-                    {order.shippingCountry && <div>{order.shippingCountry}</div>}
+                    {order.shippingCountry && (
+                      <div>{order.shippingCountry}</div>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -229,12 +223,27 @@ export default function OrderSuccessPage() {
                   {order.items.map((item) => (
                     <li
                       key={item.id}
-                      className="flex items-center justify-between rounded-lg border border-black/10 bg-white px-3 py-2"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white/80 px-3 py-2 shadow-sm"
                     >
-                      <div>
-                        <div className="font-semibold">{item.name}</div>
-                        <div className="text-xs text-stone-500">
-                          Menge: {item.quantity}
+                      <div className="flex items-center gap-3">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="h-12 w-12 rounded-lg border border-black/10 bg-white object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-black/10 bg-stone-100 text-xs font-semibold text-stone-500">
+                            --
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-semibold">
+                            {formatItemName(item)}
+                          </div>
+                          <div className="text-xs text-stone-500">
+                            Menge: {item.quantity}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right text-sm font-semibold">
@@ -245,7 +254,7 @@ export default function OrderSuccessPage() {
                 </ul>
               </div>
 
-              <div className="rounded-lg border border-black/10 bg-stone-50 px-4 py-3 text-sm">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                 <div className="flex items-center justify-between">
                   <span>Zwischensumme</span>
                   <span>
@@ -255,7 +264,8 @@ export default function OrderSuccessPage() {
                 {order.amountDiscount > 0 && (
                   <div className="mt-1 flex items-center justify-between">
                     <span>
-                      Rabatt{order.discountCode ? ` (${order.discountCode})` : ""}
+                      Rabatt
+                      {order.discountCode ? ` (${order.discountCode})` : ""}
                     </span>
                     <span>
                       -{formatPrice(order.amountDiscount, order.currency)}
@@ -300,7 +310,7 @@ export default function OrderSuccessPage() {
               href="/account"
               className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-black/20"
             >
-              Zur Bestelluebersicht
+              Zur Bestellübersicht
             </Link>
             <Link
               href="/products"

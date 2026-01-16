@@ -306,6 +306,7 @@ model ProductCollection {
 
 model Order {
   id                   String      @id @default(cuid())
+  orderNumber          Int         @unique @default(autoincrement())
   userId               String
   stripeSessionId      String      @unique
   stripePaymentIntent  String?
