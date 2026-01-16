@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type DiscountCoupon = {
   id: string | null;
@@ -226,14 +227,17 @@ export default function AdminDiscountsClient() {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={loadDiscounts}
-            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-            disabled={loading}
-          >
-            {loading ? "Loading..." : "Refresh"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminThemeToggle />
+            <button
+              type="button"
+              onClick={loadDiscounts}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
         </div>
       </div>
 

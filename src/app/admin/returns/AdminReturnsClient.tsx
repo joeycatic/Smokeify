@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type ReturnRequestRow = {
   id: string;
@@ -61,10 +62,15 @@ export default function AdminReturnsClient({ requests }: Props) {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-          ADMIN / RETURNS
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold">Return requests</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
+              ADMIN / RETURNS
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold">Return requests</h1>
+          </div>
+          <AdminThemeToggle />
+        </div>
       </div>
 
       {error && (

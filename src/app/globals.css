@@ -140,3 +140,111 @@ body {
     transform: translateX(0);
   }
 }
+
+.admin-theme.admin-dark {
+  background: #0f1412;
+  color: #e6ece6;
+}
+
+.admin-theme.admin-dark .bg-white {
+  background-color: #151b18;
+}
+
+.admin-theme.admin-dark .bg-stone-50 {
+  background-color: #141a17;
+}
+
+.admin-theme.admin-dark .bg-stone-100 {
+  background-color: #101512;
+}
+
+.admin-theme.admin-dark .bg-emerald-50 {
+  background-color: #132019;
+}
+
+.admin-theme.admin-dark .bg-white\/90 {
+  background-color: rgba(21, 27, 24, 0.9);
+}
+
+.admin-theme.admin-dark .bg-white\/80 {
+  background-color: rgba(21, 27, 24, 0.8);
+}
+
+.admin-theme.admin-dark .bg-white\/70 {
+  background-color: rgba(21, 27, 24, 0.7);
+}
+
+.admin-theme.admin-dark .bg-emerald-50\/60 {
+  background-color: rgba(19, 32, 25, 0.6);
+}
+
+.admin-theme.admin-dark .bg-rose-50\/60 {
+  background-color: rgba(46, 20, 20, 0.6);
+}
+
+.admin-theme.admin-dark .text-stone-900 {
+  color: #f1f5f9;
+}
+
+.admin-theme.admin-dark .text-stone-800 {
+  color: #e2e8f0;
+}
+
+.admin-theme.admin-dark .text-stone-700 {
+  color: #cbd5e1;
+}
+
+.admin-theme.admin-dark .text-stone-600 {
+  color: #a8b3c2;
+}
+
+.admin-theme.admin-dark .text-stone-500 {
+  color: #94a3b8;
+}
+
+.admin-theme.admin-dark .text-stone-400 {
+  color: #7b8aa0;
+}
+
+.admin-theme.admin-dark .border-black\/10 {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-theme.admin-dark .border-black\/15 {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-theme.admin-dark .border-black\/20 {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.admin-theme.admin-dark .bg-emerald-50\/60,
+.admin-theme.admin-dark .bg-amber-50,
+.admin-theme.admin-dark .bg-amber-50\/60,
+.admin-theme.admin-dark .bg-rose-50,
+.admin-theme.admin-dark .bg-rose-50\/60,
+.admin-theme.admin-dark .bg-violet-50\/60 {
+  background-color: rgba(30, 34, 31, 0.8);
+}
+
+.admin-theme.admin-dark .bg-gradient-to-br {
+  background-image: linear-gradient(135deg, #101512 0%, #141b17 50%, #0f1412 100%);
+}
+
+.admin-theme.admin-dark .admin-theme-toggle {
+  background-color: #1b231f;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #e6ece6;
+}
+
+.admin-theme.admin-dark .admin-theme-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-theme.admin-dark .admin-theme-toggle-track {
+  background-color: #2a332f;
+}
+
+.admin-theme.admin-dark .admin-theme-toggle-knob {
+  background-color: #9fe3c1;
+}

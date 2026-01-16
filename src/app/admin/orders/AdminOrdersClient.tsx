@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type OrderItem = {
   id: string;
@@ -388,6 +389,7 @@ export default function AdminOrdersClient({ orders }: Props) {
               </span>
             </div>
           </div>
+          <AdminThemeToggle />
         </div>
       </div>
 

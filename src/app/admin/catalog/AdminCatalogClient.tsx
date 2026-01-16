@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type ProductRow = {
   id: string;
@@ -320,12 +321,15 @@ export default function AdminCatalogClient({
               </span>
             </div>
           </div>
-          <Link
-            href="/admin/catalog"
-            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-          >
-            Refresh
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminThemeToggle />
+            <Link
+              href="/admin/catalog"
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+            >
+              Refresh
+            </Link>
+          </div>
         </div>
       </div>
       <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">

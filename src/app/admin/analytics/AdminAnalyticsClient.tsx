@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type Funnel = {
   totalOrders: number;
@@ -124,14 +125,17 @@ export default function AdminAnalyticsClient() {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={loadAnalytics}
-            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-            disabled={loading}
-          >
-            {loading ? "Laden..." : "Aktualisieren"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminThemeToggle />
+            <button
+              type="button"
+              onClick={loadAnalytics}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              disabled={loading}
+            >
+              {loading ? "Laden..." : "Aktualisieren"}
+            </button>
+          </div>
         </div>
       </div>
 
