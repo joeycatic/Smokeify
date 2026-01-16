@@ -330,6 +330,9 @@ model Order {
   trackingCarrier      String?
   trackingNumber       String?
   trackingUrl          String?
+  confirmationEmailSentAt DateTime?
+  shippingEmailSentAt  DateTime?
+  refundEmailSentAt    DateTime?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 

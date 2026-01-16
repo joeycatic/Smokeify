@@ -69,5 +69,17 @@ export async function POST(
     text: email.text,
   });
 
+  const sentAtUpdate =
+    type === "confirmation"
+      ? { confirmationEmailSentAt: new Date() }
+      : type === "shipping"
+      ? { shippingEmailSentAt: new Date() }
+      : { refundEmailSentAt: new Date() };
+
+  await prisma.order.update({
+    where: { id },
+    data: sentAtUpdate,
+  });
+
   return NextResponse.json({ ok: true });
 }

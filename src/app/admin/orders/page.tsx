@@ -26,6 +26,15 @@ export default async function AdminOrdersPage() {
             ...order,
             createdAt: order.createdAt.toISOString(),
             updatedAt: order.updatedAt.toISOString(),
+            confirmationEmailSentAt: order.confirmationEmailSentAt
+              ? order.confirmationEmailSentAt.toISOString()
+              : null,
+            shippingEmailSentAt: order.shippingEmailSentAt
+              ? order.shippingEmailSentAt.toISOString()
+              : null,
+            refundEmailSentAt: order.refundEmailSentAt
+              ? order.refundEmailSentAt.toISOString()
+              : null,
           }))}
         />
       </div>
