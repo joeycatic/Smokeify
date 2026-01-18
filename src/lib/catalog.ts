@@ -26,6 +26,7 @@ const mapProduct = (product: {
     priceCents: number;
     compareAtCents: number | null;
     position: number;
+    lowStockThreshold: number;
     inventory: { quantityOnHand: number; reserved: number } | null;
   }>;
   images: Array<{ url: string; altText: string | null; position: number }>;
@@ -39,6 +40,7 @@ const mapProduct = (product: {
     if (!min) return variant;
     return variant.priceCents < min.priceCents ? variant : min;
   }, variants[0] ?? null);
+  const defaultVariant = variants[0] ?? null;
   const minPriceCents = minPriceVariant?.priceCents ?? 0;
   const compareAtCents =
     minPriceVariant?.compareAtCents && minPriceVariant.compareAtCents > minPriceCents
@@ -52,6 +54,20 @@ const mapProduct = (product: {
     );
     return available > 0;
   });
+  const defaultVariantAvailableQuantity = defaultVariant
+    ? getAvailability(
+        defaultVariant.inventory?.quantityOnHand ?? 0,
+        defaultVariant.inventory?.reserved ?? 0
+      )
+    : 0;
+  const defaultVariantLowStockThreshold = defaultVariant?.lowStockThreshold ?? 0;
+  const lowStock = variants.some((variant) => {
+    const available = getAvailability(
+      variant.inventory?.quantityOnHand ?? 0,
+      variant.inventory?.reserved ?? 0
+    );
+    return available > 0 && available <= variant.lowStockThreshold;
+  });
 
   return {
     id: product.id,
@@ -61,6 +77,9 @@ const mapProduct = (product: {
     manufacturer: product.manufacturer,
     tags: product.tags ?? [],
     availableForSale,
+    lowStock,
+    defaultVariantAvailableQuantity,
+    defaultVariantLowStockThreshold,
     defaultVariantId,
     featuredImage: featuredImage
       ? { url: featuredImage.url, altText: featuredImage.altText }
@@ -134,6 +153,8 @@ export async function getProductByHandle(handle: string) {
       variant.inventory?.quantityOnHand ?? 0,
       variant.inventory?.reserved ?? 0
     );
+    const lowStock =
+      available > 0 && available <= (variant.lowStockThreshold ?? 0);
     const compareAtCents =
       variant.compareAtCents && variant.compareAtCents > variant.priceCents
         ? variant.compareAtCents
@@ -142,6 +163,9 @@ export async function getProductByHandle(handle: string) {
       id: variant.id,
       title: variant.title,
       availableForSale: available > 0,
+      availableQuantity: available,
+      lowStockThreshold: variant.lowStockThreshold ?? 0,
+      lowStock,
       price: {
         amount: toAmount(variant.priceCents),
         currencyCode: CURRENCY_CODE,

@@ -60,7 +60,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
             width={900}
             height={900}
             className="h-auto w-full rounded-xl object-cover"
-            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            priority={index === 0}
           />
         </div>
         {count > 1 && (
@@ -107,6 +108,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
                   width={200}
                   height={200}
                   className="h-24 w-full rounded-lg object-cover"
+                  loading="lazy"
+                  sizes="25vw"
                 />
               </button>
             );

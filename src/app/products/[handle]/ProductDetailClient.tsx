@@ -12,6 +12,9 @@ type ProductVariant = {
   id: string;
   title: string;
   availableForSale: boolean;
+  lowStock?: boolean;
+  availableQuantity?: number;
+  lowStockThreshold?: number;
   price: { amount: string; currencyCode: string };
   compareAt?: { amount: string; currencyCode: string } | null;
 };
@@ -54,6 +57,16 @@ export default function ProductDetailClient({
   const [addedPulse, setAddedPulse] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
+  const cartQuantity =
+    cart?.lines.find((line) => line.merchandise.id === selectedVariantId)
+      ?.quantity ?? 0;
+  const effectiveAvailable =
+    (selectedVariant?.availableQuantity ?? 0) - cartQuantity;
+  const isLowStock =
+    Boolean(selectedVariant?.availableForSale) &&
+    selectedVariant?.lowStockThreshold !== undefined &&
+    effectiveAvailable > 0 &&
+    effectiveAvailable <= (selectedVariant?.lowStockThreshold ?? 0);
 
   useEffect(() => {
     setNotifyStatus("idle");
@@ -120,13 +133,24 @@ export default function ProductDetailClient({
         </div>
         <div className="mt-3">
           {selectedVariant?.availableForSale ? (
-            <p className="flex items-center gap-2 text-xs font-semibold text-green-700">
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full bg-green-600"
-              />
-              Sofort versandfertig, Lieferzeit ca. 1-3 Werktage
-            </p>
+            <div className="space-y-1">
+              {isLowStock ? (
+                <p className="flex items-center gap-2 text-xs font-semibold text-amber-700">
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 rounded-full bg-amber-600"
+                  />
+                  Geringer Bestand
+                </p>
+              ) : null}
+              <p className="flex items-center gap-2 text-xs font-semibold text-green-700">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full bg-green-600"
+                />
+                Sofort versandfertig, Lieferzeit ca. 1-3 Werktage
+              </p>
+            </div>
           ) : (
             <p className="flex items-center gap-2 text-xs font-semibold text-red-700">
               <span

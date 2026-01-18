@@ -17,11 +17,23 @@ export default async function AdminOrdersPage() {
       user: { select: { email: true, name: true } },
     },
   });
+  const webhookFailures = await prisma.processedWebhookEvent.findMany({
+    where: { status: "failed" },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
 
   return (
     <PageLayout>
       <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
         <AdminOrdersClient
+          webhookFailures={webhookFailures.map((event) => ({
+            id: event.id,
+            eventId: event.eventId,
+            type: event.type,
+            status: event.status,
+            createdAt: event.createdAt.toISOString(),
+          }))}
           orders={orders.map((order) => ({
             ...order,
             createdAt: order.createdAt.toISOString(),

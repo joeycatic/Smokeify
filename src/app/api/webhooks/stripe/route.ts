@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
@@ -68,6 +69,50 @@ const formatItemName = (name: string, manufacturer?: string | null) => {
     return name.replace(defaultSuffix, ` - ${trimmed}`);
   }
   return name.replace(defaultSuffix, "");
+};
+
+const getVariantCountsForSession = async (
+  stripe: Stripe,
+  sessionId: string
+) => {
+  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+    limit: 100,
+    expand: ["data.price.product"],
+  });
+  const variantCounts = new Map<string, number>();
+  for (const item of lineItems.data ?? []) {
+    const product = item.price?.product as Stripe.Product | null | undefined;
+    const variantId =
+      product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+    if (!variantId) continue;
+    const qty = Math.max(0, item.quantity ?? 0);
+    if (!qty) continue;
+    variantCounts.set(variantId, (variantCounts.get(variantId) ?? 0) + qty);
+  }
+  return variantCounts;
+};
+
+const releaseReservedInventory = async (
+  stripe: Stripe,
+  sessionId: string
+) => {
+  const variantCounts = await getVariantCountsForSession(stripe, sessionId);
+  if (variantCounts.size === 0) return;
+  await prisma.$transaction(async (tx) => {
+    for (const [variantId, qty] of variantCounts) {
+      if (qty <= 0) continue;
+      const updated = await tx.variantInventory.updateMany({
+        where: { variantId, reserved: { gte: qty } },
+        data: { reserved: { decrement: qty } },
+      });
+      if (updated.count === 0) {
+        console.warn("[stripe webhook] Reservation not found to release.", {
+          variantId,
+          qty,
+        });
+      }
+    }
+  });
 };
 
 const sendTelegramMessage = async (text: string) => {
@@ -216,15 +261,27 @@ const createOrderFromSession = async (
   if (variantCounts.size > 0) {
     await prisma.$transaction(async (tx) => {
       for (const [variantId, qty] of variantCounts) {
-        const inventory = await tx.variantInventory.findUnique({
-          where: { variantId },
+        if (qty <= 0) continue;
+        const released = await tx.variantInventory.updateMany({
+          where: { variantId, reserved: { gte: qty } },
+          data: { reserved: { decrement: qty } },
         });
-        if (!inventory) continue;
-        const nextQuantity = Math.max(0, inventory.quantityOnHand - qty);
-        await tx.variantInventory.update({
-          where: { variantId },
-          data: { quantityOnHand: nextQuantity },
+        if (released.count === 0) {
+          console.warn(
+            "[stripe webhook] Reservation missing during fulfillment.",
+            { variantId, qty }
+          );
+        }
+        const updated = await tx.variantInventory.updateMany({
+          where: { variantId, quantityOnHand: { gte: qty } },
+          data: { quantityOnHand: { decrement: qty } },
         });
+        if (updated.count === 0) {
+          console.warn("[stripe webhook] Insufficient inventory for variant.", {
+            variantId,
+            qty,
+          });
+        }
       }
     });
   }
@@ -309,6 +366,40 @@ const createOrderFromSession = async (
   }
 };
 
+const beginWebhookEvent = async (eventId: string, type: string) => {
+  try {
+    await prisma.processedWebhookEvent.create({
+      data: { eventId, type, status: "processing" },
+    });
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.processedWebhookEvent.findUnique({
+        where: { eventId },
+      });
+      if (existing?.status === "failed") {
+        await prisma.processedWebhookEvent.update({
+          where: { eventId },
+          data: { status: "processing" },
+        });
+        return true;
+      }
+      return false;
+    }
+    throw error;
+  }
+};
+
+const finalizeWebhookEvent = async (eventId: string) => {
+  await prisma.processedWebhookEvent.update({
+    where: { eventId },
+    data: { status: "processed", processedAt: new Date() },
+  });
+};
+
 export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
@@ -340,26 +431,38 @@ export async function POST(request: Request) {
   }
   console.info("[stripe webhook] Event received:", event.type);
 
-  if (
-    event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
-  ) {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await createOrderFromSession(stripe, session);
+  const eventId = event.id ?? "";
+  if (!eventId) {
+    return NextResponse.json({ error: "Missing event id." }, { status: 400 });
   }
+
+  const shouldProcess = await beginWebhookEvent(eventId, event.type);
+  if (!shouldProcess) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  try {
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await createOrderFromSession(stripe, session);
+    }
   if (event.type === "checkout.session.async_payment_failed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    await releaseReservedInventory(stripe, session.id ?? "");
     const paymentIntent =
       typeof session.payment_intent === "string"
         ? session.payment_intent
-        : session.payment_intent?.id;
-    if (paymentIntent) {
-      await prisma.order.updateMany({
-        where: { stripePaymentIntent: paymentIntent },
-        data: { status: "failed", paymentStatus: "failed" },
-      });
+          : session.payment_intent?.id;
+      if (paymentIntent) {
+        await prisma.order.updateMany({
+          where: { stripePaymentIntent: paymentIntent },
+          data: { status: "failed", paymentStatus: "failed" },
+        });
+      }
     }
-  }
   if (event.type === "payment_intent.payment_failed") {
     const intent = event.data.object as Stripe.PaymentIntent;
     await prisma.order.updateMany({
@@ -367,41 +470,57 @@ export async function POST(request: Request) {
       data: { status: "failed", paymentStatus: "failed" },
     });
   }
-  if (event.type === "charge.refunded") {
-    const charge = event.data.object as Stripe.Charge;
-    const paymentIntent =
-      typeof charge.payment_intent === "string"
-        ? charge.payment_intent
-        : charge.payment_intent?.id;
-    if (paymentIntent) {
-      const order = await prisma.order.findFirst({
-        where: { stripePaymentIntent: paymentIntent },
-      });
-      if (order) {
-        const refunded = charge.amount_refunded ?? 0;
-        const fullyRefunded = refunded >= order.amountTotal;
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            amountRefunded: refunded,
-            status: fullyRefunded ? "refunded" : order.status,
-            paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
-          },
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    await releaseReservedInventory(stripe, session.id ?? "");
+  }
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntent =
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+      if (paymentIntent) {
+        const order = await prisma.order.findFirst({
+          where: { stripePaymentIntent: paymentIntent },
         });
+        if (order) {
+          const refunded = charge.amount_refunded ?? 0;
+          const fullyRefunded = refunded >= order.amountTotal;
+          await prisma.order.update({
+            where: { id: order.id },
+            data: {
+              amountRefunded: refunded,
+              status: fullyRefunded ? "refunded" : order.status,
+              paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+            },
+          });
+        }
       }
     }
-  }
-  if (event.type === "payment_intent.refunded") {
-    const intent = event.data.object as Stripe.PaymentIntent;
-    await prisma.order.updateMany({
-      where: { stripePaymentIntent: intent.id },
-      data: {
-        amountRefunded: intent.amount_received ?? 0,
-        status: "refunded",
-        paymentStatus: "refunded",
-      },
+    if (event.type === "payment_intent.refunded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      await prisma.order.updateMany({
+        where: { stripePaymentIntent: intent.id },
+        data: {
+          amountRefunded: intent.amount_received ?? 0,
+          status: "refunded",
+          paymentStatus: "refunded",
+        },
+      });
+    }
+  } catch {
+    await prisma.processedWebhookEvent.update({
+      where: { eventId },
+      data: { status: "failed" },
     });
+    return NextResponse.json(
+      { error: "Webhook handling failed." },
+      { status: 500 }
+    );
   }
+
+  await finalizeWebhookEvent(eventId);
 
   return NextResponse.json({ received: true });
 }

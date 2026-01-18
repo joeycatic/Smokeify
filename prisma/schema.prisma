@@ -420,3 +420,13 @@ model RateLimit {
 
   @@index([resetAt])
 }
+
+model ProcessedWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  type        String
+  status      String   @default("processing")
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

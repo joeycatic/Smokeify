@@ -28,6 +28,9 @@ export type Product = {
   manufacturer: string | null;
   tags: string[];
   availableForSale: boolean;
+  lowStock?: boolean;
+  defaultVariantAvailableQuantity?: number;
+  defaultVariantLowStockThreshold?: number;
   defaultVariantId: string | null;
   collections: ProductCollection[];
   categories: ProductCategory[];
