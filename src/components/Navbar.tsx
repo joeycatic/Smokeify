@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bars3Icon,
   HeartIcon,
   ShoppingBagIcon,
   UserCircleIcon,
@@ -68,6 +69,7 @@ export function Navbar() {
   const [checkoutStatus, setCheckoutStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const count = loading ? 0 : cart?.totalQuantity ?? 0;
   const wishlistCount = ids.length;
@@ -126,10 +128,15 @@ export function Navbar() {
       if (!clickInsideToggle && !clickInsidePanel) {
         setCartOpen(false);
       }
+      const menuTarget = event.target as Node;
+      const menuRoot = document.getElementById("mobile-nav-menu");
+      if (menuOpen && menuRoot && !menuRoot.contains(menuTarget)) {
+        setMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  }, [menuOpen]);
 
   const startCheckout = async () => {
     if (!cart || cart.lines.length === 0) {
@@ -163,47 +170,89 @@ export function Navbar() {
   };
   return (
     <nav className="relative w-full border-b border-black/10">
-      <div className="mx-auto max-w-7xl px-5 py-8">
-        <div className="relative flex items-center justify-between">
-          {/* LEFT */}
-          <div className="flex items-center gap-8 text-m font-semibold text-stone-800">
-            <Link
-              href="/products"
-              className={`${pixelNavFont.className} text-base sm:text-lg hover:opacity-70 hover:underline underline-offset-4`}
-            >
-              Produkte
-            </Link>
-            <Link
-              href="/customizer"
-              className={`${pixelNavFont.className} text-base sm:text-lg hover:opacity-70 hover:underline underline-offset-4`}
-            >
-              Customizer
-            </Link>
+      <div className="mx-auto max-w-7xl px-5 py-6 sm:py-8">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          {/* LEFT (spacer) */}
+          <div className="flex items-center">
+            <div id="mobile-nav-menu" className="relative sm:hidden">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-700 shadow-sm hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                aria-expanded={menuOpen}
+                aria-haspopup="true"
+                aria-label="Navigation oeffnen"
+              >
+                <Bars3Icon className="h-5 w-5" />
+              </button>
+              <div
+                className={`absolute left-0 top-full z-30 mt-3 w-52 rounded-xl border border-black/10 bg-white p-2 text-sm shadow-xl transition duration-150 ease-out ${
+                  menuOpen
+                    ? "pointer-events-auto scale-100 opacity-100"
+                    : "pointer-events-none scale-95 opacity-0"
+                }`}
+                aria-hidden={!menuOpen}
+              >
+                <Link
+                  href="/products"
+                  onClick={() => setMenuOpen(false)}
+                  className={`${pixelNavFont.className} block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                >
+                  Produkte
+                </Link>
+                <Link
+                  href="/customizer"
+                  onClick={() => setMenuOpen(false)}
+                  className={`${pixelNavFont.className} block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                >
+                  Customizer
+                </Link>
+              </div>
+            </div>
+            <div className="hidden items-center gap-3 text-xs font-semibold text-stone-800 sm:flex sm:gap-6 sm:text-base">
+              <Link
+                href="/products"
+                className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+              >
+                Produkte
+              </Link>
+              <Link
+                href="/customizer"
+                className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+              >
+                Customizer
+              </Link>
+            </div>
           </div>
 
-          {/* CENTER (ABSOLUTE) */}
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2">
-            <img
-              src="/images/smokeify2.png"
-              alt="Smokeify Logo"
-              className="h-16 w-auto object-contain"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-              width={180}
-              height={64}
-            />
-          </Link>
+          {/* CENTER */}
+          <div className="col-start-2 flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:gap-6">
+            <div className="relative flex items-center gap-2 sm:gap-6">
+              <Link href="/" className="flex items-center">
+                <img
+                  src="/images/smokeify2.png"
+                  alt="Smokeify Logo"
+                  className="h-12 w-auto object-contain sm:h-16"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  width={180}
+                  height={64}
+                />
+              </Link>
+            </div>
+          </div>
 
           {/* RIGHT */}
-          <div className="flex items-center gap-6 text-stone-800">
-            <div className="relative pb-3 -mb-3" ref={cartRef}>
+          <div className="col-start-3 flex items-center justify-end gap-4 text-stone-800 sm:gap-6">
+            <div className="relative" ref={cartRef}>
               <button
                 type="button"
                 onClick={() => setCartOpen((prev) => !prev)}
-                className="relative cursor-pointer hover:opacity-70"
+                className="relative cursor-pointer hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 aria-expanded={cartOpen}
                 aria-haspopup="true"
+                aria-label="Warenkorb oeffnen"
               >
                 <ShoppingBagIcon className="h-5 w-5" />
                 {count > 0 && (
@@ -219,7 +268,8 @@ export function Navbar() {
             </div>
             <Link
               href="/wishlist"
-              className="relative hover:opacity-70 pb-3 -mb-3"
+              className="relative hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              aria-label="Wunschliste"
             >
               <HeartIcon className="h-5 w-5" />
               {wishlistCount > 0 && (
@@ -232,18 +282,19 @@ export function Navbar() {
                 </span>
               )}
             </Link>
-            <div className="relative pb-3 -mb-3 -mr-1" ref={accountRef}>
+            <div className="relative -mr-1" ref={accountRef}>
               <button
                 type="button"
                 onClick={() => setAccountOpen((prev) => !prev)}
-                className="flex h-5 w-5 cursor-pointer items-center justify-center hover:opacity-70"
+                className="flex h-5 w-5 cursor-pointer items-center justify-center hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 aria-expanded={accountOpen}
                 aria-haspopup="true"
+                aria-label="Account"
               >
                 <UserCircleIcon className="h-5 w-5" />
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-full z-20 mt-3 w-80 rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl">
+                <div className="absolute right-0 top-full z-20 mt-3 w-[90vw] max-w-xs rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl sm:w-80 sm:max-w-none">
                   <div className="mb-4 text-center">
                     <p
                       className="text-2xl font-bold"
@@ -347,33 +398,35 @@ export function Navbar() {
                         name="email"
                         type="text"
                         required
+                        aria-label="Email oder Username"
                         placeholder="Email oder Username"
-                        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       />
                       <input
                         name="password"
                         type="password"
                         required
+                        aria-label="Passwort"
                         placeholder="Passwort"
-                        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+                        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       />
                       <div className="flex justify-between">
                         <Link
                           href="/auth/verify"
-                          className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+                          className="text-xs font-semibold text-stone-500 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                         >
                           Account verifizieren
                         </Link>
                         <Link
                           href="/auth/reset"
-                          className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+                          className="text-xs font-semibold text-stone-500 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                         >
                           Passwort vergessen?
                         </Link>
                       </div>
                       <button
                         type="submit"
-                        className="h-10 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-sm font-semibold text-white transition hover:opacity-90"
+                        className="h-10 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         Login
                       </button>
@@ -384,7 +437,7 @@ export function Navbar() {
                       <>
                         <Link
                           href="/account"
-                          className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                          className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                         >
                           View profile
                         </Link>
@@ -395,7 +448,7 @@ export function Navbar() {
                             setLoginStatus("idle");
                             setLogoutStatus("ok");
                           }}
-                          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                         >
                           Log out
                         </button>
@@ -405,7 +458,7 @@ export function Navbar() {
                         href={`/auth/register?returnTo=${encodeURIComponent(
                           returnTo
                         )}`}
-                        className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#E4C56C] px-4 text-sm font-semibold text-[#2f3e36] transition hover:opacity-90"
+                        className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#E4C56C] px-4 text-sm font-semibold text-[#2f3e36] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         Registrieren
                       </Link>
@@ -444,7 +497,7 @@ export function Navbar() {
             type="button"
             aria-label="Close cart"
             onClick={() => setCartOpen(false)}
-            className="fixed inset-0 z-40 cursor-pointer bg-black/35 cart-overlay-fade"
+            className="fixed inset-0 z-40 cursor-pointer bg-black/35 cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           />
           <aside
             ref={cartPanelRef}
@@ -457,7 +510,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
-                className="text-xl cursor-pointer text-black/60 hover:text-black"
+                className="text-xl cursor-pointer text-black/60 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 aria-label="Close"
               >
                 ×
@@ -471,7 +524,7 @@ export function Navbar() {
                     <button
                       type="button"
                       onClick={() => void refresh()}
-                      className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800"
+                      className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       Erneut versuchen
                     </button>
@@ -556,7 +609,7 @@ export function Navbar() {
                 <div className="grid gap-2">
                   <Link
                     href="/cart"
-                    className="block w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30"
+                    className="block w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
                     Warenkorb editieren
                   </Link>
@@ -564,7 +617,7 @@ export function Navbar() {
                     type="button"
                     onClick={startCheckout}
                     disabled={!canCheckout}
-                    className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900 disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-stone-200 disabled:text-stone-500"
+                    className="block w-full rounded-lg border border-green-900 bg-green-800 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-green-900 disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
                     {checkoutStatus === "loading" ? "Weiterleitung..." : "Zur Kasse"}
                   </button>

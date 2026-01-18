@@ -1,7 +1,7 @@
 // app/products/ProductsClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bars3BottomLeftIcon,
   Squares2X2Icon,
@@ -36,6 +36,14 @@ export default function ProductsClient({ initialProducts }: Props) {
     priceMax: priceMaxBound,
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const apply = () => setLayout(media.matches ? "list" : "grid");
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return filterProducts(initialProducts, filters);
@@ -171,14 +179,14 @@ export default function ProductsClient({ initialProducts }: Props) {
 
       {/* Products Grid */}
       <div className="mt-8 text-center">
-        <h1 className="text-3xl font-bold mb-4" style={{ color: "#2f3e36" }}>
+        <h1 className="text-2xl font-bold mb-4 sm:text-3xl" style={{ color: "#2f3e36" }}>
           Unsere Produkte
         </h1>
         <div
           className="mx-auto mb-4 rounded-xl"
           style={{ width: "80px", height: "3px", backgroundColor: "#16a34a" }}
         ></div>
-        <p className="text-stone-600 text-lg font-medium">
+        <p className="text-stone-600 text-base font-medium sm:text-lg">
           Premium equipment für premium Ergebnisse
         </p>
       </div>

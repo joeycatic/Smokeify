@@ -8,7 +8,7 @@ export function AnnouncementBar() {
   return (
     <div className="w-full bg-[#2f3e36] text-green-100 text-xs">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="flex h-10 items-center justify-between gap-6">
+        <div className="flex h-10 items-center gap-6 overflow-x-auto sm:justify-between">
 
           <Item icon={<ArrowPathIcon className="h-4 w-4" />}>
             14 Tage Rückgabe
@@ -40,7 +40,7 @@ function Item({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
+    <div className="flex items-center gap-2 whitespace-nowrap py-2">
       {icon}
       <span className="tracking-wide">{children}</span>
     </div>

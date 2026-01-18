@@ -254,7 +254,7 @@ export default function OrderSuccessPage() {
                   {order.items.map((item) => (
                     <li
                       key={item.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white/80 px-3 py-2 shadow-sm"
+                      className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/80 px-3 py-2 shadow-sm sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-3">
                         {item.imageUrl ? (
@@ -281,7 +281,7 @@ export default function OrderSuccessPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right text-sm font-semibold">
+                      <div className="text-left text-sm font-semibold sm:text-right">
                         {formatPrice(item.totalAmount, item.currency)}
                       </div>
                     </li>
@@ -326,13 +326,13 @@ export default function OrderSuccessPage() {
               <div className="flex flex-wrap gap-3">
                 <a
                   href={`/api/orders/${order.id}/receipt`}
-                  className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+                  className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   Beleg herunterladen
                 </a>
                 <a
                   href={`/api/orders/${order.id}/invoice`}
-                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   Rechnung herunterladen
                 </a>
@@ -343,13 +343,13 @@ export default function OrderSuccessPage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/account"
-              className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               Zur Bestellübersicht
             </Link>
             <Link
               href="/products"
-              className="inline-flex items-center justify-center rounded-lg bg-[#2f3e36] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="inline-flex items-center justify-center rounded-lg bg-[#2f3e36] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               Weiter einkaufen
             </Link>

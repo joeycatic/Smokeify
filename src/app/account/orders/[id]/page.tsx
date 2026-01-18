@@ -156,7 +156,7 @@ export default async function OrderDetailPage({
                   {order.trackingUrl ? (
                     <a
                       href={order.trackingUrl}
-                      className="text-emerald-700 underline"
+                      className="text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -191,13 +191,13 @@ export default async function OrderDetailPage({
             <div className="mb-4 flex flex-wrap gap-3">
               <a
                 href={`/api/orders/${order.id}/receipt`}
-                className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+                className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 Beleg herunterladen
               </a>
               <a
                 href={`/api/orders/${order.id}/invoice`}
-                className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 Rechnung herunterladen
               </a>

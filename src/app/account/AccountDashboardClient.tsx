@@ -68,13 +68,29 @@ export default function AccountDashboardClient({
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
       <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:border-black/10 lg:bg-white lg:p-4">
-        <nav className="flex gap-2 overflow-x-auto pb-1 text-sm lg:block lg:space-y-2">
+        <div className="sm:hidden">
+          <label className="mb-2 block text-xs font-semibold tracking-widest text-stone-500">
+            Bereich
+          </label>
+          <select
+            value={activeTab}
+            onChange={(event) => setActiveTab(event.target.value as TabId)}
+            className="w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-semibold text-stone-800 shadow-sm outline-none focus:border-black/30"
+          >
+            {tabs.map((tab) => (
+              <option key={tab.id} value={tab.id}>
+                {tab.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <nav className="hidden text-sm lg:block lg:space-y-2 sm:block">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as TabId)}
-              className={`whitespace-nowrap rounded-md px-3 py-2 text-left font-semibold transition lg:w-full ${
+              className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
                 activeTab === tab.id
                   ? "bg-[#E4C56C] text-[#2f3e36]"
                   : "text-stone-700 hover:bg-stone-200"
@@ -102,7 +118,7 @@ export default function AccountDashboardClient({
         )}
 
         {activeTab === "orders" && (
-          <section className="rounded-xl border border-black/10 bg-white p-6">
+          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
               BESTELLUNGEN
             </h2>
@@ -118,7 +134,7 @@ export default function AccountDashboardClient({
                       href={`/account/orders/${order.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="block rounded-xl border border-black/10 bg-gradient-to-br from-white via-emerald-50 to-amber-50 px-4 py-3 shadow-sm transition hover:border-black/20 hover:bg-white"
+                      className="block rounded-xl border border-black/10 bg-gradient-to-br from-white via-emerald-50 to-amber-50 px-3 py-3 shadow-sm transition hover:border-black/20 hover:bg-white sm:px-4"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -131,7 +147,7 @@ export default function AccountDashboardClient({
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="text-sm font-semibold text-emerald-900">
                             {formatPrice(order.amountTotal, order.currency)}
                           </div>
@@ -157,7 +173,7 @@ export default function AccountDashboardClient({
         )}
 
         {activeTab === "wishlist" && (
-          <section className="rounded-xl border border-black/10 bg-white p-6">
+          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
               WISHLIST
             </h2>
@@ -167,7 +183,7 @@ export default function AccountDashboardClient({
             </div>
             <Link
               href="/wishlist"
-              className="mt-4 inline-flex rounded-md border border-black/10 px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="mt-4 inline-flex w-full justify-center rounded-md border border-black/10 px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 sm:w-auto"
             >
               Zur Wunschliste
             </Link>
@@ -175,7 +191,7 @@ export default function AccountDashboardClient({
         )}
 
         {activeTab === "setups" && (
-          <section className="rounded-xl border border-black/10 bg-white p-6">
+          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
               SAVED SETUPS
             </h2>
