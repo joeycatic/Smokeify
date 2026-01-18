@@ -5,10 +5,11 @@ import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
 
-type AddedItem = {
+export type AddedItem = {
   title: string;
   imageUrl?: string;
   imageAlt?: string;
+  price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
 };
@@ -61,6 +62,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [outOfStockOpen, setOutOfStockOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -77,6 +79,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
   }, []);
 
   const addToCart = async (variantId: string, quantity = 1) => {
@@ -123,6 +133,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       openAddedModal: (item: AddedItem) => {
         setAddedItem(item);
         setAddedOpen(true);
+        window.dispatchEvent(
+          new CustomEvent<AddedItem>("cart:item-added", { detail: item })
+        );
       },
       closeAddedModal: () => setAddedOpen(false),
       openOutOfStockModal: () => setOutOfStockOpen(true),
@@ -134,11 +147,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider value={value}>
       {children}
-      <AddedToCartModal
-        open={addedOpen}
-        item={addedItem}
-        onClose={() => setAddedOpen(false)}
-      />
+      {!isMobile && (
+        <AddedToCartModal
+          open={addedOpen}
+          item={addedItem}
+          onClose={() => setAddedOpen(false)}
+        />
+      )}
       <OutOfStockModal
         open={outOfStockOpen}
         onClose={() => setOutOfStockOpen(false)}

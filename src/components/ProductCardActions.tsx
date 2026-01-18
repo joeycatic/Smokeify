@@ -15,6 +15,7 @@ type Props = {
   itemTitle?: string;
   itemImageUrl?: string | null;
   itemImageAlt?: string | null;
+  itemPrice?: { amount: string; currencyCode: string };
   itemQuantity?: number;
 };
 
@@ -26,6 +27,7 @@ export default function ProductCardActions({
   itemTitle,
   itemImageUrl,
   itemImageAlt,
+  itemPrice,
   itemQuantity = 1,
 }: Props) {
   const { cart, addToCart, openAddedModal, openOutOfStockModal } = useCart();
@@ -88,6 +90,7 @@ export default function ProductCardActions({
                 title: itemTitle,
                 imageUrl: itemImageUrl ?? undefined,
                 imageAlt: itemImageAlt ?? undefined,
+                price: itemPrice,
                 quantity: itemQuantity,
               });
             }

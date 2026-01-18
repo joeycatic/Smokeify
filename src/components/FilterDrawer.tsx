@@ -20,10 +20,10 @@ function Accordion({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between py-4"
+        className="w-full flex items-center justify-between py-5"
         aria-expanded={open}
       >
-        <span className="text-sm font-semibold text-stone-800">{title}</span>
+        <span className="text-base font-semibold text-stone-800">{title}</span>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.18 }}
@@ -194,11 +194,11 @@ export default function FilterDrawer({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-black/20"
+          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-2.5 text-base font-semibold text-stone-800 shadow-sm transition hover:border-black/20"
         >
           Filter
           {activeCount > 0 && (
-            <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-semibold text-black/70">
+            <span className="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black/70">
               {activeCount}
             </span>
           )}
@@ -221,7 +221,7 @@ export default function FilterDrawer({
 
             {/* Drawer */}
             <motion.aside
-              className="fixed right-0 top-0 h-dvh w-full sm:w-[420px] bg-white z-50 flex flex-col"
+              className="fixed right-0 top-0 h-dvh w-full sm:w-[440px] bg-white z-50 flex flex-col"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -231,15 +231,15 @@ export default function FilterDrawer({
               aria-label="Filter panel"
             >
               {/* Header */}
-              <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
+              <div className="h-16 px-5 border-b border-black/10 flex items-center justify-between">
                 <div className="w-8" />
-                <div className="text-sm font-semibold text-stone-800">
+                <div className="text-base font-semibold text-stone-800">
                   Filter
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="w-8 h-8 grid place-items-center text-xl"
+                  className="w-9 h-9 grid place-items-center text-2xl"
                   aria-label="Close"
                 >
                   ×
@@ -250,21 +250,21 @@ export default function FilterDrawer({
               <div className="flex-1 overflow-y-auto px-5">
                 <div className="pt-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-stone-500">
+                    <p className="text-sm font-semibold text-stone-500">
                       Active filters
                     </p>
                     {activeFilters.length > 0 && (
                       <button
                         type="button"
                         onClick={onReset}
-                        className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+                        className="text-sm font-semibold text-stone-600 hover:text-stone-800"
                       >
                         Clear all
                       </button>
                     )}
                   </div>
                   {activeFilters.length === 0 ? (
-                    <p className="mt-2 text-xs text-stone-500">
+                    <p className="mt-2 text-sm text-stone-500">
                       No filters applied.
                     </p>
                   ) : (
@@ -274,10 +274,10 @@ export default function FilterDrawer({
                           key={filter.key}
                           type="button"
                           onClick={filter.onRemove}
-                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-stone-50 px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-stone-50 px-3.5 py-1.5 text-sm font-semibold text-stone-700 hover:border-black/30"
                         >
                           <span>{filter.label}</span>
-                          <span className="text-sm">x</span>
+                          <span className="text-base">x</span>
                         </button>
                       ))}
                     </div>
@@ -292,7 +292,7 @@ export default function FilterDrawer({
                     setSection((s) => (s === "price" ? null : "price"))
                   }
                 >
-                  <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
                     <label className="flex flex-col gap-1">
                       <span className="text-stone-500">Min</span>
                       <input
@@ -308,7 +308,7 @@ export default function FilterDrawer({
                           if (raw === "") return;
                           updateMin(Number(raw));
                         }}
-                        className="h-9 rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                        className="h-11 rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
                       />
                     </label>
                     <label className="flex flex-col gap-1">
@@ -326,16 +326,16 @@ export default function FilterDrawer({
                           if (raw === "") return;
                           updateMax(Number(raw));
                         }}
-                        className="h-9 rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                        className="h-11 rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
                       />
                     </label>
                   </div>
 
                   {/* Single bar with two thumbs */}
-                  <div className="relative mt-2 h-6">
+                  <div className="relative mt-2 h-7">
                     <div
                       ref={trackRef}
-                      className="absolute left-2 right-2 top-0 h-6 select-none touch-none"
+                      className="absolute left-4 right-4 top-0 h-7 select-none touch-none"
                       onPointerDown={(e) => {
                         const value = valueFromClientX(e.clientX);
                         const distToMin = Math.abs(value - filters.priceMin);
@@ -374,7 +374,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
+                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "min" ? "z-30" : "z-20"
                         }`}
                         style={{
@@ -383,7 +383,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
+                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "max" ? "z-30" : "z-20"
                         }`}
                         style={{
@@ -408,20 +408,20 @@ export default function FilterDrawer({
                     value={categoryQuery}
                     onChange={(e) => setCategoryQuery(e.target.value)}
                     placeholder="Search categories"
-                    className="mb-3 h-9 w-full rounded-md border border-black/10 px-2 text-sm outline-none focus:border-black/30"
+                    className="mb-3 h-11 w-full rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
                   />
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {filteredCategories.map(([handle, title]) => (
                       <label
                         key={handle}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-black/5 p-1 rounded"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-black/5 p-2 rounded"
                       >
                         <input
                           type="checkbox"
                           checked={filters.categories.includes(handle)}
                           onChange={() => toggleCategory(handle)}
                         />
-                        <span className="text-sm">{title}</span>
+                        <span className="text-base">{title}</span>
                       </label>
                     ))}
                   </div>
@@ -430,18 +430,18 @@ export default function FilterDrawer({
               </div>
 
               {/* Footer */}
-              <div className="h-16 border-t border-black/10 px-5 flex items-center gap-3">
+              <div className="border-t border-black/10 px-5 py-4 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={onReset}
-                  className="flex-1 h-11 rounded-md border border-black/10 text-sm font-semibold text-stone-600 hover:border-black/20"
+                  className="flex-1 h-12 rounded-md border border-black/10 text-base font-semibold text-stone-600 hover:border-black/20"
                 >
                   Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex-1 h-11 rounded-md bg-black text-white text-sm font-semibold"
+                  className="flex-1 h-12 rounded-md bg-black text-white text-base font-semibold"
                 >
                   View ({resultCount})
                 </button>

@@ -7,6 +7,7 @@ type AddedItem = {
   title: string;
   imageUrl?: string;
   imageAlt?: string;
+  price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
 };

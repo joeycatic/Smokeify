@@ -23,9 +23,13 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 export default function ProductDetailClient({
   product,
   variants,
+  imageUrl,
+  imageAlt,
 }: {
   product: { id: string; title: string; descriptionHtml: string };
   variants: ProductVariant[];
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -49,12 +53,13 @@ export default function ProductDetailClient({
       ? formatPrice(selectedVariant.compareAt)
       : null;
 
-  const { cart, addToCart } = useCart();
+  const { cart, addToCart, openAddedModal } = useCart();
   const [toast, setToast] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [addedPulse, setAddedPulse] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
   const cartQuantity =
@@ -72,6 +77,14 @@ export default function ProductDetailClient({
     setNotifyStatus("idle");
     setNotifyMessage(null);
   }, [selectedVariantId, isAvailable]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -194,6 +207,15 @@ export default function ProductDetailClient({
                 });
                 setAddedPulse(true);
                 setTimeout(() => setAddedPulse(false), 250);
+                if (isMobile && selectedVariant) {
+                  openAddedModal({
+                    title: product.title,
+                    imageUrl: imageUrl ?? undefined,
+                    imageAlt: imageAlt ?? product.title,
+                    price: selectedVariant.price,
+                    quantity,
+                  });
+                }
               } else {
                 setToast({ type: "error", text: "Nicht genug Bestand." });
               }

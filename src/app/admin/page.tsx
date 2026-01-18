@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import AdminUsersClient from "./AdminUsersClient";
 import Link from "next/link";
 
@@ -86,60 +85,63 @@ export default async function AdminPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <div className="mb-8">
+      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
+        <div className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ color: "#2f3e36" }}
-              >
+              <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
                 Admin
               </h1>
               <p className="text-sm text-stone-600">
                 Nutzerverwaltung und Rollensteuerung.
               </p>
             </div>
-            <AdminThemeToggle />
+            <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+              Dashboard
+            </div>
           </div>
-          <div className="mt-3">
+          <div className="mt-5 flex flex-wrap gap-2">
             <Link
               href="/admin/catalog"
-              className="inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
             >
               Manage catalog
             </Link>
             <Link
               href="/admin/orders"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
             >
               Manage orders
             </Link>
             <Link
               href="/admin/returns"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:border-amber-300"
             >
               Manage returns
             </Link>
             <Link
               href="/admin/discounts"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-700 shadow-sm hover:border-rose-300"
             >
               Manage discounts
             </Link>
             <Link
               href="/admin/analytics"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 shadow-sm hover:border-violet-300"
             >
               Analytics
             </Link>
           </div>
         </div>
-        <AdminUsersClient initialUsers={users.map((user) => ({
-          ...user,
-          createdAt: user.createdAt.toISOString(),
-        }))} />
-        <div className="mt-12">
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <AdminUsersClient
+            initialUsers={users.map((user) => ({
+              ...user,
+              createdAt: user.createdAt.toISOString(),
+            }))}
+          />
+        </div>
+        <div className="mt-12 rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-2" style={{ color: "#2f3e36" }}>
             Back-in-stock requests
           </h2>

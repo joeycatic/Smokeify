@@ -101,6 +101,7 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                     itemTitle={p.title}
                     itemImageUrl={p.featuredImage?.url}
                     itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemPrice={p.priceRange?.minVariantPrice}
                     itemQuantity={1}
                   />
                 </div>
@@ -200,6 +201,7 @@ export function DisplayProductsList({ products }: Props) {
                       itemTitle={p.title}
                       itemImageUrl={p.featuredImage?.url}
                       itemImageAlt={p.featuredImage?.altText ?? p.title}
+                      itemPrice={p.priceRange?.minVariantPrice}
                       itemQuantity={1}
                     />
                     <Link

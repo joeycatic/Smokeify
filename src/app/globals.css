@@ -141,6 +141,28 @@ body {
   }
 }
 
+.announcement-marquee {
+  display: flex;
+  width: max-content;
+  animation: announcement-marquee 28s linear infinite;
+}
+
+@keyframes announcement-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+    transform: translateX(0);
+  }
+}
+
 .admin-theme.admin-dark {
   background: #0f1412;
   color: #e6ece6;
