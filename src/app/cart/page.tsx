@@ -69,7 +69,7 @@ function normalizeCountryInput(value?: string | null): ShippingCountry | null {
 }
 
 export default function CartPage() {
-  const { cart, loading, updateLine, removeLines } = useCart();
+  const { cart, loading, updateLine, removeLines, error, refresh } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
@@ -215,6 +215,18 @@ export default function CartPage() {
     return (
       <PageLayout>
         <div className="mx-auto max-w-4xl px-6 py-10 text-black/80">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div>{error}</div>
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800"
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          )}
           <h1 className="text-2xl font-semibold mb-2">
             Dein Warenkorb ist leer
           </h1>
@@ -243,6 +255,18 @@ export default function CartPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-5xl px-6 py-10">
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div>{error}</div>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800"
+            >
+              Erneut versuchen
+            </button>
+          </div>
+        )}
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-semibold text-black/80">Warenkorb</h1>
           <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-600 shadow-sm">

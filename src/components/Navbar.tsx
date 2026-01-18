@@ -49,7 +49,7 @@ const pixelNavFont = Pixelify_Sans({
 });
 
 export function Navbar() {
-  const { cart, loading } = useCart();
+  const { cart, loading, error, refresh } = useCart();
   const { ids } = useWishlist();
   const { status } = useSession();
   const pathname = usePathname();
@@ -461,7 +461,18 @@ export function Navbar() {
             </div>
             <div className="flex h-full flex-col">
               <div className="overflow-y-auto px-5 py-4 text-sm">
-                {loading ? (
+                {error ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    <p>{error}</p>
+                    <button
+                      type="button"
+                      onClick={() => void refresh()}
+                      className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800"
+                    >
+                      Erneut versuchen
+                    </button>
+                  </div>
+                ) : loading ? (
                   <div className="flex items-center gap-2 text-stone-500">
                     <LoadingSpinner size="sm" />
                     <span>Warenkorb wird geladen...</span>
