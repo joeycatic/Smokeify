@@ -248,3 +248,13 @@ body {
 .admin-theme.admin-dark .admin-theme-toggle-knob {
   background-color: #9fe3c1;
 }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}

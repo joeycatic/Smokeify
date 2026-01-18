@@ -187,6 +187,36 @@ const getStripe = () => {
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
+const reserveInventory = async (variantId: string, quantity: number) => {
+  if (quantity <= 0) return true;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const inventory = await prisma.variantInventory.findUnique({
+      where: { variantId },
+    });
+    if (!inventory) return false;
+    const available = Math.max(0, inventory.quantityOnHand - inventory.reserved);
+    if (available < quantity) return false;
+    const updated = await prisma.variantInventory.updateMany({
+      where: {
+        variantId,
+        quantityOnHand: inventory.quantityOnHand,
+        reserved: inventory.reserved,
+      },
+      data: { reserved: { increment: quantity } },
+    });
+    if (updated.count > 0) return true;
+  }
+  return false;
+};
+
+const releaseReservation = async (variantId: string, quantity: number) => {
+  if (quantity <= 0) return;
+  await prisma.variantInventory.updateMany({
+    where: { variantId, reserved: { gte: quantity } },
+    data: { reserved: { decrement: quantity } },
+  });
+};
+
 export async function POST(req: Request) {
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.id) {
@@ -244,6 +274,7 @@ export async function POST(req: Request) {
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let itemCount = 0;
+  const variantCounts = new Map<string, number>();
 
   for (const item of items) {
     const variant = variantMap.get(item.variantId);
@@ -271,6 +302,10 @@ export async function POST(req: Request) {
       },
     });
     itemCount += item.quantity;
+    variantCounts.set(
+      variant.id,
+      (variantCounts.get(variant.id) ?? 0) + item.quantity
+    );
   }
 
   if (lineItems.length === 0) {
@@ -283,6 +318,23 @@ export async function POST(req: Request) {
   const origin = req.headers.get("origin") ?? "http://localhost:3000";
   const shippingAmount = getShippingEstimate(country, itemCount);
   const shippingCents = Math.max(0, Math.round(shippingAmount * 100));
+
+  const reservedVariants: Array<{ variantId: string; quantity: number }> = [];
+  for (const [variantId, quantity] of variantCounts) {
+    const reserved = await reserveInventory(variantId, quantity);
+    if (!reserved) {
+      await Promise.all(
+        reservedVariants.map((entry) =>
+          releaseReservation(entry.variantId, entry.quantity)
+        )
+      );
+      return NextResponse.json(
+        { error: "Nicht genug Bestand." },
+        { status: 409 }
+      );
+    }
+    reservedVariants.push({ variantId, quantity });
+  }
 
   let promotionCodeId: string | undefined;
   let appliedDiscountCode: string | undefined;
@@ -308,41 +360,53 @@ export async function POST(req: Request) {
     metadata.discountCode = appliedDiscountCode;
   }
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card", "paypal"],
-    line_items: lineItems,
-    discounts: promotionCodeId ? [{ promotion_code: promotionCodeId }] : undefined,
-    customer: customerId ?? undefined,
-    customer_email: customerId ? undefined : user?.email ?? undefined,
-    customer_update: customerId
-      ? { address: "auto", name: "auto", shipping: "auto" }
-      : undefined,
-    client_reference_id: authSession.user.id,
-    shipping_address_collection: {
-      allowed_countries: Array.from(ALLOWED_COUNTRIES),
-    },
-    shipping_options: [
-      {
-        shipping_rate_data: {
-          display_name: "Versand",
-          type: "fixed_amount",
-          fixed_amount: {
-            amount: shippingCents,
-            currency: CURRENCY_CODE,
-          },
-          delivery_estimate: {
-            minimum: { unit: "business_day", value: 2 },
-            maximum: { unit: "business_day", value: 5 },
+  let checkoutSession: Stripe.Checkout.Session;
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card", "paypal"],
+      line_items: lineItems,
+      discounts: promotionCodeId
+        ? [{ promotion_code: promotionCodeId }]
+        : undefined,
+      customer: customerId ?? undefined,
+      customer_email: customerId ? undefined : user?.email ?? undefined,
+      customer_update: customerId
+        ? { address: "auto", name: "auto", shipping: "auto" }
+        : undefined,
+      client_reference_id: authSession.user.id,
+      shipping_address_collection: {
+        allowed_countries: Array.from(ALLOWED_COUNTRIES),
+      },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            display_name: "Versand",
+            type: "fixed_amount",
+            fixed_amount: {
+              amount: shippingCents,
+              currency: CURRENCY_CODE,
+            },
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 2 },
+              maximum: { unit: "business_day", value: 5 },
+            },
           },
         },
-      },
-    ],
-    automatic_tax: { enabled: true },
-    success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/cart?checkout=cancel`,
-    metadata,
-  });
+      ],
+      automatic_tax: { enabled: true },
+      success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/cart?checkout=cancel`,
+      metadata,
+    });
+  } catch (error) {
+    await Promise.all(
+      reservedVariants.map((entry) =>
+        releaseReservation(entry.variantId, entry.quantity)
+      )
+    );
+    throw error;
+  }
 
   return NextResponse.json({ url: checkoutSession.url });
 }

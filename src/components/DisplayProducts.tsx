@@ -400,6 +400,9 @@ function ProductImageCarousel({
             src={current.url}
             alt={current.altText ?? alt}
             className={`absolute inset-0 ${imageClassName ?? ""}`}
+            loading="lazy"
+            decoding="async"
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             initial="enter"
             animate="center"
             exit="exit"

@@ -44,8 +44,17 @@ type OrderRow = {
   items: OrderItem[];
 };
 
+type WebhookFailure = {
+  id: string;
+  eventId: string;
+  type: string;
+  status: string;
+  createdAt: string;
+};
+
 type Props = {
   orders: OrderRow[];
+  webhookFailures: WebhookFailure[];
 };
 
 const formatPrice = (amount: number, currency: string) =>
@@ -98,7 +107,7 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   };
 };
 
-export default function AdminOrdersClient({ orders }: Props) {
+export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [trackingDrafts, setTrackingDrafts] = useState<
@@ -401,6 +410,38 @@ export default function AdminOrdersClient({ orders }: Props) {
       {notice && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
           {notice}
+        </div>
+      )}
+      {webhookFailures.length > 0 && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-800 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-700/70">
+                Stripe webhook failures
+              </div>
+              <div className="mt-2 text-sm font-semibold">
+                {webhookFailures.length} failed event
+                {webhookFailures.length === 1 ? "" : "s"}
+              </div>
+            </div>
+            <div className="text-xs text-rose-700">
+              Replays are safe; Stripe will retry automatically.
+            </div>
+          </div>
+          <div className="mt-3 space-y-2 text-xs text-rose-800">
+            {webhookFailures.map((event) => (
+              <div
+                key={event.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-white/70 px-3 py-2"
+              >
+                <div className="font-semibold">{event.type}</div>
+                <div className="text-rose-700">{event.eventId}</div>
+                <div className="text-rose-700">
+                  {new Date(event.createdAt).toLocaleString("de-DE")}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

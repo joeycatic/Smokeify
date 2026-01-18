@@ -71,6 +71,50 @@ const formatItemName = (name: string, manufacturer?: string | null) => {
   return name.replace(defaultSuffix, "");
 };
 
+const getVariantCountsForSession = async (
+  stripe: Stripe,
+  sessionId: string
+) => {
+  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+    limit: 100,
+    expand: ["data.price.product"],
+  });
+  const variantCounts = new Map<string, number>();
+  for (const item of lineItems.data ?? []) {
+    const product = item.price?.product as Stripe.Product | null | undefined;
+    const variantId =
+      product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+    if (!variantId) continue;
+    const qty = Math.max(0, item.quantity ?? 0);
+    if (!qty) continue;
+    variantCounts.set(variantId, (variantCounts.get(variantId) ?? 0) + qty);
+  }
+  return variantCounts;
+};
+
+const releaseReservedInventory = async (
+  stripe: Stripe,
+  sessionId: string
+) => {
+  const variantCounts = await getVariantCountsForSession(stripe, sessionId);
+  if (variantCounts.size === 0) return;
+  await prisma.$transaction(async (tx) => {
+    for (const [variantId, qty] of variantCounts) {
+      if (qty <= 0) continue;
+      const updated = await tx.variantInventory.updateMany({
+        where: { variantId, reserved: { gte: qty } },
+        data: { reserved: { decrement: qty } },
+      });
+      if (updated.count === 0) {
+        console.warn("[stripe webhook] Reservation not found to release.", {
+          variantId,
+          qty,
+        });
+      }
+    }
+  });
+};
+
 const sendTelegramMessage = async (text: string) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -218,6 +262,16 @@ const createOrderFromSession = async (
     await prisma.$transaction(async (tx) => {
       for (const [variantId, qty] of variantCounts) {
         if (qty <= 0) continue;
+        const released = await tx.variantInventory.updateMany({
+          where: { variantId, reserved: { gte: qty } },
+          data: { reserved: { decrement: qty } },
+        });
+        if (released.count === 0) {
+          console.warn(
+            "[stripe webhook] Reservation missing during fulfillment.",
+            { variantId, qty }
+          );
+        }
         const updated = await tx.variantInventory.updateMany({
           where: { variantId, quantityOnHand: { gte: qty } },
           data: { quantityOnHand: { decrement: qty } },
@@ -395,11 +449,12 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       await createOrderFromSession(stripe, session);
     }
-    if (event.type === "checkout.session.async_payment_failed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const paymentIntent =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
+  if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    await releaseReservedInventory(stripe, session.id ?? "");
+    const paymentIntent =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
           : session.payment_intent?.id;
       if (paymentIntent) {
         await prisma.order.updateMany({
@@ -408,13 +463,17 @@ export async function POST(request: Request) {
         });
       }
     }
-    if (event.type === "payment_intent.payment_failed") {
-      const intent = event.data.object as Stripe.PaymentIntent;
-      await prisma.order.updateMany({
-        where: { stripePaymentIntent: intent.id },
-        data: { status: "failed", paymentStatus: "failed" },
-      });
-    }
+  if (event.type === "payment_intent.payment_failed") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    await prisma.order.updateMany({
+      where: { stripePaymentIntent: intent.id },
+      data: { status: "failed", paymentStatus: "failed" },
+    });
+  }
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    await releaseReservedInventory(stripe, session.id ?? "");
+  }
     if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
       const paymentIntent =
