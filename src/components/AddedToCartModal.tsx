@@ -45,6 +45,10 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
               src={item.imageUrl}
               alt={item.imageAlt ?? item.title}
               className="h-20 w-20 rounded-md object-cover"
+              loading="lazy"
+              decoding="async"
+              width={80}
+              height={80}
             />
           ) : (
             <div className="h-20 w-20 rounded-md bg-stone-100" />

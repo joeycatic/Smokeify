@@ -216,6 +216,10 @@ export default async function OrderDetailPage({
                         src={item.imageUrl as string}
                         alt={item.name}
                         className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        width={80}
+                        height={80}
                       />
                     ))}
                 </div>

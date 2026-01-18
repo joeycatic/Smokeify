@@ -262,6 +262,10 @@ export default function OrderSuccessPage() {
                             src={item.imageUrl}
                             alt={item.name}
                             className="h-12 w-12 rounded-lg border border-black/10 bg-white object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            width={48}
+                            height={48}
                           />
                         ) : (
                           <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-black/10 bg-stone-100 text-xs font-semibold text-stone-500">

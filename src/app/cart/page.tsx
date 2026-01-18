@@ -299,6 +299,10 @@ export default function CartPage() {
                       line.merchandise.product.title
                     }
                     className="h-24 w-24 rounded-xl object-cover ring-1 ring-black/5"
+                    loading="lazy"
+                    decoding="async"
+                    width={96}
+                    height={96}
                   />
                 ) : (
                   <div className="h-24 w-24 rounded-xl bg-stone-100 ring-1 ring-black/5" />

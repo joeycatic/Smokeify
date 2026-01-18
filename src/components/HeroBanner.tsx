@@ -25,6 +25,9 @@ export function HeroBanner() {
         src={slide.image}
         alt={slide.title}
         className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+        loading={index === 0 ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={index === 0 ? "high" : "auto"}
       />
 
       {/* Overlay */}

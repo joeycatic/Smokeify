@@ -93,6 +93,10 @@ export default function ReturnRequestForm({
                     src={item.imageUrl}
                     alt={item.name}
                     className="h-10 w-10 rounded-lg border border-black/10 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    width={40}
+                    height={40}
                   />
                 ) : (
                   <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />

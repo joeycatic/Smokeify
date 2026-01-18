@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   HeartIcon,
@@ -188,6 +187,11 @@ export function Navbar() {
               src="/images/smokeify2.png"
               alt="Smokeify Logo"
               className="h-16 w-auto object-contain"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              width={180}
+              height={64}
             />
           </Link>
 
@@ -495,6 +499,10 @@ export function Navbar() {
                                 line.merchandise.product.title
                               }
                               className="h-12 w-12 rounded-md object-cover"
+                              loading="lazy"
+                              decoding="async"
+                              width={48}
+                              height={48}
                             />
                           ) : (
                             <div className="h-12 w-12 rounded-md bg-stone-100" />
