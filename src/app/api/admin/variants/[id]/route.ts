@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
 import { sendResendEmail } from "@/lib/resend";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function PATCH(
   request: NextRequest,
@@ -163,6 +164,25 @@ export async function PATCH(
         });
       }
     }
+  }
+
+  if (
+    Object.keys(updates).length > 0 ||
+    Array.isArray(body.options) ||
+    body.inventory
+  ) {
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "variant.update",
+      targetType: "variant",
+      targetId: id,
+      summary: `Updated variant fields: ${Object.keys(updates).join(", ")}`,
+      metadata: {
+        updatedFields: Object.keys(updates),
+        optionsUpdated: Array.isArray(body.options),
+        inventoryUpdated: Boolean(body.inventory),
+      },
+    });
   }
 
   return NextResponse.json({ variant });

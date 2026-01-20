@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
 import Footer from "./Footer";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type PageLayoutProps = {
   children: ReactNode;
@@ -34,6 +35,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
       <AnnouncementBar />
       <PageContainer>
         <Navbar />
+        <AdminBackButton />
         {children}
       </PageContainer>
       <Footer />

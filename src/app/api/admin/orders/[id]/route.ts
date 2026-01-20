@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function PATCH(
   request: Request,
@@ -57,6 +58,15 @@ export async function PATCH(
     where: { id },
     data: updates,
     include: { items: true },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "order.update",
+    targetType: "order",
+    targetId: id,
+    summary: `Updated order fields: ${Object.keys(updates).join(", ")}`,
+    metadata: { updates },
   });
 
   return NextResponse.json({ order: updated });
