@@ -12,7 +12,7 @@ Signal: engineered to sell fast, stay secure, and scale without drama.
 
 ## Stack
 
-- Next.js (App Router) + React + TypeScript
+- Next.js + React + TypeScript
 - Tailwind CSS
 - Prisma + Postgres
 - Stripe (Checkout Sessions + Payment Intents)
