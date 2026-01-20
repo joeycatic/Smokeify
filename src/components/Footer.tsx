@@ -158,7 +158,7 @@ export default function Footer() {
               <p className="text-xs font-semibold tracking-widest text-white/80">
                 NEWSLETTER
               </p>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   className="h-10 w-full rounded-md bg-white/10 px-3 text-sm text-white placeholder:text-white/50 outline-none ring-1 ring-white/15 focus:ring-2 focus:ring-white/30"
                   placeholder="E-Mail"

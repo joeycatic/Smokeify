@@ -5,27 +5,44 @@ import {
 } from "@heroicons/react/24/outline";
 
 export function AnnouncementBar() {
+  const items = [
+    { icon: <ArrowPathIcon className="h-4 w-4" />, text: "14 Tage Rueckgabe" },
+    {
+      icon: <CheckBadgeIcon className="h-4 w-4" />,
+      text: "Top Onlineshop 2025-2026",
+    },
+    {
+      icon: <TruckIcon className="h-4 w-4" />,
+      text: "Kostenloser Versand ab 69 EUR",
+    },
+    {
+      icon: <CheckBadgeIcon className="h-4 w-4" />,
+      text: "15 EUR Mindestbestellwert",
+    },
+  ];
+  const loopItems = [...items, ...items];
+
   return (
-    <div className="w-full bg-[#2f3e36] text-green-100 text-xs">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="flex h-10 items-center justify-between gap-6">
-
-          <Item icon={<ArrowPathIcon className="h-4 w-4" />}>
-            14 Tage Rückgabe
-          </Item>
-
-          <Item icon={<CheckBadgeIcon className="h-4 w-4" />}>
-            Top Onlineshop 2025–2026
-          </Item>
-
-          <Item icon={<TruckIcon className="h-4 w-4" />}>
-            Kostenloser Versand ab 69€
-          </Item>
-
-          <Item icon={<CheckBadgeIcon className="h-4 w-4" />}>
-            15€ Mindestbestellwert
-          </Item>
-
+    <div className="fixed top-0 left-0 z-50 w-full bg-[#2f3e36] text-green-100 text-xs">
+      <div className="mx-auto px-0">
+        <div className="relative flex h-10 items-center overflow-hidden">
+          <div className="announcement-marquee flex items-center">
+            <div className="flex flex-none items-center gap-10">
+              {loopItems.map((item, idx) => (
+                <Item key={`a-${idx}`} icon={item.icon}>
+                  {item.text}
+                </Item>
+              ))}
+            </div>
+            <div className="flex-none w-10" aria-hidden="true" />
+            <div className="flex flex-none items-center gap-10" aria-hidden="true">
+              {loopItems.map((item, idx) => (
+                <Item key={`b-${idx}`} icon={item.icon}>
+                  {item.text}
+                </Item>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -40,7 +57,7 @@ function Item({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
+    <div className="flex h-10 items-center gap-2 whitespace-nowrap">
       {icon}
       <span className="tracking-wide">{children}</span>
     </div>

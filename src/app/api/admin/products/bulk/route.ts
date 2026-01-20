@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/adminCatalog";
 
 type BulkPayload = {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No products selected" }, { status: 400 });
   }
 
-  const operations: Promise<unknown>[] = [];
+  const operations: Prisma.PrismaPromise<unknown>[] = [];
 
   if (body.status) {
     operations.push(

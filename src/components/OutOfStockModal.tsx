@@ -23,7 +23,7 @@ export default function OutOfStockModal({ open, onClose }: Props) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full p-1 text-stone-500 hover:text-stone-700"
+            className="rounded-full p-1 text-stone-500 hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -36,7 +36,7 @@ export default function OutOfStockModal({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Schliessen
           </button>

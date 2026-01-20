@@ -5,10 +5,11 @@ import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
 
-type AddedItem = {
+export type AddedItem = {
   title: string;
   imageUrl?: string;
   imageAlt?: string;
+  price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
 };
@@ -16,6 +17,7 @@ type AddedItem = {
 type CartCtx = {
   cart: Cart | null;
   loading: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
   addToCart: (variantId: string, quantity?: number) => Promise<Cart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
@@ -30,7 +32,10 @@ const CartContext = createContext<CartCtx | null>(null);
 
 async function apiGetCart(): Promise<Cart> {
   const res = await fetch("/api/cart", { method: "GET" });
-  if (!res.ok) throw new Error("Failed to load cart");
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Failed to load cart");
+  }
   return res.json();
 }
 
@@ -40,23 +45,33 @@ async function apiCartAction(payload: any): Promise<Cart> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error ?? "Cart action failed");
   return data;
 }
 
+const normalizeError = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [outOfStockOpen, setOutOfStockOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
+    setError(null);
     try {
       const c = await apiGetCart();
       setCart(c);
+    } catch (err) {
+      setError(normalizeError(err, "Failed to load cart"));
     } finally {
       setLoading(false);
     }
@@ -66,26 +81,51 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, []);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   const addToCart = async (variantId: string, quantity = 1) => {
-    const c = await apiCartAction({ action: "add", variantId, quantity });
-    setCart(c);
-    return c;
+    try {
+      const c = await apiCartAction({ action: "add", variantId, quantity });
+      setCart(c);
+      setError(null);
+      return c;
+    } catch (err) {
+      setError(normalizeError(err, "Cart action failed"));
+      throw err;
+    }
   };
 
   const updateLine = async (lineId: string, quantity: number) => {
-    const c = await apiCartAction({ action: "update", lineId, quantity });
-    setCart(c);
+    try {
+      const c = await apiCartAction({ action: "update", lineId, quantity });
+      setCart(c);
+      setError(null);
+    } catch (err) {
+      setError(normalizeError(err, "Cart update failed"));
+    }
   };
 
   const removeLines = async (lineIds: string[]) => {
-    const c = await apiCartAction({ action: "remove", lineIds });
-    setCart(c);
+    try {
+      const c = await apiCartAction({ action: "remove", lineIds });
+      setCart(c);
+      setError(null);
+    } catch (err) {
+      setError(normalizeError(err, "Cart update failed"));
+    }
   };
 
   const value = useMemo(
     () => ({
       cart,
       loading,
+      error,
       refresh,
       addToCart,
       updateLine,
@@ -93,22 +133,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       openAddedModal: (item: AddedItem) => {
         setAddedItem(item);
         setAddedOpen(true);
+        window.dispatchEvent(
+          new CustomEvent<AddedItem>("cart:item-added", { detail: item })
+        );
       },
       closeAddedModal: () => setAddedOpen(false),
       openOutOfStockModal: () => setOutOfStockOpen(true),
       closeOutOfStockModal: () => setOutOfStockOpen(false),
     }),
-    [cart, loading]
+    [cart, loading, error]
   );
 
   return (
     <CartContext.Provider value={value}>
       {children}
-      <AddedToCartModal
-        open={addedOpen}
-        item={addedItem}
-        onClose={() => setAddedOpen(false)}
-      />
+      {!isMobile && (
+        <AddedToCartModal
+          open={addedOpen}
+          item={addedItem}
+          onClose={() => setAddedOpen(false)}
+        />
+      )}
       <OutOfStockModal
         open={outOfStockOpen}
         onClose={() => setOutOfStockOpen(false)}

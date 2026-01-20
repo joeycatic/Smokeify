@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-function requireAdmin(session: Awaited<ReturnType<typeof getServerSession>>) {
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
-    return false;
-  }
-  return true;
-}
+import { requireAdmin } from "@/lib/adminCatalog";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!requireAdmin(session)) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -36,8 +28,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!requireAdmin(session)) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

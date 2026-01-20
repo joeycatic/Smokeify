@@ -16,6 +16,7 @@ export default async function ProductDetailPage({
   if (!product) return notFound();
 
   const images = product.images ?? [];
+  const primaryImage = images[0] ?? null;
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
 
   return (
@@ -40,6 +41,8 @@ export default async function ProductDetailPage({
               descriptionHtml: product.description ?? "",
             }}
             variants={product.variants}
+            imageUrl={primaryImage?.url ?? null}
+            imageAlt={primaryImage?.altText ?? product.title}
           />
         </div>
 

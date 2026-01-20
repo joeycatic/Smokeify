@@ -23,9 +23,13 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 export default function ProductDetailClient({
   product,
   variants,
+  imageUrl,
+  imageAlt,
 }: {
   product: { id: string; title: string; descriptionHtml: string };
   variants: ProductVariant[];
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -49,12 +53,13 @@ export default function ProductDetailClient({
       ? formatPrice(selectedVariant.compareAt)
       : null;
 
-  const { cart, addToCart } = useCart();
+  const { cart, addToCart, openAddedModal } = useCart();
   const [toast, setToast] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [addedPulse, setAddedPulse] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
   const cartQuantity =
@@ -73,10 +78,18 @@ export default function ProductDetailClient({
     setNotifyMessage(null);
   }, [selectedVariantId, isAvailable]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="mt-1 text-3xl text-black font-semibold">
+        <h1 className="mt-1 text-2xl text-black font-semibold sm:text-3xl">
           {product.title}
         </h1>
         {selectedVariant && (
@@ -86,7 +99,7 @@ export default function ProductDetailClient({
                 {compareAtLabel}
               </span>
             )}
-            <span className="text-xl font-semibold text-black">
+            <span className="text-lg font-semibold text-black sm:text-xl">
               {priceLabel}
             </span>
           </div>
@@ -99,7 +112,7 @@ export default function ProductDetailClient({
           <select
             value={selectedVariantId}
             onChange={(e) => setSelectedVariantId(e.target.value)}
-            className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30"
+            className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             {variants.map((v) => (
               <option key={v.id} value={v.id} disabled={!v.availableForSale}>
@@ -115,8 +128,9 @@ export default function ProductDetailClient({
         <div className="inline-flex items-center rounded-md border border-black/15">
           <button
             type="button"
+            aria-label="Menge verringern"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="h-11 w-11 text-black/80"
+            className="h-11 w-11 text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             -
           </button>
@@ -125,8 +139,9 @@ export default function ProductDetailClient({
           </div>
           <button
             type="button"
+            aria-label="Menge erhoehen"
             onClick={() => setQuantity((q) => q + 1)}
-            className="h-11 w-11 text-black/80"
+            className="h-11 w-11 text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             +
           </button>
@@ -192,6 +207,15 @@ export default function ProductDetailClient({
                 });
                 setAddedPulse(true);
                 setTimeout(() => setAddedPulse(false), 250);
+                if (isMobile && selectedVariant) {
+                  openAddedModal({
+                    title: product.title,
+                    imageUrl: imageUrl ?? undefined,
+                    imageAlt: imageAlt ?? product.title,
+                    price: selectedVariant.price,
+                    quantity,
+                  });
+                }
               } else {
                 setToast({ type: "error", text: "Nicht genug Bestand." });
               }
@@ -201,7 +225,7 @@ export default function ProductDetailClient({
               setTimeout(() => setToast(null), 1500);
             }
           }}
-          className={`h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white transition-transform duration-200 hover:opacity-90 ${
+          className={`h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white transition-transform duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
             addedPulse ? "scale-[1.03]" : "scale-100"
           }`}
         >
@@ -254,22 +278,26 @@ export default function ProductDetailClient({
             }
           }}
         >
-          <label className="block text-xs font-semibold text-black/70">
+          <label
+            htmlFor="notify-email"
+            className="block text-xs font-semibold text-black/70"
+          >
             Email fur Benachrichtigung
           </label>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
+              id="notify-email"
               type="email"
               value={notifyEmail}
               onChange={(event) => setNotifyEmail(event.target.value)}
               placeholder="deine@email.de"
-              className="h-10 w-full rounded-md border border-black/15 px-3 text-sm outline-none focus:border-black/30"
+              className="h-10 w-full rounded-md border border-black/15 px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               required
             />
             <button
               type="submit"
               disabled={notifyStatus === "loading"}
-              className="h-10 rounded-md border border-black/20 px-4 text-sm font-semibold text-black/70 hover:border-black/40 disabled:opacity-50"
+              className="h-10 rounded-md border border-black/20 px-4 text-sm font-semibold text-black/70 hover:border-black/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               {notifyStatus === "loading" ? (
                 <span className="inline-flex items-center gap-2">
@@ -307,7 +335,7 @@ export default function ProductDetailClient({
       <div className="space-y-3">
         <div className="rounded-md border border-black/10">
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
                 <DocumentTextIcon className="h-5 w-5 text-black/70" />
                 Beschreibung
@@ -325,7 +353,7 @@ export default function ProductDetailClient({
 
         <div className="rounded-md border border-black/10">
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
                 <CubeIcon className="h-5 w-5 text-black/70" />
                 Versand & Rücksendungen
@@ -339,13 +367,13 @@ export default function ProductDetailClient({
               </p>
               <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
                 <a
-                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60"
+                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   href="/pages/shipping"
                 >
                   Versanddetails
                 </a>
                 <a
-                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60"
+                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   href="/returns"
                 >
                   Rücksendungen

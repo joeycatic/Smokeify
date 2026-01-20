@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAdminAction } from "@/lib/adminAuditLog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 
@@ -105,6 +106,20 @@ export async function POST(
       paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
     },
     include: { items: true },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "order.refund",
+    targetType: "order",
+    targetId: order.id,
+    summary: `Refunded ${refundAmount} of ${order.amountTotal}`,
+    metadata: {
+      refundAmount,
+      totalAmount: order.amountTotal,
+      newRefunded,
+      fullyRefunded,
+    },
   });
 
   if (updated.customerEmail) {

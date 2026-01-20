@@ -74,7 +74,7 @@ export default function AccountSettingsClient({
   };
 
   return (
-    <section className="rounded-xl border border-black/10 bg-white p-6">
+    <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
       <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
         ACCOUNT AKTUALISIEREN
       </h2>
@@ -194,13 +194,13 @@ export default function AccountSettingsClient({
             type="button"
             onClick={handleProfileSave}
             disabled={profileStatus === "saving"}
-            className="h-12 w-full rounded-md bg-[#44584c] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+            className="h-11 w-full rounded-md bg-[#44584c] px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:h-12 sm:text-base"
           >
             {profileStatus === "saving" ? "Saving..." : "Änderungen speichern"}
           </button>
           <Link
             href="/account/password"
-            className="inline-flex h-12 w-full items-center justify-center rounded-md border border-black/15 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-black/15 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 sm:h-12 sm:text-base"
           >
             Passwort ändern
           </Link>

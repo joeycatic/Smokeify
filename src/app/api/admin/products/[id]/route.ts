@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function GET(
   request: NextRequest,
@@ -164,6 +165,15 @@ export async function PATCH(
   const product = await prisma.product.update({
     where: { id },
     data: updates,
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.update",
+    targetType: "product",
+    targetId: id,
+    summary: `Updated product fields: ${Object.keys(updates).join(", ")}`,
+    metadata: { updates },
   });
 
   return NextResponse.json({

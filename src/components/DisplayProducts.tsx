@@ -1,19 +1,7 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import type { MouseEvent } from "react";
-import {
-  ArrowTopRightOnSquareIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  HeartIcon as HeartIconOutline,
-  ShoppingCartIcon,
-} from "@heroicons/react/24/outline";
-import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
-import { useCart } from "@/components/CartProvider";
-import { useWishlist } from "@/hooks/useWishlist";
+import Image from "next/image";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
+import ProductCardActions from "@/components/ProductCardActions";
 import type { Product } from "@/data/types";
 
 type Props = {
@@ -21,29 +9,25 @@ type Props = {
   cols?: number;
 };
 
-const getProductLowStockState = (product: Product, cartQuantity: number) => {
-  const effectiveAvailable =
-    (product.defaultVariantAvailableQuantity ?? 0) - cartQuantity;
-  const cartLowStock =
-    product.defaultVariantAvailableQuantity !== undefined &&
-    product.defaultVariantLowStockThreshold !== undefined &&
-    effectiveAvailable > 0 &&
-    effectiveAvailable <= product.defaultVariantLowStockThreshold;
-  return Boolean(product.lowStock || cartLowStock);
+const getProductLowStockState = (product: Product) => {
+  const available = product.defaultVariantAvailableQuantity ?? 0;
+  const threshold = product.defaultVariantLowStockThreshold ?? null;
+  const isLowStock =
+    threshold !== null && available > 0 && available <= threshold;
+  return Boolean(product.lowStock || isLowStock);
 };
 
 export default function DisplayProducts({ products, cols = 4 }: Props) {
-  const { cart } = useCart();
-  const { isWishlisted, toggle } = useWishlist();
   return (
     <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {products?.map((p) => {
-        const cartQuantity =
-          cart?.lines.find((line) => line.merchandise.id === p.defaultVariantId)
-            ?.quantity ?? 0;
-        const showLowStock = getProductLowStockState(p, cartQuantity);
+        const showLowStock = getProductLowStockState(p);
         return (
-          <Link key={p.id} href={`/products/${p.handle}`} className="block">
+          <Link
+            key={p.id}
+            href={`/products/${p.handle}`}
+            className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          >
             <article
               key={p.id}
               className="
@@ -110,16 +94,14 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                   </span>
                 </div>
                 <div className="mt-3 flex items-center justify-center gap-2">
-                  <WishlistButton
-                    wishlisted={isWishlisted(p.id)}
-                    onToggle={() => toggle(p.id)}
-                  />
-                  <AddToCartButton
+                  <ProductCardActions
+                    productId={p.id}
                     variantId={p.defaultVariantId ?? null}
                     available={p.availableForSale}
                     itemTitle={p.title}
                     itemImageUrl={p.featuredImage?.url}
                     itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemPrice={p.priceRange?.minVariantPrice}
                     itemQuantity={1}
                   />
                 </div>
@@ -133,15 +115,10 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
 }
 
 export function DisplayProductsList({ products }: Props) {
-  const { cart } = useCart();
-  const { isWishlisted, toggle } = useWishlist();
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
       {products?.map((p) => {
-        const cartQuantity =
-          cart?.lines.find((line) => line.merchandise.id === p.defaultVariantId)
-            ?.quantity ?? 0;
-        const showLowStock = getProductLowStockState(p, cartQuantity);
+        const showLowStock = getProductLowStockState(p);
         return (
           <article
             key={p.id}
@@ -149,7 +126,7 @@ export function DisplayProductsList({ products }: Props) {
           >
             <Link
               href={`/products/${p.handle}`}
-              className="group block sm:w-56 md:w-64"
+              className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-56 md:w-64"
             >
               <div className="relative">
                 <ProductImageCarousel
@@ -215,24 +192,21 @@ export function DisplayProductsList({ products }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <WishlistButton
-                    wishlisted={isWishlisted(p.id)}
-                    onToggle={() => toggle(p.id)}
-                    size="lg"
-                  />
                   <div className="flex items-center gap-2">
-                    <AddToCartButton
+                    <ProductCardActions
+                      productId={p.id}
                       variantId={p.defaultVariantId ?? null}
                       available={p.availableForSale}
                       size="lg"
                       itemTitle={p.title}
                       itemImageUrl={p.featuredImage?.url}
                       itemImageAlt={p.featuredImage?.altText ?? p.title}
+                      itemPrice={p.priceRange?.minVariantPrice}
                       itemQuantity={1}
                     />
                     <Link
                       href={`/products/${p.handle}`}
-                      className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900"
+                      className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Zum Produkt"
                       title="Zum Produkt"
                     >
@@ -249,116 +223,6 @@ export function DisplayProductsList({ products }: Props) {
   );
 }
 
-function WishlistButton({
-  wishlisted,
-  onToggle,
-  size = "sm",
-}: {
-  wishlisted: boolean;
-  onToggle: () => void;
-  size?: "sm" | "lg";
-}) {
-  const iconClass = size === "lg" ? "h-5 w-5" : "h-4 w-4";
-  const buttonClass =
-    size === "lg"
-      ? "rounded-full border p-3 transition"
-      : "rounded-full border p-2 transition";
-  return (
-    <button
-      type="button"
-      aria-label={wishlisted ? "Von Wunschliste entfernen" : "Zur Wunschliste"}
-      aria-pressed={wishlisted}
-      title="Zur Wunschliste"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onToggle();
-      }}
-      className={`${buttonClass} cursor-pointer ${
-        wishlisted
-          ? "border-green-200 text-green-700"
-          : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
-      }`}
-    >
-      {wishlisted ? (
-        <HeartIconSolid className={iconClass} />
-      ) : (
-        <HeartIconOutline className={iconClass} />
-      )}
-    </button>
-  );
-}
-
-function AddToCartButton({
-  variantId,
-  available,
-  size = "sm",
-  itemTitle,
-  itemImageUrl,
-  itemImageAlt,
-  itemQuantity = 1,
-}: {
-  variantId: string | null;
-  available: boolean;
-  size?: "sm" | "lg";
-  itemTitle?: string;
-  itemImageUrl?: string | null;
-  itemImageAlt?: string | null;
-  itemQuantity?: number;
-}) {
-  const { cart, addToCart, openAddedModal, openOutOfStockModal } = useCart();
-  const [adding, setAdding] = useState(false);
-  const canAdd = Boolean(variantId) && available && !adding;
-
-  return (
-    <button
-      type="button"
-      disabled={!canAdd}
-      onClick={async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!variantId) return;
-        setAdding(true);
-        try {
-          const beforeQty =
-            cart?.lines.find((line) => line.merchandise.id === variantId)
-              ?.quantity ?? 0;
-          const updated = await addToCart(variantId, 1);
-          const afterQty =
-            updated.lines.find((line) => line.merchandise.id === variantId)
-              ?.quantity ?? 0;
-          if (afterQty <= beforeQty) {
-            openOutOfStockModal();
-            return;
-          }
-          if (itemTitle) {
-            openAddedModal({
-              title: itemTitle,
-              imageUrl: itemImageUrl ?? undefined,
-              imageAlt: itemImageAlt ?? undefined,
-              quantity: itemQuantity,
-            });
-          }
-        } catch {
-          openOutOfStockModal();
-        } finally {
-          setAdding(false);
-        }
-      }}
-      aria-label="In den Warenkorb"
-      title="In den Warenkorb"
-      className={`add-to-cart-sweep inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
-        canAdd
-          ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
-          : "border-stone-200 text-stone-400"
-      } ${size === "lg" ? "px-6 py-3 text-sm" : "px-3 py-2 text-xs"}`}
-    >
-      <ShoppingCartIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
-      In den Warenkorb
-    </button>
-  );
-}
-
 function ProductImageCarousel({
   images,
   alt,
@@ -370,71 +234,18 @@ function ProductImageCarousel({
   className?: string;
   imageClassName?: string;
 }) {
-  const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
-  const count = images.length;
-  const current = images[index];
-
-  const handlePrev = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (count <= 1) return;
-    setDirection(-1);
-    setIndex((prev) => (prev - 1 + count) % count);
-  };
-
-  const handleNext = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (count <= 1) return;
-    setDirection(1);
-    setIndex((prev) => (prev + 1) % count);
-  };
+  const current = images[0];
+  if (!current) return null;
 
   return (
     <div className={`relative ${className ?? ""}`}>
-      <AnimatePresence initial={false} mode="wait">
-        {current && (
-          <motion.img
-            key={`${current.url}-${index}`}
-            src={current.url}
-            alt={current.altText ?? alt}
-            className={`absolute inset-0 ${imageClassName ?? ""}`}
-            loading="lazy"
-            decoding="async"
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-            initial="enter"
-            animate="center"
-            exit="exit"
-            variants={{
-              enter: { opacity: 0 },
-              center: { opacity: 1 },
-              exit: { opacity: 0 },
-            }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-          />
-        )}
-      </AnimatePresence>
-      {count > 1 && (
-        <>
-          <button
-            type="button"
-            aria-label="Vorheriges Bild"
-            onClick={handlePrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Naechstes Bild"
-            onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-        </>
-      )}
+      <Image
+        src={current.url}
+        alt={current.altText ?? alt}
+        fill
+        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+        className={`absolute inset-0 ${imageClassName ?? ""}`}
+      />
     </div>
   );
 }

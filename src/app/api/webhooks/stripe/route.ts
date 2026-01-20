@@ -13,10 +13,16 @@ const getStripe = () => {
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
+type SessionWithDiscounts = Stripe.Checkout.Session & {
+  discounts?: Array<{
+    promotion_code?: Stripe.PromotionCode | string | null;
+  }>;
+};
+
 const getDiscountDetails = (session: Stripe.Checkout.Session) => {
   const discountTotal = session.total_details?.amount_discount ?? 0;
   let discountCode = session.metadata?.discountCode ?? undefined;
-  const sessionDiscount = session.discounts?.[0];
+  const sessionDiscount = (session as SessionWithDiscounts).discounts?.[0];
   const promotion = sessionDiscount?.promotion_code;
   if (promotion && typeof promotion !== "string" && promotion.code) {
     discountCode = promotion.code;
@@ -497,17 +503,6 @@ export async function POST(request: Request) {
           });
         }
       }
-    }
-    if (event.type === "payment_intent.refunded") {
-      const intent = event.data.object as Stripe.PaymentIntent;
-      await prisma.order.updateMany({
-        where: { stripePaymentIntent: intent.id },
-        data: {
-          amountRefunded: intent.amount_received ?? 0,
-          status: "refunded",
-          paymentStatus: "refunded",
-        },
-      });
     }
   } catch {
     await prisma.processedWebhookEvent.update({

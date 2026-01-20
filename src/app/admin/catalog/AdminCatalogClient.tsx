@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type ProductRow = {
@@ -626,10 +627,15 @@ export default function AdminCatalogClient({
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(product.id)}
-                      className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:border-red-300"
+                      className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-700 hover:border-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       disabled={deletingId === product.id}
+                      aria-label="Delete product"
                     >
-                      {deletingId === product.id ? "Deleting..." : "Delete"}
+                      {deletingId === product.id ? (
+                        <span className="text-xs font-semibold">Deleting...</span>
+                      ) : (
+                        <TrashIcon className="h-4 w-4" />
+                      )}
                     </button>
                   </td>
                 </tr>

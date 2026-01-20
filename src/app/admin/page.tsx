@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import AdminUsersClient from "./AdminUsersClient";
 import Link from "next/link";
 
@@ -22,6 +21,42 @@ export default async function AdminPage() {
       createdAt: true,
     },
   });
+
+  const variants = await prisma.variant.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: 200,
+    include: {
+      inventory: true,
+      product: { select: { id: true, title: true, status: true } },
+    },
+    where: { product: { status: "ACTIVE" } },
+  });
+
+  const lowStockVariants = variants
+    .map((variant) => {
+      const onHand = variant.inventory?.quantityOnHand ?? 0;
+      const reserved = variant.inventory?.reserved ?? 0;
+      const available = Math.max(onHand - reserved, 0);
+      return {
+        id: variant.id,
+        title: variant.title,
+        productId: variant.product.id,
+        productTitle: variant.product.title,
+        available,
+        onHand,
+        reserved,
+        threshold: variant.lowStockThreshold,
+        updatedAt: variant.updatedAt,
+      };
+    })
+    .filter((variant) => variant.available <= variant.threshold)
+    .sort((a, b) => a.available - b.available)
+    .slice(0, 20);
+
+  const lowStockCount = lowStockVariants.length;
+  const outOfStockCount = lowStockVariants.filter(
+    (variant) => variant.available === 0
+  ).length;
 
   const backInStockRequests = await prisma.backInStockRequest.findMany({
     orderBy: { createdAt: "desc" },
@@ -86,60 +121,130 @@ export default async function AdminPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <div className="mb-8">
+      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
+        <div className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ color: "#2f3e36" }}
-              >
+              <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
                 Admin
               </h1>
               <p className="text-sm text-stone-600">
                 Nutzerverwaltung und Rollensteuerung.
               </p>
             </div>
-            <AdminThemeToggle />
+            <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+              Dashboard
+            </div>
           </div>
-          <div className="mt-3">
+          <div className="mt-5 flex flex-wrap gap-2">
             <Link
               href="/admin/catalog"
-              className="inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
             >
               Manage catalog
             </Link>
             <Link
               href="/admin/orders"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
             >
               Manage orders
             </Link>
             <Link
               href="/admin/returns"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:border-amber-300"
             >
               Manage returns
             </Link>
             <Link
               href="/admin/discounts"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-700 shadow-sm hover:border-rose-300"
             >
               Manage discounts
             </Link>
             <Link
               href="/admin/analytics"
-              className="ml-2 inline-flex rounded-md border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="inline-flex rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 shadow-sm hover:border-violet-300"
             >
               Analytics
             </Link>
+            <Link
+              href="/admin/audit"
+              className="inline-flex rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:border-stone-300"
+            >
+              Audit log
+            </Link>
           </div>
         </div>
-        <AdminUsersClient initialUsers={users.map((user) => ({
-          ...user,
-          createdAt: user.createdAt.toISOString(),
-        }))} />
-        <div className="mt-12">
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <AdminUsersClient
+            initialUsers={users.map((user) => ({
+              ...user,
+              createdAt: user.createdAt.toISOString(),
+            }))}
+          />
+        </div>
+        <div className="mt-12 rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold" style={{ color: "#2f3e36" }}>
+                Inventory alerts
+              </h2>
+              <p className="text-sm text-stone-600">
+                Variants at or below their low-stock threshold.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1">
+                {lowStockCount} low stock
+              </span>
+              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
+                {outOfStockCount} out
+              </span>
+            </div>
+          </div>
+          {lowStockVariants.length === 0 ? (
+            <p className="mt-4 text-sm text-stone-500">
+              No low-stock variants found.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-xl border border-amber-200/70 bg-white">
+              <div className="grid grid-cols-1 gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-800 sm:grid-cols-[2fr_1fr_1fr_1fr]">
+                <div>Variant</div>
+                <div>Available</div>
+                <div>Threshold</div>
+                <div>Updated</div>
+              </div>
+              <div className="divide-y divide-black/10">
+                {lowStockVariants.map((variant) => (
+                  <div
+                    key={variant.id}
+                    className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_1fr_1fr_1fr]"
+                  >
+                    <div>
+                      <Link
+                        href={`/admin/catalog/${variant.productId}`}
+                        className="font-semibold text-stone-800 hover:text-stone-900"
+                      >
+                        {variant.productTitle}
+                      </Link>
+                      <div className="text-xs text-stone-500">
+                        {variant.title}
+                      </div>
+                    </div>
+                    <div className="font-semibold text-amber-800">
+                      {variant.available}
+                    </div>
+                    <div>{variant.threshold}</div>
+                    <div className="text-xs text-stone-500">
+                      {new Date(variant.updatedAt).toLocaleDateString("de-DE")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="mt-12 rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-2" style={{ color: "#2f3e36" }}>
             Back-in-stock requests
           </h2>

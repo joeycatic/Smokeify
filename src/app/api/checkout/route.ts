@@ -172,11 +172,12 @@ const createStripeCustomer = async (
   const name = fullName || user.name || undefined;
   const address = buildStripeAddress(user, fallbackCountry);
   if (!user.email && !name && !address) return null;
+  const shipping = address && name ? { name, address } : undefined;
   const customer = await stripe.customers.create({
     email: user.email ?? undefined,
     name,
     address,
-    shipping: address ? { name: name ?? undefined, address } : undefined,
+    shipping,
     metadata: { userId },
   });
   return customer.id;

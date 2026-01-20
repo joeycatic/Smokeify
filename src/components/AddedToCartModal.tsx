@@ -7,6 +7,7 @@ type AddedItem = {
   title: string;
   imageUrl?: string;
   imageAlt?: string;
+  price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
 };
@@ -33,7 +34,7 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full p-1 text-stone-500 hover:text-stone-700"
+            className="rounded-full p-1 text-stone-500 hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -45,6 +46,10 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
               src={item.imageUrl}
               alt={item.imageAlt ?? item.title}
               className="h-20 w-20 rounded-md object-cover"
+              loading="lazy"
+              decoding="async"
+              width={80}
+              height={80}
             />
           ) : (
             <div className="h-20 w-20 rounded-md bg-stone-100" />
@@ -59,14 +64,14 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-md border border-black/5 bg-[#E4C56C] px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-md border border-black/5 bg-[#E4C56C] px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Weiter shoppen
           </button>
           <Link
             href="/cart"
             onClick={onClose}
-            className="inline-flex items-center border-black/5 justify-center rounded-md bg-green-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800"
+            className="inline-flex items-center border-black/5 justify-center rounded-md bg-green-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Warenkorb anzeigen
           </Link>

@@ -87,12 +87,17 @@ export default function ReturnRequestForm({
                       [item.id]: event.target.checked ? 1 : 0,
                     }))
                   }
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
                     alt={item.name}
                     className="h-10 w-10 rounded-lg border border-black/10 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    width={40}
+                    height={40}
                   />
                 ) : (
                   <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
@@ -116,7 +121,7 @@ export default function ReturnRequestForm({
                       [item.id]: Number(event.target.value),
                     }))
                   }
-                  className="h-8 w-14 rounded-md border border-black/10 px-0 text-[11px] text-center"
+                  className="h-8 w-14 rounded-md border border-black/10 px-0 text-[11px] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
               )}
             </div>
@@ -129,7 +134,7 @@ export default function ReturnRequestForm({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           placeholder="Warum moechtest du zurueckgeben?"
         />
       </label>
@@ -143,7 +148,7 @@ export default function ReturnRequestForm({
         type="button"
         onClick={submit}
         disabled={!reason.trim() || status === "loading" || selectedCount === 0}
-        className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white disabled:opacity-50"
+        className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
       >
         {status === "loading" ? "Senden..." : "Rueckgabe anfragen"}
       </button>

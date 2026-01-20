@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 const parseRating = (value: unknown) => {
   const rating = Number(value);
@@ -22,7 +23,7 @@ const canUserReview = async (userId: string, productId: string) => {
     select: { id: true },
   });
   const variantIds = variants.map((variant) => variant.id);
-  const filters = [{ productId }];
+  const filters: Prisma.OrderItemWhereInput[] = [{ productId }];
   if (variantIds.length) {
     filters.push({ variantId: { in: variantIds } });
   }

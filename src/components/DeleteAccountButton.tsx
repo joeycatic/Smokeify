@@ -11,7 +11,7 @@ export default function DeleteAccountButton() {
   const [modalError, setModalError] = useState("");
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-stretch gap-1 sm:items-end">
       <button
         type="button"
         onClick={() => {
@@ -20,7 +20,7 @@ export default function DeleteAccountButton() {
           setModalOpen(true);
         }}
         disabled={status === "loading"}
-        className="inline-flex h-12 items-center rounded-md border border-red-200 bg-red-50 px-5 text-base font-semibold text-red-700 transition hover:border-red-300 hover:opacity-90 disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center rounded-md border border-red-200 bg-red-50 px-5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:opacity-90 disabled:opacity-60 sm:h-12 sm:w-auto sm:text-base"
       >
         {status === "loading" ? (
           <span className="inline-flex items-center gap-2">
@@ -33,7 +33,7 @@ export default function DeleteAccountButton() {
       </button>
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 text-sm text-stone-800 shadow-xl">
+          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Account löschen
             </h3>

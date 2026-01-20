@@ -77,6 +77,27 @@ const buildShippingLines = (order: OrderRow) => {
   return lines.filter((line) => Boolean(line?.trim())) as string[];
 };
 
+const formatTimelineDate = (value: string) =>
+  new Date(value).toLocaleString("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+const buildTimeline = (order: OrderRow) =>
+  [
+    { label: "Order created", at: order.createdAt },
+    {
+      label: "Confirmation email sent",
+      at: order.confirmationEmailSentAt ?? undefined,
+    },
+    { label: "Shipping email sent", at: order.shippingEmailSentAt ?? undefined },
+    { label: "Refund email sent", at: order.refundEmailSentAt ?? undefined },
+    { label: "Last updated", at: order.updatedAt },
+  ].filter((entry) => Boolean(entry.at)) as Array<{
+    label: string;
+    at: string;
+  }>;
+
 const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(status);
   const normalizedPayment = normalizeStatus(paymentStatus);
@@ -109,6 +130,7 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
 
 export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [trackingDrafts, setTrackingDrafts] = useState<
     Record<string, { carrier: string; number: string; url: string }>
@@ -145,17 +167,46 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     type: "confirmation" | "refund";
   } | null>(null);
 
-  const sorted = useMemo(() => orders, [orders]);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredOrders = useMemo(() => {
+    if (!normalizedQuery) return orders;
+    return orders.filter((order) => {
+      const email = order.user?.email?.toLowerCase() ?? "";
+      const name = order.user?.name?.toLowerCase() ?? "";
+      return (
+        order.id.toLowerCase().includes(normalizedQuery) ||
+        email.includes(normalizedQuery) ||
+        name.includes(normalizedQuery)
+      );
+    });
+  }, [orders, normalizedQuery]);
+
+  const sorted = useMemo(() => filteredOrders, [filteredOrders]);
+  const customerSummary = useMemo(() => {
+    if (!normalizedQuery) return null;
+    const matching = orders.filter((order) => {
+      const email = order.user?.email?.toLowerCase() ?? "";
+      return email && email.includes(normalizedQuery);
+    });
+    if (!matching.length) return null;
+    const total = matching.reduce((sum, order) => sum + order.amountTotal, 0);
+    return {
+      email: matching[0]?.user?.email ?? "Unknown",
+      orders: matching.length,
+      total,
+      currency: matching[0]?.currency ?? "EUR",
+    };
+  }, [orders, normalizedQuery]);
   const fulfilledCount = useMemo(
     () =>
-      orders.reduce((count, order) => {
+      filteredOrders.reduce((count, order) => {
         const normalizedStatus = normalizeStatus(order.status);
         return normalizedStatus === "fulfilled" ||
           normalizedStatus === "refunded"
           ? count + 1
           : count;
       }, 0),
-    [orders]
+    [filteredOrders]
   );
 
   const isConfirmationEmailSent = (order: OrderRow) =>
@@ -398,10 +449,40 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               </span>
             </div>
           </div>
-          <AdminThemeToggle />
+          <div className="flex flex-col items-end gap-3">
+            <AdminThemeToggle />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by email or order ID"
+              className="h-10 w-64 rounded-md border border-white/20 bg-white/10 px-3 text-xs text-white placeholder:text-white/70 outline-none focus:border-white/60"
+            />
+          </div>
         </div>
       </div>
 
+      {customerSummary && (
+        <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 text-sm text-sky-900 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-700/70">
+                Customer snapshot
+              </div>
+              <div className="mt-2 text-sm font-semibold">
+                {customerSummary.email}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-sky-700">
+                {customerSummary.orders} orders
+              </span>
+              <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-sky-700">
+                {formatPrice(customerSummary.total, customerSummary.currency)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
@@ -763,6 +844,34 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       </div>
                     </div>
                   </div>
+                  <div className="rounded-2xl border border-black/10 bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700/70">
+                          Timeline
+                        </p>
+                        <h3 className="mt-2 text-sm font-semibold text-stone-900">
+                          Order activity
+                        </h3>
+                      </div>
+                      <div className="h-1 w-10 rounded-full bg-emerald-400/70" />
+                    </div>
+                    <ol className="mt-4 space-y-3">
+                      {buildTimeline(order).map((entry, index) => (
+                        <li key={`${order.id}-${index}`} className="flex gap-3">
+                          <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                          <div>
+                            <div className="text-sm font-semibold text-stone-800">
+                              {entry.label}
+                            </div>
+                            <div className="text-xs text-stone-500">
+                              {formatTimelineDate(entry.at)}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
 
                   <div>
                     <div className="text-xs font-semibold text-stone-600 mb-2">
@@ -797,6 +906,10 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                   src={item.imageUrl}
                                   alt={item.name}
                                   className="h-10 w-10 rounded-lg border border-black/10 object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                  width={40}
+                                  height={40}
                                 />
                               ) : (
                                 <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
