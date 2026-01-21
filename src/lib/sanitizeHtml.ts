@@ -48,3 +48,17 @@ export const sanitizeProductDescription = (
 
   return cleaned.length ? cleaned : null;
 };
+
+export const sanitizePlainText = (value?: string | null): string | null => {
+  const raw = value?.trim();
+  if (!raw) return null;
+
+  const cleaned = sanitizeHtml(raw, {
+    allowedTags: [],
+    allowedAttributes: {},
+  })
+    .replace(/\s+\n/g, "\n")
+    .trim();
+
+  return cleaned.length ? cleaned : null;
+};

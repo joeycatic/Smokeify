@@ -25,6 +25,7 @@ export type Product = {
   handle: string;
   title: string;
   description: string | null;
+  shortDescription?: string | null;
   manufacturer: string | null;
   tags: string[];
   availableForSale: boolean;

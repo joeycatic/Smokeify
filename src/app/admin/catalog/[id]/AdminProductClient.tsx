@@ -39,6 +39,8 @@ type ProductDetail = {
   title: string;
   handle: string;
   description: string | null;
+  technicalDetails: string | null;
+  shortDescription: string | null;
   manufacturer: string | null;
   supplier: string | null;
   leadTimeDays: number | null;
@@ -84,6 +86,8 @@ export default function AdminProductClient({
     title: product.title,
     handle: product.handle,
     description: product.description ?? "",
+    technicalDetails: product.technicalDetails ?? "",
+    shortDescription: product.shortDescription ?? "",
     manufacturer: product.manufacturer ?? "",
     supplier: product.supplier ?? "",
     leadTimeDays: product.leadTimeDays ?? "",
@@ -782,6 +786,37 @@ export default function AdminProductClient({
           <p className="mt-2 text-[11px] text-stone-500">
             Use the toolbar to format text. Links and headings are supported.
           </p>
+        </div>
+        <label className="mt-4 block text-xs font-semibold text-stone-600">
+          Short description
+          <textarea
+            value={details.shortDescription}
+            onChange={(event) =>
+              setDetails((prev) => ({
+                ...prev,
+                shortDescription: event.target.value,
+              }))
+            }
+            rows={3}
+            placeholder="Short summary for product cards and PDP."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+          <span className="mt-1 block text-[11px] text-stone-500">
+            Plain text only. Use this for the product grid and a quick PDP
+            summary.
+          </span>
+        </label>
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-stone-600">
+            Technical details
+          </p>
+          <RichTextEditor
+            value={details.technicalDetails}
+            onChange={(next) =>
+              setDetails((prev) => ({ ...prev, technicalDetails: next }))
+            }
+            placeholder="Add technical specs, materials, sizes, or included items."
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
           <select

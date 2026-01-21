@@ -42,7 +42,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="group relative p-3">
         <div
           key={swerveKey}
@@ -87,7 +87,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
       </div>
 
       {count > 1 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-3 px-3">
           {images.slice(0, 8).map((img, imgIndex) => {
             const active = imgIndex === index;
             return (

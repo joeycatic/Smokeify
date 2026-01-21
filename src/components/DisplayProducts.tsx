@@ -22,6 +22,9 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
     <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
+        const descriptionText = formatShortText(
+          p.shortDescription ?? p.description ?? ""
+        );
         return (
           <Link
             key={p.id}
@@ -81,6 +84,11 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                       : "Ausverkauft"}
                   </p>
                 )}
+                {descriptionText && (
+                  <p className="mt-2 text-sm text-stone-600 line-clamp-2">
+                    {descriptionText}
+                  </p>
+                )}
 
                 {/* Price */}
                 <div className="mt-2 flex items-baseline gap-2">
@@ -119,6 +127,9 @@ export function DisplayProductsList({ products }: Props) {
     <div className="mt-6 grid grid-cols-1 gap-4">
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
+        const descriptionText = formatShortText(
+          p.shortDescription ?? p.description ?? ""
+        );
         return (
           <article
             key={p.id}
@@ -173,9 +184,9 @@ export function DisplayProductsList({ products }: Props) {
                       : "Ausverkauft"}
                   </p>
                 )}
-                {p.description && (
+                {descriptionText && (
                   <p className="text-sm text-stone-600 line-clamp-3">
-                    {p.description}
+                    {descriptionText}
                   </p>
                 )}
               </div>
@@ -264,4 +275,8 @@ function getProductImages(product: Product) {
   const images = product.images ?? [];
   if (images.length) return images;
   return product.featuredImage ? [product.featuredImage] : [];
+}
+
+function formatShortText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }

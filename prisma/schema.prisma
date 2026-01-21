@@ -180,6 +180,8 @@ model Product {
   title       String
   handle      String         @unique
   description String?
+  technicalDetails String?
+  shortDescription String?
   manufacturer String?
   supplier    String?
   leadTimeDays Int?

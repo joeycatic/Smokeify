@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CubeIcon,
-  DocumentTextIcon,
-  PlusIcon,
-} from "@heroicons/react/24/outline";
+import { CubeIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
 
 type ProductVariant = {
@@ -26,14 +22,21 @@ export default function ProductDetailClient({
   imageUrl,
   imageAlt,
 }: {
-  product: { id: string; title: string; descriptionHtml: string };
+  product: {
+    id: string;
+    title: string;
+    descriptionHtml: string;
+    technicalDetailsHtml?: string;
+    shortDescription?: string | null;
+  };
   variants: ProductVariant[];
   imageUrl?: string | null;
   imageAlt?: string | null;
 }) {
   const [quantity, setQuantity] = useState(1);
+  const [qtyPulse, setQtyPulse] = useState<"inc" | "dec" | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
-    variants?.[0]?.id ?? ""
+    variants?.[0]?.id ?? "",
   );
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifyStatus, setNotifyStatus] = useState<
@@ -43,7 +46,7 @@ export default function ProductDetailClient({
 
   const selectedVariant = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
-    [variants, selectedVariantId]
+    [variants, selectedVariantId],
   );
 
   const priceLabel = selectedVariant ? formatPrice(selectedVariant.price) : "";
@@ -129,19 +132,31 @@ export default function ProductDetailClient({
           <button
             type="button"
             aria-label="Menge verringern"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="h-11 w-11 text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            onClick={() => {
+              setQuantity((q) => Math.max(1, q - 1));
+              setQtyPulse("dec");
+              setTimeout(() => setQtyPulse(null), 160);
+            }}
+            className={`h-9 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
+              qtyPulse === "dec" ? "scale-95" : "scale-100"
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
           >
-            -
+            <span className="inline-block scale-x-150">-</span>
           </button>
-          <div className="h-11 w-12 grid place-items-center text-sm text-black/80">
+          <div className="h-9 w-10 grid place-items-center text-sm font-semibold text-black/80">
             {quantity}
           </div>
           <button
             type="button"
             aria-label="Menge erhoehen"
-            onClick={() => setQuantity((q) => q + 1)}
-            className="h-11 w-11 text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            onClick={() => {
+              setQuantity((q) => q + 1);
+              setQtyPulse("inc");
+              setTimeout(() => setQtyPulse(null), 160);
+            }}
+            className={`h-9 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
+              qtyPulse === "inc" ? "scale-105" : "scale-100"
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
           >
             +
           </button>
@@ -190,14 +205,14 @@ export default function ProductDetailClient({
 
             const beforeQty =
               cart?.lines.find(
-                (line) => line.merchandise.id === selectedVariantId
+                (line) => line.merchandise.id === selectedVariantId,
               )?.quantity ?? 0;
 
             try {
               const updated = await addToCart(selectedVariantId, quantity);
               const afterQty =
                 updated?.lines.find(
-                  (line) => line.merchandise.id === selectedVariantId
+                  (line) => line.merchandise.id === selectedVariantId,
                 )?.quantity ?? 0;
 
               if (afterQty > beforeQty) {
@@ -225,11 +240,11 @@ export default function ProductDetailClient({
               setTimeout(() => setToast(null), 1500);
             }
           }}
-          className={`h-12 w-full rounded-md bg-black px-4 text-sm font-semibold text-white transition-transform duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+          className={`h-12 w-full rounded-md bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
             addedPulse ? "scale-[1.03]" : "scale-100"
           }`}
         >
-          Add to Cart
+          In den Warenkorb
         </button>
       ) : (
         <form
@@ -267,13 +282,13 @@ export default function ProductDetailClient({
               }
               setNotifyStatus("ok");
               setNotifyMessage(
-                "Wir benachrichtigen dich, sobald der Artikel verfugbar ist."
+                "Wir benachrichtigen dich, sobald der Artikel verfugbar ist.",
               );
               setNotifyEmail("");
             } catch (error) {
               setNotifyStatus("error");
               setNotifyMessage(
-                "Speichern fehlgeschlagen. Bitte erneut versuchen."
+                "Speichern fehlgeschlagen. Bitte erneut versuchen.",
               );
             }
           }}
@@ -332,58 +347,70 @@ export default function ProductDetailClient({
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="rounded-md border border-black/10">
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
-                <DocumentTextIcon className="h-5 w-5 text-black/70" />
-                Beschreibung
-              </span>
-              <PlusIcon className="h-5 w-5 text-black/70 transition-transform group-open:rotate-45" />
-            </summary>
-            <div className="px-4 pb-4">
-              <div
-                className="product-description prose prose-sm max-w-none text-black/80"
-                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-              />
-            </div>
-          </details>
+      {product.shortDescription ? (
+        <div className="rounded-lg border border-black/10 bg-white/80 px-4 py-3 text-sm text-stone-700">
+          {product.shortDescription}
         </div>
+      ) : null}
 
-        <div className="rounded-md border border-black/10">
+      <div className="space-y-3">
+        {product.technicalDetailsHtml ? (
+          <div className="rounded-xl border border-black/10 bg-white">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                  <CubeIcon className="h-5 w-5 text-black/60" />
+                  Technische Details
+                </span>
+                <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
+              </summary>
+              <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
+                <div className="overflow-hidden px-5 pb-5">
+                  <div
+                    className="product-description"
+                    dangerouslySetInnerHTML={{
+                      __html: product.technicalDetailsHtml,
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
+          </div>
+        ) : null}
+        <div className="rounded-xl border border-black/10 bg-white">
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
-                <CubeIcon className="h-5 w-5 text-black/70" />
+                <CubeIcon className="h-5 w-5 text-black/60" />
                 Versand & Rücksendungen
               </span>
-              <PlusIcon className="h-5 w-5 text-black/70 transition-transform group-open:rotate-45" />
+              <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
             </summary>
-            <div className="px-4 pb-4 text-sm text-black/70">
-              <p>
-                Lieferzeit in der Regel 1-3 Werktage. Ruecksendungen innerhalb
-                von 14 Tagen moeglich.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
-                <a
-                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  href="/pages/shipping"
-                >
-                  Versanddetails
-                </a>
-                <a
-                  className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  href="/returns"
-                >
-                  Rücksendungen
-                </a>
+            <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
+              <div className="overflow-hidden px-5 pb-5 text-sm text-black/70">
+                <p>
+                  Lieferzeit in der Regel 1-3 Werktage nach Bestätigung der
+                  Verfügbarkeit. Ruecksendungen innerhalb von 14 Tagen möglich.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
+                  <a
+                    className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    href="/pages/shipping"
+                  >
+                    Versanddetails
+                  </a>
+                  <a
+                    className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    href="/pages/return"
+                  >
+                    Rücksendungen
+                  </a>
+                </div>
               </div>
             </div>
           </details>
         </div>
       </div>
-
     </div>
   );
 }

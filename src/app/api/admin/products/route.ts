@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
+import {
+  sanitizePlainText,
+  sanitizeProductDescription,
+} from "@/lib/sanitizeHtml";
 import { sanitizeProductDescription } from "@/lib/sanitizeHtml";
 
 export async function GET() {
@@ -35,6 +39,8 @@ export async function POST(request: Request) {
     title?: string;
     handle?: string;
     description?: string | null;
+    technicalDetails?: string | null;
+    shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
     leadTimeDays?: number | null;
@@ -85,6 +91,8 @@ export async function POST(request: Request) {
       title,
       handle,
       description: sanitizeProductDescription(body.description),
+      technicalDetails: sanitizeProductDescription(body.technicalDetails),
+      shortDescription: sanitizePlainText(body.shortDescription),
       manufacturer: body.manufacturer?.trim() || null,
       supplier: body.supplier?.trim() || null,
       leadTimeDays:

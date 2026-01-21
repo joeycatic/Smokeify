@@ -195,6 +195,8 @@ export async function getProductByHandle(handle: string) {
     handle: product.handle,
     title: product.title,
     description: product.description ?? "",
+    technicalDetails: product.technicalDetails ?? null,
+    shortDescription: product.shortDescription ?? null,
     manufacturer: product.manufacturer,
     images,
     variants,

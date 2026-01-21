@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
-import { sanitizeProductDescription } from "@/lib/sanitizeHtml";
+import {
+  sanitizePlainText,
+  sanitizeProductDescription,
+} from "@/lib/sanitizeHtml";
 
 export async function GET(
   request: NextRequest,
@@ -60,6 +63,8 @@ export async function PATCH(
     title?: string;
     handle?: string;
     description?: string | null;
+    technicalDetails?: string | null;
+    shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
     leadTimeDays?: number | null;
@@ -76,6 +81,8 @@ export async function PATCH(
     title?: string;
     handle?: string;
     description?: string | null;
+    technicalDetails?: string | null;
+    shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
     leadTimeDays?: number | null;
@@ -119,6 +126,16 @@ export async function PATCH(
 
   if (typeof body.description !== "undefined") {
     updates.description = sanitizeProductDescription(body.description);
+  }
+
+  if (typeof body.technicalDetails !== "undefined") {
+    updates.technicalDetails = sanitizeProductDescription(
+      body.technicalDetails
+    );
+  }
+
+  if (typeof body.shortDescription !== "undefined") {
+    updates.shortDescription = sanitizePlainText(body.shortDescription);
   }
 
   if (typeof body.manufacturer !== "undefined") {
