@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
+import { sanitizeProductDescription } from "@/lib/sanitizeHtml";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     data: {
       title,
       handle,
-      description: body.description?.trim() || null,
+      description: sanitizeProductDescription(body.description),
       manufacturer: body.manufacturer?.trim() || null,
       supplier: body.supplier?.trim() || null,
       leadTimeDays:

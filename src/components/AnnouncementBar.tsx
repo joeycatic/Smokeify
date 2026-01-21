@@ -6,14 +6,14 @@ import {
 
 export function AnnouncementBar() {
   const items = [
-    { icon: <ArrowPathIcon className="h-4 w-4" />, text: "14 Tage Rueckgabe" },
+    { icon: <ArrowPathIcon className="h-4 w-4" />, text: "14 Tage Rückgabe" },
     {
       icon: <CheckBadgeIcon className="h-4 w-4" />,
       text: "Top Onlineshop 2025-2026",
     },
     {
       icon: <TruckIcon className="h-4 w-4" />,
-      text: "Kostenloser Versand ab 69 EUR",
+      text: "Kostenloser Versand ab 40 EUR",
     },
     {
       icon: <CheckBadgeIcon className="h-4 w-4" />,
@@ -27,15 +27,18 @@ export function AnnouncementBar() {
       <div className="mx-auto px-0">
         <div className="relative flex h-10 items-center overflow-hidden">
           <div className="announcement-marquee flex items-center">
-            <div className="flex flex-none items-center gap-10">
+            <div className="flex flex-none items-center gap-30">
               {loopItems.map((item, idx) => (
                 <Item key={`a-${idx}`} icon={item.icon}>
                   {item.text}
                 </Item>
               ))}
             </div>
-            <div className="flex-none w-10" aria-hidden="true" />
-            <div className="flex flex-none items-center gap-10" aria-hidden="true">
+            <div className="flex flex-none w-10 gap-30" aria-hidden="true" />
+            <div
+              className="flex flex-none items-center gap-30"
+              aria-hidden="true"
+            >
               {loopItems.map((item, idx) => (
                 <Item key={`b-${idx}`} icon={item.icon}>
                   {item.text}

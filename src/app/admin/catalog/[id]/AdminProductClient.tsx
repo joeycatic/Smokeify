@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 type ImageItem = {
   id: string;
@@ -769,17 +770,19 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
-        <label className="mt-3 block text-xs font-semibold text-stone-600">
-          Description
-          <textarea
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-stone-600">Description</p>
+          <RichTextEditor
             value={details.description}
-            onChange={(event) =>
-              setDetails((prev) => ({ ...prev, description: event.target.value }))
+            onChange={(next) =>
+              setDetails((prev) => ({ ...prev, description: next }))
             }
-            rows={4}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            placeholder="Write a short, clear product description."
           />
-        </label>
+          <p className="mt-2 text-[11px] text-stone-500">
+            Use the toolbar to format text. Links and headings are supported.
+          </p>
+        </div>
         <div className="mt-3 flex flex-wrap gap-3">
           <select
             value={details.status}

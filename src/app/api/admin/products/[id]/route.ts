@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { sanitizeProductDescription } from "@/lib/sanitizeHtml";
 
 export async function GET(
   request: NextRequest,
@@ -117,7 +118,7 @@ export async function PATCH(
   }
 
   if (typeof body.description !== "undefined") {
-    updates.description = body.description?.trim() || null;
+    updates.description = sanitizeProductDescription(body.description);
   }
 
   if (typeof body.manufacturer !== "undefined") {

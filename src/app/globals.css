@@ -144,7 +144,7 @@ body {
 .announcement-marquee {
   display: flex;
   width: max-content;
-  animation: announcement-marquee 28s linear infinite;
+  animation: announcement-marquee 40s linear infinite;
 }
 
 @keyframes announcement-marquee {
@@ -161,6 +161,105 @@ body {
     animation: none;
     transform: translateX(0);
   }
+}
+
+.product-description {
+  color: #1f2937;
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+
+.product-description h2,
+.product-description h3,
+.product-description h4 {
+  color: #111827;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.product-description h2 {
+  font-size: 1.3rem;
+}
+
+.product-description h3 {
+  font-size: 1.15rem;
+}
+
+.product-description h4 {
+  font-size: 1.05rem;
+}
+
+.rich-text-editor h2,
+.rich-text-editor h3,
+.rich-text-editor h4 {
+  color: #111827;
+  font-weight: 600;
+  margin: 0.75rem 0 0.4rem;
+}
+
+.rich-text-editor h2 {
+  font-size: 1.25rem;
+}
+
+.rich-text-editor h3 {
+  font-size: 1.1rem;
+}
+
+.rich-text-editor p {
+  margin: 0 0 0.6rem;
+}
+
+.rich-text-editor .ProseMirror {
+  caret-color: #111827;
+}
+
+.rich-text-editor .ProseMirror ::selection {
+  background: rgba(47, 62, 54, 0.2);
+}
+
+.rich-text-editor .ProseMirror::-moz-selection,
+.rich-text-editor .ProseMirror ::-moz-selection {
+  background: rgba(47, 62, 54, 0.2);
+}
+
+.rich-text-editor ul,
+.rich-text-editor ol {
+  margin: 0 0 0.6rem;
+  padding-left: 1.25rem;
+}
+
+.product-description p {
+  margin: 0 0 0.75rem;
+}
+
+.product-description ul,
+.product-description ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.product-description li {
+  margin: 0.25rem 0;
+}
+
+.product-description a {
+  color: #2f3e36;
+  text-decoration: underline;
+  text-decoration-color: rgba(47, 62, 54, 0.35);
+  text-underline-offset: 3px;
+}
+
+.product-description blockquote {
+  margin: 0.75rem 0;
+  border-left: 3px solid rgba(47, 62, 54, 0.25);
+  padding-left: 0.75rem;
+  color: #374151;
+}
+
+.product-description hr {
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 1rem 0;
 }
 
 .admin-theme.admin-dark {

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type AdminActor = {
@@ -11,7 +12,7 @@ type AuditLogInput = {
   targetType?: string;
   targetId?: string;
   summary?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 };
 
 export async function logAdminAction(input: AuditLogInput) {
@@ -24,7 +25,7 @@ export async function logAdminAction(input: AuditLogInput) {
         targetType: input.targetType ?? null,
         targetId: input.targetId ?? null,
         summary: input.summary ?? null,
-        metadata: input.metadata ?? undefined,
+        metadata: input.metadata ?? Prisma.JsonNull,
       },
     });
   } catch {

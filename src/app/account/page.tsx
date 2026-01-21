@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getProductsByIds } from "@/lib/catalog";
 import PageLayout from "@/components/PageLayout";
 import SignOutButton from "@/components/SignOutButton";
 import DeleteAccountButton from "@/components/DeleteAccountButton";
@@ -32,7 +33,8 @@ export default async function AccountPage() {
     );
   }
 
-  const [setups, wishlistCount, user, orders] = await Promise.all([
+  const [setups, wishlistCount, wishlistItems, user, orders] =
+    await Promise.all([
     prisma.savedSetup.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -40,6 +42,12 @@ export default async function AccountPage() {
     }),
     prisma.wishlistItem.count({
       where: { userId: session.user.id },
+    }),
+    prisma.wishlistItem.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: { productId: true },
     }),
     prisma.user.findUnique({
       where: { id: session.user.id },
@@ -70,6 +78,9 @@ export default async function AccountPage() {
       },
     }),
   ]);
+  const wishlistPreview = await getProductsByIds(
+    wishlistItems.map((item) => item.productId)
+  );
   const setupItems = setups.map(
     (setup: { id: string; name: string | null; createdAt: Date }) => ({
       id: setup.id,
@@ -125,6 +136,7 @@ export default async function AccountPage() {
             country: user?.country ?? "",
           }}
           wishlistCount={wishlistCount}
+          wishlistPreview={wishlistPreview}
           setups={setupItems}
           orders={orderItems}
         />

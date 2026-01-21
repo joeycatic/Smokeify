@@ -344,7 +344,7 @@ export default function ProductDetailClient({
             </summary>
             <div className="px-4 pb-4">
               <div
-                className="prose prose-sm max-w-none text-black/80"
+                className="product-description prose prose-sm max-w-none text-black/80"
                 dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
               />
             </div>
