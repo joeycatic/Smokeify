@@ -7,6 +7,21 @@ import {
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
 
+const normalizeSellerUrl = (value?: string | null) => {
+  if (typeof value !== "string") return { ok: true, value: null };
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, value: null };
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return { ok: false, value: null };
+    }
+    return { ok: true, value: url.toString() };
+  } catch {
+    return { ok: false, value: null };
+  }
+};
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -67,6 +82,8 @@ export async function PATCH(
     shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
+    sellerName?: string | null;
+    sellerUrl?: string | null;
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -85,6 +102,8 @@ export async function PATCH(
     shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
+    sellerName?: string | null;
+    sellerUrl?: string | null;
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -144,6 +163,21 @@ export async function PATCH(
 
   if (typeof body.supplier !== "undefined") {
     updates.supplier = body.supplier?.trim() || null;
+  }
+
+  if (typeof body.sellerName !== "undefined") {
+    updates.sellerName = sanitizePlainText(body.sellerName);
+  }
+
+  if (typeof body.sellerUrl !== "undefined") {
+    const sellerUrlResult = normalizeSellerUrl(body.sellerUrl);
+    if (!sellerUrlResult.ok) {
+      return NextResponse.json(
+        { error: "Seller URL must be a valid http(s) link" },
+        { status: 400 }
+      );
+    }
+    updates.sellerUrl = sellerUrlResult.value;
   }
 
   if (typeof body.leadTimeDays !== "undefined") {

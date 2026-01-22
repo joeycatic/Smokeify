@@ -11,6 +11,8 @@ type ProductRow = {
   handle: string;
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   updatedAt: string;
+  sellerName?: string | null;
+  sellerUrl?: string | null;
   _count: { variants: number; images: number };
 };
 
@@ -67,6 +69,7 @@ export default function AdminCatalogClient({
   const [bulkCategoryId, setBulkCategoryId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [savingProductId, setSavingProductId] = useState<string | null>(null);
 
   const createProduct = async () => {
     if (!title.trim()) {
@@ -303,6 +306,64 @@ export default function AdminCatalogClient({
     handle: "",
     description: "",
   });
+
+  const updateProductField = (
+    id: string,
+    field: "sellerName" | "sellerUrl",
+    value: string
+  ) => {
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.id === id ? { ...product, [field]: value } : product
+      )
+    );
+  };
+
+  const saveSellerDetails = async (product: ProductRow) => {
+    setError("");
+    const sellerName = product.sellerName?.trim() ?? "";
+    const sellerUrl = product.sellerUrl?.trim() ?? "";
+    if (sellerUrl && !/^https?:\/\//i.test(sellerUrl)) {
+      setError("Seller URL must be a valid http(s) link");
+      return;
+    }
+
+    setSavingProductId(product.id);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerName: sellerName || null,
+          sellerUrl: sellerUrl || null,
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        product?: { sellerName?: string | null; sellerUrl?: string | null; updatedAt?: string };
+      };
+      if (!res.ok) {
+        setError(data.error ?? "Save failed");
+        return;
+      }
+      setProducts((prev) =>
+        prev.map((row) =>
+          row.id === product.id
+            ? {
+                ...row,
+                sellerName: data.product?.sellerName ?? (sellerName || null),
+                sellerUrl: data.product?.sellerUrl ?? (sellerUrl || null),
+                updatedAt: data.product?.updatedAt ?? row.updatedAt,
+              }
+            : row
+        )
+      );
+    } catch {
+      setError("Save failed");
+    } finally {
+      setSavingProductId(null);
+    }
+  };
 
   return (
     <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
@@ -590,6 +651,8 @@ export default function AdminCatalogClient({
                 <th className="pb-3">Variants</th>
                 <th className="pb-3">Images</th>
                 <th className="pb-3">Updated</th>
+                <th className="pb-3">Seller</th>
+                <th className="pb-3">Seller link</th>
                 <th className="pb-3 pr-4"></th>
               </tr>
             </thead>
@@ -623,26 +686,66 @@ export default function AdminCatalogClient({
                   <td className="py-3">
                     {new Date(product.updatedAt).toLocaleDateString("de-DE")}
                   </td>
+                  <td className="py-3 pr-3">
+                    <input
+                      type="text"
+                      value={product.sellerName ?? ""}
+                      onChange={(event) =>
+                        updateProductField(
+                          product.id,
+                          "sellerName",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Seller name"
+                      className="h-9 w-full min-w-[160px] rounded-md border border-black/15 px-2 text-xs"
+                    />
+                  </td>
+                  <td className="py-3 pr-3">
+                    <input
+                      type="url"
+                      value={product.sellerUrl ?? ""}
+                      onChange={(event) =>
+                        updateProductField(
+                          product.id,
+                          "sellerUrl",
+                          event.target.value
+                        )
+                      }
+                      placeholder="https://..."
+                      className="h-9 w-full min-w-[200px] rounded-md border border-black/15 px-2 text-xs"
+                    />
+                  </td>
                   <td className="py-3 pr-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(product.id)}
-                      className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-700 hover:border-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      disabled={deletingId === product.id}
-                      aria-label="Delete product"
-                    >
-                      {deletingId === product.id ? (
-                        <span className="text-xs font-semibold">Deleting...</span>
-                      ) : (
-                        <TrashIcon className="h-4 w-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveSellerDetails(product)}
+                        className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
+                        disabled={savingProductId === product.id}
+                      >
+                        {savingProductId === product.id ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(product.id)}
+                        className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-700 hover:border-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        disabled={deletingId === product.id}
+                        aria-label="Delete product"
+                      >
+                        {deletingId === product.id ? (
+                          <span className="text-xs font-semibold">Deleting...</span>
+                        ) : (
+                          <TrashIcon className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-stone-500">
+                  <td colSpan={9} className="py-6 text-center text-stone-500">
                     No products yet.
                   </td>
                 </tr>

@@ -184,6 +184,8 @@ model Product {
   shortDescription String?
   manufacturer String?
   supplier    String?
+  sellerName  String?
+  sellerUrl   String?
   leadTimeDays Int?
   weightGrams Int?
   lengthMm    Int?

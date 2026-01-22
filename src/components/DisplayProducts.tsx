@@ -22,9 +22,6 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
     <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
-        const descriptionText = formatShortText(
-          p.shortDescription ?? p.description ?? ""
-        );
         return (
           <Link
             key={p.id}
@@ -84,11 +81,6 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                       : "Ausverkauft"}
                   </p>
                 )}
-                {descriptionText && (
-                  <p className="mt-2 text-sm text-stone-600 line-clamp-2">
-                    {descriptionText}
-                  </p>
-                )}
 
                 {/* Price */}
                 <div className="mt-2 flex items-baseline gap-2">
@@ -127,9 +119,11 @@ export function DisplayProductsList({ products }: Props) {
     <div className="mt-6 grid grid-cols-1 gap-4">
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
-        const descriptionText = formatShortText(
-          p.shortDescription ?? p.description ?? ""
-        );
+        const descriptionSource =
+          p.shortDescription && p.shortDescription.trim()
+            ? p.shortDescription
+            : p.description ?? "";
+        const descriptionText = formatShortText(descriptionSource, 160);
         return (
           <article
             key={p.id}
@@ -185,7 +179,7 @@ export function DisplayProductsList({ products }: Props) {
                   </p>
                 )}
                 {descriptionText && (
-                  <p className="text-sm text-stone-600 line-clamp-3">
+                  <p className="hidden text-sm leading-6 text-stone-600/90 line-clamp-3 sm:block">
                     {descriptionText}
                   </p>
                 )}
@@ -277,6 +271,9 @@ function getProductImages(product: Product) {
   return product.featuredImage ? [product.featuredImage] : [];
 }
 
-function formatShortText(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+function formatShortText(value: string, maxChars?: number) {
+  const withoutTags = value.replace(/<[^>]*>/g, " ");
+  const cleaned = withoutTags.replace(/\s+/g, " ").trim();
+  if (!maxChars || cleaned.length <= maxChars) return cleaned;
+  return `${cleaned.slice(0, maxChars).trimEnd()}…`;
 }

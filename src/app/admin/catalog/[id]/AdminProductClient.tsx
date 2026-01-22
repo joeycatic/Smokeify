@@ -43,6 +43,8 @@ type ProductDetail = {
   shortDescription: string | null;
   manufacturer: string | null;
   supplier: string | null;
+  sellerName: string | null;
+  sellerUrl: string | null;
   leadTimeDays: number | null;
   weightGrams: number | null;
   lengthMm: number | null;
@@ -90,6 +92,8 @@ export default function AdminProductClient({
     shortDescription: product.shortDescription ?? "",
     manufacturer: product.manufacturer ?? "",
     supplier: product.supplier ?? "",
+    sellerName: product.sellerName ?? "",
+    sellerUrl: product.sellerUrl ?? "",
     leadTimeDays: product.leadTimeDays ?? "",
     weightGrams: product.weightGrams ?? "",
     lengthMm: product.lengthMm ?? "",
@@ -157,6 +161,10 @@ export default function AdminProductClient({
     setMessage("");
     setError("");
     setHandleError("");
+    if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
+      setError("Seller URL must be a valid http(s) link");
+      return;
+    }
     try {
       const tags = details.tags
         .split(",")
@@ -627,6 +635,31 @@ export default function AdminProductClient({
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
           </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Seller name
+            <input
+              value={details.sellerName}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
+              }
+              placeholder="e.g. Growmart"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600 md:col-span-2">
+            Seller link
+            <input
+              type="url"
+              value={details.sellerUrl}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerUrl: event.target.value }))
+              }
+              placeholder="https://seller.example/product"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-stone-600">
             Lead time (days)
             <input
