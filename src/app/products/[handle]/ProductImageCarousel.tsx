@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 type ImageItem = {
@@ -22,6 +22,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     "left" | "right" | null
   >(null);
   const [swerveKey, setSwerveKey] = useState(0);
+  const thumbnailsRef = useRef<HTMLDivElement | null>(null);
+  const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const count = images.length;
   const current = images[index];
 
@@ -40,6 +42,20 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     setSwerveKey((prev) => prev + 1);
     setIndex((prev) => (prev + 1) % count);
   };
+
+  useEffect(() => {
+    const container = thumbnailsRef.current;
+    const target = thumbnailRefs.current[index];
+    if (!container || !target) return;
+
+    const containerWidth = container.clientWidth;
+    const targetCenter = target.offsetLeft + target.offsetWidth / 2;
+    const nextScrollLeft = targetCenter - containerWidth / 2;
+    const maxScrollLeft = container.scrollWidth - containerWidth;
+    const clampedScrollLeft = Math.max(0, Math.min(maxScrollLeft, nextScrollLeft));
+
+    container.scrollTo({ left: clampedScrollLeft, behavior: "smooth" });
+  }, [index]);
 
   return (
     <div className="space-y-2">
@@ -87,15 +103,21 @@ export default function ProductImageCarousel({ images, alt }: Props) {
       </div>
 
       {count > 1 && (
-        <div className="grid grid-cols-4 gap-3 px-3">
-          {images.slice(0, 8).map((img, imgIndex) => {
+        <div
+          ref={thumbnailsRef}
+          className="flex gap-3 overflow-x-auto px-3 pb-1 scroll-px-3 scroll-smooth snap-x snap-mandatory"
+        >
+          {images.map((img, imgIndex) => {
             const active = imgIndex === index;
             return (
               <button
                 key={img.url}
                 type="button"
                 onClick={() => setIndex(imgIndex)}
-                className={`overflow-hidden rounded-xl border bg-white p-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                ref={(el) => {
+                  thumbnailRefs.current[imgIndex] = el;
+                }}
+                className={`shrink-0 snap-start overflow-hidden rounded-xl border bg-white p-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   active
                     ? "border-black ring-2 ring-black/20"
                     : "border-black/10 hover:border-black/25"
@@ -105,11 +127,11 @@ export default function ProductImageCarousel({ images, alt }: Props) {
                 <Image
                   src={img.url}
                   alt={img.altText ?? alt}
-                  width={200}
-                  height={200}
-                  className="h-24 w-full rounded-lg object-cover"
+                  width={100}
+                  height={100}
+                  className="h-28 w-28 rounded-lg object-cover"
                   loading="lazy"
-                  sizes="25vw"
+                  sizes="128px"
                 />
               </button>
             );

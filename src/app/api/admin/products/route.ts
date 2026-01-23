@@ -136,6 +136,7 @@ export async function POST(request: Request) {
       variants: {
         create: {
           title: "Default",
+          sku: handle,
           priceCents: 0,
           position: 0,
           inventory: {

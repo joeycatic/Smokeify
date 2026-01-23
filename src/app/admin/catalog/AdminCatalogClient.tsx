@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
@@ -30,6 +30,7 @@ type Props = {
 };
 
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
+type SortKey = "title" | "status" | "variants" | "images" | "updatedAt";
 
 export default function AdminCatalogClient({
   initialProducts,
@@ -37,16 +38,19 @@ export default function AdminCatalogClient({
   initialCollections,
 }: Props) {
   const [products, setProducts] = useState<ProductRow[]>(initialProducts);
+  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createHandle, setCreateHandle] = useState("");
+  const [createError, setCreateError] = useState("");
   const [categories, setCategories] =
     useState<CategoryRow[]>(initialCategories);
   const [collections, setCollections] =
     useState<CategoryRow[]>(initialCollections);
-  const [title, setTitle] = useState("");
-  const [handle, setHandle] = useState("");
-  const [status, setStatus] = useState<ProductRow["status"]>("DRAFT");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [handleError, setHandleError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -54,7 +58,7 @@ export default function AdminCatalogClient({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<ProductRow["status"] | "">("");
   const [bulkPriceMode, setBulkPriceMode] = useState<"percent" | "fixed">(
-    "percent"
+    "percent",
   );
   const [bulkPriceDirection, setBulkPriceDirection] = useState<
     "increase" | "decrease"
@@ -69,21 +73,130 @@ export default function AdminCatalogClient({
   const [bulkCategoryId, setBulkCategoryId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [savingProductId, setSavingProductId] = useState<string | null>(null);
 
-  const createProduct = async () => {
-    if (!title.trim()) {
-      setError("Title is required");
+  const sortedProducts = useMemo(() => {
+    const sorted = [...products];
+    const direction = sortDirection === "asc" ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case "title":
+          return a.title.localeCompare(b.title) * direction;
+        case "status":
+          return a.status.localeCompare(b.status) * direction;
+        case "variants":
+          return (a._count.variants - b._count.variants) * direction;
+        case "images":
+          return (a._count.images - b._count.images) * direction;
+        case "updatedAt":
+          return (
+            (new Date(a.updatedAt).getTime() -
+              new Date(b.updatedAt).getTime()) *
+            direction
+          );
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [products, sortDirection, sortKey]);
+
+  const visibleProducts = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return sortedProducts;
+    return sortedProducts.filter((product) => {
+      const title = product.title.toLowerCase();
+      const handle = product.handle.toLowerCase();
+      return title.includes(query) || handle.includes(query);
+    });
+  }, [searchTerm, sortedProducts]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
+
+  const renderSortArrow = (key: SortKey) => {
+    if (sortKey !== key) {
+      return (
+        <svg
+          viewBox="0 0 20 20"
+          className="h-3 w-3 text-emerald-700/40"
+          aria-hidden="true"
+        >
+          <path
+            d="M6 8l4-4 4 4M6 12l4 4 4-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+    const activeArrowClass = "h-3 w-3 text-amber-600";
+
+    return sortDirection === "asc" ? (
+      <svg
+        viewBox="0 0 20 20"
+        className={activeArrowClass}
+        aria-hidden="true"
+      >
+        <path
+          d="M6 12l4-4 4 4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ) : (
+      <svg
+        viewBox="0 0 20 20"
+        className={activeArrowClass}
+        aria-hidden="true"
+      >
+        <path
+          d="M6 8l4 4 4-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  };
+
+  const createProduct = async (productTitle: string, handle?: string) => {
+    const title = productTitle.trim();
+    if (!title) {
+      setCreateError("Title is required");
+      return;
+    }
+    const normalizedHandle = handle?.trim() ?? "";
+    if (!normalizedHandle) {
+      setCreateError("Handle is required");
       return;
     }
     setSaving(true);
-    setError("");
-    setHandleError("");
+    setCreateError("");
     try {
       const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, handle, status }),
+        body: JSON.stringify({
+          title,
+          handle: normalizedHandle,
+          status: "DRAFT",
+        }),
       });
       const data = (await res.json()) as {
         product?: ProductRow;
@@ -91,20 +204,17 @@ export default function AdminCatalogClient({
       };
       if (!res.ok || !data.product) {
         const errorMessage = data.error ?? "Create failed";
-        setError(errorMessage);
-        if (errorMessage.toLowerCase().includes("handle")) {
-          setHandleError(errorMessage);
-        }
+        setCreateError(errorMessage);
         return;
       }
       const created = data.product;
       if (!created) return;
       setProducts((prev) => [created, ...prev]);
-      setTitle("");
-      setHandle("");
-      setStatus("DRAFT");
+      setCreateTitle("");
+      setCreateHandle("");
+      setCreateOpen(false);
     } catch {
-      setError("Create failed");
+      setCreateError("Create failed");
     } finally {
       setSaving(false);
     }
@@ -132,7 +242,7 @@ export default function AdminCatalogClient({
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
@@ -231,7 +341,7 @@ export default function AdminCatalogClient({
 
   const upsertCategory = async (
     item: CategoryRow,
-    type: "category" | "collection"
+    type: "category" | "collection",
   ) => {
     const url =
       type === "category"
@@ -254,7 +364,7 @@ export default function AdminCatalogClient({
 
   const deleteCategory = async (
     id: string,
-    type: "category" | "collection"
+    type: "category" | "collection",
   ) => {
     const url =
       type === "category"
@@ -275,7 +385,7 @@ export default function AdminCatalogClient({
 
   const createLabel = async (
     payload: { name: string; handle: string; description?: string },
-    type: "category" | "collection"
+    type: "category" | "collection",
   ) => {
     const url =
       type === "category" ? "/api/admin/categories" : "/api/admin/collections";
@@ -306,64 +416,6 @@ export default function AdminCatalogClient({
     handle: "",
     description: "",
   });
-
-  const updateProductField = (
-    id: string,
-    field: "sellerName" | "sellerUrl",
-    value: string
-  ) => {
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === id ? { ...product, [field]: value } : product
-      )
-    );
-  };
-
-  const saveSellerDetails = async (product: ProductRow) => {
-    setError("");
-    const sellerName = product.sellerName?.trim() ?? "";
-    const sellerUrl = product.sellerUrl?.trim() ?? "";
-    if (sellerUrl && !/^https?:\/\//i.test(sellerUrl)) {
-      setError("Seller URL must be a valid http(s) link");
-      return;
-    }
-
-    setSavingProductId(product.id);
-    try {
-      const res = await fetch(`/api/admin/products/${product.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sellerName: sellerName || null,
-          sellerUrl: sellerUrl || null,
-        }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        product?: { sellerName?: string | null; sellerUrl?: string | null; updatedAt?: string };
-      };
-      if (!res.ok) {
-        setError(data.error ?? "Save failed");
-        return;
-      }
-      setProducts((prev) =>
-        prev.map((row) =>
-          row.id === product.id
-            ? {
-                ...row,
-                sellerName: data.product?.sellerName ?? (sellerName || null),
-                sellerUrl: data.product?.sellerUrl ?? (sellerUrl || null),
-                updatedAt: data.product?.updatedAt ?? row.updatedAt,
-              }
-            : row
-        )
-      );
-    } catch {
-      setError("Save failed");
-    } finally {
-      setSavingProductId(null);
-    }
-  };
 
   return (
     <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
@@ -465,7 +517,7 @@ export default function AdminCatalogClient({
                     value={bulkStatus}
                     onChange={(event) =>
                       setBulkStatus(
-                        event.target.value as ProductRow["status"] | ""
+                        event.target.value as ProductRow["status"] | "",
                       )
                     }
                     className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-2 text-sm"
@@ -498,7 +550,7 @@ export default function AdminCatalogClient({
                       value={bulkPriceDirection}
                       onChange={(event) =>
                         setBulkPriceDirection(
-                          event.target.value as "increase" | "decrease"
+                          event.target.value as "increase" | "decrease",
                         )
                       }
                       className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
@@ -518,7 +570,7 @@ export default function AdminCatalogClient({
                       value={bulkPriceMode}
                       onChange={(event) =>
                         setBulkPriceMode(
-                          event.target.value as "percent" | "fixed"
+                          event.target.value as "percent" | "fixed",
                         )
                       }
                       className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
@@ -535,7 +587,7 @@ export default function AdminCatalogClient({
                       value={bulkCategoryAction}
                       onChange={(event) =>
                         setBulkCategoryAction(
-                          event.target.value as "add" | "remove"
+                          event.target.value as "add" | "remove",
                         )
                       }
                       className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
@@ -584,59 +636,50 @@ export default function AdminCatalogClient({
           )}
         </div>
         <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-white/90 p-4 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,180px)_minmax(0,120px)]">
-            <input
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Product title"
-              className="h-11 min-w-0 rounded-md border border-black/15 px-3 text-sm"
-            />
-            <label className="block">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-stone-400"
+                aria-hidden="true"
+              >
+                <path
+                  d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               <input
-                type="text"
-                value={handle}
-                onChange={(event) => {
-                  setHandleError("");
-                  setHandle(event.target.value);
-                }}
-                placeholder="Handle (optional)"
-                className="h-11 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by product name"
+                className="w-full bg-transparent text-sm text-stone-700 outline-none"
               />
-              {handleError && (
-                <span className="mt-1 block text-[11px] font-medium text-red-600">
-                  {handleError}
-                </span>
-              )}
             </label>
-            <select
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as ProductRow["status"])
-              }
-              className="h-11 min-w-0 rounded-md border border-black/15 bg-white px-2 text-sm"
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
             <button
               type="button"
-              onClick={createProduct}
+              onClick={() => {
+                setCreateError("");
+                setCreateTitle("");
+                setCreateHandle("");
+                setCreateOpen(true);
+              }}
               disabled={saving}
-              className="h-11 w-full rounded-md bg-[#2f3e36] text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
+              className="h-11 rounded-md bg-[#2f3e36] px-6 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Create"}
+              {saving ? "Saving..." : "Create product"}
             </button>
           </div>
         </div>
-        <div className="mt-6 overflow-x-auto rounded-2xl border border-black/10 bg-white px-4 pt-4 pb-2">
+        <div className="mt-6 max-h-[420px] overflow-x-auto overflow-y-auto rounded-2xl border border-black/10 bg-white px-4 pb-2">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-widest text-emerald-700/70">
+            <thead className="sticky top-0 z-20 bg-white text-sm uppercase tracking-[0.2em] text-emerald-700/70 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
               <tr>
-                <th className="pb-3 pl-4">
+                <th className="bg-white py-4 pl-4">
                   <input
                     type="checkbox"
                     checked={
@@ -646,18 +689,81 @@ export default function AdminCatalogClient({
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="pb-3">Title</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Variants</th>
-                <th className="pb-3">Images</th>
-                <th className="pb-3">Updated</th>
-                <th className="pb-3">Seller</th>
-                <th className="pb-3">Seller link</th>
-                <th className="pb-3 pr-4"></th>
+                <th className="bg-white py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("title")}
+                    className={`inline-flex items-center gap-2 ${
+                      sortKey === "title"
+                        ? "text-amber-600"
+                        : "text-emerald-700/70 hover:text-emerald-700"
+                    }`}
+                  >
+                    Title
+                    {renderSortArrow("title")}
+                  </button>
+                </th>
+                <th className="bg-white py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("status")}
+                    className={`inline-flex items-center gap-2 ${
+                      sortKey === "status"
+                        ? "text-amber-600"
+                        : "text-emerald-700/70 hover:text-emerald-700"
+                    }`}
+                  >
+                    Status
+                    {renderSortArrow("status")}
+                  </button>
+                </th>
+                <th className="bg-white py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("variants")}
+                    className={`inline-flex items-center gap-2 ${
+                      sortKey === "variants"
+                        ? "text-amber-600"
+                        : "text-emerald-700/70 hover:text-emerald-700"
+                    }`}
+                  >
+                    Variants
+                    {renderSortArrow("variants")}
+                  </button>
+                </th>
+                <th className="bg-white py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("images")}
+                    className={`inline-flex items-center gap-2 ${
+                      sortKey === "images"
+                        ? "text-amber-600"
+                        : "text-emerald-700/70 hover:text-emerald-700"
+                    }`}
+                  >
+                    Images
+                    {renderSortArrow("images")}
+                  </button>
+                </th>
+                <th className="bg-white py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("updatedAt")}
+                    className={`inline-flex items-center gap-2 ${
+                      sortKey === "updatedAt"
+                        ? "text-amber-600"
+                        : "text-emerald-700/70 hover:text-emerald-700"
+                    }`}
+                  >
+                    Updated
+                    {renderSortArrow("updatedAt")}
+                  </button>
+                </th>
+                <th className="bg-white py-4 pr-4"></th>
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
+              {visibleProducts.map((product) => (
                 <tr
                   key={product.id}
                   className="border-t border-black/10 hover:bg-emerald-50/60"
@@ -686,46 +792,8 @@ export default function AdminCatalogClient({
                   <td className="py-3">
                     {new Date(product.updatedAt).toLocaleDateString("de-DE")}
                   </td>
-                  <td className="py-3 pr-3">
-                    <input
-                      type="text"
-                      value={product.sellerName ?? ""}
-                      onChange={(event) =>
-                        updateProductField(
-                          product.id,
-                          "sellerName",
-                          event.target.value
-                        )
-                      }
-                      placeholder="Seller name"
-                      className="h-9 w-full min-w-[160px] rounded-md border border-black/15 px-2 text-xs"
-                    />
-                  </td>
-                  <td className="py-3 pr-3">
-                    <input
-                      type="url"
-                      value={product.sellerUrl ?? ""}
-                      onChange={(event) =>
-                        updateProductField(
-                          product.id,
-                          "sellerUrl",
-                          event.target.value
-                        )
-                      }
-                      placeholder="https://..."
-                      className="h-9 w-full min-w-[200px] rounded-md border border-black/15 px-2 text-xs"
-                    />
-                  </td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => saveSellerDetails(product)}
-                        className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
-                        disabled={savingProductId === product.id}
-                      >
-                        {savingProductId === product.id ? "Saving..." : "Save"}
-                      </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(product.id)}
@@ -734,7 +802,9 @@ export default function AdminCatalogClient({
                         aria-label="Delete product"
                       >
                         {deletingId === product.id ? (
-                          <span className="text-xs font-semibold">Deleting...</span>
+                          <span className="text-xs font-semibold">
+                            Deleting...
+                          </span>
                         ) : (
                           <TrashIcon className="h-4 w-4" />
                         )}
@@ -743,10 +813,12 @@ export default function AdminCatalogClient({
                   </td>
                 </tr>
               ))}
-              {products.length === 0 && (
+              {visibleProducts.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-6 text-center text-stone-500">
-                    No products yet.
+                  <td colSpan={7} className="py-6 text-center text-stone-500">
+                    {searchTerm.trim()
+                      ? "No matching products."
+                      : "No products yet."}
                   </td>
                 </tr>
               )}
@@ -811,8 +883,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, name: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="e.g. Grow tents"
@@ -828,8 +900,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, handle: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="grow-tents"
@@ -845,8 +917,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, description: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="Short note for this category"
@@ -989,8 +1061,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, name: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="e.g. New arrivals"
@@ -1006,8 +1078,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, handle: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="new-arrivals"
@@ -1023,8 +1095,8 @@ export default function AdminCatalogClient({
                             prev.map((row) =>
                               row.id === item.id
                                 ? { ...row, description: event.target.value }
-                                : row
-                            )
+                                : row,
+                            ),
                           )
                         }
                         placeholder="Short note for this collection"
@@ -1100,7 +1172,7 @@ export default function AdminCatalogClient({
                 onClick={async () => {
                   const created = await createLabel(
                     newCollection,
-                    "collection"
+                    "collection",
                   );
                   if (created) {
                     setCollections((prev) => [...prev, created]);
@@ -1115,6 +1187,67 @@ export default function AdminCatalogClient({
           </div>
         </div>
       </section>
+
+      {createOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setCreateOpen(false)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Create product
+            </h3>
+            <div className="mt-4 space-y-3">
+              <label className="block text-xs font-semibold text-stone-600">
+                Title
+                <input
+                  type="text"
+                  value={createTitle}
+                  onChange={(event) => setCreateTitle(event.target.value)}
+                  placeholder="Product title"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-stone-600">
+                Handle
+                <input
+                  type="text"
+                  value={createHandle}
+                  onChange={(event) => setCreateHandle(event.target.value)}
+                  placeholder="product-handle"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  required
+                />
+              </label>
+              {createError && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                  {createError}
+                </p>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void createProduct(createTitle, createHandle)}
+                className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white"
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

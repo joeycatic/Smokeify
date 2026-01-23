@@ -18,6 +18,7 @@ const mapProduct = (product: {
   title: string;
   handle: string;
   description: string | null;
+  shortDescription: string | null;
   manufacturer: string | null;
   tags: string[];
   variants: Array<{
@@ -74,6 +75,7 @@ const mapProduct = (product: {
     handle: product.handle,
     title: product.title,
     description: product.description,
+    shortDescription: product.shortDescription,
     manufacturer: product.manufacturer,
     tags: product.tags ?? [],
     availableForSale,

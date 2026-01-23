@@ -148,7 +148,7 @@ export default function ProductDetailClient({
           </div>
           <button
             type="button"
-            aria-label="Menge erhoehen"
+            aria-label="Menge erhöhen"
             onClick={() => {
               setQuantity((q) => q + 1);
               setQtyPulse("inc");
@@ -348,8 +348,10 @@ export default function ProductDetailClient({
       )}
 
       {product.shortDescription ? (
-        <div className="rounded-lg border border-black/10 bg-white/80 px-4 py-3 text-sm text-stone-700">
-          {product.shortDescription}
+        <div className="rounded-lg border border-black/10 bg-white/80 px-4 py-3 text-[15px] leading-6 text-stone-700 shadow-sm">
+          <div className="border-l-2 border-emerald-700/40 pl-3">
+            {product.shortDescription}
+          </div>
         </div>
       ) : null}
 

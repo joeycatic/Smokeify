@@ -25,7 +25,7 @@ export default async function ProductDetailPage({
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-2xl bg-stone-100">
+            <div className="relative rounded-2xl bg-stone-100">
               <ProductImageCarousel images={images} alt={product.title} />
               {hasDiscount && (
                 <span className="absolute left-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-black shadow">

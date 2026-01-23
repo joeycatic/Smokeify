@@ -138,6 +138,7 @@ export default function AdminProductClient({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [shippingOpen, setShippingOpen] = useState(false);
+  const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
 
   const [newImage, setNewImage] = useState({
@@ -677,18 +678,19 @@ export default function AdminProductClient({
             />
           </label>
         </div>
-        <div className="mt-4 rounded-lg border border-[#2f3e36]/10 bg-[#f8fbf6] p-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold text-[#2f3e36]">
+        <div className="mt-4 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+          <button
+            type="button"
+            onClick={() => setShippingOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-3 text-left"
+            aria-expanded={shippingOpen}
+          >
+            <p className="text-sm font-semibold text-amber-700">
               Shipping & dimensions
             </p>
-            <button
-              type="button"
-              onClick={() => setShippingOpen((prev) => !prev)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#2f3e36]/20 text-[#2f3e36] transition hover:border-[#2f3e36]/40"
-              aria-label={
-                shippingOpen ? "Collapse shipping & dimensions" : "Expand shipping & dimensions"
-              }
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-amber-700 transition hover:border-amber-300"
+              aria-hidden="true"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -704,8 +706,8 @@ export default function AdminProductClient({
                   strokeLinejoin="round"
                 />
               </svg>
-            </button>
-          </div>
+            </span>
+          </button>
           {shippingOpen && (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="text-xs font-semibold text-stone-600">
@@ -807,49 +809,92 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
-        <div className="mt-3">
-          <p className="text-xs font-semibold text-stone-600">Description</p>
-          <RichTextEditor
-            value={details.description}
-            onChange={(next) =>
-              setDetails((prev) => ({ ...prev, description: next }))
-            }
-            placeholder="Write a short, clear product description."
-          />
-          <p className="mt-2 text-[11px] text-stone-500">
-            Use the toolbar to format text. Links and headings are supported.
-          </p>
-        </div>
-        <label className="mt-4 block text-xs font-semibold text-stone-600">
-          Short description
-          <textarea
-            value={details.shortDescription}
-            onChange={(event) =>
-              setDetails((prev) => ({
-                ...prev,
-                shortDescription: event.target.value,
-              }))
-            }
-            rows={3}
-            placeholder="Short summary for product cards and PDP."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-          <span className="mt-1 block text-[11px] text-stone-500">
-            Plain text only. Use this for the product grid and a quick PDP
-            summary.
-          </span>
-        </label>
-        <div className="mt-4">
-          <p className="text-xs font-semibold text-stone-600">
-            Technical details
-          </p>
-          <RichTextEditor
-            value={details.technicalDetails}
-            onChange={(next) =>
-              setDetails((prev) => ({ ...prev, technicalDetails: next }))
-            }
-            placeholder="Add technical specs, materials, sizes, or included items."
-          />
+        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+          <button
+            type="button"
+            onClick={() => setDescriptionsOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-3 text-left"
+            aria-expanded={descriptionsOpen}
+          >
+            <p className="text-sm font-semibold text-amber-700">
+              Descriptions
+            </p>
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-amber-700 transition hover:border-amber-300"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 transition-transform ${
+                  descriptionsOpen ? "rotate-180" : "rotate-0"
+                }`}
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          {descriptionsOpen && (
+            <div className="mt-3 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-stone-600">
+                  Description
+                </p>
+                <RichTextEditor
+                  value={details.description}
+                  onChange={(next) =>
+                    setDetails((prev) => ({ ...prev, description: next }))
+                  }
+                  placeholder="Write a short, clear product description."
+                />
+                <p className="mt-2 text-[11px] text-stone-500">
+                  Use the toolbar to format text. Links and headings are
+                  supported.
+                </p>
+              </div>
+              <label className="block text-xs font-semibold text-stone-600">
+                Short description
+                <textarea
+                  value={details.shortDescription}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      shortDescription: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="Short summary for product cards and PDP."
+                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                />
+                <span className="mt-1 block text-[11px] text-stone-500">
+                  Plain text only. Use this for the product grid and a quick PDP
+                  summary.
+                </span>
+              </label>
+              <div>
+                <p className="text-xs font-semibold text-stone-600">
+                  Technical details
+                </p>
+                <RichTextEditor
+                  value={details.technicalDetails}
+                  onChange={(next) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      technicalDetails: next,
+                    }))
+                  }
+                  placeholder="Add technical specs, materials, sizes, or included items."
+                />
+              </div>
+            </div>
+          )}
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
           <select

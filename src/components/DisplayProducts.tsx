@@ -119,11 +119,10 @@ export function DisplayProductsList({ products }: Props) {
     <div className="mt-6 grid grid-cols-1 gap-4">
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
-        const descriptionSource =
-          p.shortDescription && p.shortDescription.trim()
-            ? p.shortDescription
-            : p.description ?? "";
-        const descriptionText = formatShortText(descriptionSource, 160);
+        const descriptionSource = p.shortDescription?.trim() ?? "";
+        const descriptionText = descriptionSource
+          ? formatShortText(descriptionSource, 160)
+          : "";
         return (
           <article
             key={p.id}
@@ -140,15 +139,19 @@ export function DisplayProductsList({ products }: Props) {
                   className="aspect-square overflow-hidden rounded-lg bg-stone-100"
                   imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
-                {p.compareAtPrice && (
-                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
-                    Sale
-                  </span>
-                )}
-                {p.availableForSale && showLowStock && (
-                  <span className="absolute left-3 top-12 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
-                    Low stock
-                  </span>
+                {(p.compareAtPrice || (p.availableForSale && showLowStock)) && (
+                  <div className="absolute left-3 top-3 flex flex-col gap-2">
+                    {p.compareAtPrice && (
+                      <span className="rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                        Sale
+                      </span>
+                    )}
+                    {p.availableForSale && showLowStock && (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
+                        Low stock
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </Link>
