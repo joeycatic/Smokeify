@@ -313,7 +313,7 @@ model Order {
   orderNumber          Int         @unique @default(autoincrement())
   userId               String
   stripeSessionId      String      @unique
-  stripePaymentIntent  String?
+  stripePaymentIntent  String?     @unique
   status               String
   paymentStatus        String
   currency             String
@@ -344,6 +344,9 @@ model Order {
   items     OrderItem[]
   returnRequests ReturnRequest[]
 
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId])
   @@index([userId, createdAt])
 }
 
@@ -372,6 +375,8 @@ model OrderItem {
   quantity     Int
   unitAmount   Int
   totalAmount  Int
+  taxAmount    Int      @default(0)
+  taxRateBasisPoints Int?
   currency     String
   imageUrl     String?
   productId    String?

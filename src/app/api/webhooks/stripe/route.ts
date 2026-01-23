@@ -77,13 +77,45 @@ const formatItemName = (name: string, manufacturer?: string | null) => {
   return name.replace(defaultSuffix, "");
 };
 
+type LineItemWithTax = Stripe.LineItem & {
+  tax_amounts?: Array<{
+    amount?: number | null;
+    tax_rate?: Stripe.TaxRate | string | null;
+  }>;
+  amount_tax?: number | null;
+};
+
+const getLineItemTaxAmount = (item: LineItemWithTax) => {
+  const taxAmounts = item.tax_amounts ?? [];
+  if (taxAmounts.length > 0) {
+    return taxAmounts.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+  }
+  const legacyAmount = (item as { amount_tax?: number }).amount_tax;
+  return Number.isFinite(legacyAmount) ? legacyAmount : 0;
+};
+
+const getLineItemTaxRateBasisPoints = (item: LineItemWithTax) => {
+  const taxAmounts = item.tax_amounts ?? [];
+  if (taxAmounts.length === 0) return null;
+  const rates = taxAmounts
+    .map((entry) => {
+      const rate = entry.tax_rate;
+      if (!rate || typeof rate === "string") return null;
+      const percent = rate.percentage;
+      return Number.isFinite(percent) ? Math.round(percent * 100) : null;
+    })
+    .filter((rate): rate is number => rate !== null);
+  if (rates.length === 0) return null;
+  return rates.every((rate) => rate === rates[0]) ? rates[0] : null;
+};
+
 const getVariantCountsForSession = async (
   stripe: Stripe,
   sessionId: string
 ) => {
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
-    expand: ["data.price.product"],
+    expand: ["data.price.product", "data.tax_amounts.tax_rate"],
   });
   const variantCounts = new Map<string, number>();
   for (const item of lineItems.data ?? []) {
@@ -168,7 +200,7 @@ const createOrderFromSession = async (
 
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
-    expand: ["data.price.product"],
+    expand: ["data.price.product", "data.tax_amounts.tax_rate"],
   });
   const shipping = checkoutSession.shipping_details;
   const address = shipping?.address;
@@ -236,6 +268,8 @@ const createOrderFromSession = async (
               quantity: item.quantity ?? 0,
               unitAmount: item.price?.unit_amount ?? 0,
               totalAmount: item.amount_total ?? 0,
+              taxAmount: getLineItemTaxAmount(item),
+              taxRateBasisPoints: getLineItemTaxRateBasisPoints(item),
               currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
               imageUrl,
               productId: productId || undefined,
