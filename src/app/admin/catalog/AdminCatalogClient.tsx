@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type ProductRow = {
@@ -73,6 +73,7 @@ export default function AdminCatalogClient({
   const [bulkCategoryId, setBulkCategoryId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products];
@@ -237,6 +238,29 @@ export default function AdminCatalogClient({
       setError("Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const duplicateProduct = async (id: string) => {
+    setError("");
+    setDuplicatingId(id);
+    try {
+      const res = await fetch(`/api/admin/products/${id}/duplicate`, {
+        method: "POST",
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        product?: ProductRow;
+      };
+      if (!res.ok || !data.product) {
+        setError(data.error ?? "Duplicate failed");
+        return;
+      }
+      setProducts((prev) => [data.product as ProductRow, ...prev]);
+    } catch {
+      setError("Duplicate failed");
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -794,6 +818,20 @@ export default function AdminCatalogClient({
                   </td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => duplicateProduct(product.id)}
+                        className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-amber-50 p-2 text-amber-700 hover:border-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        disabled={duplicatingId === product.id}
+                        aria-label="Duplicate product"
+                        title="Duplicate product"
+                      >
+                        {duplicatingId === product.id ? (
+                          <span className="text-xs font-semibold">...</span>
+                        ) : (
+                          <DocumentDuplicateIcon className="h-4 w-4" />
+                        )}
+                      </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(product.id)}

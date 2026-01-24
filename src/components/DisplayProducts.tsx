@@ -26,12 +26,12 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
           <Link
             key={p.id}
             href={`/products/${p.handle}`}
-            className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             <article
               key={p.id}
               className="
-                        group rounded-xl border border-stone-200 bg-white
+                        group flex h-full flex-col rounded-xl border border-stone-200 bg-white
                         transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                     "
             >
@@ -56,7 +56,7 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
               </div>
 
               {/* Content */}
-              <div className="p-4">
+              <div className="flex flex-1 flex-col p-4">
                 {/* Title */}
                 <h2
                   className="mt-1 line-clamp-2 font-bold"
@@ -93,7 +93,7 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                     {formatPrice(p.priceRange?.minVariantPrice)}
                   </span>
                 </div>
-                <div className="mt-3 flex items-center justify-center gap-2">
+                <div className="mt-auto flex items-center justify-center gap-2 pt-3">
                   <ProductCardActions
                     productId={p.id}
                     variantId={p.defaultVariantId ?? null}

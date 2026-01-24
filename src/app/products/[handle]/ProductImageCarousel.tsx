@@ -86,7 +86,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               type="button"
               aria-label="Vorheriges Bild"
               onClick={handlePrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="absolute left-10 top-1/2 -translate-y-1/2 rounded-full bg-stone-100/80 p-2 text-stone-500 shadow opacity-0 transition hover:bg-stone-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
@@ -94,7 +94,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               type="button"
               aria-label="Naechstes Bild"
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-stone-700 shadow opacity-0 transition hover:bg-white group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="absolute right-10 top-1/2 -translate-y-1/2 rounded-full bg-stone-100/80 p-2 text-stone-500 shadow opacity-0 transition hover:bg-stone-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>
