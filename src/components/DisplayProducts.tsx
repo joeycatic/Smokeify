@@ -26,12 +26,12 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
           <Link
             key={p.id}
             href={`/products/${p.handle}`}
-            className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="block h-full w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             <article
               key={p.id}
               className="
-                        group flex h-full flex-col rounded-xl border border-stone-200 bg-white
+                        group flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white
                         transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                     "
             >

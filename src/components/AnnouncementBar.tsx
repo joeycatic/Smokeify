@@ -27,16 +27,16 @@ export function AnnouncementBar() {
       <div className="mx-auto px-0">
         <div className="relative flex h-10 items-center overflow-hidden">
           <div className="announcement-marquee flex items-center">
-            <div className="flex flex-none items-center gap-30">
+            <div className="flex flex-none items-center gap-[120px]">
               {loopItems.map((item, idx) => (
                 <Item key={`a-${idx}`} icon={item.icon}>
                   {item.text}
                 </Item>
               ))}
             </div>
-            <div className="flex flex-none w-10 gap-30" aria-hidden="true" />
+            <div className="flex flex-none w-[120px]" aria-hidden="true" />
             <div
-              className="flex flex-none items-center gap-30"
+              className="flex flex-none items-center gap-[120px]"
               aria-hidden="true"
             >
               {loopItems.map((item, idx) => (

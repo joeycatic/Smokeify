@@ -22,6 +22,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     "left" | "right" | null
   >(null);
   const [swerveKey, setSwerveKey] = useState(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
   const thumbnailsRef = useRef<HTMLDivElement | null>(null);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const count = images.length;
@@ -52,16 +54,49 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     const targetCenter = target.offsetLeft + target.offsetWidth / 2;
     const nextScrollLeft = targetCenter - containerWidth / 2;
     const maxScrollLeft = container.scrollWidth - containerWidth;
-    const clampedScrollLeft = Math.max(0, Math.min(maxScrollLeft, nextScrollLeft));
+    const clampedScrollLeft = Math.max(
+      0,
+      Math.min(maxScrollLeft, nextScrollLeft),
+    );
 
     container.scrollTo({ left: clampedScrollLeft, behavior: "smooth" });
   }, [index]);
 
+  useEffect(() => {
+    setIsZoomed(false);
+    setZoomOrigin({ x: 50, y: 50 });
+  }, [index]);
+
   return (
     <div className="space-y-2">
-      <div className="group relative p-3">
+      <div
+        className={`group relative p-3 ${
+          isZoomed ? "cursor-zoom-out" : "cursor-zoom-in"
+        }`}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = ((event.clientX - rect.left) / rect.width) * 100;
+          const y = ((event.clientY - rect.top) / rect.height) * 100;
+          setZoomOrigin({
+            x: Math.max(0, Math.min(100, x)),
+            y: Math.max(0, Math.min(100, y)),
+          });
+          setIsZoomed((prev) => !prev);
+        }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setZoomOrigin({ x: 50, y: 50 });
+            setIsZoomed((prev) => !prev);
+          }
+        }}
+        aria-pressed={isZoomed}
+      >
         <div
           key={swerveKey}
+          className="relative aspect-square overflow-hidden"
           style={
             swerveDirection
               ? {
@@ -73,9 +108,13 @@ export default function ProductImageCarousel({ images, alt }: Props) {
           <Image
             src={current.url}
             alt={current.altText ?? alt}
-            width={900}
-            height={900}
-            className="h-auto w-full rounded-xl object-cover"
+            fill
+            className={`rounded-xl object-cover transition-transform duration-300 ${
+              isZoomed ? "scale-200" : "scale-100 group-hover:scale-110"
+            }`}
+            style={{
+              transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+            }}
             sizes="(min-width: 1024px) 50vw, 100vw"
             priority={index === 0}
           />
@@ -86,7 +125,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               type="button"
               aria-label="Vorheriges Bild"
               onClick={handlePrev}
-              className="absolute left-10 top-1/2 -translate-y-1/2 rounded-full bg-stone-100/80 p-2 text-stone-500 shadow opacity-0 transition hover:bg-stone-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="absolute left-10 top-1/2 -translate-y-1/2 rounded-full bg-black/85 p-2 text-white shadow-lg shadow-black/30 opacity-0 transition hover:bg-black/90 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
@@ -94,7 +133,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               type="button"
               aria-label="Naechstes Bild"
               onClick={handleNext}
-              className="absolute right-10 top-1/2 -translate-y-1/2 rounded-full bg-stone-100/80 p-2 text-stone-500 shadow opacity-0 transition hover:bg-stone-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="absolute right-10 top-1/2 -translate-y-1/2 rounded-full bg-black/85 p-2 text-white shadow-lg shadow-black/30 opacity-0 transition hover:bg-black/90 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>

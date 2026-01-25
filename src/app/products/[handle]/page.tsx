@@ -42,6 +42,7 @@ export default async function ProductDetailPage({
               descriptionHtml: product.description ?? "",
               technicalDetailsHtml: product.technicalDetails ?? "",
               shortDescription: product.shortDescription ?? null,
+              manufacturer: product.manufacturer ?? null,
             }}
             variants={product.variants}
             imageUrl={primaryImage?.url ?? null}

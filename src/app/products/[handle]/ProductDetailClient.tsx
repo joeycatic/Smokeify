@@ -28,6 +28,7 @@ export default function ProductDetailClient({
     descriptionHtml: string;
     technicalDetailsHtml?: string;
     shortDescription?: string | null;
+    manufacturer?: string | null;
   };
   variants: ProductVariant[];
   imageUrl?: string | null;
@@ -92,6 +93,11 @@ export default function ProductDetailClient({
   return (
     <div className="space-y-6">
       <div>
+        {product.manufacturer && (
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/50">
+            {product.manufacturer}
+          </p>
+        )}
         <h1 className="mt-1 text-2xl text-black font-semibold sm:text-3xl">
           {product.title}
         </h1>
