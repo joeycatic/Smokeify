@@ -16,12 +16,14 @@ export async function PATCH(
     name?: string;
     handle?: string;
     description?: string | null;
+    parentId?: string | null;
   };
 
   const updates: {
     name?: string;
     handle?: string;
     description?: string | null;
+    parentId?: string | null;
   } = {};
 
   if (typeof body.name === "string") {
@@ -55,6 +57,30 @@ export async function PATCH(
 
   if (typeof body.description !== "undefined") {
     updates.description = body.description?.trim() || null;
+  }
+
+  if (typeof body.parentId !== "undefined") {
+    const parentId =
+      typeof body.parentId === "string" ? body.parentId.trim() : null;
+    if (parentId === id) {
+      return NextResponse.json(
+        { error: "Category cannot be its own parent" },
+        { status: 400 }
+      );
+    }
+    if (parentId) {
+      const parent = await prisma.category.findUnique({
+        where: { id: parentId },
+        select: { id: true },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Parent category not found" },
+          { status: 400 }
+        );
+      }
+    }
+    updates.parentId = parentId;
   }
 
   const category = await prisma.category.update({

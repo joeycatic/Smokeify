@@ -33,6 +33,7 @@ type CategoryRow = {
   name: string;
   handle: string;
   description: string | null;
+  parentId?: string | null;
 };
 
 type SupplierRow = {
@@ -166,6 +167,22 @@ export default function AdminProductClient({
   const [shippingOpen, setShippingOpen] = useState(false);
   const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
+
+  const parentCategories = useMemo(
+    () => categories.filter((item) => !item.parentId),
+    [categories]
+  );
+  const childCategories = useMemo(
+    () => categories.filter((item) => item.parentId),
+    [categories]
+  );
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((item) => {
+      map.set(item.id, item.name);
+    });
+    return map;
+  }, [categories]);
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -626,9 +643,11 @@ export default function AdminProductClient({
     const supplier = suppliers.find(
       (item) => item.id === details.supplierId
     );
-    if (!supplier || supplier.leadTimeDays === null) return;
+    if (!supplier) return;
+    const leadTimeDays = supplier.leadTimeDays;
+    if (leadTimeDays === null) return;
     setDetails((prev) =>
-      prev.leadTimeDays === "" ? { ...prev, leadTimeDays: supplier.leadTimeDays } : prev
+      prev.leadTimeDays === "" ? { ...prev, leadTimeDays } : prev
     );
   }, [details.supplierId, suppliers]);
 
@@ -1043,8 +1062,11 @@ export default function AdminProductClient({
           <div className="flex h-full flex-col">
             <p className="text-xs font-semibold text-stone-600 mb-2">Categories</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {categories.map((item) => {
+              {parentCategories.map((item) => {
                 const selected = categoryIds.has(item.id);
+                const parentName = item.parentId
+                  ? categoryNameById.get(item.parentId)
+                  : null;
                 return (
                 <label
                   key={item.id}
@@ -1070,12 +1092,66 @@ export default function AdminProductClient({
                     }}
                     className="h-4 w-4 accent-emerald-600"
                   />
-                  {item.name}
+                  <span className="flex flex-col">
+                    <span>{item.name}</span>
+                    {parentName && (
+                      <span className="text-[11px] font-semibold text-emerald-700/70">
+                        Parent: {parentName}
+                      </span>
+                    )}
+                  </span>
                 </label>
                 );
               })}
-              {categories.length === 0 && (
+              {parentCategories.length === 0 && (
                 <p className="text-xs text-stone-500">No categories yet.</p>
+              )}
+            </div>
+            <p className="mt-5 text-xs font-semibold text-stone-600 mb-2">
+              Subcategories
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {childCategories.map((item) => {
+                const selected = categoryIds.has(item.id);
+                const parentName = item.parentId
+                  ? categoryNameById.get(item.parentId)
+                  : null;
+                return (
+                <label
+                  key={item.id}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    selected
+                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={categoryIds.has(item.id)}
+                    onChange={() => {
+                      setCategoryIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(item.id)) {
+                          next.delete(item.id);
+                        } else {
+                          next.add(item.id);
+                        }
+                        return next;
+                      });
+                    }}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="flex flex-col">
+                    <span>{item.name}</span>
+                    <span className="text-[11px] font-semibold text-emerald-700/70">
+                      {parentName ? `Parent: ${parentName}` : "No parent"}
+                    </span>
+                  </span>
+                </label>
+                );
+              })}
+              {childCategories.length === 0 && (
+                <p className="text-xs text-stone-500">No subcategories yet.</p>
               )}
             </div>
             <div className="mt-auto pt-3">

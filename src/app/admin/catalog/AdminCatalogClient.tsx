@@ -21,6 +21,7 @@ type CategoryRow = {
   name: string;
   handle: string;
   description: string | null;
+  parentId?: string | null;
 };
 
 type SupplierRow = {
@@ -39,6 +40,13 @@ type Props = {
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
 type SortKey = "title" | "status" | "variants" | "images" | "updatedAt";
 
+const slugifyHandle = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
 export default function AdminCatalogClient({
   initialProducts,
   initialCategories,
@@ -52,6 +60,7 @@ export default function AdminCatalogClient({
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createHandle, setCreateHandle] = useState("");
+  const [handleTouched, setHandleTouched] = useState(false);
   const [createError, setCreateError] = useState("");
   const [categories, setCategories] =
     useState<CategoryRow[]>(initialCategories);
@@ -86,6 +95,23 @@ export default function AdminCatalogClient({
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [createSupplierId, setCreateSupplierId] = useState("");
   const [createLeadTimeDays, setCreateLeadTimeDays] = useState("");
+  const [collapsedCategoryIds, setCollapsedCategoryIds] = useState(
+    () => new Set<string>()
+  );
+
+  const groupedCategories = useMemo(() => {
+    const parents = categories.filter((item) => !item.parentId);
+    const childrenByParent = new Map<string, CategoryRow[]>();
+    categories
+      .filter((item) => item.parentId)
+      .forEach((child) => {
+        const parentId = child.parentId as string;
+        const list = childrenByParent.get(parentId) ?? [];
+        list.push(child);
+        childrenByParent.set(parentId, list);
+      });
+    return { parents, childrenByParent };
+  }, [categories]);
 
   useEffect(() => {
     if (!createSupplierId) {
@@ -208,11 +234,8 @@ export default function AdminCatalogClient({
       setCreateError("Title is required");
       return;
     }
-    const normalizedHandle = handle?.trim() ?? "";
-    if (!normalizedHandle) {
-      setCreateError("Handle is required");
-      return;
-    }
+    const normalizedHandle =
+      handleTouched && handle?.trim() ? handle.trim() : "";
     const leadTimeValue = createLeadTimeDays.trim();
     let leadTimeDays: number | null = null;
     if (leadTimeValue) {
@@ -231,7 +254,7 @@ export default function AdminCatalogClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          handle: normalizedHandle,
+          handle: normalizedHandle || undefined,
           status: "DRAFT",
           supplierId: createSupplierId || null,
           leadTimeDays,
@@ -417,14 +440,23 @@ export default function AdminCatalogClient({
       type === "category"
         ? `/api/admin/categories/${item.id}`
         : `/api/admin/collections/${item.id}`;
+    const payload =
+      type === "category"
+        ? {
+            name: item.name,
+            handle: item.handle,
+            description: item.description,
+            parentId: item.parentId ?? null,
+          }
+        : {
+            name: item.name,
+            handle: item.handle,
+            description: item.description,
+          };
     const res = await fetch(url, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: item.name,
-        handle: item.handle,
-        description: item.description,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -454,15 +486,28 @@ export default function AdminCatalogClient({
   };
 
   const createLabel = async (
-    payload: { name: string; handle: string; description?: string },
+    payload: {
+      name: string;
+      handle: string;
+      description?: string;
+      parentId?: string | null;
+    },
     type: "category" | "collection",
   ) => {
     const url =
       type === "category" ? "/api/admin/categories" : "/api/admin/collections";
+    const body =
+      type === "category"
+        ? payload
+        : {
+            name: payload.name,
+            handle: payload.handle,
+            description: payload.description,
+          };
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     const data = (await res.json()) as {
       error?: string;
@@ -480,6 +525,7 @@ export default function AdminCatalogClient({
     name: "",
     handle: "",
     description: "",
+    parentId: "",
   });
   const [newCollection, setNewCollection] = useState({
     name: "",
@@ -568,6 +614,7 @@ export default function AdminCatalogClient({
                 setCreateError("");
                 setCreateTitle("");
                 setCreateHandle("");
+                setHandleTouched(false);
                 setCreateOpen(true);
               }}
               disabled={saving}
@@ -928,14 +975,14 @@ export default function AdminCatalogClient({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-teal-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(13,148,136,0.16)]">
+        <div className="rounded-2xl border border-blue-300/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(30,64,175,0.18)]">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-900">
                 02
               </span>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-800">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-900">
                   Categories
                 </p>
                 <p className="text-xs text-stone-500">
@@ -946,13 +993,13 @@ export default function AdminCatalogClient({
             <button
               type="button"
               onClick={() => setCategoriesOpen((prev) => !prev)}
-              className="inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1 rounded-full border border-teal-200 px-2 text-teal-800 transition hover:border-teal-300"
+              className="inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1 rounded-full border border-blue-300 px-2 text-blue-900 transition hover:border-blue-400"
               aria-label={
                 categoriesOpen ? "Collapse categories" : "Expand categories"
               }
             >
               {!categoriesOpen && (
-                <span className="mr-1 text-[11px] font-semibold text-teal-800">
+                <span className="mr-1 text-[11px] font-semibold text-blue-900">
                   {categories.length}
                 </span>
               )}
@@ -968,11 +1015,50 @@ export default function AdminCatalogClient({
           </div>
           {categoriesOpen && (
             <div className="grid gap-3">
-              {categories.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-teal-200/70 bg-white p-3 mt-3"
-                >
+              {groupedCategories.parents.map((item) => {
+                const isCollapsed = collapsedCategoryIds.has(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-blue-200/80 bg-white p-3 mt-3"
+                  >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
+                    <div className="text-xs font-semibold text-blue-900">
+                      Parent category
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-[11px] font-semibold text-blue-800/80">
+                        Subcategories:{" "}
+                        {(groupedCategories.childrenByParent.get(item.id) ?? [])
+                          .length}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedCategoryIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              next.add(item.id);
+                            }
+                            return next;
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-[11px] font-semibold text-blue-900 hover:border-blue-300"
+                      >
+                        {isCollapsed ? "Show" : "Hide"}
+                        <span
+                          className={`text-base transition-transform ${
+                            isCollapsed ? "rotate-180" : "rotate-0"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          ▾
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="block text-xs font-semibold text-stone-600">
                       Name
@@ -1008,6 +1094,34 @@ export default function AdminCatalogClient({
                         className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                       />
                     </label>
+                    <label className="block text-xs font-semibold text-stone-600">
+                      Parent category
+                      <select
+                        value={item.parentId ?? ""}
+                        onChange={(event) =>
+                          setCategories((prev) =>
+                            prev.map((row) =>
+                              row.id === item.id
+                                ? {
+                                    ...row,
+                                    parentId: event.target.value || null,
+                                  }
+                                : row,
+                            ),
+                          )
+                        }
+                        className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      >
+                        <option value="">No parent</option>
+                        {categories
+                          .filter((candidate) => candidate.id !== item.id)
+                          .map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              {candidate.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
                     <label className="block text-xs font-semibold text-stone-600 md:col-span-2">
                       Description
                       <input
@@ -1030,7 +1144,7 @@ export default function AdminCatalogClient({
                     <button
                       type="button"
                       onClick={() => upsertCategory(item, "category")}
-                      className="h-10 rounded-md border border-teal-200 px-4 text-xs font-semibold text-teal-800 hover:border-teal-300"
+                      className="h-10 rounded-md border border-blue-300 px-4 text-xs font-semibold text-blue-900 hover:border-blue-400"
                     >
                       Save
                     </button>
@@ -1043,15 +1157,152 @@ export default function AdminCatalogClient({
                       <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
+                  {(groupedCategories.childrenByParent.get(item.id) ?? []).length >
+                    0 &&
+                    !isCollapsed && (
+                    <div className="mt-3 space-y-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-800">
+                        Subcategories under {item.name}
+                      </div>
+                      {(groupedCategories.childrenByParent.get(item.id) ?? []).map(
+                        (child) => (
+                          <div
+                            key={child.id}
+                            className="rounded-lg border border-blue-100 bg-white p-3 md:ml-3"
+                          >
+                            <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-blue-800">
+                              <span className="rounded-full bg-blue-100 px-2 py-1">
+                                Parent: {item.name}
+                              </span>
+                              <span className="text-blue-700/80">↳ Child category</span>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-xs font-semibold text-stone-600">
+                                Name
+                                <input
+                                  value={child.name}
+                                  onChange={(event) =>
+                                    setCategories((prev) =>
+                                      prev.map((row) =>
+                                        row.id === child.id
+                                          ? {
+                                              ...row,
+                                              name: event.target.value,
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  placeholder="e.g. Grow tents"
+                                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                                />
+                              </label>
+                              <label className="block text-xs font-semibold text-stone-600">
+                                Handle
+                                <input
+                                  value={child.handle}
+                                  onChange={(event) =>
+                                    setCategories((prev) =>
+                                      prev.map((row) =>
+                                        row.id === child.id
+                                          ? {
+                                              ...row,
+                                              handle: event.target.value,
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  placeholder="grow-tents"
+                                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                                />
+                              </label>
+                              <label className="block text-xs font-semibold text-stone-600">
+                                Parent category
+                                <select
+                                  value={child.parentId ?? ""}
+                                  onChange={(event) =>
+                                    setCategories((prev) =>
+                                      prev.map((row) =>
+                                        row.id === child.id
+                                          ? {
+                                              ...row,
+                                              parentId: event.target.value || null,
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                                >
+                                  <option value="">No parent</option>
+                                  {categories
+                                    .filter(
+                                      (candidate) => candidate.id !== child.id,
+                                    )
+                                    .map((candidate) => (
+                                      <option
+                                        key={candidate.id}
+                                        value={candidate.id}
+                                      >
+                                        {candidate.name}
+                                      </option>
+                                    ))}
+                                </select>
+                              </label>
+                              <label className="block text-xs font-semibold text-stone-600 md:col-span-2">
+                                Description
+                                <input
+                                  value={child.description ?? ""}
+                                  onChange={(event) =>
+                                    setCategories((prev) =>
+                                      prev.map((row) =>
+                                        row.id === child.id
+                                          ? {
+                                              ...row,
+                                              description: event.target.value,
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  placeholder="Short note for this category"
+                                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                                />
+                              </label>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => upsertCategory(child, "category")}
+                                className="h-10 rounded-md border border-blue-300 px-4 text-xs font-semibold text-blue-900 hover:border-blue-400"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteCategory(child.id, "category")}
+                                className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                                aria-label="Delete category"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
               {categories.length === 0 && (
                 <p className="text-xs text-stone-500">No categories yet.</p>
               )}
             </div>
           )}
-          <div className="mt-3 rounded-xl border border-dashed border-teal-200/80 bg-teal-50/60 p-3">
-            <p className="text-xs font-semibold text-teal-800 mb-2">
+          <div className="mt-3 rounded-xl border border-dashed border-blue-200/80 bg-blue-50/60 p-3">
+            <p className="text-xs font-semibold text-blue-900 mb-2">
               Add category
             </p>
             <div className="grid gap-3 md:grid-cols-2">
@@ -1077,6 +1328,23 @@ export default function AdminCatalogClient({
                 placeholder="Handle"
                 className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
               />
+              <select
+                value={newCategory.parentId}
+                onChange={(event) =>
+                  setNewCategory((prev) => ({
+                    ...prev,
+                    parentId: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+              >
+                <option value="">No parent</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               <input
                 value={newCategory.description}
                 onChange={(event) =>
@@ -1096,10 +1364,15 @@ export default function AdminCatalogClient({
                   const created = await createLabel(newCategory, "category");
                   if (created) {
                     setCategories((prev) => [...prev, created]);
-                    setNewCategory({ name: "", handle: "", description: "" });
+                    setNewCategory({
+                      name: "",
+                      handle: "",
+                      description: "",
+                      parentId: "",
+                    });
                   }
                 }}
-                className="h-10 rounded-md bg-teal-600 px-5 text-xs font-semibold text-white hover:bg-teal-700"
+                className="h-10 rounded-md bg-blue-700 px-5 text-xs font-semibold text-white hover:bg-blue-800"
               >
                 Add
               </button>
@@ -1308,7 +1581,13 @@ export default function AdminCatalogClient({
                 <input
                   type="text"
                   value={createTitle}
-                  onChange={(event) => setCreateTitle(event.target.value)}
+                  onChange={(event) => {
+                    const nextTitle = event.target.value;
+                    setCreateTitle(nextTitle);
+                    if (!handleTouched) {
+                      setCreateHandle(slugifyHandle(nextTitle));
+                    }
+                  }}
                   placeholder="Product title"
                   className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                 />
@@ -1318,10 +1597,12 @@ export default function AdminCatalogClient({
                 <input
                   type="text"
                   value={createHandle}
-                  onChange={(event) => setCreateHandle(event.target.value)}
-                  placeholder="product-handle"
+                  onChange={(event) => {
+                    setHandleTouched(true);
+                    setCreateHandle(event.target.value);
+                  }}
+                  placeholder="auto-generated from title"
                   className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                  required
                 />
               </label>
               <label className="block text-xs font-semibold text-stone-600">

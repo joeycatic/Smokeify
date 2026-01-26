@@ -281,10 +281,15 @@ model Category {
   name        String
   handle      String   @unique
   description String?
+  parentId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
   products ProductCategory[]
+
+  @@index([parentId])
 }
 
 model Collection {
