@@ -53,6 +53,7 @@ export async function POST(
       shortDescription: product.shortDescription,
       manufacturer: product.manufacturer,
       supplier: product.supplier,
+      supplierId: product.supplierId,
       sellerName: product.sellerName,
       sellerUrl: product.sellerUrl,
       leadTimeDays: product.leadTimeDays,

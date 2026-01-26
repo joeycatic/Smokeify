@@ -36,9 +36,13 @@ export default async function AdminProductPage({
 
   if (!product) notFound();
 
-  const [categories, collections] = await Promise.all([
+  const [categories, collections, suppliers] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, leadTimeDays: true },
+    }),
   ]);
 
   return (
@@ -52,6 +56,7 @@ export default async function AdminProductPage({
           }}
           categories={categories}
           collections={collections}
+          suppliers={suppliers}
         />
       </div>
     </PageLayout>

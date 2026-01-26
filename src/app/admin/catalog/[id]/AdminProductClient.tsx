@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 
@@ -34,6 +35,12 @@ type CategoryRow = {
   description: string | null;
 };
 
+type SupplierRow = {
+  id: string;
+  name: string;
+  leadTimeDays: number | null;
+};
+
 type ProductDetail = {
   id: string;
   title: string;
@@ -43,7 +50,8 @@ type ProductDetail = {
   shortDescription: string | null;
   manufacturer: string | null;
   supplier: string | null;
-  sellerName: string | null;
+  supplierId: string | null;
+  sellerName?: string | null;
   sellerUrl: string | null;
   leadTimeDays: number | null;
   weightGrams: number | null;
@@ -65,6 +73,7 @@ type Props = {
   product: ProductDetail;
   categories: CategoryRow[];
   collections: CategoryRow[];
+  suppliers: SupplierRow[];
 };
 
 const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
@@ -83,7 +92,18 @@ export default function AdminProductClient({
   product,
   categories,
   collections,
+  suppliers,
 }: Props) {
+  const resolvedSupplierId = (() => {
+    if (product.supplierId) return product.supplierId;
+    if (product.supplier) {
+      const match = suppliers.find(
+        (supplier) => supplier.name === product.supplier
+      );
+      if (match) return match.id;
+    }
+    return "";
+  })();
   const [details, setDetails] = useState({
     title: product.title,
     handle: product.handle,
@@ -91,8 +111,7 @@ export default function AdminProductClient({
     technicalDetails: product.technicalDetails ?? "",
     shortDescription: product.shortDescription ?? "",
     manufacturer: product.manufacturer ?? "",
-    supplier: product.supplier ?? "",
-    sellerName: product.sellerName ?? "",
+    supplierId: resolvedSupplierId,
     sellerUrl: product.sellerUrl ?? "",
     leadTimeDays: product.leadTimeDays ?? "",
     weightGrams: product.weightGrams ?? "",
@@ -108,6 +127,8 @@ export default function AdminProductClient({
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
+  const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
+  const [reorderingVariants, setReorderingVariants] = useState(false);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     product.variants.forEach((variant) => {
@@ -137,6 +158,11 @@ export default function AdminProductClient({
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
+  const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
+  const [confirmVariantText, setConfirmVariantText] = useState("");
+  const [confirmVariantError, setConfirmVariantError] = useState("");
+  const [confirmVariantLoading, setConfirmVariantLoading] = useState(false);
   const [shippingOpen, setShippingOpen] = useState(false);
   const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
@@ -153,10 +179,10 @@ export default function AdminProductClient({
     price: "",
     cost: "",
     compareAt: "",
-    position: 0,
     lowStockThreshold: 5,
     options: [{ name: "", value: "" }],
   });
+  const [addVariantOpen, setAddVariantOpen] = useState(false);
 
   const saveDetails = async () => {
     setMessage("");
@@ -173,18 +199,30 @@ export default function AdminProductClient({
         .filter(Boolean);
       const toNumberOrNull = (value: number | string) =>
         value === "" ? null : Number(value);
+      const payload: Record<string, unknown> = {
+        title: details.title,
+        handle: details.handle,
+        description: details.description,
+        technicalDetails: details.technicalDetails,
+        shortDescription: details.shortDescription,
+        manufacturer: details.manufacturer,
+        sellerUrl: details.sellerUrl,
+        tags,
+        leadTimeDays: toNumberOrNull(details.leadTimeDays),
+        weightGrams: toNumberOrNull(details.weightGrams),
+        lengthMm: toNumberOrNull(details.lengthMm),
+        widthMm: toNumberOrNull(details.widthMm),
+        heightMm: toNumberOrNull(details.heightMm),
+        shippingClass: details.shippingClass,
+        status: details.status,
+      };
+      if (details.supplierId || product.supplierId) {
+        payload.supplierId = details.supplierId || null;
+      }
       const res = await fetch(`/api/admin/products/${product.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...details,
-          tags,
-          leadTimeDays: toNumberOrNull(details.leadTimeDays),
-          weightGrams: toNumberOrNull(details.weightGrams),
-          lengthMm: toNumberOrNull(details.lengthMm),
-          widthMm: toNumberOrNull(details.widthMm),
-          heightMm: toNumberOrNull(details.heightMm),
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -426,6 +464,46 @@ export default function AdminProductClient({
     setMessage("Variant updated");
   };
 
+  const saveVariantOrder = async (items: VariantItem[]) => {
+    setMessage("");
+    setError("");
+    setReorderingVariants(true);
+    try {
+      await Promise.all(
+        items.map((variant) =>
+          fetch(`/api/admin/variants/${variant.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ position: variant.position }),
+          })
+        )
+      );
+      setMessage("Variant order updated");
+    } catch {
+      setError("Reorder failed");
+    } finally {
+      setReorderingVariants(false);
+    }
+  };
+
+  const reorderVariants = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    setVariants((prev) => {
+      const next = [...prev];
+      const sourceIndex = next.findIndex((item) => item.id === sourceId);
+      const targetIndex = next.findIndex((item) => item.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return prev;
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      const positioned = next.map((item, index) => ({
+        ...item,
+        position: index,
+      }));
+      void saveVariantOrder(positioned);
+      return positioned;
+    });
+  };
+
   const deleteVariant = async (id: string) => {
     setMessage("");
     setError("");
@@ -440,14 +518,15 @@ export default function AdminProductClient({
   };
 
   const addVariant = async () => {
-    const priceCents = parseEuro(newVariant.price);
+    const priceInput = newVariant.price.trim();
+    const priceCents = priceInput ? parseEuro(priceInput) : 0;
     const costCents = newVariant.cost ? parseEuro(newVariant.cost) : 0;
     if (!newVariant.title.trim()) {
       setError("Variant title is required");
       return;
     }
-    if (priceCents === null) {
-      setError("Variant price is required");
+    if (priceInput && priceCents === null) {
+      setError("Variant price is invalid");
       return;
     }
     if (newVariant.cost && costCents === null) {
@@ -465,7 +544,7 @@ export default function AdminProductClient({
         priceCents,
         costCents: costCents ?? 0,
         compareAtCents: newVariant.compareAt ? parseEuro(newVariant.compareAt) : null,
-        position: Number(newVariant.position) || 0,
+        position: variants.length,
         lowStockThreshold: Number(newVariant.lowStockThreshold) || 0,
         options: newVariant.options.filter((opt) => opt.name && opt.value),
       }),
@@ -483,10 +562,10 @@ export default function AdminProductClient({
       price: "",
       cost: "",
       compareAt: "",
-      position: 0,
       lowStockThreshold: 5,
       options: [{ name: "", value: "" }],
     });
+    setAddVariantOpen(false);
     setMessage("Variant added");
   };
 
@@ -532,6 +611,26 @@ export default function AdminProductClient({
       return next;
     });
   }, [variants]);
+
+  const legacySupplierName = useMemo(() => {
+    if (product.supplierId) return null;
+    if (!product.supplier) return null;
+    const match = suppliers.some(
+      (supplier) => supplier.name === product.supplier
+    );
+    return match ? null : product.supplier;
+  }, [product.supplier, product.supplierId, suppliers]);
+
+  useEffect(() => {
+    if (!details.supplierId) return;
+    const supplier = suppliers.find(
+      (item) => item.id === details.supplierId
+    );
+    if (!supplier || supplier.leadTimeDays === null) return;
+    setDetails((prev) =>
+      prev.leadTimeDays === "" ? { ...prev, leadTimeDays: supplier.leadTimeDays } : prev
+    );
+  }, [details.supplierId, suppliers]);
 
   return (
     <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
@@ -613,54 +712,18 @@ export default function AdminProductClient({
             )}
           </label>
         </div>
-        <label className="mt-3 block text-xs font-semibold text-stone-600">
-          Manufacturer
-          <input
-            value={details.manufacturer}
-            onChange={(event) =>
-              setDetails((prev) => ({ ...prev, manufacturer: event.target.value }))
-            }
-            placeholder="e.g. AC Infinity"
-            className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-          />
-        </label>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-stone-600">
-            Supplier
+            Manufacturer
             <input
-              value={details.supplier}
+              value={details.manufacturer}
               onChange={(event) =>
-                setDetails((prev) => ({ ...prev, supplier: event.target.value }))
+                setDetails((prev) => ({ ...prev, manufacturer: event.target.value }))
               }
-              placeholder="e.g. Primary distributor"
+              placeholder="e.g. AC Infinity"
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Seller name
-            <input
-              value={details.sellerName}
-              onChange={(event) =>
-                setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
-              }
-              placeholder="e.g. Growmart"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600 md:col-span-2">
-            Seller link
-            <input
-              type="url"
-              value={details.sellerUrl}
-              onChange={(event) =>
-                setDetails((prev) => ({ ...prev, sellerUrl: event.target.value }))
-              }
-              placeholder="https://seller.example/product"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-            />
-          </label>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-stone-600">
             Lead time (days)
             <input
@@ -677,6 +740,49 @@ export default function AdminProductClient({
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
           </label>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="text-xs font-semibold text-stone-600">
+            Supplier
+            <select
+              value={details.supplierId}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, supplierId: event.target.value }))
+              }
+              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+            >
+              <option value="">No supplier</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[11px] text-stone-500">
+              Manage suppliers in{" "}
+              <Link href="/admin/suppliers" className="underline">
+                CRM
+              </Link>
+              .
+            </span>
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Seller link
+            <input
+              type="url"
+              value={details.sellerUrl}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerUrl: event.target.value }))
+              }
+              placeholder="https://seller.example/product"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          {legacySupplierName && (
+            <div className="rounded-md border border-amber-200/70 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-700 md:col-span-2">
+              Legacy supplier: {legacySupplierName}. Pick a CRM supplier to link.
+            </div>
+          )}
         </div>
         <div className="mt-4 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
           <button
@@ -741,57 +847,59 @@ export default function AdminProductClient({
                   className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-stone-600">
-                Length (mm)
-                <input
-                  type="number"
-                  min={0}
-                  value={details.lengthMm}
-                  onChange={(event) =>
-                    setDetails((prev) => ({
-                      ...prev,
-                      lengthMm:
-                        event.target.value === "" ? "" : Number(event.target.value),
-                    }))
-                  }
-                  placeholder="e.g. 600"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                />
-              </label>
-              <label className="text-xs font-semibold text-stone-600">
-                Width (mm)
-                <input
-                  type="number"
-                  min={0}
-                  value={details.widthMm}
-                  onChange={(event) =>
-                    setDetails((prev) => ({
-                      ...prev,
-                      widthMm:
-                        event.target.value === "" ? "" : Number(event.target.value),
-                    }))
-                  }
-                  placeholder="e.g. 400"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                />
-              </label>
-              <label className="text-xs font-semibold text-stone-600">
-                Height (mm)
-                <input
-                  type="number"
-                  min={0}
-                  value={details.heightMm}
-                  onChange={(event) =>
-                    setDetails((prev) => ({
-                      ...prev,
-                      heightMm:
-                        event.target.value === "" ? "" : Number(event.target.value),
-                    }))
-                  }
-                  placeholder="e.g. 300"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                />
-              </label>
+              <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
+                <label className="text-xs font-semibold text-stone-600">
+                  Length (mm)
+                  <input
+                    type="number"
+                    min={0}
+                    value={details.lengthMm}
+                    onChange={(event) =>
+                      setDetails((prev) => ({
+                        ...prev,
+                        lengthMm:
+                          event.target.value === "" ? "" : Number(event.target.value),
+                      }))
+                    }
+                    placeholder="e.g. 600"
+                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-stone-600">
+                  Width (mm)
+                  <input
+                    type="number"
+                    min={0}
+                    value={details.widthMm}
+                    onChange={(event) =>
+                      setDetails((prev) => ({
+                        ...prev,
+                        widthMm:
+                          event.target.value === "" ? "" : Number(event.target.value),
+                      }))
+                    }
+                    placeholder="e.g. 400"
+                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-stone-600">
+                  Height (mm)
+                  <input
+                    type="number"
+                    min={0}
+                    value={details.heightMm}
+                    onChange={(event) =>
+                      setDetails((prev) => ({
+                        ...prev,
+                        heightMm:
+                          event.target.value === "" ? "" : Number(event.target.value),
+                      }))
+                    }
+                    placeholder="e.g. 300"
+                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  />
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -925,18 +1033,27 @@ export default function AdminProductClient({
 
       <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">02</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-900">02</span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Categories & collections</p>
             <p className="text-xs text-stone-500">Organize where this product appears.</p>
           </div>
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
-          <div>
+          <div className="flex h-full flex-col">
             <p className="text-xs font-semibold text-stone-600 mb-2">Categories</p>
-            <div className="grid gap-2">
-              {categories.map((item) => (
-                <label key={item.id} className="flex items-center gap-2 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {categories.map((item) => {
+                const selected = categoryIds.has(item.id);
+                return (
+                <label
+                  key={item.id}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    selected
+                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={categoryIds.has(item.id)}
@@ -951,27 +1068,40 @@ export default function AdminProductClient({
                         return next;
                       });
                     }}
+                    className="h-4 w-4 accent-emerald-600"
                   />
                   {item.name}
                 </label>
-              ))}
+                );
+              })}
               {categories.length === 0 && (
                 <p className="text-xs text-stone-500">No categories yet.</p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={saveCategories}
-              className="mt-3 h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-            >
-              Save categories
-            </button>
+            <div className="mt-auto pt-3">
+              <button
+                type="button"
+                onClick={saveCategories}
+                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+              >
+                Save categories
+              </button>
+            </div>
           </div>
-          <div>
+          <div className="flex h-full flex-col">
             <p className="text-xs font-semibold text-stone-600 mb-2">Collections</p>
-            <div className="grid gap-2">
-              {collections.map((item) => (
-                <label key={item.id} className="flex items-center gap-2 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {collections.map((item) => {
+                const selected = collectionIds.has(item.id);
+                return (
+                <label
+                  key={item.id}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    selected
+                      ? "border-violet-300 bg-violet-100/70 text-violet-900"
+                      : "border-violet-100 bg-violet-50/50 text-stone-700 hover:border-violet-200 hover:bg-violet-50/80"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={collectionIds.has(item.id)}
@@ -986,21 +1116,25 @@ export default function AdminProductClient({
                         return next;
                       });
                     }}
+                    className="h-4 w-4 accent-violet-600"
                   />
                   {item.name}
                 </label>
-              ))}
+                );
+              })}
               {collections.length === 0 && (
                 <p className="text-xs text-stone-500">No collections yet.</p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={saveCollections}
-              className="mt-3 h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-            >
-              Save collections
-            </button>
+            <div className="mt-auto pt-3">
+              <button
+                type="button"
+                onClick={saveCollections}
+                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+              >
+                Save collections
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1037,10 +1171,7 @@ export default function AdminProductClient({
           {images.map((image) => (
             <div
               key={image.id}
-              className="grid gap-3 md:grid-cols-[1.4fr_1fr_120px_auto_auto] rounded-lg border border-black/10 bg-white p-3"
-              draggable
-              onDragStart={() => setDraggingImageId(image.id)}
-              onDragEnd={() => setDraggingImageId(null)}
+              className="rounded-xl border border-black/10 bg-white p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingImageId) {
@@ -1048,107 +1179,183 @@ export default function AdminProductClient({
                 }
               }}
             >
-              <div className="md:col-span-5 flex items-center gap-2 text-xs text-stone-500">
-                <span className="cursor-grab select-none">⠿</span>
-                {reordering && <span>Saving order…</span>}
+              <div className="mx-auto w-full max-w-5xl">
+                <div className="mb-2 flex items-center gap-2 text-xs text-stone-500">
+                  {reordering && <span>Saving order…</span>}
+                </div>
+                <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto_auto]">
+                  <div className="flex h-20 items-center justify-center self-start">
+                    <span
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-400 shadow-sm cursor-grab select-none"
+                      draggable
+                      onDragStart={() => setDraggingImageId(image.id)}
+                      onDragEnd={() => setDraggingImageId(null)}
+                    >
+                      ⋮⋮
+                    </span>
+                  </div>
+                  <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
+                    {image.url ? (
+                      <img
+                        src={image.url}
+                        alt={image.altText ?? "Image preview"}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-stone-400">
+                        No preview
+                      </span>
+                    )}
+                  </div>
+                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                    <span>Image URL</span>
+                    <input
+                      value={image.url}
+                      onChange={(event) =>
+                        setImages((prev) =>
+                          prev.map((item) =>
+                            item.id === image.id
+                              ? { ...item, url: event.target.value }
+                              : item
+                          )
+                        )
+                      }
+                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                    <span>Alt text</span>
+                    <input
+                      value={image.altText ?? ""}
+                      onChange={(event) =>
+                        setImages((prev) =>
+                          prev.map((item) =>
+                            item.id === image.id
+                              ? { ...item, altText: event.target.value }
+                              : item
+                          )
+                        )
+                      }
+                      placeholder="Alt text"
+                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                    <span>Position</span>
+                    <input
+                      type="number"
+                      value={image.position}
+                      onChange={(event) =>
+                        setImages((prev) =>
+                          prev.map((item) =>
+                            item.id === image.id
+                              ? { ...item, position: Number(event.target.value) }
+                              : item
+                          )
+                        )
+                      }
+                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    />
+                  </label>
+                  <div className="flex flex-col gap-1 items-center">
+                    <span className="text-[11px] font-semibold text-transparent">
+                      Actions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateImage(image)}
+                      className="h-10 rounded-md border border-black/15 px-3 text-xs font-semibold"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-1 items-center">
+                    <span className="text-[11px] font-semibold text-transparent">
+                      Actions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteImage(image.id)}
+                      className="flex h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                      aria-label="Delete image"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <input
-                value={image.url}
-                onChange={(event) =>
-                  setImages((prev) =>
-                    prev.map((item) =>
-                      item.id === image.id
-                        ? { ...item, url: event.target.value }
-                        : item
-                    )
-                  )
-                }
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                value={image.altText ?? ""}
-                onChange={(event) =>
-                  setImages((prev) =>
-                    prev.map((item) =>
-                      item.id === image.id
-                        ? { ...item, altText: event.target.value }
-                        : item
-                    )
-                  )
-                }
-                placeholder="Alt text"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                type="number"
-                value={image.position}
-                onChange={(event) =>
-                  setImages((prev) =>
-                    prev.map((item) =>
-                      item.id === image.id
-                        ? { ...item, position: Number(event.target.value) }
-                        : item
-                    )
-                  )
-                }
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => updateImage(image)}
-                className="h-10 rounded-md border border-black/15 px-3 text-xs font-semibold"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteImage(image.id)}
-                className="h-10 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
-              >
-                Delete
-              </button>
             </div>
           ))}
           {images.length === 0 && (
             <p className="text-xs text-stone-500">No images yet.</p>
           )}
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-[1.4fr_1fr_120px_auto]"
-        >
-          <input
-            value={newImage.url}
-            onChange={(event) =>
-              setNewImage((prev) => ({ ...prev, url: event.target.value }))
-            }
-            placeholder="Image URL"
-            className="h-10 rounded-md border border-black/15 px-3 text-sm"
-          />
-          <input
-            value={newImage.altText}
-            onChange={(event) =>
-              setNewImage((prev) => ({ ...prev, altText: event.target.value }))
-            }
-            placeholder="Alt text"
-            className="h-10 rounded-md border border-black/15 px-3 text-sm"
-          />
-          <input
-            type="number"
-            value={newImage.position}
-            onChange={(event) =>
-              setNewImage((prev) => ({
-                ...prev,
-                position: Number(event.target.value),
-              }))
-            }
-            className="h-10 rounded-md border border-black/15 px-3 text-sm"
-          />
-          <button
-            type="button"
-            onClick={addImage}
-            className="h-10 rounded-md bg-[#2f3e36] px-3 text-xs font-semibold text-white hover:bg-[#24312b]"
-          >
-            Add image
-          </button>
+        <div className="mt-4">
+          <div className="mx-auto w-full max-w-5xl">
+            <div className="grid items-start gap-3 md:grid-cols-[96px_1.6fr_1fr_120px_auto]">
+              <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
+                {newImage.url ? (
+                  <img
+                    src={newImage.url}
+                    alt={newImage.altText || "New image preview"}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="text-[10px] text-stone-400">Preview</span>
+                )}
+              </div>
+              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                <span>Image URL</span>
+                <input
+                  value={newImage.url}
+                  onChange={(event) =>
+                    setNewImage((prev) => ({ ...prev, url: event.target.value }))
+                  }
+                  placeholder="Image URL"
+                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                <span>Alt text</span>
+                <input
+                  value={newImage.altText}
+                  onChange={(event) =>
+                    setNewImage((prev) => ({ ...prev, altText: event.target.value }))
+                  }
+                  placeholder="Alt text"
+                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                <span>Position</span>
+                <input
+                  type="number"
+                  value={newImage.position}
+                  onChange={(event) =>
+                    setNewImage((prev) => ({
+                      ...prev,
+                      position: Number(event.target.value),
+                    }))
+                  }
+                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <div className="flex flex-col gap-1 items-center">
+                <span className="text-[11px] font-semibold text-transparent">
+                  Actions
+                </span>
+                <button
+                  type="button"
+                  onClick={addImage}
+                  className="h-10 rounded-md bg-[#2f3e36] px-3 text-xs font-semibold text-white hover:bg-[#24312b]"
+                >
+                  Add image
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1165,134 +1372,132 @@ export default function AdminProductClient({
             <div
               key={variant.id}
               className="rounded-lg border border-[#2f3e36]/10 bg-[#f6f9f4] p-4"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (draggingVariantId) {
+                  reorderVariants(draggingVariantId, variant.id);
+                }
+              }}
             >
               <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-xs text-stone-500">
+                  <span
+                    className="cursor-grab select-none"
+                    draggable
+                    onDragStart={() => setDraggingVariantId(variant.id)}
+                    onDragEnd={() => setDraggingVariantId(null)}
+                  >
+                    ⠿
+                  </span>
+                  {reorderingVariants && <span>Saving order…</span>}
+                </div>
                 <div className="space-y-3">
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,140px)_minmax(0,140px)]">
-                  <label className="text-xs font-semibold text-stone-600">
-                    Variant name
-                    <input
-                      value={variant.title}
-                      onChange={(event) =>
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? { ...item, title: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    SKU (optional)
-                    <input
-                      value={variant.sku ?? ""}
-                      onChange={(event) =>
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? { ...item, sku: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="e.g. GROW-LED-300"
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Price (EUR)
-                    <input
-                      value={priceDrafts[variant.id] ?? ""}
-                      onChange={(event) =>
-                        setPriceDrafts((prev) => ({
-                          ...prev,
-                          [variant.id]: event.target.value,
-                        }))
-                      }
-                      onBlur={() => {
-                        const value = priceDrafts[variant.id] ?? "";
-                        const parsed = parseEuro(value);
-                        if (parsed === null) {
-                          setPriceDrafts((prev) => ({
-                            ...prev,
-                            [variant.id]: toEuro(variant.priceCents),
-                          }));
-                          return;
-                        }
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? { ...item, priceCents: parsed }
-                              : item
-                          )
-                        );
-                        setPriceDrafts((prev) => ({
-                          ...prev,
-                          [variant.id]: toEuro(parsed),
-                        }));
-                      }}
-                      placeholder="0.00"
-                      inputMode="decimal"
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                    {!((priceDrafts[variant.id] ?? "").trim()) && (
-                      <span className="mt-1 block text-[11px] font-medium text-red-600">
-                        Price required
-                      </span>
-                    )}
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Cost (EUR)
-                    <input
-                      value={costDrafts[variant.id] ?? ""}
-                      onChange={(event) =>
-                        setCostDrafts((prev) => ({
-                          ...prev,
-                          [variant.id]: event.target.value,
-                        }))
-                      }
-                      onBlur={() => {
-                        const value = costDrafts[variant.id] ?? "";
-                        if (value.trim() === "") {
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Variant name
+                      <input
+                        value={variant.title}
+                        onChange={(event) =>
                           setVariants((prev) =>
                             prev.map((item) =>
                               item.id === variant.id
-                                ? { ...item, costCents: 0 }
+                                ? { ...item, title: event.target.value }
+                                : item
+                            )
+                          )
+                        }
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-stone-600">
+                      Price (EUR)
+                      <input
+                        value={priceDrafts[variant.id] ?? ""}
+                        onChange={(event) =>
+                          setPriceDrafts((prev) => ({
+                            ...prev,
+                            [variant.id]: event.target.value,
+                          }))
+                        }
+                        onBlur={() => {
+                          const value = priceDrafts[variant.id] ?? "";
+                          const parsed = parseEuro(value);
+                          if (parsed === null) {
+                            setPriceDrafts((prev) => ({
+                              ...prev,
+                              [variant.id]: toEuro(variant.priceCents),
+                            }));
+                            return;
+                          }
+                          setVariants((prev) =>
+                            prev.map((item) =>
+                              item.id === variant.id
+                                ? { ...item, priceCents: parsed }
                                 : item
                             )
                           );
-                          return;
-                        }
-                        const parsed = parseEuro(value);
-                        if (parsed === null) {
+                          setPriceDrafts((prev) => ({
+                            ...prev,
+                            [variant.id]: toEuro(parsed),
+                          }));
+                        }}
+                        placeholder="0.00"
+                        inputMode="decimal"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                      />
+                      {!((priceDrafts[variant.id] ?? "").trim()) && (
+                        <span className="mt-1 block text-[11px] font-medium text-red-600">
+                          Price required
+                        </span>
+                      )}
+                    </label>
+                    <label className="text-xs font-semibold text-stone-600">
+                      Cost (EUR)
+                      <input
+                        value={costDrafts[variant.id] ?? ""}
+                        onChange={(event) =>
                           setCostDrafts((prev) => ({
                             ...prev,
-                            [variant.id]: toEuro(variant.costCents),
-                          }));
-                          return;
+                            [variant.id]: event.target.value,
+                          }))
                         }
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? { ...item, costCents: parsed }
-                              : item
-                          )
-                        );
-                        setCostDrafts((prev) => ({
-                          ...prev,
-                          [variant.id]: toEuro(parsed),
-                        }));
-                      }}
-                      placeholder="0.00"
-                      inputMode="decimal"
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                  </label>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
+                        onBlur={() => {
+                          const value = costDrafts[variant.id] ?? "";
+                          if (value.trim() === "") {
+                            setVariants((prev) =>
+                              prev.map((item) =>
+                                item.id === variant.id
+                                  ? { ...item, costCents: 0 }
+                                  : item
+                              )
+                            );
+                            return;
+                          }
+                          const parsed = parseEuro(value);
+                          if (parsed === null) {
+                            setCostDrafts((prev) => ({
+                              ...prev,
+                              [variant.id]: toEuro(variant.costCents),
+                            }));
+                            return;
+                          }
+                          setVariants((prev) =>
+                            prev.map((item) =>
+                              item.id === variant.id
+                                ? { ...item, costCents: parsed }
+                                : item
+                            )
+                          );
+                          setCostDrafts((prev) => ({
+                            ...prev,
+                            [variant.id]: toEuro(parsed),
+                          }));
+                        }}
+                        placeholder="0.00"
+                        inputMode="decimal"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                      />
+                    </label>
                     <label className="text-xs font-semibold text-stone-600">
                       Compare at
                       <input
@@ -1340,6 +1545,25 @@ export default function AdminProductClient({
                         className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
                       />
                     </label>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
+                    <label className="text-xs font-semibold text-stone-600">
+                      SKU (optional)
+                      <input
+                        value={variant.sku ?? ""}
+                        onChange={(event) =>
+                          setVariants((prev) =>
+                            prev.map((item) =>
+                              item.id === variant.id
+                                ? { ...item, sku: event.target.value }
+                                : item
+                            )
+                          )
+                        }
+                        placeholder="e.g. GROW-LED-300"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                      />
+                    </label>
                     <label className="text-xs font-semibold text-stone-600">
                       Low stock
                       <input
@@ -1362,15 +1586,45 @@ export default function AdminProductClient({
                       />
                     </label>
                     <label className="text-xs font-semibold text-stone-600">
-                      Position
+                      On hand
                       <input
                         type="number"
-                        value={variant.position}
+                        value={variant.inventory?.quantityOnHand ?? 0}
                         onChange={(event) =>
                           setVariants((prev) =>
                             prev.map((item) =>
                               item.id === variant.id
-                                ? { ...item, position: Number(event.target.value) }
+                                ? {
+                                    ...item,
+                                    inventory: {
+                                      quantityOnHand: Number(event.target.value),
+                                      reserved: item.inventory?.reserved ?? 0,
+                                    },
+                                  }
+                                : item
+                            )
+                          )
+                        }
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-stone-600">
+                      Reserved
+                      <input
+                        type="number"
+                        value={variant.inventory?.reserved ?? 0}
+                        onChange={(event) =>
+                          setVariants((prev) =>
+                            prev.map((item) =>
+                              item.id === variant.id
+                                ? {
+                                    ...item,
+                                    inventory: {
+                                      quantityOnHand:
+                                        item.inventory?.quantityOnHand ?? 0,
+                                      reserved: Number(event.target.value),
+                                    },
+                                  }
                                 : item
                             )
                           )
@@ -1381,93 +1635,50 @@ export default function AdminProductClient({
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-                  <label className="text-xs font-semibold text-stone-600">
-                    On hand
-                    <input
-                      type="number"
-                      value={variant.inventory?.quantityOnHand ?? 0}
-                      onChange={(event) =>
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? {
-                                  ...item,
-                                  inventory: {
-                                    quantityOnHand: Number(event.target.value),
-                                    reserved: item.inventory?.reserved ?? 0,
-                                  },
-                                }
-                              : item
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Reserved
-                    <input
-                      type="number"
-                      value={variant.inventory?.reserved ?? 0}
-                      onChange={(event) =>
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? {
-                                  ...item,
-                                  inventory: {
-                                    quantityOnHand:
-                                      item.inventory?.quantityOnHand ?? 0,
-                                    reserved: Number(event.target.value),
-                                  },
-                                }
-                              : item
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
-                    />
-                  </label>
-                  <div className="flex flex-wrap items-center justify-end gap-3">
-                    <div className="text-xs text-stone-500">
-                      Available:{" "}
-                      <span className="font-semibold text-stone-800">
-                        {variant.available}
-                      </span>
-                    </div>
-                    {variant.available <= variant.lowStockThreshold && (
-                      <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
-                        Low stock
-                      </span>
-                    )}
-                    <div className="text-xs text-stone-500">
-                      Profit:{" "}
-                      <span
-                        className={`font-semibold ${
-                          variant.priceCents - variant.costCents >= 0
-                            ? "text-stone-800"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {toEuro(variant.priceCents - variant.costCents)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => updateVariant(variant)}
-                      className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-                    >
-                      Save changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteVariant(variant.id)}
-                      className="h-10 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700"
-                    >
-                      Delete
-                    </button>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <div className="text-xs text-stone-500">
+                    Available:{" "}
+                    <span className="font-semibold text-stone-800">
+                      {variant.available}
+                    </span>
                   </div>
+                  {variant.available <= variant.lowStockThreshold && (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                      Low stock
+                    </span>
+                  )}
+                  <div className="text-xs text-stone-500">
+                    Profit:{" "}
+                    <span
+                      className={`font-semibold ${
+                        variant.priceCents - variant.costCents >= 0
+                          ? "text-stone-800"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {toEuro(variant.priceCents - variant.costCents)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateVariant(variant)}
+                    className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmVariantId(variant.id);
+                      setConfirmVariantTitle(variant.title);
+                      setConfirmVariantText("");
+                      setConfirmVariantError("");
+                    }}
+                    className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                    aria-label="Delete variant"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
                 </div>
 
                 <div className="rounded-md border border-[#2f3e36]/10 bg-[#f8fbf6] px-3 py-3">
@@ -1585,148 +1796,245 @@ export default function AdminProductClient({
           )}
         </div>
 
-        <div className="mt-6 rounded-lg border border-dashed border-[#2f3e36]/20 bg-[#f8fbf6] p-4">
-          <p className="text-xs font-semibold text-stone-600 mb-3">Add variant</p>
-          <div className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-[1.5fr_1fr_140px_140px]">
-              <input
-                value={newVariant.title}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({ ...prev, title: event.target.value }))
-                }
-                placeholder="Title"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                value={newVariant.sku}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({ ...prev, sku: event.target.value }))
-                }
-                placeholder="SKU"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                value={newVariant.price}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({ ...prev, price: event.target.value }))
-                }
-                placeholder="Price EUR"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                value={newVariant.cost}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({ ...prev, cost: event.target.value }))
-                }
-                placeholder="Cost EUR"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-            </div>
-            <div className="grid gap-3 md:grid-cols-[140px_140px_120px]">
-              <input
-                value={newVariant.compareAt}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({ ...prev, compareAt: event.target.value }))
-                }
-                placeholder="Compare at"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                type="number"
-                min={0}
-                value={newVariant.lowStockThreshold}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({
-                    ...prev,
-                    lowStockThreshold: Number(event.target.value),
-                  }))
-                }
-                placeholder="Low stock"
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-              <input
-                type="number"
-                value={newVariant.position}
-                onChange={(event) =>
-                  setNewVariant((prev) => ({
-                    ...prev,
-                    position: Number(event.target.value),
-                  }))
-                }
-                className="h-10 rounded-md border border-black/15 px-3 text-sm"
-              />
-            </div>
-          </div>
-          {!newVariant.price && (
-            <p className="mt-2 text-[11px] font-medium text-red-600">
-              Price required
-            </p>
-          )}
-          <div className="mt-3 space-y-2">
-            {newVariant.options.map((opt, index) => (
-              <div key={index} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                <input
-                  value={opt.name}
-                  onChange={(event) =>
-                    setNewVariant((prev) => ({
-                      ...prev,
-                      options: prev.options.map((row, rowIndex) =>
-                        rowIndex === index ? { ...row, name: event.target.value } : row
-                      ),
-                    }))
-                  }
-                  placeholder="Option name"
-                  className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                />
-                <input
-                  value={opt.value}
-                  onChange={(event) =>
-                    setNewVariant((prev) => ({
-                      ...prev,
-                      options: prev.options.map((row, rowIndex) =>
-                        rowIndex === index ? { ...row, value: event.target.value } : row
-                      ),
-                    }))
-                  }
-                  placeholder="Option value"
-                  className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setNewVariant((prev) => ({
-                      ...prev,
-                      options: prev.options.filter((_, rowIndex) => rowIndex !== index),
-                    }))
-                  }
-                  className="h-9 rounded-md border border-black/15 px-2 text-xs"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setNewVariant((prev) => ({
-                  ...prev,
-                  options: [...prev.options, { name: "", value: "" }],
-                }))
-              }
-              className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"
-            >
-              Add option
-            </button>
-          </div>
+        <div className="mt-6 flex justify-end">
           <button
             type="button"
-            onClick={addVariant}
-            className="mt-4 h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b]"
+            onClick={() => setAddVariantOpen(true)}
+            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b]"
           >
             Add variant
           </button>
         </div>
       </section>
+
+      {addVariantOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setAddVariantOpen(false)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-stone-900">
+                  Add variant
+                </h3>
+                <p className="mt-1 text-xs text-stone-500">
+                  Fill in pricing, inventory, and option details.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddVariantOpen(false)}
+                className="h-9 rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-3 md:grid-cols-[1.5fr_1fr_minmax(140px,180px)_minmax(140px,180px)]">
+                <input
+                  value={newVariant.title}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  placeholder="Title"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+                <input
+                  value={newVariant.sku}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({ ...prev, sku: event.target.value }))
+                  }
+                  placeholder="SKU"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+                <input
+                  value={newVariant.price}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({ ...prev, price: event.target.value }))
+                  }
+                  placeholder="Price EUR"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+                <input
+                  value={newVariant.cost}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({ ...prev, cost: event.target.value }))
+                  }
+                  placeholder="Cost EUR"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-[minmax(140px,180px)_minmax(140px,180px)]">
+                <input
+                  value={newVariant.compareAt}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({ ...prev, compareAt: event.target.value }))
+                  }
+                  placeholder="Compare at"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={newVariant.lowStockThreshold}
+                  onChange={(event) =>
+                    setNewVariant((prev) => ({
+                      ...prev,
+                      lowStockThreshold: Number(event.target.value),
+                    }))
+                  }
+                  placeholder="Low stock"
+                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              {newVariant.options.map((opt, index) => (
+                <div
+                  key={index}
+                  className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
+                >
+                  <input
+                    value={opt.name}
+                    onChange={(event) =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        options: prev.options.map((row, rowIndex) =>
+                          rowIndex === index
+                            ? { ...row, name: event.target.value }
+                            : row
+                        ),
+                      }))
+                    }
+                    placeholder="Option name"
+                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                  />
+                  <input
+                    value={opt.value}
+                    onChange={(event) =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        options: prev.options.map((row, rowIndex) =>
+                          rowIndex === index
+                            ? { ...row, value: event.target.value }
+                            : row
+                        ),
+                      }))
+                    }
+                    placeholder="Option value"
+                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        options: prev.options.filter((_, rowIndex) => rowIndex !== index),
+                      }))
+                    }
+                    className="h-9 rounded-md border border-black/15 px-2 text-xs"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setNewVariant((prev) => ({
+                    ...prev,
+                    options: [...prev.options, { name: "", value: "" }],
+                  }))
+                }
+                className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"
+              >
+                Add option
+              </button>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAddVariantOpen(false)}
+                className="h-10 rounded-md border border-black/10 px-4 text-xs font-semibold text-stone-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={addVariant}
+                className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
+              >
+                Add variant
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmVariantId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+            <h3 className="text-base font-semibold text-stone-900">
+              Variante löschen
+            </h3>
+            <p className="mt-2 text-xs text-stone-600">
+              Tippe{" "}
+              <span className="font-semibold text-red-600">Bestätigen</span>{" "}
+              ein, um{" "}
+              <span className="font-semibold text-stone-800">
+                {confirmVariantTitle}
+              </span>{" "}
+              zu löschen.
+            </p>
+            <input
+              type="text"
+              value={confirmVariantText}
+              onChange={(event) => setConfirmVariantText(event.target.value)}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Bestätigen"
+            />
+            {confirmVariantError && (
+              <p className="mt-2 text-xs text-red-600">{confirmVariantError}</p>
+            )}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmVariantId(null);
+                  setConfirmVariantError("");
+                }}
+                disabled={confirmVariantLoading}
+                className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30 disabled:opacity-60"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirmVariantText !== "Bestätigen") {
+                    setConfirmVariantError("Bitte Bestätigen eingeben.");
+                    return;
+                  }
+                  if (!confirmVariantId) return;
+                  setConfirmVariantLoading(true);
+                  setConfirmVariantError("");
+                  await deleteVariant(confirmVariantId);
+                  setConfirmVariantLoading(false);
+                  setConfirmVariantId(null);
+                }}
+                disabled={confirmVariantLoading}
+                className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {confirmVariantLoading ? "Löschen..." : "Löschen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

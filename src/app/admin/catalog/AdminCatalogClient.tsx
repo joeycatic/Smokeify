@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
@@ -23,10 +23,17 @@ type CategoryRow = {
   description: string | null;
 };
 
+type SupplierRow = {
+  id: string;
+  name: string;
+  leadTimeDays: number | null;
+};
+
 type Props = {
   initialProducts: ProductRow[];
   initialCategories: CategoryRow[];
   initialCollections: CategoryRow[];
+  initialSuppliers: SupplierRow[];
 };
 
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
@@ -36,6 +43,7 @@ export default function AdminCatalogClient({
   initialProducts,
   initialCategories,
   initialCollections,
+  initialSuppliers,
 }: Props) {
   const [products, setProducts] = useState<ProductRow[]>(initialProducts);
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
@@ -49,6 +57,7 @@ export default function AdminCatalogClient({
     useState<CategoryRow[]>(initialCategories);
   const [collections, setCollections] =
     useState<CategoryRow[]>(initialCollections);
+  const [suppliers] = useState<SupplierRow[]>(initialSuppliers);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -71,9 +80,26 @@ export default function AdminCatalogClient({
     "add" | "remove"
   >("add");
   const [bulkCategoryId, setBulkCategoryId] = useState("");
+  const [bulkSupplierId, setBulkSupplierId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [createSupplierId, setCreateSupplierId] = useState("");
+  const [createLeadTimeDays, setCreateLeadTimeDays] = useState("");
+
+  useEffect(() => {
+    if (!createSupplierId) {
+      setCreateLeadTimeDays("");
+      return;
+    }
+    const selected = suppliers.find(
+      (supplier) => supplier.id === createSupplierId
+    );
+    if (!selected) return;
+    setCreateLeadTimeDays(
+      selected.leadTimeDays === null ? "" : String(selected.leadTimeDays)
+    );
+  }, [createSupplierId, suppliers]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products];
@@ -187,6 +213,16 @@ export default function AdminCatalogClient({
       setCreateError("Handle is required");
       return;
     }
+    const leadTimeValue = createLeadTimeDays.trim();
+    let leadTimeDays: number | null = null;
+    if (leadTimeValue) {
+      const parsed = Number(leadTimeValue);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setCreateError("Lead time must be a non-negative number");
+        return;
+      }
+      leadTimeDays = Math.floor(parsed);
+    }
     setSaving(true);
     setCreateError("");
     try {
@@ -197,6 +233,8 @@ export default function AdminCatalogClient({
           title,
           handle: normalizedHandle,
           status: "DRAFT",
+          supplierId: createSupplierId || null,
+          leadTimeDays,
         }),
       });
       const data = (await res.json()) as {
@@ -213,6 +251,8 @@ export default function AdminCatalogClient({
       setProducts((prev) => [created, ...prev]);
       setCreateTitle("");
       setCreateHandle("");
+      setCreateSupplierId("");
+      setCreateLeadTimeDays("");
       setCreateOpen(false);
     } catch {
       setCreateError("Create failed");
@@ -296,6 +336,7 @@ export default function AdminCatalogClient({
       lowStockThreshold?: number;
       tags?: { add?: string[]; remove?: string[] };
       category?: { action: "add" | "remove"; categoryId: string };
+      supplierId?: string | null;
     } = { productIds: selectedIds };
 
     if (bulkStatus) {
@@ -338,6 +379,10 @@ export default function AdminCatalogClient({
       };
     }
 
+    if (bulkSupplierId) {
+      payload.supplierId = bulkSupplierId === "__clear__" ? null : bulkSupplierId;
+    }
+
     try {
       const res = await fetch("/api/admin/products/bulk", {
         method: "POST",
@@ -356,6 +401,7 @@ export default function AdminCatalogClient({
       setBulkTagAdd("");
       setBulkTagRemove("");
       setBulkCategoryId("");
+      setBulkSupplierId("");
     } catch {
       setError("Bulk update failed");
     } finally {
@@ -491,174 +537,6 @@ export default function AdminCatalogClient({
             {error}
           </p>
         )}
-        <div className="group mb-5 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-xs font-semibold text-emerald-700">
-              Bulk edit ({selectedIds.length} selected)
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={applyBulkEdit}
-                disabled={bulkSaving}
-                className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
-              >
-                {bulkSaving ? "Applying..." : "Apply changes"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBulkOpen((prev) => !prev)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#2f3e36]/20 text-[#2f3e36] transition hover:border-[#2f3e36]/40"
-                aria-label={
-                  bulkOpen ? "Collapse bulk edit" : "Expand bulk edit"
-                }
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`h-4 w-4 transition-transform ${
-                    bulkOpen ? "rotate-180" : "rotate-0"
-                  }`}
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M6 9l6 6 6-6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-          {bulkOpen && (
-            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-stone-600">
-                  Status
-                  <select
-                    value={bulkStatus}
-                    onChange={(event) =>
-                      setBulkStatus(
-                        event.target.value as ProductRow["status"] | "",
-                      )
-                    }
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-2 text-sm"
-                  >
-                    <option value="">No change</option>
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Low stock threshold
-                  <input
-                    type="number"
-                    min={0}
-                    value={bulkLowStock}
-                    onChange={(event) => setBulkLowStock(event.target.value)}
-                    placeholder="No change"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                  />
-                </label>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-stone-600">
-                  Price adjust
-                  <div className="mt-1 flex gap-2">
-                    <select
-                      value={bulkPriceDirection}
-                      onChange={(event) =>
-                        setBulkPriceDirection(
-                          event.target.value as "increase" | "decrease",
-                        )
-                      }
-                      className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
-                    >
-                      <option value="increase">Increase</option>
-                      <option value="decrease">Decrease</option>
-                    </select>
-                    <input
-                      value={bulkPriceValue}
-                      onChange={(event) =>
-                        setBulkPriceValue(event.target.value)
-                      }
-                      placeholder="0"
-                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                    />
-                    <select
-                      value={bulkPriceMode}
-                      onChange={(event) =>
-                        setBulkPriceMode(
-                          event.target.value as "percent" | "fixed",
-                        )
-                      }
-                      className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
-                    >
-                      <option value="percent">%</option>
-                      <option value="fixed">EUR</option>
-                    </select>
-                  </div>
-                </label>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Category
-                  <div className="mt-1 flex gap-2">
-                    <select
-                      value={bulkCategoryAction}
-                      onChange={(event) =>
-                        setBulkCategoryAction(
-                          event.target.value as "add" | "remove",
-                        )
-                      }
-                      className="h-10 rounded-md border border-black/15 bg-white px-2 text-sm"
-                    >
-                      <option value="add">Add</option>
-                      <option value="remove">Remove</option>
-                    </select>
-                    <select
-                      value={bulkCategoryId}
-                      onChange={(event) =>
-                        setBulkCategoryId(event.target.value)
-                      }
-                      className="h-10 w-full rounded-md border border-black/15 bg-white px-2 text-sm"
-                    >
-                      <option value="">No change</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </label>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-stone-600">
-                  Add tags
-                  <input
-                    value={bulkTagAdd}
-                    onChange={(event) => setBulkTagAdd(event.target.value)}
-                    placeholder="tag1, tag2"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                  />
-                </label>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Remove tags
-                  <input
-                    value={bulkTagRemove}
-                    onChange={(event) => setBulkTagRemove(event.target.value)}
-                    placeholder="tag1, tag2"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
         <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
@@ -863,17 +741,201 @@ export default function AdminCatalogClient({
             </tbody>
           </table>
         </div>
+        <div className="group mt-6 rounded-2xl border border-emerald-700/40 bg-emerald-900/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs font-semibold text-emerald-950">
+              Bulk edit ({selectedIds.length} selected)
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={applyBulkEdit}
+                disabled={bulkSaving}
+                className="h-9 rounded-md bg-[#1f2b25] px-4 text-xs font-semibold text-white hover:bg-[#1a241f] disabled:opacity-60"
+              >
+                {bulkSaving ? "Applying..." : "Apply changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkOpen((prev) => !prev)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-900/30 text-emerald-950 transition hover:border-emerald-900/50"
+                aria-label={
+                  bulkOpen ? "Collapse bulk edit" : "Expand bulk edit"
+                }
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-4 w-4 transition-transform ${
+                    bulkOpen ? "rotate-180" : "rotate-0"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          {bulkOpen && (
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Status
+                  <select
+                    value={bulkStatus}
+                    onChange={(event) =>
+                      setBulkStatus(
+                        event.target.value as ProductRow["status"] | "",
+                      )
+                    }
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                  >
+                    <option value="">No change</option>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Low stock threshold
+                  <input
+                    type="number"
+                    min={0}
+                    value={bulkLowStock}
+                    onChange={(event) => setBulkLowStock(event.target.value)}
+                    placeholder="No change"
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800"
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Price adjust
+                  <div className="mt-1 flex gap-2">
+                    <select
+                      value={bulkPriceDirection}
+                      onChange={(event) =>
+                        setBulkPriceDirection(
+                          event.target.value as "increase" | "decrease",
+                        )
+                      }
+                      className="h-10 rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                    >
+                      <option value="increase">Increase</option>
+                      <option value="decrease">Decrease</option>
+                    </select>
+                    <input
+                      value={bulkPriceValue}
+                      onChange={(event) =>
+                        setBulkPriceValue(event.target.value)
+                      }
+                      placeholder="0"
+                      className="h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800"
+                    />
+                    <select
+                      value={bulkPriceMode}
+                      onChange={(event) =>
+                        setBulkPriceMode(
+                          event.target.value as "percent" | "fixed",
+                        )
+                      }
+                      className="h-10 rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                    >
+                      <option value="percent">%</option>
+                      <option value="fixed">EUR</option>
+                    </select>
+                  </div>
+                </label>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Category
+                  <div className="mt-1 flex gap-2">
+                    <select
+                      value={bulkCategoryAction}
+                      onChange={(event) =>
+                        setBulkCategoryAction(
+                          event.target.value as "add" | "remove",
+                        )
+                      }
+                      className="h-10 rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                    >
+                      <option value="add">Add</option>
+                      <option value="remove">Remove</option>
+                    </select>
+                    <select
+                      value={bulkCategoryId}
+                      onChange={(event) =>
+                        setBulkCategoryId(event.target.value)
+                      }
+                      className="h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                    >
+                      <option value="">No change</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Supplier
+                  <select
+                    value={bulkSupplierId}
+                    onChange={(event) => setBulkSupplierId(event.target.value)}
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-2 text-sm text-stone-800"
+                  >
+                    <option value="">No change</option>
+                    <option value="__clear__">Clear supplier</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-stone-600">
+                  Add tags
+                  <input
+                    value={bulkTagAdd}
+                    onChange={(event) => setBulkTagAdd(event.target.value)}
+                    placeholder="tag1, tag2"
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Remove tags
+                  <input
+                    value={bulkTagRemove}
+                    onChange={(event) => setBulkTagRemove(event.target.value)}
+                    placeholder="tag1, tag2"
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+        <div className="rounded-2xl border border-teal-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(13,148,136,0.16)]">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-800">
                 02
               </span>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-800">
                   Categories
                 </p>
                 <p className="text-xs text-stone-500">
@@ -884,13 +946,13 @@ export default function AdminCatalogClient({
             <button
               type="button"
               onClick={() => setCategoriesOpen((prev) => !prev)}
-              className="inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1 rounded-full border border-amber-200 px-2 text-amber-700 transition hover:border-amber-300"
+              className="inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1 rounded-full border border-teal-200 px-2 text-teal-800 transition hover:border-teal-300"
               aria-label={
                 categoriesOpen ? "Collapse categories" : "Expand categories"
               }
             >
               {!categoriesOpen && (
-                <span className="mr-1 text-[11px] font-semibold text-amber-700">
+                <span className="mr-1 text-[11px] font-semibold text-teal-800">
                   {categories.length}
                 </span>
               )}
@@ -909,7 +971,7 @@ export default function AdminCatalogClient({
               {categories.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-amber-200/70 bg-white p-3 mt-3"
+                  className="rounded-xl border border-teal-200/70 bg-white p-3 mt-3"
                 >
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="block text-xs font-semibold text-stone-600">
@@ -968,16 +1030,17 @@ export default function AdminCatalogClient({
                     <button
                       type="button"
                       onClick={() => upsertCategory(item, "category")}
-                      className="h-10 rounded-md border border-amber-200 px-4 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                      className="h-10 rounded-md border border-teal-200 px-4 text-xs font-semibold text-teal-800 hover:border-teal-300"
                     >
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteCategory(item.id, "category")}
-                      className="h-10 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700"
+                      className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                      aria-label="Delete category"
                     >
-                      Delete
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -987,8 +1050,8 @@ export default function AdminCatalogClient({
               )}
             </div>
           )}
-          <div className="mt-3 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 p-3">
-            <p className="text-xs font-semibold text-amber-700 mb-2">
+          <div className="mt-3 rounded-xl border border-dashed border-teal-200/80 bg-teal-50/60 p-3">
+            <p className="text-xs font-semibold text-teal-800 mb-2">
               Add category
             </p>
             <div className="grid gap-3 md:grid-cols-2">
@@ -1036,7 +1099,7 @@ export default function AdminCatalogClient({
                     setNewCategory({ name: "", handle: "", description: "" });
                   }
                 }}
-                className="h-10 rounded-md bg-amber-500 px-5 text-xs font-semibold text-white hover:bg-amber-600"
+                className="h-10 rounded-md bg-teal-600 px-5 text-xs font-semibold text-white hover:bg-teal-700"
               >
                 Add
               </button>
@@ -1153,9 +1216,10 @@ export default function AdminCatalogClient({
                     <button
                       type="button"
                       onClick={() => deleteCategory(item.id, "collection")}
-                      className="h-10 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700"
+                      className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                      aria-label="Delete collection"
                     >
-                      Delete
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -1258,6 +1322,33 @@ export default function AdminCatalogClient({
                   placeholder="product-handle"
                   className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                   required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-stone-600">
+                Supplier
+                <select
+                  value={createSupplierId}
+                  onChange={(event) => setCreateSupplierId(event.target.value)}
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                >
+                  <option value="">No supplier</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs font-semibold text-stone-600">
+                Lead time (days)
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={createLeadTimeDays}
+                  onChange={(event) => setCreateLeadTimeDays(event.target.value)}
+                  placeholder="e.g. 7"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                 />
               </label>
               {createError && (

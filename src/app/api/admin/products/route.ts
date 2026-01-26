@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     technicalDetails?: string | null;
     shortDescription?: string | null;
     manufacturer?: string | null;
-    supplier?: string | null;
+    supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
     leadTimeDays?: number | null;
@@ -78,6 +78,18 @@ export async function POST(request: Request) {
   if (!sellerUrlResult.ok) {
     return NextResponse.json(
       { error: "Seller URL must be a valid http(s) link" },
+      { status: 400 }
+    );
+  }
+
+  if (
+    typeof body.leadTimeDays !== "undefined" &&
+    (typeof body.leadTimeDays !== "number" ||
+      !Number.isFinite(body.leadTimeDays) ||
+      body.leadTimeDays < 0)
+  ) {
+    return NextResponse.json(
+      { error: "Lead time must be a non-negative number" },
       { status: 400 }
     );
   }
@@ -110,6 +122,27 @@ export async function POST(request: Request) {
     handle = `${baseHandle}-${suffix}`;
   }
 
+  let leadTimeDays =
+    typeof body.leadTimeDays === "number" ? body.leadTimeDays : null;
+  const supplierId = body.supplierId ?? null;
+  let supplierName: string | null = null;
+  if (supplierId) {
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { name: true, leadTimeDays: true },
+    });
+    if (!supplier) {
+      return NextResponse.json(
+        { error: "Supplier not found" },
+        { status: 400 }
+      );
+    }
+    supplierName = supplier.name;
+    if (leadTimeDays === null && supplier.leadTimeDays !== null) {
+      leadTimeDays = supplier.leadTimeDays;
+    }
+  }
+
   const product = await prisma.product.create({
     data: {
       title,
@@ -118,11 +151,11 @@ export async function POST(request: Request) {
       technicalDetails: sanitizeProductDescription(body.technicalDetails),
       shortDescription: sanitizePlainText(body.shortDescription),
       manufacturer: body.manufacturer?.trim() || null,
-      supplier: body.supplier?.trim() || null,
+      supplier: supplierName,
+      supplierId,
       sellerName: sanitizePlainText(body.sellerName),
       sellerUrl: sellerUrlResult.value,
-      leadTimeDays:
-        typeof body.leadTimeDays === "number" ? body.leadTimeDays : null,
+      leadTimeDays,
       weightGrams:
         typeof body.weightGrams === "number" ? body.weightGrams : null,
       lengthMm: typeof body.lengthMm === "number" ? body.lengthMm : null,

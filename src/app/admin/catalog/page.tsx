@@ -10,7 +10,7 @@ export default async function AdminCatalogPage() {
   const isAdmin = session?.user?.role === "ADMIN";
   if (!isAdmin) notFound();
 
-  const [products, categories, collections] = await Promise.all([
+  const [products, categories, collections, suppliers] = await Promise.all([
     prisma.product.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
@@ -19,6 +19,10 @@ export default async function AdminCatalogPage() {
     }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, leadTimeDays: true },
+    }),
   ]);
 
   return (
@@ -40,6 +44,7 @@ export default async function AdminCatalogPage() {
           }))}
           initialCategories={categories}
           initialCollections={collections}
+          initialSuppliers={suppliers}
         />
       </div>
     </PageLayout>

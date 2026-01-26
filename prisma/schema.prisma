@@ -173,6 +173,20 @@ model BackInStockRequest {
   @@index([userId])
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  contactName String?
+  email       String?
+  phone       String?
+  website     String?
+  notes       String?
+  leadTimeDays Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  products    Product[]
+}
+
 
 
 model Product {
@@ -184,6 +198,7 @@ model Product {
   shortDescription String?
   manufacturer String?
   supplier    String?
+  supplierId  String?
   sellerName  String?
   sellerUrl   String?
   leadTimeDays Int?
@@ -202,6 +217,9 @@ model Product {
   categories  ProductCategory[]
   collections ProductCollection[]
   reviews     Review[]
+  supplierRef Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId])
 }
 
 model ProductImage {

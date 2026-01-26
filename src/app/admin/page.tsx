@@ -144,6 +144,12 @@ export default async function AdminPage() {
               Manage catalog
             </Link>
             <Link
+              href="/admin/suppliers"
+              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
+            >
+              Supplier CRM
+            </Link>
+            <Link
               href="/admin/orders"
               className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
             >

@@ -20,6 +20,7 @@ type BulkPayload = {
     action: "add" | "remove";
     categoryId: string;
   };
+  supplierId?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -75,6 +76,34 @@ export async function POST(request: Request) {
       operations.push(
         prisma.productCategory.deleteMany({
           where: { productId: { in: productIds }, categoryId },
+        })
+      );
+    }
+  }
+
+  if (typeof body.supplierId !== "undefined") {
+    if (body.supplierId === null) {
+      operations.push(
+        prisma.product.updateMany({
+          where: { id: { in: productIds } },
+          data: { supplierId: null, supplier: null },
+        })
+      );
+    } else {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: body.supplierId },
+        select: { id: true, name: true },
+      });
+      if (!supplier) {
+        return NextResponse.json(
+          { error: "Supplier not found" },
+          { status: 400 }
+        );
+      }
+      operations.push(
+        prisma.product.updateMany({
+          where: { id: { in: productIds } },
+          data: { supplierId: supplier.id, supplier: supplier.name },
         })
       );
     }

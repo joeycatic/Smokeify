@@ -81,7 +81,7 @@ export async function PATCH(
     technicalDetails?: string | null;
     shortDescription?: string | null;
     manufacturer?: string | null;
-    supplier?: string | null;
+    supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
     leadTimeDays?: number | null;
@@ -102,6 +102,7 @@ export async function PATCH(
     shortDescription?: string | null;
     manufacturer?: string | null;
     supplier?: string | null;
+    supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
     leadTimeDays?: number | null;
@@ -161,8 +162,24 @@ export async function PATCH(
     updates.manufacturer = body.manufacturer?.trim() || null;
   }
 
-  if (typeof body.supplier !== "undefined") {
-    updates.supplier = body.supplier?.trim() || null;
+  if (typeof body.supplierId !== "undefined") {
+    if (!body.supplierId) {
+      updates.supplierId = null;
+      updates.supplier = null;
+    } else {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: body.supplierId },
+        select: { name: true },
+      });
+      if (!supplier) {
+        return NextResponse.json(
+          { error: "Supplier not found" },
+          { status: 400 }
+        );
+      }
+      updates.supplierId = body.supplierId;
+      updates.supplier = supplier.name;
+    }
   }
 
   if (typeof body.sellerName !== "undefined") {
