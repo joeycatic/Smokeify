@@ -59,6 +59,12 @@ type ProductDetail = {
   lengthMm: number | null;
   widthMm: number | null;
   heightMm: number | null;
+  growboxPlantCountMin: number | null;
+  growboxPlantCountMax: number | null;
+  growboxSize: string | null;
+  growboxConnectionDiameterMm: number[];
+  lightSize: string | null;
+  airSystemDiameterMm: number | null;
   shippingClass: string | null;
   tags: string[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -119,6 +125,12 @@ export default function AdminProductClient({
     lengthMm: product.lengthMm ?? "",
     widthMm: product.widthMm ?? "",
     heightMm: product.heightMm ?? "",
+    growboxPlantCountMin: product.growboxPlantCountMin ?? "",
+    growboxPlantCountMax: product.growboxPlantCountMax ?? "",
+    growboxSize: product.growboxSize ?? "",
+    growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
+    lightSize: product.lightSize ?? "",
+    airSystemDiameterMm: product.airSystemDiameterMm ?? "",
     shippingClass: product.shippingClass ?? "",
     tags: (product.tags ?? []).join(", "),
     status: product.status,
@@ -183,6 +195,36 @@ export default function AdminProductClient({
     });
     return map;
   }, [categories]);
+  const growboxenCategoryId = useMemo(
+    () => categories.find((item) => item.handle === "growboxen")?.id ?? null,
+    [categories]
+  );
+  const showGrowboxenFields = useMemo(
+    () => (growboxenCategoryId ? categoryIds.has(growboxenCategoryId) : false),
+    [categoryIds, growboxenCategoryId]
+  );
+  const lightCategoryId = useMemo(
+    () =>
+      categories.find(
+        (item) => item.handle.toLowerCase() === "licht".toLowerCase()
+      )?.id ?? null,
+    [categories]
+  );
+  const showLightFields = useMemo(
+    () => (lightCategoryId ? categoryIds.has(lightCategoryId) : false),
+    [categoryIds, lightCategoryId]
+  );
+  const airSystemCategoryId = useMemo(
+    () =>
+      categories.find(
+        (item) => item.handle.toLowerCase() === "luft".toLowerCase()
+      )?.id ?? null,
+    [categories]
+  );
+  const showAirSystemFields = useMemo(
+    () => (airSystemCategoryId ? categoryIds.has(airSystemCategoryId) : false),
+    [categoryIds, airSystemCategoryId]
+  );
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -230,6 +272,12 @@ export default function AdminProductClient({
         lengthMm: toNumberOrNull(details.lengthMm),
         widthMm: toNumberOrNull(details.widthMm),
         heightMm: toNumberOrNull(details.heightMm),
+        growboxPlantCountMin: toNumberOrNull(details.growboxPlantCountMin),
+        growboxPlantCountMax: toNumberOrNull(details.growboxPlantCountMax),
+        growboxSize: details.growboxSize,
+        growboxConnectionDiameterMm: details.growboxConnectionDiameterMm,
+        lightSize: details.lightSize,
+        airSystemDiameterMm: toNumberOrNull(details.airSystemDiameterMm),
         shippingClass: details.shippingClass,
         status: details.status,
       };
@@ -760,6 +808,135 @@ export default function AdminProductClient({
             />
           </label>
         </div>
+        {showGrowboxenFields && (
+          <div className="mt-4 rounded-lg border border-emerald-200/70 bg-emerald-50/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+              Growboxen
+            </p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="text-xs font-semibold text-stone-600">
+                Plant count min
+                <input
+                  type="number"
+                  min={0}
+                  value={details.growboxPlantCountMin}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      growboxPlantCountMin:
+                        event.target.value === ""
+                          ? ""
+                          : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 2"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Plant count max
+                <input
+                  type="number"
+                  min={0}
+                  value={details.growboxPlantCountMax}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      growboxPlantCountMax:
+                        event.target.value === ""
+                          ? ""
+                          : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 6"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600">
+                Size
+                <input
+                  value={details.growboxSize}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      growboxSize: event.target.value,
+                    }))
+                  }
+                  placeholder="e.g. 80x80x180 cm"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-semibold text-stone-600 md:col-span-2">
+                Connection diameters (mm)
+                <input
+                  value={details.growboxConnectionDiameterMm.join(", ")}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      growboxConnectionDiameterMm: event.target.value
+                        .split(",")
+                        .map((value) => Number(value.trim()))
+                        .filter((value) => Number.isFinite(value)),
+                    }))
+                  }
+                  placeholder="e.g. 100, 125, 150"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+        {showLightFields && (
+          <div className="mt-4 rounded-lg border border-indigo-200/70 bg-indigo-50/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
+              Licht
+            </p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="text-xs font-semibold text-stone-600">
+                Light size
+                <input
+                  value={details.lightSize}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      lightSize: event.target.value,
+                    }))
+                  }
+                  placeholder="e.g. 80x80"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+        {showAirSystemFields && (
+          <div className="mt-4 rounded-lg border border-sky-200/70 bg-sky-50/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+              Luft
+            </p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="text-xs font-semibold text-stone-600">
+                Diameter (mm)
+                <input
+                  type="number"
+                  min={0}
+                  value={details.airSystemDiameterMm}
+                  onChange={(event) =>
+                    setDetails((prev) => ({
+                      ...prev,
+                      airSystemDiameterMm:
+                        event.target.value === ""
+                          ? ""
+                          : Number(event.target.value),
+                    }))
+                  }
+                  placeholder="e.g. 125"
+                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                />
+              </label>
+            </div>
+          </div>
+        )}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-stone-600">
             Supplier

@@ -61,6 +61,11 @@ export async function POST(request: Request) {
 
   if (body.category?.categoryId) {
     const categoryId = body.category.categoryId;
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { parentId: true },
+    });
+    const isParentCategory = category?.parentId === null;
     if (body.category.action === "add") {
       operations.push(
         prisma.productCategory.createMany({
@@ -72,12 +77,28 @@ export async function POST(request: Request) {
           skipDuplicates: true,
         })
       );
+      if (isParentCategory) {
+        operations.push(
+          prisma.product.updateMany({
+            where: { id: { in: productIds }, mainCategoryId: null },
+            data: { mainCategoryId: categoryId },
+          })
+        );
+      }
     } else {
       operations.push(
         prisma.productCategory.deleteMany({
           where: { productId: { in: productIds }, categoryId },
         })
       );
+      if (isParentCategory) {
+        operations.push(
+          prisma.product.updateMany({
+            where: { id: { in: productIds }, mainCategoryId: categoryId },
+            data: { mainCategoryId: null },
+          })
+        );
+      }
     }
   }
 

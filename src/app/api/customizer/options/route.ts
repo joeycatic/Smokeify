@@ -22,7 +22,9 @@ export async function GET(request: Request) {
   const products = await prisma.product.findMany({
     where: {
       status: "ACTIVE",
-      categories: { some: { category: { handle: categoryHandle } } },
+      categories: {
+        some: { category: { handle: { equals: categoryHandle, mode: "insensitive" } } },
+      },
     },
     orderBy: { updatedAt: "desc" },
     include: {
@@ -38,6 +40,12 @@ export async function GET(request: Request) {
       id: product.id,
       label: product.title,
       price: minPriceCents / CURRENCY_MULTIPLIER,
+      size: product.growboxSize ?? product.lightSize ?? undefined,
+      diameterMm: product.airSystemDiameterMm ?? undefined,
+      diametersMm:
+        product.growboxConnectionDiameterMm.length > 0
+          ? product.growboxConnectionDiameterMm
+          : undefined,
     };
   });
 

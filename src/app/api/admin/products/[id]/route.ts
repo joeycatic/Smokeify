@@ -89,6 +89,12 @@ export async function PATCH(
     lengthMm?: number | null;
     widthMm?: number | null;
     heightMm?: number | null;
+    growboxPlantCountMin?: number | null;
+    growboxPlantCountMax?: number | null;
+    growboxSize?: string | null;
+    growboxConnectionDiameterMm?: number[] | null;
+    lightSize?: string | null;
+    airSystemDiameterMm?: number | null;
     shippingClass?: string | null;
     tags?: string[];
     status?: string;
@@ -110,6 +116,12 @@ export async function PATCH(
     lengthMm?: number | null;
     widthMm?: number | null;
     heightMm?: number | null;
+    growboxPlantCountMin?: number | null;
+    growboxPlantCountMax?: number | null;
+    growboxSize?: string | null;
+    growboxConnectionDiameterMm?: number[];
+    lightSize?: string | null;
+    airSystemDiameterMm?: number | null;
     shippingClass?: string | null;
     tags?: string[];
     status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -217,6 +229,45 @@ export async function PATCH(
 
   if (typeof body.heightMm !== "undefined") {
     updates.heightMm = typeof body.heightMm === "number" ? body.heightMm : null;
+  }
+
+  if (typeof body.growboxPlantCountMin !== "undefined") {
+    updates.growboxPlantCountMin =
+      typeof body.growboxPlantCountMin === "number"
+        ? body.growboxPlantCountMin
+        : null;
+  }
+
+  if (typeof body.growboxPlantCountMax !== "undefined") {
+    updates.growboxPlantCountMax =
+      typeof body.growboxPlantCountMax === "number"
+        ? body.growboxPlantCountMax
+        : null;
+  }
+
+  if (typeof body.growboxSize !== "undefined") {
+    updates.growboxSize = body.growboxSize?.trim() || null;
+  }
+
+  if (typeof body.growboxConnectionDiameterMm !== "undefined") {
+    if (Array.isArray(body.growboxConnectionDiameterMm)) {
+      updates.growboxConnectionDiameterMm = body.growboxConnectionDiameterMm
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+    } else {
+      updates.growboxConnectionDiameterMm = [];
+    }
+  }
+
+  if (typeof body.lightSize !== "undefined") {
+    updates.lightSize = body.lightSize?.trim() || null;
+  }
+
+  if (typeof body.airSystemDiameterMm !== "undefined") {
+    updates.airSystemDiameterMm =
+      typeof body.airSystemDiameterMm === "number"
+        ? body.airSystemDiameterMm
+        : null;
   }
 
   if (typeof body.shippingClass !== "undefined") {

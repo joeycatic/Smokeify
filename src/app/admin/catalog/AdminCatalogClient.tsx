@@ -17,6 +17,7 @@ type ProductRow = {
   sellerUrl?: string | null;
   _count: { variants: number; images: number };
   outOfStock: boolean;
+  mainCategory?: { id: string; name: string; handle: string } | null;
 };
 
 type CategoryRow = {
@@ -36,6 +37,8 @@ type SupplierRow = {
 type Props = {
   initialProducts: ProductRow[];
   initialQuery: string;
+  initialSortKey: SortKey;
+  initialSortDirection: "asc" | "desc";
   totalCount: number;
   currentPage: number;
   totalPages: number;
@@ -46,7 +49,7 @@ type Props = {
 };
 
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
-type SortKey = "title" | "status" | "variants" | "images" | "updatedAt";
+type SortKey = "title" | "status" | "variants" | "category" | "updatedAt";
 
 const slugifyHandle = (value: string) =>
   value
@@ -58,6 +61,8 @@ const slugifyHandle = (value: string) =>
 export default function AdminCatalogClient({
   initialProducts,
   initialQuery,
+  initialSortKey,
+  initialSortDirection,
   totalCount: initialTotalCount,
   currentPage,
   totalPages,
@@ -68,8 +73,10 @@ export default function AdminCatalogClient({
 }: Props) {
   const [products, setProducts] = useState<ProductRow[]>(initialProducts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
-  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(
+    initialSortDirection,
+  );
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
@@ -123,6 +130,11 @@ export default function AdminCatalogClient({
   }, [initialProducts, initialTotalCount, currentPage]);
 
   useEffect(() => {
+    setSortKey(initialSortKey);
+    setSortDirection(initialSortDirection);
+  }, [initialSortDirection, initialSortKey]);
+
+  useEffect(() => {
     setSearchTerm(initialQuery);
   }, [initialQuery]);
 
@@ -154,35 +166,7 @@ export default function AdminCatalogClient({
     );
   }, [createSupplierId, suppliers]);
 
-  const sortedProducts = useMemo(() => {
-    const sorted = [...products];
-    const direction = sortDirection === "asc" ? 1 : -1;
-
-    sorted.sort((a, b) => {
-      switch (sortKey) {
-        case "title":
-          return a.title.localeCompare(b.title) * direction;
-        case "status":
-          return a.status.localeCompare(b.status) * direction;
-        case "variants":
-          return (a._count.variants - b._count.variants) * direction;
-        case "images":
-          return (a._count.images - b._count.images) * direction;
-        case "updatedAt":
-          return (
-            (new Date(a.updatedAt).getTime() -
-              new Date(b.updatedAt).getTime()) *
-            direction
-          );
-        default:
-          return 0;
-      }
-    });
-
-    return sorted;
-  }, [products, sortDirection, sortKey]);
-
-  const visibleProducts = sortedProducts;
+  const visibleProducts = products;
 
   useEffect(() => {
     const trimmed = searchTerm.trim();
@@ -205,6 +189,21 @@ export default function AdminCatalogClient({
     }, 300);
     return () => clearTimeout(handle);
   }, [router, searchParamsString, searchTerm]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsString);
+    const currentSort = params.get("sort") ?? "updatedAt";
+    const currentDir = params.get("dir") ?? "desc";
+    if (currentSort === sortKey && currentDir === sortDirection) return;
+    params.set("sort", sortKey);
+    params.set("dir", sortDirection);
+    params.set("page", "1");
+    const queryString = params.toString();
+    router.replace(
+      queryString ? `/admin/catalog?${queryString}` : "/admin/catalog",
+      { scroll: false },
+    );
+  }, [router, searchParamsString, sortDirection, sortKey]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -748,15 +747,15 @@ export default function AdminCatalogClient({
                 <th className="bg-white py-4">
                   <button
                     type="button"
-                    onClick={() => handleSort("images")}
+                    onClick={() => handleSort("category")}
                     className={`inline-flex items-center gap-2 ${
-                      sortKey === "images"
+                      sortKey === "category"
                         ? "text-amber-600"
                         : "text-emerald-700/70 hover:text-emerald-700"
                     }`}
                   >
-                    Images
-                    {renderSortArrow("images")}
+                    Category
+                    {renderSortArrow("category")}
                   </button>
                 </th>
                 <th className="bg-white py-4">
@@ -806,7 +805,9 @@ export default function AdminCatalogClient({
                   </td>
                   <td className="py-3 pr-3">{product.status}</td>
                   <td className="py-3 pr-3">{product._count.variants}</td>
-                  <td className="py-3 pr-3">{product._count.images}</td>
+                  <td className="py-3 pr-3">
+                    {product.mainCategory?.name ?? "—"}
+                  </td>
                   <td className="py-3">
                     {new Date(product.updatedAt).toLocaleDateString("de-DE")}
                   </td>

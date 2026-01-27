@@ -61,9 +61,16 @@ export async function POST(
       lengthMm: product.lengthMm,
       widthMm: product.widthMm,
       heightMm: product.heightMm,
+      growboxPlantCountMin: product.growboxPlantCountMin,
+      growboxPlantCountMax: product.growboxPlantCountMax,
+      growboxSize: product.growboxSize,
+      growboxConnectionDiameterMm: product.growboxConnectionDiameterMm,
+      lightSize: product.lightSize,
+      airSystemDiameterMm: product.airSystemDiameterMm,
       shippingClass: product.shippingClass,
       tags: product.tags,
       status: "DRAFT",
+      mainCategoryId: product.mainCategoryId,
       images: {
         create: product.images.map((image) => ({
           url: image.url,

@@ -10,6 +10,9 @@ type Option = {
   label: string;
   price: number;
   note?: string;
+  size?: string;
+  diameterMm?: number;
+  diametersMm?: number[];
 };
 
 const SIZE_OPTIONS: Option[] = [
@@ -57,6 +60,12 @@ export default function CustomizerPage() {
   const [sizeOptions, setSizeOptions] = useState<Option[]>([]);
   const [sizeLoading, setSizeLoading] = useState(false);
   const [sizeError, setSizeError] = useState("");
+  const [lightOptions, setLightOptions] = useState<Option[]>([]);
+  const [lightLoading, setLightLoading] = useState(false);
+  const [lightError, setLightError] = useState("");
+  const [ventOptions, setVentOptions] = useState<Option[]>([]);
+  const [ventLoading, setVentLoading] = useState(false);
+  const [ventError, setVentError] = useState("");
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -90,17 +99,121 @@ export default function CustomizerPage() {
   }, [isAdmin]);
 
   useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    setLightLoading(true);
+    setLightError("");
+    fetch("/api/customizer/options?category=Licht")
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? "Konnte Licht-Produkte nicht laden.");
+        }
+        return (await res.json()) as { options?: Option[] };
+      })
+      .then((data) => {
+        if (!active) return;
+        setLightOptions(data.options ?? []);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setLightError(err.message || "Konnte Licht-Produkte nicht laden.");
+      })
+      .finally(() => {
+        if (!active) return;
+        setLightLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    setVentLoading(true);
+    setVentError("");
+    fetch("/api/customizer/options?category=Luft")
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? "Konnte Luft-Produkte nicht laden.");
+        }
+        return (await res.json()) as { options?: Option[] };
+      })
+      .then((data) => {
+        if (!active) return;
+        setVentOptions(data.options ?? []);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setVentError(err.message || "Konnte Luft-Produkte nicht laden.");
+      })
+      .finally(() => {
+        if (!active) return;
+        setVentLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
     if (!sizeOptions.length) return;
     setSizeId((prev) =>
       sizeOptions.some((opt) => opt.id === prev) ? prev : sizeOptions[0].id,
     );
   }, [sizeOptions]);
 
+  useEffect(() => {
+    if (!lightOptions.length) return;
+    setLightId((prev) =>
+      lightOptions.some((opt) => opt.id === prev) ? prev : lightOptions[0].id,
+    );
+  }, [lightOptions]);
+
+  useEffect(() => {
+    if (!ventOptions.length) return;
+    setVentId((prev) =>
+      ventOptions.some((opt) => opt.id === prev) ? prev : ventOptions[0].id,
+    );
+  }, [ventOptions]);
+
   const selectedSize = (isAdmin ? sizeOptions : SIZE_OPTIONS).find(
     (o) => o.id === sizeId,
   );
-  const selectedLight = LIGHT_OPTIONS.find((o) => o.id === lightId);
-  const selectedVent = VENT_OPTIONS.find((o) => o.id === ventId);
+  const selectedLight = (isAdmin ? lightOptions : LIGHT_OPTIONS).find(
+    (o) => o.id === lightId,
+  );
+  const selectedVent = (isAdmin ? ventOptions : VENT_OPTIONS).find(
+    (o) => o.id === ventId,
+  );
+
+  const parseSize = (value?: string) => {
+    if (!value) return null;
+    const matches = value.match(/(\d+(?:[.,]\d+)?)/g);
+    if (!matches || matches.length < 2) return null;
+    const numbers = matches
+      .map((match) => Number(match.replace(",", ".")))
+      .filter((num) => Number.isFinite(num));
+    if (numbers.length < 2) return null;
+    return { width: numbers[0], depth: numbers[1], height: numbers[2] ?? null };
+  };
+
+  const tentSize = parseSize(selectedSize?.size ?? selectedSize?.label);
+  const lightSize = parseSize(selectedLight?.size ?? selectedLight?.label);
+  const lightCompatible =
+    !tentSize ||
+    !lightSize ||
+    (lightSize.width <= tentSize.width && lightSize.depth <= tentSize.depth);
+  const tentDiameters = selectedSize?.diametersMm ?? [];
+  const airDiameter = selectedVent?.diameterMm ?? null;
+  const airCompatible =
+    tentDiameters.length === 0 ||
+    !airDiameter ||
+    tentDiameters.includes(airDiameter);
 
   const extrasTotal = useMemo(() => {
     return extras
@@ -429,50 +542,98 @@ export default function CustomizerPage() {
               <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
                 2. LICHT
               </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {LIGHT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setLightId(opt.id)}
-                    className={`rounded-lg border px-4 py-3 text-left transition ${
-                      lightId === opt.id
-                        ? "border-black bg-black text-white"
-                        : "border-black/10 bg-white hover:border-black/20"
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">{opt.label}</div>
-                    <div className="text-xs opacity-80">
-                      {formatPrice(opt.price)}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {lightError && (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {lightError}
+                </p>
+              )}
+              {lightLoading ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[...Array(3)].map((_, index) => (
+                    <div
+                      key={`light-skeleton-${index}`}
+                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
+                    />
+                  ))}
+                </div>
+              ) : (isAdmin ? lightOptions : LIGHT_OPTIONS).length === 0 ? (
+                <p className="text-xs text-stone-500">
+                  Kein Licht gefunden.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(isAdmin ? lightOptions : LIGHT_OPTIONS).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setLightId(opt.id)}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        lightId === opt.id
+                          ? "border-black bg-black text-white"
+                          : "border-black/10 bg-white hover:border-black/20"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{opt.label}</div>
+                      <div className="text-xs opacity-80">
+                        {formatPrice(opt.price)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!lightCompatible && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Das ausgewaehlte Licht passt nicht zur Zelt-Groesse.
+                </p>
+              )}
             </section>
 
             <section className="rounded-xl border border-black/10 bg-white p-5">
               <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
                 3. ABLUFT
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {VENT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setVentId(opt.id)}
-                    className={`rounded-lg border px-4 py-3 text-left transition ${
-                      ventId === opt.id
-                        ? "border-black bg-black text-white"
-                        : "border-black/10 bg-white hover:border-black/20"
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">{opt.label}</div>
-                    <div className="text-xs opacity-80">
-                      {formatPrice(opt.price)}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {ventError && (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {ventError}
+                </p>
+              )}
+              {ventLoading ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[...Array(2)].map((_, index) => (
+                    <div
+                      key={`vent-skeleton-${index}`}
+                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
+                    />
+                  ))}
+                </div>
+              ) : (isAdmin ? ventOptions : VENT_OPTIONS).length === 0 ? (
+                <p className="text-xs text-stone-500">Keine Abluft gefunden.</p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(isAdmin ? ventOptions : VENT_OPTIONS).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setVentId(opt.id)}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        ventId === opt.id
+                          ? "border-black bg-black text-white"
+                          : "border-black/10 bg-white hover:border-black/20"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{opt.label}</div>
+                      <div className="text-xs opacity-80">
+                        {formatPrice(opt.price)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!airCompatible && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Die Abluft passt nicht zum Anschlussdurchmesser der Growbox.
+                </p>
+              )}
             </section>
 
             <section className="rounded-xl border border-black/10 bg-white p-5">

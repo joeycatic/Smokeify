@@ -14,6 +14,15 @@ export async function PUT(
 
   const body = (await request.json()) as { categoryIds?: string[] };
   const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds : [];
+  const parentCategories = categoryIds.length
+    ? await prisma.category.findMany({
+        where: { id: { in: categoryIds }, parentId: null },
+        select: { id: true },
+      })
+    : [];
+  const parentCategoryIds = new Set(parentCategories.map((item) => item.id));
+  const mainCategoryId =
+    categoryIds.find((id) => parentCategoryIds.has(id)) ?? null;
 
   await prisma.$transaction([
     prisma.productCategory.deleteMany({ where: { productId: id } }),
@@ -23,6 +32,10 @@ export async function PUT(
         categoryId,
         position: index,
       })),
+    }),
+    prisma.product.update({
+      where: { id },
+      data: { mainCategoryId },
     }),
   ]);
 

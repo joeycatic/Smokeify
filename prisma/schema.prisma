@@ -206,6 +206,13 @@ model Product {
   lengthMm    Int?
   widthMm     Int?
   heightMm    Int?
+  growboxPlantCountMin Int?
+  growboxPlantCountMax Int?
+  growboxSize String?
+  growboxConnectionDiameterMm Int[] @default([])
+  lightSize String?
+  airSystemDiameterMm Int?
+  mainCategoryId String?
   shippingClass String?
   tags        String[]       @default([])
   status      ProductStatus  @default(DRAFT)
@@ -217,9 +224,11 @@ model Product {
   categories  ProductCategory[]
   collections ProductCollection[]
   reviews     Review[]
+  mainCategory Category? @relation("ProductMainCategory", fields: [mainCategoryId], references: [id], onDelete: SetNull)
   supplierRef Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([supplierId])
+  @@index([mainCategoryId])
 }
 
 model ProductImage {
@@ -288,6 +297,7 @@ model Category {
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryHierarchy")
   products ProductCategory[]
+  mainCategoryProducts Product[] @relation("ProductMainCategory")
 
   @@index([parentId])
 }
