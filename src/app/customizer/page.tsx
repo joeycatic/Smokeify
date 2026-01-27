@@ -60,6 +60,7 @@ export default function CustomizerPage() {
   const [sizeOptions, setSizeOptions] = useState<Option[]>([]);
   const [sizeLoading, setSizeLoading] = useState(false);
   const [sizeError, setSizeError] = useState("");
+  const [sizeGroupKey, setSizeGroupKey] = useState<string | null>(null);
   const [lightOptions, setLightOptions] = useState<Option[]>([]);
   const [lightLoading, setLightLoading] = useState(false);
   const [lightError, setLightError] = useState("");
@@ -161,13 +162,6 @@ export default function CustomizerPage() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!sizeOptions.length) return;
-    setSizeId((prev) =>
-      sizeOptions.some((opt) => opt.id === prev) ? prev : sizeOptions[0].id,
-    );
-  }, [sizeOptions]);
-
-  useEffect(() => {
     if (!lightOptions.length) return;
     setLightId((prev) =>
       lightOptions.some((opt) => opt.id === prev) ? prev : lightOptions[0].id,
@@ -202,6 +196,43 @@ export default function CustomizerPage() {
     return { width: numbers[0], depth: numbers[1], height: numbers[2] ?? null };
   };
 
+  const sizeKeyFrom = (value?: string) => {
+    const parsed = parseSize(value);
+    if (!parsed) return null;
+    const base = `${parsed.width}x${parsed.depth}`;
+    return parsed.height ? `${base}x${parsed.height}` : base;
+  };
+
+  const sizeGroups = useMemo(() => {
+    const groups = new Map<string, Option[]>();
+    sizeOptions.forEach((opt) => {
+      const key = sizeKeyFrom(opt.size ?? opt.label);
+      if (!key) return;
+      const list = groups.get(key) ?? [];
+      list.push(opt);
+      groups.set(key, list);
+    });
+    return Array.from(groups.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
+  }, [sizeOptions]);
+
+  useEffect(() => {
+    if (!sizeOptions.length) return;
+    const firstGroupKey =
+      sizeGroups[0]?.[0] ?? sizeKeyFrom(sizeOptions[0].size ?? sizeOptions[0].label);
+    if (!firstGroupKey) return;
+    setSizeGroupKey((prev) => prev ?? firstGroupKey);
+    const groupOptions =
+      sizeGroups.find(([key]) => key === (sizeGroupKey ?? firstGroupKey))?.[1] ??
+      sizeOptions;
+    setSizeId((prev) =>
+      groupOptions.some((opt) => opt.id === prev)
+        ? prev
+        : groupOptions[0]?.id ?? prev,
+    );
+  }, [sizeGroupKey, sizeGroups, sizeOptions]);
+
   const tentSize = parseSize(selectedSize?.size ?? selectedSize?.label);
   const lightSize = parseSize(selectedLight?.size ?? selectedLight?.label);
   const lightCompatible =
@@ -214,6 +245,19 @@ export default function CustomizerPage() {
     tentDiameters.length === 0 ||
     !airDiameter ||
     tentDiameters.includes(airDiameter);
+
+  const isLightOptionCompatible = (opt: Option) => {
+    if (!tentSize) return true;
+    const optSize = parseSize(opt.size ?? opt.label);
+    if (!optSize) return true;
+    return optSize.width <= tentSize.width && optSize.depth <= tentSize.depth;
+  };
+
+  const isVentOptionCompatible = (opt: Option) => {
+    if (tentDiameters.length === 0) return true;
+    if (!opt.diameterMm) return true;
+    return tentDiameters.includes(opt.diameterMm);
+  };
 
   const extrasTotal = useMemo(() => {
     return extras
@@ -516,24 +560,53 @@ export default function CustomizerPage() {
                   Keine Growboxen gefunden.
                 </p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {sizeOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSizeId(opt.id)}
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
-                        sizeId === opt.id
-                          ? "border-black bg-black text-white"
-                          : "border-black/10 bg-white hover:border-black/20"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold">{opt.label}</div>
-                      <div className="text-xs opacity-80">
-                        {formatPrice(opt.price)}
-                      </div>
-                    </button>
-                  ))}
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {sizeGroups.map(([key]) => {
+                      const active = sizeGroupKey === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setSizeGroupKey(key);
+                            const options = sizeGroups.find(
+                              ([k]) => k === key
+                            )?.[1];
+                            if (options?.length) setSizeId(options[0].id);
+                          }}
+                          className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                            active
+                              ? "border-black bg-black text-white"
+                              : "border-black/10 bg-white text-black/70 hover:border-black/20"
+                          }`}
+                        >
+                          {key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {(sizeGroups.find(([key]) => key === sizeGroupKey)?.[1] ??
+                      sizeOptions
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSizeId(opt.id)}
+                        className={`rounded-lg border px-4 py-3 text-left transition ${
+                          sizeId === opt.id
+                            ? "border-black bg-black text-white"
+                            : "border-black/10 bg-white hover:border-black/20"
+                        }`}
+                      >
+                        <div className="text-sm font-semibold">{opt.label}</div>
+                        <div className="text-xs opacity-80">
+                          {formatPrice(opt.price)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
@@ -577,6 +650,11 @@ export default function CustomizerPage() {
                       <div className="text-xs opacity-80">
                         {formatPrice(opt.price)}
                       </div>
+                      {!isLightOptionCompatible(opt) && (
+                        <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          Nicht passend zur Zelt-Groesse
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -625,6 +703,11 @@ export default function CustomizerPage() {
                       <div className="text-xs opacity-80">
                         {formatPrice(opt.price)}
                       </div>
+                      {!isVentOptionCompatible(opt) && (
+                        <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          Durchmesser passt nicht
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>

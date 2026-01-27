@@ -31,6 +31,9 @@ type Stockout = {
   reserved: number;
   available: number;
 };
+type Revenue = {
+  totalCents: number;
+};
 
 const formatPrice = (amount: number) =>
   new Intl.NumberFormat("de-DE", {
@@ -56,6 +59,7 @@ export default function AdminAnalyticsClient() {
   });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
+  const [revenue, setRevenue] = useState<Revenue>({ totalCents: 0 });
 
   const loadAnalytics = async () => {
     setLoading(true);
@@ -69,10 +73,12 @@ export default function AdminAnalyticsClient() {
       }
       const data = (await res.json()) as {
         funnel?: Funnel;
+        revenue?: Revenue;
         topProducts?: TopProduct[];
         stockouts?: Stockout[];
       };
       setFunnel(data.funnel ?? funnel);
+      setRevenue(data.revenue ?? { totalCents: 0 });
       setTopProducts(data.topProducts ?? []);
       setStockouts(data.stockouts ?? []);
     } catch {
@@ -171,7 +177,16 @@ export default function AdminAnalyticsClient() {
             {error}
           </p>
         ) : (
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-5">
+            <div className="rounded-xl border border-emerald-200/70 bg-white p-4">
+              <p className="text-xs uppercase tracking-wide text-stone-400">
+                Total Umsatz
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-stone-900">
+                {formatPrice(revenue.totalCents)}
+              </p>
+              <p className="text-xs text-stone-500">Paid orders only</p>
+            </div>
             {stages.map((stage) => (
               <div
                 key={stage.label}

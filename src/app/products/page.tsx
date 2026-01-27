@@ -4,7 +4,7 @@ import ProductsClient from './ProductsClient';
 import PageLayout from '@/components/PageLayout';
 
 export default async function ProductsPage() {
-  const products = await getProducts(50);
+  const products = await getProducts(500);
   
   return (
     <PageLayout>

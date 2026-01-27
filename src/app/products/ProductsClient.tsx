@@ -18,15 +18,56 @@ type Props = {
 };
 
 export default function ProductsClient({ initialProducts }: Props) {
+  const parentCategoryById = useMemo(() => {
+    const map = new Map<string, { id: string; handle: string; title: string }>();
+    initialProducts.forEach((product) => {
+      product.categories?.forEach((category) => {
+        if (!category.parentId) {
+          map.set(category.id, {
+            id: category.id,
+            handle: category.handle,
+            title: category.title,
+          });
+          return;
+        }
+        if (category.parent) {
+          map.set(category.parent.id, {
+            id: category.parent.id,
+            handle: category.parent.handle,
+            title: category.parent.title,
+          });
+        }
+      });
+    });
+    return map;
+  }, [initialProducts]);
+
+  const normalizedProducts = useMemo(() => {
+    return initialProducts.map((product) => {
+      if (!product.categories?.length) return product;
+      const categories = [...product.categories];
+      const handles = new Set(categories.map((category) => category.handle));
+      categories.forEach((category) => {
+        if (!category.parentId) return;
+        const parent =
+          parentCategoryById.get(category.parentId) ?? category.parent;
+        if (!parent || handles.has(parent.handle)) return;
+        categories.push({ ...parent, parentId: null, parent: null });
+        handles.add(parent.handle);
+      });
+      return { ...product, categories };
+    });
+  }, [initialProducts, parentCategoryById]);
+
   // Dynamische Preisgrenzen aus deinen Produkten
   const priceMaxBound = useMemo(() => {
-    const prices = initialProducts
+    const prices = normalizedProducts
       .map((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0))
       .filter((n) => Number.isFinite(n));
     const max = prices.length ? Math.max(...prices) : 0;
     // runde bisschen auf, sieht nicer aus im Slider
     return Math.max(10, Math.ceil(max / 10) * 10);
-  }, [initialProducts]);
+  }, [normalizedProducts]);
 
   const priceMinBound = 0;
 
@@ -46,20 +87,21 @@ export default function ProductsClient({ initialProducts }: Props) {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    return filterProducts(initialProducts, filters);
-  }, [initialProducts, filters]);
+    return filterProducts(normalizedProducts, filters);
+  }, [normalizedProducts, filters]);
 
   const availableCategories = useMemo(() => {
     const categories = new Map<string, string>();
-    initialProducts.forEach((p) => {
+    normalizedProducts.forEach((p) => {
       p.categories?.forEach((c) => {
+        if (c.parentId) return;
         categories.set(c.handle, c.title);
       });
     });
     return Array.from(categories.entries()).sort((a, b) =>
       a[1].localeCompare(b[1])
     );
-  }, [initialProducts]);
+  }, [normalizedProducts]);
 
   const categoryTitleByHandle = useMemo(
     () => new Map(availableCategories),
@@ -145,17 +187,6 @@ export default function ProductsClient({ initialProducts }: Props) {
     <div className="w-full text-stone-800">
       <div className="mt-6 overflow-x-auto pb-1">
         <div className="flex min-w-max items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => setFilters((prev) => ({ ...prev, categories: [] }))}
-            className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
-              filters.categories.length === 0
-                ? "border-black bg-black text-white"
-                : "border-black/10 bg-white text-black/70 hover:border-black/20"
-            }`}
-          >
-            All
-          </button>
           {availableCategories.map(([handle, title]) => {
             const active = filters.categories.includes(handle);
             return (

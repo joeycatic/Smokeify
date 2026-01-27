@@ -94,6 +94,14 @@ const mapProduct = (product: {
       id: entry.category.id,
       handle: entry.category.handle,
       title: entry.category.name,
+      parentId: entry.category.parentId ?? null,
+      parent: entry.category.parent
+        ? {
+            id: entry.category.parent.id,
+            handle: entry.category.parent.handle,
+            title: entry.category.parent.name,
+          }
+        : null,
     })),
     collections: product.collections.map((entry) => ({
       id: entry.collection.id,
@@ -123,7 +131,7 @@ export async function getProducts(limit = 50): Promise<Product[]> {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: true } },
+      categories: { include: { category: { include: { parent: true } } } },
       collections: { include: { collection: true } },
     },
   });
@@ -216,7 +224,7 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: true } },
+      categories: { include: { category: { include: { parent: true } } } },
       collections: { include: { collection: true } },
     },
   });

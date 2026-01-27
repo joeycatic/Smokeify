@@ -13,6 +13,8 @@ export type ProductCategory = {
   id: string;
   handle: string;
   title: string;
+  parentId?: string | null;
+  parent?: { id: string; handle: string; title: string } | null;
 };
 
 export type ProductPrice = {

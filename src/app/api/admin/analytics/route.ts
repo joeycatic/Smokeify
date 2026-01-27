@@ -16,6 +16,7 @@ export async function GET() {
     fulfilledOrders,
     refundedOrders,
     canceledOrders,
+    totalRevenue,
     topItems,
     variants,
   ] = await Promise.all([
@@ -24,6 +25,10 @@ export async function GET() {
     prisma.order.count({ where: { status: "fulfilled" } }),
     prisma.order.count({ where: { paymentStatus: "refunded" } }),
     prisma.order.count({ where: { status: "canceled" } }),
+    prisma.order.aggregate({
+      where: { paymentStatus: { in: PAID_STATUSES } },
+      _sum: { amountTotal: true },
+    }),
     prisma.orderItem.groupBy({
       by: ["productId", "name"],
       _sum: { quantity: true, totalAmount: true },
@@ -83,6 +88,9 @@ export async function GET() {
       fulfilledOrders,
       refundedOrders,
       canceledOrders,
+    },
+    revenue: {
+      totalCents: totalRevenue._sum.amountTotal ?? 0,
     },
     topProducts,
     stockouts,
