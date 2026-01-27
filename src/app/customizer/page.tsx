@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -54,8 +54,51 @@ export default function CustomizerPage() {
   const [extras, setExtras] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [sizeOptions, setSizeOptions] = useState<Option[]>([]);
+  const [sizeLoading, setSizeLoading] = useState(false);
+  const [sizeError, setSizeError] = useState("");
 
-  const selectedSize = SIZE_OPTIONS.find((o) => o.id === sizeId);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    setSizeLoading(true);
+    setSizeError("");
+    fetch("/api/customizer/options?category=growboxen")
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? "Konnte Produkte nicht laden.");
+        }
+        return (await res.json()) as { options?: Option[] };
+      })
+      .then((data) => {
+        if (!active) return;
+        setSizeOptions(data.options ?? []);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setSizeError(err.message || "Konnte Produkte nicht laden.");
+      })
+      .finally(() => {
+        if (!active) return;
+        setSizeLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!sizeOptions.length) return;
+    setSizeId((prev) =>
+      sizeOptions.some((opt) => opt.id === prev) ? prev : sizeOptions[0].id,
+    );
+  }, [sizeOptions]);
+
+  const selectedSize = (isAdmin ? sizeOptions : SIZE_OPTIONS).find(
+    (o) => o.id === sizeId,
+  );
   const selectedLight = LIGHT_OPTIONS.find((o) => o.id === lightId);
   const selectedVent = VENT_OPTIONS.find((o) => o.id === ventId);
 
@@ -341,25 +384,45 @@ export default function CustomizerPage() {
               <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
                 1. ZELT-GRÖßE
               </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {SIZE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setSizeId(opt.id)}
-                    className={`rounded-lg border px-4 py-3 text-left transition ${
-                      sizeId === opt.id
-                        ? "border-black bg-black text-white"
-                        : "border-black/10 bg-white hover:border-black/20"
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">{opt.label}</div>
-                    <div className="text-xs opacity-80">
-                      {formatPrice(opt.price)}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {sizeError && (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {sizeError}
+                </p>
+              )}
+              {sizeLoading ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[...Array(3)].map((_, index) => (
+                    <div
+                      key={`size-skeleton-${index}`}
+                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
+                    />
+                  ))}
+                </div>
+              ) : sizeOptions.length === 0 ? (
+                <p className="text-xs text-stone-500">
+                  Keine Growboxen gefunden.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {sizeOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSizeId(opt.id)}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        sizeId === opt.id
+                          ? "border-black bg-black text-white"
+                          : "border-black/10 bg-white hover:border-black/20"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{opt.label}</div>
+                      <div className="text-xs opacity-80">
+                        {formatPrice(opt.price)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="rounded-xl border border-black/10 bg-white p-5">
