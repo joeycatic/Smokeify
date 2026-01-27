@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type OrderItem = {
   id: string;
@@ -449,8 +450,13 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               </span>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <AdminThemeToggle />
+            <AdminBackButton
+              inline
+              showOnOrders
+              className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+            />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}

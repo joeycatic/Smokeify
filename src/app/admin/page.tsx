@@ -4,15 +4,72 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
 import AdminUsersClient from "./AdminUsersClient";
+import AdminInventoryAlertsClient from "./AdminInventoryAlertsClient";
 import Link from "next/link";
 
-export default async function AdminPage() {
+const USERS_PAGE_SIZE = 10;
+const INVENTORY_PAGE_SIZE = 10;
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    page?: string | string[];
+    q?: string | string[];
+    inv_page?: string | string[];
+    inv_q?: string | string[];
+  }>;
+}) {
   const session = await getServerSession(authOptions);
   const isAdmin = session?.user?.role === "ADMIN";
   if (!isAdmin) notFound();
 
+  const resolvedSearchParams = await searchParams;
+  const rawQuery = Array.isArray(resolvedSearchParams?.q)
+    ? resolvedSearchParams?.q[0] ?? ""
+    : resolvedSearchParams?.q ?? "";
+  const pageParamValue = Array.isArray(resolvedSearchParams?.page)
+    ? resolvedSearchParams?.page[0] ?? "1"
+    : resolvedSearchParams?.page ?? "1";
+  const rawInvQuery = Array.isArray(resolvedSearchParams?.inv_q)
+    ? resolvedSearchParams?.inv_q[0] ?? ""
+    : resolvedSearchParams?.inv_q ?? "";
+  const invPageParamValue = Array.isArray(resolvedSearchParams?.inv_page)
+    ? resolvedSearchParams?.inv_page[0] ?? "1"
+    : resolvedSearchParams?.inv_page ?? "1";
+  const pageParam = Number(pageParamValue);
+  const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const invPageParam = Number(invPageParamValue);
+  const requestedInvPage =
+    Number.isFinite(invPageParam) && invPageParam > 0 ? invPageParam : 1;
+  const normalizedQuery = rawQuery.trim();
+  const normalizedInvQuery = rawInvQuery.trim();
+  const normalizedRole = normalizedQuery.toUpperCase();
+  const roleFilter =
+    normalizedRole === "USER" ||
+    normalizedRole === "ADMIN" ||
+    normalizedRole === "STAFF"
+      ? { role: normalizedRole as "USER" | "ADMIN" | "STAFF" }
+      : null;
+  const where = normalizedQuery
+    ? {
+        OR: [
+          { email: { contains: normalizedQuery, mode: "insensitive" as const } },
+          { name: { contains: normalizedQuery, mode: "insensitive" as const } },
+          ...(roleFilter ? [roleFilter] : []),
+        ],
+      }
+    : undefined;
+
+  const totalUsers = await prisma.user.count({ where });
+  const totalUserPages = Math.max(1, Math.ceil(totalUsers / USERS_PAGE_SIZE));
+  const currentUserPage = Math.min(requestedPage, totalUserPages);
+
   const users = await prisma.user.findMany({
+    where,
     orderBy: { createdAt: "desc" },
+    take: USERS_PAGE_SIZE,
+    skip: (currentUserPage - 1) * USERS_PAGE_SIZE,
     select: {
       id: true,
       email: true,
@@ -24,7 +81,6 @@ export default async function AdminPage() {
 
   const variants = await prisma.variant.findMany({
     orderBy: { updatedAt: "desc" },
-    take: 200,
     include: {
       inventory: true,
       product: { select: { id: true, title: true, status: true } },
@@ -50,13 +106,29 @@ export default async function AdminPage() {
       };
     })
     .filter((variant) => variant.available <= variant.threshold)
-    .sort((a, b) => a.available - b.available)
-    .slice(0, 20);
+    .filter((variant) => {
+      if (!normalizedInvQuery) return true;
+      const q = normalizedInvQuery.toLowerCase();
+      return (
+        variant.productTitle.toLowerCase().includes(q) ||
+        variant.title.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => a.available - b.available);
 
   const lowStockCount = lowStockVariants.length;
   const outOfStockCount = lowStockVariants.filter(
     (variant) => variant.available === 0
   ).length;
+  const totalInvPages = Math.max(
+    1,
+    Math.ceil(lowStockVariants.length / INVENTORY_PAGE_SIZE)
+  );
+  const currentInvPage = Math.min(requestedInvPage, totalInvPages);
+  const lowStockPage = lowStockVariants.slice(
+    (currentInvPage - 1) * INVENTORY_PAGE_SIZE,
+    currentInvPage * INVENTORY_PAGE_SIZE
+  );
 
   const backInStockRequests = await prisma.backInStockRequest.findMany({
     orderBy: { createdAt: "desc" },
@@ -187,68 +259,26 @@ export default async function AdminPage() {
               ...user,
               createdAt: user.createdAt.toISOString(),
             }))}
+            initialQuery={normalizedQuery}
+            totalCount={totalUsers}
+            currentPage={currentUserPage}
+            totalPages={totalUserPages}
+            pageSize={USERS_PAGE_SIZE}
           />
         </div>
-        <div className="mt-12 rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold" style={{ color: "#2f3e36" }}>
-                Inventory alerts
-              </h2>
-              <p className="text-sm text-stone-600">
-                Variants at or below their low-stock threshold.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1">
-                {lowStockCount} low stock
-              </span>
-              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
-                {outOfStockCount} out
-              </span>
-            </div>
-          </div>
-          {lowStockVariants.length === 0 ? (
-            <p className="mt-4 text-sm text-stone-500">
-              No low-stock variants found.
-            </p>
-          ) : (
-            <div className="mt-4 overflow-hidden rounded-xl border border-amber-200/70 bg-white">
-              <div className="grid grid-cols-1 gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-800 sm:grid-cols-[2fr_1fr_1fr_1fr]">
-                <div>Variant</div>
-                <div>Available</div>
-                <div>Threshold</div>
-                <div>Updated</div>
-              </div>
-              <div className="divide-y divide-black/10">
-                {lowStockVariants.map((variant) => (
-                  <div
-                    key={variant.id}
-                    className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_1fr_1fr_1fr]"
-                  >
-                    <div>
-                      <Link
-                        href={`/admin/catalog/${variant.productId}`}
-                        className="font-semibold text-stone-800 hover:text-stone-900"
-                      >
-                        {variant.productTitle}
-                      </Link>
-                      <div className="text-xs text-stone-500">
-                        {variant.title}
-                      </div>
-                    </div>
-                    <div className="font-semibold text-amber-800">
-                      {variant.available}
-                    </div>
-                    <div>{variant.threshold}</div>
-                    <div className="text-xs text-stone-500">
-                      {new Date(variant.updatedAt).toLocaleDateString("de-DE")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        <div className="mt-12">
+          <AdminInventoryAlertsClient
+            variants={lowStockPage.map((variant) => ({
+              ...variant,
+              updatedAt: variant.updatedAt.toISOString(),
+            }))}
+            totalCount={lowStockCount}
+            outOfStockCount={outOfStockCount}
+            currentPage={currentInvPage}
+            totalPages={totalInvPages}
+            pageSize={INVENTORY_PAGE_SIZE}
+            initialQuery={normalizedInvQuery}
+          />
         </div>
         <div className="mt-12 rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-2" style={{ color: "#2f3e36" }}>

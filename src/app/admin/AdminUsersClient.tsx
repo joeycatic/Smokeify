@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type UserRow = {
   id: string;
@@ -12,26 +14,61 @@ type UserRow = {
 
 type Props = {
   initialUsers: UserRow[];
+  initialQuery: string;
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
 };
 
 const ROLES: UserRow["role"][] = ["USER", "STAFF", "ADMIN"];
 
-export default function AdminUsersClient({ initialUsers }: Props) {
+export default function AdminUsersClient({
+  initialUsers,
+  initialQuery,
+  totalCount: initialTotalCount,
+  currentPage,
+  totalPages,
+  pageSize,
+}: Props) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams?.toString() ?? "";
 
-  const filtered = useMemo(() => {
-    if (!query) return users;
-    const q = query.toLowerCase();
-    return users.filter(
-      (user) =>
-        user.email?.toLowerCase().includes(q) ||
-        user.name?.toLowerCase().includes(q) ||
-        user.role.toLowerCase().includes(q)
-    );
-  }, [users, query]);
+  useEffect(() => {
+    setUsers(initialUsers);
+    setTotalCount(initialTotalCount);
+  }, [initialUsers, initialTotalCount, currentPage]);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    const current = new URLSearchParams(searchParamsString).get("q") ?? "";
+    if (trimmed === current) return;
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams(searchParamsString);
+      if (trimmed) {
+        params.set("q", trimmed);
+        params.set("page", "1");
+      } else {
+        params.delete("q");
+        params.delete("page");
+      }
+      const queryString = params.toString();
+      router.replace(queryString ? `/admin?${queryString}` : "/admin", {
+        scroll: false,
+      });
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [query, router, searchParamsString]);
 
   const updateRole = async (id: string, role: UserRow["role"]) => {
     setSavingId(id);
@@ -55,6 +92,23 @@ export default function AdminUsersClient({ initialUsers }: Props) {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const buildPageHref = (page: number) => {
+    const params = new URLSearchParams(searchParamsString);
+    const trimmed = query.trim();
+    if (trimmed) {
+      params.set("q", trimmed);
+    } else {
+      params.delete("q");
+    }
+    if (page > 1) {
+      params.set("page", String(page));
+    } else {
+      params.delete("page");
+    }
+    const queryString = params.toString();
+    return queryString ? `/admin?${queryString}` : "/admin";
   };
 
   return (
@@ -83,7 +137,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((user) => (
+            {users.map((user) => (
               <tr key={user.id} className="border-t border-black/10">
                 <td className="py-3 pr-3">{user.email ?? "-"}</td>
                 <td className="py-3 pr-3">{user.name ?? "-"}</td>
@@ -108,7 +162,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {users.length === 0 && (
               <tr>
                 <td colSpan={4} className="py-6 text-center text-stone-500">
                   No users found.
@@ -117,6 +171,57 @@ export default function AdminUsersClient({ initialUsers }: Props) {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+        <div>
+          Showing{" "}
+          <span className="font-semibold text-stone-700">{users.length}</span> of{" "}
+          <span className="font-semibold text-stone-700">{totalCount}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Link
+            href={buildPageHref(Math.max(1, currentPage - 1))}
+            aria-disabled={currentPage <= 1}
+            scroll={false}
+            className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${
+              currentPage <= 1
+                ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-300"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
+            }`}
+            tabIndex={currentPage <= 1 ? -1 : 0}
+            onClick={(event) => {
+              if (currentPage <= 1) {
+                event.preventDefault();
+              }
+            }}
+          >
+            Prev
+          </Link>
+          <span className="flex h-9 min-w-[5rem] items-center justify-center gap-0.5 text-center text-stone-500">
+            <span>Page</span>
+            <span className="font-semibold text-stone-700">{currentPage}</span>
+            <span>of</span>
+            <span className="font-semibold text-stone-700">{totalPages}</span>
+          </span>
+          <Link
+            href={buildPageHref(Math.min(totalPages, currentPage + 1))}
+            aria-disabled={currentPage >= totalPages}
+            scroll={false}
+            className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${
+              currentPage >= totalPages
+                ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-300"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
+            }`}
+            tabIndex={currentPage >= totalPages ? -1 : 0}
+            onClick={(event) => {
+              if (currentPage >= totalPages) {
+                event.preventDefault();
+              }
+            }}
+          >
+            Next
+          </Link>
+        </div>
       </div>
     </section>
   );

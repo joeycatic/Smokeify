@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type ReturnRequestRow = {
   id: string;
@@ -69,7 +70,14 @@ export default function AdminReturnsClient({ requests }: Props) {
             </p>
             <h1 className="mt-2 text-3xl font-semibold">Return requests</h1>
           </div>
-          <AdminThemeToggle />
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminThemeToggle />
+            <AdminBackButton
+              inline
+              showOnReturns
+              className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+            />
+          </div>
         </div>
       </div>
 

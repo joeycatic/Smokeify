@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
+import AdminBackButton from "@/components/admin/AdminBackButton";
+import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 export default async function AdminAuditPage() {
   const session = await getServerSession(authOptions);
@@ -20,15 +22,26 @@ export default async function AdminAuditPage() {
         <div className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
+              <p className="text-xs font-semibold tracking-[0.3em] text-emerald-700/70">
+                ADMIN / AUDIT
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold text-[#2f3e36]">
                 Audit log
               </h1>
-              <p className="text-sm text-stone-600">
+              <p className="mt-2 text-sm text-stone-600">
                 Timeline of admin actions across orders and catalog changes.
               </p>
             </div>
-            <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-              Activity feed
+            <div className="flex flex-wrap items-center gap-3">
+              <AdminThemeToggle />
+              <AdminBackButton
+                inline
+                showOnAudit
+                className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+              />
+              <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+                Activity feed
+              </div>
             </div>
           </div>
           <div className="mt-4 grid gap-2 text-xs text-stone-600 sm:grid-cols-2 lg:grid-cols-4">

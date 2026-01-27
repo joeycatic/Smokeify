@@ -12,14 +12,6 @@ export default async function AdminDiscountsPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
-            Discounts
-          </h1>
-          <p className="text-sm text-stone-600">
-            Create and manage Stripe promotion codes.
-          </p>
-        </div>
         <AdminDiscountsClient />
       </div>
     </PageLayout>

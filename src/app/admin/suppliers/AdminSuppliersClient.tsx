@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type Supplier = {
   id: string;
@@ -229,6 +230,11 @@ export default function AdminSuppliersClient() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <AdminThemeToggle />
+            <AdminBackButton
+              inline
+              showOnSuppliers
+              className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+            />
             <button
               type="button"
               onClick={loadSuppliers}

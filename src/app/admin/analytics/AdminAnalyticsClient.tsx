@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type Funnel = {
   totalOrders: number;
@@ -127,6 +128,11 @@ export default function AdminAnalyticsClient() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <AdminThemeToggle />
+            <AdminBackButton
+              inline
+              showOnAnalytics
+              className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+            />
             <button
               type="button"
               onClick={loadAnalytics}

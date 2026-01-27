@@ -115,7 +115,7 @@ const getVariantCountsForSession = async (
 ) => {
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
-    expand: ["data.price.product", "data.tax_amounts.tax_rate"],
+    expand: ["data.price.product"],
   });
   const variantCounts = new Map<string, number>();
   for (const item of lineItems.data ?? []) {
@@ -183,6 +183,13 @@ const createOrderFromSession = async (
   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ["discounts", "discounts.promotion_code"],
   });
+  if (checkoutSession.payment_status !== "paid") {
+    console.info("[stripe webhook] Session not paid; skipping order creation.", {
+      sessionId,
+      paymentStatus: checkoutSession.payment_status,
+    });
+    return;
+  }
   const userId = checkoutSession.client_reference_id ?? "";
   if (!userId) {
     console.warn("[stripe webhook] Missing client_reference_id.");
@@ -200,7 +207,7 @@ const createOrderFromSession = async (
 
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
     limit: 100,
-    expand: ["data.price.product", "data.tax_amounts.tax_rate"],
+    expand: ["data.price.product"],
   });
   const shipping = checkoutSession.shipping_details;
   const address = shipping?.address;
@@ -538,7 +545,15 @@ export async function POST(request: Request) {
         }
       }
     }
-  } catch {
+  } catch (error) {
+    console.error("[stripe webhook] Handler failed.", {
+      eventId,
+      type: event.type,
+      error:
+        error instanceof Error
+          ? { message: error.message, stack: error.stack }
+          : error,
+    });
     await prisma.processedWebhookEvent.update({
       where: { eventId },
       data: { status: "failed" },
