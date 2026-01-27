@@ -31,7 +31,15 @@ const mapProduct = (product: {
     inventory: { quantityOnHand: number; reserved: number } | null;
   }>;
   images: Array<{ url: string; altText: string | null; position: number }>;
-  categories: Array<{ category: { id: string; name: string; handle: string } }>;
+  categories: Array<{
+    category: {
+      id: string;
+      name: string;
+      handle: string;
+      parentId: string | null;
+      parent?: { id: string; name: string; handle: string } | null;
+    };
+  }>;
   collections: Array<{ collection: { id: string; name: string; handle: string } }>;
 }): Product => {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
