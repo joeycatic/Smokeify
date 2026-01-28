@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
+import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "@/components/CartProvider";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -20,6 +21,11 @@ const SHIPPING_BASE = {
 } as const;
 
 type ShippingCountry = keyof typeof SHIPPING_BASE;
+
+const pixelNavFont = Pixelify_Sans({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 function formatPrice(amount: string | number, currencyCode: string) {
   const value = Number(amount);
@@ -96,7 +102,7 @@ export default function CartPage() {
     if (status === "loading") return;
     if (!isAuthenticated) {
       router.push(
-        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`
+        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`,
       );
       return;
     }
@@ -192,7 +198,9 @@ export default function CartPage() {
         const params = new URLSearchParams(searchParams.toString());
         params.delete("checkout");
         params.delete("session_id");
-        router.replace(params.toString() ? `/cart?${params.toString()}` : "/cart");
+        router.replace(
+          params.toString() ? `/cart?${params.toString()}` : "/cart",
+        );
       } catch {
         setOrderConfirmStatus("error");
       }
@@ -219,13 +227,6 @@ export default function CartPage() {
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <div>{error}</div>
-              <button
-                type="button"
-                onClick={() => void refresh()}
-                className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-              >
-                Erneut versuchen
-              </button>
             </div>
           )}
           <h1 className="text-2xl font-semibold mb-2">
@@ -258,27 +259,22 @@ export default function CartPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <div>{error}</div>
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-4 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              Erneut versuchen
-            </button>
           </div>
         )}
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-semibold text-black/80">Warenkorb</h1>
-          <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-600 shadow-sm">
+        <div className="mb-5 flex items-center justify-between sm:mb-8">
+          <h1 className="text-2xl font-semibold text-black/80 sm:text-3xl">
+            Warenkorb
+          </h1>
+          <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm">
             {cart.lines.length} Artikel
           </span>
         </div>
 
-        <div className="grid gap-6 text-black/80">
+        <div className="grid gap-4 text-black/80 sm:gap-6">
           {cart.lines.map((line) => {
             const productUrl = `/products/${line.merchandise.product.handle}`;
             return (
@@ -293,87 +289,98 @@ export default function CartPage() {
                     router.push(productUrl);
                   }
                 }}
-                className="flex cursor-pointer flex-col gap-3 rounded-2xl border-2 border-black/10 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:flex-row sm:items-center sm:gap-5 sm:p-5"
+                className="flex cursor-pointer flex-col gap-4 rounded-[32px] border border-[#2f3e36]/70 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-[#2f3e36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
-                {line.merchandise.image?.url ? (
-                  <img
-                    src={line.merchandise.image.url}
-                    alt={
-                      line.merchandise.image.altText ??
-                      line.merchandise.product.title
-                    }
-                    className="h-16 w-16 rounded-xl object-cover ring-1 ring-black/5 sm:h-24 sm:w-24"
-                    loading="lazy"
-                    decoding="async"
-                    width={64}
-                    height={64}
-                  />
-                ) : (
-                  <div className="h-16 w-16 rounded-xl bg-stone-100 ring-1 ring-black/5 sm:h-24 sm:w-24" />
-                )}
-
-                <div className="flex-1">
-                  {line.merchandise.product.manufacturer && (
-                    <p className="text-[11px] uppercase tracking-wide text-stone-400">
-                      {line.merchandise.product.manufacturer}
-                    </p>
+                <div className="flex items-center gap-3">
+                  {line.merchandise.image?.url ? (
+                    <img
+                      src={line.merchandise.image.url}
+                      alt={
+                        line.merchandise.image.altText ??
+                        line.merchandise.product.title
+                      }
+                      className="h-16 w-16 rounded-3xl object-cover ring-1 ring-black/5"
+                      loading="lazy"
+                      decoding="async"
+                      width={64}
+                      height={64}
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-3xl bg-stone-100 ring-1 ring-black/5" />
                   )}
-                  <p className="text-sm font-semibold text-stone-900 sm:text-base">
-                    {line.merchandise.product.title}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    {line.merchandise.product.manufacturer && (
+                      <p className="text-[11px] uppercase tracking-wide text-[#2f3e36]">
+                        {line.merchandise.product.manufacturer}
+                      </p>
+                    )}
+                    <p className="text-sm font-semibold text-emerald-950">
+                      {line.merchandise.product.title}
+                    </p>
+                    {line.merchandise.shortDescription && (
+                      <p className="mt-1 hidden text-xs text-stone-500 lg:block">
+                        {line.merchandise.shortDescription}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (line.quantity <= 1) {
-                          removeLines([line.id]);
-                        } else {
-                          updateLine(line.id, line.quantity - 1);
-                        }
-                      }}
-                      className="h-8 w-8 rounded-lg border border-black/15 bg-white text-sm font-semibold text-stone-700 shadow-sm hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-10 sm:w-10 sm:text-base"
-                    >
-                      -
-                    </button>
-                    <span className="min-w-6 text-center text-xs font-semibold text-stone-700 sm:min-w-8 sm:text-sm">
-                      {line.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        updateLine(line.id, line.quantity + 1);
-                      }}
-                      className="h-8 w-8 rounded-lg border border-black/15 bg-white text-sm font-semibold text-stone-700 shadow-sm hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-10 sm:w-10 sm:text-base"
-                    >
-                      +
-                    </button>
+                <div className="h-[1.5px] w-full bg-[#2f3e36]/70" />
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (line.quantity <= 1) {
+                            removeLines([line.id]);
+                          } else {
+                            updateLine(line.id, line.quantity - 1);
+                          }
+                        }}
+                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        -
+                      </button>
+                      <span className="min-w-7 text-center text-sm font-semibold text-[#2f3e36]">
+                        {line.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateLine(line.id, line.quantity + 1);
+                        }}
+                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        +
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
                         removeLines([line.id]);
                       }}
-                      className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-9 sm:w-9"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 shadow-sm hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Entfernen"
                     >
-                      <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
-
-                <div className="text-left sm:text-right">
-                  <p className="text-xs uppercase tracking-wide text-stone-400">
-                    Preis
-                  </p>
-                  <p className="text-sm font-semibold text-stone-900 sm:text-base">
-                    {formatPrice(
-                      line.merchandise.price.amount,
-                      line.merchandise.price.currencyCode
-                    )}
-                  </p>
+                  <div className="pl-1 text-left">
+                    <p className="text-xs uppercase tracking-wide text-[#2f3e36]">
+                      Preis
+                    </p>
+                    <p className="text-base font-semibold text-emerald-950">
+                      {formatPrice(
+                        line.merchandise.price.amount,
+                        line.merchandise.price.currencyCode,
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
@@ -431,32 +438,42 @@ export default function CartPage() {
           </div>
 
           <div className="order-1 rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] lg:order-2">
-            <div className="space-y-3 text-right">
+            <div className="space-y-4 text-right">
               <div>
-                <p className="text-xs uppercase tracking-wide text-stone-400">
+                <p
+                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                >
                   Zwischensumme
                 </p>
-                <p className="text-lg font-semibold text-stone-900">
+                <p className="text-xl font-semibold text-[#2f3e36]">
                   {formatPrice(subtotal, currencyCode)}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-stone-400">
+                <p
+                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                >
                   Versand (Schätzung)
                 </p>
-                <p className="text-sm font-semibold text-stone-900">
-                  {hasLocation ? formatPrice(shippingEstimate, currencyCode) : "--"}
+                <p className="text-base font-semibold text-[#2f3e36]">
+                  {hasLocation
+                    ? formatPrice(shippingEstimate, currencyCode)
+                    : "--"}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-stone-400">
+                <p
+                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                >
                   Gesamt (Schätzung)
                 </p>
-                <p className="text-xl font-semibold text-stone-900">
-                  {hasLocation ? formatPrice(totalEstimate, currencyCode) : "--"}
+                <p className="text-2xl font-semibold text-[#2f3e36]">
+                  {hasLocation
+                    ? formatPrice(totalEstimate, currencyCode)
+                    : "--"}
                 </p>
               </div>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-[#2f3e36]/60">
                 Schätzungen können je nach Versanddienst abweichen.
               </p>
               <div className="text-left">
@@ -482,7 +499,9 @@ export default function CartPage() {
                 disabled={!canCheckout}
                 className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
-                {checkoutStatus === "loading" ? "Weiterleitung..." : "Zur Kasse"}
+                {checkoutStatus === "loading"
+                  ? "Weiterleitung..."
+                  : "Zur Kasse"}
               </button>
             </div>
           </div>

@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import Providers from "@/app/providers";
 import "./globals.css";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {

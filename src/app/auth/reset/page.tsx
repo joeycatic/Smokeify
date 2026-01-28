@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function PasswordResetPage() {
   const router = useRouter();
@@ -112,7 +113,14 @@ export default function PasswordResetPage() {
               }}
               className="h-11 w-full rounded-md border border-black/20 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 disabled:opacity-60"
             >
-              Code senden
+              {requestStatus === "sending" ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Senden...
+                </span>
+              ) : (
+                "Code senden"
+              )}
             </button>
 
             <label className="block text-xs font-semibold text-stone-600">
@@ -168,7 +176,17 @@ export default function PasswordResetPage() {
               disabled={saving}
               className="h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {saving ? "Bitte warten..." : "Passwort aktualisieren"}
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner
+                    size="sm"
+                    className="border-white/40 border-t-white"
+                  />
+                  Bitte warten...
+                </span>
+              ) : (
+                "Passwort aktualisieren"
+              )}
             </button>
             <button
               type="button"

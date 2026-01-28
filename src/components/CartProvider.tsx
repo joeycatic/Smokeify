@@ -63,6 +63,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [addedOpen, setAddedOpen] = useState(false);
   const [outOfStockOpen, setOutOfStockOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
 
   const refresh = async () => {
     setLoading(true);
@@ -82,6 +83,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!errorToast) return;
+    const timer = setTimeout(() => setErrorToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [errorToast]);
+
+  useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
     const update = () => setIsMobile(media.matches);
     update();
@@ -94,9 +101,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const c = await apiCartAction({ action: "add", variantId, quantity });
       setCart(c);
       setError(null);
+      setErrorToast(null);
       return c;
     } catch (err) {
-      setError(normalizeError(err, "Cart action failed"));
+      const message = normalizeError(err, "Cart action failed");
+      setError(message);
+      setErrorToast(message);
       throw err;
     }
   };
@@ -105,9 +115,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const c = await apiCartAction({ action: "update", lineId, quantity });
       setCart(c);
+      const updatedLine = c.lines.find((line) => line.id === lineId);
+      const updatedQty = updatedLine?.quantity ?? 0;
+      if (quantity > updatedQty) {
+        const message = "Nicht genug Bestand verfügbar.";
+        setError(message);
+        setErrorToast(message);
+        setOutOfStockOpen(true);
+        return;
+      }
       setError(null);
+      setErrorToast(null);
     } catch (err) {
-      setError(normalizeError(err, "Cart update failed"));
+      const message = normalizeError(err, "Cart update failed");
+      setError(message);
+      setErrorToast(message);
     }
   };
 
@@ -116,8 +138,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const c = await apiCartAction({ action: "remove", lineIds });
       setCart(c);
       setError(null);
+      setErrorToast(null);
     } catch (err) {
-      setError(normalizeError(err, "Cart update failed"));
+      const message = normalizeError(err, "Cart update failed");
+      setError(message);
+      setErrorToast(message);
     }
   };
 
@@ -125,7 +150,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => ({
       cart,
       loading,
-      error,
+      error: errorToast,
       refresh,
       addToCart,
       updateLine,
@@ -141,7 +166,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       openOutOfStockModal: () => setOutOfStockOpen(true),
       closeOutOfStockModal: () => setOutOfStockOpen(false),
     }),
-    [cart, loading, error]
+    [cart, loading, errorToast]
   );
 
   return (

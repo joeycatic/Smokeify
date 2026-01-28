@@ -90,6 +90,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
         image: image
           ? { url: image.url, altText: image.altText }
           : null,
+        shortDescription: variant.product.shortDescription ?? null,
         price: {
           amount: toAmount(variant.priceCents),
           currencyCode: CURRENCY_CODE,

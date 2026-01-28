@@ -76,6 +76,15 @@ body {
   animation: cart-overlay-fade 200ms ease-out;
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes add-to-cart-sweep {
   0% {
     transform: translateX(-160%);

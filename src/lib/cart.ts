@@ -6,6 +6,7 @@ export type CartLine = {
     title: string;
     product: { title: string; handle: string; manufacturer?: string | null };
     image?: { url: string; altText?: string | null } | null;
+    shortDescription?: string | null;
     price: { amount: string; currencyCode: string };
   };
 };

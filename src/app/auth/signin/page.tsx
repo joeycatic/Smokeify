@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
@@ -32,6 +33,7 @@ export default function SignInPage() {
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
     "idle"
   );
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -81,6 +83,7 @@ export default function SignInPage() {
                 setError("");
                 setNotice("");
                 setLoginStatus("idle");
+                setLoading(true);
                 let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
                   null;
                 try {
@@ -90,57 +93,58 @@ export default function SignInPage() {
                     redirect: false,
                     callbackUrl: "/account",
                   });
+                  if (res?.ok) {
+                    setLoginStatus("ok");
+                    setTimeout(() => router.push("/account"), 600);
+                    return;
+                  }
+                  if (res?.error === "NEW_DEVICE") {
+                    const returnTo = searchParams.get("returnTo") || "/";
+                    sessionStorage.setItem("smokeify_verify_email", email);
+                    sessionStorage.setItem("smokeify_return_to", returnTo);
+                    router.push(
+                      `/auth/verify?email=${encodeURIComponent(
+                        email
+                      )}&returnTo=${encodeURIComponent(returnTo)}`
+                    );
+                    return;
+                  }
+                  if (res?.error) {
+                    try {
+                      const rateRes = await fetch("/api/auth/rate-limit", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ identifier: email }),
+                      });
+                      if (rateRes.ok) {
+                        const data = (await rateRes.json()) as {
+                          limited?: boolean;
+                        };
+                        if (data.limited) {
+                          setError(
+                            "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
+                          );
+                          setLoginStatus("error");
+                          return;
+                        }
+                      }
+                    } catch {
+                      // Ignore rate-limit status failures and fall back to generic error.
+                    }
+                    setError(getLoginErrorMessage(res.error));
+                    setLoginStatus("error");
+                    return;
+                  }
+                  setError(getLoginErrorMessage(res?.error ?? undefined));
+                  setLoginStatus("error");
                 } catch {
                   setError(
                     "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut."
                   );
                   setLoginStatus("error");
-                  return;
+                } finally {
+                  setLoading(false);
                 }
-                if (res?.ok) {
-                  setLoginStatus("ok");
-                  setTimeout(() => router.push("/account"), 600);
-                  return;
-                }
-                if (res?.error === "NEW_DEVICE") {
-                  const returnTo = searchParams.get("returnTo") || "/";
-                  sessionStorage.setItem("smokeify_verify_email", email);
-                  sessionStorage.setItem("smokeify_return_to", returnTo);
-                  router.push(
-                    `/auth/verify?email=${encodeURIComponent(
-                      email
-                    )}&returnTo=${encodeURIComponent(returnTo)}`
-                  );
-                  return;
-                }
-                if (res?.error) {
-                  try {
-                    const rateRes = await fetch("/api/auth/rate-limit", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ identifier: email }),
-                    });
-                    if (rateRes.ok) {
-                      const data = (await rateRes.json()) as {
-                        limited?: boolean;
-                      };
-                      if (data.limited) {
-                        setError(
-                          "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
-                        );
-                        setLoginStatus("error");
-                        return;
-                      }
-                    }
-                  } catch {
-                    // Ignore rate-limit status failures and fall back to generic error.
-                  }
-                  setError(getLoginErrorMessage(res.error));
-                  setLoginStatus("error");
-                  return;
-                }
-                setError(getLoginErrorMessage(res?.error ?? undefined));
-                setLoginStatus("error");
               }}
               className="space-y-2"
             >
@@ -188,9 +192,20 @@ export default function SignInPage() {
               {error && <p className="text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
-                className="h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90"
+                disabled={loading}
+                className="h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
               >
-                Login
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-white/40 border-t-white"
+                    />
+                    Bitte warten...
+                  </span>
+                ) : (
+                  "Login"
+                )}
               </button>
               <button
                 type="button"

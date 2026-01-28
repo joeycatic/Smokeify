@@ -22,7 +22,10 @@ export default function ProductsClient({ initialProducts }: Props) {
   const searchParams = useSearchParams();
   const categoryParam = searchParams?.get("category") ?? "";
   const parentCategoryById = useMemo(() => {
-    const map = new Map<string, { id: string; handle: string; title: string }>();
+    const map = new Map<
+      string,
+      { id: string; handle: string; title: string }
+    >();
     initialProducts.forEach((product) => {
       product.categories?.forEach((category) => {
         if (!category.parentId) {
@@ -102,7 +105,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       });
     });
     return Array.from(categories.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1])
+      a[1].localeCompare(b[1]),
     );
   }, [normalizedProducts]);
 
@@ -117,7 +120,12 @@ export default function ProductsClient({ initialProducts }: Props) {
   }, [normalizedProducts]);
 
   useEffect(() => {
-    if (!categoryParam) return;
+    if (!categoryParam) {
+      setFilters((prev) =>
+        prev.categories.length === 0 ? prev : { ...prev, categories: [] },
+      );
+      return;
+    }
     if (!allCategoryTitlesByHandle.has(categoryParam)) return;
     setFilters((prev) => {
       if (
@@ -135,7 +143,7 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   const categoryTitleByHandle = useMemo(
     () => new Map(allCategoryTitlesByHandle),
-    [allCategoryTitlesByHandle]
+    [allCategoryTitlesByHandle],
   );
 
   const resetFilters = () => {
@@ -206,47 +214,67 @@ export default function ProductsClient({ initialProducts }: Props) {
     }
 
     return chips;
-  }, [
-    filters,
-    categoryTitleByHandle,
-    priceMinBound,
-    priceMaxBound,
-  ]);
+  }, [filters, categoryTitleByHandle, priceMinBound, priceMaxBound]);
 
   return (
     <div className="w-full text-stone-800">
       {/* Products Grid */}
       <div className="mt-8 text-center">
-        <h1 className="text-2xl font-bold mb-4 sm:text-3xl" style={{ color: "#2f3e36" }}>
+        <h1
+          className="text-2xl font-bold mb-4 sm:text-3xl"
+          style={{ color: "#2f3e36" }}
+        >
           Unsere Produkte
         </h1>
-        <div
-          className="mx-auto mb-4 rounded-xl"
-          style={{ width: "80px", height: "3px", backgroundColor: "#16a34a" }}
-        ></div>
+        <div className="mx-auto mb-4 h-1 w-24 rounded-full bg-[#2f3e36]" />
         <p className="text-stone-600 text-base font-medium sm:text-lg">
           Premium equipment für premium Ergebnisse
         </p>
       </div>
 
       <div className="mt-4 mb-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          type="search"
-          value={filters.searchQuery ?? ""}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-          }
-          placeholder="Suche produkte..."
-          className="h-11 w-full sm:max-w-xs rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30"
-        />
+        <div className="relative w-full sm:max-w-md">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5c6f64]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="20" y1="20" x2="16.5" y2="16.5" />
+            </svg>
+          </span>
+          <input
+            type="search"
+            value={filters.searchQuery ?? ""}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+            }
+            placeholder="Produkte suchen..."
+            className="h-12 w-full rounded-2xl border border-black/10 bg-white pl-11 pr-4 text-sm text-stone-700 shadow-[0_10px_30px_rgba(15,23,42,0.08)] outline-none focus:border-[#2f3e36]/40 focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+          />
+        </div>
         <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-md border border-black/15 bg-white p-1">
+          <div className="relative grid h-11 w-36 grid-cols-2 rounded-full border border-black/15 bg-white p-[6px] shadow-sm overflow-hidden">
+            <span
+              className={`absolute top-[5px] bottom-[5px] rounded-full bg-[#3a4b41] transition-all duration-200 ease-out ${
+                layout === "grid"
+                  ? "left-[5px] right-[calc(50%-1px)]"
+                  : "left-[calc(50%+1px)] right-[5px]"
+              }`}
+              aria-hidden="true"
+            />
             <button
               type="button"
               onClick={() => setLayout("grid")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
+              className={`relative z-10 inline-flex h-8 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-xs font-semibold transition ${
                 layout === "grid"
-                  ? "bg-[#3a4b41] text-white"
+                  ? "text-white"
                   : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
               }`}
             >
@@ -256,9 +284,9 @@ export default function ProductsClient({ initialProducts }: Props) {
             <button
               type="button"
               onClick={() => setLayout("list")}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition ${
+              className={`relative z-10 inline-flex h-8 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-xs font-semibold transition ${
                 layout === "list"
-                  ? "bg-[#3a4b41] text-white"
+                  ? "text-white"
                   : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
               }`}
             >

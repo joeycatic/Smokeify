@@ -16,7 +16,7 @@ export default function OutOfStockModal({ open, onClose }: Props) {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-semibold text-red-700">
-              Artikel nicht verfuegbar
+              Artikel nicht verfügbar
             </p>
           </div>
           <button
@@ -29,8 +29,8 @@ export default function OutOfStockModal({ open, onClose }: Props) {
           </button>
         </div>
         <p className="mt-3 text-sm text-stone-600">
-          Dieser Artikel ist aktuell ausverkauft. Bitte versuche es spaeter
-          erneut.
+          Dieser Artikel ist aktuell ausverkauft. Bitte versuche es später
+          nochmal.
         </p>
         <div className="mt-6 flex justify-end">
           <button
