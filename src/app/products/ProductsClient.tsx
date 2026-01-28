@@ -12,12 +12,15 @@ import DisplayProducts, {
   DisplayProductsList,
 } from "@/components/DisplayProducts";
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
+import { useSearchParams } from "next/navigation";
 
 type Props = {
   initialProducts: Product[];
 };
 
 export default function ProductsClient({ initialProducts }: Props) {
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams?.get("category") ?? "";
   const parentCategoryById = useMemo(() => {
     const map = new Map<string, { id: string; handle: string; title: string }>();
     initialProducts.forEach((product) => {
@@ -103,9 +106,36 @@ export default function ProductsClient({ initialProducts }: Props) {
     );
   }, [normalizedProducts]);
 
+  const allCategoryTitlesByHandle = useMemo(() => {
+    const categories = new Map<string, string>();
+    normalizedProducts.forEach((p) => {
+      p.categories?.forEach((c) => {
+        categories.set(c.handle, c.title);
+      });
+    });
+    return categories;
+  }, [normalizedProducts]);
+
+  useEffect(() => {
+    if (!categoryParam) return;
+    if (!allCategoryTitlesByHandle.has(categoryParam)) return;
+    setFilters((prev) => {
+      if (
+        prev.categories.length === 1 &&
+        prev.categories[0] === categoryParam
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        categories: [categoryParam],
+      };
+    });
+  }, [allCategoryTitlesByHandle, categoryParam]);
+
   const categoryTitleByHandle = useMemo(
-    () => new Map(availableCategories),
-    [availableCategories]
+    () => new Map(allCategoryTitlesByHandle),
+    [allCategoryTitlesByHandle]
   );
 
   const resetFilters = () => {
@@ -185,29 +215,6 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   return (
     <div className="w-full text-stone-800">
-      <div className="mt-6 overflow-x-auto pb-1">
-        <div className="flex min-w-max items-center justify-center gap-3">
-          {availableCategories.map(([handle, title]) => {
-            const active = filters.categories.includes(handle);
-            return (
-              <button
-                key={handle}
-                type="button"
-                onClick={() => toggleCategory(handle)}
-                aria-pressed={active}
-                className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
-                  active
-                    ? "border-black bg-black text-white"
-                    : "border-black/10 bg-white text-black/70 hover:border-black/20"
-                }`}
-              >
-                {title}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Products Grid */}
       <div className="mt-8 text-center">
         <h1 className="text-2xl font-bold mb-4 sm:text-3xl" style={{ color: "#2f3e36" }}>

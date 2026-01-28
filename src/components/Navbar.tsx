@@ -76,6 +76,15 @@ export function Navbar() {
     null,
   );
   const [mobileAddedOpen, setMobileAddedOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [categoryStack, setCategoryStack] = useState<string[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string; handle: string; parentId: string | null }>
+  >([]);
+  const [categoriesStatus, setCategoriesStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
+  const productsRef = useRef<HTMLDivElement | null>(null);
 
   const count = loading ? 0 : (cart?.totalQuantity ?? 0);
   const wishlistCount = ids.length;
@@ -134,6 +143,13 @@ export function Navbar() {
       if (!clickInsideToggle && !clickInsidePanel) {
         setCartOpen(false);
       }
+      if (
+        productsRef.current &&
+        !productsRef.current.contains(event.target as Node)
+      ) {
+        setProductsOpen(false);
+        setCategoryStack([]);
+      }
       const menuTarget = event.target as Node;
       const menuRoot = document.getElementById("mobile-nav-menu");
       if (menuOpen && menuRoot && !menuRoot.contains(menuTarget)) {
@@ -151,6 +167,42 @@ export function Navbar() {
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    const loadCategories = async () => {
+      setCategoriesStatus("loading");
+      try {
+        const res = await fetch("/api/categories");
+        if (!res.ok) throw new Error("Failed");
+        const data = (await res.json()) as {
+          categories?: Array<{
+            id: string;
+            name: string;
+            handle: string;
+            parentId: string | null;
+          }>;
+        };
+        if (!ignore) {
+          setCategories(data.categories ?? []);
+          setCategoriesStatus("idle");
+        }
+      } catch {
+        if (!ignore) {
+          setCategoriesStatus("error");
+        }
+      }
+    };
+    loadCategories();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setProductsOpen(false);
+    setCategoryStack([]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -203,6 +255,47 @@ export function Navbar() {
       router.push("/cart");
     }
   };
+
+  const categoriesByParent = useMemo(() => {
+    const map = new Map<
+      string | null,
+      Array<{ id: string; name: string; handle: string; parentId: string | null }>
+    >();
+    categories.forEach((category) => {
+      const key = category.parentId ? String(category.parentId) : null;
+      const list = map.get(key) ?? [];
+      list.push({
+        ...category,
+        parentId: category.parentId ? String(category.parentId) : null,
+      });
+      map.set(key, list);
+    });
+    map.forEach((list, key) => {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      map.set(key, list);
+    });
+    return map;
+  }, [categories]);
+  const activeParentId =
+    categoryStack.length > 0
+      ? String(categoryStack[categoryStack.length - 1])
+      : null;
+  const activeCategories = categoriesByParent.get(activeParentId) ?? [];
+  const categoryById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; handle: string }>();
+    categories.forEach((category) => {
+      map.set(category.id, {
+        id: category.id,
+        name: category.name,
+        handle: category.handle,
+      });
+    });
+    return map;
+  }, [categories]);
+  const activeParentCategory = activeParentId
+    ? categoryById.get(activeParentId) ?? null
+    : null;
+
   const accountPanelContent = (
     <>
       <div className="mb-4 text-center">
@@ -427,12 +520,134 @@ export function Navbar() {
                   </div>
                 </div>
                 <div className="hidden items-center gap-3 text-xs font-semibold text-stone-800 sm:flex sm:gap-6 sm:text-base">
-                  <Link
-                    href="/products"
-                    className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
-                  >
-                    Produkte
-                  </Link>
+                  <div className="relative" ref={productsRef}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductsOpen((prev) => {
+                          const next = !prev;
+                          if (!next) {
+                            setCategoryStack([]);
+                          }
+                          return next;
+                        })
+                      }
+                      className={`${pixelNavFont.className} inline-flex items-center text-base sm:text-xl font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                      aria-expanded={productsOpen}
+                      aria-haspopup="true"
+                    >
+                      Produkte
+                    </button>
+                    <div
+                      className={`absolute left-0 top-full z-30 mt-3 w-80 rounded-xl border border-emerald-200/70 bg-white p-2 text-sm shadow-xl shadow-emerald-900/10 transition duration-150 ease-out ${
+                        productsOpen
+                          ? "pointer-events-auto scale-100 opacity-100"
+                          : "pointer-events-none scale-95 opacity-0"
+                      }`}
+                      aria-hidden={!productsOpen}
+                    >
+                      <div className="flex items-center justify-between px-2 py-1">
+                        {categoryStack.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCategoryStack((prev) => prev.slice(0, -1))
+                            }
+                            className="text-sm font-semibold text-emerald-900 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          >
+                            ← Zurueck
+                          </button>
+                        ) : (
+                          <span className="rounded-full border border-emerald-200/70 bg-white/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-widest text-emerald-700">
+                            Kategorien
+                          </span>
+                        )}
+                        <Link
+                          href="/products"
+                          onClick={() => {
+                            setProductsOpen(false);
+                            setCategoryStack([]);
+                          }}
+                          className="text-xs font-semibold text-emerald-900 hover:text-emerald-950 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        >
+                          Alle Produkte
+                        </Link>
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {categoriesStatus === "loading" && (
+                          <div className="px-2 py-2 text-xs text-stone-500">
+                            Laedt Kategorien...
+                          </div>
+                        )}
+                        {categoriesStatus === "error" && (
+                          <div className="px-2 py-2 text-xs text-red-600">
+                            Kategorien konnten nicht geladen werden.
+                          </div>
+                        )}
+                        {categoriesStatus === "idle" &&
+                          activeCategories.length === 0 && (
+                            <div className="px-2 py-2 text-xs text-stone-500">
+                              Keine Kategorien gefunden.
+                            </div>
+                          )}
+                        {categoriesStatus === "idle" && activeParentCategory && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              router.push(
+                                `/products?category=${encodeURIComponent(
+                                  activeParentCategory.handle,
+                                )}`,
+                              );
+                              setProductsOpen(false);
+                              setCategoryStack([]);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg border border-emerald-200/70 bg-emerald-50/70 px-3 py-2 text-left text-base font-semibold text-emerald-950 hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          >
+                            <span>Alle {activeParentCategory.name}</span>
+                            <span className="text-sm text-emerald-600">→</span>
+                          </button>
+                        )}
+                        {categoriesStatus === "idle" &&
+                          activeCategories.map((category) => {
+                            const childCount =
+                              categoriesByParent.get(String(category.id))
+                                ?.length ?? 0;
+                            const isLeaf = childCount === 0;
+                            return (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isLeaf) {
+                                    router.push(
+                                      `/products?category=${encodeURIComponent(
+                                        category.handle,
+                                      )}`,
+                                    );
+                                    setProductsOpen(false);
+                                    setCategoryStack([]);
+                                    return;
+                                  }
+                                  setCategoryStack((prev) => [
+                                    ...prev,
+                                    category.id,
+                                  ]);
+                                }}
+                                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-base font-semibold text-emerald-950 hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                              >
+                                <span>{category.name}</span>
+                                {!isLeaf && (
+                                  <span className="text-sm text-emerald-600">
+                                    {childCount > 0 ? "›" : ""}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
                   <Link
                     href="/customizer"
                     className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
