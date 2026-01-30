@@ -7,6 +7,9 @@ import type { Product } from "@/data/types";
 type Props = {
   products?: Product[];
   cols?: number;
+  showManufacturer?: boolean;
+  titleLines?: 2 | 3;
+  showGrowboxSize?: boolean;
 };
 
 const getProductLowStockState = (product: Product) => {
@@ -17,11 +20,24 @@ const getProductLowStockState = (product: Product) => {
   return Boolean(product.lowStock || isLowStock);
 };
 
-export default function DisplayProducts({ products, cols = 4 }: Props) {
+export default function DisplayProducts({
+  products,
+  cols = 4,
+  showManufacturer = false,
+  titleLines = 2,
+  showGrowboxSize = false,
+}: Props) {
+  const gridColsClass =
+    cols === 3
+      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+  const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
   return (
-    <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className={`mt-6 grid gap-4 ${gridColsClass}`}>
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
+        const showSize =
+          showGrowboxSize && isGrowboxProduct(p) && Boolean(p.growboxSize);
         return (
           <Link
             key={p.id}
@@ -44,22 +60,32 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
                   imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
                 {p.compareAtPrice && (
-                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
-                    Sale
+                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-black shadow">
+                    {formatDiscountPercentage(p.compareAtPrice, p.priceRange?.minVariantPrice)}
                   </span>
                 )}
                 {p.availableForSale && showLowStock && (
-                  <span className="absolute left-3 top-3 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
-                    Low stock
+                  <span className="absolute left-3 top-3 rounded-full bg-amber-100 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-amber-800 shadow">
+                    Geringer Bestand
                   </span>
                 )}
               </div>
 
               {/* Content */}
               <div className="flex flex-1 flex-col p-4">
+                {showManufacturer && p.manufacturer && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    {p.manufacturer}
+                  </p>
+                )}
+                {showSize && (
+                  <p className="mt-1 text-xs text-stone-600">
+                    Größe: {p.growboxSize}
+                  </p>
+                )}
                 {/* Title */}
                 <h2
-                  className="mt-1 line-clamp-2 font-bold"
+                  className={`mt-1 ${titleClampClass} font-bold leading-snug`}
                   style={{ color: "#000000ff" }}
                 >
                   {p.title}
@@ -114,7 +140,11 @@ export default function DisplayProducts({ products, cols = 4 }: Props) {
   );
 }
 
-export function DisplayProductsList({ products }: Props) {
+export function DisplayProductsList({
+  products,
+  showManufacturer = false,
+  showGrowboxSize = false,
+}: Props) {
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
       {products?.map((p) => {
@@ -123,6 +153,8 @@ export function DisplayProductsList({ products }: Props) {
         const descriptionText = descriptionSource
           ? formatShortText(descriptionSource, 160)
           : "";
+        const showSize =
+          showGrowboxSize && isGrowboxProduct(p) && Boolean(p.growboxSize);
         return (
           <article
             key={p.id}
@@ -158,6 +190,16 @@ export function DisplayProductsList({ products }: Props) {
 
             <div className="flex flex-1 flex-col gap-4">
               <div className="space-y-2">
+                {showManufacturer && p.manufacturer && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    {p.manufacturer}
+                  </p>
+                )}
+                {showSize && (
+                  <p className="text-xs text-stone-600">
+                    Größe: {p.growboxSize}
+                  </p>
+                )}
                 <h2
                   className="text-lg font-bold"
                   style={{ color: "#000000ff" }}
@@ -244,9 +286,10 @@ function ProductImageCarousel({
 }) {
   const current = images[0];
   if (!current) return null;
+  const isPng = /\.png($|\?)/i.test(current.url);
 
   return (
-    <div className={`relative ${className ?? ""}`}>
+    <div className={`relative ${className ?? ""} ${isPng ? "bg-white" : ""}`}>
       <Image
         src={current.url}
         alt={current.altText ?? alt}
@@ -268,6 +311,21 @@ function formatPrice(price?: { amount: string; currencyCode: string }) {
   }).format(Number(price.amount));
 }
 
+function formatDiscountPercentage(
+  compareAt?: { amount: string; currencyCode: string } | null,
+  price?: { amount: string; currencyCode: string } | null
+) {
+  if (!compareAt || !price) return "Sale";
+  const compare = Number(compareAt.amount);
+  const current = Number(price.amount);
+  if (!Number.isFinite(compare) || !Number.isFinite(current) || compare <= 0) {
+    return "Sale";
+  }
+  const percent = Math.round(((compare - current) / compare) * 100);
+  if (!Number.isFinite(percent) || percent <= 0) return "Sale";
+  return `-${percent}%`;
+}
+
 function getProductImages(product: Product) {
   const images = product.images ?? [];
   if (images.length) return images;
@@ -279,4 +337,14 @@ function formatShortText(value: string, maxChars?: number) {
   const cleaned = withoutTags.replace(/\s+/g, " ").trim();
   if (!maxChars || cleaned.length <= maxChars) return cleaned;
   return `${cleaned.slice(0, maxChars).trimEnd()}…`;
+}
+
+function isGrowboxProduct(product: Product) {
+  return (
+    product.categories?.some(
+      (category) =>
+        category.handle === "growboxen" ||
+        category.parent?.handle === "growboxen",
+    ) ?? false
+  );
 }

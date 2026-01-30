@@ -7,6 +7,10 @@ import { useEffect, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "@/components/CartProvider";
+import {
+  FREE_SHIPPING_THRESHOLD_EUR,
+  MIN_ORDER_TOTAL_EUR,
+} from "@/lib/checkoutPolicy";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -100,6 +104,14 @@ export default function CartPage() {
   const startCheckout = async () => {
     if (!cart || cart.lines.length === 0) return;
     if (status === "loading") return;
+    const subtotalValue = Number(cart.cost.subtotalAmount.amount);
+    if (Number.isFinite(subtotalValue) && subtotalValue < MIN_ORDER_TOTAL_EUR) {
+      setCheckoutStatus("error");
+      setCheckoutError(
+        `Mindestbestellwert ${MIN_ORDER_TOTAL_EUR.toFixed(2)} EUR.`,
+      );
+      return;
+    }
     if (!isAuthenticated) {
       router.push(
         `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`,
@@ -252,10 +264,15 @@ export default function CartPage() {
   const itemCount =
     cart.totalQuantity ??
     cart.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
   const shippingEstimate = hasLocation
-    ? getShippingEstimate(country, itemCount)
+    ? freeShippingActive
+      ? 0
+      : getShippingEstimate(country, itemCount)
     : 0;
   const totalEstimate = subtotal + shippingEstimate;
+  const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
+  const checkoutBlocked = !meetsMinOrder;
 
   return (
     <PageLayout>
@@ -291,7 +308,7 @@ export default function CartPage() {
                 }}
                 className="flex cursor-pointer flex-col gap-4 rounded-[32px] border border-[#2f3e36]/70 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-[#2f3e36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {line.merchandise.image?.url ? (
                     <img
                       src={line.merchandise.image.url}
@@ -299,26 +316,26 @@ export default function CartPage() {
                         line.merchandise.image.altText ??
                         line.merchandise.product.title
                       }
-                      className="h-16 w-16 rounded-3xl object-cover ring-1 ring-black/5"
+                      className="h-20 w-20 rounded-3xl object-cover ring-1 ring-black/5"
                       loading="lazy"
                       decoding="async"
-                      width={64}
-                      height={64}
+                      width={80}
+                      height={80}
                     />
                   ) : (
-                    <div className="h-16 w-16 rounded-3xl bg-stone-100 ring-1 ring-black/5" />
+                    <div className="h-20 w-20 rounded-3xl bg-stone-100 ring-1 ring-black/5" />
                   )}
                   <div className="min-w-0 flex-1">
                     {line.merchandise.product.manufacturer && (
-                      <p className="text-[11px] uppercase tracking-wide text-[#2f3e36]">
+                      <p className="text-xs uppercase tracking-wide text-[#2f3e36]">
                         {line.merchandise.product.manufacturer}
                       </p>
                     )}
-                    <p className="text-sm font-semibold text-emerald-950">
+                    <p className="text-base font-semibold text-emerald-950">
                       {line.merchandise.product.title}
                     </p>
                     {line.merchandise.shortDescription && (
-                      <p className="mt-1 hidden text-xs text-stone-500 lg:block">
+                      <p className="mt-1 hidden text-sm text-stone-500 lg:block">
                         {line.merchandise.shortDescription}
                       </p>
                     )}
@@ -460,6 +477,12 @@ export default function CartPage() {
                     ? formatPrice(shippingEstimate, currencyCode)
                     : "--"}
                 </p>
+                {hasLocation && freeShippingActive && (
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">
+                    Kostenloser Versand ab{" "}
+                    {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)}
+                  </p>
+                )}
               </div>
               <div>
                 <p
@@ -493,10 +516,16 @@ export default function CartPage() {
                   {checkoutError}
                 </p>
               )}
+              {checkoutBlocked && (
+                <p className="text-xs font-semibold text-red-600">
+                  Mindestbestellwert{" "}
+                  {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={startCheckout}
-                disabled={!canCheckout}
+                disabled={!canCheckout || checkoutBlocked}
                 className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 {checkoutStatus === "loading"

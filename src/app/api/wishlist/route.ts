@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProductsByIds } from "@/lib/catalog";
+import { getProductsByIdsAllowInactive } from "@/lib/catalog";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { ids?: string[] };
@@ -7,6 +7,6 @@ export async function POST(request: Request) {
     return NextResponse.json([], { status: 400 });
   }
 
-  const products = await getProductsByIds(body.ids);
+  const products = await getProductsByIdsAllowInactive(body.ids);
   return NextResponse.json(products);
 }

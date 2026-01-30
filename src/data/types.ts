@@ -29,6 +29,7 @@ export type Product = {
   description: string | null;
   shortDescription?: string | null;
   manufacturer: string | null;
+  growboxSize?: string | null;
   tags: string[];
   availableForSale: boolean;
   lowStock?: boolean;
@@ -47,6 +48,7 @@ export type Product = {
 
 export type ProductFilters = {
   categories: string[];
+  manufacturers: string[];
   priceMin: number;
   priceMax: number;
   searchQuery?: string;

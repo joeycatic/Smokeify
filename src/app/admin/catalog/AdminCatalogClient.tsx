@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
@@ -119,6 +119,7 @@ export default function AdminCatalogClient({
   const [collapsedCategoryIds, setCollapsedCategoryIds] = useState(
     () => new Set<string>(),
   );
+  const lastInitialQueryRef = useRef(initialQuery);
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
@@ -135,8 +136,17 @@ export default function AdminCatalogClient({
   }, [initialSortDirection, initialSortKey]);
 
   useEffect(() => {
-    setSearchTerm(initialQuery);
-  }, [initialQuery]);
+    const normalized = initialQuery ?? "";
+    const previous = lastInitialQueryRef.current ?? "";
+    if (normalized === previous) return;
+    if (
+      searchTerm.trim() === "" ||
+      searchTerm.trim() === previous.trim()
+    ) {
+      setSearchTerm(normalized);
+    }
+    lastInitialQueryRef.current = normalized;
+  }, [initialQuery, searchTerm]);
 
   const groupedCategories = useMemo(() => {
     const parents = categories.filter((item) => !item.parentId);

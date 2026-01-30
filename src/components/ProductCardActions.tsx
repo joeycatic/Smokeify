@@ -35,11 +35,11 @@ export default function ProductCardActions({
   const [adding, setAdding] = useState(false);
   const canAdd = Boolean(variantId) && available && !adding;
   const wishlisted = isWishlisted(productId);
-  const iconClass = size === "lg" ? "h-5 w-5" : "h-4 w-4";
+  const iconClass = size === "lg" ? "h-5 w-5" : "h-5 w-5";
   const buttonClass =
     size === "lg"
       ? "rounded-full border p-3 transition"
-      : "rounded-full border p-2 transition";
+      : "rounded-full border p-3 transition";
 
   return (
     <>
@@ -106,9 +106,9 @@ export default function ProductCardActions({
           canAdd
             ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
             : "border-stone-200 text-stone-400"
-        } ${size === "lg" ? "px-6 py-3 text-sm" : "px-3 py-2 text-xs"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+        } ${size === "lg" ? "px-6 py-3 text-sm" : "px-4 py-2.5 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
       >
-        <ShoppingCartIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
+        <ShoppingCartIcon className={size === "lg" ? "h-5 w-5" : "h-5 w-5"} />
         In den Warenkorb
       </button>
     </>

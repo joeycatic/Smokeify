@@ -85,6 +85,7 @@ const mapProduct = (product: {
     description: product.description,
     shortDescription: product.shortDescription,
     manufacturer: product.manufacturer,
+    growboxSize: product.growboxSize ?? null,
     tags: product.tags ?? [],
     availableForSale,
     lowStock,
@@ -226,6 +227,28 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
   if (!ids.length) return [];
   const products = await prisma.product.findMany({
     where: { id: { in: ids }, status: "ACTIVE" },
+    include: {
+      images: { orderBy: { position: "asc" } },
+      variants: {
+        orderBy: { position: "asc" },
+        include: { inventory: true },
+      },
+      categories: { include: { category: { include: { parent: true } } } },
+      collections: { include: { collection: true } },
+    },
+  });
+
+  const mapped = products.map(mapProduct);
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+export async function getProductsByIdsAllowInactive(
+  ids: string[]
+): Promise<Product[]> {
+  if (!ids.length) return [];
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {

@@ -306,19 +306,17 @@ const createOrderFromSession = async (
   }
 
   if (variantCounts.size > 0) {
+    const variants = await prisma.variant.findMany({
+      where: { id: { in: Array.from(variantCounts.keys()) } },
+      select: { id: true, productId: true },
+    });
+    const productByVariant = new Map(
+      variants.map((variant) => [variant.id, variant.productId])
+    );
+
     await prisma.$transaction(async (tx) => {
       for (const [variantId, qty] of variantCounts) {
         if (qty <= 0) continue;
-        const released = await tx.variantInventory.updateMany({
-          where: { variantId, reserved: { gte: qty } },
-          data: { reserved: { decrement: qty } },
-        });
-        if (released.count === 0) {
-          console.warn(
-            "[stripe webhook] Reservation missing during fulfillment.",
-            { variantId, qty }
-          );
-        }
         const updated = await tx.variantInventory.updateMany({
           where: { variantId, quantityOnHand: { gte: qty } },
           data: { quantityOnHand: { decrement: qty } },
@@ -328,7 +326,24 @@ const createOrderFromSession = async (
             variantId,
             qty,
           });
+          continue;
         }
+        const productId = productByVariant.get(variantId);
+        if (!productId) {
+          console.warn("[stripe webhook] Missing product for variant.", {
+            variantId,
+          });
+          continue;
+        }
+        await tx.inventoryAdjustment.create({
+          data: {
+            variantId,
+            productId,
+            orderId: created.id,
+            quantityDelta: -qty,
+            reason: "checkout_paid",
+          },
+        });
       }
     });
   }

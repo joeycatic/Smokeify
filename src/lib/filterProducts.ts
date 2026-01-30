@@ -36,6 +36,16 @@ export function filterProducts(
                 return false;
             }
         }
+
+        // Manufacturer Filter
+        const manufacturers = filters.manufacturers ?? [];
+        if (manufacturers.length > 0) {
+            const manufacturer = product.manufacturer ?? "";
+            const hasMatchingManufacturer = manufacturers.includes(manufacturer);
+            if (!hasMatchingManufacturer) {
+                return false;
+            }
+        }
         
         // Price Filter
         const price = parseFloat(product.priceRange.minVariantPrice.amount);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getProductsByIds } from "@/lib/catalog";
+import { getProductsByIdsAllowInactive } from "@/lib/catalog";
 import PageLayout from "@/components/PageLayout";
 import SignOutButton from "@/components/SignOutButton";
 import DeleteAccountButton from "@/components/DeleteAccountButton";
@@ -78,14 +78,20 @@ export default async function AccountPage() {
       },
     }),
   ]);
-  const wishlistPreview = await getProductsByIds(
+  const wishlistPreview = await getProductsByIdsAllowInactive(
     wishlistItems.map((item) => item.productId)
   );
   const setupItems = setups.map(
-    (setup: { id: string; name: string | null; createdAt: Date }) => ({
+    (setup: { id: string; name: string | null; createdAt: Date; data: unknown }) => ({
       id: setup.id,
       name: setup.name ?? "Saved setup",
       createdAt: setup.createdAt.toISOString(),
+      data: setup.data as {
+        sizeId?: string;
+        lightId?: string[];
+        ventId?: string[];
+        extras?: string[];
+      },
     })
   );
   const orderItems = orders.map((order) => ({

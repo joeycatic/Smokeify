@@ -8,6 +8,7 @@ import {
   HeartIcon,
   UserCircleIcon,
   ShoppingBagIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import type { Product } from "@/data/types";
 import AccountSettingsClient from "./AccountSettingsClient";
@@ -16,6 +17,12 @@ type SetupItem = {
   id: string;
   name: string;
   createdAt: string;
+  data?: {
+    sizeId?: string;
+    lightId?: string[];
+    ventId?: string[];
+    extras?: string[];
+  };
 };
 
 type Profile = {
@@ -66,6 +73,9 @@ export default function AccountDashboardClient({
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [setupItems, setSetupItems] = useState(setups);
+  const [setupBusyId, setSetupBusyId] = useState<string | null>(null);
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
   const tabs = useMemo(
     () => [
       {
@@ -83,6 +93,26 @@ export default function AccountDashboardClient({
     ],
     []
   );
+
+  const normalizeIdList = (value?: string[] | string) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return [value].filter(Boolean);
+  };
+
+  const buildSetupHref = (setup: SetupItem) => {
+    const data = setup.data ?? {};
+    const params = new URLSearchParams();
+    if (data.sizeId) params.set("sizeId", data.sizeId);
+    const lightIds = normalizeIdList(data.lightId);
+    if (lightIds.length > 0) params.set("lightId", lightIds.join(","));
+    const ventIds = normalizeIdList(data.ventId);
+    if (ventIds.length > 0) params.set("ventId", ventIds.join(","));
+    const extrasIds = normalizeIdList(data.extras);
+    if (extrasIds.length > 0) params.set("extras", extrasIds.join(","));
+    const query = params.toString();
+    return query ? `/customizer?${query}` : "/customizer";
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
@@ -312,24 +342,89 @@ export default function AccountDashboardClient({
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
               SAVED SETUPS
             </h2>
-            {setups.length === 0 ? (
+            {setupItems.length === 0 ? (
               <p className="text-sm text-stone-600">
                 Noch keine gespeicherten Setups.
               </p>
             ) : (
-              <ul className="space-y-3 text-sm">
-                {setups.map((setup) => (
-                  <li
-                    key={setup.id}
-                    className="rounded-lg border border-black/10 bg-stone-50 px-3 py-2"
-                  >
-                    <div className="font-semibold">{setup.name}</div>
-                    <div className="text-xs text-stone-500">
-                      {new Date(setup.createdAt).toLocaleDateString("de-DE")}
-                    </div>
-                  </li>
-                ))}
+              <ul className="grid gap-4">
+                {setupItems.map((setup) => {
+                  const lightCount = setup.data?.lightId?.length ?? 0;
+                  const ventCount = setup.data?.ventId?.length ?? 0;
+                  const extrasCount = setup.data?.extras?.length ?? 0;
+                  return (
+                    <li
+                      key={setup.id}
+                      className="group relative overflow-hidden rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 p-4 text-white shadow-md transition hover:border-emerald-700 hover:shadow-lg"
+                    >
+                      <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-400/20 blur-2xl" />
+                      <div className="relative flex items-start justify-between gap-3">
+                        <Link
+                          href={buildSetupHref(setup)}
+                          className="min-w-0 flex-1 rounded-lg px-2 py-1 transition hover:bg-white/10"
+                        >
+                          <div className="truncate text-sm font-semibold text-white">
+                            {setup.name}
+                          </div>
+                          <div className="mt-1 text-xs text-white/70">
+                            Gespeichert am{" "}
+                            {new Date(setup.createdAt).toLocaleDateString(
+                              "de-DE"
+                            )}
+                          </div>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setSetupBusyId(setup.id);
+                            setSetupMessage(null);
+                            try {
+                              const res = await fetch(`/api/setups/${setup.id}`, {
+                                method: "DELETE",
+                              });
+                              if (!res.ok) {
+                                setSetupMessage("Löschen fehlgeschlagen.");
+                                return;
+                              }
+                              setSetupItems((prev) =>
+                                prev.filter((item) => item.id !== setup.id)
+                              );
+                              setSetupMessage("Setup gelöscht.");
+                            } finally {
+                              setSetupBusyId(null);
+                            }
+                          }}
+                          disabled={setupBusyId === setup.id}
+                          className="shrink-0 rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:opacity-60"
+                          aria-label="Setup löschen"
+                          title="Setup löschen"
+                        >
+                          <TrashIcon className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="relative mt-3 flex flex-wrap gap-2 text-[11px]">
+                        {setup.data?.sizeId && (
+                          <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-white/90">
+                            Zelt gewählt
+                          </span>
+                        )}
+                        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-white/80">
+                          Licht: {lightCount}
+                        </span>
+                        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-white/80">
+                          Abluft: {ventCount}
+                        </span>
+                        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-white/80">
+                          Extras: {extrasCount}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
+            )}
+            {setupMessage && (
+              <p className="mt-3 text-xs text-stone-600">{setupMessage}</p>
             )}
           </section>
         )}

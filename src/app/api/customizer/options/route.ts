@@ -35,29 +35,49 @@ export async function GET(request: Request) {
     orderBy: { updatedAt: "desc" },
     include: {
       images: { orderBy: { position: "asc" } },
+      categories: { include: { category: { select: { handle: true, name: true } } } },
       variants: {
-        select: { priceCents: true, inventory: true },
+        select: { id: true, priceCents: true, inventory: true },
         orderBy: { position: "asc" },
       },
     },
   });
 
   const options = products.map((product) => {
-    const minPriceCents = getMinPriceCents(
-      product.variants.map((variant) => variant.priceCents),
-    );
     const available = product.variants.some((variant) => {
       const inventory = variant.inventory;
       return getAvailability(inventory?.quantityOnHand ?? 0, inventory?.reserved ?? 0) > 0;
     });
+    const availableVariants = product.variants.filter((variant) => {
+      const inventory = variant.inventory;
+      return getAvailability(inventory?.quantityOnHand ?? 0, inventory?.reserved ?? 0) > 0;
+    });
+    const cheapestAvailable = availableVariants.reduce((min, variant) => {
+      if (!min || variant.priceCents < min.priceCents) return variant;
+      return min;
+    }, null as (typeof product.variants)[number] | null);
+    const cheapestOverall = product.variants.reduce((min, variant) => {
+      if (!min || variant.priceCents < min.priceCents) return variant;
+      return min;
+    }, null as (typeof product.variants)[number] | null);
+    const variantForCart = cheapestAvailable ?? cheapestOverall;
+    const priceSource = cheapestAvailable ?? cheapestOverall;
     const primaryImage = product.images[0] ?? null;
+    const categoryTokens = product.categories.flatMap((entry) => {
+      const handle = entry.category.handle?.toLowerCase() ?? "";
+      const name = entry.category.name?.toLowerCase() ?? "";
+      return [handle, name];
+    });
+    const isSet = categoryTokens.some((token) => token.includes("set"));
     return {
       id: product.id,
       label: product.title,
-      price: minPriceCents / CURRENCY_MULTIPLIER,
+      price: (priceSource?.priceCents ?? 0) / CURRENCY_MULTIPLIER,
       imageUrl: primaryImage?.url ?? null,
       imageAlt: primaryImage?.altText ?? product.title,
       outOfStock: !available,
+      variantId: variantForCart?.id ?? undefined,
+      isSet,
       size: product.growboxSize ?? product.lightSize ?? undefined,
       diameterMm: product.airSystemDiameterMm ?? undefined,
       diametersMm:

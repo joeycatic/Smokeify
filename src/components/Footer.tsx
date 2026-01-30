@@ -176,6 +176,21 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="mt-10 border-t border-white/10 pt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+            <span className="mr-1 text-xs font-semibold text-white/80">
+              Zahlungsarten:
+            </span>
+            {["Visa", "Mastercard", "Apple Pay", "Google Pay", "Klarna", "PayPal"].map(
+              (method) => (
+                <span
+                  key={method}
+                  className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs font-semibold text-white/80"
+                >
+                  {method}
+                </span>
+              ),
+            )}
+          </div>
           <p className="text-xs text-white/60">
             © {new Date().getFullYear()} Smokeify — Alle Rechte vorbehalten.
           </p>

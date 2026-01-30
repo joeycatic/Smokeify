@@ -55,23 +55,32 @@ export default function FilterDrawer({
   filters,
   setFilters,
   availableCategories,
+  availableManufacturers,
   priceMinBound = 0,
   priceMaxBound = 10000,
   resultCount,
   onReset,
+  triggerClassName,
+  triggerBadgeClassName,
 }: {
   filters: ProductFilters;
   setFilters: React.Dispatch<React.SetStateAction<ProductFilters>>;
   availableCategories: Array<[handle: string, title: string]>;
+  availableManufacturers: string[];
   priceMinBound?: number;
   priceMaxBound?: number;
   resultCount: number;
   onReset: () => void;
+  triggerClassName?: string;
+  triggerBadgeClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [section, setSection] = useState<"price" | "cat" | null>("price");
+  const [section, setSection] = useState<
+    "price" | "cat" | "manufacturer" | null
+  >("price");
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [manufacturerQuery, setManufacturerQuery] = useState("");
   const trackRef = useRef<HTMLDivElement | null>(null);
 
   // ESC schließt + body lock
@@ -88,6 +97,7 @@ export default function FilterDrawer({
   const activeCount = useMemo(() => {
     let c = 0;
     c += filters.categories.length;
+    c += filters.manufacturers?.length ?? 0;
     if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound)
       c += 1;
     if (filters.searchQuery?.trim()) c += 1;
@@ -100,6 +110,15 @@ export default function FilterDrawer({
       categories: prev.categories.includes(handle)
         ? prev.categories.filter((c) => c !== handle)
         : [...prev.categories, handle],
+    }));
+  };
+
+  const toggleManufacturer = (manufacturer: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      manufacturers: (prev.manufacturers ?? []).includes(manufacturer)
+        ? (prev.manufacturers ?? []).filter((m) => m !== manufacturer)
+        : [...(prev.manufacturers ?? []), manufacturer],
     }));
   };
 
@@ -116,6 +135,14 @@ export default function FilterDrawer({
     );
   }, [availableCategories, categoryQuery]);
 
+  const filteredManufacturers = useMemo(() => {
+    if (!manufacturerQuery.trim()) return availableManufacturers;
+    const query = manufacturerQuery.trim().toLowerCase();
+    return availableManufacturers.filter((manufacturer) =>
+      manufacturer.toLowerCase().includes(query)
+    );
+  }, [availableManufacturers, manufacturerQuery]);
+
   const activeFilters = useMemo(() => {
     const items: Array<{
       key: string;
@@ -127,15 +154,23 @@ export default function FilterDrawer({
       const title = categoryMap.get(handle) ?? handle;
       items.push({
         key: `category-${handle}`,
-        label: `Category: ${title}`,
+        label: `Kategorie: ${title}`,
         onRemove: () => toggleCategory(handle),
+      });
+    });
+
+    (filters.manufacturers ?? []).forEach((manufacturer) => {
+      items.push({
+        key: `manufacturer-${manufacturer}`,
+        label: `Hersteller: ${manufacturer}`,
+        onRemove: () => toggleManufacturer(manufacturer),
       });
     });
 
     if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
       items.push({
         key: "price",
-        label: `Price: EUR ${filters.priceMin.toFixed(
+        label: `Preis: EUR ${filters.priceMin.toFixed(
           2
         )} - EUR ${filters.priceMax.toFixed(2)}`,
         onRemove: () =>
@@ -150,7 +185,7 @@ export default function FilterDrawer({
     if (filters.searchQuery?.trim()) {
       items.push({
         key: "search",
-        label: `Search: ${filters.searchQuery.trim()}`,
+        label: `Suche: ${filters.searchQuery.trim()}`,
         onRemove: () => setFilters((prev) => ({ ...prev, searchQuery: "" })),
       });
     }
@@ -194,11 +229,19 @@ export default function FilterDrawer({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-2.5 text-base font-semibold text-stone-800 shadow-sm transition hover:border-black/20"
+          className={
+            triggerClassName ??
+            "inline-flex h-12 items-center gap-2 rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-black/20"
+          }
         >
           Filter
           {activeCount > 0 && (
-            <span className="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black/70">
+            <span
+              className={
+                triggerBadgeClassName ??
+                "rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black/70"
+              }
+            >
               {activeCount}
             </span>
           )}
@@ -251,7 +294,7 @@ export default function FilterDrawer({
                 <div className="pt-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-stone-500">
-                      Active filters
+                      Aktive Filter
                     </p>
                     {activeFilters.length > 0 && (
                       <button
@@ -259,13 +302,13 @@ export default function FilterDrawer({
                         onClick={onReset}
                         className="text-sm font-semibold text-stone-600 hover:text-stone-800"
                       >
-                        Clear all
+                        Alle löschen
                       </button>
                     )}
                   </div>
                   {activeFilters.length === 0 ? (
                     <p className="mt-2 text-sm text-stone-500">
-                      No filters applied.
+                      Keine Filter aktiv.
                     </p>
                   ) : (
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -286,17 +329,17 @@ export default function FilterDrawer({
 
                 {/* PRICE */}
                 <Accordion
-                  title="Price"
+                  title="Preis"
                   open={section === "price"}
                   onToggle={() =>
                     setSection((s) => (s === "price" ? null : "price"))
                   }
                 >
-                  <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-                    <label className="flex flex-col gap-1">
-                      <span className="text-stone-500">Min</span>
-                      <input
-                        type="number"
+                      <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-stone-500">Min</span>
+                          <input
+                            type="number"
                         min={1}
                         max={filters.priceMax}
                         step="1"
@@ -311,10 +354,10 @@ export default function FilterDrawer({
                         className="h-11 rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
                       />
                     </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-stone-500">Max</span>
-                      <input
-                        type="number"
+                        <label className="flex flex-col gap-1">
+                          <span className="text-stone-500">Max</span>
+                          <input
+                            type="number"
                         min={Math.max(1, Math.round(filters.priceMin))}
                         max={Math.max(1, Math.round(priceMaxBound))}
                         step="1"
@@ -397,7 +440,7 @@ export default function FilterDrawer({
 
                 {/* CATEGORIES */}
                 <Accordion
-                  title="Categories"
+                  title="Kategorien"
                   open={section === "cat"}
                   onToggle={() =>
                     setSection((s) => (s === "cat" ? null : "cat"))
@@ -407,7 +450,7 @@ export default function FilterDrawer({
                     type="search"
                     value={categoryQuery}
                     onChange={(e) => setCategoryQuery(e.target.value)}
-                    placeholder="Search categories"
+                    placeholder="Kategorien suchen"
                     className="mb-3 h-11 w-full rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
                   />
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -427,6 +470,40 @@ export default function FilterDrawer({
                   </div>
                 </Accordion>
 
+                {/* MANUFACTURER */}
+                <Accordion
+                  title="Hersteller"
+                  open={section === "manufacturer"}
+                  onToggle={() =>
+                    setSection((s) =>
+                      s === "manufacturer" ? null : "manufacturer"
+                    )
+                  }
+                >
+                  <input
+                    type="search"
+                    value={manufacturerQuery}
+                    onChange={(e) => setManufacturerQuery(e.target.value)}
+                    placeholder="Hersteller suchen"
+                    className="mb-3 h-11 w-full rounded-md border border-black/10 px-3 text-base outline-none focus:border-black/30"
+                  />
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {filteredManufacturers.map((manufacturer) => (
+                      <label
+                        key={manufacturer}
+                        className="flex items-center gap-3 cursor-pointer hover:bg-black/5 p-2 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={(filters.manufacturers ?? []).includes(manufacturer)}
+                          onChange={() => toggleManufacturer(manufacturer)}
+                        />
+                        <span className="text-base">{manufacturer}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Accordion>
+
               </div>
 
               {/* Footer */}
@@ -436,14 +513,14 @@ export default function FilterDrawer({
                   onClick={onReset}
                   className="flex-1 h-12 rounded-md border border-black/10 text-base font-semibold text-stone-600 hover:border-black/20"
                 >
-                  Clear
+                  Löschen
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex-1 h-12 rounded-md bg-black text-white text-base font-semibold"
                 >
-                  View ({resultCount})
+                  Anzeigen ({resultCount})
                 </button>
               </div>
             </motion.aside>

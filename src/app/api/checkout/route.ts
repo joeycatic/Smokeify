@@ -4,6 +4,11 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  FREE_SHIPPING_THRESHOLD_EUR,
+  MIN_ORDER_TOTAL_EUR,
+  toCents,
+} from "@/lib/checkoutPolicy";
 
 export const runtime = "nodejs";
 
@@ -188,35 +193,6 @@ const getStripe = () => {
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
-const reserveInventory = async (variantId: string, quantity: number) => {
-  if (quantity <= 0) return true;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const inventory = await prisma.variantInventory.findUnique({
-      where: { variantId },
-    });
-    if (!inventory) return false;
-    const available = Math.max(0, inventory.quantityOnHand - inventory.reserved);
-    if (available < quantity) return false;
-    const updated = await prisma.variantInventory.updateMany({
-      where: {
-        variantId,
-        quantityOnHand: inventory.quantityOnHand,
-        reserved: inventory.reserved,
-      },
-      data: { reserved: { increment: quantity } },
-    });
-    if (updated.count > 0) return true;
-  }
-  return false;
-};
-
-const releaseReservation = async (variantId: string, quantity: number) => {
-  if (quantity <= 0) return;
-  await prisma.variantInventory.updateMany({
-    where: { variantId, reserved: { gte: quantity } },
-    data: { reserved: { decrement: quantity } },
-  });
-};
 
 export async function POST(req: Request) {
   const authSession = await getServerSession(authOptions);
@@ -275,6 +251,7 @@ export async function POST(req: Request) {
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let itemCount = 0;
+  let subtotalCents = 0;
   const variantCounts = new Map<string, number>();
 
   for (const item of items) {
@@ -282,10 +259,17 @@ export async function POST(req: Request) {
     if (!variant) continue;
     const productName = variant.product.title;
     const variantTitle = variant.title?.trim();
-    const name =
-      variantTitle && variantTitle !== productName
-        ? `${productName} — ${variantTitle}`
+    const manufacturer = variant.product.manufacturer?.trim();
+    const isDefaultVariant =
+      !variantTitle || variantTitle.toLowerCase().includes("default");
+    const baseName =
+      manufacturer && !productName.toLowerCase().includes(manufacturer.toLowerCase())
+        ? `${manufacturer} ${productName}`
         : productName;
+    const name =
+      !isDefaultVariant && variantTitle
+        ? `${baseName} — ${variantTitle}`
+        : baseName;
     const image = variant.product.images[0]?.url;
     lineItems.push({
       quantity: item.quantity,
@@ -303,6 +287,7 @@ export async function POST(req: Request) {
       },
     });
     itemCount += item.quantity;
+    subtotalCents += variant.priceCents * item.quantity;
     variantCounts.set(
       variant.id,
       (variantCounts.get(variant.id) ?? 0) + item.quantity
@@ -316,26 +301,43 @@ export async function POST(req: Request) {
     );
   }
 
-  const origin = req.headers.get("origin") ?? "http://localhost:3000";
-  const shippingAmount = getShippingEstimate(country, itemCount);
-  const shippingCents = Math.max(0, Math.round(shippingAmount * 100));
+  const minOrderCents = toCents(MIN_ORDER_TOTAL_EUR);
+  if (subtotalCents < minOrderCents) {
+    return NextResponse.json(
+      {
+        error: `Mindestbestellwert ${MIN_ORDER_TOTAL_EUR.toFixed(2)} EUR.`,
+      },
+      { status: 400 }
+    );
+  }
 
-  const reservedVariants: Array<{ variantId: string; quantity: number }> = [];
+  const inventoryRows = await prisma.variantInventory.findMany({
+    where: { variantId: { in: Array.from(variantCounts.keys()) } },
+  });
+  const inventoryByVariant = new Map(
+    inventoryRows.map((row) => [row.variantId, row])
+  );
   for (const [variantId, quantity] of variantCounts) {
-    const reserved = await reserveInventory(variantId, quantity);
-    if (!reserved) {
-      await Promise.all(
-        reservedVariants.map((entry) =>
-          releaseReservation(entry.variantId, entry.quantity)
-        )
-      );
+    const inventory = inventoryByVariant.get(variantId);
+    const available = Math.max(
+      0,
+      (inventory?.quantityOnHand ?? 0) - (inventory?.reserved ?? 0)
+    );
+    if (available < quantity) {
       return NextResponse.json(
         { error: "Nicht genug Bestand." },
         { status: 409 }
       );
     }
-    reservedVariants.push({ variantId, quantity });
   }
+
+  const origin = req.headers.get("origin") ?? "http://localhost:3000";
+  const shippingAmount = getShippingEstimate(country, itemCount);
+  const freeShippingCents = toCents(FREE_SHIPPING_THRESHOLD_EUR);
+  const shippingCents =
+    subtotalCents >= freeShippingCents
+      ? 0
+      : Math.max(0, Math.round(shippingAmount * 100));
 
   let promotionCodeId: string | undefined;
   let appliedDiscountCode: string | undefined;
@@ -365,7 +367,6 @@ export async function POST(req: Request) {
   try {
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card", "paypal"],
       line_items: lineItems,
       discounts: promotionCodeId
         ? [{ promotion_code: promotionCodeId }]
@@ -401,11 +402,6 @@ export async function POST(req: Request) {
       metadata,
     });
   } catch (error) {
-    await Promise.all(
-      reservedVariants.map((entry) =>
-        releaseReservation(entry.variantId, entry.quantity)
-      )
-    );
     throw error;
   }
 

@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useCart } from "@/components/CartProvider";
 
 type Option = {
   id: string;
@@ -17,6 +19,8 @@ type Option = {
   size?: string;
   diameterMm?: number;
   diametersMm?: number[];
+  variantId?: string;
+  isSet?: boolean;
 };
 
 type StepId = "size" | "light" | "vent" | "extras" | "check";
@@ -67,8 +71,12 @@ type SetupSidebarProps = {
   total: number;
   onEdit: (id: StepId) => void;
   onPrimary: () => void;
+  onAddToCart: () => void;
+  onCheckout: () => void;
   saving: boolean;
   saved: boolean;
+  cartActionStatus: "idle" | "loading" | "ok" | "error";
+  cartActionMessage: string;
 };
 
 type MobileSetupBottomBarProps = {
@@ -121,18 +129,35 @@ function StepHeader({
   activeStep,
   onStepChange,
   completedSteps,
+  canAccessStep,
 }: {
   activeStep: StepId;
   onStepChange: (step: StepId) => void;
   completedSteps: Set<StepId>;
+  canAccessStep: (step: StepId) => boolean;
 }) {
-  const activeIndex = Math.max(
-    0,
-    STEPS.findIndex((step) => step.id === activeStep),
-  );
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const stepRefs = useRef<Record<StepId, HTMLButtonElement | null>>({
+    size: null,
+    light: null,
+    vent: null,
+    extras: null,
+    check: null,
+  });
   const progressCount = Math.min(completedSteps.size, STEPS.length);
   const stepDisplay = Math.max(1, progressCount);
   const activeTone = "#7aa38f";
+
+  useEffect(() => {
+    const node = stepRefs.current[activeStep];
+    if (!node) return;
+    node.scrollIntoView({
+      behavior: "smooth",
+      inline: "nearest",
+      block: "nearest",
+    });
+  }, [activeStep]);
+
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -163,68 +188,84 @@ function StepHeader({
               }}
             />
           </div>
-          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-inner">
-            <div className="flex w-full flex-nowrap items-center gap-2">
-              {STEPS.map((step, index) => {
-                const isActive = step.id === activeStep;
-                const isCompleted = completedSteps.has(step.id);
-                const isCheckComplete =
-                  step.id === "check" &&
-                  completedSteps.has("size") &&
-                  completedSteps.has("light") &&
-                  completedSteps.has("vent");
-                return (
-                  <div
-                    key={step.id}
-                    className="flex min-w-0 flex-1 items-center gap-2"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onStepChange(step.id)}
-                      className={`flex w-full min-w-0 flex-1 flex-col items-start justify-center rounded-full px-4 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${
-                        isCompleted || isCheckComplete
-                          ? "bg-[#2f3e36] text-white shadow"
-                          : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200"
-                      } ${isActive && !isCompleted ? "ring-1 ring-neutral-300" : ""}`}
+          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
+            <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-6 pr-8 scroll-pl-6 scroll-pr-8">
+              <div ref={listRef} className="flex w-max items-center gap-2">
+                {STEPS.map((step, index) => {
+                  const isActive = step.id === activeStep;
+                  const isCompleted = completedSteps.has(step.id);
+                  const isCheckComplete =
+                    step.id === "check" &&
+                    completedSteps.has("size") &&
+                    completedSteps.has("light") &&
+                    completedSteps.has("vent");
+                  const isLocked = !canAccessStep(step.id);
+                  return (
+                    <div
+                      key={step.id}
+                      className="flex min-w-0 items-center gap-2"
                     >
-                      <div className="flex items-center gap-1">
-                        <span
-                          className={`text-[11px] ${
-                            isCompleted || isCheckComplete
-                              ? "text-white/70"
-                              : "text-neutral-400"
-                          }`}
-                        >
-                          {index + 1}.
-                        </span>
-                        <span
-                          className={`whitespace-nowrap text-[11px] font-semibold ${
-                            isCompleted || isCheckComplete
-                              ? "text-white"
-                              : "text-neutral-700"
-                          }`}
-                        >
-                          {step.label}
-                        </span>
-                      </div>
-                      {step.id !== "check" && (
-                        <span
-                          className={`text-[10px] ${
-                            isCompleted || isCheckComplete
-                              ? "text-white/70"
-                              : "text-neutral-400"
-                          }`}
-                        >
-                          {step.label}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isLocked) return;
+                          onStepChange(step.id);
+                        }}
+                        disabled={isLocked}
+                        ref={(el) => {
+                          stepRefs.current[step.id] = el;
+                        }}
+                        className={`flex min-w-[96px] flex-col items-start justify-center rounded-full px-3 py-2 text-left transition sm:min-w-[120px] sm:px-4 sm:py-2.5 ${
+                          isCompleted || isCheckComplete
+                            ? "border border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow"
+                            : "text-neutral-600"
+                        } ${isActive && !isCompleted ? "ring-1 ring-neutral-300" : ""} ${
+                          isLocked
+                            ? "cursor-not-allowed opacity-50"
+                            : "hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-200 hover:text-neutral-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={`text-[10px] sm:text-[11px] ${
+                              isCompleted || isCheckComplete
+                                ? "text-white/70"
+                                : "text-neutral-400"
+                            }`}
+                          >
+                            {index + 1}.
+                          </span>
+                          <span
+                            className={`whitespace-nowrap text-[10px] font-semibold sm:text-[11px] ${
+                              isCompleted || isCheckComplete
+                                ? "text-white"
+                                : "text-neutral-700"
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+                        </div>
+                        {step.id !== "check" && (
+                          <span
+                            className={`text-[9px] sm:text-[10px] ${
+                              isCompleted || isCheckComplete
+                                ? "text-white/70"
+                                : "text-neutral-400"
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+                        )}
+                      </button>
+                      {index < STEPS.length - 1 && (
+                        <span className="hidden text-lg text-neutral-300 sm:inline">
+                          ›
                         </span>
                       )}
-                    </button>
-                    {index < STEPS.length - 1 && (
-                      <span className="text-lg text-neutral-300">›</span>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -267,14 +308,17 @@ function FiltersBar({
         <div className="mt-4 flex flex-wrap gap-2">
           {chips.map((chip) => {
             const active = chip.id === activeChipId;
+            const hoverClasses = active
+              ? ""
+              : "hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-100 hover:border-neutral-300";
             return (
               <button
                 key={chip.id}
                 type="button"
                 onClick={() => onChipSelect?.(chip.id)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-100 ${
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${hoverClasses} ${
                   active
-                    ? "border-[#2f3e36] bg-[#2f3e36] text-white"
+                    ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-sm"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
                 }`}
               >
@@ -357,7 +401,7 @@ function ReasonPopover({ reason }: { reason?: string }) {
               role="dialog"
               aria-modal="true"
               ref={dialogRef}
-              className="absolute left-1/2 top-1/2 w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-neutral-200 bg-white p-5 text-sm text-neutral-700 shadow-2xl"
+              className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-neutral-200 bg-white p-5 text-sm text-neutral-700 shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4">
@@ -425,6 +469,9 @@ function ProductCard({
     bad: "border-orange-200 bg-orange-50 text-orange-700",
   };
   const isDisabled = Boolean(outOfStock);
+  const hoverStyles = selected
+    ? ""
+    : "hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50 hover:-translate-y-0.5";
 
   return (
     <div
@@ -440,18 +487,21 @@ function ProductCard({
       }}
       className={`group relative flex h-full flex-col rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f3e36]/40 ${
         selected
-          ? "border-[#2f3e36] bg-gradient-to-br from-[#2f3e36] via-[#2f3e36] to-[#1f2a24] text-white shadow-md"
-          : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50"
+          ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-md"
+          : "border-neutral-200 bg-white text-neutral-800"
       } ${compatTone === "bad" ? "opacity-70" : "opacity-100"} ${
-        isDisabled
-          ? "cursor-not-allowed opacity-50"
-          : "cursor-pointer hover:-translate-y-0.5"
-      }`}
+        isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+      } ${hoverStyles}`}
       aria-disabled={isDisabled}
     >
       {imageUrl ? (
+        (() => {
+          const isPng = /\.png($|\?)/i.test(imageUrl);
+          return (
         <div
-          className={`mb-4 w-full overflow-hidden rounded-xl bg-neutral-100 ${imageHeightClass}`}
+              className={`mb-4 w-full overflow-hidden rounded-xl ${
+                isPng ? "bg-white" : "bg-neutral-100"
+              } ${imageHeightClass}`}
         >
           <img
             src={imageUrl}
@@ -460,7 +510,9 @@ function ProductCard({
             loading="lazy"
             decoding="async"
           />
-        </div>
+            </div>
+          );
+        })()
       ) : (
         <div
           className={`mb-4 w-full rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 ${imageHeightClass}`}
@@ -543,8 +595,12 @@ function SetupSidebar({
   total,
   onEdit,
   onPrimary,
+  onAddToCart,
+  onCheckout,
   saving,
   saved,
+  cartActionStatus,
+  cartActionMessage,
 }: SetupSidebarProps) {
   const toneStyles: Record<CompatTone, string> = {
     perfect: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -640,18 +696,36 @@ function SetupSidebar({
         >
           {saving ? "Speichern..." : saved ? "Gespeichert" : "Setup speichern"}
         </button>
+        {saved && (
+          <p className="text-xs text-emerald-700">Setup gespeichert.</p>
+        )}
         <button
           type="button"
+          onClick={onAddToCart}
           className="w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
           In den Warenkorb
         </button>
         <button
           type="button"
+          onClick={onCheckout}
           className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
           Zur Kasse
         </button>
+        {cartActionMessage && (
+          <p
+            className={`text-xs ${
+              cartActionStatus === "error"
+                ? "text-red-600"
+                : cartActionStatus === "ok"
+                  ? "text-emerald-700"
+                  : "text-neutral-500"
+            }`}
+          >
+            {cartActionMessage}
+          </p>
+        )}
       </div>
     </aside>
   );
@@ -678,6 +752,9 @@ function MobileSetupBottomBar({
 
 export default function CustomizerPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { addToCart } = useCart();
   const isAdmin =
     session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
   const [sizeId, setSizeId] = useState("");
@@ -702,6 +779,34 @@ export default function CustomizerPage() {
   const [ventSearch, setVentSearch] = useState("");
   const [extrasSearch, setExtrasSearch] = useState("");
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+  const [cartActionStatus, setCartActionStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+  const [cartActionMessage, setCartActionMessage] = useState("");
+  const appliedQueryRef = useRef(false);
+
+  useEffect(() => {
+    if (appliedQueryRef.current) return;
+    const sizeParam = searchParams.get("sizeId");
+    const lightParam = searchParams.get("lightId");
+    const ventParam = searchParams.get("ventId");
+    const extrasParam = searchParams.get("extras");
+
+    if (sizeParam) setSizeId(sizeParam);
+    if (lightParam) {
+      setLightIds(lightParam.split(",").map((id) => id.trim()).filter(Boolean));
+    }
+    if (ventParam) {
+      setVentIds(ventParam.split(",").map((id) => id.trim()).filter(Boolean));
+    }
+    if (extrasParam) {
+      setExtras(extrasParam.split(",").map((id) => id.trim()).filter(Boolean));
+    }
+    if (sizeParam || lightParam || ventParam || extrasParam) {
+      setActiveStep("check");
+    }
+    appliedQueryRef.current = true;
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -831,6 +936,24 @@ export default function CustomizerPage() {
     return { width: numbers[0], depth: numbers[1], height: numbers[2] ?? null };
   };
 
+  const compareSizes = (a?: string, b?: string) => {
+    const aSize = parseSize(a);
+    const bSize = parseSize(b);
+    if (aSize && bSize) {
+      if (aSize.width !== bSize.width) return aSize.width - bSize.width;
+      if (aSize.depth !== bSize.depth) return aSize.depth - bSize.depth;
+      if ((aSize.height ?? 0) !== (bSize.height ?? 0)) {
+        return (aSize.height ?? 0) - (bSize.height ?? 0);
+      }
+      return 0;
+    }
+    if (aSize && !bSize) return -1;
+    if (!aSize && bSize) return 1;
+    return (a ?? "").localeCompare(b ?? "");
+  };
+
+  const isCompleteSetOption = (opt: Option) => Boolean(opt.isSet);
+
   const sizeKeyFrom = (value?: string) => {
     const parsed = parseSize(value);
     if (!parsed) return null;
@@ -841,6 +964,7 @@ export default function CustomizerPage() {
   const sizeGroups = useMemo(() => {
     const groups = new Map<string, Option[]>();
     sizeOptions.forEach((opt) => {
+      if (isCompleteSetOption(opt)) return;
       const key = sizeKeyFrom(opt.size ?? opt.label);
       if (!key) return;
       const list = groups.get(key) ?? [];
@@ -848,14 +972,23 @@ export default function CustomizerPage() {
       groups.set(key, list);
     });
     return Array.from(groups.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0]),
+      compareSizes(a[0], b[0]),
     );
   }, [sizeOptions]);
+  const sizeGroupsWithStock = useMemo(
+    () =>
+      sizeGroups.filter(([, options]) =>
+        options.some((opt) => !opt.outOfStock),
+      ),
+    [sizeGroups],
+  );
 
   useEffect(() => {
     if (!sizeOptions.length) return;
+    const availableGroups = sizeGroupsWithStock;
+    if (!availableGroups.length) return;
     const firstGroupKey =
-      sizeGroups[0]?.[0] ??
+      availableGroups[0]?.[0] ??
       sizeKeyFrom(sizeOptions[0].size ?? sizeOptions[0].label);
     if (!firstGroupKey) return;
     setSizeGroupKey((prev) => prev ?? firstGroupKey);
@@ -863,10 +996,14 @@ export default function CustomizerPage() {
       sizeGroups.find(
         ([key]) => key === (sizeGroupKey ?? firstGroupKey),
       )?.[1] ?? sizeOptions;
-    setSizeId((prev) =>
-      prev && groupOptions.some((opt) => opt.id === prev) ? prev : prev,
-    );
-  }, [sizeGroupKey, sizeGroups, sizeOptions]);
+    setSizeId((prev) => {
+      if (!prev) return prev;
+      const selected = sizeOptions.find((opt) => opt.id === prev);
+      if (selected && isCompleteSetOption(selected)) return "";
+      if (!groupOptions.some((opt) => opt.id === prev)) return "";
+      return prev;
+    });
+  }, [sizeGroupKey, sizeGroups, sizeGroupsWithStock, sizeOptions]);
 
   const tentSize = parseSize(selectedSize?.size ?? selectedSize?.label);
   const tentDiameters = selectedSize?.diametersMm ?? [];
@@ -905,10 +1042,7 @@ export default function CustomizerPage() {
 
   const scrollToStep = (stepId: StepId) => {
     setActiveStep(stepId);
-    const el = document.getElementById(`step-${stepId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const setupStatusTone: CompatTone =
@@ -916,10 +1050,43 @@ export default function CustomizerPage() {
   const setupStatusLabel =
     lightCompatible && airCompatible ? "Alles passt" : "Check erforderlich";
 
+  const canProceedToLight = Boolean(sizeId);
+  const canProceedToVent = Boolean(sizeId && lightIds.length > 0);
+  const canProceedToExtras = Boolean(
+    sizeId && lightIds.length > 0 && ventIds.length > 0,
+  );
+  const canProceedToCheck = Boolean(
+    sizeId || lightIds.length > 0 || ventIds.length > 0 || extras.length > 0,
+  );
+
+  const canAccessStep = (stepId: StepId) => {
+    switch (stepId) {
+      case "size":
+        return true;
+      case "light":
+        return canProceedToLight;
+      case "vent":
+        return canProceedToVent;
+      case "extras":
+        return canProceedToExtras;
+      case "check":
+        return canProceedToCheck;
+      default:
+        return false;
+    }
+  };
+
+  const lightLocked = !canProceedToLight;
+  const ventLocked = !canProceedToVent;
+  const extrasLocked = !canProceedToExtras;
+  const checkLocked = !canProceedToCheck;
+
   const selectedCount =
     (selectedSize ? 1 : 0) + lightIds.length + ventIds.length + extras.length;
 
-  const sizeBaseOptions = isAdmin ? sizeOptions : SIZE_OPTIONS;
+  const sizeBaseOptions = (isAdmin ? sizeOptions : SIZE_OPTIONS).filter(
+    (opt) => !isCompleteSetOption(opt),
+  );
   const lightBaseOptions = isAdmin ? lightOptions : LIGHT_OPTIONS;
   const ventBaseOptions = isAdmin ? ventOptions : VENT_OPTIONS;
 
@@ -933,6 +1100,14 @@ export default function CustomizerPage() {
     [...items].sort(
       (a, b) => Number(Boolean(a.outOfStock)) - Number(Boolean(b.outOfStock)),
     );
+
+  const sortSizesByStock = (items: Option[]) =>
+    [...items].sort((a, b) => {
+      const aOos = Boolean(a.outOfStock);
+      const bOos = Boolean(b.outOfStock);
+      if (aOos !== bOos) return aOos ? 1 : -1;
+      return compareSizes(a.size ?? a.label, b.size ?? b.label);
+    });
 
   const sortByFitThenStock = (
     items: Option[],
@@ -948,7 +1123,7 @@ export default function CustomizerPage() {
       return 0;
     });
 
-  const filteredSizeOptions = sortByStock(
+  const filteredSizeOptions = sortSizesByStock(
     sizeGroupOptions.filter((opt) =>
       opt.label.toLowerCase().includes(sizeSearch.toLowerCase()),
     ),
@@ -1019,6 +1194,54 @@ export default function CustomizerPage() {
     }
     if (opt.note) badges.push(opt.note);
     return badges;
+  };
+
+  const handleAddToCart = async (mode: "cart" | "checkout") => {
+    if (cartActionStatus === "loading") return;
+    if (!canProceedToCheck) {
+      setCartActionStatus("error");
+      setCartActionMessage("Bitte mindestens einen Artikel auswählen.");
+      return;
+    }
+    const selectedOptions = [
+      ...(selectedSize ? [selectedSize] : []),
+      ...selectedLightOptions,
+      ...selectedVentOptions,
+      ...extrasSelectedOptions,
+    ];
+    const missingVariant = selectedOptions.find((opt) => !opt.variantId);
+    if (missingVariant) {
+      setCartActionStatus("error");
+      setCartActionMessage(
+        "Diese Auswahl kann nicht in den Warenkorb gelegt werden.",
+      );
+      return;
+    }
+    setCartActionStatus("loading");
+    setCartActionMessage(
+      mode === "checkout"
+        ? "Bereite Checkout vor..."
+        : "Warenkorb wird aktualisiert...",
+    );
+    try {
+      for (const opt of selectedOptions) {
+        await addToCart(opt.variantId as string, 1);
+      }
+      setCartActionStatus("ok");
+      setCartActionMessage(
+        mode === "checkout"
+          ? "Weiterleitung zur Kasse..."
+          : "Artikel zum Warenkorb hinzugefügt.",
+      );
+      if (mode === "checkout") {
+        router.push("/cart?startCheckout=1");
+      } else {
+        router.push("/cart");
+      }
+    } catch {
+      setCartActionStatus("error");
+      setCartActionMessage("Konnte Artikel nicht in den Warenkorb legen.");
+    }
   };
 
   if (status === "loading") {
@@ -1286,106 +1509,317 @@ export default function CustomizerPage() {
               ...(extras.length ? (["extras"] as StepId[]) : []),
             ])
           }
+          canAccessStep={canAccessStep}
         />
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start lg:overflow-visible">
           <div className="space-y-8">
-            <section id="step-size" className="space-y-6">
-              <FiltersBar
-                title="1. Zelt"
-                subtitle="Größe wählen & filtern"
-                chips={[
-                  { id: "all", label: "Alle Zelte" },
-                  ...sizeGroups.map(([key]) => ({ id: key, label: key })),
-                ]}
-                activeChipId={sizeGroupKey}
-                onChipSelect={(key) => {
-                  setSizeGroupKey(key);
-                }}
-                searchValue={sizeSearch}
-                onSearchChange={setSizeSearch}
-              />
+            {activeStep === "size" && (
+              <section id="step-size" className="space-y-6">
+                <FiltersBar
+                  title="1. Zelt"
+                  subtitle="Größe wählen & filtern"
+                  chips={[
+                    { id: "all", label: "Alle Zelte" },
+                    ...sizeGroupsWithStock.map(([key]) => ({
+                      id: key,
+                      label: key,
+                    })),
+                  ]}
+                  activeChipId={sizeGroupKey}
+                  onChipSelect={(key) => {
+                    setSizeGroupKey(key);
+                  }}
+                  searchValue={sizeSearch}
+                  onSearchChange={setSizeSearch}
+                />
 
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                {sizeError && (
-                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {sizeError}
-                  </p>
-                )}
-                {sizeLoading ? (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {[...Array(3)].map((_, index) => (
-                      <div
-                        key={`size-skeleton-${index}`}
-                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
-                      />
-                    ))}
-                  </div>
-                ) : sizeOptions.length === 0 ? (
-                  <p className="text-xs text-neutral-500">
-                    Keine Growboxen gefunden.
-                  </p>
-                ) : (
-                  <ProductGrid>
-                    {filteredSizeOptions.map((opt) => (
-                      <ProductCard
-                        key={opt.id}
-                        title={opt.label}
-                        price={opt.price}
-                        imageUrl={opt.imageUrl ?? null}
-                        imageAlt={opt.imageAlt ?? opt.label}
-                        imageHeightClass="h-32"
-                        outOfStock={opt.outOfStock}
-                        badges={getOptionBadges(opt)}
-                        selected={sizeId === opt.id}
-                        onSelect={() =>
-                          setSizeId((prev) => (prev === opt.id ? "" : opt.id))
-                        }
-                      />
-                    ))}
-                  </ProductGrid>
-                )}
-              </div>
-            </section>
-
-            <section id="step-light" className="space-y-6">
-              <FiltersBar
-                title="2. Licht"
-                subtitle="Passend zur Zelt-Größe"
-                searchValue={lightSearch}
-                onSearchChange={setLightSearch}
-              />
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                {lightError && (
-                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {lightError}
-                  </p>
-                )}
-                {lightLoading ? (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {[...Array(3)].map((_, index) => (
-                      <div
-                        key={`light-skeleton-${index}`}
-                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
-                      />
-                    ))}
-                  </div>
-                ) : filteredLightOptions.length === 0 ? (
-                  <p className="text-xs text-neutral-500">
-                    Kein Licht gefunden.
-                  </p>
-                ) : (
-                  <>
-                    <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-                      <span className="font-semibold text-neutral-900">
-                        Top Produkte
-                      </span>{" "}
-                      für dein Setup
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  {sizeError && (
+                    <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                      {sizeError}
+                    </p>
+                  )}
+                  {sizeLoading ? (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {[...Array(3)].map((_, index) => (
+                        <div
+                          key={`size-skeleton-${index}`}
+                          className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                        />
+                      ))}
                     </div>
+                  ) : sizeOptions.length === 0 ? (
+                    <p className="text-xs text-neutral-500">
+                      Keine Growboxen gefunden.
+                    </p>
+                  ) : (
                     <ProductGrid>
-                      {filteredLightOptions.map((opt) => {
-                        const compatible = isLightOptionCompatible(opt);
+                      {filteredSizeOptions.map((opt) => (
+                        <ProductCard
+                          key={opt.id}
+                          title={opt.label}
+                          price={opt.price}
+                          imageUrl={opt.imageUrl ?? null}
+                          imageAlt={opt.imageAlt ?? opt.label}
+                          imageHeightClass="h-32 sm:h-38"
+                          outOfStock={opt.outOfStock}
+                          badges={getOptionBadges(opt)}
+                          selected={sizeId === opt.id}
+                          onSelect={() =>
+                            setSizeId((prev) => (prev === opt.id ? "" : opt.id))
+                          }
+                        />
+                      ))}
+                    </ProductGrid>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("light")}
+                    disabled={!canProceedToLight}
+                    className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
+                  >
+                    Nächster Schritt
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeStep === "light" && (
+              <section id="step-light" className="space-y-6">
+                <FiltersBar
+                  title="2. Licht"
+                  subtitle="Passend zur Zelt-Größe"
+                  searchValue={lightSearch}
+                  onSearchChange={setLightSearch}
+                />
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  {lightLocked && (
+                    <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Bitte zuerst eine Zeltgröße auswählen.
+                    </p>
+                  )}
+                  <div
+                    className={
+                      lightLocked ? "pointer-events-none opacity-60" : ""
+                    }
+                  >
+                    {lightError && (
+                      <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                        {lightError}
+                      </p>
+                    )}
+                    {lightLoading ? (
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {[...Array(3)].map((_, index) => (
+                          <div
+                            key={`light-skeleton-${index}`}
+                            className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                          />
+                        ))}
+                      </div>
+                    ) : filteredLightOptions.length === 0 ? (
+                      <p className="text-xs text-neutral-500">
+                        Kein Licht gefunden.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+                          <span className="font-semibold text-neutral-900">
+                            Top Produkte
+                          </span>{" "}
+                          für dein Setup
+                        </div>
+                        <ProductGrid>
+                          {filteredLightOptions.map((opt) => {
+                            const compatible = isLightOptionCompatible(opt);
+                            return (
+                              <ProductCard
+                                key={opt.id}
+                                title={opt.label}
+                                price={opt.price}
+                                imageUrl={opt.imageUrl ?? null}
+                                imageAlt={opt.imageAlt ?? opt.label}
+                                outOfStock={opt.outOfStock}
+                                badges={getOptionBadges(opt)}
+                                selected={lightIds.includes(opt.id)}
+                                compatTone={compatible ? "good" : "bad"}
+                                compatLabel={
+                                  compatible ? "Passt" : "Nicht empfohlen"
+                                }
+                                reason={
+                                  compatible
+                                    ? undefined
+                                    : "Nicht passend zur Zelt-Größe."
+                                }
+                                onSelect={() =>
+                                  setLightIds((prev) =>
+                                    prev.includes(opt.id)
+                                      ? prev.filter((id) => id !== opt.id)
+                                      : [...prev, opt.id],
+                                  )
+                                }
+                              />
+                            );
+                          })}
+                        </ProductGrid>
+                      </>
+                    )}
+                    {!lightCompatible && selectedSize && (
+                      <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Das ausgewählte Licht passt nicht zur Zelt-Größe.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("size")}
+                    className="rounded-full border border-neutral-200 px-5 py-2.5 text-sm font-semibold text-neutral-600 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-50"
+                  >
+                    Letzter Schritt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("vent")}
+                    disabled={!canProceedToVent}
+                    className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
+                  >
+                    Nächster Schritt
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeStep === "vent" && (
+              <section id="step-vent" className="space-y-6">
+                <FiltersBar
+                  title="3. Abluft"
+                  subtitle="Durchmesser & Luftflow"
+                  searchValue={ventSearch}
+                  onSearchChange={setVentSearch}
+                />
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  {ventLocked && (
+                    <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Bitte zuerst ein Licht auswählen.
+                    </p>
+                  )}
+                  <div
+                    className={
+                      ventLocked ? "pointer-events-none opacity-60" : ""
+                    }
+                  >
+                    {ventError && (
+                      <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                        {ventError}
+                      </p>
+                    )}
+                    {ventLoading ? (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {[...Array(2)].map((_, index) => (
+                          <div
+                            key={`vent-skeleton-${index}`}
+                            className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                          />
+                        ))}
+                      </div>
+                    ) : filteredVentOptions.length === 0 ? (
+                      <p className="text-xs text-neutral-500">
+                        Keine Abluft gefunden.
+                      </p>
+                    ) : (
+                      <ProductGrid>
+                        {filteredVentOptions.map((opt) => {
+                          const compatible = isVentOptionCompatible(opt);
+                          return (
+                            <ProductCard
+                              key={opt.id}
+                              title={opt.label}
+                              price={opt.price}
+                              imageUrl={opt.imageUrl ?? null}
+                              imageAlt={opt.imageAlt ?? opt.label}
+                              imageHeightClass="h-32"
+                              outOfStock={opt.outOfStock}
+                              badges={getOptionBadges(opt)}
+                              selected={ventIds.includes(opt.id)}
+                              compatTone={compatible ? "good" : "bad"}
+                              compatLabel={
+                                compatible ? "Passt" : "Nicht empfohlen"
+                              }
+                              reason={
+                                compatible
+                                  ? undefined
+                                  : "Durchmesser passt nicht."
+                              }
+                              onSelect={() =>
+                                setVentIds((prev) =>
+                                  prev.includes(opt.id)
+                                    ? prev.filter((id) => id !== opt.id)
+                                    : [...prev, opt.id],
+                                )
+                              }
+                            />
+                          );
+                        })}
+                      </ProductGrid>
+                    )}
+                    {!airCompatible && selectedSize && (
+                      <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Die Abluft passt nicht zum Anschlussdurchmesser der
+                        Growbox.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("light")}
+                    className="rounded-full border border-neutral-200 px-5 py-2.5 text-sm font-semibold text-neutral-600 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-50"
+                  >
+                    Letzte Seite
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("extras")}
+                    disabled={!canProceedToExtras}
+                    className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
+                  >
+                    Nächste Seite
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeStep === "extras" && (
+              <section id="step-extras" className="space-y-6">
+                <FiltersBar
+                  title="4. Extras"
+                  subtitle="Optionales Zubehör"
+                  searchValue={extrasSearch}
+                  onSearchChange={setExtrasSearch}
+                />
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  {extrasLocked && (
+                    <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Bitte zuerst eine Abluft auswählen.
+                    </p>
+                  )}
+                  <div
+                    className={
+                      extrasLocked ? "pointer-events-none opacity-60" : ""
+                    }
+                  >
+                    <ProductGrid>
+                      {filteredExtras.map((opt) => {
+                        const active = extras.includes(opt.id);
                         return (
                           <ProductCard
                             key={opt.id}
@@ -1393,20 +1827,10 @@ export default function CustomizerPage() {
                             price={opt.price}
                             imageUrl={opt.imageUrl ?? null}
                             imageAlt={opt.imageAlt ?? opt.label}
-                            outOfStock={opt.outOfStock}
                             badges={getOptionBadges(opt)}
-                            selected={lightIds.includes(opt.id)}
-                            compatTone={compatible ? "good" : "bad"}
-                            compatLabel={
-                              compatible ? "Passt" : "Nicht empfohlen"
-                            }
-                            reason={
-                              compatible
-                                ? undefined
-                                : "Nicht passend zur Zelt-Größe."
-                            }
+                            selected={active}
                             onSelect={() =>
-                              setLightIds((prev) =>
+                              setExtras((prev) =>
                                 prev.includes(opt.id)
                                   ? prev.filter((id) => id !== opt.id)
                                   : [...prev, opt.id],
@@ -1416,184 +1840,114 @@ export default function CustomizerPage() {
                         );
                       })}
                     </ProductGrid>
-                  </>
-                )}
-                {!lightCompatible && selectedSize && (
-                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Das ausgewählte Licht passt nicht zur Zelt-Größe.
-                  </p>
-                )}
-              </div>
-            </section>
-
-            <section id="step-vent" className="space-y-6">
-              <FiltersBar
-                title="3. Abluft"
-                subtitle="Durchmesser & Luftflow"
-                searchValue={ventSearch}
-                onSearchChange={setVentSearch}
-              />
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                {ventError && (
-                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {ventError}
-                  </p>
-                )}
-                {ventLoading ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {[...Array(2)].map((_, index) => (
-                      <div
-                        key={`vent-skeleton-${index}`}
-                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
-                      />
-                    ))}
                   </div>
-                ) : filteredVentOptions.length === 0 ? (
-                  <p className="text-xs text-neutral-500">
-                    Keine Abluft gefunden.
-                  </p>
-                ) : (
-                  <ProductGrid>
-                    {filteredVentOptions.map((opt) => {
-                      const compatible = isVentOptionCompatible(opt);
-                      return (
-                        <ProductCard
-                          key={opt.id}
-                          title={opt.label}
-                          price={opt.price}
-                          imageUrl={opt.imageUrl ?? null}
-                          imageAlt={opt.imageAlt ?? opt.label}
-                          imageHeightClass="h-32"
-                          outOfStock={opt.outOfStock}
-                          badges={getOptionBadges(opt)}
-                          selected={ventIds.includes(opt.id)}
-                          compatTone={compatible ? "good" : "bad"}
-                          compatLabel={compatible ? "Passt" : "Nicht empfohlen"}
-                          reason={
-                            compatible ? undefined : "Durchmesser passt nicht."
-                          }
-                          onSelect={() =>
-                            setVentIds((prev) =>
-                              prev.includes(opt.id)
-                                ? prev.filter((id) => id !== opt.id)
-                                : [...prev, opt.id],
-                            )
-                          }
-                        />
-                      );
-                    })}
-                  </ProductGrid>
-                )}
-                {!airCompatible && selectedSize && (
-                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Die Abluft passt nicht zum Anschlussdurchmesser der Growbox.
-                  </p>
-                )}
-              </div>
-            </section>
-
-            <section id="step-extras" className="space-y-6">
-              <FiltersBar
-                title="4. Extras"
-                subtitle="Optionales Zubehör"
-                searchValue={extrasSearch}
-                onSearchChange={setExtrasSearch}
-              />
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                <ProductGrid>
-                  {filteredExtras.map((opt) => {
-                    const active = extras.includes(opt.id);
-                    return (
-                      <ProductCard
-                        key={opt.id}
-                        title={opt.label}
-                        price={opt.price}
-                        imageUrl={opt.imageUrl ?? null}
-                        imageAlt={opt.imageAlt ?? opt.label}
-                        badges={getOptionBadges(opt)}
-                        selected={active}
-                        onSelect={() =>
-                          setExtras((prev) =>
-                            prev.includes(opt.id)
-                              ? prev.filter((id) => id !== opt.id)
-                              : [...prev, opt.id],
-                          )
-                        }
-                      />
-                    );
-                  })}
-                </ProductGrid>
-              </div>
-            </section>
-
-            <section id="step-check" className="space-y-6">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                </div>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-lg font-semibold text-neutral-900">
-                      5. Setup Check
-                    </p>
-                    <p className="text-sm text-neutral-500">
-                      Prüfe Kompatibilität und letzte Details.
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      setupStatusTone === "perfect"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-rose-200 bg-rose-50 text-rose-700"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("vent")}
+                    className="rounded-full border border-neutral-200 px-5 py-2.5 text-sm font-semibold text-neutral-600 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-50"
                   >
-                    {setupStatusLabel}
-                  </span>
+                    Letzte Seite
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("check")}
+                    disabled={!canProceedToCheck}
+                    className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
+                  >
+                    Nächste Seite
+                  </button>
                 </div>
+              </section>
+            )}
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div
-                    className={`rounded-xl border p-4 ${
-                      lightCompatible
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-red-200 bg-red-50 text-red-800"
-                    }`}
-                  >
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wide ${
-                        lightCompatible ? "text-emerald-700" : "text-red-700"
-                      }`}
-                    >
-                      Licht
+            {activeStep === "check" && (
+              <section id="step-check" className="space-y-6">
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  {checkLocked && (
+                    <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Bitte zuerst Zelt, Licht und Abluft auswählen.
                     </p>
-                    <p className="mt-2 text-sm font-semibold">
-                      {lightCompatible
-                        ? "✓ Passt zur Zelt-Größe"
-                        : "✕ Bitte kompatibles Licht wählen"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border p-4 ${
-                      airCompatible
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-red-200 bg-red-50 text-red-800"
-                    }`}
-                  >
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wide ${
-                        airCompatible ? "text-emerald-700" : "text-red-700"
-                      }`}
-                    >
-                      Abluft
-                    </p>
-                    <p className="mt-2 text-sm font-semibold">
-                      {airCompatible
-                        ? "✓ Durchmesser passt"
-                        : "✕ Bitte passenden Durchmesser wählen"}
-                    </p>
+                  )}
+                  <div className={checkLocked ? "opacity-60" : ""}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-semibold text-neutral-900">
+                          5. Setup Check
+                        </p>
+                        <p className="text-sm text-neutral-500">
+                          Prüfe Kompatibilität und letzte Details.
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          setupStatusTone === "perfect"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {setupStatusLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div
+                        className={`rounded-xl border p-4 ${
+                          lightCompatible
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-red-200 bg-red-50 text-red-800"
+                        }`}
+                      >
+                        <p
+                          className={`text-xs font-semibold uppercase tracking-wide ${
+                            lightCompatible
+                              ? "text-emerald-700"
+                              : "text-red-700"
+                          }`}
+                        >
+                          Licht
+                        </p>
+                        <p className="mt-2 text-sm font-semibold">
+                          {lightCompatible
+                            ? "✓ Passt zur Zelt-Größe"
+                            : "✕ Bitte kompatibles Licht wählen"}
+                        </p>
+                      </div>
+                      <div
+                        className={`rounded-xl border p-4 ${
+                          airCompatible
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-red-200 bg-red-50 text-red-800"
+                        }`}
+                      >
+                        <p
+                          className={`text-xs font-semibold uppercase tracking-wide ${
+                            airCompatible ? "text-emerald-700" : "text-red-700"
+                          }`}
+                        >
+                          Abluft
+                        </p>
+                        <p className="mt-2 text-sm font-semibold">
+                          {airCompatible
+                            ? "✓ Durchmesser passt"
+                            : "✕ Bitte passenden Durchmesser wählen"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep("extras")}
+                    className="rounded-full border border-neutral-200 px-5 py-2.5 text-sm font-semibold text-neutral-600 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-50"
+                  >
+                    Letzte Seite
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="hidden lg:block sticky top-40 self-start h-fit overflow-visible">
@@ -1604,8 +1958,12 @@ export default function CustomizerPage() {
               total={total}
               onEdit={scrollToStep}
               onPrimary={handleSave}
+              onAddToCart={() => handleAddToCart("cart")}
+              onCheckout={() => handleAddToCart("checkout")}
               saving={saving}
               saved={saved}
+              cartActionStatus={cartActionStatus}
+              cartActionMessage={cartActionMessage}
             />
           </div>
         </div>
@@ -1709,18 +2067,36 @@ export default function CustomizerPage() {
                     ? "Gespeichert"
                     : "Setup speichern"}
               </button>
+              {saved && (
+                <p className="text-xs text-emerald-700">Setup gespeichert.</p>
+              )}
               <button
                 type="button"
+                onClick={() => handleAddToCart("cart")}
                 className="w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 In den Warenkorb
               </button>
               <button
                 type="button"
+                onClick={() => handleAddToCart("checkout")}
                 className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 Zur Kasse
               </button>
+              {cartActionMessage && (
+                <p
+                  className={`text-xs ${
+                    cartActionStatus === "error"
+                      ? "text-red-600"
+                      : cartActionStatus === "ok"
+                        ? "text-emerald-700"
+                        : "text-neutral-500"
+                  }`}
+                >
+                  {cartActionMessage}
+                </p>
+              )}
             </div>
           </div>
         </div>

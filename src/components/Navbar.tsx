@@ -16,7 +16,6 @@ import {
   SunIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
-import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -51,11 +50,6 @@ const getLoginErrorMessage = (code?: string) => {
     LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
   );
 };
-
-const pixelNavFont = Pixelify_Sans({
-  weight: "400",
-  subsets: ["latin"],
-});
 
 const getCategoryIcon = (name: string) => {
   const value = name.toLowerCase();
@@ -578,167 +572,176 @@ export function Navbar() {
                         setMenuOpen(false);
                         setProductsOpen(true);
                       }}
-                      className={`${pixelNavFont.className} block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                      className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       Produkte
                     </Link>
                     <Link
                       href="/customizer"
                       onClick={() => setMenuOpen(false)}
-                      className={`${pixelNavFont.className} block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                      className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       Customizer
                     </Link>
                   </div>
                 </div>
-                <div className="hidden items-center gap-3 text-xs font-semibold text-stone-800 sm:flex sm:gap-6 sm:text-base">
-                  <div className="relative" ref={productsRef}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProductsOpen((prev) => {
-                          const next = !prev;
-                          if (!next) {
-                            setCategoryStack([]);
-                          }
-                          return next;
-                        })
-                      }
-                      className={`${pixelNavFont.className} inline-flex items-center text-base sm:text-xl font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
-                      aria-expanded={productsOpen}
-                      aria-haspopup="true"
-                    >
-                      Produkte
-                    </button>
-                    <div
-                      className={`absolute left-0 top-full z-30 mt-3 w-[360px] rounded-2xl border border-emerald-200/70 bg-stone-100 p-3 text-sm shadow-xl shadow-emerald-900/10 transition duration-150 ease-out ${
-                        productsOpen
-                          ? "pointer-events-auto scale-100 opacity-100"
-                          : "pointer-events-none scale-95 opacity-0"
-                      }`}
-                      aria-hidden={!productsOpen}
-                    >
-                      <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
-                        <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
-                          {categoryStack.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCategoryStack((prev) => prev.slice(0, -1))
-                              }
-                              className="rounded-full border border-emerald-200 px-3 py-1 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                            >
-                              ← Zurück
-                            </button>
-                          ) : (
-                            <span className="ml-4 mt-1 text-lg font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                              Kategorien
-                            </span>
-                          )}
-                          <Link
-                            href="/products"
-                            onClick={() => {
-                              setProductsOpen(false);
+                <div className="hidden items-center gap-5 text-xs font-semibold text-stone-800 sm:flex sm:gap-8 sm:text-base">
+                  {mounted ? (
+                    <div className="relative" ref={productsRef}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProductsOpen((prev) => {
+                            const next = !prev;
+                            if (!next) {
                               setCategoryStack([]);
-                            }}
-                            className="rounded-full border border-emerald-200 bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-950 shadow-sm hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                          >
-                            Alle Produkte
-                          </Link>
-                        </div>
-                        <div className="mt-2 space-y-2">
-                          {categoriesStatus === "loading" && (
-                            <div className="px-2 py-2 text-xs text-stone-500">
-                              Laedt Kategorien...
-                            </div>
-                          )}
-                          {categoriesStatus === "error" && (
-                            <div className="px-2 py-2 text-xs text-red-600">
-                              Kategorien konnten nicht geladen werden.
-                            </div>
-                          )}
-                          {categoriesStatus === "idle" &&
-                            activeCategories.length === 0 && (
-                              <div className="px-2 py-2 text-xs text-stone-500">
-                                Keine Kategorien gefunden.
-                              </div>
-                            )}
-                          {categoriesStatus === "idle" &&
-                            activeParentCategory && (
+                            }
+                            return next;
+                          })
+                        }
+                        className="inline-flex cursor-pointer items-center text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        aria-expanded={productsOpen}
+                        aria-haspopup="true"
+                      >
+                        Produkte
+                      </button>
+                      <div
+                        className={`absolute left-0 top-full z-30 mt-3 w-[360px] rounded-2xl border border-emerald-200/70 bg-stone-100 p-3 text-sm shadow-xl shadow-emerald-900/10 transition duration-150 ease-out ${
+                          productsOpen
+                            ? "pointer-events-auto scale-100 opacity-100"
+                            : "pointer-events-none scale-95 opacity-0"
+                        }`}
+                        aria-hidden={!productsOpen}
+                      >
+                        <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
+                          <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                            {categoryStack.length > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  router.push(
-                                    `/products?category=${encodeURIComponent(
-                                      activeParentCategory.handle,
-                                    )}`,
-                                  );
-                                  setProductsOpen(false);
-                                  setCategoryStack([]);
-                                }}
-                                className="flex w-full items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                onClick={() =>
+                                  setCategoryStack((prev) => prev.slice(0, -1))
+                                }
+                                className="cursor-pointer rounded-full border border-emerald-200 px-3 py-1 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                               >
-                                <span>Alle {activeParentCategory.name}</span>
-                                <span className="text-sm text-emerald-600">
-                                  →
-                                </span>
+                                ← Zurück
                               </button>
+                            ) : (
+                              <span className="ml-4 mt-1 text-lg font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                                Kategorien
+                              </span>
                             )}
-                          {categoriesStatus === "idle" &&
-                            activeCategories.map((category) => {
-                              const CategoryIcon = getCategoryIcon(
-                                category.name,
-                              );
-                              const childCount =
-                                categoriesByParent.get(String(category.id))
-                                  ?.length ?? 0;
-                              const isLeaf = childCount === 0;
-                              return (
+                            <Link
+                              href="/products"
+                              onClick={() => {
+                                setProductsOpen(false);
+                                setCategoryStack([]);
+                              }}
+                              className="cursor-pointer rounded-full border border-emerald-200 bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-950 shadow-sm hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                            >
+                              Alle Produkte
+                            </Link>
+                          </div>
+                          <div className="mt-2 space-y-2">
+                            {categoriesStatus === "loading" && (
+                              <div className="px-2 py-2 text-xs text-stone-500">
+                                Laedt Kategorien...
+                              </div>
+                            )}
+                            {categoriesStatus === "error" && (
+                              <div className="px-2 py-2 text-xs text-red-600">
+                                Kategorien konnten nicht geladen werden.
+                              </div>
+                            )}
+                            {categoriesStatus === "idle" &&
+                              activeCategories.length === 0 && (
+                                <div className="px-2 py-2 text-xs text-stone-500">
+                                  Keine Kategorien gefunden.
+                                </div>
+                              )}
+                            {categoriesStatus === "idle" &&
+                              activeParentCategory && (
                                 <button
-                                  key={category.id}
                                   type="button"
                                   onClick={() => {
-                                    if (isLeaf) {
-                                      router.push(
-                                        `/products?category=${encodeURIComponent(
-                                          category.handle,
-                                        )}`,
-                                      );
-                                      setProductsOpen(false);
-                                      setCategoryStack([]);
-                                      return;
-                                    }
-                                    setCategoryStack((prev) => [
-                                      ...prev,
-                                      category.id,
-                                    ]);
+                                    router.push(
+                                      `/products?category=${encodeURIComponent(
+                                        activeParentCategory.handle,
+                                      )}`,
+                                    );
+                                    setProductsOpen(false);
+                                    setCategoryStack([]);
                                   }}
-                                  className="flex w-full items-center justify-between rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                  className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                                 >
-                                  <span className="flex items-center gap-2">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800">
-                                      <CategoryIcon className="h-4 w-4" />
-                                    </span>
-                                    <span>{category.name}</span>
-                                  </span>
-                                  <span className="flex items-center gap-2 text-sm text-emerald-600">
-                                    <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                                      {category.totalItemCount}
-                                    </span>
-                                    {!isLeaf && <span>›</span>}
+                                  <span>Alle {activeParentCategory.name}</span>
+                                  <span className="text-sm text-emerald-600">
+                                    →
                                   </span>
                                 </button>
-                              );
-                            })}
+                              )}
+                            {categoriesStatus === "idle" &&
+                              activeCategories.map((category) => {
+                                const CategoryIcon = getCategoryIcon(
+                                  category.name,
+                                );
+                                const childCount =
+                                  categoriesByParent.get(String(category.id))
+                                    ?.length ?? 0;
+                                const isLeaf = childCount === 0;
+                                return (
+                                  <button
+                                    key={category.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isLeaf) {
+                                        router.push(
+                                          `/products?category=${encodeURIComponent(
+                                            category.handle,
+                                          )}`,
+                                        );
+                                        setProductsOpen(false);
+                                        setCategoryStack([]);
+                                        return;
+                                      }
+                                      setCategoryStack((prev) => [
+                                        ...prev,
+                                        category.id,
+                                      ]);
+                                    }}
+                                    className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800">
+                                        <CategoryIcon className="h-4 w-4" />
+                                      </span>
+                                      <span>{category.name}</span>
+                                    </span>
+                                    <span className="flex items-center gap-2 text-sm text-emerald-600">
+                                      <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                                        {category.totalItemCount}
+                                      </span>
+                                      {!isLeaf && <span>›</span>}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <Link
+                      href="/products"
+                      className="inline-flex cursor-pointer items-center text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    >
+                      Produkte
+                    </Link>
+                  )}
                   <Link
                     href="/customizer"
-                    className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                    className="cursor-pointer text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
-                    Konfigurator
+                    Zelt-Konfigurator
                   </Link>
                 </div>
               </div>
@@ -773,15 +776,15 @@ export function Navbar() {
                       }
                       setCartOpen((prev) => !prev);
                     }}
-                    className="relative cursor-pointer hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     aria-expanded={cartOpen}
                     aria-haspopup="true"
                     aria-label="Warenkorb oeffnen"
                   >
-                    <ShoppingBagIcon className="h-5 w-5" />
+                    <ShoppingBagIcon className="h-6 w-6" />
                     {count > 0 && (
                       <span
-                        className={`absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white ${
+                        className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] text-white ${
                           cartPop ? "badge-pop" : ""
                         }`}
                       >
@@ -845,13 +848,13 @@ export function Navbar() {
                 </div>
                 <Link
                   href="/wishlist"
-                  className="relative hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   aria-label="Wunschliste"
                 >
-                  <HeartIcon className="h-5 w-5" />
+                  <HeartIcon className="h-6 w-6" />
                   {wishlistCount > 0 && (
                     <span
-                      className={`absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white ${
+                      className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] text-white ${
                         wishlistPop ? "badge-pop" : ""
                       }`}
                     >
@@ -863,12 +866,12 @@ export function Navbar() {
                   <button
                     type="button"
                     onClick={() => setAccountOpen((prev) => !prev)}
-                    className="flex h-5 w-5 cursor-pointer items-center justify-center hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     aria-expanded={accountOpen}
                     aria-haspopup="true"
                     aria-label="Account"
                   >
-                    <UserCircleIcon className="h-5 w-5" />
+                    <UserCircleIcon className="h-6 w-6" />
                   </button>
                   <div
                     className={`absolute right-0 top-full z-20 mt-3 w-[90vw] max-w-xs origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl transition duration-150 ease-out sm:w-80 sm:max-w-none ${

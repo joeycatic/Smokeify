@@ -251,6 +251,12 @@ export default async function AdminPage({
             >
               Audit log
             </Link>
+            <Link
+              href="/admin/inventory-adjustments"
+              className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
+            >
+              Inventory adjustments
+            </Link>
           </div>
         </div>
         <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
