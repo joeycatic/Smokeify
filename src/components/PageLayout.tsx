@@ -15,7 +15,7 @@ type LayoutSectionProps = {
 
 function PageShell({ children }: LayoutSectionProps) {
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col overflow-x-hidden">
+    <main className="min-h-screen bg-stone-100 flex flex-col">
       {children}
     </main>
   );

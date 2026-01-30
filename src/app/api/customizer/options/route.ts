@@ -8,6 +8,12 @@ const getMinPriceCents = (prices: number[]) => {
   return prices.reduce((min, value) => (value < min ? value : min), prices[0]);
 };
 
+const getAvailability = (quantityOnHand: number | null, reserved: number | null) => {
+  const onHand = quantityOnHand ?? 0;
+  const held = reserved ?? 0;
+  return Math.max(0, onHand - held);
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const categoryHandle = searchParams.get("category");
@@ -28,7 +34,11 @@ export async function GET(request: Request) {
     },
     orderBy: { updatedAt: "desc" },
     include: {
-      variants: { select: { priceCents: true }, orderBy: { position: "asc" } },
+      images: { orderBy: { position: "asc" } },
+      variants: {
+        select: { priceCents: true, inventory: true },
+        orderBy: { position: "asc" },
+      },
     },
   });
 
@@ -36,10 +46,18 @@ export async function GET(request: Request) {
     const minPriceCents = getMinPriceCents(
       product.variants.map((variant) => variant.priceCents),
     );
+    const available = product.variants.some((variant) => {
+      const inventory = variant.inventory;
+      return getAvailability(inventory?.quantityOnHand ?? 0, inventory?.reserved ?? 0) > 0;
+    });
+    const primaryImage = product.images[0] ?? null;
     return {
       id: product.id,
       label: product.title,
       price: minPriceCents / CURRENCY_MULTIPLIER,
+      imageUrl: primaryImage?.url ?? null,
+      imageAlt: primaryImage?.altText ?? product.title,
+      outOfStock: !available,
       size: product.growboxSize ?? product.lightSize ?? undefined,
       diameterMm: product.airSystemDiameterMm ?? undefined,
       diametersMm:

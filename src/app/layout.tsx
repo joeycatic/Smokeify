@@ -1,9 +1,14 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -48,7 +53,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-stone-50 text-stone-900">
+      <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
         <Providers>{children}</Providers>
       </body>
     </html>

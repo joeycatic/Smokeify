@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { signIn, useSession } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -9,11 +10,80 @@ type Option = {
   id: string;
   label: string;
   price: number;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  outOfStock?: boolean;
   note?: string;
   size?: string;
   diameterMm?: number;
   diametersMm?: number[];
 };
+
+type StepId = "size" | "light" | "vent" | "extras" | "check";
+
+type StepItem = {
+  id: StepId;
+  label: string;
+  caption: string;
+};
+
+type CompatTone = "perfect" | "good" | "bad";
+
+type ProductCardProps = {
+  title: string;
+  price: number;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  outOfStock?: boolean;
+  imageHeightClass?: string;
+  badges?: string[];
+  selected?: boolean;
+  compatTone?: CompatTone;
+  compatLabel?: string;
+  reason?: string;
+  onSelect?: () => void;
+};
+
+type FiltersBarProps = {
+  title: string;
+  subtitle?: string;
+  chips?: Array<{ id: string; label: string }>;
+  activeChipId?: string | null;
+  onChipSelect?: (id: string) => void;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+};
+
+type SetupSidebarProps = {
+  statusTone: CompatTone;
+  statusLabel: string;
+  items: Array<{
+    id: StepId;
+    title: string;
+    price?: number | null;
+    imageUrl?: string | null;
+    imageAlt?: string | null;
+  }>;
+  total: number;
+  onEdit: (id: StepId) => void;
+  onPrimary: () => void;
+  saving: boolean;
+  saved: boolean;
+};
+
+type MobileSetupBottomBarProps = {
+  total: number;
+  selectedCount: number;
+  onOpen: () => void;
+};
+
+const STEPS: StepItem[] = [
+  { id: "size", label: "Zelt", caption: "Größe wählen" },
+  { id: "light", label: "Licht", caption: "Licht finden" },
+  { id: "vent", label: "Abluft", caption: "Luftführung" },
+  { id: "extras", label: "Extras", caption: "Add-ons" },
+  { id: "check", label: "Setup Check", caption: "Prüfen" },
+];
 
 const SIZE_OPTIONS: Option[] = [
   { id: "s", label: "60x60 cm (Starter)", price: 149 },
@@ -47,13 +117,572 @@ function formatPrice(amount: number) {
   }).format(amount);
 }
 
+function StepHeader({
+  activeStep,
+  onStepChange,
+  completedSteps,
+}: {
+  activeStep: StepId;
+  onStepChange: (step: StepId) => void;
+  completedSteps: Set<StepId>;
+}) {
+  const activeIndex = Math.max(
+    0,
+    STEPS.findIndex((step) => step.id === activeStep),
+  );
+  const progressCount = Math.min(completedSteps.size, STEPS.length);
+  const stepDisplay = Math.max(1, progressCount);
+  const activeTone = "#7aa38f";
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">
+            Konfigurator
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-neutral-900">
+            Grow Setup Konfigurator
+          </h1>
+          <p className="mt-2 text-sm text-neutral-600">
+            Stelle dein Setup zusammen und prüfe Passform, Preis und Status.
+          </p>
+        </div>
+        <div className="w-full max-w-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-neutral-500">
+            <span>Fortschritt</span>
+            <span>
+              Schritt {stepDisplay} / {STEPS.length}
+            </span>
+          </div>
+          <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+            <div
+              className="h-2 rounded-full transition-all"
+              style={{
+                backgroundColor: activeTone,
+                width: `${(progressCount / STEPS.length) * 100}%`,
+              }}
+            />
+          </div>
+          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-inner">
+            <div className="flex w-full flex-nowrap items-center gap-2">
+              {STEPS.map((step, index) => {
+                const isActive = step.id === activeStep;
+                const isCompleted = completedSteps.has(step.id);
+                const isCheckComplete =
+                  step.id === "check" &&
+                  completedSteps.has("size") &&
+                  completedSteps.has("light") &&
+                  completedSteps.has("vent");
+                return (
+                  <div
+                    key={step.id}
+                    className="flex min-w-0 flex-1 items-center gap-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onStepChange(step.id)}
+                      className={`flex w-full min-w-0 flex-1 flex-col items-start justify-center rounded-full px-4 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${
+                        isCompleted || isCheckComplete
+                          ? "bg-[#2f3e36] text-white shadow"
+                          : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200"
+                      } ${isActive && !isCompleted ? "ring-1 ring-neutral-300" : ""}`}
+                    >
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={`text-[11px] ${
+                            isCompleted || isCheckComplete
+                              ? "text-white/70"
+                              : "text-neutral-400"
+                          }`}
+                        >
+                          {index + 1}.
+                        </span>
+                        <span
+                          className={`whitespace-nowrap text-[11px] font-semibold ${
+                            isCompleted || isCheckComplete
+                              ? "text-white"
+                              : "text-neutral-700"
+                          }`}
+                        >
+                          {step.label}
+                        </span>
+                      </div>
+                      {step.id !== "check" && (
+                        <span
+                          className={`text-[10px] ${
+                            isCompleted || isCheckComplete
+                              ? "text-white/70"
+                              : "text-neutral-400"
+                          }`}
+                        >
+                          {step.label}
+                        </span>
+                      )}
+                    </button>
+                    {index < STEPS.length - 1 && (
+                      <span className="text-lg text-neutral-300">›</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FiltersBar({
+  title,
+  subtitle,
+  chips,
+  activeChipId,
+  onChipSelect,
+  searchValue,
+  onSearchChange,
+}: FiltersBarProps) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-lg font-semibold text-neutral-900">{title}</p>
+          {subtitle && <p className="text-sm text-neutral-500">{subtitle}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {onSearchChange && (
+            <div className="relative">
+              <input
+                type="search"
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Suchen..."
+                className="h-10 w-52 rounded-full border border-neutral-200 bg-white px-4 text-sm text-neutral-700 outline-none transition focus:border-neutral-400"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      {chips && chips.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {chips.map((chip) => {
+            const active = chip.id === activeChipId;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => onChipSelect?.(chip.id)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-100 ${
+                  active
+                    ? "border-[#2f3e36] bg-[#2f3e36] text-white"
+                    : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                }`}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReasonPopover({ reason }: { reason?: string }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const canPortal = typeof document !== "undefined";
+  const hasReason = Boolean(reason);
+
+  useEffect(() => {
+    if (!open || !canPortal || !hasReason) return;
+    const previousActive = document.activeElement as HTMLElement | null;
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable?.[0] ?? null;
+    const last = focusable?.[focusable.length - 1] ?? null;
+    first?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previousActive && previousActive.focus) previousActive.focus();
+    };
+  }, [open, canPortal]);
+  if (!hasReason) return null;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        className="text-xs font-semibold text-neutral-500 underline decoration-dotted"
+        ref={triggerRef}
+      >
+        Warum?
+      </button>
+      {open &&
+        canPortal &&
+        createPortal(
+          <div className="fixed inset-0 z-50">
+            <button
+              type="button"
+              aria-label="Dialog schließen"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              ref={dialogRef}
+              className="absolute left-1/2 top-1/2 w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-neutral-200 bg-white p-5 text-sm text-neutral-700 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-neutral-900">
+                    Nicht kompatibel (nicht empfohlen)
+                  </p>
+                  <p className="mt-2 text-sm text-neutral-600">
+                    Dieses Produkt passt nicht optimal zu deiner aktuellen
+                    Auswahl (z. B. Zeltgröße/Leistung/Anschluss). Dadurch kann
+                    es zu schlechterer Effizienz oder Problemen beim Setup
+                    kommen.
+                  </p>
+                  <p className="mt-3 text-sm text-neutral-600">
+                    Du kannst den Artikel trotzdem auswählen und kaufen – wir
+                    empfehlen jedoch eine kompatible Alternative.
+                  </p>
+                  {reason && (
+                    <p className="mt-3 text-xs text-neutral-500">{reason}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="text-xl text-neutral-500"
+                  aria-label="Schließen"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-700 hover:shadow-sm"
+                >
+                  Verstanden
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+function ProductCard({
+  title,
+  price,
+  imageUrl,
+  imageAlt,
+  outOfStock,
+  imageHeightClass = "h-28",
+  badges = [],
+  selected,
+  compatTone,
+  compatLabel,
+  reason,
+  onSelect,
+}: ProductCardProps) {
+  const toneStyles: Record<CompatTone, string> = {
+    perfect: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    good: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    bad: "border-orange-200 bg-orange-50 text-orange-700",
+  };
+  const isDisabled = Boolean(outOfStock);
+
+  return (
+    <div
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      onClick={isDisabled ? undefined : onSelect}
+      onKeyDown={(event) => {
+        if (isDisabled) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect?.();
+        }
+      }}
+      className={`group relative flex h-full flex-col rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f3e36]/40 ${
+        selected
+          ? "border-[#2f3e36] bg-gradient-to-br from-[#2f3e36] via-[#2f3e36] to-[#1f2a24] text-white shadow-md"
+          : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50"
+      } ${compatTone === "bad" ? "opacity-70" : "opacity-100"} ${
+        isDisabled
+          ? "cursor-not-allowed opacity-50"
+          : "cursor-pointer hover:-translate-y-0.5"
+      }`}
+      aria-disabled={isDisabled}
+    >
+      {imageUrl ? (
+        <div
+          className={`mb-4 w-full overflow-hidden rounded-xl bg-neutral-100 ${imageHeightClass}`}
+        >
+          <img
+            src={imageUrl}
+            alt={imageAlt ?? title}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ) : (
+        <div
+          className={`mb-4 w-full rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 ${imageHeightClass}`}
+        />
+      )}
+      <div className="flex-1">
+        <div className="flex flex-wrap items-start gap-2">
+          <p className="min-w-0 flex-1 text-sm font-semibold">{title}</p>
+          {selected && (
+            <span className="whitespace-nowrap rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-white">
+              Selected
+            </span>
+          )}
+        </div>
+        <p
+          className={`mt-2 text-sm ${
+            selected ? "text-neutral-200" : "text-neutral-600"
+          }`}
+        >
+          {formatPrice(price)}
+        </p>
+        {badges.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {badges.slice(0, 3).map((badge) => (
+              <span
+                key={badge}
+                className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+                  selected
+                    ? "border-white/40 text-white/80"
+                    : "border-neutral-200 text-neutral-500"
+                }`}
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {(compatTone || compatLabel || outOfStock) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {outOfStock ? (
+            <span
+              className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+                selected
+                  ? "border-white/30 bg-white/10 text-white"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              Ausverkauft
+            </span>
+          ) : null}
+          {compatTone && (
+            <span
+              className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+                selected
+                  ? "border-white/30 bg-white/10 text-white"
+                  : toneStyles[compatTone]
+              }`}
+            >
+              {compatLabel ?? "Passend"}
+            </span>
+          )}
+          <ReasonPopover reason={reason} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+  );
+}
+
+function SetupSidebar({
+  statusTone,
+  statusLabel,
+  items,
+  total,
+  onEdit,
+  onPrimary,
+  saving,
+  saved,
+}: SetupSidebarProps) {
+  const toneStyles: Record<CompatTone, string> = {
+    perfect: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    good: "border-amber-200 bg-amber-50 text-amber-700",
+    bad: "border-rose-200 bg-rose-50 text-rose-700",
+  };
+  return (
+    <aside className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-semibold text-neutral-900">Dein Setup</p>
+          <p className="text-sm text-neutral-500">Status & Preis im Blick</p>
+        </div>
+        <span
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+            toneStyles[statusTone]
+          }`}
+        >
+          <span>{statusTone === "perfect" ? "✓" : "!"}</span>
+          <span>{statusLabel}</span>
+        </span>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-500">
+            Noch keine Auswahl.
+          </div>
+        ) : (
+          items.map((item) => (
+            <div
+              key={`${item.id}-${item.title}`}
+              className="w-full max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 p-3"
+            >
+              <div className="flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                  <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.imageAlt ?? item.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      "▢"
+                    )}
+                  </span>
+                  <div className="max-w-[11rem] min-w-0 flex-1 overflow-hidden">
+                    <div
+                      className="max-w-[11rem] truncate text-sm font-semibold text-neutral-800 sm:max-w-[14rem]"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </div>
+                    {typeof item.price === "number" && (
+                      <div className="text-xs text-neutral-500">
+                        {formatPrice(item.price)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onEdit(item.id)}
+                  className="flex-none text-xs font-semibold text-neutral-500 underline"
+                >
+                  Ändern
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-4">
+        <div className="flex items-center justify-between text-base font-semibold">
+          <span>Zwischensumme</span>
+          <span>{formatPrice(total)}</span>
+        </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          Preis ist eine Schätzung. Produkte werden später verknüpft.
+        </p>
+      </div>
+
+      <div className="mt-6 space-y-2">
+        <button
+          type="button"
+          onClick={onPrimary}
+          disabled={saving}
+          className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90 hover:shadow-sm disabled:opacity-60"
+        >
+          {saving ? "Speichern..." : saved ? "Gespeichert" : "Setup speichern"}
+        </button>
+        <button
+          type="button"
+          className="w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        >
+          In den Warenkorb
+        </button>
+        <button
+          type="button"
+          className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        >
+          Zur Kasse
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function MobileSetupBottomBar({
+  total,
+  selectedCount,
+  onOpen,
+}: MobileSetupBottomBarProps) {
+  return (
+    <div className="fixed bottom-0 left-0 z-40 w-full border-t border-neutral-200 bg-white px-4 py-3 shadow-lg lg:hidden">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center justify-between rounded-full bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90 hover:shadow-sm"
+      >
+        <span>Setup ansehen ({selectedCount})</span>
+        <span>{formatPrice(total)}</span>
+      </button>
+    </div>
+  );
+}
+
 export default function CustomizerPage() {
   const { data: session, status } = useSession();
   const isAdmin =
     session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  const [sizeId, setSizeId] = useState("m");
-  const [lightId, setLightId] = useState("led-300");
-  const [ventId, setVentId] = useState("vent-basic");
+  const [sizeId, setSizeId] = useState("");
+  const [lightIds, setLightIds] = useState<string[]>([]);
+  const [ventIds, setVentIds] = useState<string[]>([]);
   const [extras, setExtras] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -67,6 +696,12 @@ export default function CustomizerPage() {
   const [ventOptions, setVentOptions] = useState<Option[]>([]);
   const [ventLoading, setVentLoading] = useState(false);
   const [ventError, setVentError] = useState("");
+  const [activeStep, setActiveStep] = useState<StepId>("size");
+  const [sizeSearch, setSizeSearch] = useState("");
+  const [lightSearch, setLightSearch] = useState("");
+  const [ventSearch, setVentSearch] = useState("");
+  const [extrasSearch, setExtrasSearch] = useState("");
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -163,26 +798,26 @@ export default function CustomizerPage() {
 
   useEffect(() => {
     if (!lightOptions.length) return;
-    setLightId((prev) =>
-      lightOptions.some((opt) => opt.id === prev) ? prev : lightOptions[0].id,
+    setLightIds((prev) =>
+      prev.filter((id) => lightOptions.some((opt) => opt.id === id)),
     );
   }, [lightOptions]);
 
   useEffect(() => {
     if (!ventOptions.length) return;
-    setVentId((prev) =>
-      ventOptions.some((opt) => opt.id === prev) ? prev : ventOptions[0].id,
+    setVentIds((prev) =>
+      prev.filter((id) => ventOptions.some((opt) => opt.id === id)),
     );
   }, [ventOptions]);
 
   const selectedSize = (isAdmin ? sizeOptions : SIZE_OPTIONS).find(
     (o) => o.id === sizeId,
   );
-  const selectedLight = (isAdmin ? lightOptions : LIGHT_OPTIONS).find(
-    (o) => o.id === lightId,
+  const selectedLightOptions = (isAdmin ? lightOptions : LIGHT_OPTIONS).filter(
+    (o) => lightIds.includes(o.id),
   );
-  const selectedVent = (isAdmin ? ventOptions : VENT_OPTIONS).find(
-    (o) => o.id === ventId,
+  const selectedVentOptions = (isAdmin ? ventOptions : VENT_OPTIONS).filter(
+    (o) => ventIds.includes(o.id),
   );
 
   const parseSize = (value?: string) => {
@@ -213,38 +848,28 @@ export default function CustomizerPage() {
       groups.set(key, list);
     });
     return Array.from(groups.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0])
+      a[0].localeCompare(b[0]),
     );
   }, [sizeOptions]);
 
   useEffect(() => {
     if (!sizeOptions.length) return;
     const firstGroupKey =
-      sizeGroups[0]?.[0] ?? sizeKeyFrom(sizeOptions[0].size ?? sizeOptions[0].label);
+      sizeGroups[0]?.[0] ??
+      sizeKeyFrom(sizeOptions[0].size ?? sizeOptions[0].label);
     if (!firstGroupKey) return;
     setSizeGroupKey((prev) => prev ?? firstGroupKey);
     const groupOptions =
-      sizeGroups.find(([key]) => key === (sizeGroupKey ?? firstGroupKey))?.[1] ??
-      sizeOptions;
+      sizeGroups.find(
+        ([key]) => key === (sizeGroupKey ?? firstGroupKey),
+      )?.[1] ?? sizeOptions;
     setSizeId((prev) =>
-      groupOptions.some((opt) => opt.id === prev)
-        ? prev
-        : groupOptions[0]?.id ?? prev,
+      prev && groupOptions.some((opt) => opt.id === prev) ? prev : prev,
     );
   }, [sizeGroupKey, sizeGroups, sizeOptions]);
 
   const tentSize = parseSize(selectedSize?.size ?? selectedSize?.label);
-  const lightSize = parseSize(selectedLight?.size ?? selectedLight?.label);
-  const lightCompatible =
-    !tentSize ||
-    !lightSize ||
-    (lightSize.width <= tentSize.width && lightSize.depth <= tentSize.depth);
   const tentDiameters = selectedSize?.diametersMm ?? [];
-  const airDiameter = selectedVent?.diameterMm ?? null;
-  const airCompatible =
-    tentDiameters.length === 0 ||
-    !airDiameter ||
-    tentDiameters.includes(airDiameter);
 
   const isLightOptionCompatible = (opt: Option) => {
     if (!tentSize) return true;
@@ -259,6 +884,13 @@ export default function CustomizerPage() {
     return tentDiameters.includes(opt.diameterMm);
   };
 
+  const lightCompatible =
+    selectedLightOptions.length > 0 &&
+    selectedLightOptions.every((opt) => isLightOptionCompatible(opt));
+  const airCompatible =
+    selectedVentOptions.length > 0 &&
+    selectedVentOptions.every((opt) => isVentOptionCompatible(opt));
+
   const extrasTotal = useMemo(() => {
     return extras
       .map((id) => EXTRA_OPTIONS.find((o) => o.id === id)?.price ?? 0)
@@ -267,9 +899,127 @@ export default function CustomizerPage() {
 
   const total =
     (selectedSize?.price ?? 0) +
-    (selectedLight?.price ?? 0) +
-    (selectedVent?.price ?? 0) +
+    selectedLightOptions.reduce((sum, opt) => sum + (opt.price ?? 0), 0) +
+    selectedVentOptions.reduce((sum, opt) => sum + (opt.price ?? 0), 0) +
     extrasTotal;
+
+  const scrollToStep = (stepId: StepId) => {
+    setActiveStep(stepId);
+    const el = document.getElementById(`step-${stepId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const setupStatusTone: CompatTone =
+    lightCompatible && airCompatible ? "perfect" : "bad";
+  const setupStatusLabel =
+    lightCompatible && airCompatible ? "Alles passt" : "Check erforderlich";
+
+  const selectedCount =
+    (selectedSize ? 1 : 0) + lightIds.length + ventIds.length + extras.length;
+
+  const sizeBaseOptions = isAdmin ? sizeOptions : SIZE_OPTIONS;
+  const lightBaseOptions = isAdmin ? lightOptions : LIGHT_OPTIONS;
+  const ventBaseOptions = isAdmin ? ventOptions : VENT_OPTIONS;
+
+  const sizeGroupOptions =
+    sizeGroupKey === "all"
+      ? sizeBaseOptions
+      : (sizeGroups.find(([key]) => key === sizeGroupKey)?.[1] ??
+        sizeBaseOptions);
+
+  const sortByStock = (items: Option[]) =>
+    [...items].sort(
+      (a, b) => Number(Boolean(a.outOfStock)) - Number(Boolean(b.outOfStock)),
+    );
+
+  const sortByFitThenStock = (
+    items: Option[],
+    isCompatible: (opt: Option) => boolean,
+  ) =>
+    [...items].sort((a, b) => {
+      const aOos = Boolean(a.outOfStock);
+      const bOos = Boolean(b.outOfStock);
+      if (aOos !== bOos) return aOos ? 1 : -1;
+      const aBad = !isCompatible(a);
+      const bBad = !isCompatible(b);
+      if (aBad !== bBad) return aBad ? 1 : -1;
+      return 0;
+    });
+
+  const filteredSizeOptions = sortByStock(
+    sizeGroupOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(sizeSearch.toLowerCase()),
+    ),
+  );
+
+  const filteredLightOptions = sortByFitThenStock(
+    lightBaseOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(lightSearch.toLowerCase()),
+    ),
+    isLightOptionCompatible,
+  );
+
+  const filteredVentOptions = sortByFitThenStock(
+    ventBaseOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(ventSearch.toLowerCase()),
+    ),
+    isVentOptionCompatible,
+  );
+
+  const filteredExtras = EXTRA_OPTIONS.filter((opt) =>
+    opt.label.toLowerCase().includes(extrasSearch.toLowerCase()),
+  );
+
+  const extrasSelectedOptions = EXTRA_OPTIONS.filter((opt) =>
+    extras.includes(opt.id),
+  );
+  const setupItems = [
+    ...(selectedSize
+      ? [
+          {
+            id: "size" as StepId,
+            title: selectedSize.label,
+            price: selectedSize.price,
+            imageUrl: selectedSize.imageUrl ?? null,
+            imageAlt: selectedSize.imageAlt ?? selectedSize.label,
+          },
+        ]
+      : []),
+    ...selectedLightOptions.map((opt) => ({
+      id: "light" as StepId,
+      title: opt.label,
+      price: opt.price,
+      imageUrl: opt.imageUrl ?? null,
+      imageAlt: opt.imageAlt ?? opt.label,
+    })),
+    ...selectedVentOptions.map((opt) => ({
+      id: "vent" as StepId,
+      title: opt.label,
+      price: opt.price,
+      imageUrl: opt.imageUrl ?? null,
+      imageAlt: opt.imageAlt ?? opt.label,
+    })),
+    ...extrasSelectedOptions.map((opt) => ({
+      id: "extras" as StepId,
+      title: opt.label,
+      price: opt.price,
+      imageUrl: opt.imageUrl ?? null,
+      imageAlt: opt.imageAlt ?? opt.label,
+    })),
+  ];
+
+  const getOptionBadges = (opt: Option) => {
+    const badges: string[] = [];
+    if (opt.size) badges.push(opt.size);
+    if (!opt.size && opt.diameterMm) badges.push(`Ø ${opt.diameterMm} mm`);
+    if (opt.diametersMm && opt.diametersMm.length > 0) {
+      badges.push(`Ø ${opt.diametersMm.join(" / ")} mm`);
+    }
+    if (opt.note) badges.push(opt.note);
+    return badges;
+  };
 
   if (status === "loading") {
     return (
@@ -325,7 +1075,7 @@ export default function CustomizerPage() {
                 <ul className="mt-3 space-y-2 text-sm text-stone-600">
                   <li>Live-Preis-Updates</li>
                   <li>Setup speichern & teilen</li>
-                  <li>Empfehlungen pro Raumgröße</li>
+                  <li>Empfehlungen pro Raumgroesse</li>
                 </ul>
               </div>
             </div>
@@ -426,7 +1176,7 @@ export default function CustomizerPage() {
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       {EXTRA_OPTIONS.map((opt) => {
                         const active = previewExtras.some(
-                          (extra) => extra.id === opt.id
+                          (extra) => extra.id === opt.id,
                         );
                         return (
                           <div
@@ -504,12 +1254,12 @@ export default function CustomizerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `${selectedSize?.label ?? "Setup"} / ${
-            selectedLight?.label ?? ""
+            selectedLightOptions.map((opt) => opt.label).join(", ") ?? ""
           }`.trim(),
           data: {
             sizeId,
-            lightId,
-            ventId,
+            lightId: lightIds,
+            ventId: ventIds,
             extras,
             total,
           },
@@ -524,292 +1274,457 @@ export default function CustomizerPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-10 text-stone-800">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-3" style={{ color: "#2f3e36" }}>
-            Grow Setup Customizer
-          </h1>
-          <p className="text-stone-600">
-            Stelle dein Setup zusammen. Produkte werden spaeter mit echten
-            Artikeln verknuepft.
-          </p>
-        </div>
+      <div className="mx-auto max-w-6xl px-6 pb-20 pt-8 text-stone-800">
+        <StepHeader
+          activeStep={activeStep}
+          onStepChange={scrollToStep}
+          completedSteps={
+            new Set<StepId>([
+              ...(sizeId ? (["size"] as StepId[]) : []),
+              ...(lightIds.length ? (["light"] as StepId[]) : []),
+              ...(ventIds.length ? (["vent"] as StepId[]) : []),
+              ...(extras.length ? (["extras"] as StepId[]) : []),
+            ])
+          }
+        />
 
-        <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="space-y-6">
-            <section className="rounded-xl border border-black/10 bg-white p-5">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-                1. ZELT-GRÖßE
-              </h2>
-              {sizeError && (
-                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {sizeError}
-                </p>
-              )}
-              {sizeLoading ? (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[...Array(3)].map((_, index) => (
-                    <div
-                      key={`size-skeleton-${index}`}
-                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
-                    />
-                  ))}
-                </div>
-              ) : sizeOptions.length === 0 ? (
-                <p className="text-xs text-stone-500">
-                  Keine Growboxen gefunden.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {sizeGroups.map(([key]) => {
-                      const active = sizeGroupKey === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            setSizeGroupKey(key);
-                            const options = sizeGroups.find(
-                              ([k]) => k === key
-                            )?.[1];
-                            if (options?.length) setSizeId(options[0].id);
-                          }}
-                          className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                            active
-                              ? "border-black bg-black text-white"
-                              : "border-black/10 bg-white text-black/70 hover:border-black/20"
-                          }`}
-                        >
-                          {key}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {(sizeGroups.find(([key]) => key === sizeGroupKey)?.[1] ??
-                      sizeOptions
-                    ).map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setSizeId(opt.id)}
-                        className={`rounded-lg border px-4 py-3 text-left transition ${
-                          sizeId === opt.id
-                            ? "border-black bg-black text-white"
-                            : "border-black/10 bg-white hover:border-black/20"
-                        }`}
-                      >
-                        <div className="text-sm font-semibold">{opt.label}</div>
-                        <div className="text-xs opacity-80">
-                          {formatPrice(opt.price)}
-                        </div>
-                      </button>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start lg:overflow-visible">
+          <div className="space-y-8">
+            <section id="step-size" className="space-y-6">
+              <FiltersBar
+                title="1. Zelt"
+                subtitle="Größe wählen & filtern"
+                chips={[
+                  { id: "all", label: "Alle Zelte" },
+                  ...sizeGroups.map(([key]) => ({ id: key, label: key })),
+                ]}
+                activeChipId={sizeGroupKey}
+                onChipSelect={(key) => {
+                  setSizeGroupKey(key);
+                }}
+                searchValue={sizeSearch}
+                onSearchChange={setSizeSearch}
+              />
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                {sizeError && (
+                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {sizeError}
+                  </p>
+                )}
+                {sizeLoading ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {[...Array(3)].map((_, index) => (
+                      <div
+                        key={`size-skeleton-${index}`}
+                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                      />
                     ))}
                   </div>
-                </div>
-              )}
+                ) : sizeOptions.length === 0 ? (
+                  <p className="text-xs text-neutral-500">
+                    Keine Growboxen gefunden.
+                  </p>
+                ) : (
+                  <ProductGrid>
+                    {filteredSizeOptions.map((opt) => (
+                      <ProductCard
+                        key={opt.id}
+                        title={opt.label}
+                        price={opt.price}
+                        imageUrl={opt.imageUrl ?? null}
+                        imageAlt={opt.imageAlt ?? opt.label}
+                        imageHeightClass="h-32"
+                        outOfStock={opt.outOfStock}
+                        badges={getOptionBadges(opt)}
+                        selected={sizeId === opt.id}
+                        onSelect={() =>
+                          setSizeId((prev) => (prev === opt.id ? "" : opt.id))
+                        }
+                      />
+                    ))}
+                  </ProductGrid>
+                )}
+              </div>
             </section>
 
-            <section className="rounded-xl border border-black/10 bg-white p-5">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-                2. LICHT
-              </h2>
-              {lightError && (
-                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {lightError}
-                </p>
-              )}
-              {lightLoading ? (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[...Array(3)].map((_, index) => (
-                    <div
-                      key={`light-skeleton-${index}`}
-                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
-                    />
-                  ))}
-                </div>
-              ) : (isAdmin ? lightOptions : LIGHT_OPTIONS).length === 0 ? (
-                <p className="text-xs text-stone-500">
-                  Kein Licht gefunden.
-                </p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {(isAdmin ? lightOptions : LIGHT_OPTIONS).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setLightId(opt.id)}
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
-                        lightId === opt.id
-                          ? "border-black bg-black text-white"
-                          : "border-black/10 bg-white hover:border-black/20"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold">{opt.label}</div>
-                      <div className="text-xs opacity-80">
-                        {formatPrice(opt.price)}
-                      </div>
-                      {!isLightOptionCompatible(opt) && (
-                        <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                          Nicht passend zur Zelt-Groesse
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!lightCompatible && (
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Das ausgewaehlte Licht passt nicht zur Zelt-Groesse.
-                </p>
-              )}
+            <section id="step-light" className="space-y-6">
+              <FiltersBar
+                title="2. Licht"
+                subtitle="Passend zur Zelt-Größe"
+                searchValue={lightSearch}
+                onSearchChange={setLightSearch}
+              />
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                {lightError && (
+                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {lightError}
+                  </p>
+                )}
+                {lightLoading ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {[...Array(3)].map((_, index) => (
+                      <div
+                        key={`light-skeleton-${index}`}
+                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                      />
+                    ))}
+                  </div>
+                ) : filteredLightOptions.length === 0 ? (
+                  <p className="text-xs text-neutral-500">
+                    Kein Licht gefunden.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+                      <span className="font-semibold text-neutral-900">
+                        Top Produkte
+                      </span>{" "}
+                      für dein Setup
+                    </div>
+                    <ProductGrid>
+                      {filteredLightOptions.map((opt) => {
+                        const compatible = isLightOptionCompatible(opt);
+                        return (
+                          <ProductCard
+                            key={opt.id}
+                            title={opt.label}
+                            price={opt.price}
+                            imageUrl={opt.imageUrl ?? null}
+                            imageAlt={opt.imageAlt ?? opt.label}
+                            outOfStock={opt.outOfStock}
+                            badges={getOptionBadges(opt)}
+                            selected={lightIds.includes(opt.id)}
+                            compatTone={compatible ? "good" : "bad"}
+                            compatLabel={
+                              compatible ? "Passt" : "Nicht empfohlen"
+                            }
+                            reason={
+                              compatible
+                                ? undefined
+                                : "Nicht passend zur Zelt-Größe."
+                            }
+                            onSelect={() =>
+                              setLightIds((prev) =>
+                                prev.includes(opt.id)
+                                  ? prev.filter((id) => id !== opt.id)
+                                  : [...prev, opt.id],
+                              )
+                            }
+                          />
+                        );
+                      })}
+                    </ProductGrid>
+                  </>
+                )}
+                {!lightCompatible && selectedSize && (
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Das ausgewählte Licht passt nicht zur Zelt-Größe.
+                  </p>
+                )}
+              </div>
             </section>
 
-            <section className="rounded-xl border border-black/10 bg-white p-5">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-                3. ABLUFT
-              </h2>
-              {ventError && (
-                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {ventError}
-                </p>
-              )}
-              {ventLoading ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[...Array(2)].map((_, index) => (
-                    <div
-                      key={`vent-skeleton-${index}`}
-                      className="h-[74px] animate-pulse rounded-lg border border-black/10 bg-stone-100"
-                    />
-                  ))}
-                </div>
-              ) : (isAdmin ? ventOptions : VENT_OPTIONS).length === 0 ? (
-                <p className="text-xs text-stone-500">Keine Abluft gefunden.</p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(isAdmin ? ventOptions : VENT_OPTIONS).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setVentId(opt.id)}
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
-                        ventId === opt.id
-                          ? "border-black bg-black text-white"
-                          : "border-black/10 bg-white hover:border-black/20"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold">{opt.label}</div>
-                      <div className="text-xs opacity-80">
-                        {formatPrice(opt.price)}
-                      </div>
-                      {!isVentOptionCompatible(opt) && (
-                        <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                          Durchmesser passt nicht
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!airCompatible && (
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Die Abluft passt nicht zum Anschlussdurchmesser der Growbox.
-                </p>
-              )}
+            <section id="step-vent" className="space-y-6">
+              <FiltersBar
+                title="3. Abluft"
+                subtitle="Durchmesser & Luftflow"
+                searchValue={ventSearch}
+                onSearchChange={setVentSearch}
+              />
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                {ventError && (
+                  <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {ventError}
+                  </p>
+                )}
+                {ventLoading ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {[...Array(2)].map((_, index) => (
+                      <div
+                        key={`vent-skeleton-${index}`}
+                        className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                      />
+                    ))}
+                  </div>
+                ) : filteredVentOptions.length === 0 ? (
+                  <p className="text-xs text-neutral-500">
+                    Keine Abluft gefunden.
+                  </p>
+                ) : (
+                  <ProductGrid>
+                    {filteredVentOptions.map((opt) => {
+                      const compatible = isVentOptionCompatible(opt);
+                      return (
+                        <ProductCard
+                          key={opt.id}
+                          title={opt.label}
+                          price={opt.price}
+                          imageUrl={opt.imageUrl ?? null}
+                          imageAlt={opt.imageAlt ?? opt.label}
+                          imageHeightClass="h-32"
+                          outOfStock={opt.outOfStock}
+                          badges={getOptionBadges(opt)}
+                          selected={ventIds.includes(opt.id)}
+                          compatTone={compatible ? "good" : "bad"}
+                          compatLabel={compatible ? "Passt" : "Nicht empfohlen"}
+                          reason={
+                            compatible ? undefined : "Durchmesser passt nicht."
+                          }
+                          onSelect={() =>
+                            setVentIds((prev) =>
+                              prev.includes(opt.id)
+                                ? prev.filter((id) => id !== opt.id)
+                                : [...prev, opt.id],
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </ProductGrid>
+                )}
+                {!airCompatible && selectedSize && (
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Die Abluft passt nicht zum Anschlussdurchmesser der Growbox.
+                  </p>
+                )}
+              </div>
             </section>
 
-            <section className="rounded-xl border border-black/10 bg-white p-5">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-                4. EXTRAS
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {EXTRA_OPTIONS.map((opt) => {
-                  const active = extras.includes(opt.id);
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setExtras((prev) =>
-                          prev.includes(opt.id)
-                            ? prev.filter((id) => id !== opt.id)
-                            : [...prev, opt.id]
-                        )
-                      }
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
-                        active
-                          ? "border-green-700 bg-green-50 text-green-800"
-                          : "border-black/10 bg-white hover:border-black/20"
+            <section id="step-extras" className="space-y-6">
+              <FiltersBar
+                title="4. Extras"
+                subtitle="Optionales Zubehör"
+                searchValue={extrasSearch}
+                onSearchChange={setExtrasSearch}
+              />
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <ProductGrid>
+                  {filteredExtras.map((opt) => {
+                    const active = extras.includes(opt.id);
+                    return (
+                      <ProductCard
+                        key={opt.id}
+                        title={opt.label}
+                        price={opt.price}
+                        imageUrl={opt.imageUrl ?? null}
+                        imageAlt={opt.imageAlt ?? opt.label}
+                        badges={getOptionBadges(opt)}
+                        selected={active}
+                        onSelect={() =>
+                          setExtras((prev) =>
+                            prev.includes(opt.id)
+                              ? prev.filter((id) => id !== opt.id)
+                              : [...prev, opt.id],
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </ProductGrid>
+              </div>
+            </section>
+
+            <section id="step-check" className="space-y-6">
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-neutral-900">
+                      5. Setup Check
+                    </p>
+                    <p className="text-sm text-neutral-500">
+                      Prüfe Kompatibilität und letzte Details.
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      setupStatusTone === "perfect"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-rose-200 bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {setupStatusLabel}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div
+                    className={`rounded-xl border p-4 ${
+                      lightCompatible
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-wide ${
+                        lightCompatible ? "text-emerald-700" : "text-red-700"
                       }`}
                     >
-                      <div className="text-sm font-semibold">{opt.label}</div>
-                      <div className="text-xs opacity-80">
-                        {formatPrice(opt.price)}
-                      </div>
-                    </button>
-                  );
-                })}
+                      Licht
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {lightCompatible
+                        ? "✓ Passt zur Zelt-Größe"
+                        : "✕ Bitte kompatibles Licht wählen"}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-xl border p-4 ${
+                      airCompatible
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-wide ${
+                        airCompatible ? "text-emerald-700" : "text-red-700"
+                      }`}
+                    >
+                      Abluft
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {airCompatible
+                        ? "✓ Durchmesser passt"
+                        : "✕ Bitte passenden Durchmesser wählen"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
 
-          <aside className="rounded-xl border border-black/10 bg-white p-6 h-fit">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              DEIN SETUP
-            </h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span>Zelt</span>
-                <span>{selectedSize?.label ?? "-"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Licht</span>
-                <span>{selectedLight?.label ?? "-"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Abluft</span>
-                <span>{selectedVent?.label ?? "-"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Extras</span>
-                <span>{extras.length ? `${extras.length} gewaehrt` : "-"}</span>
-              </div>
-            </div>
+          <div className="hidden lg:block sticky top-40 self-start h-fit overflow-visible">
+            <SetupSidebar
+              statusTone={setupStatusTone}
+              statusLabel={setupStatusLabel}
+              items={setupItems}
+              total={total}
+              onEdit={scrollToStep}
+              onPrimary={handleSave}
+              saving={saving}
+              saved={saved}
+            />
+          </div>
+        </div>
+      </div>
 
-            <div className="mt-5 border-t border-black/10 pt-4">
+      <MobileSetupBottomBar
+        total={total}
+        selectedCount={selectedCount}
+        onOpen={() => setMobileSummaryOpen(true)}
+      />
+
+      {mobileSummaryOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close setup"
+            onClick={() => setMobileSummaryOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-semibold text-neutral-900">
+                Dein Setup
+              </p>
+              <button
+                type="button"
+                onClick={() => setMobileSummaryOpen(false)}
+                className="text-2xl text-neutral-500"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {setupItems.map((item) => (
+                <div
+                  key={`${item.id}-${item.title}`}
+                  className="w-full max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 p-3"
+                >
+                  <div className="flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.imageAlt ?? item.title}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          "▢"
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <div
+                          className="max-w-[10rem] truncate text-sm font-semibold text-neutral-800 sm:max-w-[14rem]"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </div>
+                        {typeof item.price === "number" && (
+                          <div className="text-xs text-neutral-500">
+                            {formatPrice(item.price)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileSummaryOpen(false);
+                        scrollToStep(item.id);
+                      }}
+                      className="flex-none text-xs font-semibold text-neutral-500 underline"
+                    >
+                      Ändern
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 rounded-xl border border-neutral-200 bg-white p-4">
               <div className="flex items-center justify-between text-base font-semibold">
-                <span>Gesamt</span>
+                <span>Zwischensumme</span>
                 <span>{formatPrice(total)}</span>
               </div>
-              <p className="mt-2 text-xs text-stone-500">
-                Preis ist eine Schaetzung. Produkte werden spaeter verknuepft.
+              <p className="mt-2 text-xs text-neutral-500">
+                Preis ist eine Schätzung. Produkte werden später verknüpft.
               </p>
             </div>
-
-            <div className="mt-6 space-y-2">
+            <div className="mt-5 space-y-2">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full rounded-md bg-black px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90 hover:shadow-sm"
               >
                 {saving
                   ? "Speichern..."
                   : saved
-                  ? "Gespeichert"
-                  : "Setup speichern"}
+                    ? "Gespeichert"
+                    : "Setup speichern"}
               </button>
               <button
                 type="button"
-                className="w-full rounded-md border border-black/15 px-4 py-3 text-sm font-semibold text-black/70"
+                className="w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
-                Angebot anfragen
+                In den Warenkorb
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Zur Kasse
               </button>
             </div>
-          </aside>
+          </div>
         </div>
-      </div>
+      )}
     </PageLayout>
   );
 }

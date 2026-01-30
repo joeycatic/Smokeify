@@ -73,6 +73,7 @@ export function Navbar() {
   const { cart, loading, error, refresh } = useCart();
   const { ids } = useWishlist();
   const { status } = useSession();
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -129,6 +130,10 @@ export function Navbar() {
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (count === 0) return;
     setCartPop(true);
     const timer = setTimeout(() => setCartPop(false), 250);
@@ -161,7 +166,7 @@ export function Navbar() {
   }, [wishlistCount]);
 
   useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
+    const handleOutsideInteraction = (event: MouseEvent | FocusEvent) => {
       if (!accountRef.current) return;
       if (!accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
@@ -188,9 +193,13 @@ export function Navbar() {
         setMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+    document.addEventListener("mousedown", handleOutsideInteraction);
+    document.addEventListener("focusin", handleOutsideInteraction);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideInteraction);
+      document.removeEventListener("focusin", handleOutsideInteraction);
+    };
+  }, [accountOpen, cartOpen, menuOpen, productsOpen]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -344,7 +353,7 @@ export function Navbar() {
         )
       : activeCategories;
 
-  const accountPanelContent = (
+  const accountPanelContent = mounted ? (
     <>
       <div className="mb-4 text-center">
         <p className="text-2xl font-bold" style={{ color: "#2f3e36" }}>
@@ -532,6 +541,8 @@ export function Navbar() {
         <p className="mt-2 text-xs text-green-700">Erfolgreich angemeldet.</p>
       )}
     </>
+  ) : (
+    <div className="h-24" />
   );
   return (
     <>
@@ -727,7 +738,7 @@ export function Navbar() {
                     href="/customizer"
                     className={`${pixelNavFont.className} text-sm sm:text-lg hover:opacity-70 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
                   >
-                    Customizer
+                    Konfigurator
                   </Link>
                 </div>
               </div>
