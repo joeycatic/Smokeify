@@ -544,9 +544,9 @@ export function Navbar() {
       <nav className="fixed top-10 left-0 z-40 w-full border-b border-black/10 bg-stone-100">
         <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-6xl">
           <div className="py-6 sm:py-5">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <div className="relative flex items-center justify-center sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
               {/* LEFT (spacer) */}
-              <div className="flex items-center">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0">
                 <div id="mobile-nav-menu" className="relative sm:hidden">
                   <button
                     type="button"
@@ -748,7 +748,7 @@ export function Navbar() {
               </div>
 
               {/* CENTER */}
-              <div className="col-start-2 flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:gap-6">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:col-start-2 sm:flex-nowrap sm:gap-6">
                 <div className="relative flex items-center gap-2 sm:gap-6">
                   <Link href="/" className="flex items-center">
                     <img
@@ -766,7 +766,7 @@ export function Navbar() {
               </div>
 
               {/* RIGHT */}
-              <div className="col-start-3 flex items-center justify-end gap-4 text-stone-800 sm:gap-6">
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 text-stone-800 sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-6">
                 <div className="relative" ref={cartRef}>
                   <button
                     type="button"

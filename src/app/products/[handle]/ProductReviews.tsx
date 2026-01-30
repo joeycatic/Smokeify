@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { StarIcon } from "@heroicons/react/24/solid";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 type Review = {
@@ -101,27 +102,22 @@ export default function ProductReviews({ productId }: { productId: string }) {
   };
 
   return (
-    <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+    <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-            Bewertungen
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-sm text-stone-600">
+          <div className="flex items-center gap-2">
+            <StarIcon className="h-6 w-6 text-emerald-700" />
+            <p className="text-lg font-semibold text-emerald-900 sm:text-xl">
+              Bewertungen
+            </p>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm text-black/60">
             <RatingStars rating={reviewSummary.average} />
             <span>
               {reviewSummary.count} Bewertungen · {reviewSummary.average.toFixed(1)}
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={loadReviews}
-          className="h-9 rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700"
-          disabled={reviewLoading}
-        >
-          {reviewLoading ? "Laden..." : "Aktualisieren"}
-        </button>
       </div>
 
       {reviewError && (
@@ -135,14 +131,14 @@ export default function ProductReviews({ productId }: { productId: string }) {
         </p>
       )}
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-5 space-y-3">
         {reviewLoading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
+          <div className="flex items-center gap-2 text-sm text-black/60">
             <LoadingSpinner size="sm" />
             <span>Bewertungen werden geladen...</span>
           </div>
         ) : reviews.length === 0 ? (
-          <p className="text-sm text-stone-500">Noch keine Bewertungen.</p>
+          <p className="text-sm text-black/60">Noch keine Bewertungen.</p>
         ) : (
           reviews.map((review) => (
             <div
@@ -152,31 +148,31 @@ export default function ProductReviews({ productId }: { productId: string }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <RatingStars rating={review.rating} />
-                  <span className="text-xs text-stone-500">
+                  <span className="text-xs text-black/50">
                     {review.userName ?? "Anonymous"}
                   </span>
                 </div>
-                <span className="text-xs text-stone-500">
+                <span className="text-xs text-black/50">
                   {new Date(review.createdAt).toLocaleDateString("de-DE")}
                 </span>
               </div>
               {review.title && (
-                <p className="mt-2 font-semibold text-stone-900">
+                <p className="mt-2 font-semibold text-black">
                   {review.title}
                 </p>
               )}
-              {review.body && <p className="mt-1 text-stone-700">{review.body}</p>}
+              {review.body && <p className="mt-1 text-black/70">{review.body}</p>}
             </div>
           ))
         )}
       </div>
 
-      <div className="mt-6 rounded-xl border border-black/10 bg-stone-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+      <div className="mt-6 rounded-xl border border-black/10 bg-white/70 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/50">
           Bewertung schreiben
         </p>
         {status !== "authenticated" ? (
-          <p className="mt-3 text-sm text-stone-600">
+          <p className="mt-3 text-sm text-black/60">
             Bitte{" "}
             <Link href="/auth/signin" className="underline">
               anmelden
@@ -184,13 +180,13 @@ export default function ProductReviews({ productId }: { productId: string }) {
             um eine Bewertung zu schreiben.
           </p>
         ) : !canReview ? (
-          <p className="mt-3 text-sm text-stone-600">
+          <p className="mt-3 text-sm text-black/60">
             Bewertungen sind nur nach einem Kauf moeglich.
           </p>
         ) : (
           <div className="mt-4 grid gap-3">
             <div>
-              <label className="block text-xs font-semibold text-stone-600">
+              <label className="block text-xs font-semibold text-black/60">
                 Bewertung
               </label>
               <div className="mt-2 flex gap-2">
@@ -206,35 +202,35 @@ export default function ProductReviews({ productId }: { productId: string }) {
                     }`}
                     aria-label={`Rating ${value}`}
                   >
-                    <StarIcon filled={reviewRating >= value} />
+                    <StarGlyph filled={reviewRating >= value} />
                   </button>
                 ))}
               </div>
             </div>
-            <label className="block text-xs font-semibold text-stone-600">
+            <label className="block text-xs font-semibold text-black/60">
               Titel (optional)
               <input
                 value={reviewTitle}
                 onChange={(event) => setReviewTitle(event.target.value)}
                 placeholder="Kurz und hilfreich"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-lg border border-black/15 bg-white px-3 text-sm"
               />
             </label>
-            <label className="block text-xs font-semibold text-stone-600">
+            <label className="block text-xs font-semibold text-black/60">
               Bewertung
               <textarea
                 value={reviewBody}
                 onChange={(event) => setReviewBody(event.target.value)}
                 placeholder="Was hat dir gefallen?"
                 rows={4}
-                className="mt-1 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
               />
             </label>
             <button
               type="button"
               onClick={submitReview}
               disabled={reviewSubmitting}
-              className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+              className="h-10 rounded-lg bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
             >
               {reviewSubmitting
                 ? "Speichern..."
@@ -249,7 +245,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
   );
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+function StarGlyph({ filled }: { filled: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -267,7 +263,7 @@ function RatingStars({ rating }: { rating: number }) {
   return (
     <span className="inline-flex items-center gap-1">
       {[0, 1, 2, 3, 4].map((idx) => (
-        <StarIcon key={idx} filled={idx < rounded} />
+        <StarGlyph key={idx} filled={idx < rounded} />
       ))}
     </span>
   );

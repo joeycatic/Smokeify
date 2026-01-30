@@ -131,7 +131,10 @@ body {
 @keyframes image-swerve-left {
   0% {
     opacity: 0;
-    transform: translateX(10px);
+    transform: translateX(32px);
+  }
+  70% {
+    opacity: 1;
   }
   100% {
     opacity: 1;
@@ -142,7 +145,10 @@ body {
 @keyframes image-swerve-right {
   0% {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translateX(-32px);
+  }
+  70% {
+    opacity: 1;
   }
   100% {
     opacity: 1;
@@ -172,10 +178,50 @@ body {
   }
 }
 
+.hero-swipe {
+  animation: hero-swipe 650ms ease-out both;
+}
+
+@keyframes hero-swipe {
+  0% {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.hero-progress {
+  animation: hero-progress linear both;
+}
+
+@keyframes hero-progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-swipe,
+  .hero-progress {
+    animation: none;
+  }
+}
+
 .product-description {
   color: #1f2937;
   line-height: 1.7;
   font-size: 0.95rem;
+}
+
+.product-description.product-description-compact {
+  font-size: 0.78rem;
+  line-height: 1.65;
 }
 
 .product-description h2,

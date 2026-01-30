@@ -189,8 +189,8 @@ function StepHeader({
               }}
             />
           </div>
-          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
-            <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-6 pr-8 scroll-pl-6 scroll-pr-8">
+            <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
+              <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-3 pr-8 scroll-pl-3 scroll-pr-8">
               <div ref={listRef} className="flex w-max items-center gap-2">
                 {STEPS.map((step, index) => {
                   const isActive = step.id === activeStep;

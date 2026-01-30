@@ -251,9 +251,9 @@ export default function ProductsClient({ initialProducts }: Props) {
   }, [filters, categoryTitleByHandle, priceMinBound, priceMaxBound]);
 
   return (
-    <div className="w-full text-stone-800">
-      {/* Products Header */}
-      <div className="mt-6 rounded-3xl bg-[radial-gradient(120%_120%_at_70%_90%,#b8d39a_0%,#4f7b62_38%,#21443a_68%,#0f2924_100%)] px-6 py-10 text-white shadow-[0_30px_60px_rgba(10,25,20,0.35)] sm:px-10">
+      <div className="w-full text-stone-800">
+        {/* Products Header */}
+        <div className="mt-3 rounded-3xl bg-[radial-gradient(120%_120%_at_70%_90%,#b8d39a_0%,#4f7b62_38%,#21443a_68%,#0f2924_100%)] px-6 py-10 text-white shadow-[0_30px_60px_rgba(10,25,20,0.35)] sm:px-10">
         <div className="text-center">
           <h1 className="text-2xl font-semibold sm:text-3xl">
             Unsere Produkte

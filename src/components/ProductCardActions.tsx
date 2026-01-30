@@ -12,6 +12,8 @@ type Props = {
   variantId: string | null;
   available: boolean;
   size?: "sm" | "lg";
+  showWishlist?: boolean;
+  showCart?: boolean;
   itemTitle?: string;
   itemImageUrl?: string | null;
   itemImageAlt?: string | null;
@@ -24,6 +26,8 @@ export default function ProductCardActions({
   variantId,
   available,
   size = "sm",
+  showWishlist = true,
+  showCart = true,
   itemTitle,
   itemImageUrl,
   itemImageAlt,
@@ -36,81 +40,89 @@ export default function ProductCardActions({
   const canAdd = Boolean(variantId) && available && !adding;
   const wishlisted = isWishlisted(productId);
   const iconClass = size === "lg" ? "h-5 w-5" : "h-5 w-5";
+  const cartIconClass = size === "lg" ? "h-6 w-6" : "h-5 w-5";
   const buttonClass =
     size === "lg"
-      ? "rounded-full border p-3 transition"
-      : "rounded-full border p-3 transition";
+      ? "rounded-full border p-2.5 transition"
+      : "rounded-full border p-2.5 transition";
 
   return (
     <>
-      <button
-        type="button"
-        aria-label={wishlisted ? "Von Wunschliste entfernen" : "Zur Wunschliste"}
-        aria-pressed={wishlisted}
-        title="Zur Wunschliste"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggle(productId);
-        }}
-        className={`${buttonClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-          wishlisted
-            ? "border-green-200 text-green-700"
-            : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
-        }`}
-      >
-        {wishlisted ? (
-          <HeartIconSolid className={iconClass} />
-        ) : (
-          <HeartIconOutline className={iconClass} />
-        )}
-      </button>
-      <button
-        type="button"
-        disabled={!canAdd}
-        onClick={async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!variantId) return;
-          setAdding(true);
-          try {
-            const beforeQty =
-              cart?.lines.find((line) => line.merchandise.id === variantId)
-                ?.quantity ?? 0;
-            const updated = await addToCart(variantId, 1);
-            const afterQty =
-              updated.lines.find((line) => line.merchandise.id === variantId)
-                ?.quantity ?? 0;
-            if (afterQty <= beforeQty) {
-              openOutOfStockModal();
-              return;
-            }
-            if (itemTitle) {
-              openAddedModal({
-                title: itemTitle,
-                imageUrl: itemImageUrl ?? undefined,
-                imageAlt: itemImageAlt ?? undefined,
-                price: itemPrice,
-                quantity: itemQuantity,
-              });
-            }
-          } catch {
-            openOutOfStockModal();
-          } finally {
-            setAdding(false);
+      {showWishlist && (
+        <button
+          type="button"
+          aria-label={
+            wishlisted ? "Von Wunschliste entfernen" : "Zur Wunschliste"
           }
-        }}
-        aria-label="In den Warenkorb"
-        title="In den Warenkorb"
-        className={`add-to-cart-sweep inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
-          canAdd
-            ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
-            : "border-stone-200 text-stone-400"
-        } ${size === "lg" ? "px-6 py-3 text-sm" : "px-4 py-2.5 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
-      >
-        <ShoppingCartIcon className={size === "lg" ? "h-5 w-5" : "h-5 w-5"} />
-        In den Warenkorb
-      </button>
+          aria-pressed={wishlisted}
+          title="Zur Wunschliste"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggle(productId);
+          }}
+          className={`${buttonClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+            wishlisted
+              ? "border-green-200 text-green-700"
+              : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
+          }`}
+        >
+          {wishlisted ? (
+            <HeartIconSolid className={iconClass} />
+          ) : (
+            <HeartIconOutline className={iconClass} />
+          )}
+        </button>
+      )}
+      {showCart && (
+        <button
+          type="button"
+          disabled={!canAdd}
+          onClick={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!variantId) return;
+            setAdding(true);
+            try {
+              const beforeQty =
+                cart?.lines.find((line) => line.merchandise.id === variantId)
+                  ?.quantity ?? 0;
+              const updated = await addToCart(variantId, 1);
+              const afterQty =
+                updated.lines.find((line) => line.merchandise.id === variantId)
+                  ?.quantity ?? 0;
+              if (afterQty <= beforeQty) {
+                openOutOfStockModal();
+                return;
+              }
+              if (itemTitle) {
+                openAddedModal({
+                  title: itemTitle,
+                  imageUrl: itemImageUrl ?? undefined,
+                  imageAlt: itemImageAlt ?? undefined,
+                  price: itemPrice,
+                  quantity: itemQuantity,
+                });
+              }
+            } catch {
+              openOutOfStockModal();
+            } finally {
+              setAdding(false);
+            }
+          }}
+          aria-label="In den Warenkorb"
+          title="In den Warenkorb"
+          className={`add-to-cart-sweep inline-flex items-center gap-2 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
+            canAdd
+              ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
+              : "border-stone-200 text-stone-400"
+          } ${size === "lg" ? "px-5 py-2.5 text-sm" : "px-3.5 py-2 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+        >
+          <ShoppingCartIcon className={cartIconClass} />
+          In den Warenkorb
+        </button>
+      )}
     </>
   );
 }
+

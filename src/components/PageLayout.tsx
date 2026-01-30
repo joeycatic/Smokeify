@@ -23,7 +23,7 @@ function PageShell({ children }: LayoutSectionProps) {
 
 function PageContainer({ children }: LayoutSectionProps) {
   return (
-    <div className="mx-auto w-full flex-1 px-4 sm:px-6 lg:max-w-6xl">
+    <div className="mx-auto w-full flex-1 px-3 sm:px-4 lg:max-w-6xl">
       {children}
     </div>
   );

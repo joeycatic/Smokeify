@@ -418,19 +418,20 @@ export default function AdminCatalogClient({
     }
     setError("");
     setBulkSaving(true);
-    const payload: {
-      productIds: string[];
-      status?: ProductRow["status"];
-      priceAdjust?: {
-        type: "percent" | "fixed";
-        direction: "increase" | "decrease";
-        value: number;
-      };
-      lowStockThreshold?: number;
-      tags?: { add?: string[]; remove?: string[] };
-      category?: { action: "add" | "remove"; categoryId: string };
-      supplierId?: string | null;
-    } = { productIds: selectedIds };
+      const payload: {
+        productIds: string[];
+        status?: ProductRow["status"];
+        priceAdjust?: {
+          type: "percent" | "fixed";
+          direction: "increase" | "decrease";
+          value: number;
+        };
+        lowStockThreshold?: number;
+        tags?: { add?: string[]; remove?: string[] };
+        category?: { action: "add" | "remove"; categoryId: string };
+        supplierId?: string | null;
+        productGroup?: string | null;
+      } = { productIds: selectedIds };
 
     if (bulkStatus) {
       payload.status = bulkStatus;

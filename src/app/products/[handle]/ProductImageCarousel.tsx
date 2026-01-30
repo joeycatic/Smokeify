@@ -96,7 +96,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
       >
         <div
           key={swerveKey}
-          className="relative aspect-square overflow-hidden"
+          className="relative aspect-square overflow-hidden rounded-2xl bg-white"
           style={
             swerveDirection
               ? {
@@ -109,8 +109,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
             src={current.url}
             alt={current.altText ?? alt}
             fill
-            className={`rounded-xl object-cover transition-transform duration-300 ${
-              isZoomed ? "scale-200" : "scale-100 group-hover:scale-110"
+            className={`rounded-2xl object-contain transition-transform duration-300 ${
+              isZoomed ? "scale-200" : "scale-100"
             }`}
             style={{
               transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
@@ -144,7 +144,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
       {count > 1 && (
         <div
           ref={thumbnailsRef}
-          className="flex gap-3 overflow-x-auto px-3 pb-1 scroll-px-3 scroll-smooth snap-x snap-mandatory"
+          className="no-scrollbar flex gap-3 overflow-x-auto px-3 pb-1 pt-1 scroll-px-3 scroll-smooth snap-x snap-mandatory"
         >
           {images.map((img, imgIndex) => {
             const active = imgIndex === index;
@@ -158,8 +158,8 @@ export default function ProductImageCarousel({ images, alt }: Props) {
                 }}
                 className={`shrink-0 snap-start overflow-hidden rounded-xl border bg-white p-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   active
-                    ? "border-black ring-2 ring-black/20"
-                    : "border-black/10 hover:border-black/25"
+                    ? "border-emerald-950 ring-2 ring-emerald-950/70"
+                    : "border-black/10 hover:border-emerald-600"
                 }`}
                 aria-label={`Bild ${imgIndex + 1} auswaehlen`}
               >
@@ -168,7 +168,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
                   alt={img.altText ?? alt}
                   width={100}
                   height={100}
-                  className="h-28 w-28 rounded-lg object-cover"
+                  className="h-28 w-28 rounded-lg bg-white object-contain"
                   loading="lazy"
                   sizes="128px"
                 />

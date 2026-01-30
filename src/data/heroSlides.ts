@@ -1,14 +1,20 @@
 export const heroSlides = [
   {
-    image: "/images/first_banner.png",
-    title: "KRÄUTER STATT TABAK",
-    subtitle: "100% natürlich · ohne Nikotin",
-    cta: "Jetzt entdecken",
+    image: "/banners/equipmentbanner.png",
+    title: "BAUE DEIN SETUP.",
+    subtitle: "Premium Equipment – schnell geliefert.",
+    cta: "JETZT STARTEN",
   },
   {
-    image: "/images/second_banner.png",
-    title: "NEUE SORTEN",
-    subtitle: "Baue dir deine eigene Mischung",
-    cta: "Try now",
+    image: "/banners/lueftungsbanner.png",
+    title: "DEIN GROW. PERFEKT ABGESTIMMT.",
+    subtitle: "Premium Equipment • schnelle Lieferung • sicher bezahlen",
+    cta: "JETZT SHOPPEN",
+  },
+  {
+    image: "/banners/anzuchtbanner.png",
+    title: "ALLES FÜR DEIN INDOOR SETUP",
+    subtitle: "Von Anzucht bis Abluft – alles aus einer Hand.",
+    cta: "SORTIMENT ANSEHEN",
   },
 ];

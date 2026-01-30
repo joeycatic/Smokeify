@@ -29,8 +29,8 @@ export default function DisplayProducts({
 }: Props) {
   const gridColsClass =
     cols === 3
-      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3"
-      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
   return (
     <div className={`mt-6 grid gap-4 ${gridColsClass}`}>
@@ -39,29 +39,30 @@ export default function DisplayProducts({
         const showSize =
           showGrowboxSize && isGrowboxProduct(p) && Boolean(p.growboxSize);
         return (
-          <Link
+          <article
             key={p.id}
-            href={`/products/${p.handle}`}
-            className="block h-full w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="
+                      group flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white
+                      transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
+                  "
           >
-            <article
-              key={p.id}
-              className="
-                        group flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white
-                        transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
-                    "
-            >
               {/* Image */}
-              <div className="relative">
+              <Link
+                href={`/products/${p.handle}`}
+                className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
                 <ProductImageCarousel
                   images={getProductImages(p)}
                   alt={p.title}
-                  className="aspect-square overflow-hidden rounded-t-xl bg-stone-100"
+                  className="aspect-[9/8] overflow-hidden rounded-t-xl bg-stone-100 sm:aspect-square"
                   imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
                 {p.compareAtPrice && (
                   <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-black shadow">
-                    {formatDiscountPercentage(p.compareAtPrice, p.priceRange?.minVariantPrice)}
+                    {formatDiscountPercentage(
+                      p.compareAtPrice,
+                      p.priceRange?.minVariantPrice,
+                    )}
                   </span>
                 )}
                 {p.availableForSale && showLowStock && (
@@ -69,7 +70,7 @@ export default function DisplayProducts({
                     Geringer Bestand
                   </span>
                 )}
-              </div>
+              </Link>
 
               {/* Content */}
               <div className="flex flex-1 flex-col p-4">
@@ -84,12 +85,17 @@ export default function DisplayProducts({
                   </p>
                 )}
                 {/* Title */}
-                <h2
-                  className={`mt-1 ${titleClampClass} font-bold leading-snug`}
-                  style={{ color: "#000000ff" }}
+                <Link
+                  href={`/products/${p.handle}`}
+                  className="mt-1 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
-                  {p.title}
-                </h2>
+                  <h2
+                    className={`${titleClampClass} font-bold leading-snug`}
+                    style={{ color: "#000000ff" }}
+                  >
+                    {p.title}
+                  </h2>
+                </Link>
                 {typeof p.availableForSale === "boolean" && (
                   <p
                     className={`mt-1 text-xs font-semibold ${
@@ -119,21 +125,37 @@ export default function DisplayProducts({
                     {formatPrice(p.priceRange?.minVariantPrice)}
                   </span>
                 </div>
-                <div className="mt-auto flex items-center justify-center gap-2 pt-3">
-                  <ProductCardActions
-                    productId={p.id}
-                    variantId={p.defaultVariantId ?? null}
-                    available={p.availableForSale}
-                    itemTitle={p.title}
-                    itemImageUrl={p.featuredImage?.url}
-                    itemImageAlt={p.featuredImage?.altText ?? p.title}
-                    itemPrice={p.priceRange?.minVariantPrice}
-                    itemQuantity={1}
-                  />
+                <div className="mt-auto flex w-full items-center pt-3">
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <ProductCardActions
+                      productId={p.id}
+                      variantId={p.defaultVariantId ?? null}
+                      available={p.availableForSale}
+                      showCart={false}
+                      itemTitle={p.title}
+                      itemImageUrl={p.featuredImage?.url}
+                      itemImageAlt={p.featuredImage?.altText ?? p.title}
+                      itemPrice={p.priceRange?.minVariantPrice}
+                      itemQuantity={1}
+                    />
+                    <div className="flex flex-1 items-center justify-center">
+                      <ProductCardActions
+                        productId={p.id}
+                        variantId={p.defaultVariantId ?? null}
+                        available={p.availableForSale}
+                        showWishlist={false}
+                        itemTitle={p.title}
+                        itemImageUrl={p.featuredImage?.url}
+                        itemImageAlt={p.featuredImage?.altText ?? p.title}
+                        itemPrice={p.priceRange?.minVariantPrice}
+                        itemQuantity={1}
+                      />
+                    </div>
+                    <span aria-hidden="true" />
+                  </div>
                 </div>
               </div>
-            </article>
-          </Link>
+          </article>
         );
       })}
     </div>
@@ -241,28 +263,39 @@ export function DisplayProductsList({
                     <span>{formatPrice(p.priceRange?.minVariantPrice)}</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <ProductCardActions
-                      productId={p.id}
-                      variantId={p.defaultVariantId ?? null}
-                      available={p.availableForSale}
-                      size="lg"
-                      itemTitle={p.title}
-                      itemImageUrl={p.featuredImage?.url}
-                      itemImageAlt={p.featuredImage?.altText ?? p.title}
-                      itemPrice={p.priceRange?.minVariantPrice}
-                      itemQuantity={1}
-                    />
-                    <Link
-                      href={`/products/${p.handle}`}
-                      className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      aria-label="Zum Produkt"
-                      title="Zum Produkt"
-                    >
-                      <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-                    </Link>
-                  </div>
+                <div className="flex w-full items-center justify-start gap-3">
+                  <ProductCardActions
+                    productId={p.id}
+                    variantId={p.defaultVariantId ?? null}
+                    available={p.availableForSale}
+                    size="lg"
+                    showCart={false}
+                    itemTitle={p.title}
+                    itemImageUrl={p.featuredImage?.url}
+                    itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemPrice={p.priceRange?.minVariantPrice}
+                    itemQuantity={1}
+                  />
+                  <ProductCardActions
+                    productId={p.id}
+                    variantId={p.defaultVariantId ?? null}
+                    available={p.availableForSale}
+                    size="lg"
+                    showWishlist={false}
+                    itemTitle={p.title}
+                    itemImageUrl={p.featuredImage?.url}
+                    itemImageAlt={p.featuredImage?.altText ?? p.title}
+                    itemPrice={p.priceRange?.minVariantPrice}
+                    itemQuantity={1}
+                  />
+                  <Link
+                    href={`/products/${p.handle}`}
+                    className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    aria-label="Zum Produkt"
+                    title="Zum Produkt"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -313,7 +346,7 @@ function formatPrice(price?: { amount: string; currencyCode: string }) {
 
 function formatDiscountPercentage(
   compareAt?: { amount: string; currencyCode: string } | null,
-  price?: { amount: string; currencyCode: string } | null
+  price?: { amount: string; currencyCode: string } | null,
 ) {
   if (!compareAt || !price) return "Sale";
   const compare = Number(compareAt.amount);
