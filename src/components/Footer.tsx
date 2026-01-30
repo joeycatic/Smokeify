@@ -1,6 +1,7 @@
 // components/Footer.tsx
 import Link from "next/link";
 import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
 export default function Footer() {
   return (
@@ -176,20 +177,23 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="mt-10 border-t border-white/10 pt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/70">
             <span className="mr-1 text-xs font-semibold text-white/80">
               Zahlungsarten:
             </span>
-            {["Visa", "Mastercard", "Apple Pay", "Google Pay", "Klarna", "PayPal"].map(
-              (method) => (
-                <span
-                  key={method}
-                  className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs font-semibold text-white/80"
-                >
-                  {method}
-                </span>
-              ),
-            )}
+            <PaymentMethodLogos />
+            <span className="ml-1 mr-1 text-xs font-semibold text-white/80">
+              Versand:
+            </span>
+            <span className="inline-flex h-8 items-center rounded-full border border-white/15 bg-white/5 px-3">
+              <img
+                src="/shipping-provider-logos/dhl-logo.png"
+                alt="DHL"
+                className="h-5 w-auto object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+            </span>
           </div>
           <p className="text-xs text-white/60">
             © {new Date().getFullYear()} Smokeify — Alle Rechte vorbehalten.

@@ -22,6 +22,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -842,6 +843,11 @@ export function Navbar() {
                         >
                           Zur Kasse
                         </button>
+                        <PaymentMethodLogos
+                          className="justify-center gap-2"
+                          pillClassName="h-7 px-2 border-black/10 bg-white"
+                          logoClassName="h-4"
+                        />
                       </div>
                     </div>
                   )}
@@ -1024,6 +1030,11 @@ export function Navbar() {
                         ? "Weiterleitung..."
                         : "Zur Kasse"}
                     </button>
+                    <PaymentMethodLogos
+                      className="justify-center gap-2"
+                      pillClassName="h-7 px-2 border-black/10 bg-white"
+                      logoClassName="h-4"
+                    />
                   </div>
                 </div>
               </div>

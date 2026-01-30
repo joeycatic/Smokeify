@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useCart } from "@/components/CartProvider";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
 type Option = {
   id: string;
@@ -713,6 +714,11 @@ function SetupSidebar({
         >
           Zur Kasse
         </button>
+        <PaymentMethodLogos
+          className="justify-center gap-2"
+          pillClassName="h-7 px-2 border-black/10 bg-white"
+          logoClassName="h-4"
+        />
         {cartActionMessage && (
           <p
             className={`text-xs ${
@@ -2077,18 +2083,23 @@ export default function CustomizerPage() {
               >
                 In den Warenkorb
               </button>
-              <button
-                type="button"
-                onClick={() => handleAddToCart("checkout")}
-                className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-              >
-                Zur Kasse
-              </button>
-              {cartActionMessage && (
-                <p
-                  className={`text-xs ${
-                    cartActionStatus === "error"
-                      ? "text-red-600"
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart("checkout")}
+                  className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                >
+                  Zur Kasse
+                </button>
+                <PaymentMethodLogos
+                  className="justify-center gap-2"
+                  pillClassName="h-7 px-2 border-black/10 bg-white"
+                  logoClassName="h-4"
+                />
+                {cartActionMessage && (
+                  <p
+                    className={`text-xs ${
+                      cartActionStatus === "error"
+                        ? "text-red-600"
                       : cartActionStatus === "ok"
                         ? "text-emerald-700"
                         : "text-neutral-500"

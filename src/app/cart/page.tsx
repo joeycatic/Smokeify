@@ -13,6 +13,7 @@ import {
 } from "@/lib/checkoutPolicy";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
 const SHIPPING_BASE = {
   DE: 4.9,
@@ -532,6 +533,11 @@ export default function CartPage() {
                   ? "Weiterleitung..."
                   : "Zur Kasse"}
               </button>
+              <PaymentMethodLogos
+                className="justify-center gap-2"
+                pillClassName="h-7 px-2 border-black/10 bg-white"
+                logoClassName="h-4"
+              />
             </div>
           </div>
         </div>
