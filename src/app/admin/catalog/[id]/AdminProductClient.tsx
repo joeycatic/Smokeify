@@ -50,6 +50,7 @@ type ProductDetail = {
   technicalDetails: string | null;
   shortDescription: string | null;
   manufacturer: string | null;
+  productGroup: string | null;
   supplier: string | null;
   supplierId: string | null;
   sellerName?: string | null;
@@ -118,6 +119,7 @@ export default function AdminProductClient({
     technicalDetails: product.technicalDetails ?? "",
     shortDescription: product.shortDescription ?? "",
     manufacturer: product.manufacturer ?? "",
+    productGroup: product.productGroup ?? "",
     supplierId: resolvedSupplierId,
     sellerUrl: product.sellerUrl ?? "",
     leadTimeDays: product.leadTimeDays ?? "",
@@ -265,6 +267,7 @@ export default function AdminProductClient({
         technicalDetails: details.technicalDetails,
         shortDescription: details.shortDescription,
         manufacturer: details.manufacturer,
+        productGroup: details.productGroup,
         sellerUrl: details.sellerUrl,
         tags,
         leadTimeDays: toNumberOrNull(details.leadTimeDays),
@@ -788,6 +791,17 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, manufacturer: event.target.value }))
               }
               placeholder="e.g. AC Infinity"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Produktgruppe
+            <input
+              value={details.productGroup}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, productGroup: event.target.value }))
+              }
+              placeholder="z.B. growbox-60x60"
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
           </label>

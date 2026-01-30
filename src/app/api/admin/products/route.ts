@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     technicalDetails?: string | null;
     shortDescription?: string | null;
     manufacturer?: string | null;
+    productGroup?: string | null;
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
@@ -151,6 +152,7 @@ export async function POST(request: Request) {
       technicalDetails: sanitizeProductDescription(body.technicalDetails),
       shortDescription: sanitizePlainText(body.shortDescription),
       manufacturer: body.manufacturer?.trim() || null,
+      productGroup: sanitizePlainText(body.productGroup),
       supplier: supplierName,
       supplierId,
       sellerName: sanitizePlainText(body.sellerName),

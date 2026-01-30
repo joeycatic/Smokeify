@@ -81,6 +81,7 @@ export async function PATCH(
     technicalDetails?: string | null;
     shortDescription?: string | null;
     manufacturer?: string | null;
+    productGroup?: string | null;
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
@@ -107,6 +108,7 @@ export async function PATCH(
     technicalDetails?: string | null;
     shortDescription?: string | null;
     manufacturer?: string | null;
+    productGroup?: string | null;
     supplier?: string | null;
     supplierId?: string | null;
     sellerName?: string | null;
@@ -172,6 +174,10 @@ export async function PATCH(
 
   if (typeof body.manufacturer !== "undefined") {
     updates.manufacturer = body.manufacturer?.trim() || null;
+  }
+
+  if (typeof body.productGroup !== "undefined") {
+    updates.productGroup = sanitizePlainText(body.productGroup);
   }
 
   if (typeof body.supplierId !== "undefined") {

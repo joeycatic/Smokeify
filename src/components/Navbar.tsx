@@ -784,7 +784,7 @@ export function Navbar() {
                     <ShoppingBagIcon className="h-6 w-6" />
                     {count > 0 && (
                       <span
-                        className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] text-white ${
+                        className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-center text-[12px] font-semibold leading-none text-white ${
                           cartPop ? "badge-pop" : ""
                         }`}
                       >
@@ -854,7 +854,7 @@ export function Navbar() {
                   <HeartIcon className="h-6 w-6" />
                   {wishlistCount > 0 && (
                     <span
-                      className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] text-white ${
+                      className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-center text-[12px] font-semibold leading-none text-white ${
                         wishlistPop ? "badge-pop" : ""
                       }`}
                     >

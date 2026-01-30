@@ -106,6 +106,8 @@ export default function AdminCatalogClient({
   const [bulkLowStock, setBulkLowStock] = useState("");
   const [bulkTagAdd, setBulkTagAdd] = useState("");
   const [bulkTagRemove, setBulkTagRemove] = useState("");
+  const [bulkProductGroup, setBulkProductGroup] = useState("");
+  const [bulkProductGroupClear, setBulkProductGroupClear] = useState(false);
   const [bulkCategoryAction, setBulkCategoryAction] = useState<
     "add" | "remove"
   >("add");
@@ -474,6 +476,11 @@ export default function AdminCatalogClient({
       payload.supplierId =
         bulkSupplierId === "__clear__" ? null : bulkSupplierId;
     }
+    if (bulkProductGroupClear) {
+      payload.productGroup = null;
+    } else if (bulkProductGroup.trim()) {
+      payload.productGroup = bulkProductGroup.trim();
+    }
 
     try {
       const res = await fetch("/api/admin/products/bulk", {
@@ -603,8 +610,8 @@ export default function AdminCatalogClient({
   });
 
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
+    <div className="admin-catalog-shell space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+      <div className="admin-catalog-hero rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
@@ -612,10 +619,10 @@ export default function AdminCatalogClient({
             </p>
             <h1 className="mt-2 text-3xl font-semibold">Catalog</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
+              <span className="admin-catalog-stat rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
                 {totalCount} products
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
+              <span className="admin-catalog-stat rounded-full bg-white/10 px-3 py-1">
                 {selectedIds.length} selected
               </span>
             </div>
@@ -625,18 +632,18 @@ export default function AdminCatalogClient({
             <AdminBackButton
               inline
               showOnCatalog
-              className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
+              className="admin-catalog-back h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
             />
             <Link
               href="/admin/catalog"
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              className="admin-catalog-refresh rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
             >
               Refresh
             </Link>
           </div>
         </div>
       </div>
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
+      <section className="admin-catalog-section rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
@@ -659,7 +666,7 @@ export default function AdminCatalogClient({
         )}
         <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
+            <label className="admin-catalog-search flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
               <svg
                 viewBox="0 0 24 24"
                 className="h-4 w-4 text-stone-400"
@@ -692,15 +699,15 @@ export default function AdminCatalogClient({
                 setCreateOpen(true);
               }}
               disabled={saving}
-              className="h-11 rounded-md bg-[#2f3e36] px-6 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
+              className="admin-catalog-create h-11 rounded-md bg-[#2f3e36] px-6 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
             >
               {saving ? "Saving..." : "Create product"}
             </button>
           </div>
         </div>
-        <div className="mt-6 max-h-[420px] overflow-x-auto overflow-y-auto rounded-2xl border border-black/10 bg-white px-4 pb-2">
+        <div className="admin-catalog-table mt-6 max-h-[420px] overflow-x-auto overflow-y-auto rounded-2xl border border-black/10 bg-white px-4 pb-2">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-20 bg-white text-sm uppercase tracking-[0.2em] text-emerald-700/70 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
+            <thead className="admin-catalog-table-head sticky top-0 z-20 bg-white text-sm uppercase tracking-[0.2em] text-emerald-700/70 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
               <tr>
                 <th className="bg-white py-4 pl-4">
                   <input
@@ -789,7 +796,7 @@ export default function AdminCatalogClient({
               {visibleProducts.map((product) => (
                 <tr
                   key={product.id}
-                  className={`border-t border-black/10 ${
+                  className={`admin-catalog-row border-t border-black/10 ${
                     product.outOfStock
                       ? "bg-red-50/70 hover:bg-red-50"
                       : "hover:bg-emerald-50/60"
@@ -1073,6 +1080,29 @@ export default function AdminCatalogClient({
                       </option>
                     ))}
                   </select>
+                </label>
+                <label className="block text-xs font-semibold text-stone-600">
+                  Produktgruppe
+                  <input
+                    value={bulkProductGroup}
+                    onChange={(event) => setBulkProductGroup(event.target.value)}
+                    placeholder="No change"
+                    className="mt-1 h-10 w-full rounded-md border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800"
+                    disabled={bulkProductGroupClear}
+                  />
+                  <label className="mt-2 inline-flex items-center gap-2 text-[11px] font-semibold text-stone-500">
+                    <input
+                      type="checkbox"
+                      checked={bulkProductGroupClear}
+                      onChange={(event) => {
+                        setBulkProductGroupClear(event.target.checked);
+                        if (event.target.checked) {
+                          setBulkProductGroup("");
+                        }
+                      }}
+                    />
+                    Produktgruppe löschen
+                  </label>
                 </label>
               </div>
               <div className="space-y-2">

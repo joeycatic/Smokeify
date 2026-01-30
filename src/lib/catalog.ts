@@ -20,6 +20,7 @@ const mapProduct = (product: {
   description: string | null;
   shortDescription: string | null;
   manufacturer: string | null;
+  growboxSize: string | null;
   tags: string[];
   variants: Array<{
     id: string;
@@ -217,6 +218,8 @@ export async function getProductByHandle(handle: string) {
     technicalDetails: product.technicalDetails ?? null,
     shortDescription: product.shortDescription ?? null,
     manufacturer: product.manufacturer,
+    growboxSize: product.growboxSize ?? null,
+    productGroup: product.productGroup ?? null,
     images,
     variants,
     options,

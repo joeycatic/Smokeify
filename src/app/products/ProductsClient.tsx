@@ -342,7 +342,7 @@ export default function ProductsClient({ initialProducts }: Props) {
         </div>
       </div>
       {activeChips.length > 0 && (
-        <div className="mb-8 flex flex-wrap items-center gap-2">
+        <div className="mt-6 mb-8 flex flex-wrap items-center gap-2">
           {activeChips.map((chip) => (
             <button
               key={chip.key}

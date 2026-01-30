@@ -1,6 +1,7 @@
 // src/app/products/[handle]/page.tsx
 import { notFound } from "next/navigation";
 import { getProductByHandle } from "@/lib/catalog";
+import { prisma } from "@/lib/prisma";
 import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import ProductReviews from "./ProductReviews";
@@ -15,6 +16,14 @@ export default async function ProductDetailPage({
   const { handle } = await params;
   const product = await getProductByHandle(handle);
   if (!product) return notFound();
+  const groupProducts =
+    product.productGroup
+      ? await prisma.product.findMany({
+          where: { productGroup: product.productGroup, status: "ACTIVE" },
+          select: { id: true, title: true, handle: true, growboxSize: true },
+          orderBy: { title: "asc" },
+        })
+      : [];
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
@@ -43,7 +52,10 @@ export default async function ProductDetailPage({
               technicalDetailsHtml: product.technicalDetails ?? "",
               shortDescription: product.shortDescription ?? null,
               manufacturer: product.manufacturer ?? null,
+              growboxSize: product.growboxSize ?? null,
             }}
+            productGroupItems={groupProducts}
+            currentHandle={product.handle}
             variants={product.variants}
             imageUrl={primaryImage?.url ?? null}
             imageAlt={primaryImage?.altText ?? product.title}

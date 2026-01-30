@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { sanitizePlainText } from "@/lib/sanitizeHtml";
 
 type BulkPayload = {
   productIds?: string[];
   status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  productGroup?: string | null;
   priceAdjust?: {
     type: "percent" | "fixed";
     direction: "increase" | "decrease";
@@ -45,6 +47,19 @@ export async function POST(request: Request) {
       prisma.product.updateMany({
         where: { id: { in: productIds } },
         data: { status: body.status },
+      })
+    );
+  }
+
+  if (typeof body.productGroup !== "undefined") {
+    const nextGroup =
+      body.productGroup === null
+        ? null
+        : sanitizePlainText(body.productGroup);
+    operations.push(
+      prisma.product.updateMany({
+        where: { id: { in: productIds } },
+        data: { productGroup: nextGroup },
       })
     );
   }

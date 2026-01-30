@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CubeIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
 
@@ -18,6 +19,8 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function ProductDetailClient({
   product,
+  productGroupItems,
+  currentHandle,
   variants,
   imageUrl,
   imageAlt,
@@ -29,11 +32,20 @@ export default function ProductDetailClient({
     technicalDetailsHtml?: string;
     shortDescription?: string | null;
     manufacturer?: string | null;
+    growboxSize?: string | null;
   };
+  productGroupItems?: Array<{
+    id: string;
+    title: string;
+    handle: string;
+    growboxSize?: string | null;
+  }>;
+  currentHandle: string;
   variants: ProductVariant[];
   imageUrl?: string | null;
   imageAlt?: string | null;
 }) {
+  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [qtyPulse, setQtyPulse] = useState<"inc" | "dec" | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -44,6 +56,27 @@ export default function ProductDetailClient({
     "idle" | "loading" | "ok" | "error"
   >("idle");
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+  const [selectedGroupHandle, setSelectedGroupHandle] = useState(currentHandle);
+
+  useEffect(() => {
+    setSelectedGroupHandle(currentHandle);
+  }, [currentHandle]);
+
+  const groupOptions = useMemo(() => {
+    const items = productGroupItems ?? [];
+    const hasCurrent = items.some((item) => item.handle === currentHandle);
+    return hasCurrent
+      ? items
+      : [
+          {
+            id: product.id,
+            title: product.title,
+            handle: currentHandle,
+            growboxSize: product.growboxSize ?? null,
+          },
+          ...items,
+        ];
+  }, [currentHandle, product.id, product.title, productGroupItems]);
 
   const selectedVariant = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
@@ -114,6 +147,29 @@ export default function ProductDetailClient({
           </div>
         )}
       </div>
+
+      {groupOptions.length > 1 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Auswahl</p>
+          <select
+            value={selectedGroupHandle}
+            onChange={(e) => {
+              const nextHandle = e.target.value;
+              setSelectedGroupHandle(nextHandle);
+              if (nextHandle !== currentHandle) {
+                router.push(`/products/${nextHandle}`);
+              }
+            }}
+            className="h-11 w-full rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          >
+            {groupOptions.map((item) => (
+              <option key={item.id} value={item.handle}>
+                {item.growboxSize || item.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {variants.length > 1 && (
         <div className="space-y-2">

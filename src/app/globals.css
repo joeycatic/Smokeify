@@ -272,8 +272,8 @@ body {
 }
 
 .admin-theme.admin-dark {
-  background: #0f1412;
-  color: #e6ece6;
+  background: transparent;
+  color: inherit;
 }
 
 .admin-theme.admin-dark .bg-white {
@@ -377,6 +377,125 @@ body {
 
 .admin-theme.admin-dark .admin-theme-toggle-knob {
   background-color: #9fe3c1;
+}
+
+.admin-theme.admin-dark .admin-catalog-shell {
+  background: radial-gradient(
+      120% 140% at 70% 20%,
+      rgba(88, 123, 96, 0.45) 0%,
+      rgba(28, 44, 36, 0.2) 45%,
+      rgba(12, 18, 15, 0.92) 100%
+    ),
+    #0b120f;
+  border: 1px solid rgba(146, 184, 152, 0.25);
+  box-shadow: 0 30px 80px rgba(5, 10, 8, 0.55);
+}
+
+.admin-theme.admin-dark .admin-catalog-hero {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 30, 25, 0.9) 0%,
+    rgba(24, 42, 33, 0.9) 50%,
+    rgba(18, 28, 24, 0.9) 100%
+  );
+  border: 1px solid rgba(130, 170, 140, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 18px 40px rgba(4, 10, 7, 0.45);
+}
+
+.admin-theme.admin-dark .admin-catalog-stat {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(190, 226, 200, 0.18);
+  color: #e6f2ea;
+}
+
+.admin-theme.admin-dark .admin-catalog-section {
+  background-color: rgba(14, 20, 17, 0.7);
+  border-color: rgba(128, 170, 138, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 20px 45px rgba(4, 10, 7, 0.45);
+}
+
+.admin-theme.admin-dark .admin-catalog-search {
+  background-color: rgba(12, 18, 15, 0.8);
+  border-color: rgba(140, 180, 150, 0.25);
+  color: #dbe8de;
+}
+
+.admin-theme.admin-dark .admin-catalog-search svg {
+  color: rgba(214, 234, 223, 0.7);
+}
+
+.admin-theme.admin-dark .admin-catalog-search input {
+  color: #e6f2ea;
+}
+
+.admin-theme.admin-dark .admin-catalog-create {
+  background-color: rgba(33, 58, 45, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(200, 230, 210, 0.2);
+}
+
+.admin-theme.admin-dark .admin-catalog-create:hover {
+  background-color: rgba(38, 66, 51, 0.95);
+}
+
+.admin-theme.admin-dark .admin-catalog-refresh {
+  background-color: rgba(18, 28, 24, 0.9);
+  color: #dbe8de;
+  border: 1px solid rgba(140, 180, 150, 0.25);
+}
+
+.admin-theme.admin-dark .admin-catalog-refresh:hover {
+  background-color: rgba(26, 40, 32, 0.95);
+}
+
+.admin-theme.admin-dark .admin-catalog-back {
+  background-color: rgba(18, 28, 24, 0.9);
+  color: #dbe8de;
+  border: 1px solid rgba(140, 180, 150, 0.25);
+}
+
+.admin-theme.admin-dark .admin-catalog-back:hover {
+  background-color: rgba(26, 40, 32, 0.95);
+}
+
+.admin-theme.admin-dark .admin-catalog-table {
+  background-color: rgba(12, 18, 15, 0.8);
+  border-color: rgba(128, 170, 138, 0.2);
+}
+
+.admin-theme.admin-dark .admin-catalog-table-head {
+  background-color: rgba(12, 18, 15, 0.95);
+  color: rgba(201, 221, 208, 0.7);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.admin-theme.admin-dark .admin-catalog-table-head .text-amber-600 {
+  color: #f5d37a;
+}
+
+.admin-theme.admin-dark .admin-catalog-row {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-theme.admin-dark .admin-catalog-row:hover {
+  background-color: rgba(30, 48, 39, 0.6);
+}
+
+.admin-theme.admin-dark .admin-catalog-row.bg-red-50\/70 {
+  background-color: rgba(60, 20, 20, 0.35);
+}
+
+.admin-theme.admin-dark .admin-catalog-row.bg-red-50\/70:hover {
+  background-color: rgba(70, 24, 24, 0.5);
+}
+
+.admin-theme.admin-dark .admin-catalog-section .text-black {
+  color: #e6f2ea;
+}
+
+.admin-theme.admin-dark .admin-catalog-section .text-emerald-700 {
+  color: #b6d6c0;
 }
 
 button:focus-visible,
