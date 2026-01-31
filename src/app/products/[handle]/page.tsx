@@ -6,6 +6,7 @@ import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import ProductReviews from "./ProductReviews";
 import PageLayout from "@/components/PageLayout";
+import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 export default async function ProductDetailPage({
   params,
@@ -40,6 +41,29 @@ export default async function ProductDetailPage({
                   </span>
                 )}
               </div>
+              {product.description && (
+                <div className="hidden rounded-2xl border border-black/10 bg-white/85 shadow-sm sm:block">
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                        <InformationCircleIcon className="h-5 w-5 text-black/60" />
+                        Produktbeschreibung
+                      </span>
+                      <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
+                    </summary>
+                    <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
+                      <div className="overflow-hidden px-5 pb-5">
+                        <div
+                          className="product-description product-description-compact text-xxs leading-6 text-black/60"
+                          dangerouslySetInnerHTML={{
+                            __html: product.description,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
 
             </div>
 

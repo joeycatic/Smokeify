@@ -2,8 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { pathToFileURL } from "url";
 
 const prisma = new PrismaClient();
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_DAILY_RUNS = 1;
+const RUN_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const MAX_DAILY_RUNS = 2;
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 const TELEGRAM_MESSAGE_LIMIT = 3500;
 
@@ -102,8 +102,15 @@ const shouldSkipRun = async (isDryRun) => {
     select: { createdAt: true },
   });
   if (!last?.createdAt) return false;
-  const age = Date.now() - last.createdAt.getTime();
-  return age < ONE_DAY_MS;
+  const lastTime = last.createdAt.getTime();
+  const age = Date.now() - lastTime;
+  if (age < RUN_INTERVAL_MS) {
+    console.log(
+      `Last run: ${last.createdAt.toISOString()} (skipping, <12h)`
+    );
+    return true;
+  }
+  return false;
 };
 
 const fetchHtml = async (url) => {
@@ -185,7 +192,7 @@ const updateProductStock = async (product, quantity, isDryRun) => {
 
 export const runSupplierSync = async ({ isDryRun = false } = {}) => {
   if (await shouldSkipRun(isDryRun)) {
-    console.log("Skipping supplier sync: already ran within 24h.");
+    console.log("Skipping supplier sync: already ran within 12h.");
     return;
   }
 

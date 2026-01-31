@@ -572,7 +572,7 @@ export default function ProductDetailClient({
           ))}
         </div>
         {product.descriptionHtml ? (
-          <div className="rounded-2xl border border-black/10 bg-white shadow-sm">
+          <div className="rounded-2xl border border-black/10 bg-white shadow-sm sm:hidden">
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
