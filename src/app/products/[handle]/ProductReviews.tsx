@@ -87,11 +87,13 @@ export default function ProductReviews({ productId }: { productId: string }) {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setReviewError(data.error ?? "Bewertung konnte nicht gespeichert werden.");
+        setReviewError(
+          data.error ?? "Bewertung konnte nicht gespeichert werden.",
+        );
         return;
       }
       setReviewNotice(
-        userReview ? "Bewertung aktualisiert." : "Bewertung gespeichert."
+        userReview ? "Bewertung aktualisiert." : "Bewertung gespeichert.",
       );
       await loadReviews();
     } catch {
@@ -114,7 +116,8 @@ export default function ProductReviews({ productId }: { productId: string }) {
           <div className="mt-2 flex items-center gap-2 text-sm text-black/60">
             <RatingStars rating={reviewSummary.average} />
             <span>
-              {reviewSummary.count} Bewertungen · {reviewSummary.average.toFixed(1)}
+              {reviewSummary.count} Bewertungen ·{" "}
+              {reviewSummary.average.toFixed(1)}
             </span>
           </div>
         </div>
@@ -157,11 +160,11 @@ export default function ProductReviews({ productId }: { productId: string }) {
                 </span>
               </div>
               {review.title && (
-                <p className="mt-2 font-semibold text-black">
-                  {review.title}
-                </p>
+                <p className="mt-2 font-semibold text-black">{review.title}</p>
               )}
-              {review.body && <p className="mt-1 text-black/70">{review.body}</p>}
+              {review.body && (
+                <p className="mt-1 text-black/70">{review.body}</p>
+              )}
             </div>
           ))
         )}
@@ -181,7 +184,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
           </p>
         ) : !canReview ? (
           <p className="mt-3 text-sm text-black/60">
-            Bewertungen sind nur nach einem Kauf moeglich.
+            Bewertungen sind nur nach einem Kauf möglich.
           </p>
         ) : (
           <div className="mt-4 grid gap-3">

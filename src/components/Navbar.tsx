@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Bars3Icon,
   BeakerIcon,
@@ -11,6 +12,7 @@ import {
   FireIcon,
   FunnelIcon,
   HeartIcon,
+  MagnifyingGlassIcon,
   ShoppingBagIcon,
   SparklesIcon,
   SunIcon,
@@ -73,6 +75,8 @@ export function Navbar() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
+  const showCategoryBar = pathname === "/" || pathname?.startsWith("/products");
+  const showMobileSearch = showCategoryBar;
   const [accountOpen, setAccountOpen] = useState(false);
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
     "idle",
@@ -94,6 +98,21 @@ export function Navbar() {
   );
   const [mobileAddedOpen, setMobileAddedOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<
+    Array<{
+      id: string;
+      title: string;
+      handle: string;
+      imageUrl: string | null;
+      imageAlt: string | null;
+      price: { amount: string; currencyCode: string } | null;
+    }>
+  >([]);
+  const [searchStatus, setSearchStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
   const [categoryQuery, setCategoryQuery] = useState("");
   const [categoryStack, setCategoryStack] = useState<string[]>([]);
   const [categories, setCategories] = useState<
@@ -111,6 +130,14 @@ export function Navbar() {
   >("idle");
   const productsRef = useRef<HTMLDivElement | null>(null);
   const mobileProductsRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+  const mobileSearchRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const productsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const productsPopupRef = useRef<HTMLDivElement | null>(null);
+  const searchPopupRef = useRef<HTMLDivElement | null>(null);
+  const accountPopupRef = useRef<HTMLDivElement | null>(null);
+  const menuPopupRef = useRef<HTMLDivElement | null>(null);
 
   const count = loading ? 0 : (cart?.totalQuantity ?? 0);
   const wishlistCount = ids.length;
@@ -162,6 +189,13 @@ export function Navbar() {
 
   useEffect(() => {
     const handleOutsideInteraction = (event: MouseEvent | FocusEvent) => {
+      if (
+        accountOpen &&
+        accountPopupRef.current &&
+        accountPopupRef.current.contains(event.target as Node)
+      ) {
+        return;
+      }
       if (!accountRef.current) return;
       if (!accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
@@ -176,13 +210,24 @@ export function Navbar() {
       if (
         productsOpen &&
         !productsRef.current?.contains(event.target as Node) &&
-        !mobileProductsRef.current?.contains(event.target as Node)
+        !mobileProductsRef.current?.contains(event.target as Node) &&
+        !productsPopupRef.current?.contains(event.target as Node)
       ) {
         setProductsOpen(false);
         setCategoryStack([]);
         setCategoryQuery("");
       }
+      const clickInsideSearch =
+        searchRef.current?.contains(target) ||
+        mobileSearchRef.current?.contains(target) ||
+        (searchPopupRef.current?.contains(target) ?? false);
+      if (searchOpen && !clickInsideSearch) {
+        setSearchOpen(false);
+      }
       const menuTarget = event.target as Node;
+      if (menuOpen && menuPopupRef.current?.contains(menuTarget)) {
+        return;
+      }
       const menuRoot = document.getElementById("mobile-nav-menu");
       if (menuOpen && menuRoot && !menuRoot.contains(menuTarget)) {
         setMenuOpen(false);
@@ -194,7 +239,7 @@ export function Navbar() {
       document.removeEventListener("mousedown", handleOutsideInteraction);
       document.removeEventListener("focusin", handleOutsideInteraction);
     };
-  }, [accountOpen, cartOpen, menuOpen, productsOpen]);
+  }, [accountOpen, cartOpen, menuOpen, productsOpen, searchOpen]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -236,6 +281,164 @@ export function Navbar() {
       ignore = true;
     };
   }, []);
+
+  const canPortal = typeof document !== "undefined";
+  const [productsPopupStyle, setProductsPopupStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [searchPopupStyle, setSearchPopupStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [accountPopupStyle, setAccountPopupStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [menuPopupStyle, setMenuPopupStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!productsOpen || !productsTriggerRef.current) return;
+    const update = () => {
+      const rect = productsTriggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setProductsPopupStyle({
+        top: rect.bottom + 12,
+        left: rect.left,
+        width: 360,
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [productsOpen]);
+
+  useEffect(() => {
+    const activeSearchRef = isMobile
+      ? (mobileSearchRef.current ?? searchRef.current)
+      : searchRef.current;
+    if (!searchOpen || !activeSearchRef) return;
+    const update = () => {
+      const rect = activeSearchRef?.getBoundingClientRect();
+      if (!rect) return;
+      const viewportPadding = 12;
+      const viewportWidth = window.innerWidth;
+      const width = Math.min(rect.width, viewportWidth - viewportPadding * 2);
+      const left = Math.min(
+        Math.max(rect.left, viewportPadding),
+        viewportWidth - viewportPadding - width,
+      );
+      setSearchPopupStyle({
+        top: rect.bottom + 12,
+        left,
+        width,
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [isMobile, searchOpen]);
+
+  useEffect(() => {
+    if (!accountOpen || !accountRef.current) return;
+    const update = () => {
+      const rect = accountRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(320, Math.max(280, rect.width));
+      setAccountPopupStyle({
+        top: rect.bottom + 12,
+        left: rect.right - width,
+        width,
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [accountOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || !menuTriggerRef.current) return;
+    const update = () => {
+      const rect = menuTriggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setMenuPopupStyle({
+        top: rect.bottom,
+        left: rect.left,
+        width: 240,
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [menuOpen]);
+
+  const mainCategories = useMemo(() => {
+    const roots = categories.filter((category) => !category.parentId);
+    return [...roots].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchStatus("idle");
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearchStatus("loading");
+      try {
+        const res = await fetch(
+          `/api/search?q=${encodeURIComponent(trimmed)}`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) throw new Error("Search failed");
+        const data = (await res.json()) as {
+          results?: Array<{
+            id: string;
+            title: string;
+            handle: string;
+            imageUrl: string | null;
+            imageAlt: string | null;
+            price: { amount: string; currencyCode: string } | null;
+          }>;
+        };
+        setSearchResults(data.results ?? []);
+        setSearchStatus("idle");
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setSearchResults([]);
+        setSearchStatus("error");
+      }
+    }, 250);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     setProductsOpen(false);
@@ -541,9 +744,9 @@ export function Navbar() {
   );
   return (
     <>
-      <nav className="fixed top-10 left-0 z-40 w-full border-b border-black/10 bg-stone-100">
+      <nav className="fixed top-10 left-0 z-40 w-full border-b border-black/10 bg-stone-100 isolate">
         <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-6xl">
-          <div className="py-6 sm:py-5">
+          <div className="py-2 sm:py-2">
             <div className="relative flex items-center justify-center sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
               {/* LEFT (spacer) */}
               <div className="absolute left-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0">
@@ -551,6 +754,7 @@ export function Navbar() {
                   <button
                     type="button"
                     onClick={() => setMenuOpen((prev) => !prev)}
+                    ref={menuTriggerRef}
                     className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-700 shadow-sm hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
@@ -558,38 +762,47 @@ export function Navbar() {
                   >
                     <Bars3Icon className="h-5 w-5" />
                   </button>
-                  <div
-                    className={`absolute left-0 top-full z-30 mt-3 w-52 rounded-xl border border-black/10 bg-white p-2 text-sm shadow-xl transition duration-150 ease-out ${
-                      menuOpen
-                        ? "pointer-events-auto scale-100 opacity-100"
-                        : "pointer-events-none scale-95 opacity-0"
-                    }`}
-                    aria-hidden={!menuOpen}
-                  >
-                    <Link
-                      href="/products"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setMenuOpen(false);
-                        setProductsOpen(true);
-                      }}
-                      className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Produkte
-                    </Link>
-                    <Link
-                      href="/customizer"
-                      onClick={() => setMenuOpen(false)}
-                      className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Customizer
-                    </Link>
-                  </div>
                 </div>
+                {menuOpen &&
+                  canPortal &&
+                  menuPopupStyle &&
+                  createPortal(
+                    <div
+                      ref={menuPopupRef}
+                      className="fixed z-[1300] mt-3 w-60 rounded-xl border border-black/10 bg-white p-3 text-sm shadow-xl"
+                      style={{
+                        top: menuPopupStyle.top,
+                        left: menuPopupStyle.left,
+                        width: menuPopupStyle.width,
+                      }}
+                      aria-hidden={!menuOpen}
+                    >
+                      <Link
+                        href="/products"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setMenuOpen(false);
+                          setProductsOpen(true);
+                        }}
+                        className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Webshop
+                      </Link>
+                      <Link
+                        href="/customizer"
+                        onClick={() => setMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Zelt-Konfigurator
+                      </Link>
+                    </div>,
+                    document.body,
+                  )}
                 <div className="hidden items-center gap-5 text-xs font-semibold text-stone-800 sm:flex sm:gap-8 sm:text-base">
                   {mounted ? (
                     <div className="relative" ref={productsRef}>
                       <button
+                        ref={productsTriggerRef}
                         type="button"
                         onClick={() =>
                           setProductsOpen((prev) => {
@@ -604,131 +817,144 @@ export function Navbar() {
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
                       >
-                        Produkte
+                        Webshop
                       </button>
-                      <div
-                        className={`absolute left-0 top-full z-30 mt-3 w-[360px] rounded-2xl border border-emerald-200/70 bg-stone-100 p-3 text-sm shadow-xl shadow-emerald-900/10 transition duration-150 ease-out ${
-                          productsOpen
-                            ? "pointer-events-auto scale-100 opacity-100"
-                            : "pointer-events-none scale-95 opacity-0"
-                        }`}
-                        aria-hidden={!productsOpen}
-                      >
-                        <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
-                          <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
-                            {categoryStack.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCategoryStack((prev) => prev.slice(0, -1))
-                                }
-                                className="cursor-pointer rounded-full border border-emerald-200 px-3 py-1 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                              >
-                                ← Zurück
-                              </button>
-                            ) : (
-                              <span className="ml-4 mt-1 text-lg font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                                Kategorien
-                              </span>
-                            )}
-                            <Link
-                              href="/products"
-                              onClick={() => {
-                                setProductsOpen(false);
-                                setCategoryStack([]);
-                              }}
-                              className="cursor-pointer rounded-full border border-emerald-200 bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-950 shadow-sm hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                            >
-                              Alle Produkte
-                            </Link>
-                          </div>
-                          <div className="mt-2 space-y-2">
-                            {categoriesStatus === "loading" && (
-                              <div className="px-2 py-2 text-xs text-stone-500">
-                                Laedt Kategorien...
-                              </div>
-                            )}
-                            {categoriesStatus === "error" && (
-                              <div className="px-2 py-2 text-xs text-red-600">
-                                Kategorien konnten nicht geladen werden.
-                              </div>
-                            )}
-                            {categoriesStatus === "idle" &&
-                              activeCategories.length === 0 && (
-                                <div className="px-2 py-2 text-xs text-stone-500">
-                                  Keine Kategorien gefunden.
-                                </div>
-                              )}
-                            {categoriesStatus === "idle" &&
-                              activeParentCategory && (
-                                <button
-                                  type="button"
+                      {productsOpen &&
+                        !isMobile &&
+                        canPortal &&
+                        productsPopupStyle &&
+                        createPortal(
+                          <div
+                            ref={productsPopupRef}
+                            className="fixed z-[999] mt-3 w-[360px] rounded-2xl border border-emerald-200 bg-white p-3 text-sm text-emerald-950 shadow-xl shadow-emerald-900/15"
+                            style={{
+                              top: productsPopupStyle.top,
+                              left: productsPopupStyle.left,
+                              width: productsPopupStyle.width,
+                            }}
+                          >
+                            <div className="rounded-2xl border border-emerald-100 bg-white px-3 py-3 shadow-sm">
+                              <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                                {categoryStack.length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setCategoryStack((prev) =>
+                                        prev.slice(0, -1),
+                                      )
+                                    }
+                                    className="cursor-pointer rounded-full border border-emerald-200 px-3 py-1 text-sm font-semibold text-emerald-800 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                  >
+                                    ← Zurück
+                                  </button>
+                                ) : (
+                                  <span className="ml-4 mt-1 text-lg font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                                    Kategorien
+                                  </span>
+                                )}
+                                <Link
+                                  href="/products"
                                   onClick={() => {
-                                    router.push(
-                                      `/products?category=${encodeURIComponent(
-                                        activeParentCategory.handle,
-                                      )}`,
-                                    );
                                     setProductsOpen(false);
                                     setCategoryStack([]);
                                   }}
-                                  className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                  className="cursor-pointer rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-900 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                                 >
-                                  <span>Alle {activeParentCategory.name}</span>
-                                  <span className="text-sm text-emerald-600">
-                                    →
-                                  </span>
-                                </button>
-                              )}
-                            {categoriesStatus === "idle" &&
-                              activeCategories.map((category) => {
-                                const CategoryIcon = getCategoryIcon(
-                                  category.name,
-                                );
-                                const childCount =
-                                  categoriesByParent.get(String(category.id))
-                                    ?.length ?? 0;
-                                const isLeaf = childCount === 0;
-                                return (
-                                  <button
-                                    key={category.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (isLeaf) {
+                                  Alle Produkte
+                                </Link>
+                              </div>
+                              <div className="mt-2 space-y-2">
+                                {categoriesStatus === "loading" && (
+                                  <div className="px-2 py-2 text-xs text-stone-500">
+                                    Laedt Kategorien...
+                                  </div>
+                                )}
+                                {categoriesStatus === "error" && (
+                                  <div className="px-2 py-2 text-xs text-rose-300">
+                                    Kategorien konnten nicht geladen werden.
+                                  </div>
+                                )}
+                                {categoriesStatus === "idle" &&
+                                  activeCategories.length === 0 && (
+                                    <div className="px-2 py-2 text-xs text-stone-500">
+                                      Keine Kategorien gefunden.
+                                    </div>
+                                  )}
+                                {categoriesStatus === "idle" &&
+                                  activeParentCategory && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
                                         router.push(
                                           `/products?category=${encodeURIComponent(
-                                            category.handle,
+                                            activeParentCategory.handle,
                                           )}`,
                                         );
                                         setProductsOpen(false);
                                         setCategoryStack([]);
-                                        return;
-                                      }
-                                      setCategoryStack((prev) => [
-                                        ...prev,
-                                        category.id,
-                                      ]);
-                                    }}
-                                    className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800">
-                                        <CategoryIcon className="h-4 w-4" />
+                                      }}
+                                      className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                    >
+                                      <span>
+                                        Alle {activeParentCategory.name}
                                       </span>
-                                      <span>{category.name}</span>
-                                    </span>
-                                    <span className="flex items-center gap-2 text-sm text-emerald-600">
-                                      <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                                        {category.totalItemCount}
+                                      <span className="text-sm text-emerald-600">
+                                        →
                                       </span>
-                                      {!isLeaf && <span>›</span>}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      </div>
+                                    </button>
+                                  )}
+                                {categoriesStatus === "idle" &&
+                                  activeCategories.map((category) => {
+                                    const CategoryIcon = getCategoryIcon(
+                                      category.name,
+                                    );
+                                    const childCount =
+                                      categoriesByParent.get(
+                                        String(category.id),
+                                      )?.length ?? 0;
+                                    const isLeaf = childCount === 0;
+                                    return (
+                                      <button
+                                        key={category.id}
+                                        type="button"
+                                        onClick={() => {
+                                          if (isLeaf) {
+                                            router.push(
+                                              `/products?category=${encodeURIComponent(
+                                                category.handle,
+                                              )}`,
+                                            );
+                                            setProductsOpen(false);
+                                            setCategoryStack([]);
+                                            return;
+                                          }
+                                          setCategoryStack((prev) => [
+                                            ...prev,
+                                            category.id,
+                                          ]);
+                                        }}
+                                        className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                      >
+                                        <span className="flex items-center gap-2">
+                                          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                            <CategoryIcon className="h-4 w-4" />
+                                          </span>
+                                          <span>{category.name}</span>
+                                        </span>
+                                        <span className="flex items-center gap-2 text-sm text-emerald-600">
+                                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                                            {category.totalItemCount}
+                                          </span>
+                                          {!isLeaf && <span>›</span>}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </div>,
+                          document.body,
+                        )}
                     </div>
                   ) : (
                     <Link
@@ -748,8 +974,8 @@ export function Navbar() {
               </div>
 
               {/* CENTER */}
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:col-start-2 sm:flex-nowrap sm:gap-6">
-                <div className="relative flex items-center gap-2 sm:gap-6">
+              <div className="flex flex-wrap items-center justify-center gap-3 sm:col-start-2 sm:flex-nowrap sm:gap-6">
+                <div className="relative flex items-center gap-3 sm:gap-6">
                   <Link href="/" className="flex items-center">
                     <img
                       src="/images/smokeify2.png"
@@ -766,7 +992,123 @@ export function Navbar() {
               </div>
 
               {/* RIGHT */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 text-stone-800 sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-6">
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0 text-stone-800 sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-2">
+                <div
+                  ref={searchRef}
+                  className="relative z-[60] hidden w-[240px] md:block lg:w-[300px] lg:-translate-x-2"
+                >
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        if (!searchOpen) setSearchOpen(true);
+                      }}
+                      onFocus={() => setSearchOpen(true)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setSearchOpen(false);
+                          return;
+                        }
+                        if (event.key === "Enter" && searchResults[0]) {
+                          router.push(`/products/${searchResults[0].handle}`);
+                          setSearchOpen(false);
+                        }
+                      }}
+                      placeholder="Produkte suchen..."
+                      className="h-10 w-full rounded-full border border-black/10 bg-white pl-9 pr-4 text-sm text-stone-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-600/20"
+                    />
+                  </div>
+                  {searchOpen &&
+                    canPortal &&
+                    searchPopupStyle &&
+                    (searchStatus === "loading" ||
+                      searchStatus === "error" ||
+                      searchQuery.trim().length > 0) &&
+                    createPortal(
+                      <div
+                        ref={searchPopupRef}
+                        className="fixed z-[990] mt-0 rounded-2xl border border-emerald-200/70 bg-white p-3 text-sm shadow-xl shadow-emerald-900/10"
+                        style={{
+                          top: searchPopupStyle.top,
+                          left: searchPopupStyle.left,
+                          width: searchPopupStyle.width,
+                        }}
+                        aria-hidden={!searchOpen}
+                      >
+                        {searchStatus === "loading" && (
+                          <div className="px-2 py-2 text-xs text-stone-500">
+                            Suche...
+                          </div>
+                        )}
+                        {searchStatus === "error" && (
+                          <div className="px-2 py-2 text-xs text-red-600">
+                            Suche fehlgeschlagen.
+                          </div>
+                        )}
+                        {searchStatus === "idle" &&
+                          searchQuery.trim().length > 0 &&
+                          searchResults.length === 0 && (
+                            <div className="px-2 py-2 text-xs text-stone-500">
+                              Keine Produkte gefunden.
+                            </div>
+                          )}
+                        {searchResults.length > 0 && (
+                          <div className="space-y-2">
+                            {searchResults.slice(0, 6).map((item) => (
+                              <Link
+                                key={item.id}
+                                href={`/products/${item.handle}`}
+                                onClick={() => setSearchOpen(false)}
+                                className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-sm text-stone-800 hover:border-emerald-200 hover:bg-emerald-50/60"
+                              >
+                                {item.imageUrl ? (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.imageAlt ?? item.title}
+                                    className="h-10 w-10 rounded-lg object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={40}
+                                    height={40}
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-lg bg-stone-100" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold">
+                                    {item.title}
+                                  </p>
+                                  {item.price && (
+                                    <p className="text-xs text-stone-500">
+                                      {formatPrice(
+                                        item.price.amount,
+                                        item.price.currencyCode,
+                                      )}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="text-xs text-emerald-700">
+                                  →
+                                </span>
+                              </Link>
+                            ))}
+                            <Link
+                              href="/products"
+                              onClick={() => setSearchOpen(false)}
+                              className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-900"
+                            >
+                              Alle Produkte anzeigen
+                              <span>→</span>
+                            </Link>
+                          </div>
+                        )}
+                      </div>,
+                      document.body,
+                    )}
+                </div>
                 <div className="relative" ref={cartRef}>
                   <button
                     type="button"
@@ -879,21 +1221,93 @@ export function Navbar() {
                   >
                     <UserCircleIcon className="h-6 w-6" />
                   </button>
-                  <div
-                    className={`absolute right-0 top-full z-50 mt-3 w-[90vw] max-w-xs origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl transition duration-150 ease-out sm:w-80 sm:max-w-none ${
-                      accountOpen
-                        ? "pointer-events-auto scale-100 opacity-100"
-                        : "pointer-events-none scale-95 opacity-0"
-                    }`}
-                    aria-hidden={!accountOpen}
-                  >
-                    {accountPanelContent}
-                  </div>
+                  {accountOpen &&
+                    canPortal &&
+                    accountPopupStyle &&
+                    createPortal(
+                      <div
+                        ref={accountPopupRef}
+                        className="fixed z-[1005] mt-3 origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl"
+                        style={{
+                          top: accountPopupStyle.top,
+                          left: accountPopupStyle.left,
+                          width: accountPopupStyle.width,
+                        }}
+                        aria-hidden={!accountOpen}
+                      >
+                        {accountPanelContent}
+                      </div>,
+                      document.body,
+                    )}
                 </div>
               </div>
             </div>
           </div>
         </div>
+        {showMobileSearch && (
+          <div
+            className="relative z-[800] sm:hidden px-4 pb-3"
+            ref={mobileSearchRef}
+          >
+            <div className="relative">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  if (!searchOpen) setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setSearchOpen(false);
+                    return;
+                  }
+                  if (event.key === "Enter" && searchResults[0]) {
+                    router.push(`/products/${searchResults[0].handle}`);
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Produkte suchen..."
+                className="h-11 w-full rounded-full border border-black/10 bg-white pl-9 pr-4 text-sm text-stone-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-600/20"
+              />
+            </div>
+          </div>
+        )}
+        {showCategoryBar && (
+          <div className="relative z-10 mt-2 hidden border-t border-black/5 bg-stone-100/95 shadow-sm backdrop-blur sm:block">
+            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-3 text-base text-stone-700 sm:px-6 lg:max-w-6xl">
+              {categoriesStatus === "loading" && (
+                <span className="text-xs text-stone-500">
+                  Laedt Kategorien...
+                </span>
+              )}
+              {categoriesStatus === "error" && (
+                <span className="text-xs text-red-600">
+                  Kategorien konnten nicht geladen werden.
+                </span>
+              )}
+              {categoriesStatus === "idle" && mainCategories.length === 0 && (
+                <span className="text-xs text-stone-500">
+                  Keine Kategorien gefunden.
+                </span>
+              )}
+              {categoriesStatus === "idle" &&
+                mainCategories.map((category) => (
+                  <Link
+                    key={category.id}
+                    href={`/products?category=${encodeURIComponent(
+                      category.handle,
+                    )}`}
+                    className="whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+            </div>
+          </div>
+        )}
         {cartOpen && !isMobile && (
           <>
             <button
@@ -1034,6 +1448,12 @@ export function Navbar() {
           </>
         )}
       </nav>
+      <div
+        className={
+          showCategoryBar ? "h-[150px] sm:h-[184px]" : "h-[80px] sm:h-[113px]"
+        }
+        aria-hidden="true"
+      />
       {isMobile && productsOpen && (
         <div className="fixed inset-0 z-50 sm:hidden">
           <button
@@ -1044,13 +1464,13 @@ export function Navbar() {
               setCategoryStack([]);
               setCategoryQuery("");
             }}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/50"
           />
           <div
             ref={mobileProductsRef}
-            className="absolute inset-0 bg-stone-200 p-5 shadow-2xl"
+            className="absolute inset-0 bg-stone-100 p-5 shadow-2xl"
           >
-            <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[28px] border border-emerald-200 bg-white px-4 py-5 shadow-xl">
+            <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[28px] border border-emerald-200 bg-white px-4 py-5 text-emerald-950 shadow-xl">
               <div className="flex items-center justify-between border-b border-emerald-100 px-1 pb-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600/80">
@@ -1067,7 +1487,7 @@ export function Navbar() {
                     setCategoryStack([]);
                     setCategoryQuery("");
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-3xl text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-3xl text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   aria-label="Schliessen"
                 >
                   ×
@@ -1079,10 +1499,10 @@ export function Navbar() {
                   value={categoryQuery}
                   onChange={(event) => setCategoryQuery(event.target.value)}
                   placeholder="Kategorien suchen ..."
-                  className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm text-emerald-950 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-600/25"
+                  className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm text-emerald-950 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                 />
               </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-800">
+              <div className="flex items-center justify-between text-xs font-semibold text-emerald-700">
                 <div className="flex flex-1 items-center gap-2">
                   {categoryStack.length > 0 && (
                     <button
@@ -1090,7 +1510,7 @@ export function Navbar() {
                       onClick={() =>
                         setCategoryStack((prev) => prev.slice(0, -1))
                       }
-                      className="rounded-full border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="rounded-full border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       ← Zurück
                     </button>
@@ -1102,7 +1522,7 @@ export function Navbar() {
                       setCategoryStack([]);
                       setCategoryQuery("");
                     }}
-                    className={`rounded-full border border-emerald-200 bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-950 shadow-sm hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                    className={`rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-900 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                       categoryStack.length > 0 ? "ml-auto" : ""
                     }`}
                   >
@@ -1119,7 +1539,7 @@ export function Navbar() {
                     </div>
                   )}
                   {categoriesStatus === "error" && (
-                    <div className="px-2 py-2 text-sm text-red-600">
+                    <div className="px-2 py-2 text-sm text-rose-600">
                       Kategorien konnten nicht geladen werden.
                     </div>
                   )}
@@ -1142,7 +1562,7 @@ export function Navbar() {
                         setCategoryStack([]);
                         setCategoryQuery("");
                       }}
-                      className="flex w-full items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       <span>Alle {activeParentCategory.name}</span>
                       <span className="text-sm text-emerald-600">→</span>
@@ -1174,16 +1594,16 @@ export function Navbar() {
                             setCategoryStack((prev) => [...prev, category.id]);
                             setCategoryQuery("");
                           }}
-                          className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                         >
                           <span className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm">
                               <CategoryIcon className="h-5 w-5" />
                             </span>
                             <span>{category.name}</span>
                           </span>
                           <span className="flex items-center gap-2 text-sm text-emerald-600">
-                            <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                               {category.totalItemCount}
                             </span>
                             {!isLeaf && "›"}
@@ -1197,7 +1617,6 @@ export function Navbar() {
           </div>
         </div>
       )}
-      <div className="h-[136px] sm:h-[152px]" />
     </>
   );
 }

@@ -14,6 +14,7 @@ type Props = {
   size?: "sm" | "lg";
   showWishlist?: boolean;
   showCart?: boolean;
+  hideCartLabel?: boolean;
   itemTitle?: string;
   itemImageUrl?: string | null;
   itemImageAlt?: string | null;
@@ -28,6 +29,7 @@ export default function ProductCardActions({
   size = "sm",
   showWishlist = true,
   showCart = true,
+  hideCartLabel = false,
   itemTitle,
   itemImageUrl,
   itemImageAlt,
@@ -45,6 +47,7 @@ export default function ProductCardActions({
     size === "lg"
       ? "rounded-full border p-2.5 transition"
       : "rounded-full border p-2.5 transition";
+  const cartGapClass = hideCartLabel ? "gap-0" : "gap-2";
 
   return (
     <>
@@ -112,14 +115,21 @@ export default function ProductCardActions({
           }}
           aria-label="In den Warenkorb"
           title="In den Warenkorb"
-          className={`add-to-cart-sweep inline-flex items-center gap-2 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
+          className={`add-to-cart-sweep inline-flex items-center ${cartGapClass} rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
             canAdd
               ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
               : "border-stone-200 text-stone-400"
           } ${size === "lg" ? "px-5 py-2.5 text-sm" : "px-3.5 py-2 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
         >
           <ShoppingCartIcon className={cartIconClass} />
-          In den Warenkorb
+          {hideCartLabel ? (
+            <>
+              <span className="sr-only">In den Warenkorb</span>
+              <span className="hidden sm:inline">In den Warenkorb</span>
+            </>
+          ) : (
+            "In den Warenkorb"
+          )}
         </button>
       )}
     </>

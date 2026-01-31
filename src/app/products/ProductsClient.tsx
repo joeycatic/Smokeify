@@ -84,10 +84,14 @@ export default function ProductsClient({ initialProducts }: Props) {
     priceMax: priceMaxBound,
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
-    const apply = () => setLayout(media.matches ? "list" : "grid");
+    const apply = () => {
+      setIsMobile(media.matches);
+      setLayout("grid");
+    };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
@@ -264,7 +268,7 @@ export default function ProductsClient({ initialProducts }: Props) {
           </p>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-md">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#3a4b41]">
               <svg
@@ -291,7 +295,7 @@ export default function ProductsClient({ initialProducts }: Props) {
               className="h-12 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-4 text-sm text-stone-700 shadow-[0_12px_30px_rgba(8,18,14,0.15)] outline-none focus:border-white/70 focus-visible:ring-2 focus-visible:ring-white/50"
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <div className="relative grid h-12 w-40 grid-cols-2 rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm overflow-hidden">
               <span
                 className={`absolute top-[5px] bottom-[5px] rounded-full bg-[#254237] transition-all duration-200 ease-out ${
@@ -311,7 +315,7 @@ export default function ProductsClient({ initialProducts }: Props) {
                 }`}
               >
                 <Squares2X2Icon className="h-4 w-4" />
-                4x
+                {isMobile ? "2x" : "4x"}
               </button>
               <button
                 type="button"
@@ -335,8 +339,8 @@ export default function ProductsClient({ initialProducts }: Props) {
               priceMaxBound={priceMaxBound}
               resultCount={filteredProducts.length}
               onReset={resetFilters}
-              triggerClassName="inline-flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/95 px-6 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:border-white/70"
-              triggerBadgeClassName="rounded-full bg-[#244135]/10 px-2.5 py-1 text-sm font-semibold text-[#244135]"
+              triggerClassName="inline-flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/95 px-6 text-sm font-semibold text-black shadow-sm transition hover:border-white/70"
+              triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black"
             />
           </div>
         </div>
@@ -368,10 +372,11 @@ export default function ProductsClient({ initialProducts }: Props) {
         {layout === "grid" ? (
           <DisplayProducts
             products={filteredProducts}
-            cols={4}
+            cols={isMobile ? 2 : 4}
             showManufacturer
             titleLines={3}
             showGrowboxSize
+            hideCartLabel={isMobile && layout === "grid"}
           />
         ) : (
           <DisplayProductsList

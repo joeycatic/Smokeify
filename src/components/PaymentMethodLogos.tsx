@@ -12,7 +12,7 @@ const PAYMENT_METHODS: PaymentMethodLogo[] = [
 ];
 
 export default function PaymentMethodLogos({
-  className = "gap-3 sm:gap-3",
+  className = "flex-wrap gap-3 sm:gap-3",
   logoClassName = "",
   pillClassName = "",
 }: {
@@ -21,7 +21,7 @@ export default function PaymentMethodLogos({
   pillClassName?: string;
 }) {
   return (
-    <div className={`flex flex-wrap items-center text-[11px] ${className}`}>
+    <div className={`flex items-center text-[11px] ${className}`}>
       {PAYMENT_METHODS.map((method) => (
         <span
           key={method.label}

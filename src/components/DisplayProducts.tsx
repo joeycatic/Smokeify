@@ -10,6 +10,7 @@ type Props = {
   showManufacturer?: boolean;
   titleLines?: 2 | 3;
   showGrowboxSize?: boolean;
+  hideCartLabel?: boolean;
 };
 
 const getProductLowStockState = (product: Product) => {
@@ -26,14 +27,17 @@ export default function DisplayProducts({
   showManufacturer = false,
   titleLines = 2,
   showGrowboxSize = false,
+  hideCartLabel = false,
 }: Props) {
   const gridColsClass =
-    cols === 3
-      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+    cols === 2
+      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2"
+      : cols === 3
+        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
   return (
-    <div className={`mt-6 grid gap-4 ${gridColsClass}`}>
+    <div className={`mt-6 grid gap-3 ${gridColsClass}`}>
       {products?.map((p) => {
         const showLowStock = getProductLowStockState(p);
         const showSize =
@@ -146,6 +150,7 @@ export default function DisplayProducts({
                         variantId={p.defaultVariantId ?? null}
                         available={p.availableForSale}
                         showWishlist={false}
+                        hideCartLabel={hideCartLabel}
                         itemTitle={p.title}
                         itemImageUrl={p.featuredImage?.url}
                         itemImageAlt={p.featuredImage?.altText ?? p.title}
@@ -168,6 +173,7 @@ export function DisplayProductsList({
   products,
   showManufacturer = false,
   showGrowboxSize = false,
+  hideCartLabel = false,
 }: Props) {
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
@@ -284,6 +290,7 @@ export function DisplayProductsList({
                     available={p.availableForSale}
                     size="lg"
                     showWishlist={false}
+                    hideCartLabel={hideCartLabel}
                     itemTitle={p.title}
                     itemImageUrl={p.featuredImage?.url}
                     itemImageAlt={p.featuredImage?.altText ?? p.title}

@@ -264,7 +264,7 @@ export default function FilterDrawer({
 
             {/* Drawer */}
             <motion.aside
-              className="fixed right-0 top-0 h-dvh w-full sm:w-[440px] bg-white z-50 flex flex-col"
+              className="fixed right-0 top-0 h-dvh w-full sm:w-[440px] bg-white text-stone-900 z-50 flex flex-col"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}

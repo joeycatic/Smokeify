@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   BeakerIcon,
   PlusIcon,
+  InformationCircleIcon,
   ShieldCheckIcon,
   TruckIcon,
   WrenchScrewdriverIcon,
   ArrowUturnLeftIcon,
   ChevronRightIcon,
+  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
+import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
@@ -118,6 +121,11 @@ export default function ProductDetailClient({
     selectedVariant?.lowStockThreshold !== undefined &&
     effectiveAvailable > 0 &&
     effectiveAvailable <= (selectedVariant?.lowStockThreshold ?? 0);
+  const featureItems = [
+    "Schnelle Lieferung",
+    "100% geprüft",
+    "Diskret verpackt",
+  ];
 
   useEffect(() => {
     setNotifyStatus("idle");
@@ -210,13 +218,13 @@ export default function ProductDetailClient({
                   setQtyPulse("dec");
                   setTimeout(() => setQtyPulse(null), 160);
                 }}
-                className={`h-10 w-10 text-base font-semibold text-black/80 transition-transform duration-150 ${
+                className={`h-10 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
                   qtyPulse === "dec" ? "scale-95" : "scale-100"
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
               >
                 <span className="inline-block scale-x-125">-</span>
               </button>
-              <div className="grid h-10 w-12 place-items-center text-sm font-semibold text-black/80">
+              <div className="grid h-10 w-10 place-items-center text-sm font-semibold text-black/80">
                 {quantity}
               </div>
               <button
@@ -227,7 +235,7 @@ export default function ProductDetailClient({
                   setQtyPulse("inc");
                   setTimeout(() => setQtyPulse(null), 160);
                 }}
-                className={`h-10 w-10 text-base font-semibold text-black/80 transition-transform duration-150 ${
+                className={`h-10 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
                   qtyPulse === "inc" ? "scale-105" : "scale-100"
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
               >
@@ -291,11 +299,14 @@ export default function ProductDetailClient({
                     setTimeout(() => setToast(null), 1500);
                   }
                 }}
-                className={`h-10 flex-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`flex h-10 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   addedPulse ? "scale-[1.02]" : "scale-100"
                 }`}
               >
-                In den Warenkorb
+                <>
+                  <ShoppingBagIcon className="h-5 w-5" />
+                  <span>In den Warenkorb</span>
+                </>
               </button>
             ) : null}
           </div>
@@ -536,22 +547,53 @@ export default function ProductDetailClient({
           </div>
           <p className="mt-1 text-xs text-black/60">Einfach & unkompliziert</p>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="no-scrollbar flex items-center justify-center gap-2 overflow-x-auto">
           <PaymentMethodLogos
-            className="justify-center gap-2"
-            pillClassName="h-7 px-2 border-black/10 bg-white"
-            logoClassName="h-4"
+            className="flex-nowrap justify-center gap-2"
+            pillClassName="h-8 px-3 border-black/10 bg-white"
+            logoClassName="h-5"
           />
-          <span className="inline-flex h-7 items-center rounded-full border border-black/10 bg-white px-2">
+          <span className="inline-flex h-8 items-center rounded-full bg-white px-3">
             <img
               src="/shipping-provider-logos/dhl-logo.png"
               alt="DHL"
-              className="h-4 w-auto object-contain"
+              className="h-5 w-auto object-contain"
               loading="lazy"
               decoding="async"
             />
           </span>
         </div>
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-1 text-sm text-black/70">
+          {featureItems.map((item) => (
+            <div key={item} className="flex items-center gap-2">
+              <CheckCircleIcon className="h-5 w-5 text-emerald-800" />
+              <span className="font-medium">{item}</span>
+            </div>
+          ))}
+        </div>
+        {product.descriptionHtml ? (
+          <div className="rounded-2xl border border-black/10 bg-white shadow-sm">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                  <InformationCircleIcon className="h-5 w-5 text-black/60" />
+                  Produktbeschreibung
+                </span>
+                <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
+              </summary>
+              <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
+                <div className="overflow-hidden px-5 pb-5">
+                  <div
+                    className="product-description product-description-compact text-xxs leading-6 text-black/60"
+                    dangerouslySetInnerHTML={{
+                      __html: product.descriptionHtml,
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
+          </div>
+        ) : null}
       </div>
     </div>
   );

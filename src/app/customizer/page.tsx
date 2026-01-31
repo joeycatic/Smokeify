@@ -317,7 +317,7 @@ function FiltersBar({
                 key={chip.id}
                 type="button"
                 onClick={() => onChipSelect?.(chip.id)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${hoverClasses} ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${hoverClasses} ${
                   active
                     ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-sm"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
@@ -895,10 +895,12 @@ export default function CustomizerPage() {
           const data = (await seedlingRes.json()) as { error?: string };
           throw new Error(data.error ?? "Konnte Anzucht nicht laden.");
         }
-        const wateringData =
-          (await wateringRes.json()) as { options?: Option[] };
-        const seedlingData =
-          (await seedlingRes.json()) as { options?: Option[] };
+        const wateringData = (await wateringRes.json()) as {
+          options?: Option[];
+        };
+        const seedlingData = (await seedlingRes.json()) as {
+          options?: Option[];
+        };
         if (!active) return;
         setExtrasWateringOptions(wateringData.options ?? []);
         setExtrasSeedlingOptions(seedlingData.options ?? []);
@@ -1388,7 +1390,7 @@ export default function CustomizerPage() {
 
     return (
       <PageLayout>
-        <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
+        <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 py-12 text-stone-800">
           <div className="rounded-2xl border border-[#E4C56C]/70 bg-white p-8 shadow-[0_20px_50px_rgba(58,75,65,0.18)]">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
@@ -1615,7 +1617,7 @@ export default function CustomizerPage() {
 
   return (
     <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 pb-20 pt-8 text-stone-800">
+      <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 pb-20 pt-8 text-stone-800">
         <StepHeader
           activeStep={activeStep}
           onStepChange={scrollToStep}
@@ -1663,7 +1665,7 @@ export default function CustomizerPage() {
                       {[...Array(3)].map((_, index) => (
                         <div
                           key={`size-skeleton-${index}`}
-                          className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
+                          className="h-[260px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
                         />
                       ))}
                     </div>
@@ -1680,7 +1682,7 @@ export default function CustomizerPage() {
                           price={opt.price}
                           imageUrl={opt.imageUrl ?? null}
                           imageAlt={opt.imageAlt ?? opt.label}
-                          imageHeightClass="h-44 sm:h-32 lg:h-44 xl:h-48"
+                          imageHeightClass="h-52 sm:h-40 lg:h-52 xl:h-56"
                           outOfStock={opt.outOfStock}
                           badges={getOptionBadges(opt)}
                           selected={sizeId === opt.id}

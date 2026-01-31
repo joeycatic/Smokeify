@@ -68,7 +68,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
   }, [index]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <div
         className={`group relative p-3 ${
           isZoomed ? "cursor-zoom-out" : "cursor-zoom-in"

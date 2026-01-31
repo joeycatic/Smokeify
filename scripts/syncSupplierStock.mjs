@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { pathToFileURL } from "url";
 
 const prisma = new PrismaClient();
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -6,8 +7,6 @@ const MAX_DAILY_RUNS = 1;
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const isDryRun = process.argv.includes("--dry-run");
-
 const normalizeText = (value) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -53,7 +52,7 @@ const fetchHtml = async (url) => {
   return res.text();
 };
 
-const updateProductStock = async (product, quantity) => {
+const updateProductStock = async (product, quantity, isDryRun) => {
   const variantIds = product.variants.map((variant) => variant.id);
   if (variantIds.length === 0) return { updated: 0 };
 
@@ -101,7 +100,7 @@ const updateProductStock = async (product, quantity) => {
   return { updated: updatedCount };
 };
 
-const main = async () => {
+export const runSupplierSync = async ({ isDryRun = false } = {}) => {
   if (await shouldSkipRun()) {
     console.log("Skipping supplier sync: already ran within 24h.");
     return;
@@ -149,7 +148,7 @@ const main = async () => {
         continue;
       }
       const quantity = parsed.quantity ?? 0;
-      const result = await updateProductStock(product, quantity);
+      const result = await updateProductStock(product, quantity, isDryRun);
       updated += result.updated;
     } catch (error) {
       console.warn(
@@ -163,11 +162,17 @@ const main = async () => {
   console.log(`Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed}`);
 };
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+const isExecutedDirectly =
+  pathToFileURL(process.argv[1] ?? "").href === import.meta.url;
+
+if (isExecutedDirectly) {
+  const isDryRun = process.argv.includes("--dry-run");
+  runSupplierSync({ isDryRun })
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

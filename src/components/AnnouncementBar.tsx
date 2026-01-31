@@ -13,7 +13,7 @@ export function AnnouncementBar() {
     },
     {
       icon: <TruckIcon className="h-4 w-4" />,
-      text: "Kostenloser Versand ab 40 EUR",
+      text: "Kostenloser Versand ab 69 EUR",
     },
     {
       icon: <CheckBadgeIcon className="h-4 w-4" />,

@@ -46,7 +46,7 @@ export default async function StorePage() {
   return (
     <main className="bg-stone-50">
       <AnnouncementBar />
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-6xl px-0 sm:px-6">
         <Navbar />
         <HeroBanner />
 
@@ -76,9 +76,10 @@ export default async function StorePage() {
                   </div>
                   <DisplayProducts
                     products={tentProducts}
-                    cols={4}
+                    cols={2}
                     showManufacturer
                     showGrowboxSize
+                    hideCartLabel
                   />
                 </section>
 
@@ -119,8 +120,9 @@ export default async function StorePage() {
                   </div>
                   <DisplayProducts
                     products={bestSellersFilled}
-                    cols={4}
+                    cols={2}
                     showManufacturer
+                    hideCartLabel
                   />
                 </section>
               </div>
