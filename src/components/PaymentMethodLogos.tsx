@@ -12,7 +12,7 @@ const PAYMENT_METHODS: PaymentMethodLogo[] = [
 ];
 
 export default function PaymentMethodLogos({
-  className = "gap-3",
+  className = "gap-3 sm:gap-3",
   logoClassName = "",
   pillClassName = "",
 }: {

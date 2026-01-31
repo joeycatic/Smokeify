@@ -189,8 +189,8 @@ function StepHeader({
               }}
             />
           </div>
-            <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
-              <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-3 pr-8 scroll-pl-3 scroll-pr-8">
+          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
+            <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-3 pr-8 scroll-pl-3 scroll-pr-8">
               <div ref={listRef} className="flex w-max items-center gap-2">
                 {STEPS.map((step, index) => {
                   const isActive = step.id === activeStep;
@@ -456,7 +456,7 @@ function ProductCard({
   imageUrl,
   imageAlt,
   outOfStock,
-  imageHeightClass = "h-28",
+  imageHeightClass = "h-36 sm:h-28",
   badges = [],
   selected,
   compatTone,
@@ -499,18 +499,18 @@ function ProductCard({
         (() => {
           const isPng = /\.png($|\?)/i.test(imageUrl);
           return (
-        <div
+            <div
               className={`mb-4 w-full overflow-hidden rounded-xl ${
                 isPng ? "bg-white" : "bg-neutral-100"
               } ${imageHeightClass}`}
-        >
-          <img
-            src={imageUrl}
-            alt={imageAlt ?? title}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            loading="lazy"
-            decoding="async"
-          />
+            >
+              <img
+                src={imageUrl}
+                alt={imageAlt ?? title}
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           );
         })()
@@ -715,9 +715,9 @@ function SetupSidebar({
           Zur Kasse
         </button>
         <PaymentMethodLogos
-          className="justify-center gap-2"
-          pillClassName="h-7 px-2 border-black/10 bg-white"
-          logoClassName="h-4"
+          className="justify-center gap-1 sm:gap-2"
+          pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
+          logoClassName="h-4 sm:h-5"
         />
         {cartActionMessage && (
           <p
@@ -747,7 +747,7 @@ function MobileSetupBottomBar({
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center justify-between rounded-full bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90 hover:shadow-sm"
+        className="flex w-full items-center justify-between rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25"
       >
         <span>Setup ansehen ({selectedCount})</span>
         <span>{formatPrice(total)}</span>
@@ -785,6 +785,14 @@ export default function CustomizerPage() {
   const [ventSearch, setVentSearch] = useState("");
   const [extrasSearch, setExtrasSearch] = useState("");
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+  const [nextButtonVisible, setNextButtonVisible] = useState(false);
+  const nextButtonRefs = useRef<Record<StepId, HTMLButtonElement | null>>({
+    size: null,
+    light: null,
+    vent: null,
+    extras: null,
+    check: null,
+  });
   const [cartActionStatus, setCartActionStatus] = useState<
     "idle" | "loading" | "ok" | "error"
   >("idle");
@@ -800,13 +808,28 @@ export default function CustomizerPage() {
 
     if (sizeParam) setSizeId(sizeParam);
     if (lightParam) {
-      setLightIds(lightParam.split(",").map((id) => id.trim()).filter(Boolean));
+      setLightIds(
+        lightParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      );
     }
     if (ventParam) {
-      setVentIds(ventParam.split(",").map((id) => id.trim()).filter(Boolean));
+      setVentIds(
+        ventParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      );
     }
     if (extrasParam) {
-      setExtras(extrasParam.split(",").map((id) => id.trim()).filter(Boolean));
+      setExtras(
+        extrasParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      );
     }
     if (sizeParam || lightParam || ventParam || extrasParam) {
       setActiveStep("check");
@@ -1065,6 +1088,21 @@ export default function CustomizerPage() {
     sizeId || lightIds.length > 0 || ventIds.length > 0 || extras.length > 0,
   );
 
+  const nextStepFor = (stepId: StepId): StepId | null => {
+    switch (stepId) {
+      case "size":
+        return "light";
+      case "light":
+        return "vent";
+      case "vent":
+        return "extras";
+      case "extras":
+        return "check";
+      default:
+        return null;
+    }
+  };
+
   const canAccessStep = (stepId: StepId) => {
     switch (stepId) {
       case "size":
@@ -1089,6 +1127,25 @@ export default function CustomizerPage() {
 
   const selectedCount =
     (selectedSize ? 1 : 0) + lightIds.length + ventIds.length + extras.length;
+
+  const nextStep = nextStepFor(activeStep);
+  const nextButtonRef = nextButtonRefs.current[activeStep];
+
+  useEffect(() => {
+    const target = nextButtonRefs.current[activeStep];
+    if (!target) {
+      setNextButtonVisible(false);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setNextButtonVisible(entry.isIntersecting);
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeStep]);
 
   const sizeBaseOptions = (isAdmin ? sizeOptions : SIZE_OPTIONS).filter(
     (opt) => !isCompleteSetOption(opt),
@@ -1568,7 +1625,7 @@ export default function CustomizerPage() {
                           price={opt.price}
                           imageUrl={opt.imageUrl ?? null}
                           imageAlt={opt.imageAlt ?? opt.label}
-                          imageHeightClass="h-32 sm:h-38"
+                          imageHeightClass="h-44 sm:h-32"
                           outOfStock={opt.outOfStock}
                           badges={getOptionBadges(opt)}
                           selected={sizeId === opt.id}
@@ -1585,6 +1642,9 @@ export default function CustomizerPage() {
                     type="button"
                     onClick={() => scrollToStep("light")}
                     disabled={!canProceedToLight}
+                    ref={(el) => {
+                      nextButtonRefs.current.size = el;
+                    }}
                     className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
                   >
                     Nächster Schritt
@@ -1693,6 +1753,9 @@ export default function CustomizerPage() {
                     type="button"
                     onClick={() => scrollToStep("vent")}
                     disabled={!canProceedToVent}
+                    ref={(el) => {
+                      nextButtonRefs.current.light = el;
+                    }}
                     className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
                   >
                     Nächster Schritt
@@ -1750,7 +1813,7 @@ export default function CustomizerPage() {
                               price={opt.price}
                               imageUrl={opt.imageUrl ?? null}
                               imageAlt={opt.imageAlt ?? opt.label}
-                              imageHeightClass="h-32"
+                              imageHeightClass="h-44 sm:h-32"
                               outOfStock={opt.outOfStock}
                               badges={getOptionBadges(opt)}
                               selected={ventIds.includes(opt.id)}
@@ -1795,6 +1858,9 @@ export default function CustomizerPage() {
                     type="button"
                     onClick={() => scrollToStep("extras")}
                     disabled={!canProceedToExtras}
+                    ref={(el) => {
+                      nextButtonRefs.current.vent = el;
+                    }}
                     className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
                   >
                     Nächste Seite
@@ -1860,6 +1926,9 @@ export default function CustomizerPage() {
                     type="button"
                     onClick={() => scrollToStep("check")}
                     disabled={!canProceedToCheck}
+                    ref={(el) => {
+                      nextButtonRefs.current.extras = el;
+                    }}
                     className="rounded-full bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:bg-neutral-300"
                   >
                     Nächste Seite
@@ -1980,6 +2049,21 @@ export default function CustomizerPage() {
         selectedCount={selectedCount}
         onOpen={() => setMobileSummaryOpen(true)}
       />
+      {nextStep && nextButtonRef && !nextButtonVisible && (
+        <button
+          type="button"
+          onClick={() =>
+            nextButtonRef.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            })
+          }
+          className="fixed bottom-24 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f3e36] text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white lg:hidden"
+          aria-label="Nächster Schritt"
+        >
+          ↓
+        </button>
+      )}
 
       {mobileSummaryOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -2083,23 +2167,23 @@ export default function CustomizerPage() {
               >
                 In den Warenkorb
               </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddToCart("checkout")}
-                  className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Zur Kasse
-                </button>
-                <PaymentMethodLogos
-                  className="justify-center gap-2"
-                  pillClassName="h-7 px-2 border-black/10 bg-white"
-                  logoClassName="h-4"
-                />
-                {cartActionMessage && (
-                  <p
-                    className={`text-xs ${
-                      cartActionStatus === "error"
-                        ? "text-red-600"
+              <button
+                type="button"
+                onClick={() => handleAddToCart("checkout")}
+                className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Zur Kasse
+              </button>
+              <PaymentMethodLogos
+                className="justify-center gap-1 sm:gap-2"
+                pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
+                logoClassName="h-4 sm:h-5"
+              />
+              {cartActionMessage && (
+                <p
+                  className={`text-xs ${
+                    cartActionStatus === "error"
+                      ? "text-red-600"
                       : cartActionStatus === "ok"
                         ? "text-emerald-700"
                         : "text-neutral-500"

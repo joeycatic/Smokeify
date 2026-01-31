@@ -534,9 +534,9 @@ export default function CartPage() {
                   : "Zur Kasse"}
               </button>
               <PaymentMethodLogos
-                className="justify-center gap-2"
-                pillClassName="h-7 px-2 border-black/10 bg-white"
-                logoClassName="h-4"
+                className="justify-center gap-[2px] sm:gap-2"
+                pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
+                logoClassName="h-4 sm:h-5"
               />
             </div>
           </div>
