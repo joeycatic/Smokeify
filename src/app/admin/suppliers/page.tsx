@@ -6,8 +6,9 @@ import AdminSuppliersClient from "./AdminSuppliersClient";
 
 export default async function AdminSuppliersPage() {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  const isAdminOrStaff =
+    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  if (!isAdminOrStaff) notFound();
 
   return (
     <PageLayout>

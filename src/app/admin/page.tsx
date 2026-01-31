@@ -22,7 +22,8 @@ export default async function AdminPage({
 }) {
   const session = await getServerSession(authOptions);
   const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  const isAdminOrStaff = isAdmin || session?.user?.role === "STAFF";
+  if (!isAdminOrStaff) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)
@@ -221,18 +222,22 @@ export default async function AdminPage({
             >
               Supplier CRM
             </Link>
-            <Link
-              href="/admin/orders"
-              className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
-            >
-              Manage orders
-            </Link>
-            <Link
-              href="/admin/returns"
-              className="inline-flex rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:border-amber-300"
-            >
-              Manage returns
-            </Link>
+            {isAdmin ? (
+              <Link
+                href="/admin/orders"
+                className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
+              >
+                Manage orders
+              </Link>
+            ) : null}
+            {isAdmin ? (
+              <Link
+                href="/admin/returns"
+                className="inline-flex rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:border-amber-300"
+              >
+                Manage returns
+              </Link>
+            ) : null}
             <Link
               href="/admin/discounts"
               className="inline-flex rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-700 shadow-sm hover:border-rose-300"

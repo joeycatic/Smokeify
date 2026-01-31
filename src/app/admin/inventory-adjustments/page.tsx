@@ -8,8 +8,9 @@ import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 export default async function AdminInventoryAdjustmentsPage() {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  const isAdminOrStaff =
+    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  if (!isAdminOrStaff) notFound();
 
   const adjustments = await prisma.inventoryAdjustment.findMany({
     orderBy: { createdAt: "desc" },
