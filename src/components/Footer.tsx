@@ -1,6 +1,6 @@
 // components/Footer.tsx
 import Link from "next/link";
-import { FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa";
+import { FaDiscord, FaInstagram, FaTiktok } from "react-icons/fa";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 
 export default function Footer() {
@@ -37,10 +37,10 @@ export default function Footer() {
               </a>
               <a
                 href="#"
-                aria-label="YouTube"
+                aria-label="Discord"
                 className="text-white/70 hover:text-white transition"
               >
-                <FaYoutube size={18} />
+                <FaDiscord size={18} />
               </a>
             </div>
           </div>

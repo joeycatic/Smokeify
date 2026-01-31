@@ -493,7 +493,7 @@ export function Navbar() {
               href="/account"
               className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
-              View profile
+              Anzeigen
             </Link>
             <button
               type="button"
@@ -504,7 +504,7 @@ export function Navbar() {
               }}
               className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
-              Log out
+              Ausloggen
             </button>
           </>
         ) : (
@@ -880,7 +880,7 @@ export function Navbar() {
                     <UserCircleIcon className="h-6 w-6" />
                   </button>
                   <div
-                    className={`absolute right-0 top-full z-20 mt-3 w-[90vw] max-w-xs origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl transition duration-150 ease-out sm:w-80 sm:max-w-none ${
+                    className={`absolute right-0 top-full z-50 mt-3 w-[90vw] max-w-xs origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl transition duration-150 ease-out sm:w-80 sm:max-w-none ${
                       accountOpen
                         ? "pointer-events-auto scale-100 opacity-100"
                         : "pointer-events-none scale-95 opacity-0"
@@ -894,14 +894,6 @@ export function Navbar() {
             </div>
           </div>
         </div>
-        {accountOpen && (
-          <button
-            type="button"
-            aria-label="Close account"
-            onClick={() => setAccountOpen(false)}
-            className="fixed inset-0 z-10 bg-transparent"
-          />
-        )}
         {cartOpen && !isMobile && (
           <>
             <button

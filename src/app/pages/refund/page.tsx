@@ -78,13 +78,7 @@ export function MusterWiderrufsformular() {
         <p>
           Smokeify
           <br />
-          [Name des Betreibers / Unternehmens]
-          <br />
-          [Straße, Hausnummer]
-          <br />
-          [PLZ Ort]
-          <br />
-          E-Mail: [E-Mail-Adresse]
+          E-Mail: contact@smokeify.de
         </p>
 
         <p className="mt-4">

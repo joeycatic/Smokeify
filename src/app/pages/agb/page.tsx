@@ -134,8 +134,6 @@ export default function AgbPage() {
                 Anbieter
               </p>
               <p className="font-semibold text-stone-900">Smokeify</p>
-              <p>Joey Bennett Catic</p>
-              <p>Brinkeweg 106a</p>
             </div>
             <div className="space-y-1 text-sm text-stone-700">
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">

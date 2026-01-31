@@ -6,11 +6,11 @@ export const DATENSCHUTZ_SECTIONS = [
     paragraphs: [
       `Verantwortlicher für die Datenverarbeitung auf dieser Website ist:`,
       `Smokeify`,
-      `[Name des Betreibers / Unternehmens]`,
-      `[Straße, Hausnummer]`,
-      `[PLZ Ort]`,
+      `Joey Bennett Catic`,
+      `Brinkeweg 106a`,
+      `33758 Schloß Holte-Stukenbrock`,
       `Deutschland`,
-      `E-Mail: [E-Mail-Adresse]`,
+      `E-Mail: joey@smokeify.de`,
     ],
   },
   {
@@ -118,7 +118,7 @@ export default function Datenschutz() {
         <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Datenschutzerklaerung
+              Datenschutzerklärung
             </h1>
             <p className="mt-2 text-sm text-stone-500">
               Stand: {new Date().toLocaleDateString("de-DE")}

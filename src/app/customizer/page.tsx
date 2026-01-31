@@ -715,7 +715,7 @@ function SetupSidebar({
           Zur Kasse
         </button>
         <PaymentMethodLogos
-          className="justify-center gap-1 sm:gap-2"
+          className="justify-center gap-[2px] sm:gap-2"
           pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
           logoClassName="h-4 sm:h-5"
         />
@@ -758,6 +758,7 @@ function MobileSetupBottomBar({
 
 export default function CustomizerPage() {
   const { data: session, status } = useSession();
+  const sessionLoading = status === "loading";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToCart } = useCart();
@@ -1307,20 +1308,7 @@ export default function CustomizerPage() {
     }
   };
 
-  if (status === "loading") {
-    return (
-      <PageLayout>
-        <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center px-6 py-12 text-center text-stone-700">
-          <div className="flex items-center gap-3">
-            <LoadingSpinner size="md" />
-            <span>Customizer wird geladen...</span>
-          </div>
-        </div>
-      </PageLayout>
-    );
-  }
-
-  if (!isAdmin) {
+  if (!isAdmin && !sessionLoading) {
     const previewSize = SIZE_OPTIONS[1];
     const previewLight = LIGHT_OPTIONS[1];
     const previewVent = VENT_OPTIONS[0];
@@ -1603,7 +1591,7 @@ export default function CustomizerPage() {
                       {sizeError}
                     </p>
                   )}
-                  {sizeLoading ? (
+                  {sizeLoading || sessionLoading ? (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {[...Array(3)].map((_, index) => (
                         <div
@@ -1678,7 +1666,7 @@ export default function CustomizerPage() {
                         {lightError}
                       </p>
                     )}
-                    {lightLoading ? (
+                    {lightLoading || sessionLoading ? (
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {[...Array(3)].map((_, index) => (
                           <div
@@ -1789,7 +1777,7 @@ export default function CustomizerPage() {
                         {ventError}
                       </p>
                     )}
-                    {ventLoading ? (
+                    {ventLoading || sessionLoading ? (
                       <div className="grid gap-4 sm:grid-cols-2">
                         {[...Array(2)].map((_, index) => (
                           <div
@@ -2175,7 +2163,7 @@ export default function CustomizerPage() {
                 Zur Kasse
               </button>
               <PaymentMethodLogos
-                className="justify-center gap-1 sm:gap-2"
+                className="justify-center gap-[2px] sm:gap-2"
                 pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
                 logoClassName="h-4 sm:h-5"
               />

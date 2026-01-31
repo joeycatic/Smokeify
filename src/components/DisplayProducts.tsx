@@ -126,19 +126,21 @@ export default function DisplayProducts({
                   </span>
                 </div>
                 <div className="mt-auto flex w-full items-center pt-3">
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <ProductCardActions
-                      productId={p.id}
-                      variantId={p.defaultVariantId ?? null}
-                      available={p.availableForSale}
-                      showCart={false}
-                      itemTitle={p.title}
-                      itemImageUrl={p.featuredImage?.url}
-                      itemImageAlt={p.featuredImage?.altText ?? p.title}
-                      itemPrice={p.priceRange?.minVariantPrice}
-                      itemQuantity={1}
-                    />
-                    <div className="flex flex-1 items-center justify-center">
+                  <div className="grid w-full grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2">
+                    <div className="flex items-center justify-start">
+                      <ProductCardActions
+                        productId={p.id}
+                        variantId={p.defaultVariantId ?? null}
+                        available={p.availableForSale}
+                        showCart={false}
+                        itemTitle={p.title}
+                        itemImageUrl={p.featuredImage?.url}
+                        itemImageAlt={p.featuredImage?.altText ?? p.title}
+                        itemPrice={p.priceRange?.minVariantPrice}
+                        itemQuantity={1}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center">
                       <ProductCardActions
                         productId={p.id}
                         variantId={p.defaultVariantId ?? null}

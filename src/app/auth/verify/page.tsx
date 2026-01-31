@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -10,6 +10,7 @@ export default function VerifyPage() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendStatus, setResendStatus] = useState<
@@ -98,14 +99,60 @@ export default function VerifyPage() {
             <label className="block text-xs font-semibold text-stone-600">
               Code *
             </label>
-            <input
-              type="text"
-              required
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              maxLength={6}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm tracking-[0.3em] outline-none focus:border-black/30"
-            />
+            <div className="grid grid-cols-6 gap-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <input
+                  key={`code-${index}`}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
+                  required
+                  value={code[index] ?? ""}
+                  onChange={(event) => {
+                    const next = event.target.value.replace(/\D/g, "");
+                    if (!next) {
+                      const chars = code.split("");
+                      chars[index] = "";
+                      setCode(chars.join(""));
+                      return;
+                    }
+                    const chars = code.split("");
+                    chars[index] = next[0];
+                    setCode(chars.join("").slice(0, 6));
+                    const nextField = codeRefs.current[index + 1];
+                    if (nextField) nextField.focus();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Backspace") return;
+                    if (code[index]) {
+                      const chars = code.split("");
+                      chars[index] = "";
+                      setCode(chars.join(""));
+                      return;
+                    }
+                    const prevField = codeRefs.current[index - 1];
+                    if (prevField) prevField.focus();
+                  }}
+                  onPaste={(event) => {
+                    event.preventDefault();
+                    const pasted = event.clipboardData
+                      .getData("text")
+                      .replace(/\D/g, "")
+                      .slice(0, 6);
+                    if (!pasted) return;
+                    setCode(pasted);
+                    const nextIndex = Math.min(pasted.length, 6) - 1;
+                    const target = codeRefs.current[nextIndex];
+                    if (target) target.focus();
+                  }}
+                  ref={(el) => {
+                    codeRefs.current[index] = el;
+                  }}
+                  className="h-12 w-full rounded-md border border-black/10 text-center text-lg font-semibold text-stone-800 outline-none focus:border-black/30"
+                />
+              ))}
+            </div>
             {error && <p className="text-xs text-red-600">{error}</p>}
             {resendStatus === "sent" && (
               <p className="text-xs text-green-700">
