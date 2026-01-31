@@ -77,7 +77,7 @@ export default function FilterDrawer({
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<
     "price" | "cat" | "manufacturer" | null
-  >("price");
+  >("cat");
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [manufacturerQuery, setManufacturerQuery] = useState("");

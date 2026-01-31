@@ -14,6 +14,7 @@ const formatPrice = (amount: number, currency: string) =>
 
 const buildInvoiceHtml = (order: {
   id: string;
+  orderNumber: number;
   createdAt: Date;
   currency: string;
   amountSubtotal: number;
@@ -41,13 +42,17 @@ const buildInvoiceHtml = (order: {
           order.currency
         )}</td></tr>`
       : "";
+  const invoiceNumber = `RE-${order.createdAt.getFullYear()}-${order.orderNumber
+    .toString()
+    .padStart(6, "0")}`;
+  const orderDate = order.createdAt.toLocaleDateString("de-DE");
 
   return `
     <!doctype html>
     <html lang="de">
       <head>
         <meta charset="utf-8" />
-        <title>Invoice ${order.id.slice(0, 8).toUpperCase()}</title>
+        <title>Rechnung ${invoiceNumber}</title>
         <style>
           body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
           h1 { margin: 0 0 8px; }
@@ -60,9 +65,20 @@ const buildInvoiceHtml = (order: {
         </style>
       </head>
       <body>
-        <h1>Invoice</h1>
+        <h1>Rechnung</h1>
+        <div class="muted">Rechnungsnummer ${invoiceNumber}</div>
         <div class="muted">Bestellnummer ${order.id.slice(0, 8).toUpperCase()}</div>
-        <div class="muted">Datum ${order.createdAt.toLocaleDateString("de-DE")}</div>
+        <div class="muted">Rechnungsdatum ${orderDate}</div>
+        <div class="muted">Lieferdatum ${orderDate}</div>
+
+        <div class="section">
+          <strong>Verkäufer</strong>
+          <div>Somkeify</div>
+          <div>Brinkeweg 106a</div>
+          <div>33758 Schloß Holte Stukenbrock</div>
+          <div>Deutschland</div>
+          <div>contact@smokeify.de</div>
+        </div>
 
         <div class="section">
           <strong>Kontakt</strong>
@@ -127,6 +143,9 @@ const buildInvoiceHtml = (order: {
             )}</strong></td></tr>
           </table>
         </div>
+        <div class="section muted">
+          Gemäß §19 UStG wird keine Umsatzsteuer berechnet.
+        </div>
       </body>
     </html>
   `;
@@ -154,8 +173,37 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const html = buildInvoiceHtml(order);
-  const filename = `invoice-${order.id.slice(0, 8).toUpperCase()}.html`;
+  const productIds = Array.from(
+    new Set(order.items.map((item) => item.productId).filter(Boolean))
+  ) as string[];
+  const products = productIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, manufacturer: true },
+      })
+    : [];
+  const manufacturerByProductId = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null])
+  );
+  const defaultSuffix = / - Default( Title)?$/i;
+  const formatItemName = (name: string, manufacturer?: string | null) => {
+    if (!defaultSuffix.test(name)) return name;
+    const trimmed = manufacturer?.trim();
+    if (trimmed) return name.replace(defaultSuffix, ` - ${trimmed}`);
+    return name.replace(defaultSuffix, "");
+  };
+  const items = order.items.map((item) => ({
+    ...item,
+    name: formatItemName(
+      item.name,
+      item.productId ? manufacturerByProductId.get(item.productId) : null
+    ),
+  }));
+  const html = buildInvoiceHtml({ ...order, items });
+  const invoiceNumber = `RE-${order.createdAt.getFullYear()}-${order.orderNumber
+    .toString()
+    .padStart(6, "0")}`;
+  const filename = `rechnung-${invoiceNumber}.html`;
   return new NextResponse(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",

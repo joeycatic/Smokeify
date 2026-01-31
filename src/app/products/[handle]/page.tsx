@@ -77,6 +77,7 @@ export default async function ProductDetailPage({
                 manufacturer: product.manufacturer ?? null,
                 growboxSize: product.growboxSize ?? null,
               }}
+              options={product.options ?? []}
               productGroupItems={groupProducts}
               currentHandle={product.handle}
               variants={product.variants}

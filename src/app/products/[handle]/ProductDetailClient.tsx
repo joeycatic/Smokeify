@@ -20,6 +20,7 @@ import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 type ProductVariant = {
   id: string;
   title: string;
+  options?: Array<{ name: string; value: string }>;
   availableForSale: boolean;
   lowStock?: boolean;
   availableQuantity?: number;
@@ -36,6 +37,7 @@ export default function ProductDetailClient({
   variants,
   imageUrl,
   imageAlt,
+  options,
 }: {
   product: {
     id: string;
@@ -56,6 +58,7 @@ export default function ProductDetailClient({
   variants: ProductVariant[];
   imageUrl?: string | null;
   imageAlt?: string | null;
+  options: Array<{ name: string; values: string[] }>;
 }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
@@ -63,6 +66,9 @@ export default function ProductDetailClient({
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     variants?.[0]?.id ?? "",
   );
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, string>
+  >({});
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifyStatus, setNotifyStatus] = useState<
     "idle" | "loading" | "ok" | "error"
@@ -94,6 +100,43 @@ export default function ProductDetailClient({
     () => variants.find((v) => v.id === selectedVariantId),
     [variants, selectedVariantId],
   );
+
+  const optionGroups = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    variants.forEach((variant) => {
+      variant.options?.forEach((option) => {
+        const set = map.get(option.name) ?? new Set<string>();
+        set.add(option.value);
+        map.set(option.name, set);
+      });
+    });
+    if (map.size === 0 && options.length > 0) {
+      options.forEach((option) => {
+        map.set(option.name, new Set(option.values));
+      });
+    }
+    return Array.from(map.entries()).map(([name, values]) => ({
+      name,
+      values: Array.from(values),
+    }));
+  }, [options, variants]);
+
+  useEffect(() => {
+    if (!optionGroups.length) return;
+    if (selectedVariant?.options?.length) {
+      const next: Record<string, string> = {};
+      selectedVariant.options.forEach((option) => {
+        next[option.name] = option.value;
+      });
+      setSelectedOptions(next);
+      return;
+    }
+    const defaults: Record<string, string> = {};
+    optionGroups.forEach((option) => {
+      defaults[option.name] = option.values[0] ?? "";
+    });
+    setSelectedOptions(defaults);
+  }, [optionGroups, selectedVariant]);
 
   const priceLabel = selectedVariant ? formatPrice(selectedVariant.price) : "";
   const compareAtLabel =
@@ -186,6 +229,58 @@ export default function ProductDetailClient({
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {optionGroups.length > 0 && (
+          <div className="space-y-3">
+            <div className="space-y-4">
+              {optionGroups.map((option) => (
+                <div key={option.name} className="space-y-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-black/50">
+                    {option.name}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {option.values.map((value) => {
+                      const isSelected =
+                        (selectedOptions[option.name] ?? "") === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedOptions((prev) => {
+                              const next = { ...prev, [option.name]: value };
+                              const match = variants.find((variant) =>
+                                optionGroups.every((opt) => {
+                                  const selected = next[opt.name];
+                                  if (!selected) return true;
+                                  const hasValue = variant.options?.some(
+                                    (entry) =>
+                                      entry.name === opt.name &&
+                                      entry.value === selected,
+                                  );
+                                  return Boolean(hasValue);
+                                }),
+                              );
+                              if (match) setSelectedVariantId(match.id);
+                              return next;
+                            });
+                          }}
+                          className={`rounded-full border px-5 py-2 text-xs font-semibold transition ${
+                            isSelected
+                              ? "border-emerald-800 bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-600 text-white shadow-sm"
+                              : "border-emerald-900/30 bg-white text-black/80 hover:border-emerald-900/50"
+                          }`}
+                        >
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

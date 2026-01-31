@@ -1295,15 +1295,45 @@ export function Navbar() {
               )}
               {categoriesStatus === "idle" &&
                 mainCategories.map((category) => (
-                  <Link
+                  <div
                     key={category.id}
-                    href={`/products?category=${encodeURIComponent(
-                      category.handle,
-                    )}`}
-                    className="whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+                    className="relative group"
                   >
-                    {category.name}
-                  </Link>
+                    <Link
+                      href={`/products?category=${encodeURIComponent(
+                        category.handle,
+                      )}`}
+                      className="whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+                    >
+                      {category.name}
+                    </Link>
+                    {(categoriesByParent.get(String(category.id))?.length ?? 0) >
+                      0 && (
+                      <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-56 -translate-x-1/2 opacity-0 translate-y-1 transition duration-200 ease-out group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 delay-100 group-hover:delay-150">
+                        <div className="rounded-xl border border-emerald-200 bg-white p-2 text-sm shadow-xl">
+                          {(categoriesByParent.get(String(category.id)) ?? []).map(
+                            (child) => {
+                              const ChildIcon = getCategoryIcon(child.name);
+                              return (
+                                <Link
+                                  key={child.id}
+                                  href={`/products?category=${encodeURIComponent(
+                                    child.handle,
+                                  )}`}
+                                  className="flex items-center gap-2 rounded-lg px-3 py-2 font-semibold text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
+                                >
+                                  <span className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                    <ChildIcon className="h-4 w-4" />
+                                  </span>
+                                  <span>{child.name}</span>
+                                </Link>
+                              );
+                            },
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
             </div>
           </div>

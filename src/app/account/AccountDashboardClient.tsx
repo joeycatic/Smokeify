@@ -91,7 +91,7 @@ export default function AccountDashboardClient({
         icon: AdjustmentsHorizontalIcon,
       },
     ],
-    []
+    [],
   );
 
   const normalizeIdList = (value?: string[] | string) => {
@@ -115,8 +115,8 @@ export default function AccountDashboardClient({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:border-black/10 lg:bg-white lg:p-4">
+    <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:items-stretch lg:h-[calc(100vh-445px)] lg:overflow-hidden">
+      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:h-full lg:border-black/10 lg:bg-white lg:p-4">
         <div className="sm:hidden">
           <div className="mb-4">
             <p className="mb-2 text-xs font-semibold tracking-widest text-stone-500">
@@ -209,7 +209,7 @@ export default function AccountDashboardClient({
         </nav>
       </aside>
 
-      <div className="space-y-6">
+      <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:rounded-b-2xl lg:overflow-hidden lg:pr-4">
         {activeTab === "profile" && (
           <AccountSettingsClient
             initialName={profile.name}
@@ -225,7 +225,7 @@ export default function AccountDashboardClient({
         )}
 
         {activeTab === "orders" && (
-          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
+          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6 lg:flex lg:h-full lg:flex-col">
             <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
               BESTELLUNGEN
             </h2>
@@ -234,47 +234,49 @@ export default function AccountDashboardClient({
                 Noch keine Bestellungen vorhanden.
               </p>
             ) : (
-              <ul className="space-y-3 text-sm">
-                {orders.map((order) => (
-                  <li key={order.id}>
-                    <Link
-                      href={`/account/orders/${order.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-xl border border-black/10 bg-gradient-to-br from-white via-emerald-50 to-amber-50 px-3 py-3 shadow-sm transition hover:border-black/20 hover:bg-white sm:px-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="font-semibold">
+              <div className="pretty-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                <ul className="space-y-3 text-sm">
+                  {orders.map((order) => (
+                    <li key={order.id}>
+                      <Link
+                        href={`/account/orders/${order.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 px-3 py-3 shadow-sm transition hover:border-emerald-700 hover:from-emerald-700/95 hover:via-emerald-800/95 hover:to-emerald-950/95 sm:px-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                          <div className="font-semibold text-white">
                             Bestellung {order.id.slice(0, 8).toUpperCase()}
                           </div>
-                          <div className="text-xs text-stone-500">
+                          <div className="text-xs text-white">
                             {new Date(order.createdAt).toLocaleDateString(
-                              "de-DE"
+                              "de-DE",
                             )}
                           </div>
                         </div>
                         <div className="text-left sm:text-right">
-                          <div className="text-sm font-semibold text-emerald-900">
+                          <div className="text-sm font-semibold text-white">
                             {formatPrice(order.amountTotal, order.currency)}
                           </div>
-                          <div className="text-xs text-stone-500">
+                          <div className="text-xs text-white">
                             {order.itemsCount} Artikel
                           </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
-                        <span className="rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
+                        <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
                           Status: {order.status}
                         </span>
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                        <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
                           Zahlung: {order.paymentStatus}
                         </span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </section>
         )}
@@ -369,7 +371,7 @@ export default function AccountDashboardClient({
                           <div className="mt-1 text-xs text-white/70">
                             Gespeichert am{" "}
                             {new Date(setup.createdAt).toLocaleDateString(
-                              "de-DE"
+                              "de-DE",
                             )}
                           </div>
                         </Link>
@@ -379,15 +381,18 @@ export default function AccountDashboardClient({
                             setSetupBusyId(setup.id);
                             setSetupMessage(null);
                             try {
-                              const res = await fetch(`/api/setups/${setup.id}`, {
-                                method: "DELETE",
-                              });
+                              const res = await fetch(
+                                `/api/setups/${setup.id}`,
+                                {
+                                  method: "DELETE",
+                                },
+                              );
                               if (!res.ok) {
                                 setSetupMessage("Löschen fehlgeschlagen.");
                                 return;
                               }
                               setSetupItems((prev) =>
-                                prev.filter((item) => item.id !== setup.id)
+                                prev.filter((item) => item.id !== setup.id),
                               );
                               setSetupMessage("Setup gelöscht.");
                             } finally {

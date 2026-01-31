@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
 import { sendResendEmail } from "@/lib/resend";
 import { logAdminAction } from "@/lib/adminAuditLog";
@@ -131,6 +132,9 @@ export async function PATCH(
     where: { id },
     include: { options: true, inventory: true, product: true },
   });
+  if (variant?.product?.handle) {
+    revalidatePath(`/products/${variant.product.handle}`);
+  }
 
   if (variant?.inventory) {
     const available =
@@ -198,6 +202,13 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const variant = await prisma.variant.findUnique({
+    where: { id },
+    select: { product: { select: { handle: true } } },
+  });
   await prisma.variant.delete({ where: { id } });
+  if (variant?.product?.handle) {
+    revalidatePath(`/products/${variant.product.handle}`);
+  }
   return NextResponse.json({ ok: true });
 }

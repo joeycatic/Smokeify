@@ -182,6 +182,10 @@ export async function getProductByHandle(handle: string) {
     return {
       id: variant.id,
       title: variant.title,
+      options: variant.options.map((option) => ({
+        name: option.name,
+        value: option.value,
+      })),
       availableForSale: available > 0,
       availableQuantity: available,
       lowStockThreshold: variant.lowStockThreshold ?? 0,

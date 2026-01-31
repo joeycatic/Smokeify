@@ -275,8 +275,6 @@ model VariantOption {
   value     String
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@unique([variantId, name])
 }
 
 model VariantInventory {

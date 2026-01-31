@@ -32,222 +32,238 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const productIds = Array.from(
+    new Set(order.items.map((item) => item.productId).filter(Boolean)),
+  ) as string[];
+  const products = productIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, manufacturer: true },
+      })
+    : [];
+  const manufacturerByProductId = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null]),
+  );
+
+  const statusLabelMap: Record<string, string> = {
+    PENDING_PAYMENT: "Ausstehend",
+    PAID: "Bezahlt",
+    FULFILLED: "Abgeschlossen",
+    CANCELED: "Storniert",
+    REFUNDED: "Erstattet",
+  };
+  const statusLabel = statusLabelMap[order.status] ?? order.status;
+  const steps = ["Bestellt", "Versendet", "Zugestellt"];
+  const activeStep =
+    order.status === "FULFILLED" ? 2 : order.status === "PAID" ? 1 : 0;
+  const defaultSuffix = / - Default( Title)?$/i;
+  const formatItemName = (name: string, manufacturer?: string | null) => {
+    if (!defaultSuffix.test(name)) return name;
+    const trimmed = manufacturer?.trim();
+    if (trimmed) return name.replace(defaultSuffix, ` - ${trimmed}`);
+    return name.replace(defaultSuffix, "");
+  };
+
   return (
     <PageLayout>
-      <div className="relative mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(46,125,50,0.14),_transparent_55%),radial-gradient(circle_at_20%_30%,_rgba(255,193,7,0.18),_transparent_40%),radial-gradient(circle_at_90%_10%,_rgba(33,150,243,0.12),_transparent_40%)]" />
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.15)] backdrop-blur">
-          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+      <div className="relative mx-auto max-w-5xl px-6 py-10 text-stone-200">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(20,40,33,0.55),_transparent_60%),radial-gradient(circle_at_80%_20%,_rgba(17,60,46,0.4),_transparent_45%),radial-gradient(circle_at_10%_85%,_rgba(6,20,16,0.45),_transparent_55%)]" />
+        <div className="rounded-3xl border border-white/10 bg-[#0f1713]/90 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur sm:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-emerald-300/70">
                 Bestellübersicht
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-[#2f3e36]">
+              <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
                 Bestellung {order.id.slice(0, 8).toUpperCase()}
               </h1>
-              <p className="mt-1 text-sm text-stone-600">
-                {new Date(order.createdAt).toLocaleDateString("de-DE")}
+              <p className="mt-1 text-sm text-emerald-200/70">
+                {new Date(order.createdAt).toLocaleDateString("de-DE", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-wide text-emerald-700">
+            <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-900/80 via-emerald-900/60 to-emerald-950/80 px-5 py-4 text-right shadow-lg">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-200/80">
                 Gesamt
               </p>
-              <p className="text-2xl font-bold text-emerald-900">
+              <p className="text-2xl font-bold text-emerald-50">
                 {formatPrice(order.amountTotal, order.currency)}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-white via-emerald-50 to-emerald-100 px-4 py-4 text-sm shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-stone-600">Status</span>
-                <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-800">
-                  {order.status}
-                </span>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-stone-600">Zahlung</span>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                  {order.paymentStatus}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-white via-amber-50 to-amber-100 px-4 py-4 text-sm shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Zwischensumme</span>
-                <span className="font-semibold text-stone-900">
-                  {formatPrice(order.amountSubtotal, order.currency)}
-                </span>
-              </div>
-              {order.amountDiscount > 0 && (
-                <div className="mt-1 flex items-center justify-between">
-                  <span className="text-stone-600">
-                    Rabatt
-                    {order.discountCode ? ` (${order.discountCode})` : ""}
-                  </span>
-                  <span className="font-semibold text-stone-900">
-                    -{formatPrice(order.amountDiscount, order.currency)}
+          <div className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-[#121c17] px-5 py-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-emerald-200/70">Status</span>
+                  <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+                    {statusLabel}
                   </span>
                 </div>
-              )}
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-stone-600">Versand</span>
-                <span className="font-semibold text-stone-900">
-                  {formatPrice(order.amountShipping, order.currency)}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-stone-600">Steuern</span>
-                <span className="font-semibold text-stone-900">
-                  {formatPrice(order.amountTax, order.currency)}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-base">
-                <span className="font-semibold text-stone-900">Gesamt</span>
-                <span className="font-semibold text-stone-900">
-                  {formatPrice(order.amountTotal, order.currency)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
-              <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
-                Versandadresse
-              </h2>
-              <div className="text-sm text-stone-700">
-                {order.shippingName && <div>{order.shippingName}</div>}
-                {order.shippingLine1 && <div>{order.shippingLine1}</div>}
-                {order.shippingLine2 && <div>{order.shippingLine2}</div>}
-                {(order.shippingPostalCode || order.shippingCity) && (
-                  <div>
-                    {order.shippingPostalCode ?? ""} {order.shippingCity ?? ""}
-                  </div>
-                )}
-                {order.shippingCountry && <div>{order.shippingCountry}</div>}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
-              <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
-                Kontakt
-              </h2>
-              <div className="text-sm text-stone-700">
-                {order.customerEmail ?? "-"}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
-              <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
-                Versand-Tracking
-              </h2>
-              <div className="space-y-1 text-sm text-stone-700">
-                <div>
-                  <span className="font-semibold text-stone-500">Carrier:</span>{" "}
-                  {order.trackingCarrier ?? "-"}
-                </div>
-                <div>
-                  <span className="font-semibold text-stone-500">Nummer:</span>{" "}
-                  {order.trackingNumber ?? "-"}
-                </div>
-                <div>
-                  <span className="font-semibold text-stone-500">URL:</span>{" "}
-                  {order.trackingUrl ? (
-                    <a
-                      href={order.trackingUrl}
-                      className="text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Tracking öffnen
-                    </a>
-                  ) : (
-                    "-"
-                  )}
+                <div className="mt-4 grid grid-cols-3 gap-3 text-center text-xs">
+                  {steps.map((label, index) => {
+                    const isActive = index <= activeStep;
+                    return (
+                      <div key={label} className="flex flex-col items-center">
+                        <span
+                          className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+                            isActive
+                              ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
+                              : "border-emerald-900/60 bg-emerald-950/40 text-emerald-300/50"
+                          }`}
+                        >
+                          {isActive ? "✓" : "•"}
+                        </span>
+                        <span
+                          className={`mt-2 text-[11px] font-semibold ${
+                            isActive ? "text-emerald-100" : "text-emerald-300/50"
+                          }`}
+                        >
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="mt-6 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
-            <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
-              Rueckgabe
-            </h2>
-            <ReturnRequestForm
-              orderId={order.id}
-              existingStatus={order.returnRequests[0]?.status ?? null}
-              adminNote={order.returnRequests[0]?.adminNote ?? null}
-              items={order.items.map((item) => ({
-                id: item.id,
-                name: item.name,
-                quantity: item.quantity,
-                imageUrl: item.imageUrl,
-              }))}
-            />
-          </div>
-
-          <div className="mt-8">
-            <div className="mb-4 flex flex-wrap gap-3">
-              <a
-                href={`/api/orders/${order.id}/receipt`}
-                className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-              >
-                Beleg herunterladen
-              </a>
-              <a
-                href={`/api/orders/${order.id}/invoice`}
-                className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-              >
-                Rechnung herunterladen
-              </a>
-            </div>
-            {order.items.some((item) => item.imageUrl) && (
-              <div className="mb-6">
-                <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
-                  Artikelbilder
+              <div className="rounded-2xl border border-white/10 bg-[#121c17] px-5 py-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+                  Versandadresse
                 </h2>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {order.items
-                    .filter((item) => item.imageUrl)
-                    .map((item) => (
-                      <img
-                        key={item.id}
-                        src={item.imageUrl as string}
-                        alt={item.name}
-                        className="h-20 w-20 flex-shrink-0 rounded-xl border border-black/10 bg-white object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        width={80}
-                        height={80}
-                      />
-                    ))}
+                <div className="mt-3 text-sm text-emerald-100/80">
+                  {order.shippingName && <div>{order.shippingName}</div>}
+                  {order.shippingLine1 && <div>{order.shippingLine1}</div>}
+                  {order.shippingLine2 && <div>{order.shippingLine2}</div>}
+                  {(order.shippingPostalCode || order.shippingCity) && (
+                    <div>
+                      {order.shippingPostalCode ?? ""} {order.shippingCity ?? ""}
+                    </div>
+                  )}
+                  {order.shippingCountry && <div>{order.shippingCountry}</div>}
                 </div>
               </div>
-            )}
-            <h2 className="text-xs font-semibold tracking-widest text-emerald-700 mb-3">
-              Artikel
+
+              <div className="rounded-2xl border border-white/10 bg-[#121c17] px-5 py-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+                  Kontakt
+                </h2>
+                <div className="mt-3 text-sm text-emerald-100/80">
+                  {order.customerEmail ?? "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-[#121c17] px-5 py-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+                  Zahlungsübersicht
+                </h2>
+                <div className="mt-3 space-y-2 text-sm text-emerald-100/80">
+                  <div className="flex items-center justify-between">
+                    <span>Zwischensumme</span>
+                    <span className="font-semibold text-emerald-50">
+                      {formatPrice(order.amountSubtotal, order.currency)}
+                    </span>
+                  </div>
+                  {order.amountDiscount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>
+                        Rabatt
+                        {order.discountCode ? ` (${order.discountCode})` : ""}
+                      </span>
+                      <span className="font-semibold text-emerald-50">
+                        -{formatPrice(order.amountDiscount, order.currency)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>Versand</span>
+                    <span className="font-semibold text-emerald-50">
+                      {formatPrice(order.amountShipping, order.currency)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Steuern</span>
+                    <span className="font-semibold text-emerald-50">
+                      {formatPrice(order.amountTax, order.currency)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2 text-base">
+                    <span className="font-semibold text-emerald-100">Gesamt</span>
+                    <span className="font-semibold text-emerald-50">
+                      {formatPrice(order.amountTotal, order.currency)}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-emerald-200/50">
+                    inkl. MwSt.
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <a
+                    href={`/api/orders/${order.id}/receipt`}
+                    className="inline-flex items-center justify-center rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+                  >
+                    Beleg
+                  </a>
+                  <a
+                    href={`/api/orders/${order.id}/invoice`}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-[#0f1713] px-3 py-2 text-xs font-semibold text-emerald-100 hover:border-white/25 hover:bg-[#0b120f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+                  >
+                    Rechnung
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-[#121c17] px-5 py-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+                  Versand-Tracking
+                </h2>
+                <div className="mt-3 space-y-2 text-sm text-emerald-100/70">
+                  {[
+                    { label: "Versanddienst", value: order.trackingCarrier ?? "-" },
+                    { label: "Trackingnummer", value: order.trackingNumber ?? "-" },
+                    { label: "Tracking-URL", value: order.trackingUrl ?? "-" },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-center justify-between rounded-lg border border-white/5 bg-[#0c1410] px-3 py-2"
+                    >
+                      <span>{row.label}</span>
+                      <span className="text-emerald-200/70">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#121c17] px-5 py-5">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+              Rückgabe
             </h2>
-            <ul className="space-y-2 text-sm">
-              {order.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between rounded-xl border border-black/10 bg-gradient-to-r from-white via-sky-50 to-white px-4 py-3 shadow-sm"
-                >
-                  <div>
-                    <div className="font-semibold text-stone-900">
-                      {item.name}
-                    </div>
-                    <div className="text-xs text-stone-500">
-                      Menge: {item.quantity}
-                    </div>
-                  </div>
-                  <div className="text-right text-sm font-semibold text-stone-900">
-                    {formatPrice(item.totalAmount, item.currency)}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4">
+              <ReturnRequestForm
+                orderId={order.id}
+                existingStatus={order.returnRequests[0]?.status ?? null}
+                adminNote={order.returnRequests[0]?.adminNote ?? null}
+                items={order.items.map((item) => ({
+                  id: item.id,
+                  name: formatItemName(
+                    item.name,
+                    item.productId
+                      ? manufacturerByProductId.get(item.productId)
+                      : null,
+                  ),
+                  quantity: item.quantity,
+                  imageUrl: item.imageUrl,
+                }))}
+              />
+            </div>
           </div>
         </div>
       </div>

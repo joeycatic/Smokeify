@@ -1,7 +1,7 @@
 // app/products/ProductsClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bars3BottomLeftIcon,
   Squares2X2Icon,
@@ -85,6 +85,7 @@ export default function ProductsClient({ initialProducts }: Props) {
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [isMobile, setIsMobile] = useState(false);
+  const lastCategoryParamRef = useRef<string>("");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -104,18 +105,40 @@ export default function ProductsClient({ initialProducts }: Props) {
     );
   }, [normalizedProducts, filters]);
 
-  const availableCategories = useMemo(() => {
-    const categories = new Map<string, string>();
-    normalizedProducts.forEach((p) => {
-      p.categories?.forEach((c) => {
-        if (c.parentId) return;
-        categories.set(c.handle, c.title);
+  const categoryHierarchy = useMemo(() => {
+    const parents = new Map<string, string>();
+    const childrenByParent = new Map<string, Map<string, string>>();
+    normalizedProducts.forEach((product) => {
+      product.categories?.forEach((category) => {
+        if (!category.parentId) {
+          parents.set(category.handle, category.title);
+          return;
+        }
+        const parent =
+          category.parent ?? parentCategoryById.get(category.parentId);
+        if (!parent) return;
+        parents.set(parent.handle, parent.title);
+        const bucket =
+          childrenByParent.get(parent.handle) ?? new Map<string, string>();
+        bucket.set(category.handle, category.title);
+        childrenByParent.set(parent.handle, bucket);
       });
     });
-    return Array.from(categories.entries()).sort((a, b) =>
+    return { parents, childrenByParent };
+  }, [normalizedProducts, parentCategoryById]);
+
+  const availableCategories = useMemo(() => {
+    const children =
+      categoryParam && categoryHierarchy.childrenByParent.get(categoryParam);
+    if (children && children.size > 0) {
+      return Array.from(children.entries()).sort((a, b) =>
+        a[1].localeCompare(b[1]),
+      );
+    }
+    return Array.from(categoryHierarchy.parents.entries()).sort((a, b) =>
       a[1].localeCompare(b[1]),
     );
-  }, [normalizedProducts]);
+  }, [categoryHierarchy, categoryParam]);
 
   const availableManufacturers = useMemo(() => {
     const manufacturers = new Set<string>();
@@ -145,25 +168,20 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   useEffect(() => {
     if (!categoryParam) {
+      lastCategoryParamRef.current = "";
       setFilters((prev) =>
         prev.categories.length === 0 ? prev : { ...prev, categories: [] },
       );
       return;
     }
     if (!allCategoryTitlesByHandle.has(categoryParam)) return;
+    const didChangeParent = lastCategoryParamRef.current !== categoryParam;
+    lastCategoryParamRef.current = categoryParam;
     setFilters((prev) => {
-      if (
-        prev.categories.length === 1 &&
-        prev.categories[0] === categoryParam
-      ) {
-        return prev;
-      }
-      return {
-        ...prev,
-        categories: [categoryParam],
-      };
+      if (!didChangeParent && prev.categories.length > 0) return prev;
+      return { ...prev, categories: [categoryParam] };
     });
-  }, [allCategoryTitlesByHandle, categoryParam]);
+  }, [allCategoryTitlesByHandle, categoryParam, categoryHierarchy]);
 
   const categoryTitleByHandle = useMemo(
     () => new Map(allCategoryTitlesByHandle),
@@ -183,9 +201,25 @@ export default function ProductsClient({ initialProducts }: Props) {
   const toggleCategory = (handle: string) => {
     setFilters((prev) => ({
       ...prev,
-      categories: prev.categories.includes(handle)
-        ? prev.categories.filter((c) => c !== handle)
-        : [...prev.categories, handle],
+      categories: (() => {
+        const hasParent = Boolean(categoryParam);
+        const childHandles = hasParent
+          ? categoryHierarchy.childrenByParent.get(categoryParam)?.keys() ?? []
+          : [];
+        const isChild =
+          hasParent && Array.from(childHandles).includes(handle);
+        if (prev.categories.includes(handle)) {
+          const next = prev.categories.filter((c) => c !== handle);
+          if (next.length === 0 && hasParent) {
+            return [categoryParam];
+          }
+          return next;
+        }
+        const withoutParent = isChild
+          ? prev.categories.filter((c) => c !== categoryParam)
+          : prev.categories;
+        return [...withoutParent, handle];
+      })(),
     }));
   };
 

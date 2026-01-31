@@ -96,6 +96,31 @@ const parseEuro = (value: string) => {
   return Math.round(amount * 100);
 };
 
+const normalizeVariantOptions = (
+  options: VariantOption[]
+): { options: Array<{ name: string; value: string }>; duplicates: string[] } => {
+  const duplicates = new Set<string>();
+  const normalized = options
+    .map((opt) => ({ name: opt.name.trim(), value: opt.value.trim() }))
+    .filter((opt) => opt.name && opt.value);
+  const deduped: Array<{ name: string; value: string }> = [];
+  normalized.forEach((opt) => {
+    const key = opt.name.toLowerCase();
+    if (duplicates.has(key)) return;
+    deduped.push(opt);
+  });
+  return { options: deduped, duplicates: Array.from(duplicates) };
+};
+
+const findOptionRowIssues = (options: VariantOption[]) => {
+  const incomplete = options.find(
+    (opt) => Boolean(opt.name.trim()) !== Boolean(opt.value.trim())
+  );
+  return incomplete
+    ? `Option requires name and value: "${incomplete.name || incomplete.value}"`
+    : null;
+};
+
 export default function AdminProductClient({
   product,
   categories,
@@ -165,6 +190,7 @@ export default function AdminProductClient({
     });
     return initial;
   });
+  const [savingAllVariants, setSavingAllVariants] = useState(false);
   const [categoryIds, setCategoryIds] = useState(
     new Set(product.categories.map((item) => item.category.id))
   );
@@ -497,6 +523,12 @@ export default function AdminProductClient({
   const updateVariant = async (variant: VariantItem) => {
     setMessage("");
     setError("");
+    const rowIssue = findOptionRowIssues(variant.options);
+    if (rowIssue) {
+      setError(rowIssue);
+      return;
+    }
+    const normalizedOptions = normalizeVariantOptions(variant.options);
     const res = await fetch(`/api/admin/variants/${variant.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -508,10 +540,7 @@ export default function AdminProductClient({
         compareAtCents: variant.compareAtCents,
         position: variant.position,
         lowStockThreshold: variant.lowStockThreshold,
-        options: variant.options.map((opt) => ({
-          name: opt.name,
-          value: opt.value,
-        })),
+        options: normalizedOptions.options,
         inventory: {
           quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
           reserved: variant.inventory?.reserved ?? 0,
@@ -530,6 +559,61 @@ export default function AdminProductClient({
       return;
     }
     setMessage("Variant updated");
+  };
+
+  const saveAllVariants = async () => {
+    setMessage("");
+    setError("");
+    setSavingAllVariants(true);
+    try {
+      for (const variant of variants) {
+        const rowIssue = findOptionRowIssues(variant.options);
+        if (rowIssue) {
+          setError(`"${variant.title}": ${rowIssue}`);
+          return;
+        }
+      }
+      const responses = await Promise.all(
+        variants.map((variant) =>
+          {
+            const normalized = normalizeVariantOptions(variant.options);
+            return fetch(`/api/admin/variants/${variant.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: variant.title,
+                sku: variant.sku,
+                priceCents: variant.priceCents,
+                costCents: variant.costCents,
+                compareAtCents: variant.compareAtCents,
+                position: variant.position,
+                lowStockThreshold: variant.lowStockThreshold,
+                options: normalized.options,
+                inventory: {
+                  quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
+                  reserved: variant.inventory?.reserved ?? 0,
+                },
+              }),
+            });
+          }
+        )
+      );
+      const failed = responses.find((res) => !res.ok);
+      if (failed) {
+        let errorMessage = "Save failed";
+        try {
+          const data = (await failed.json()) as { error?: string };
+          if (data?.error) errorMessage = data.error;
+        } catch {
+          // Keep default message when response isn't JSON.
+        }
+        setError(errorMessage);
+        return;
+      }
+      setMessage("Variants updated");
+    } finally {
+      setSavingAllVariants(false);
+    }
   };
 
   const saveVariantOrder = async (items: VariantItem[]) => {
@@ -601,6 +685,11 @@ export default function AdminProductClient({
       setError("Variant cost is invalid");
       return;
     }
+    const rowIssue = findOptionRowIssues(newVariant.options);
+    if (rowIssue) {
+      setError(rowIssue);
+      return;
+    }
     setMessage("");
     setError("");
     const res = await fetch(`/api/admin/products/${product.id}/variants`, {
@@ -614,7 +703,7 @@ export default function AdminProductClient({
         compareAtCents: newVariant.compareAt ? parseEuro(newVariant.compareAt) : null,
         position: variants.length,
         lowStockThreshold: Number(newVariant.lowStockThreshold) || 0,
-        options: newVariant.options.filter((opt) => opt.name && opt.value),
+        options: normalizeVariantOptions(newVariant.options).options,
       }),
     });
     const data = (await res.json()) as { variant?: VariantItem; error?: string };
@@ -679,6 +768,14 @@ export default function AdminProductClient({
       return next;
     });
   }, [variants]);
+
+  useEffect(() => {
+    setNewVariant((prev) => ({
+      ...prev,
+      options:
+        prev.options.length === 0 ? [{ name: "", value: "" }] : prev.options,
+    }));
+  }, []);
 
   const legacySupplierName = useMemo(() => {
     if (product.supplierId) return null;
@@ -1951,7 +2048,7 @@ export default function AdminProductClient({
                 <div className="rounded-md border border-[#2f3e36]/10 bg-[#f8fbf6] px-3 py-3">
                   <p className="text-xs font-semibold text-stone-600">Options</p>
                   <p className="mt-1 text-xs text-stone-500">
-                    Add option pairs like Size: Small or Color: Black.
+                    One value per option name for this variant.
                   </p>
                   <div className="mt-3 space-y-2">
                     {variant.options.map((opt, optIndex) => (
@@ -1992,10 +2089,7 @@ export default function AdminProductClient({
                                       options: item.options.map(
                                         (row, rowIndex) =>
                                           rowIndex === optIndex
-                                            ? {
-                                                ...row,
-                                                value: event.target.value,
-                                              }
+                                            ? { ...row, value: event.target.value }
                                             : row
                                       ),
                                     }
@@ -2051,7 +2145,7 @@ export default function AdminProductClient({
                       }
                       className="h-9 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
                     >
-                      Add option
+                      New option
                     </button>
                   </div>
                 </div>
@@ -2066,10 +2160,11 @@ export default function AdminProductClient({
         <div className="mt-6 flex justify-end">
           <button
             type="button"
-            onClick={() => setAddVariantOpen(true)}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b]"
+            onClick={saveAllVariants}
+            disabled={savingAllVariants}
+            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
           >
-            Add variant
+            {savingAllVariants ? "Saving..." : "Save variants"}
           </button>
         </div>
       </section>
@@ -2160,55 +2255,57 @@ export default function AdminProductClient({
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              {newVariant.options.map((opt, index) => (
-                <div
-                  key={index}
-                  className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                >
-                  <input
-                    value={opt.name}
-                    onChange={(event) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.map((row, rowIndex) =>
-                          rowIndex === index
-                            ? { ...row, name: event.target.value }
-                            : row
-                        ),
-                      }))
-                    }
-                    placeholder="Option name"
-                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                  />
-                  <input
-                    value={opt.value}
-                    onChange={(event) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.map((row, rowIndex) =>
-                          rowIndex === index
-                            ? { ...row, value: event.target.value }
-                            : row
-                        ),
-                      }))
-                    }
-                    placeholder="Option value"
-                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.filter((_, rowIndex) => rowIndex !== index),
-                      }))
-                    }
-                    className="h-9 rounded-md border border-black/15 px-2 text-xs"
+              <div className="space-y-2">
+                {newVariant.options.map((opt, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    <input
+                      value={opt.name}
+                      onChange={(event) =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, name: event.target.value }
+                              : row
+                          ),
+                        }))
+                      }
+                      placeholder="Option name"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
+                    <input
+                      value={opt.value}
+                      onChange={(event) =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, value: event.target.value }
+                              : row
+                          ),
+                        }))
+                      }
+                      placeholder="Option value"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.filter((_, rowIndex) => rowIndex !== index),
+                        }))
+                      }
+                      className="h-9 rounded-md border border-black/15 px-2 text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() =>
@@ -2219,7 +2316,7 @@ export default function AdminProductClient({
                 }
                 className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"
               >
-                Add option
+                New option
               </button>
             </div>
             <div className="mt-5 flex flex-wrap justify-end gap-2">

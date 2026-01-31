@@ -85,6 +85,40 @@ body {
   display: none;
 }
 
+.pretty-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(46, 66, 57, 0.45) transparent;
+}
+
+.pretty-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pretty-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pretty-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(46, 66, 57, 0.35),
+    rgba(46, 66, 57, 0.6)
+  );
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.pretty-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(46, 66, 57, 0.5),
+    rgba(46, 66, 57, 0.8)
+  );
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
 @keyframes add-to-cart-sweep {
   0% {
     transform: translateX(-160%);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
+import { revalidatePath } from "next/cache";
 
 export async function POST(
   request: NextRequest,
@@ -78,5 +79,12 @@ export async function POST(
     include: { options: true, inventory: true },
   });
 
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: { handle: true },
+  });
+  if (product?.handle) {
+    revalidatePath(`/products/${product.handle}`);
+  }
   return NextResponse.json({ variant });
 }
