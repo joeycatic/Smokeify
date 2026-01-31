@@ -96,8 +96,10 @@ const parseEuro = (value: string) => {
   return Math.round(amount * 100);
 };
 
+type OptionInput = { name: string; value: string };
+
 const normalizeVariantOptions = (
-  options: VariantOption[]
+  options: OptionInput[]
 ): { options: Array<{ name: string; value: string }>; duplicates: string[] } => {
   const duplicates = new Set<string>();
   const normalized = options
@@ -112,7 +114,7 @@ const normalizeVariantOptions = (
   return { options: deduped, duplicates: Array.from(duplicates) };
 };
 
-const findOptionRowIssues = (options: VariantOption[]) => {
+const findOptionRowIssues = (options: OptionInput[]) => {
   const incomplete = options.find(
     (opt) => Boolean(opt.name.trim()) !== Boolean(opt.value.trim())
   );
