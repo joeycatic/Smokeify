@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import PageLayout from "@/components/PageLayout";
-import AdminBackButton from "@/components/admin/AdminBackButton";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 export default async function AdminInventoryAdjustmentsPage() {
@@ -40,10 +39,6 @@ export default async function AdminInventoryAdjustmentsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <AdminThemeToggle />
-              <AdminBackButton
-                inline
-                className="h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
-              />
               <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
                 Latest 200
               </div>

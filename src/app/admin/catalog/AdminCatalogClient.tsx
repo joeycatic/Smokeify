@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
-import AdminBackButton from "@/components/admin/AdminBackButton";
 
 type ProductRow = {
   id: string;
@@ -630,11 +629,6 @@ export default function AdminCatalogClient({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <AdminThemeToggle />
-            <AdminBackButton
-              inline
-              showOnCatalog
-              className="admin-catalog-back h-9 px-4 text-sm text-[#2f3e36] hover:bg-emerald-50"
-            />
             <Link
               href="/admin/catalog"
               className="admin-catalog-refresh rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"

@@ -31,7 +31,7 @@ const sendTelegramMessage = async (text) => {
 };
 
 const formatChangeLine = (change) =>
-  `${change.title}: ${change.previous} → ${change.next}`;
+  `${change.title}: ${change.previous} → ${change.next} (${change.supplier})`;
 
 const parseStockFromHtml = (html) => {
   const match = html.match(STATUS_REGEX);
@@ -49,7 +49,52 @@ const parseStockFromHtml = (html) => {
   return { statusText, quantity: 0, inStock: false };
 };
 
-const shouldSkipRun = async () => {
+const parseB2BHeadshopStock = (html, url) => {
+  const match = html.match(STATUS_REGEX);
+  const statusText = match ? normalizeText(match[1]) : "";
+  const lower = statusText.toLowerCase();
+  if (/sofort\s+verf(u|ü)gbar/.test(lower)) {
+    console.log(`[b2b] ${url} -> "${statusText}" => 20`);
+    return { statusText, quantity: 20, inStock: true };
+  }
+
+  const hasSchemaInStock =
+    html
+      .toLowerCase()
+      .includes('itemprop="availability"') &&
+    html.toLowerCase().includes("schema.org/instock");
+  if (hasSchemaInStock) {
+    console.log(`[b2b] ${url} -> schema.org/InStock => 20`);
+    return { statusText: statusText || "InStock", quantity: 20, inStock: true };
+  }
+
+  if (!match) {
+    console.log(`[b2b] No status match for ${url}`);
+    return { statusText: null, quantity: null, inStock: null };
+  }
+
+  console.log(`[b2b] ${url} -> "${statusText}" => 0`);
+  return { statusText, quantity: 0, inStock: false };
+};
+
+const parseStockForUrl = (url, html) => {
+  const normalized = url.toLowerCase();
+  if (normalized.includes("b2b-headshop.de")) {
+    return parseB2BHeadshopStock(html, url);
+  }
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("b2b-headshop.de")) {
+      return parseB2BHeadshopStock(html, url);
+    }
+  } catch {
+    // ignore bad URL and fall back
+  }
+  return parseStockFromHtml(html);
+};
+
+const shouldSkipRun = async (isDryRun) => {
+  if (isDryRun) return false;
   if (MAX_DAILY_RUNS <= 0) return false;
   const last = await prisma.inventoryAdjustment.findFirst({
     where: { reason: "supplier_scrape" },
@@ -139,7 +184,7 @@ const updateProductStock = async (product, quantity, isDryRun) => {
 };
 
 export const runSupplierSync = async ({ isDryRun = false } = {}) => {
-  if (await shouldSkipRun()) {
+  if (await shouldSkipRun(isDryRun)) {
     console.log("Skipping supplier sync: already ran within 24h.");
     return;
   }
@@ -174,9 +219,15 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
       skipped += 1;
       continue;
     }
+    let supplier = "supplier";
     try {
+      try {
+        supplier = new URL(url).hostname.toLowerCase();
+      } catch {
+        supplier = "supplier";
+      }
       const html = await fetchHtml(url);
-      const parsed = parseStockFromHtml(html);
+      const parsed = parseStockForUrl(url, html);
       if (parsed.statusText === null) {
         console.warn(`[sync] Missing status span for ${product.title}`);
         unavailable.push({
@@ -200,7 +251,12 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
       const quantity = parsed.quantity ?? 0;
       const result = await updateProductStock(product, quantity, isDryRun);
       updated += result.updated;
-      changes.push(...result.changes);
+      changes.push(
+        ...result.changes.map((change) => ({
+          ...change,
+          supplier,
+        }))
+      );
     } catch (error) {
       console.warn(
         `[sync] Failed ${product.title}: ${error instanceof Error ? error.message : "unknown"}`
@@ -209,6 +265,7 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
         title: product.title,
         url,
         reason: error instanceof Error ? error.message : "unknown",
+        supplier,
       });
       failed += 1;
     }
