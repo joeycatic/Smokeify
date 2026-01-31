@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import { requireAdmin } from "@/lib/adminCatalog";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-
 export async function POST(request: Request) {
   const session = await requireAdmin();
   if (!session) {
@@ -30,13 +27,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const ext = path.extname(file.name) || ".bin";
+  const ext = file.name ? `.${file.name.split(".").pop()}` : "";
   const filename = `${randomUUID()}${ext}`;
-  const targetPath = path.join(UPLOAD_DIR, filename);
-
-  await mkdir(UPLOAD_DIR, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(targetPath, buffer);
 
-  return NextResponse.json({ url: `/uploads/${filename}` });
+  const blob = await put(`uploads/${filename}`, buffer, {
+    access: "public",
+    addRandomSuffix: false,
+  });
+
+  return NextResponse.json({ url: blob.url });
 }
