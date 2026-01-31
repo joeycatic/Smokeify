@@ -14,10 +14,21 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
   const role = token?.role;
+  const cookieNames = request.cookies.getAll().map((c) => c.name);
+  const hasSecureSession = cookieNames.includes(
+    "__Secure-next-auth.session-token",
+  );
+  const hasSession = cookieNames.includes("next-auth.session-token");
+  const cookieHint = hasSecureSession
+    ? "secure"
+    : hasSession
+      ? "insecure"
+      : "none";
   if (role === "ADMIN" || role === "STAFF") {
     const res = NextResponse.next();
     res.headers.set("x-maintenance-role", String(role));
     res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    res.headers.set("x-maintenance-cookie", cookieHint);
     return res;
   }
 
@@ -37,6 +48,7 @@ export async function middleware(request: NextRequest) {
     const res = NextResponse.next();
     res.headers.set("x-maintenance-role", String(role ?? "none"));
     res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    res.headers.set("x-maintenance-cookie", cookieHint);
     return res;
   }
 
@@ -44,6 +56,7 @@ export async function middleware(request: NextRequest) {
     const res = NextResponse.next();
     res.headers.set("x-maintenance-role", String(role ?? "none"));
     res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    res.headers.set("x-maintenance-cookie", cookieHint);
     return res;
   }
 
@@ -52,6 +65,7 @@ export async function middleware(request: NextRequest) {
   const res = NextResponse.redirect(url);
   res.headers.set("x-maintenance-role", String(role ?? "none"));
   res.headers.set("x-maintenance-token", token ? "present" : "missing");
+  res.headers.set("x-maintenance-cookie", cookieHint);
   return res;
 }
 
