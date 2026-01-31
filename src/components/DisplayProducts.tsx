@@ -34,7 +34,7 @@ export default function DisplayProducts({
       ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2"
       : cols === 3
         ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+        : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4";
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
   return (
     <div className={`mt-6 grid gap-3 ${gridColsClass}`}>

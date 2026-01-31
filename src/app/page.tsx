@@ -70,13 +70,10 @@ export default async function StorePage() {
                     <h3 className="text-lg font-semibold text-[#21483b]">
                       Zelte
                     </h3>
-                    <span className="text-xs font-semibold text-stone-500">
-                      1 Reihe
-                    </span>
                   </div>
                   <DisplayProducts
                     products={tentProducts}
-                    cols={2}
+                    cols={4}
                     showManufacturer
                     showGrowboxSize
                     hideCartLabel
@@ -88,9 +85,6 @@ export default async function StorePage() {
                     <h3 className="text-lg font-semibold text-[#21483b]">
                       Hersteller
                     </h3>
-                    <span className="text-xs font-semibold text-stone-500">
-                      Platzhalter
-                    </span>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {[
@@ -114,13 +108,10 @@ export default async function StorePage() {
                     <h3 className="text-lg font-semibold text-[#21483b]">
                       Meistverkauft
                     </h3>
-                    <span className="text-xs font-semibold text-stone-500">
-                      2 Reihen
-                    </span>
                   </div>
                   <DisplayProducts
                     products={bestSellersFilled}
-                    cols={2}
+                    cols={4}
                     showManufacturer
                     hideCartLabel
                   />

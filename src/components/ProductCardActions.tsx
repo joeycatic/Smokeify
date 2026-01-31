@@ -47,7 +47,7 @@ export default function ProductCardActions({
     size === "lg"
       ? "rounded-full border p-2.5 transition"
       : "rounded-full border p-2.5 transition";
-  const cartGapClass = hideCartLabel ? "gap-0" : "gap-2";
+  const cartGapClass = hideCartLabel ? "gap-0 sm:gap-2" : "gap-2";
 
   return (
     <>

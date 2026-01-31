@@ -14,22 +14,8 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
   const role = token?.role;
-  const cookieNames = request.cookies.getAll().map((c) => c.name);
-  const hasSecureSession = cookieNames.includes(
-    "__Secure-next-auth.session-token",
-  );
-  const hasSession = cookieNames.includes("next-auth.session-token");
-  const cookieHint = hasSecureSession
-    ? "secure"
-    : hasSession
-      ? "insecure"
-      : "none";
   if (role === "ADMIN" || role === "STAFF") {
-    const res = NextResponse.next();
-    res.headers.set("x-maintenance-role", String(role));
-    res.headers.set("x-maintenance-token", token ? "present" : "missing");
-    res.headers.set("x-maintenance-cookie", cookieHint);
-    return res;
+    return NextResponse.next();
   }
 
   const { pathname } = request.nextUrl;
@@ -45,28 +31,16 @@ export async function middleware(request: NextRequest) {
   ];
 
   if (allowlist.some((path) => pathname.startsWith(path))) {
-    const res = NextResponse.next();
-    res.headers.set("x-maintenance-role", String(role ?? "none"));
-    res.headers.set("x-maintenance-token", token ? "present" : "missing");
-    res.headers.set("x-maintenance-cookie", cookieHint);
-    return res;
+    return NextResponse.next();
   }
 
   if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
-    const res = NextResponse.next();
-    res.headers.set("x-maintenance-role", String(role ?? "none"));
-    res.headers.set("x-maintenance-token", token ? "present" : "missing");
-    res.headers.set("x-maintenance-cookie", cookieHint);
-    return res;
+    return NextResponse.next();
   }
 
   const url = request.nextUrl.clone();
   url.pathname = "/maintenance";
-  const res = NextResponse.redirect(url);
-  res.headers.set("x-maintenance-role", String(role ?? "none"));
-  res.headers.set("x-maintenance-token", token ? "present" : "missing");
-  res.headers.set("x-maintenance-cookie", cookieHint);
-  return res;
+  return NextResponse.redirect(url);
 }
 
 export const config = {
