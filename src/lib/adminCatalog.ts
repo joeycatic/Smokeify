@@ -15,6 +15,14 @@ export async function requireAdmin() {
   return session;
 }
 
+export async function requireAdminOnly() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.role !== "ADMIN") {
+    return null;
+  }
+  return session;
+}
+
 export function slugify(value: string) {
   const normalized = value
     .toLowerCase()

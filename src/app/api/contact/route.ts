@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   const server = process.env.EMAIL_SERVER;
   const from = process.env.EMAIL_FROM;
-  const to = process.env.CONTACT_EMAIL || process.env.EMAIL_FROM;
+  const to = process.env.CONTACT_EMAIL?.trim() || "contact@smokeify.de";
 
   if (!server || !from || !to) {
     return NextResponse.json({ error: "Email not configured" }, { status: 500 });

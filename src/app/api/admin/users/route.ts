@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminOnly } from "@/lib/adminCatalog";
 
 export async function GET() {
-  const session = await requireAdmin();
+  const session = await requireAdminOnly();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await requireAdmin();
+  const session = await requireAdminOnly();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

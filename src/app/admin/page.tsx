@@ -264,19 +264,21 @@ export default async function AdminPage({
             </Link>
           </div>
         </div>
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <AdminUsersClient
-            initialUsers={users.map((user) => ({
-              ...user,
-              createdAt: user.createdAt.toISOString(),
-            }))}
-            initialQuery={normalizedQuery}
-            totalCount={totalUsers}
-            currentPage={currentUserPage}
-            totalPages={totalUserPages}
-            pageSize={USERS_PAGE_SIZE}
-          />
-        </div>
+        {isAdmin ? (
+          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+            <AdminUsersClient
+              initialUsers={users.map((user) => ({
+                ...user,
+                createdAt: user.createdAt.toISOString(),
+              }))}
+              initialQuery={normalizedQuery}
+              totalCount={totalUsers}
+              currentPage={currentUserPage}
+              totalPages={totalUserPages}
+              pageSize={USERS_PAGE_SIZE}
+            />
+          </div>
+        ) : null}
         <div className="mt-12">
           <AdminInventoryAlertsClient
             variants={lowStockPage.map((variant) => ({

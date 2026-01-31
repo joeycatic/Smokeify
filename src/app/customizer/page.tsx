@@ -780,6 +780,14 @@ export default function CustomizerPage() {
   const [ventOptions, setVentOptions] = useState<Option[]>([]);
   const [ventLoading, setVentLoading] = useState(false);
   const [ventError, setVentError] = useState("");
+  const [extrasWateringOptions, setExtrasWateringOptions] = useState<Option[]>(
+    [],
+  );
+  const [extrasSeedlingOptions, setExtrasSeedlingOptions] = useState<Option[]>(
+    [],
+  );
+  const [extrasLoading, setExtrasLoading] = useState(false);
+  const [extrasError, setExtrasError] = useState("");
   const [activeStep, setActiveStep] = useState<StepId>("size");
   const [sizeSearch, setSizeSearch] = useState("");
   const [lightSearch, setLightSearch] = useState("");
@@ -872,6 +880,46 @@ export default function CustomizerPage() {
   useEffect(() => {
     if (!isAdmin) return;
     let active = true;
+    setExtrasLoading(true);
+    setExtrasError("");
+    Promise.all([
+      fetch("/api/customizer/options?category=Bewaesserung"),
+      fetch("/api/customizer/options?category=Anzucht"),
+    ])
+      .then(async ([wateringRes, seedlingRes]) => {
+        if (!wateringRes.ok) {
+          const data = (await wateringRes.json()) as { error?: string };
+          throw new Error(data.error ?? "Konnte Bewässerung nicht laden.");
+        }
+        if (!seedlingRes.ok) {
+          const data = (await seedlingRes.json()) as { error?: string };
+          throw new Error(data.error ?? "Konnte Anzucht nicht laden.");
+        }
+        const wateringData =
+          (await wateringRes.json()) as { options?: Option[] };
+        const seedlingData =
+          (await seedlingRes.json()) as { options?: Option[] };
+        if (!active) return;
+        setExtrasWateringOptions(wateringData.options ?? []);
+        setExtrasSeedlingOptions(seedlingData.options ?? []);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setExtrasError(err.message || "Konnte Extras nicht laden.");
+      })
+      .finally(() => {
+        if (!active) return;
+        setExtrasLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
     setLightLoading(true);
     setLightError("");
     fetch("/api/customizer/options?category=Licht")
@@ -944,6 +992,18 @@ export default function CustomizerPage() {
       prev.filter((id) => ventOptions.some((opt) => opt.id === id)),
     );
   }, [ventOptions]);
+
+  const extrasOptions = useMemo(
+    () => [...extrasWateringOptions, ...extrasSeedlingOptions],
+    [extrasWateringOptions, extrasSeedlingOptions],
+  );
+
+  useEffect(() => {
+    if (!extrasOptions.length) return;
+    setExtras((prev) =>
+      prev.filter((id) => extrasOptions.some((opt) => opt.id === id)),
+    );
+  }, [extrasOptions]);
 
   const selectedSize = (isAdmin ? sizeOptions : SIZE_OPTIONS).find(
     (o) => o.id === sizeId,
@@ -1058,11 +1118,18 @@ export default function CustomizerPage() {
     selectedVentOptions.length > 0 &&
     selectedVentOptions.every((opt) => isVentOptionCompatible(opt));
 
+  const sizeBaseOptions = (isAdmin ? sizeOptions : SIZE_OPTIONS).filter(
+    (opt) => !isCompleteSetOption(opt),
+  );
+  const lightBaseOptions = isAdmin ? lightOptions : LIGHT_OPTIONS;
+  const ventBaseOptions = isAdmin ? ventOptions : VENT_OPTIONS;
+  const extrasBaseOptions = isAdmin ? extrasOptions : EXTRA_OPTIONS;
+
   const extrasTotal = useMemo(() => {
     return extras
-      .map((id) => EXTRA_OPTIONS.find((o) => o.id === id)?.price ?? 0)
+      .map((id) => extrasBaseOptions.find((o) => o.id === id)?.price ?? 0)
       .reduce((a, b) => a + b, 0);
-  }, [extras]);
+  }, [extras, extrasBaseOptions]);
 
   const total =
     (selectedSize?.price ?? 0) +
@@ -1148,12 +1215,6 @@ export default function CustomizerPage() {
     return () => observer.disconnect();
   }, [activeStep]);
 
-  const sizeBaseOptions = (isAdmin ? sizeOptions : SIZE_OPTIONS).filter(
-    (opt) => !isCompleteSetOption(opt),
-  );
-  const lightBaseOptions = isAdmin ? lightOptions : LIGHT_OPTIONS;
-  const ventBaseOptions = isAdmin ? ventOptions : VENT_OPTIONS;
-
   const sizeGroupOptions =
     sizeGroupKey === "all"
       ? sizeBaseOptions
@@ -1207,11 +1268,17 @@ export default function CustomizerPage() {
     isVentOptionCompatible,
   );
 
-  const filteredExtras = EXTRA_OPTIONS.filter((opt) =>
+  const filteredExtras = extrasBaseOptions.filter((opt) =>
+    opt.label.toLowerCase().includes(extrasSearch.toLowerCase()),
+  );
+  const filteredWateringExtras = extrasWateringOptions.filter((opt) =>
+    opt.label.toLowerCase().includes(extrasSearch.toLowerCase()),
+  );
+  const filteredSeedlingExtras = extrasSeedlingOptions.filter((opt) =>
     opt.label.toLowerCase().includes(extrasSearch.toLowerCase()),
   );
 
-  const extrasSelectedOptions = EXTRA_OPTIONS.filter((opt) =>
+  const extrasSelectedOptions = extrasBaseOptions.filter((opt) =>
     extras.includes(opt.id),
   );
   const setupItems = [
@@ -1613,7 +1680,7 @@ export default function CustomizerPage() {
                           price={opt.price}
                           imageUrl={opt.imageUrl ?? null}
                           imageAlt={opt.imageAlt ?? opt.label}
-                          imageHeightClass="h-44 sm:h-32"
+                          imageHeightClass="h-44 sm:h-32 lg:h-44 xl:h-48"
                           outOfStock={opt.outOfStock}
                           badges={getOptionBadges(opt)}
                           selected={sizeId === opt.id}
@@ -1877,29 +1944,99 @@ export default function CustomizerPage() {
                       extrasLocked ? "pointer-events-none opacity-60" : ""
                     }
                   >
-                    <ProductGrid>
-                      {filteredExtras.map((opt) => {
-                        const active = extras.includes(opt.id);
-                        return (
-                          <ProductCard
-                            key={opt.id}
-                            title={opt.label}
-                            price={opt.price}
-                            imageUrl={opt.imageUrl ?? null}
-                            imageAlt={opt.imageAlt ?? opt.label}
-                            badges={getOptionBadges(opt)}
-                            selected={active}
-                            onSelect={() =>
-                              setExtras((prev) =>
-                                prev.includes(opt.id)
-                                  ? prev.filter((id) => id !== opt.id)
-                                  : [...prev, opt.id],
-                              )
-                            }
+                    {isAdmin && (extrasLoading || sessionLoading) ? (
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {[...Array(6)].map((_, index) => (
+                          <div
+                            key={`extras-skeleton-${index}`}
+                            className="h-[220px] animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50"
                           />
-                        );
-                      })}
-                    </ProductGrid>
+                        ))}
+                      </div>
+                    ) : isAdmin && extrasError ? (
+                      <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                        {extrasError}
+                      </p>
+                    ) : isAdmin ? (
+                      <div className="space-y-8">
+                        {[
+                          {
+                            id: "watering",
+                            title: "Bewässerung",
+                            options: filteredWateringExtras,
+                          },
+                          {
+                            id: "seedling",
+                            title: "Anzucht",
+                            options: filteredSeedlingExtras,
+                          },
+                        ].map((section) => (
+                          <div key={section.id} className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-semibold text-neutral-900">
+                                {section.title}
+                              </h3>
+                              <span className="text-xs text-neutral-500">
+                                {section.options.length} Artikel
+                              </span>
+                            </div>
+                            {section.options.length === 0 ? (
+                              <p className="text-xs text-neutral-500">
+                                Keine Produkte gefunden.
+                              </p>
+                            ) : (
+                              <ProductGrid>
+                                {section.options.map((opt) => {
+                                  const active = extras.includes(opt.id);
+                                  return (
+                                    <ProductCard
+                                      key={opt.id}
+                                      title={opt.label}
+                                      price={opt.price}
+                                      imageUrl={opt.imageUrl ?? null}
+                                      imageAlt={opt.imageAlt ?? opt.label}
+                                      badges={getOptionBadges(opt)}
+                                      selected={active}
+                                      onSelect={() =>
+                                        setExtras((prev) =>
+                                          prev.includes(opt.id)
+                                            ? prev.filter((id) => id !== opt.id)
+                                            : [...prev, opt.id],
+                                        )
+                                      }
+                                    />
+                                  );
+                                })}
+                              </ProductGrid>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <ProductGrid>
+                        {filteredExtras.map((opt) => {
+                          const active = extras.includes(opt.id);
+                          return (
+                            <ProductCard
+                              key={opt.id}
+                              title={opt.label}
+                              price={opt.price}
+                              imageUrl={opt.imageUrl ?? null}
+                              imageAlt={opt.imageAlt ?? opt.label}
+                              badges={getOptionBadges(opt)}
+                              selected={active}
+                              onSelect={() =>
+                                setExtras((prev) =>
+                                  prev.includes(opt.id)
+                                    ? prev.filter((id) => id !== opt.id)
+                                    : [...prev, opt.id],
+                                )
+                              }
+                            />
+                          );
+                        })}
+                      </ProductGrid>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
