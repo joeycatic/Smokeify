@@ -850,130 +850,49 @@ export default function CustomizerPage() {
     if (!isAdmin) return;
     let active = true;
     setSizeLoading(true);
+    setLightLoading(true);
+    setVentLoading(true);
+    setExtrasLoading(true);
     setSizeError("");
-    fetch("/api/customizer/options?category=growboxen")
+    setLightError("");
+    setVentError("");
+    setExtrasError("");
+
+    fetch(
+      "/api/customizer/options?categories=growboxen,Licht,Luft,Bewaesserung,Anzucht",
+    )
       .then(async (res) => {
         if (!res.ok) {
           const data = (await res.json()) as { error?: string };
           throw new Error(data.error ?? "Konnte Produkte nicht laden.");
         }
-        return (await res.json()) as { options?: Option[] };
+        return (await res.json()) as {
+          optionsByCategory?: Record<string, Option[]>;
+        };
       })
       .then((data) => {
         if (!active) return;
-        setSizeOptions(data.options ?? []);
+        const optionsByCategory = data.optionsByCategory ?? {};
+        setSizeOptions(optionsByCategory.growboxen ?? []);
+        setLightOptions(optionsByCategory.licht ?? []);
+        setVentOptions(optionsByCategory.luft ?? []);
+        setExtrasWateringOptions(optionsByCategory.bewaesserung ?? []);
+        setExtrasSeedlingOptions(optionsByCategory.anzucht ?? []);
       })
       .catch((err: Error) => {
         if (!active) return;
-        setSizeError(err.message || "Konnte Produkte nicht laden.");
+        const message = err.message || "Konnte Produkte nicht laden.";
+        setSizeError(message);
+        setLightError(message);
+        setVentError(message);
+        setExtrasError(message);
       })
       .finally(() => {
         if (!active) return;
         setSizeLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    let active = true;
-    setExtrasLoading(true);
-    setExtrasError("");
-    Promise.all([
-      fetch("/api/customizer/options?category=Bewaesserung"),
-      fetch("/api/customizer/options?category=Anzucht"),
-    ])
-      .then(async ([wateringRes, seedlingRes]) => {
-        if (!wateringRes.ok) {
-          const data = (await wateringRes.json()) as { error?: string };
-          throw new Error(data.error ?? "Konnte Bewässerung nicht laden.");
-        }
-        if (!seedlingRes.ok) {
-          const data = (await seedlingRes.json()) as { error?: string };
-          throw new Error(data.error ?? "Konnte Anzucht nicht laden.");
-        }
-        const wateringData = (await wateringRes.json()) as {
-          options?: Option[];
-        };
-        const seedlingData = (await seedlingRes.json()) as {
-          options?: Option[];
-        };
-        if (!active) return;
-        setExtrasWateringOptions(wateringData.options ?? []);
-        setExtrasSeedlingOptions(seedlingData.options ?? []);
-      })
-      .catch((err: Error) => {
-        if (!active) return;
-        setExtrasError(err.message || "Konnte Extras nicht laden.");
-      })
-      .finally(() => {
-        if (!active) return;
-        setExtrasLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    let active = true;
-    setLightLoading(true);
-    setLightError("");
-    fetch("/api/customizer/options?category=Licht")
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = (await res.json()) as { error?: string };
-          throw new Error(data.error ?? "Konnte Licht-Produkte nicht laden.");
-        }
-        return (await res.json()) as { options?: Option[] };
-      })
-      .then((data) => {
-        if (!active) return;
-        setLightOptions(data.options ?? []);
-      })
-      .catch((err: Error) => {
-        if (!active) return;
-        setLightError(err.message || "Konnte Licht-Produkte nicht laden.");
-      })
-      .finally(() => {
-        if (!active) return;
         setLightLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    let active = true;
-    setVentLoading(true);
-    setVentError("");
-    fetch("/api/customizer/options?category=Luft")
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = (await res.json()) as { error?: string };
-          throw new Error(data.error ?? "Konnte Luft-Produkte nicht laden.");
-        }
-        return (await res.json()) as { options?: Option[] };
-      })
-      .then((data) => {
-        if (!active) return;
-        setVentOptions(data.options ?? []);
-      })
-      .catch((err: Error) => {
-        if (!active) return;
-        setVentError(err.message || "Konnte Luft-Produkte nicht laden.");
-      })
-      .finally(() => {
-        if (!active) return;
         setVentLoading(false);
+        setExtrasLoading(false);
       });
 
     return () => {

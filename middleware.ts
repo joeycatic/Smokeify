@@ -5,6 +5,13 @@ import { getToken } from "next-auth/jwt";
 const MAINTENANCE_FLAG = "1";
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get("host");
+  if (host === "www.smokeify.de") {
+    const url = request.nextUrl.clone();
+    url.host = "smokeify.de";
+    return NextResponse.redirect(url);
+  }
+
   if (process.env.MAINTENANCE_MODE !== MAINTENANCE_FLAG) {
     return NextResponse.next();
   }

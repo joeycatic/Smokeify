@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      "cdn.shopify.com",
-      "pdgpa612bwysfijp.public.blob.vercel-storage.com",
-      "public.blob.vercel-storage.com",
-    ],
     remotePatterns: [
       {
         protocol: "https",
@@ -67,16 +62,6 @@ const nextConfig = {
             value: "public, max-age=31536000, immutable",
           },
         ],
-      },
-    ];
-  },
-  async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.smokeify.de" }],
-        destination: "https://smokeify.de/:path*",
-        permanent: true,
       },
     ];
   },

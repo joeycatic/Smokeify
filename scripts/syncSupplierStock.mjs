@@ -5,10 +5,33 @@ const prisma = new PrismaClient();
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_DAILY_RUNS = 1;
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
+const TELEGRAM_MESSAGE_LIMIT = 3500;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const normalizeText = (value) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+const sendTelegramMessage = async (text) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Telegram failed: ${res.status}`);
+  }
+};
+
+const formatChangeLine = (change) =>
+  `${change.title}: ${change.previous} → ${change.next}`;
 
 const parseStockFromHtml = (html) => {
   const match = html.match(STATUS_REGEX);
@@ -54,7 +77,7 @@ const fetchHtml = async (url) => {
 
 const updateProductStock = async (product, quantity, isDryRun) => {
   const variantIds = product.variants.map((variant) => variant.id);
-  if (variantIds.length === 0) return { updated: 0 };
+  if (variantIds.length === 0) return { updated: 0, changes: [] };
 
   const byVariant = new Map(
     product.variants.map((variant) => [
@@ -64,16 +87,24 @@ const updateProductStock = async (product, quantity, isDryRun) => {
   );
 
   let updatedCount = 0;
+  const changes = [];
   if (isDryRun) {
     for (const variantId of variantIds) {
       const previous = byVariant.get(variantId) ?? 0;
       if (previous === quantity) continue;
+      changes.push({
+        productId: product.id,
+        variantId,
+        title: product.title,
+        previous,
+        next: quantity,
+      });
       console.log(
         `[dry-run] ${product.title} (${variantId}): ${previous} -> ${quantity}`
       );
       updatedCount += 1;
     }
-    return { updated: updatedCount };
+    return { updated: updatedCount, changes };
   }
 
   await prisma.$transaction(async (tx) => {
@@ -93,11 +124,18 @@ const updateProductStock = async (product, quantity, isDryRun) => {
           reason: "supplier_scrape",
         },
       });
+      changes.push({
+        productId: product.id,
+        variantId,
+        title: product.title,
+        previous,
+        next: quantity,
+      });
       updatedCount += 1;
     }
   });
 
-  return { updated: updatedCount };
+  return { updated: updatedCount, changes };
 };
 
 export const runSupplierSync = async ({ isDryRun = false } = {}) => {
@@ -127,6 +165,8 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
   let updated = 0;
   let skipped = 0;
   let failed = 0;
+  const changes = [];
+  const unavailable = [];
 
   for (const product of products) {
     const url = product.sellerUrl;
@@ -139,27 +179,78 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
       const parsed = parseStockFromHtml(html);
       if (parsed.statusText === null) {
         console.warn(`[sync] Missing status span for ${product.title}`);
+        unavailable.push({
+          title: product.title,
+          url,
+          reason: "Status nicht gefunden",
+        });
         failed += 1;
         continue;
       }
       if (parsed.inStock && parsed.quantity === null) {
         console.warn(`[sync] Missing quantity for ${product.title}: ${parsed.statusText}`);
+        unavailable.push({
+          title: product.title,
+          url,
+          reason: "Menge nicht gefunden",
+        });
         failed += 1;
         continue;
       }
       const quantity = parsed.quantity ?? 0;
       const result = await updateProductStock(product, quantity, isDryRun);
       updated += result.updated;
+      changes.push(...result.changes);
     } catch (error) {
       console.warn(
         `[sync] Failed ${product.title}: ${error instanceof Error ? error.message : "unknown"}`
       );
+      unavailable.push({
+        title: product.title,
+        url,
+        reason: error instanceof Error ? error.message : "unknown",
+      });
       failed += 1;
     }
     await sleep(1000);
   }
 
   console.log(`Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed}`);
+
+  if (!isDryRun) {
+    const changeLines = changes.map(formatChangeLine);
+    const changeText =
+      changeLines.length > 0
+        ? changeLines.slice(0, 20).join("\n") +
+          (changeLines.length > 20
+            ? `\n… +${changeLines.length - 20} weitere`
+            : "")
+        : "Keine Änderungen.";
+    const unavailableText =
+      unavailable.length > 0
+        ? unavailable
+            .slice(0, 15)
+            .map((item) => `${item.title} — ${item.reason}\n${item.url}`)
+            .join("\n")
+        : "Keine.";
+    let message =
+      `<b>Supplier Sync</b>\n` +
+      `Updates: ${updated}\n` +
+      `Skipped: ${skipped}\n` +
+      `Failed: ${failed}\n\n` +
+      `<b>Änderungen</b>\n${changeText}\n\n` +
+      `<b>Nicht verfügbar / fehlerhaft</b>\n${unavailableText}`;
+    if (message.length > TELEGRAM_MESSAGE_LIMIT) {
+      message = message.slice(0, TELEGRAM_MESSAGE_LIMIT - 3) + "...";
+    }
+    try {
+      await sendTelegramMessage(message);
+    } catch (error) {
+      console.warn(
+        `[sync] Telegram failed: ${error instanceof Error ? error.message : "unknown"}`
+      );
+    }
+  }
 };
 
 const isExecutedDirectly =
