@@ -15,7 +15,10 @@ export async function middleware(request: NextRequest) {
   });
   const role = token?.role;
   if (role === "ADMIN" || role === "STAFF") {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("x-maintenance-role", String(role));
+    res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    return res;
   }
 
   const { pathname } = request.nextUrl;
@@ -31,16 +34,25 @@ export async function middleware(request: NextRequest) {
   ];
 
   if (allowlist.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("x-maintenance-role", String(role ?? "none"));
+    res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    return res;
   }
 
   if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("x-maintenance-role", String(role ?? "none"));
+    res.headers.set("x-maintenance-token", token ? "present" : "missing");
+    return res;
   }
 
   const url = request.nextUrl.clone();
   url.pathname = "/maintenance";
-  return NextResponse.redirect(url);
+  const res = NextResponse.redirect(url);
+  res.headers.set("x-maintenance-role", String(role ?? "none"));
+  res.headers.set("x-maintenance-token", token ? "present" : "missing");
+  return res;
 }
 
 export const config = {
