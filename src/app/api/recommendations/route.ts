@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const CURRENCY_CODE = "EUR";
@@ -25,8 +26,8 @@ export async function GET(request: Request) {
   }
 
   const categoryIds = product.categories.map((entry) => entry.categoryId);
-  const baseWhere = {
-    status: "ACTIVE" as const,
+  const baseWhere: Prisma.ProductWhereInput = {
+    status: "ACTIVE",
     id: { not: product.id },
   };
 
