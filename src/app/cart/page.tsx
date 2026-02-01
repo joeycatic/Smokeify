@@ -113,12 +113,6 @@ export default function CartPage() {
       );
       return;
     }
-    if (!isAuthenticated) {
-      router.push(
-        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`,
-      );
-      return;
-    }
     setCheckoutStatus("loading");
     setCheckoutError("");
     try {

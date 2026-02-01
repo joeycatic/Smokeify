@@ -510,12 +510,6 @@ export function Navbar() {
       router.push("/cart");
       return;
     }
-    if (!isAuthenticated) {
-      router.push(
-        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`,
-      );
-      return;
-    }
     setCheckoutStatus("loading");
     try {
       const res = await fetch("/api/checkout", {

@@ -196,9 +196,6 @@ const getStripe = () => {
 
 export async function POST(req: Request) {
   const authSession = await getServerSession(authOptions);
-  if (!authSession?.user?.id) {
-    return NextResponse.json({ error: "AUTH_REQUIRED" }, { status: 401 });
-  }
 
   const stripe = getStripe();
   if (!stripe) {
@@ -217,23 +214,26 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const user = await prisma.user.findUnique({
-    where: { id: authSession.user.id },
-    select: {
-      email: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      street: true,
-      houseNumber: true,
-      postalCode: true,
-      city: true,
-      country: true,
-    },
-  });
+  const userId = authSession?.user?.id ?? null;
+  const user = userId
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          street: true,
+          houseNumber: true,
+          postalCode: true,
+          city: true,
+          country: true,
+        },
+      })
+    : null;
   const country = getSafeCountry(body?.country);
   const customerId = user
-    ? await createStripeCustomer(stripe, user, authSession.user.id, country)
+    ? await createStripeCustomer(stripe, user, userId ?? "", country)
     : null;
 
   const items = await readCartItems();
@@ -376,7 +376,7 @@ export async function POST(req: Request) {
       customer_update: customerId
         ? { address: "auto", name: "auto", shipping: "auto" }
         : undefined,
-      client_reference_id: authSession.user.id,
+      client_reference_id: userId ?? undefined,
       shipping_address_collection: {
         allowed_countries: Array.from(ALLOWED_COUNTRIES),
       },

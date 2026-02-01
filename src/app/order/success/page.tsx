@@ -84,10 +84,6 @@ export default function OrderSuccessPage() {
   useEffect(() => {
     if (!sessionId) return;
     if (status === "loading") return;
-    if (status !== "authenticated") {
-      router.push(`/auth/checkout?returnTo=${encodeURIComponent(returnTo)}`);
-      return;
-    }
     if (loadStatus !== "idle") return;
 
     const loadOrder = async () => {

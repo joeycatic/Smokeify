@@ -757,13 +757,12 @@ function MobileSetupBottomBar({
 }
 
 export default function CustomizerPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const sessionLoading = status === "loading";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToCart } = useCart();
-  const isAdmin =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  const hasCustomizerAccess = true;
   const [sizeId, setSizeId] = useState("");
   const [lightIds, setLightIds] = useState<string[]>([]);
   const [ventIds, setVentIds] = useState<string[]>([]);
@@ -847,7 +846,6 @@ export default function CustomizerPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!isAdmin) return;
     let active = true;
     setSizeLoading(true);
     setLightLoading(true);
@@ -898,7 +896,7 @@ export default function CustomizerPage() {
     return () => {
       active = false;
     };
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     if (!lightOptions.length) return;
@@ -926,15 +924,14 @@ export default function CustomizerPage() {
     );
   }, [extrasOptions]);
 
-  const selectedSize = (isAdmin ? sizeOptions : SIZE_OPTIONS).find(
-    (o) => o.id === sizeId,
-  );
-  const selectedLightOptions = (isAdmin ? lightOptions : LIGHT_OPTIONS).filter(
-    (o) => lightIds.includes(o.id),
-  );
-  const selectedVentOptions = (isAdmin ? ventOptions : VENT_OPTIONS).filter(
-    (o) => ventIds.includes(o.id),
-  );
+  const sizeBase = sizeOptions.length ? sizeOptions : SIZE_OPTIONS;
+  const lightBase = lightOptions.length ? lightOptions : LIGHT_OPTIONS;
+  const ventBase = ventOptions.length ? ventOptions : VENT_OPTIONS;
+  const extrasBase = extrasOptions.length ? extrasOptions : EXTRA_OPTIONS;
+
+  const selectedSize = sizeBase.find((o) => o.id === sizeId);
+  const selectedLightOptions = lightBase.filter((o) => lightIds.includes(o.id));
+  const selectedVentOptions = ventBase.filter((o) => ventIds.includes(o.id));
 
   const parseSize = (value?: string) => {
     if (!value) return null;
@@ -1039,12 +1036,10 @@ export default function CustomizerPage() {
     selectedVentOptions.length > 0 &&
     selectedVentOptions.every((opt) => isVentOptionCompatible(opt));
 
-  const sizeBaseOptions = (isAdmin ? sizeOptions : SIZE_OPTIONS).filter(
-    (opt) => !isCompleteSetOption(opt),
-  );
-  const lightBaseOptions = isAdmin ? lightOptions : LIGHT_OPTIONS;
-  const ventBaseOptions = isAdmin ? ventOptions : VENT_OPTIONS;
-  const extrasBaseOptions = isAdmin ? extrasOptions : EXTRA_OPTIONS;
+  const sizeBaseOptions = sizeBase.filter((opt) => !isCompleteSetOption(opt));
+  const lightBaseOptions = lightBase;
+  const ventBaseOptions = ventBase;
+  const extrasBaseOptions = extrasBase;
 
   const extrasTotal = useMemo(() => {
     return extras
@@ -1296,7 +1291,7 @@ export default function CustomizerPage() {
     }
   };
 
-  if (!isAdmin && !sessionLoading) {
+  if (!hasCustomizerAccess && !sessionLoading) {
     const previewSize = SIZE_OPTIONS[1];
     const previewLight = LIGHT_OPTIONS[1];
     const previewVent = VENT_OPTIONS[0];
@@ -1865,7 +1860,7 @@ export default function CustomizerPage() {
                       extrasLocked ? "pointer-events-none opacity-60" : ""
                     }
                   >
-                    {isAdmin && (extrasLoading || sessionLoading) ? (
+                    {extrasLoading || sessionLoading ? (
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {[...Array(6)].map((_, index) => (
                           <div
@@ -1874,11 +1869,11 @@ export default function CustomizerPage() {
                           />
                         ))}
                       </div>
-                    ) : isAdmin && extrasError ? (
+                    ) : extrasError ? (
                       <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                         {extrasError}
                       </p>
-                    ) : isAdmin ? (
+                    ) : (
                       <div className="space-y-8">
                         {[
                           {
@@ -1933,30 +1928,6 @@ export default function CustomizerPage() {
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <ProductGrid>
-                        {filteredExtras.map((opt) => {
-                          const active = extras.includes(opt.id);
-                          return (
-                            <ProductCard
-                              key={opt.id}
-                              title={opt.label}
-                              price={opt.price}
-                              imageUrl={opt.imageUrl ?? null}
-                              imageAlt={opt.imageAlt ?? opt.label}
-                              badges={getOptionBadges(opt)}
-                              selected={active}
-                              onSelect={() =>
-                                setExtras((prev) =>
-                                  prev.includes(opt.id)
-                                    ? prev.filter((id) => id !== opt.id)
-                                    : [...prev, opt.id],
-                                )
-                              }
-                            />
-                          );
-                        })}
-                      </ProductGrid>
                     )}
                   </div>
                 </div>

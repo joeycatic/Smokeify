@@ -42,9 +42,6 @@ const enrichItemsWithManufacturer = async <
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const stripe = getStripe();
   if (!stripe) {
@@ -67,6 +64,9 @@ export async function POST(request: Request) {
     include: { items: true },
   });
   if (existing) {
+    if (existing.userId && existing.userId !== session?.user?.id) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
     const items = await enrichItemsWithManufacturer(existing.items);
     return NextResponse.json({
       ok: true,
@@ -99,8 +99,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
-  if (checkoutSession.client_reference_id !== session.user.id) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (checkoutSession.client_reference_id) {
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (checkoutSession.client_reference_id !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
   }
 
   return NextResponse.json(

@@ -190,11 +190,7 @@ const createOrderFromSession = async (
     });
     return;
   }
-  const userId = checkoutSession.client_reference_id ?? "";
-  if (!userId) {
-    console.warn("[stripe webhook] Missing client_reference_id.");
-    return;
-  }
+  const userId = checkoutSession.client_reference_id ?? null;
 
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
@@ -352,7 +348,9 @@ const createOrderFromSession = async (
     if (created.customerEmail) {
       const origin =
         process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const orderUrl = `${origin}/account/orders/${created.id}`;
+      const orderUrl = created.userId
+        ? `${origin}/account/orders/${created.id}`
+        : undefined;
       const email = buildOrderEmail("confirmation", created, orderUrl);
       await sendResendEmail({
         to: created.customerEmail,
