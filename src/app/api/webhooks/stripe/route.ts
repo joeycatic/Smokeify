@@ -190,7 +190,7 @@ const createOrderFromSession = async (
     });
     return;
   }
-  const userId = checkoutSession.client_reference_id ?? null;
+  const userId = checkoutSession.client_reference_id ?? undefined;
 
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
