@@ -1404,11 +1404,23 @@ export function Navbar() {
                       <>
                         <div className="pointer-events-auto absolute left-1/2 top-full z-20 h-3 w-28 -translate-x-1/2" />
                         <div
-                          className={`invisible absolute left-1/2 top-full z-30 mt-1 w-56 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150 ${
+                          className={`invisible absolute left-1/2 top-full z-30 mt-1 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150 ${
                             categoryHoverLocked ? "pointer-events-none opacity-0" : ""
                           }`}
                         >
-                        <div className="rounded-xl border border-emerald-200 bg-white p-2 text-sm shadow-xl">
+                        <div
+                          className="grid grid-flow-col auto-cols-max gap-1.5 rounded-xl border border-emerald-200 bg-white p-2.5 text-[15px] shadow-xl"
+                          style={{
+                            gridTemplateRows: `repeat(${Math.max(
+                              1,
+                              Math.min(
+                                6,
+                                (categoriesByParent.get(String(category.id)) ?? [])
+                                  .length,
+                              ),
+                            )}, minmax(0, auto))`,
+                          }}
+                        >
                           {(categoriesByParent.get(String(category.id)) ?? []).map(
                             (child) => {
                               const ChildIcon = getCategoryIcon(child.name);
@@ -1424,12 +1436,14 @@ export function Navbar() {
                                       setCategoryHoverLocked(true);
                                     }
                                   }
-                                  className="flex items-center gap-2 rounded-lg px-3 py-2 font-semibold text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
+                                  className="flex items-center gap-1.5 rounded-lg px-3.5 py-3 font-semibold text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
                                 >
-                                  <span className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700">
-                                    <ChildIcon className="h-4 w-4" />
+                                  <span className="flex h-8 w-8 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                    <ChildIcon className="h-4.5 w-4.5" />
                                   </span>
-                                  <span className="flex-1">{child.name}</span>
+                                  <span className="flex-1 whitespace-nowrap">
+                                    {child.name}
+                                  </span>
                                   {categoryNavTarget ===
                                     buildCategoryHref(child.handle) && (
                                     <LoadingSpinner
