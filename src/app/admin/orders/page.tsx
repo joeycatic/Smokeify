@@ -36,6 +36,7 @@ export default async function AdminOrdersPage() {
           }))}
           orders={orders.map((order) => ({
             ...order,
+            user: order.user ?? { email: null, name: null },
             createdAt: order.createdAt.toISOString(),
             updatedAt: order.updatedAt.toISOString(),
             confirmationEmailSentAt: order.confirmationEmailSentAt

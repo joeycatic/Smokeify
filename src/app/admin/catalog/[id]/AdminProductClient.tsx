@@ -281,7 +281,15 @@ export default function AdminProductClient({
     position: 0,
   });
 
-  const [newVariant, setNewVariant] = useState({
+  const [newVariant, setNewVariant] = useState<{
+    title: string;
+    sku: string;
+    price: string;
+    cost: string;
+    compareAt: string;
+    lowStockThreshold: number;
+    options: Array<{ name: string; value: string; imagePosition: number | null }>;
+  }>({
     title: "",
     sku: "",
     price: "",
