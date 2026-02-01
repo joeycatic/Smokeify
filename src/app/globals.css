@@ -162,30 +162,20 @@ body {
   animation: add-to-cart-sweep 560ms ease-out;
 }
 
-@keyframes image-swerve-left {
+@keyframes image-slide-left {
   0% {
-    opacity: 0;
-    transform: translateX(32px);
-  }
-  70% {
-    opacity: 1;
+    transform: translateX(10px);
   }
   100% {
-    opacity: 1;
     transform: translateX(0);
   }
 }
 
-@keyframes image-swerve-right {
+@keyframes image-slide-right {
   0% {
-    opacity: 0;
-    transform: translateX(-32px);
-  }
-  70% {
-    opacity: 1;
+    transform: translateX(-10px);
   }
   100% {
-    opacity: 1;
     transform: translateX(0);
   }
 }

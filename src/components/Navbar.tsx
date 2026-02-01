@@ -1405,7 +1405,7 @@ export function Navbar() {
                         <div className="pointer-events-auto absolute left-1/2 top-full z-20 h-3 w-28 -translate-x-1/2" />
                         <div
                           className={`invisible absolute left-1/2 top-full z-30 mt-1 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150 ${
-                            categoryHoverLocked ? "pointer-events-none opacity-0" : ""
+                            categoryHoverLocked ? "hidden" : ""
                           }`}
                         >
                         <div

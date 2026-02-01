@@ -21,6 +21,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const hasSymbol = /[^A-Za-z0-9]/.test(password);
@@ -98,6 +100,8 @@ export default function RegisterPage() {
                     country,
                     birthDate: birthDate || undefined,
                     password,
+                    newsletterOptIn,
+                    privacyAccepted,
                   }),
                 });
                 if (!res.ok) {
@@ -113,6 +117,7 @@ export default function RegisterPage() {
                 }
                 const returnTo = searchParams.get("returnTo") || "/";
                 sessionStorage.setItem("smokeify_verify_email", email);
+                sessionStorage.setItem("smokeify_verify_password", password);
                 sessionStorage.setItem("smokeify_return_to", returnTo);
                 router.push(
                   `/auth/verify?email=${encodeURIComponent(
@@ -308,6 +313,7 @@ export default function RegisterPage() {
                 </button>
               </div>
             </div>
+
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-stone-600">
                 Passwort bestätigen *
@@ -340,6 +346,38 @@ export default function RegisterPage() {
                 </span>
               </div>
             </div>
+            <label className="flex items-start gap-3 rounded-md border border-black/10 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-black/20 text-emerald-700 focus:ring-emerald-600/30"
+                checked={newsletterOptIn}
+                onChange={(event) => setNewsletterOptIn(event.target.checked)}
+              />
+              <span>
+                Ich möchte den Newsletter erhalten (jederzeit abbestellbar).
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border border-black/10 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+              <input
+                type="checkbox"
+                required
+                className="mt-0.5 h-4 w-4 rounded border-black/20 text-emerald-700 focus:ring-emerald-600/30"
+                checked={privacyAccepted}
+                onChange={(event) => setPrivacyAccepted(event.target.checked)}
+              />
+              <span>
+                Ich habe die{" "}
+                <a
+                  href="/pages/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-emerald-700 underline underline-offset-4"
+                >
+                  DSGVO
+                </a>{" "}
+                gelesen und akzeptiere sie.
+              </span>
+            </label>
             {error && <p className="text-xs text-red-600">{error}</p>}
             <button
               type="submit"

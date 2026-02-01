@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
+import { buildInvoiceUrl } from "@/lib/invoiceLink";
 
 type EmailType =
   | "confirmation"
@@ -132,22 +133,33 @@ export async function POST(request: Request) {
     );
   }
 
-  const email = buildOrderEmail(type, {
-    id: order.id,
-    createdAt: new Date(),
-    currency: order.currency,
-    amountSubtotal: order.amountSubtotal,
-    amountTax: order.amountTax,
-    amountShipping: order.amountShipping,
-    amountDiscount: order.amountDiscount,
-    amountTotal: order.amountTotal,
-    amountRefunded: order.amountRefunded,
-    discountCode: order.discountCode,
-    trackingCarrier: order.trackingCarrier,
-    trackingNumber: order.trackingNumber,
-    trackingUrl: order.trackingUrl,
-    items: order.items,
-  });
+  const origin =
+    request.headers.get("origin") ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000";
+  const invoiceUrl =
+    type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
+  const email = buildOrderEmail(
+    type,
+    {
+      id: order.id,
+      createdAt: new Date(),
+      currency: order.currency,
+      amountSubtotal: order.amountSubtotal,
+      amountTax: order.amountTax,
+      amountShipping: order.amountShipping,
+      amountDiscount: order.amountDiscount,
+      amountTotal: order.amountTotal,
+      amountRefunded: order.amountRefunded,
+      discountCode: order.discountCode,
+      trackingCarrier: order.trackingCarrier,
+      trackingNumber: order.trackingNumber,
+      trackingUrl: order.trackingUrl,
+      items: order.items,
+    },
+    undefined,
+    invoiceUrl ?? undefined
+  );
 
   await sendResendEmail({
     to: recipient,

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
+import { buildInvoiceUrl } from "@/lib/invoiceLink";
 
 export async function POST(
   request: Request,
@@ -44,23 +45,30 @@ export async function POST(
     process.env.NEXT_PUBLIC_APP_URL ??
     "http://localhost:3000";
   const orderUrl = `${origin}/account/orders/${order.id}`;
-  const email = buildOrderEmail(type, {
-    id: order.id,
-    createdAt: order.createdAt,
-    currency: order.currency,
-    amountSubtotal: order.amountSubtotal,
-    amountTax: order.amountTax,
-    amountShipping: order.amountShipping,
-    amountDiscount: order.amountDiscount,
-    amountTotal: order.amountTotal,
-    amountRefunded: order.amountRefunded,
-    discountCode: order.discountCode,
-    customerEmail: order.customerEmail,
-    trackingCarrier: order.trackingCarrier,
-    trackingNumber: order.trackingNumber,
-    trackingUrl: order.trackingUrl,
-    items: order.items,
-  }, orderUrl);
+  const invoiceUrl =
+    type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
+  const email = buildOrderEmail(
+    type,
+    {
+      id: order.id,
+      createdAt: order.createdAt,
+      currency: order.currency,
+      amountSubtotal: order.amountSubtotal,
+      amountTax: order.amountTax,
+      amountShipping: order.amountShipping,
+      amountDiscount: order.amountDiscount,
+      amountTotal: order.amountTotal,
+      amountRefunded: order.amountRefunded,
+      discountCode: order.discountCode,
+      customerEmail: order.customerEmail,
+      trackingCarrier: order.trackingCarrier,
+      trackingNumber: order.trackingNumber,
+      trackingUrl: order.trackingUrl,
+      items: order.items,
+    },
+    orderUrl,
+    invoiceUrl ?? undefined
+  );
 
   await sendResendEmail({
     to: recipient,

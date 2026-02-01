@@ -67,7 +67,8 @@ const renderItemsHtml = (items: OrderItem[]) =>
 export function buildOrderEmail(
   type: EmailType,
   order: OrderEmailInput,
-  orderUrl?: string
+  orderUrl?: string,
+  invoiceUrl?: string
 ) {
   const orderNumber = order.id.slice(0, 8).toUpperCase();
   const discountLabel = order.discountCode
@@ -153,6 +154,7 @@ export function buildOrderEmail(
         "",
         totalsText,
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
+        invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
       ].join("\n"),
       html: `
         <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
@@ -235,9 +237,18 @@ export function buildOrderEmail(
                   </div>
 
                   ${
-                    orderUrl
+                    orderUrl || invoiceUrl
                       ? `<div style="margin-top: 20px; text-align: center;">
-                          <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #2f3e36; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
+                          ${
+                            orderUrl
+                              ? `<a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #2f3e36; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; margin: 4px;">Bestellung ansehen</a>`
+                              : ""
+                          }
+                          ${
+                            invoiceUrl
+                              ? `<a href="${invoiceUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #e5e7eb; color: #1f2937; text-decoration: none; font-weight: 600; font-size: 14px; margin: 4px;">Rechnung herunterladen</a>`
+                              : ""
+                          }
                         </div>`
                       : ""
                   }

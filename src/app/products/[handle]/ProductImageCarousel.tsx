@@ -19,10 +19,10 @@ type Props = {
 
 export default function ProductImageCarousel({ images, alt }: Props) {
   const [index, setIndex] = useState(0);
-  const [swerveDirection, setSwerveDirection] = useState<
+  const [slideDirection, setSlideDirection] = useState<
     "left" | "right" | null
   >(null);
-  const [swerveKey, setSwerveKey] = useState(0);
+  const [slideKey, setSlideKey] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
   const thumbnailsRef = useRef<HTMLDivElement | null>(null);
@@ -34,15 +34,15 @@ export default function ProductImageCarousel({ images, alt }: Props) {
 
   const handlePrev = () => {
     if (count <= 1) return;
-    setSwerveDirection("left");
-    setSwerveKey((prev) => prev + 1);
+    setSlideDirection("left");
+    setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev - 1 + count) % count);
   };
 
   const handleNext = () => {
     if (count <= 1) return;
-    setSwerveDirection("right");
-    setSwerveKey((prev) => prev + 1);
+    setSlideDirection("right");
+    setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev + 1) % count);
   };
 
@@ -111,12 +111,12 @@ export default function ProductImageCarousel({ images, alt }: Props) {
         aria-pressed={isZoomed}
       >
         <div
-          key={swerveKey}
+          key={slideKey}
           className="relative aspect-square overflow-hidden rounded-2xl bg-white"
           style={
-            swerveDirection
+            slideDirection
               ? {
-                  animation: `image-swerve-${swerveDirection} 420ms ease`,
+                  animation: `image-slide-${slideDirection} 420ms ease`,
                 }
               : undefined
           }

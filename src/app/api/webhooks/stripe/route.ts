@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
+import { buildInvoiceUrl } from "@/lib/invoiceLink";
 
 export const runtime = "nodejs";
 
@@ -351,7 +352,8 @@ const createOrderFromSession = async (
       const orderUrl = created.userId
         ? `${origin}/account/orders/${created.id}`
         : undefined;
-      const email = buildOrderEmail("confirmation", created, orderUrl);
+      const invoiceUrl = buildInvoiceUrl(origin, created.id);
+      const email = buildOrderEmail("confirmation", created, orderUrl, invoiceUrl ?? undefined);
       await sendResendEmail({
         to: created.customerEmail,
         subject: email.subject,

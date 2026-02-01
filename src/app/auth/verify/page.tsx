@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -8,7 +9,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 export default function VerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [loading, setLoading] = useState(false);
@@ -20,12 +21,23 @@ export default function VerifyPage() {
   useEffect(() => {
     const initialEmail = searchParams.get("email");
     if (initialEmail) {
-      setEmail(initialEmail);
+      setIdentifier(initialEmail);
       return;
     }
     const storedEmail = sessionStorage.getItem("smokeify_verify_email");
-    if (storedEmail) setEmail(storedEmail);
+    if (storedEmail) setIdentifier(storedEmail);
   }, [searchParams]);
+
+  useEffect(() => {
+    const clearStoredPassword = () => {
+      sessionStorage.removeItem("smokeify_verify_password");
+    };
+    window.addEventListener("beforeunload", clearStoredPassword);
+    return () => {
+      clearStoredPassword();
+      window.removeEventListener("beforeunload", clearStoredPassword);
+    };
+  }, []);
 
   return (
     <PageLayout>
@@ -52,7 +64,7 @@ export default function VerifyPage() {
                 const res = await fetch("/api/auth/verify", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email, code }),
+                  body: JSON.stringify({ identifier, code }),
                 });
                 if (!res.ok) {
                   if (res.status === 429) {
@@ -66,7 +78,7 @@ export default function VerifyPage() {
                   return;
                 }
                 const storedEmail =
-                  sessionStorage.getItem("smokeify_verify_email") || email;
+                  sessionStorage.getItem("smokeify_verify_email") || identifier;
                 const returnTo =
                   searchParams.get("returnTo") ||
                   sessionStorage.getItem("smokeify_return_to") ||
@@ -74,6 +86,23 @@ export default function VerifyPage() {
 
                 sessionStorage.removeItem("smokeify_verify_email");
                 sessionStorage.removeItem("smokeify_return_to");
+                const storedPassword = sessionStorage.getItem(
+                  "smokeify_verify_password"
+                );
+                sessionStorage.removeItem("smokeify_verify_password");
+
+                if (storedPassword) {
+                  const loginRes = await signIn("credentials", {
+                    email: identifier,
+                    password: storedPassword,
+                    redirect: false,
+                    callbackUrl: returnTo,
+                  });
+                  if (loginRes?.ok) {
+                    router.push(returnTo);
+                    return;
+                  }
+                }
 
                 router.push(
                   `/auth/signin?verified=1&email=${encodeURIComponent(
@@ -87,13 +116,13 @@ export default function VerifyPage() {
             className="space-y-3"
           >
             <label className="block text-xs font-semibold text-stone-600">
-              Email *
+              Email oder Username *
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
               className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
             />
             <label className="block text-xs font-semibold text-stone-600">
@@ -190,8 +219,8 @@ export default function VerifyPage() {
               type="button"
               disabled={resendStatus === "sending"}
               onClick={async () => {
-                if (!email) {
-                  setError("Bitte Email eingeben.");
+                if (!identifier) {
+                  setError("Bitte Email oder Username eingeben.");
                   return;
                 }
                 setResendStatus("sending");
@@ -199,7 +228,7 @@ export default function VerifyPage() {
                   const res = await fetch("/api/auth/resend-verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email }),
+                    body: JSON.stringify({ identifier }),
                   });
                   if (res.status === 429) {
                     setResendStatus("limited");
