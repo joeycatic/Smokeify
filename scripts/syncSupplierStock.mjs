@@ -106,7 +106,7 @@ const shouldSkipRun = async (isDryRun) => {
   const age = Date.now() - lastTime;
   if (age < RUN_INTERVAL_MS) {
     console.log(
-      `Last run: ${last.createdAt.toISOString()} (skipping, <12h)`
+      `Last run: ${last.createdAt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })} (skipping, <12h)`
     );
     return true;
   }
