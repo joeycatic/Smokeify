@@ -435,7 +435,11 @@ const createOrderFromSession = async (
   const orderNumber = created.orderNumber;
   const orderCurrency = created.currency;
   const customer = created.customerEmail ?? "unknown";
-  const enrichedItems = await enrichItemsWithManufacturer(created.items);
+  const itemsForEnrichment = created.items.map((item) => ({
+    ...item,
+    options: normalizeOptions(item.options),
+  }));
+  const enrichedItems = await enrichItemsWithManufacturer(itemsForEnrichment);
   const itemSummary = enrichedItems
     .map((item) => {
       const qty = item.quantity ?? 0;

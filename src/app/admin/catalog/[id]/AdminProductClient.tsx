@@ -185,6 +185,7 @@ export default function AdminProductClient({
   });
   const [images, setImages] = useState<ImageItem[]>(product.images);
   const [uploading, setUploading] = useState(false);
+  const [uploadDragActive, setUploadDragActive] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
@@ -553,6 +554,14 @@ export default function AdminProductClient({
       setError("Upload failed");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleUploadDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setUploadDragActive(false);
+    if (event.dataTransfer?.files?.length) {
+      void uploadImages(event.dataTransfer.files);
     }
   };
 
@@ -1743,7 +1752,19 @@ export default function AdminProductClient({
             <p className="text-xs text-stone-500">Upload, reorder, and describe media.</p>
           </div>
         </div>
-        <div className="rounded-md border border-dashed border-[#2f3e36]/20 bg-[#f8fbf6] px-4 py-3 mb-5">
+          <div
+            className={`rounded-md border border-dashed px-4 py-3 mb-5 transition ${
+              uploadDragActive
+                ? "border-emerald-400 bg-emerald-50/80"
+                : "border-[#2f3e36]/20 bg-[#f8fbf6]"
+            }`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setUploadDragActive(true);
+            }}
+            onDragLeave={() => setUploadDragActive(false)}
+            onDrop={handleUploadDrop}
+          >
           <p className="text-xs font-semibold text-stone-600">Upload images</p>
           <p className="mt-1 text-xs text-stone-500">
             JPG, PNG, or WEBP up to 5MB. Stored locally in `public/uploads`.

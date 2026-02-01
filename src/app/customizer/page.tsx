@@ -317,7 +317,7 @@ function FiltersBar({
                 key={chip.id}
                 type="button"
                 onClick={() => onChipSelect?.(chip.id)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${hoverClasses} ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${hoverClasses} ${
                   active
                     ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-sm"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
