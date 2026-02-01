@@ -9,6 +9,7 @@ type ImageItem = {
   altText?: string | null;
   width?: number | null;
   height?: number | null;
+  position?: number | null;
 };
 
 type Props = {
@@ -66,6 +67,21 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     setIsZoomed(false);
     setZoomOrigin({ x: 50, y: 50 });
   }, [index]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ position?: number | null }>).detail;
+      const position = detail?.position;
+      if (typeof position !== "number") return;
+      const nextIndex = images.findIndex(
+        (image) => image.position === position,
+      );
+      if (nextIndex < 0) return;
+      setIndex(nextIndex);
+    };
+    window.addEventListener("product-image-position", handler);
+    return () => window.removeEventListener("product-image-position", handler);
+  }, [images]);
 
   return (
     <div className="space-y-1">

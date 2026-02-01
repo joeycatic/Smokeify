@@ -20,7 +20,7 @@ import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 type ProductVariant = {
   id: string;
   title: string;
-  options?: Array<{ name: string; value: string }>;
+  options?: Array<{ name: string; value: string; imagePosition?: number | null }>;
   availableForSale: boolean;
   lowStock?: boolean;
   availableQuantity?: number;
@@ -75,6 +75,16 @@ export default function ProductDetailClient({
   >("idle");
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
   const [selectedGroupHandle, setSelectedGroupHandle] = useState(currentHandle);
+  const sendImagePosition = (position?: number | null) => {
+    if (typeof window === "undefined") return;
+    if (typeof position !== "number") return;
+    // Defer to avoid setState during render warnings
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("product-image-position", { detail: { position } }),
+      );
+    }, 0);
+  };
 
   useEffect(() => {
     setSelectedGroupHandle(currentHandle);
@@ -137,6 +147,13 @@ export default function ProductDetailClient({
     });
     setSelectedOptions(defaults);
   }, [optionGroups, selectedVariant]);
+
+  useEffect(() => {
+    const position = selectedVariant?.options?.find(
+      (option) => typeof option.imagePosition === "number",
+    )?.imagePosition;
+    sendImagePosition(position ?? null);
+  }, [selectedVariantId, selectedVariant]);
 
   const priceLabel = selectedVariant ? formatPrice(selectedVariant.price) : "";
   const compareAtLabel =
@@ -263,7 +280,15 @@ export default function ProductDetailClient({
                                   return Boolean(hasValue);
                                 }),
                               );
-                              if (match) setSelectedVariantId(match.id);
+                              if (match) {
+                                setSelectedVariantId(match.id);
+                                const selectedEntry = match.options?.find(
+                                  (entry) =>
+                                    entry.name === option.name &&
+                                    entry.value === value,
+                                );
+                                sendImagePosition(selectedEntry?.imagePosition ?? null);
+                              }
                               return next;
                             });
                           }}

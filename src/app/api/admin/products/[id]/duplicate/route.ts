@@ -91,6 +91,7 @@ export async function POST(
             create: variant.options.map((option) => ({
               name: option.name,
               value: option.value,
+              imagePosition: option.imagePosition ?? null,
             })),
           },
           inventory: {

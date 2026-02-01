@@ -273,6 +273,7 @@ model VariantOption {
   variantId String
   name      String
   value     String
+  imagePosition Int?
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 }

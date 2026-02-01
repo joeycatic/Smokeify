@@ -13,7 +13,12 @@ type ImageItem = {
   position: number;
 };
 
-type VariantOption = { id: string; name: string; value: string };
+type VariantOption = {
+  id: string;
+  name: string;
+  value: string;
+  imagePosition?: number | null;
+};
 
 type VariantItem = {
   id: string;
@@ -96,16 +101,30 @@ const parseEuro = (value: string) => {
   return Math.round(amount * 100);
 };
 
-type OptionInput = { name: string; value: string };
+type OptionInput = { name: string; value: string; imagePosition?: number | null };
 
 const normalizeVariantOptions = (
   options: OptionInput[]
-): { options: Array<{ name: string; value: string }>; duplicates: string[] } => {
+): {
+  options: Array<{ name: string; value: string; imagePosition?: number | null }>;
+  duplicates: string[];
+} => {
   const duplicates = new Set<string>();
   const normalized = options
-    .map((opt) => ({ name: opt.name.trim(), value: opt.value.trim() }))
+    .map((opt) => ({
+      name: opt.name.trim(),
+      value: opt.value.trim(),
+      imagePosition:
+        typeof opt.imagePosition === "number" && Number.isFinite(opt.imagePosition)
+          ? Math.max(0, Math.floor(opt.imagePosition))
+          : null,
+    }))
     .filter((opt) => opt.name && opt.value);
-  const deduped: Array<{ name: string; value: string }> = [];
+  const deduped: Array<{
+    name: string;
+    value: string;
+    imagePosition?: number | null;
+  }> = [];
   normalized.forEach((opt) => {
     const key = opt.name.toLowerCase();
     if (duplicates.has(key)) return;
@@ -269,7 +288,7 @@ export default function AdminProductClient({
     cost: "",
     compareAt: "",
     lowStockThreshold: 5,
-    options: [{ name: "", value: "" }],
+    options: [{ name: "", value: "", imagePosition: null }],
   });
   const [addVariantOpen, setAddVariantOpen] = useState(false);
 
@@ -722,7 +741,7 @@ export default function AdminProductClient({
       cost: "",
       compareAt: "",
       lowStockThreshold: 5,
-      options: [{ name: "", value: "" }],
+      options: [{ name: "", value: "", imagePosition: null }],
     });
     setAddVariantOpen(false);
     setMessage("Variant added");
@@ -775,7 +794,9 @@ export default function AdminProductClient({
     setNewVariant((prev) => ({
       ...prev,
       options:
-        prev.options.length === 0 ? [{ name: "", value: "" }] : prev.options,
+        prev.options.length === 0
+          ? [{ name: "", value: "", imagePosition: null }]
+          : prev.options,
     }));
   }, []);
 
@@ -2056,7 +2077,7 @@ export default function AdminProductClient({
                     {variant.options.map((opt, optIndex) => (
                       <div
                         key={opt.id}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                        className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_auto]"
                       >
                         <input
                           value={opt.name}
@@ -2102,6 +2123,42 @@ export default function AdminProductClient({
                           placeholder="Option value"
                           className="h-9 w-full min-w-0 rounded-md border border-black/15 px-3 text-xs"
                         />
+                        <input
+                          type="number"
+                          min={0}
+                          value={
+                            typeof opt.imagePosition === "number"
+                              ? opt.imagePosition
+                              : ""
+                          }
+                          onChange={(event) => {
+                            const raw = event.target.value.trim();
+                            const nextValue =
+                              raw === "" ? null : Number(raw);
+                            const sanitized =
+                              typeof nextValue === "number" &&
+                              Number.isFinite(nextValue)
+                                ? Math.max(0, Math.floor(nextValue))
+                                : null;
+                            setVariants((prev) =>
+                              prev.map((item) =>
+                                item.id === variant.id
+                                  ? {
+                                      ...item,
+                                      options: item.options.map(
+                                        (row, rowIndex) =>
+                                          rowIndex === optIndex
+                                            ? { ...row, imagePosition: sanitized }
+                                            : row
+                                      ),
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          placeholder="Image #"
+                          className="h-9 w-full min-w-0 rounded-md border border-black/15 px-3 text-xs"
+                        />
                         <button
                           type="button"
                           onClick={() =>
@@ -2138,6 +2195,7 @@ export default function AdminProductClient({
                                       id: `${item.id}-${Date.now()}`,
                                       name: "",
                                       value: "",
+                                      imagePosition: null,
                                     },
                                   ],
                                 }
@@ -2261,7 +2319,7 @@ export default function AdminProductClient({
                 {newVariant.options.map((opt, index) => (
                   <div
                     key={index}
-                    className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
+                    className="grid gap-2 md:grid-cols-[1fr_1fr_110px_auto]"
                   >
                     <input
                       value={opt.name}
@@ -2293,6 +2351,34 @@ export default function AdminProductClient({
                       placeholder="Option value"
                       className="h-9 rounded-md border border-black/15 px-3 text-xs"
                     />
+                    <input
+                      type="number"
+                      min={0}
+                      value={
+                        typeof opt.imagePosition === "number"
+                          ? opt.imagePosition
+                          : ""
+                      }
+                      onChange={(event) => {
+                        const raw = event.target.value.trim();
+                        const nextValue = raw === "" ? null : Number(raw);
+                        const sanitized =
+                          typeof nextValue === "number" &&
+                          Number.isFinite(nextValue)
+                            ? Math.max(0, Math.floor(nextValue))
+                            : null;
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, imagePosition: sanitized }
+                              : row
+                          ),
+                        }));
+                      }}
+                      placeholder="Image #"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
                     <button
                       type="button"
                       onClick={() =>
@@ -2313,7 +2399,7 @@ export default function AdminProductClient({
                 onClick={() =>
                   setNewVariant((prev) => ({
                     ...prev,
-                    options: [...prev.options, { name: "", value: "" }],
+                    options: [...prev.options, { name: "", value: "", imagePosition: null }],
                   }))
                 }
                 className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"

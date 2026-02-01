@@ -21,7 +21,7 @@ export async function POST(
     compareAtCents?: number | string | null;
     position?: number;
     lowStockThreshold?: number;
-    options?: { name: string; value: string }[];
+    options?: { name: string; value: string; imagePosition?: number | null }[];
   };
 
   const title = body.title?.trim();
@@ -60,10 +60,15 @@ export async function POST(
       options: body.options?.length
         ? {
             createMany: {
-              data: body.options
+                  data: body.options
                 .map((opt) => ({
                   name: opt.name.trim(),
                   value: opt.value.trim(),
+                  imagePosition:
+                    typeof opt.imagePosition === "number" &&
+                    Number.isFinite(opt.imagePosition)
+                      ? Math.max(0, Math.floor(opt.imagePosition))
+                      : null,
                 }))
                 .filter((opt) => opt.name && opt.value),
             },

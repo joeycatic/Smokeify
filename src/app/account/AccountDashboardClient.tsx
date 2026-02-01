@@ -115,7 +115,7 @@ export default function AccountDashboardClient({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:items-stretch lg:h-[calc(100vh-445px)] lg:overflow-hidden">
+    <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:items-start lg:min-h-[calc(100vh-445px)]">
       <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:h-full lg:border-black/10 lg:bg-white lg:p-4">
         <div className="sm:hidden">
           <div className="mb-4">
@@ -209,7 +209,7 @@ export default function AccountDashboardClient({
         </nav>
       </aside>
 
-      <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:rounded-b-2xl lg:overflow-hidden lg:pr-4">
+      <div className="space-y-6 lg:rounded-b-2xl lg:pr-4">
         {activeTab === "profile" && (
           <AccountSettingsClient
             initialName={profile.name}

@@ -9,16 +9,31 @@ import Link from "next/link";
 
 export default async function StorePage() {
   const allProducts = await getProducts(40);
-  const tentProducts = allProducts
-    .filter(
-      (product) =>
-        product.categories?.some(
-          (category) =>
-            category.handle === "growboxen" ||
-            category.parent?.handle === "growboxen",
-        ) ?? false,
-    )
-    .slice(0, 4);
+  const tentProductIds = await prisma.product.findMany({
+    where: {
+      status: "ACTIVE",
+      categories: {
+        some: {
+          category: {
+            OR: [
+              { handle: { in: ["growboxen", "zelte"], mode: "insensitive" } },
+              {
+                parent: {
+                  handle: { in: ["growboxen", "zelte"], mode: "insensitive" },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 4,
+    select: { id: true },
+  });
+  const tentProducts = tentProductIds.length
+    ? await getProductsByIds(tentProductIds.map((item) => item.id))
+    : [];
 
   const topItems = await prisma.orderItem.groupBy({
     by: ["productId"],
@@ -87,19 +102,58 @@ export default async function StorePage() {
                     </h3>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {[
-                      "Hersteller 1",
-                      "Hersteller 2",
-                      "Hersteller 3",
-                      "Hersteller 4",
-                    ].map((label) => (
-                      <div
-                        key={label}
-                        className="flex h-28 items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-stone-50 text-sm font-semibold text-stone-500"
-                      >
-                        {label}
-                      </div>
-                    ))}
+                    <Link
+                      href="/products?manufacturer=AC%20Infinity"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="AC Infinity anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/acinifitybanner.png"
+                        alt="AC Infinity"
+                        className="h-full w-full object-cover object-[50%_46%] scale-150"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=diamondbox"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="DiamondBox anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/diamnondboxbanner.png"
+                        alt="DiamondBox"
+                        className="h-full w-full object-cover object-[50%_46%] scale-130"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=sanlight"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="SANlight anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/sanlightbanner.png"
+                        alt="SANlight"
+                        className="h-full w-full object-cover object-[58%_38%] scale-125"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=bloomstar"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="Bloomstar anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/bloomstarbanner.png"
+                        alt="Bloomstar"
+                        className="h-full w-full object-cover object-[50%_40%] scale-125"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
                   </div>
                 </section>
 
@@ -115,6 +169,67 @@ export default async function StorePage() {
                     showManufacturer
                     hideCartLabel
                   />
+                </section>
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-[#21483b]">
+                      Hersteller
+                    </h3>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Link
+                      href="/products?manufacturer=Kailar"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="Kailar anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/kailarbanner.avif"
+                        alt="Kailar"
+                        className="h-full w-full object-contain scale-100"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=OCB"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="OCB anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/ocbbanner.png"
+                        alt="OCB"
+                        className="h-full w-full object-contain object-[50%_45%] scale-100"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=Purize"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-emerald-900/30 bg-[#1f4d3a] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="Purize anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/purizebanner.png"
+                        alt="Purize"
+                        className="h-full w-full object-cover object-[50%_43%] scale-150"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                    <Link
+                      href="/products?manufacturer=RAW"
+                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-amber-200 bg-[#f3e4c2] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      aria-label="RAW anzeigen"
+                    >
+                      <img
+                        src="/manufacturer-banner/rawbanner.png"
+                        alt="RAW"
+                        className="h-full w-full object-cover object-[50%_39%] scale-150"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </Link>
+                  </div>
                 </section>
               </div>
             </div>

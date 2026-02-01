@@ -43,6 +43,11 @@ export default function AccountSettingsClient({
   const handleProfileSave = async () => {
     setProfileStatus("saving");
     setProfileError("");
+    if (!firstName.trim() || !lastName.trim()) {
+      setProfileStatus("error");
+      setProfileError("Vorname und Nachname sind erforderlich.");
+      return;
+    }
     try {
       const res = await fetch("/api/account/profile", {
         method: "POST",
@@ -107,10 +112,11 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Vorname
+              Vorname *
             </label>
             <input
               type="text"
+              required
               value={firstName}
               onChange={(event) => setFirstName(event.target.value)}
               className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
@@ -118,10 +124,11 @@ export default function AccountSettingsClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600">
-              Nachname
+              Nachname *
             </label>
             <input
               type="text"
+              required
               value={lastName}
               onChange={(event) => setLastName(event.target.value)}
               className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"

@@ -48,6 +48,14 @@ export async function POST(request: Request) {
 
   const email = body.email?.trim().toLowerCase() || undefined;
   const name = body.name?.trim() || undefined;
+  const firstName = body.firstName?.trim() || "";
+  const lastName = body.lastName?.trim() || "";
+  if (!firstName || !lastName) {
+    return NextResponse.json(
+      { error: "Vorname und Nachname sind erforderlich." },
+      { status: 400 }
+    );
+  }
   if (email && email !== session.user.email) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing && existing.id !== session.user.id) {
@@ -69,8 +77,8 @@ export async function POST(request: Request) {
     data: {
       name,
       email,
-      firstName: body.firstName?.trim() || undefined,
-      lastName: body.lastName?.trim() || undefined,
+      firstName,
+      lastName,
       street: body.street?.trim() || undefined,
       houseNumber: body.houseNumber?.trim() || undefined,
       postalCode: body.postalCode?.trim() || undefined,

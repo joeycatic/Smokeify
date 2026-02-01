@@ -38,10 +38,16 @@ export function filterProducts(
         }
 
         // Manufacturer Filter
-        const manufacturers = filters.manufacturers ?? [];
+        const manufacturers = (filters.manufacturers ?? []).map((item) =>
+            item.trim().toLowerCase()
+        );
         if (manufacturers.length > 0) {
-            const manufacturer = product.manufacturer ?? "";
-            const hasMatchingManufacturer = manufacturers.includes(manufacturer);
+            const manufacturer = (product.manufacturer ?? "").trim().toLowerCase();
+            const hasMatchingManufacturer = manufacturers.some((filterValue) => {
+                if (!filterValue) return false;
+                if (manufacturer === filterValue) return true;
+                return manufacturer.includes(filterValue) || filterValue.includes(manufacturer);
+            });
             if (!hasMatchingManufacturer) {
                 return false;
             }

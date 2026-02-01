@@ -21,6 +21,7 @@ type Props = {
 export default function ProductsClient({ initialProducts }: Props) {
   const searchParams = useSearchParams();
   const categoryParam = searchParams?.get("category") ?? "";
+  const manufacturerParam = searchParams?.get("manufacturer") ?? "";
   const parentCategoryById = useMemo(() => {
     const map = new Map<
       string,
@@ -182,6 +183,26 @@ export default function ProductsClient({ initialProducts }: Props) {
       return { ...prev, categories: [categoryParam] };
     });
   }, [allCategoryTitlesByHandle, categoryParam, categoryHierarchy]);
+
+  useEffect(() => {
+    if (!manufacturerParam) {
+      setFilters((prev) =>
+        prev.manufacturers.length === 0 ? prev : { ...prev, manufacturers: [] },
+      );
+      return;
+    }
+    const normalized = manufacturerParam.trim();
+    if (!normalized) return;
+    const parts = normalized
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    setFilters((prev) => ({
+      ...prev,
+      manufacturers: parts,
+    }));
+  }, [manufacturerParam]);
 
   const categoryTitleByHandle = useMemo(
     () => new Map(allCategoryTitlesByHandle),

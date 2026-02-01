@@ -23,7 +23,7 @@ export async function PATCH(
     compareAtCents?: number | string | null;
     position?: number;
     lowStockThreshold?: number;
-    options?: { name: string; value: string }[];
+    options?: { name: string; value: string; imagePosition?: number | null }[];
     inventory?: { quantityOnHand?: number; reserved?: number };
   };
 
@@ -97,6 +97,11 @@ export async function PATCH(
       .map((opt) => ({
         name: opt.name.trim(),
         value: opt.value.trim(),
+        imagePosition:
+          typeof opt.imagePosition === "number" &&
+          Number.isFinite(opt.imagePosition)
+            ? Math.max(0, Math.floor(opt.imagePosition))
+            : null,
         variantId: id,
       }))
       .filter((opt) => opt.name && opt.value);

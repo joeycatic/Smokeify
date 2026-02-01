@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 import type { Product } from "@/data/types";
 
 const CURRENCY_CODE = "EUR";
@@ -130,23 +131,31 @@ const mapProduct = (product: {
   };
 };
 
-export async function getProducts(limit = 50): Promise<Product[]> {
-  const products = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-    include: {
-      images: { orderBy: { position: "asc" } },
-      variants: {
-        orderBy: { position: "asc" },
-        include: { inventory: true },
+const getProductsCached = unstable_cache(
+  async (limit: number): Promise<Product[]> => {
+    const products = await prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      include: {
+        images: { orderBy: { position: "asc" } },
+        variants: {
+          orderBy: { position: "asc" },
+          include: { inventory: true },
+        },
+        categories: { include: { category: { include: { parent: true } } } },
+        collections: { include: { collection: true } },
       },
-      categories: { include: { category: { include: { parent: true } } } },
-      collections: { include: { collection: true } },
-    },
-  });
+    });
 
-  return products.map(mapProduct);
+    return products.map(mapProduct);
+  },
+  ["catalog-products"],
+  { revalidate: 30 },
+);
+
+export async function getProducts(limit = 50): Promise<Product[]> {
+  return getProductsCached(limit);
 }
 
 export async function getProductByHandle(handle: string) {
@@ -166,6 +175,7 @@ export async function getProductByHandle(handle: string) {
   const images = product.images.map((image) => ({
     url: image.url,
     altText: image.altText,
+    position: image.position,
   }));
 
   const variants = product.variants.map((variant) => {
@@ -185,6 +195,7 @@ export async function getProductByHandle(handle: string) {
       options: variant.options.map((option) => ({
         name: option.name,
         value: option.value,
+        imagePosition: option.imagePosition ?? null,
       })),
       availableForSale: available > 0,
       availableQuantity: available,

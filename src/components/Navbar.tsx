@@ -5,18 +5,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bars3Icon,
+  ArchiveBoxIcon,
+  ArrowPathIcon,
+  ArrowsRightLeftIcon,
   BeakerIcon,
   BoltIcon,
   CloudIcon,
   CubeIcon,
+  DocumentTextIcon,
   FireIcon,
   FunnelIcon,
   HeartIcon,
+  LightBulbIcon,
   MagnifyingGlassIcon,
+  RectangleStackIcon,
+  ScaleIcon,
+  Squares2X2Icon,
   ShoppingBagIcon,
   SparklesIcon,
   SunIcon,
+  TrashIcon,
   UserCircleIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
@@ -56,13 +66,41 @@ const getLoginErrorMessage = (code?: string) => {
 
 const getCategoryIcon = (name: string) => {
   const value = name.toLowerCase();
+  if (value.includes("aschenbecher") || value.includes("ashtray"))
+    return TrashIcon;
+  if (value.includes("aufbewahrung") || value.includes("storage"))
+    return ArchiveBoxIcon;
+  if (value.includes("feuerzeug") || value.includes("lighter"))
+    return FireIcon;
+  if (value.includes("papers") || value.includes("papier"))
+    return DocumentTextIcon;
+  if (value.includes("rolling tray") || value.includes("tray"))
+    return RectangleStackIcon;
+  if (value.includes("waage") || value.includes("waagen") || value.includes("scale"))
+    return ScaleIcon;
   if (value.includes("duenger") || value.includes("dünger")) return BeakerIcon;
+  if (value.includes("substrat") || value.includes("erde")) return BeakerIcon;
   if (value.includes("filter")) return FunnelIcon;
-  if (value.includes("growbox")) return CubeIcon;
-  if (value.includes("head")) return FireIcon;
+  if (value.includes("growbox") || value.includes("zelt")) return CubeIcon;
+  if (value.includes("heat") || value.includes("heiz")) return FireIcon;
   if (value.includes("licht")) return SunIcon;
-  if (value.includes("luft")) return CloudIcon;
-  if (value.includes("anzucht")) return SparklesIcon;
+  if (value.includes("led") || value.includes("lampe")) return LightBulbIcon;
+  if (value.includes("luft") || value.includes("luefter") || value.includes("lüfter"))
+    return CloudIcon;
+  if (value.includes("bewaesser") || value.includes("bewässer") || value.includes("wasser"))
+    return CloudIcon;
+  if (value.includes("entfeucht") || value.includes("befeucht"))
+    return CloudIcon;
+  if (value.includes("schlauch") || value.includes("kanal") || value.includes("duct"))
+    return ArrowsRightLeftIcon;
+  if (value.includes("ventilator") || value.includes("rohrventilator"))
+    return ArrowPathIcon;
+  if (value.includes("set") || value.includes("bundle"))
+    return Squares2X2Icon;
+  if (value.includes("anzucht") || value.includes("samen") || value.includes("seed"))
+    return SparklesIcon;
+  if (value.includes("zubehoer") || value.includes("zubehör") || value.includes("tool"))
+    return WrenchScrewdriverIcon;
   return BoltIcon;
 };
 
@@ -1309,7 +1347,9 @@ export function Navbar() {
                     </Link>
                     {(categoriesByParent.get(String(category.id))?.length ?? 0) >
                       0 && (
-                      <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-56 -translate-x-1/2 opacity-0 translate-y-1 transition duration-200 ease-out group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 delay-100 group-hover:delay-150">
+                      <>
+                        <div className="pointer-events-auto absolute left-1/2 top-full z-20 h-3 w-28 -translate-x-1/2" />
+                        <div className="invisible absolute left-1/2 top-full z-30 mt-1 w-56 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150">
                         <div className="rounded-xl border border-emerald-200 bg-white p-2 text-sm shadow-xl">
                           {(categoriesByParent.get(String(category.id)) ?? []).map(
                             (child) => {
@@ -1331,7 +1371,8 @@ export function Navbar() {
                             },
                           )}
                         </div>
-                      </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 ))}

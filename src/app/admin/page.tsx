@@ -262,6 +262,14 @@ export default async function AdminPage({
             >
               Inventory adjustments
             </Link>
+            {isAdmin ? (
+              <Link
+                href="/admin/email-testing"
+                className="inline-flex rounded-full border border-cyan-200 bg-white px-4 py-2 text-xs font-semibold text-cyan-800 shadow-sm hover:border-cyan-300"
+              >
+                Email testing
+              </Link>
+            ) : null}
           </div>
         </div>
         {isAdmin ? (

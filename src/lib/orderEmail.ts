@@ -23,7 +23,12 @@ type OrderEmailInput = {
   items: OrderItem[];
 };
 
-type EmailType = "confirmation" | "shipping" | "refund";
+type EmailType =
+  | "confirmation"
+  | "shipping"
+  | "refund"
+  | "return_confirmation"
+  | "cancellation";
 
 const formatPrice = (amount: number, currency: string) =>
   new Intl.NumberFormat("de-DE", {
@@ -77,13 +82,21 @@ export function buildOrderEmail(
       ? "Bestellung bestätigt"
       : type === "shipping"
         ? "Versandupdate"
-        : "Rückerstattung";
+        : type === "refund"
+          ? "Rückerstattung"
+          : type === "return_confirmation"
+            ? "Rücksendung bestätigt"
+            : "Bestellung storniert";
   const headerSubtitle =
     type === "confirmation"
       ? "Danke für deine Bestellung."
       : type === "shipping"
         ? "Dein Paket ist unterwegs."
-        : "Deine Rückerstattung wurde verarbeitet.";
+        : type === "refund"
+          ? "Deine Rückerstattung wurde verarbeitet."
+          : type === "return_confirmation"
+            ? "Wir haben deine Rücksendung erhalten."
+            : "Deine Bestellung wurde storniert.";
   const totalsText = [
     `Zwischensumme: ${formatPrice(order.amountSubtotal, order.currency)}`,
     discountLine,
@@ -112,11 +125,29 @@ export function buildOrderEmail(
     .map((line) => `<div style="margin-top: 6px;">${line}</div>`)
     .join("");
 
-  if (type === "confirmation") {
+  if (type === "confirmation" || type === "return_confirmation" || type === "cancellation") {
+    const subject =
+      type === "confirmation"
+        ? `Bestellbestätigung ${orderNumber}`
+        : type === "return_confirmation"
+          ? `Rücksendung bestätigt ${orderNumber}`
+          : `Bestellung storniert ${orderNumber}`;
+    const introLine =
+      type === "confirmation"
+        ? `Danke für deine Bestellung ${orderNumber}.`
+        : type === "return_confirmation"
+          ? `Wir haben deine Rücksendung für Bestellung ${orderNumber} erhalten.`
+          : `Deine Bestellung ${orderNumber} wurde storniert.`;
+    const noteHtml =
+      type === "confirmation"
+        ? ""
+        : `<div style="margin-top: 14px; padding: 12px; background: #f9fafb; border-radius: 12px; font-size: 14px;">
+            ${introLine}
+          </div>`;
     return {
-      subject: `Bestellbestätigung ${orderNumber}`,
+      subject,
       text: [
-        `Danke für deine Bestellung ${orderNumber}.`,
+        introLine,
         "",
         renderItemsText(order.items),
         "",
@@ -149,6 +180,8 @@ export function buildOrderEmail(
                       </td>
                     </tr>
                   </table>
+
+                  ${noteHtml}
 
                   <div style="margin-top: 20px;">
                     <div style="font-size: 12px; text-transform: uppercase; color: #6b7280; margin-bottom: 8px;">Artikel</div>
