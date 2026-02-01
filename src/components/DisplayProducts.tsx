@@ -142,6 +142,7 @@ export default function DisplayProducts({
                         itemImageAlt={p.featuredImage?.altText ?? p.title}
                         itemPrice={p.priceRange?.minVariantPrice}
                         itemQuantity={1}
+                        itemHandle={p.handle}
                       />
                     </div>
                     <div className="flex items-center justify-center">
@@ -156,6 +157,7 @@ export default function DisplayProducts({
                         itemImageAlt={p.featuredImage?.altText ?? p.title}
                         itemPrice={p.priceRange?.minVariantPrice}
                         itemQuantity={1}
+                        itemHandle={p.handle}
                       />
                     </div>
                     <span aria-hidden="true" />

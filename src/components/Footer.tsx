@@ -147,6 +147,14 @@ export default function Footer() {
                 <li>
                   <Link
                     className="text-white/70 hover:text-white transition"
+                    href="/pages/jugendschutzhinweise"
+                  >
+                    Jugendschutzhinweise
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    className="text-white/70 hover:text-white transition"
                     href="/pages/imprint"
                   >
                     Impressum

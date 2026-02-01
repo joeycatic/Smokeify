@@ -259,6 +259,13 @@ export default function CartPage() {
   const itemCount =
     cart.totalQuantity ??
     cart.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const hasVapesInCart = cart.lines.some((line) =>
+    line.merchandise.product.categories?.some((category) => {
+      const handle = category.handle.toLowerCase();
+      const name = category.name.toLowerCase();
+      return handle === "vaporizer" || name === "vaporizer";
+    })
+  );
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
   const shippingEstimate = hasLocation
     ? freeShippingActive
@@ -516,6 +523,14 @@ export default function CartPage() {
                   Mindestbestellwert{" "}
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
+              )}
+              {hasVapesInCart && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+                  Der Verkauf erfolgt ausschließlich an Personen ab 18 Jahren.
+                  Mit Abschluss der Bestellung bestätigen Sie Ihre Volljährigkeit.
+                  Wir behalten uns vor, im Rahmen der Zustellung eine Altersprüfung
+                  durchzuführen.
+                </div>
               )}
               <button
                 type="button"

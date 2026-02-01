@@ -18,7 +18,8 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     title: "§3 Lieferzeiten",
     paragraphs: [
       `Die Lieferzeit beträgt, sofern nicht beim jeweiligen Produkt anders angegeben, 2–5 Werktage innerhalb Deutschlands.`,
-      `An Sonn- und Feiertagen erfolgt keine Zustellung.`,
+      `Bei Speditionsware oder Direktversand können abweichende Lieferzeiten gelten.`,
+      `In der Regel erfolgt keine Zustellung an Sonn- und Feiertagen.`,
       `Kommt es zu Lieferverzögerungen, wird der Kunde unverzüglich informiert.`,
     ],
   },
@@ -47,14 +48,15 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     title: "§7 Fälligkeit und Zahlungseingang",
     paragraphs: [
       `Der Kaufpreis ist unmittelbar mit Vertragsschluss fällig.`,
-      `Der Versand der Ware erfolgt erst nach bestätigtem Zahlungseingang, sofern nichts anderes vereinbart wurde.`,
+      `Der Versand der Ware erfolgt nach erfolgreicher Zahlungsautorisierung bzw. Zahlungsbestätigung, sofern nichts anderes vereinbart wurde.`,
     ],
   },
   {
     title: "§8 Rückerstattungen",
     paragraphs: [
       `Rückerstattungen erfolgen grundsätzlich über dasselbe Zahlungsmittel, das bei der ursprünglichen Transaktion verwendet wurde.`,
-      `Die Rückzahlung erfolgt spätestens innerhalb von 14 Tagen nach Eingang der retournierten Ware oder Widerrufserklärung.`,
+      `Die Rückzahlung erfolgt spätestens binnen 14 Tagen ab Zugang des Widerrufs.`,
+      `Wir können die Rückzahlung verweigern, bis wir die Ware zurückerhalten haben oder bis Sie den Nachweis erbracht haben, dass Sie die Ware zurückgesandt haben, je nachdem, welches der frühere Zeitpunkt ist (§ 357 BGB).`,
     ],
   },
 ];
@@ -69,7 +71,7 @@ export default function ShippingPage() {
               Versand- & Zahlungsbedingungen
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: {new Date().toLocaleDateString("de-DE")}
+              Stand: 01.02.2026
             </p>
           </div>
 

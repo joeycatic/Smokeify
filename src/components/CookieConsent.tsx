@@ -52,8 +52,18 @@ export default function CookieConsent() {
             COOKIES
           </p>
           <p>
-            Wir nutzen notwendige Cookies fuer Login, Sicherheit und Warenkorb.
+            Wir nutzen notwendige Cookies für Login, Sicherheit und Warenkorb.
             Optionale Analytics-Cookies sind deaktiviert, bis du zustimmst.
+          </p>
+          <p>
+            Mehr Infos in unserer{" "}
+            <a
+              href="/pages/privacy"
+              className="font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-900"
+            >
+              DSGVO
+            </a>
+            .
           </p>
         </div>
         <div className="flex items-center gap-3">

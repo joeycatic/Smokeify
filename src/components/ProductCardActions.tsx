@@ -20,6 +20,7 @@ type Props = {
   itemImageAlt?: string | null;
   itemPrice?: { amount: string; currencyCode: string };
   itemQuantity?: number;
+  itemHandle?: string;
 };
 
 export default function ProductCardActions({
@@ -35,6 +36,7 @@ export default function ProductCardActions({
   itemImageAlt,
   itemPrice,
   itemQuantity = 1,
+  itemHandle,
 }: Props) {
   const { cart, addToCart, openAddedModal, openOutOfStockModal } = useCart();
   const { isWishlisted, toggle } = useWishlist();
@@ -105,6 +107,7 @@ export default function ProductCardActions({
                   imageAlt: itemImageAlt ?? undefined,
                   price: itemPrice,
                   quantity: itemQuantity,
+                  productHandle: itemHandle,
                 });
               }
             } catch {

@@ -119,6 +119,8 @@ export function Navbar() {
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
     "idle",
   );
+  const [categoryNavTarget, setCategoryNavTarget] = useState<string | null>(null);
+  const [categoryHoverLocked, setCategoryHoverLocked] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [logoutStatus, setLogoutStatus] = useState<"idle" | "ok">("idle");
@@ -135,6 +137,10 @@ export function Navbar() {
     null,
   );
   const [mobileAddedOpen, setMobileAddedOpen] = useState(false);
+  const [mobileAddedAnchor, setMobileAddedAnchor] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -192,6 +198,32 @@ export function Navbar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isMobile || !mobileAddedOpen) return;
+    const updateAnchor = () => {
+      const rect = cartRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const right = Math.max(0, window.innerWidth - rect.right);
+      const top = rect.bottom + 8;
+      setMobileAddedAnchor({ top, right });
+    };
+    updateAnchor();
+    window.addEventListener("resize", updateAnchor);
+    window.addEventListener("scroll", updateAnchor, { passive: true });
+    return () => {
+      window.removeEventListener("resize", updateAnchor);
+      window.removeEventListener("scroll", updateAnchor);
+    };
+  }, [isMobile, mobileAddedOpen]);
+
+  useEffect(() => {
+    setCategoryNavTarget(null);
+    setCategoryHoverLocked(false);
+  }, [pathname, searchParams]);
+
+  const buildCategoryHref = (handle: string) =>
+    `/products?category=${encodeURIComponent(handle)}`;
 
   useEffect(() => {
     if (count === 0) return;
@@ -531,6 +563,8 @@ export function Navbar() {
   };
 
   const categoriesByParent = useMemo(() => {
+    const isSetCategory = (name: string) =>
+      name.toLowerCase().includes("set");
     const map = new Map<
       string | null,
       Array<{
@@ -552,7 +586,14 @@ export function Navbar() {
       map.set(key, list);
     });
     map.forEach((list, key) => {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort((a, b) => {
+        if (key !== null) {
+          const aIsSet = isSetCategory(a.name);
+          const bIsSet = isSetCategory(b.name);
+          if (aIsSet !== bIsSet) return aIsSet ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
       map.set(key, list);
     });
     return map;
@@ -1167,8 +1208,18 @@ export function Navbar() {
                       </span>
                     )}
                   </button>
-                  {isMobile && mobileAddedOpen && mobileAddedItem && (
-                    <div className="absolute right-0 top-full z-40 mt-3 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-xl">
+                  {isMobile &&
+                    mobileAddedOpen &&
+                    mobileAddedItem &&
+                    mobileAddedAnchor &&
+                    createPortal(
+                      <div
+                        className="fixed z-[90] w-64 rounded-xl border border-black/10 bg-white p-3 shadow-2xl"
+                        style={{
+                          top: mobileAddedAnchor.top,
+                          right: mobileAddedAnchor.right,
+                        }}
+                      >
                       <div className="flex items-center gap-3">
                         {mobileAddedItem.imageUrl ? (
                           <img
@@ -1223,8 +1274,9 @@ export function Navbar() {
                           logoClassName="h-4 sm:h-5"
                         />
                       </div>
-                    </div>
-                  )}
+                    </div>,
+                      document.body,
+                    )}
                 </div>
                 <Link
                   href="/wishlist"
@@ -1332,18 +1384,30 @@ export function Navbar() {
                     className="relative group"
                   >
                     <Link
-                      href={`/products?category=${encodeURIComponent(
-                        category.handle,
-                      )}`}
-                      className="whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+                      href={buildCategoryHref(category.handle)}
+                      onClick={() => {
+                        setCategoryNavTarget(buildCategoryHref(category.handle));
+                        setCategoryHoverLocked(true);
+                      }}
+                      className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
                     >
-                      {category.name}
+                      <span>{category.name}</span>
+                      {categoryNavTarget === buildCategoryHref(category.handle) && (
+                        <LoadingSpinner
+                          size="sm"
+                          className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
+                        />
+                      )}
                     </Link>
                     {(categoriesByParent.get(String(category.id))?.length ?? 0) >
                       0 && (
                       <>
                         <div className="pointer-events-auto absolute left-1/2 top-full z-20 h-3 w-28 -translate-x-1/2" />
-                        <div className="invisible absolute left-1/2 top-full z-30 mt-1 w-56 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150">
+                        <div
+                          className={`invisible absolute left-1/2 top-full z-30 mt-1 w-56 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150 ${
+                            categoryHoverLocked ? "pointer-events-none opacity-0" : ""
+                          }`}
+                        >
                         <div className="rounded-xl border border-emerald-200 bg-white p-2 text-sm shadow-xl">
                           {(categoriesByParent.get(String(category.id)) ?? []).map(
                             (child) => {
@@ -1351,15 +1415,28 @@ export function Navbar() {
                               return (
                                 <Link
                                   key={child.id}
-                                  href={`/products?category=${encodeURIComponent(
-                                    child.handle,
-                                  )}`}
+                                  href={buildCategoryHref(child.handle)}
+                                  onClick={() =>
+                                    {
+                                      setCategoryNavTarget(
+                                        buildCategoryHref(child.handle),
+                                      );
+                                      setCategoryHoverLocked(true);
+                                    }
+                                  }
                                   className="flex items-center gap-2 rounded-lg px-3 py-2 font-semibold text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
                                 >
                                   <span className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700">
                                     <ChildIcon className="h-4 w-4" />
                                   </span>
-                                  <span>{child.name}</span>
+                                  <span className="flex-1">{child.name}</span>
+                                  {categoryNavTarget ===
+                                    buildCategoryHref(child.handle) && (
+                                    <LoadingSpinner
+                                      size="sm"
+                                      className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
+                                    />
+                                  )}
                                 </Link>
                               );
                             },

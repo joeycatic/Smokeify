@@ -68,6 +68,13 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
           handle: true,
           manufacturer: true,
           shortDescription: true,
+          categories: {
+            select: {
+              category: {
+                select: { handle: true, name: true, parentId: true },
+              },
+            },
+          },
           images: {
             orderBy: { position: "asc" },
             take: 1,
@@ -87,6 +94,8 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
     const variant = variantMap.get(item.variantId);
     if (!variant) return;
     const image = variant.product.images[0] ?? null;
+    const categories =
+      variant.product.categories?.map((entry) => entry.category) ?? [];
     const line: CartLine = {
       id: variant.id,
       quantity: item.quantity,
@@ -97,6 +106,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
           title: variant.product.title,
           handle: variant.product.handle,
           manufacturer: variant.product.manufacturer ?? null,
+          categories,
         },
         image: image
           ? { url: image.url, altText: image.altText }

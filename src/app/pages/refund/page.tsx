@@ -24,8 +24,9 @@ export const WIDERRUF_SECTIONS = [
   {
     title: "Ausübung des Widerrufs",
     paragraphs: [
-      `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (Smokeify, [Name], [Adresse], [E-Mail], ggf. [Telefon]) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren.`,
+      `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (Smokeify, Joey Bennett Catic, Brinkeweg 106a, 33758 Schloß Holte-Stukenbrock, Deutschland, contact@smokeify.de) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren.`,
       `Sie können dafür das unten beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.`,
+      `Sie können den Widerruf auch über unser Widerrufs-/Retourenportal erklären.`,
       `Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.`,
     ],
   },
@@ -41,6 +42,7 @@ export const WIDERRUF_SECTIONS = [
     title: "Rücksendung der Waren",
     paragraphs: [
       `Sie haben die Waren unverzüglich und in jedem Fall spätestens binnen vierzehn Tagen ab dem Tag, an dem Sie uns über den Widerruf dieses Vertrags unterrichten, an uns zurückzusenden oder zu übergeben.`,
+      `Die Rücksendung erfolgt an: Smokeify, Joey Bennett Catic, Brinkeweg 106a, 33758 Schloß Holte-Stukenbrock, Deutschland.`,
       `Die Frist ist gewahrt, wenn Sie die Waren vor Ablauf der Frist von vierzehn Tagen absenden.`,
       `Sie tragen die unmittelbaren Kosten der Rücksendung der Waren.`,
       `Sie müssen für einen etwaigen Wertverlust der Waren nur aufkommen, wenn dieser Wertverlust auf einen zur Prüfung der Beschaffenheit, Eigenschaften und Funktionsweise der Waren nicht notwendigen Umgang mit ihnen zurückzuführen ist.`,
@@ -78,6 +80,14 @@ export function MusterWiderrufsformular() {
         <p>
           Smokeify
           <br />
+          Joey Bennett Catic
+          <br />
+          Brinkeweg 106a
+          <br />
+          33758 Schloß Holte-Stukenbrock
+          <br />
+          Deutschland
+          <br />
           E-Mail: contact@smokeify.de
         </p>
 
@@ -112,7 +122,7 @@ export default function Widerruf() {
               Widerruf
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: {new Date().toLocaleDateString("de-DE")}
+              Stand: 01.02.2026
             </p>
           </div>
 

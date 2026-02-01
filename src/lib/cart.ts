@@ -4,7 +4,12 @@ export type CartLine = {
   merchandise: {
     id: string;
     title: string;
-    product: { title: string; handle: string; manufacturer?: string | null };
+    product: {
+      title: string;
+      handle: string;
+      manufacturer?: string | null;
+      categories?: Array<{ handle: string; name: string; parentId?: string | null }>;
+    };
     image?: { url: string; altText?: string | null } | null;
     shortDescription?: string | null;
     price: { amount: string; currencyCode: string };

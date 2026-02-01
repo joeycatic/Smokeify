@@ -5,7 +5,7 @@ export const AGB_SECTIONS = [
     title: "§1 Geltungsbereich",
     paragraphs: [
       `Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen`,
-      `Smokeify, contact@smokefiy.de`,
+      `Smokeify, contact@smokeify.de`,
       `und den Kunden über den Online-Shop unter www.smokeify.de.`,
       `Das Angebot richtet sich ausschließlich an Verbraucher im Sinne des § 13 BGB, sofern nicht ausdrücklich anders angegeben.`,
       `Abweichende Bedingungen des Kunden werden nicht anerkannt, es sei denn, ihrer Geltung wird ausdrücklich schriftlich zugestimmt.`,
@@ -25,12 +25,14 @@ export const AGB_SECTIONS = [
       `Die im Online-Shop dargestellten Produkte stellen kein rechtlich bindendes Angebot dar, sondern eine unverbindliche Aufforderung zur Bestellung.`,
       `Der Vertrag kommt zustande, sobald Smokeify die Bestellung des Kunden durch eine Bestellbestätigung per E-Mail annimmt.`,
       `Die Bestellbestätigung stellt noch keine Versandbestätigung dar.`,
+      `Vertragssprache ist Deutsch.`,
+      `Der Vertragstext wird von Smokeify gespeichert und dem Kunden nach Vertragsschluss per E-Mail (Bestellbestätigung) übermittelt.`,
     ],
   },
   {
     title: "§4 Preise und Versandkosten",
     paragraphs: [
-      `Alle Preise sind Endpreise und enthalten die gesetzliche Mehrwertsteuer.`,
+      `Alle Preise sind Endpreise. Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.`,
       `Zusätzlich zu den angegebenen Preisen können Versandkosten anfallen. Diese werden dem Kunden vor Abschluss des Bestellvorgangs klar angezeigt.`,
       `Informationen zu Versandarten, Lieferzeiten und Kosten sind unter „Versand & Zahlung“ einsehbar.`,
     ],
@@ -38,16 +40,20 @@ export const AGB_SECTIONS = [
   {
     title: "§5 Lieferung",
     paragraphs: [
+      `Die Lieferung erfolgt innerhalb Deutschlands sowie in die im Bestellprozess auswählbaren Lieferländer.`,
       `Die Lieferung erfolgt an die vom Kunden angegebene Lieferadresse.`,
       `Lieferzeiten sind abhängig vom Produkt und werden im Shop angegeben.`,
       `Sollte ein Produkt nicht verfügbar sein, wird der Kunde unverzüglich informiert.`,
+      `Ist eine Teillieferung zumutbar, kann diese erfolgen. Eventuelle Mehrkosten entstehen dem Kunden hierdurch nicht.`,
+      `Im Falle der Nichtverfügbarkeit kann der Kunde vom Vertrag zurücktreten; bereits geleistete Zahlungen werden unverzüglich erstattet.`,
     ],
   },
   {
     title: "§6 Zahlungsarten",
     paragraphs: [
-      `Smokeify bietet die im Shop angegebenen Zahlungsarten an (z. B. PayPal, Kreditkarte, Klarna, Shopify Payments).`,
-      `Die Belastung erfolgt unmittelbar nach Vertragsabschluss, sofern nichts anderes vereinbart ist.`,
+      `Smokeify bietet die im Shop angegebenen Zahlungsarten an (z. B. Kartenzahlung, PayPal, Klarna, Apple Pay, Google Pay, Amazon Pay).`,
+      `Die Belastung erfolgt abhängig von der gewählten Zahlungsart. Weitere Informationen sind im Bestellprozess ersichtlich.`,
+      `Gerät der Kunde in Verzug, gelten die gesetzlichen Verzugsregelungen.`,
     ],
   },
   {
@@ -82,7 +88,7 @@ export const AGB_SECTIONS = [
     title: "§11 Nutzung der Produkte / Haftungsausschluss",
     paragraphs: [
       `Die angebotenen Produkte dienen ausschließlich legalen Zwecken.`,
-      `Smokeify übernimmt keine Haftung für eine unsachgemäße, missbräuchliche oder rechtswidrige Nutzung der Produkte.`,
+      `Smokeify übernimmt keine Haftung für eine unsachgemäße, missbräuchliche oder rechtswidrige Nutzung der Produkte, soweit gesetzlich zulässig.`,
       `Die Produkte sind kein Spielzeug und außerhalb der Reichweite von Kindern aufzubewahren.`,
     ],
   },
@@ -101,7 +107,7 @@ export const AGB_SECTIONS = [
   {
     title: "§14 Online-Streitbeilegung / Verbraucherstreitbeilegung",
     paragraphs: [
-      `Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit.`,
+      `Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr`,
       `Smokeify ist nicht verpflichtet und nicht bereit, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.`,
     ],
   },
@@ -124,7 +130,7 @@ export default function AgbPage() {
               Allgemeine Geschäftsbedingungen
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: {new Date().toLocaleDateString("de-DE")}
+              Stand: 01.02.2026
             </p>
           </div>
 
@@ -134,6 +140,9 @@ export default function AgbPage() {
                 Anbieter
               </p>
               <p className="font-semibold text-stone-900">Smokeify</p>
+              <p>Joey Bennett Catic</p>
+              <p>Brinkeweg 106a</p>
+              <p>33758 Schloß Holte-Stukenbrock</p>
             </div>
             <div className="space-y-1 text-sm text-stone-700">
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">

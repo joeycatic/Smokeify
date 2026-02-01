@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
+import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 type AddedItem = {
   title: string;
@@ -12,6 +13,15 @@ type AddedItem = {
   productHandle?: string;
 };
 
+type RecommendedItem = {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  price: { amount: string; currencyCode: string } | null;
+};
+
 type Props = {
   open: boolean;
   item: AddedItem | null;
@@ -19,6 +29,34 @@ type Props = {
 };
 
 export default function AddedToCartModal({ open, item, onClose }: Props) {
+  const [recommendations, setRecommendations] = useState<RecommendedItem[]>([]);
+  const [recommendationsStatus, setRecommendationsStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
+  const [recIndex, setRecIndex] = useState(0);
+
+  useEffect(() => {
+    if (!open || !item?.productHandle) return;
+    let active = true;
+    setRecommendationsStatus("loading");
+    setRecIndex(0);
+    fetch(`/api/recommendations?handle=${encodeURIComponent(item.productHandle)}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data: { results?: RecommendedItem[] }) => {
+        if (!active) return;
+        setRecommendations(data.results ?? []);
+        setRecommendationsStatus("idle");
+      })
+      .catch(() => {
+        if (!active) return;
+        setRecommendations([]);
+        setRecommendationsStatus("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, item?.productHandle]);
+
   if (!open || !item) return null;
 
   return (
@@ -60,18 +98,128 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 rounded-xl border border-black/5 bg-stone-50 p-4">
+          <p className="text-sm font-semibold text-stone-800">
+            Empfehlungen für dich
+          </p>
+          {recommendationsStatus === "loading" && (
+            <p className="mt-2 text-xs text-stone-500">Lade Empfehlungen...</p>
+          )}
+          {recommendationsStatus === "error" && (
+            <p className="mt-2 text-xs text-stone-500">
+              Empfehlungen konnten nicht geladen werden.
+            </p>
+          )}
+          {recommendationsStatus === "idle" && recommendations.length > 0 && (
+            <div className="mt-3">
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRecIndex((prev) =>
+                      recommendations.length === 0
+                        ? 0
+                        : (prev - 1 + recommendations.length) %
+                          recommendations.length,
+                    )
+                  }
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-600 shadow-sm transition hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  aria-label="Vorherige Empfehlung"
+                >
+                  <ChevronLeftIcon className="h-5 w-5" />
+                </button>
+                <div className="flex-1 overflow-hidden">
+                <div
+                  className="flex transition-transform duration-300 ease-out"
+                  style={{
+                    transform: `translateX(-${recIndex * 100}%)`,
+                  }}
+                >
+                  {recommendations.map((rec) => (
+                    <div key={rec.id} className="w-full shrink-0">
+                      <Link
+                        href={`/products/${rec.handle}`}
+                        onClick={onClose}
+                        className="group mx-auto flex max-w-xs flex-col items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        <div className="w-full overflow-hidden rounded-xl bg-stone-100">
+                          {rec.imageUrl ? (
+                            <img
+                              src={rec.imageUrl}
+                              alt={rec.imageAlt ?? rec.title}
+                              className="h-60 w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                              loading="lazy"
+                              decoding="async"
+                              width={320}
+                              height={320}
+                            />
+                          ) : (
+                            <div className="h-60 w-full" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-sm font-semibold text-stone-900">
+                            {rec.title}
+                          </p>
+                          {rec.price ? (
+                            <p className="mt-1 text-sm font-semibold text-emerald-800">
+                              {rec.price.amount} {rec.price.currencyCode}
+                            </p>
+                          ) : null}
+                        </div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRecIndex((prev) =>
+                      recommendations.length === 0
+                        ? 0
+                        : (prev + 1) % recommendations.length,
+                    )
+                  }
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-600 shadow-sm transition hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  aria-label="Nächste Empfehlung"
+                >
+                  <ChevronRightIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="mt-3 flex items-center justify-center gap-1">
+                {recommendations.map((_, dotIndex) => (
+                  <span
+                    key={`rec-dot-${dotIndex}`}
+                    className={`h-1.5 w-1.5 rounded-full transition ${
+                      dotIndex === recIndex
+                        ? "bg-emerald-700"
+                        : "bg-emerald-200"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {recommendationsStatus === "idle" && recommendations.length === 0 && (
+            <p className="mt-2 text-xs text-stone-500">
+              Keine Empfehlungen verfügbar.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-md border border-black/5 bg-[#E4C56C] px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:border-black/20 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Weiter shoppen
           </button>
           <Link
             href="/cart"
             onClick={onClose}
-            className="inline-flex items-center border-black/5 justify-center rounded-md bg-green-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Warenkorb anzeigen
           </Link>

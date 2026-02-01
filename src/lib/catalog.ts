@@ -167,6 +167,7 @@ export async function getProductByHandle(handle: string) {
         orderBy: { position: "asc" },
         include: { inventory: true, options: true },
       },
+      categories: { include: { category: { include: { parent: true } } } },
     },
   });
 
@@ -235,6 +236,19 @@ export async function getProductByHandle(handle: string) {
     manufacturer: product.manufacturer,
     growboxSize: product.growboxSize ?? null,
     productGroup: product.productGroup ?? null,
+    categories: product.categories.map((entry) => ({
+      id: entry.category.id,
+      handle: entry.category.handle,
+      title: entry.category.name,
+      parentId: entry.category.parentId ?? null,
+      parent: entry.category.parent
+        ? {
+            id: entry.category.parent.id,
+            handle: entry.category.parent.handle,
+            title: entry.category.parent.name,
+          }
+        : null,
+    })),
     images,
     variants,
     options,

@@ -39,15 +39,16 @@ export default function ProductDetailClient({
   imageAlt,
   options,
 }: {
-  product: {
-    id: string;
-    title: string;
-    descriptionHtml: string;
-    technicalDetailsHtml?: string;
-    shortDescription?: string | null;
-    manufacturer?: string | null;
-    growboxSize?: string | null;
-  };
+    product: {
+      id: string;
+      title: string;
+      descriptionHtml: string;
+      technicalDetailsHtml?: string;
+      shortDescription?: string | null;
+      manufacturer?: string | null;
+      growboxSize?: string | null;
+      categories?: Array<{ handle: string; title: string; parentId?: string | null }>;
+    };
   productGroupItems?: Array<{
     id: string;
     title: string;
@@ -168,6 +169,9 @@ export default function ProductDetailClient({
     text: string;
   } | null>(null);
   const [addedPulse, setAddedPulse] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">(
+    "idle",
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
@@ -186,6 +190,48 @@ export default function ProductDetailClient({
     "100% geprüft",
     "Diskret verpackt",
   ];
+  const showAgeNotice = Boolean(
+    product.categories?.some((category) => {
+      const handle = category.handle.toLowerCase();
+      const title = category.title.toLowerCase();
+      return handle === "vaporizer" || title === "vaporizer";
+    })
+  );
+
+  const startCheckout = async () => {
+    if (!selectedVariantId) {
+      setToast({ type: "error", text: "Keine Variante gewählt." });
+      setTimeout(() => setToast(null), 1500);
+      return;
+    }
+    setCheckoutStatus("loading");
+    try {
+      await addToCart(selectedVariantId, quantity);
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: "DE" }),
+      });
+      const data = (await res.json().catch(() => null)) as { url?: string } | null;
+      if (!res.ok || !data?.url) {
+        setCheckoutStatus("error");
+        setToast({
+          type: "error",
+          text: "Checkout fehlgeschlagen.",
+        });
+        setTimeout(() => setToast(null), 1500);
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
+      setCheckoutStatus("error");
+      setToast({
+        type: "error",
+        text: "Checkout fehlgeschlagen.",
+      });
+      setTimeout(() => setToast(null), 1500);
+    }
+  };
 
   useEffect(() => {
     setNotifyStatus("idle");
@@ -224,7 +270,7 @@ export default function ProductDetailClient({
               </span>
             </div>
           )}
-        </div>
+          </div>
 
         {groupOptions.length > 1 && (
           <div className="space-y-2">
@@ -249,8 +295,8 @@ export default function ProductDetailClient({
           </div>
         )}
 
-        {optionGroups.length > 0 && (
-          <div className="space-y-3">
+          {optionGroups.length > 0 && (
+            <div className="space-y-3">
             <div className="space-y-4">
               {optionGroups.map((option) => (
                 <div key={option.name} className="space-y-2">
@@ -306,8 +352,9 @@ export default function ProductDetailClient({
                 </div>
               ))}
             </div>
-          </div>
-        )}
+            </div>
+          )}
+
 
         {variants.length > 1 && (
           <div className="space-y-2">
@@ -328,7 +375,7 @@ export default function ProductDetailClient({
 
         <div className="space-y-2">
           <p className="text-sm font-semibold text-black/80">Menge</p>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-nowrap items-center gap-3">
             <div className="inline-flex items-center rounded-lg border border-black/10 bg-white">
               <button
                 type="button"
@@ -405,6 +452,7 @@ export default function ProductDetailClient({
                           imageAlt: imageAlt ?? product.title,
                           price: selectedVariant.price,
                           quantity,
+                          productHandle: currentHandle,
                         });
                       }
                     } else {
@@ -419,7 +467,7 @@ export default function ProductDetailClient({
                     setTimeout(() => setToast(null), 1500);
                   }
                 }}
-                className={`flex h-10 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#0f2f44] via-[#0b4f6c] to-[#1282a2] px-4 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sky-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   addedPulse ? "scale-[1.02]" : "scale-100"
                 }`}
               >
@@ -430,6 +478,23 @@ export default function ProductDetailClient({
               </button>
             ) : null}
           </div>
+          {isAvailable ? (
+            <button
+              type="button"
+              onClick={startCheckout}
+              disabled={checkoutStatus === "loading"}
+              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            >
+              {checkoutStatus === "loading" ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" className="border-white/40 border-t-white" />
+                  Weiterleitung...
+                </span>
+              ) : (
+                "Zur Kasse"
+              )}
+            </button>
+          ) : null}
 
           <div className="mt-2">
             {selectedVariant?.availableForSale ? (
@@ -710,12 +775,19 @@ export default function ProductDetailClient({
                     }}
                   />
                 </div>
-              </div>
-            </details>
-          </div>
-        ) : null}
+                </div>
+              </details>
+            </div>
+          ) : null}
+          {showAgeNotice && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:hidden">
+              Hinweis zum Jugendschutz: Dieses Produkt ist ausschließlich für
+              Personen ab 18 Jahren bestimmt. Eine Abgabe an Minderjährige ist
+              ausgeschlossen.
+            </div>
+          )}
+        </div>
       </div>
-    </div>
   );
 }
 
