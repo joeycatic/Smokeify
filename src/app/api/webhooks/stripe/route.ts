@@ -216,7 +216,7 @@ const createOrderFromSession = async (
 
   const created = await prisma.order.create({
     data: {
-      userId,
+      user: userId ? { connect: { id: userId } } : undefined,
       stripeSessionId: sessionId,
       stripePaymentIntent:
         typeof checkoutSession.payment_intent === "string"
