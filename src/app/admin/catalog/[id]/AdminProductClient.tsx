@@ -190,6 +190,10 @@ export default function AdminProductClient({
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
   const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
   const [reorderingVariants, setReorderingVariants] = useState(false);
+  const [draggingOption, setDraggingOption] = useState<{
+    variantId: string;
+    optionId: string;
+  } | null>(null);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     product.variants.forEach((variant) => {
@@ -218,6 +222,11 @@ export default function AdminProductClient({
   const [collectionIds, setCollectionIds] = useState(
     new Set(product.collections.map((item) => item.collection.id))
   );
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<
+    "all" | "selected" | "parent" | "child"
+  >("all");
+  const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
@@ -244,6 +253,68 @@ export default function AdminProductClient({
     });
     return map;
   }, [categories]);
+  const normalizedCategorySearch = categorySearch.trim().toLowerCase();
+  const filteredParentCategories = useMemo(() => {
+    const base =
+      categoryFilter === "child"
+        ? []
+        : parentCategories.filter((item) => {
+            if (!normalizedCategorySearch) return true;
+            return item.name.toLowerCase().includes(normalizedCategorySearch);
+          });
+    if (categoryFilter === "selected") {
+      return base.filter((item) => categoryIds.has(item.id));
+    }
+    return base;
+  }, [categoryFilter, categoryIds, normalizedCategorySearch, parentCategories]);
+  const filteredChildCategories = useMemo(() => {
+    const base =
+      categoryFilter === "parent"
+        ? []
+        : childCategories.filter((item) => {
+            const parentName = item.parentId
+              ? categoryNameById.get(item.parentId)?.toLowerCase() ?? ""
+              : "";
+            if (!normalizedCategorySearch) return true;
+            return (
+              item.name.toLowerCase().includes(normalizedCategorySearch) ||
+              parentName.includes(normalizedCategorySearch)
+            );
+          });
+    if (categoryFilter === "selected") {
+      return base.filter((item) => categoryIds.has(item.id));
+    }
+    return base;
+  }, [
+    categoryFilter,
+    categoryIds,
+    childCategories,
+    categoryNameById,
+    normalizedCategorySearch,
+  ]);
+  const visibleChildCategories = useMemo(() => {
+    if (!activeParentId) return filteredChildCategories;
+    return filteredChildCategories.filter(
+      (item) => item.parentId === activeParentId
+    );
+  }, [activeParentId, filteredChildCategories]);
+  const activeParentName = activeParentId
+    ? categoryNameById.get(activeParentId) ?? "Auswahl"
+    : "Auswahl";
+  const selectedCategoryCount = categoryIds.size;
+  const selectedChildCount = childCategories.filter((item) =>
+    categoryIds.has(item.id)
+  ).length;
+  const selectedCollectionCount = collectionIds.size;
+
+  useEffect(() => {
+    if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
+      return;
+    }
+    const selectedParent =
+      parentCategories.find((item) => categoryIds.has(item.id)) ?? null;
+    setActiveParentId(selectedParent?.id ?? parentCategories[0]?.id ?? null);
+  }, [activeParentId, categoryIds, parentCategories]);
   const growboxenCategoryId = useMemo(
     () => categories.find((item) => item.handle === "growboxen")?.id ?? null,
     [categories]
@@ -683,6 +754,26 @@ export default function AdminProductClient({
       void saveVariantOrder(positioned);
       return positioned;
     });
+  };
+
+  const reorderVariantOptions = (
+    variantId: string,
+    sourceId: string,
+    targetId: string
+  ) => {
+    if (sourceId === targetId) return;
+    setVariants((prev) =>
+      prev.map((variant) => {
+        if (variant.id !== variantId) return variant;
+        const nextOptions = [...variant.options];
+        const sourceIndex = nextOptions.findIndex((opt) => opt.id === sourceId);
+        const targetIndex = nextOptions.findIndex((opt) => opt.id === targetId);
+        if (sourceIndex === -1 || targetIndex === -1) return variant;
+        const [moved] = nextOptions.splice(sourceIndex, 1);
+        nextOptions.splice(targetIndex, 0, moved);
+        return { ...variant, options: nextOptions };
+      })
+    );
   };
 
   const deleteVariant = async (id: string) => {
@@ -1377,158 +1468,251 @@ export default function AdminProductClient({
             <p className="text-xs text-stone-500">Organize where this product appears.</p>
           </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="flex h-full flex-col">
-            <p className="text-xs font-semibold text-stone-600 mb-2">Categories</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {parentCategories.map((item) => {
-                const selected = categoryIds.has(item.id);
-                const parentName = item.parentId
-                  ? categoryNameById.get(item.parentId)
-                  : null;
-                return (
-                <label
-                  key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={categoryIds.has(item.id)}
-                    onChange={() => {
-                      setCategoryIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                  <span className="flex flex-col">
-                    <span>{item.name}</span>
-                    {parentName && (
-                      <span className="text-[11px] font-semibold text-emerald-700/70">
-                        Parent: {parentName}
-                      </span>
-                    )}
-                  </span>
-                </label>
-                );
-              })}
-              {parentCategories.length === 0 && (
-                <p className="text-xs text-stone-500">No categories yet.</p>
-              )}
-            </div>
-            <p className="mt-5 text-xs font-semibold text-stone-600 mb-2">
-              Subcategories
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {childCategories.map((item) => {
-                const selected = categoryIds.has(item.id);
-                const parentName = item.parentId
-                  ? categoryNameById.get(item.parentId)
-                  : null;
-                return (
-                <label
-                  key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={categoryIds.has(item.id)}
-                    onChange={() => {
-                      setCategoryIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                  <span className="flex flex-col">
-                    <span>{item.name}</span>
-                    <span className="text-[11px] font-semibold text-emerald-700/70">
-                      {parentName ? `Parent: ${parentName}` : "No parent"}
-                    </span>
-                  </span>
-                </label>
-                );
-              })}
-              {childCategories.length === 0 && (
-                <p className="text-xs text-stone-500">No subcategories yet.</p>
-              )}
-            </div>
-            <div className="mt-auto pt-3">
-              <button
-                type="button"
-                onClick={saveCategories}
-                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-              >
-                Save categories
-              </button>
-            </div>
+        <div className="space-y-4">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                <path
+                  d="M21 21l-4.2-4.2m1.7-5.1a6.8 6.8 0 11-13.6 0 6.8 6.8 0 0113.6 0z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              value={categorySearch}
+              onChange={(event) => setCategorySearch(event.target.value)}
+              placeholder="Kategorie / Subkategorie suchen ..."
+              className="h-11 w-full rounded-full border border-black/10 bg-white px-10 text-sm shadow-sm"
+            />
           </div>
-          <div className="flex h-full flex-col">
-            <p className="text-xs font-semibold text-stone-600 mb-2">Collections</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {collections.map((item) => {
-                const selected = collectionIds.has(item.id);
-                return (
-                <label
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            {[
+              { id: "all", label: "Alle" },
+              { id: "selected", label: "Nur ausgewählte" },
+              { id: "parent", label: "Kategorien" },
+              { id: "child", label: "Subkategorien" },
+            ].map((item) => {
+              const active = categoryFilter === item.id;
+              return (
+                <button
                   key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-violet-300 bg-violet-100/70 text-violet-900"
-                      : "border-violet-100 bg-violet-50/50 text-stone-700 hover:border-violet-200 hover:bg-violet-50/80"
+                  type="button"
+                  onClick={() =>
+                    setCategoryFilter(
+                      item.id as "all" | "selected" | "parent" | "child"
+                    )
+                  }
+                  className={`h-9 rounded-full border px-4 transition ${
+                    active
+                      ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                      : "border-black/10 bg-white text-stone-600 hover:border-emerald-200 hover:text-emerald-700"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={collectionIds.has(item.id)}
-                    onChange={() => {
-                      setCollectionIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-violet-600"
-                  />
-                  {item.name}
-                </label>
-                );
-              })}
-              {collections.length === 0 && (
-                <p className="text-xs text-stone-500">No collections yet.</p>
-              )}
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr_0.9fr]">
+            <div className="rounded-2xl border border-black/10 bg-white p-4">
+              <p className="text-xs font-semibold text-stone-600">Kategorien</p>
+              <div className="mt-3 space-y-2">
+                {filteredParentCategories.map((item) => {
+                  const selected = categoryIds.has(item.id);
+                  const isActive = activeParentId === item.id;
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                        selected
+                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                      } ${isActive ? "ring-1 ring-emerald-300" : ""}`}
+                      onClick={() => setActiveParentId(item.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          setCategoryIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              parentCategories.forEach((parent) => {
+                                if (parent.id !== item.id) {
+                                  next.delete(parent.id);
+                                }
+                              });
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                      <span>{item.name}</span>
+                    </label>
+                  );
+                })}
+                {filteredParentCategories.length === 0 && (
+                  <p className="text-xs text-stone-500">No categories yet.</p>
+                )}
+              </div>
             </div>
-            <div className="mt-auto pt-3">
-              <button
-                type="button"
-                onClick={saveCollections}
-                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-              >
-                Save collections
-              </button>
+            <div className="rounded-2xl border border-black/10 bg-white p-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-700">
+                <span>Subkategorien für:</span>
+                <span className="text-emerald-700">{activeParentName}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-stone-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds((prev) => {
+                      const next = new Set(prev);
+                      visibleChildCategories.forEach((item) => next.add(item.id));
+                      return next;
+                    });
+                  }}
+                  className="hover:text-emerald-700"
+                >
+                  Alle auswählen
+                </button>
+                <span className="text-stone-300">|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds((prev) => {
+                      const next = new Set(prev);
+                      visibleChildCategories.forEach((item) => next.delete(item.id));
+                      return next;
+                    });
+                  }}
+                  className="hover:text-emerald-700"
+                >
+                  Alle abwählen
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {visibleChildCategories.map((item) => {
+                  const selected = categoryIds.has(item.id);
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                        selected
+                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          setCategoryIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                      <span>{item.name}</span>
+                    </label>
+                  );
+                })}
+                {visibleChildCategories.length === 0 && (
+                  <p className="text-xs text-stone-500">No subcategories yet.</p>
+                )}
+              </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={saveCategories}
+                  className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                >
+                  Save categories
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-black/10 bg-white p-4">
+                <p className="text-xs font-semibold text-stone-600">Collections</p>
+                <div className="mt-3 space-y-2">
+                  {collections.map((item) => {
+                    const selected = collectionIds.has(item.id);
+                    return (
+                      <label
+                        key={item.id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                          selected
+                            ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                            : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            setCollectionIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) {
+                                next.delete(item.id);
+                              } else {
+                                next.add(item.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-4 accent-emerald-600"
+                        />
+                        {item.name}
+                      </label>
+                    );
+                  })}
+                  {collections.length === 0 && (
+                    <p className="text-xs text-stone-500">No collections yet.</p>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={saveCollections}
+                    className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                  >
+                    Save collections
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-black/10 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Auswahl Übersicht
+                </p>
+                <div className="mt-3 space-y-2 text-sm text-stone-600">
+                  <p>Kategorien: {selectedCategoryCount} gewählt</p>
+                  <p>Subkategorien: {selectedChildCount} gewählt</p>
+                  <p>Collections: {selectedCollectionCount} gewählt</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds(new Set());
+                    setCollectionIds(new Set());
+                  }}
+                  className="mt-4 h-10 w-full rounded-md border border-amber-200 bg-amber-50 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2081,17 +2265,47 @@ export default function AdminProductClient({
                   <p className="mt-1 text-xs text-stone-500">
                     One value per option name for this variant.
                   </p>
-                  <div className="mt-3 space-y-2">
-                    {variant.options.map((opt, optIndex) => (
-                      <div
-                        key={opt.id}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_auto]"
-                      >
-                        <input
-                          value={opt.name}
-                          onChange={(event) =>
-                            setVariants((prev) =>
-                              prev.map((item) =>
+                    <div className="mt-3 space-y-2">
+                      {variant.options.map((opt, optIndex) => (
+                        <div
+                          key={opt.id}
+                          className="grid gap-2 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_110px_auto]"
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => {
+                            if (
+                              draggingOption &&
+                              draggingOption.variantId === variant.id
+                            ) {
+                              reorderVariantOptions(
+                                variant.id,
+                                draggingOption.optionId,
+                                opt.id
+                              );
+                              setDraggingOption(null);
+                            }
+                          }}
+                        >
+                          <div className="flex h-9 items-center justify-center">
+                            <span
+                              className="cursor-grab select-none text-stone-400"
+                              draggable
+                              onDragStart={() =>
+                                setDraggingOption({
+                                  variantId: variant.id,
+                                  optionId: opt.id,
+                                })
+                              }
+                              onDragEnd={() => setDraggingOption(null)}
+                              aria-label="Drag option"
+                            >
+                              ⋮⋮
+                            </span>
+                          </div>
+                          <input
+                            value={opt.name}
+                            onChange={(event) =>
+                              setVariants((prev) =>
+                                prev.map((item) =>
                                 item.id === variant.id
                                   ? {
                                       ...item,
@@ -2167,11 +2381,11 @@ export default function AdminProductClient({
                           placeholder="Image #"
                           className="h-9 w-full min-w-0 rounded-md border border-black/15 px-3 text-xs"
                         />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setVariants((prev) =>
-                              prev.map((item) =>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVariants((prev) =>
+                                prev.map((item) =>
                                 item.id === variant.id
                                   ? {
                                       ...item,
