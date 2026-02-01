@@ -331,15 +331,16 @@ function ProductImageCarousel({
   const isPng = /\.png($|\?)/i.test(current.url);
 
   return (
-    <div className={`relative ${className ?? ""} ${isPng ? "bg-white" : ""}`}>
-      <Image
-        src={current.url}
-        alt={current.altText ?? alt}
-        fill
-        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-        className={`absolute inset-0 ${imageClassName ?? ""}`}
-      />
-    </div>
+      <div className={`relative ${className ?? ""} ${isPng ? "bg-white" : ""}`}>
+        <Image
+          src={current.url}
+          alt={current.altText ?? alt}
+          fill
+          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+          quality={70}
+          className={`absolute inset-0 ${imageClassName ?? ""}`}
+        />
+      </div>
   );
 }
 

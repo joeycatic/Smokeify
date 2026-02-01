@@ -133,6 +133,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
             }}
             sizes="(min-width: 1024px) 50vw, 100vw"
             priority={index === 0}
+            quality={70}
           />
         </div>
         {count > 1 && (

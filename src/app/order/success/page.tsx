@@ -39,6 +39,7 @@ type OrderSummary = {
   shippingCity: string | null;
   shippingCountry: string | null;
   items: OrderItem[];
+  provisional?: boolean;
 };
 
 const formatPrice = (amount: number, currency: string) =>
@@ -78,8 +79,8 @@ export default function OrderSuccessPage() {
   >("idle");
   const [cartCleared, setCartCleared] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 20;
-  const retryDelayMs = 3000;
+  const maxRetries = 60;
+  const retryDelayMs = 8000;
 
   useEffect(() => {
     if (!sessionId) return;
@@ -99,6 +100,9 @@ export default function OrderSuccessPage() {
           pending?: boolean;
         };
         if (res.status === 202 || data.pending) {
+          if (data.order) {
+            setOrder(data.order);
+          }
           setLoadStatus("pending");
           return;
         }
@@ -171,7 +175,7 @@ export default function OrderSuccessPage() {
             </div>
           ) : null}
 
-          {loadStatus === "pending" ? (
+          {loadStatus === "pending" && !order ? (
             <div className="flex items-center justify-center gap-3 py-6 text-stone-600">
               <LoadingSpinner size="sm" />
               <span>Zahlung wird bestaetigt. Bitte warten...</span>
@@ -184,15 +188,17 @@ export default function OrderSuccessPage() {
             </div>
           ) : null}
 
-          {order && loadStatus === "ok" ? (
+          {order && (loadStatus === "ok" || loadStatus === "pending") ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-stone-400">
-                    Bestellnummer
+                    {order.provisional ? "Sitzungs-ID" : "Bestellnummer"}
                   </p>
                   <p className="text-sm font-semibold">
-                    {order.id.slice(0, 8).toUpperCase()}
+                    {order.provisional
+                      ? order.id.slice(0, 12)
+                      : order.id.slice(0, 8).toUpperCase()}
                   </p>
                 </div>
                 <div className="text-right">
@@ -207,9 +213,18 @@ export default function OrderSuccessPage() {
 
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span>Status: {order.status}</span>
+                  <span>
+                    Status:{" "}
+                    {order.provisional ? "bezahlt (wird verarbeitet)" : order.status}
+                  </span>
                   <span>Zahlung: {order.paymentStatus}</span>
                 </div>
+                {order.provisional && (
+                  <p className="mt-2 text-xs text-amber-800">
+                    Wir synchronisieren deine Bestellung gerade mit dem Shop.
+                    Die Bestellnummer wird gleich vergeben.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-6 md:grid-cols-2">
@@ -319,20 +334,22 @@ export default function OrderSuccessPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href={`/api/orders/${order.id}/receipt`}
-                  className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Beleg herunterladen
-                </a>
-                <a
-                  href={`/api/orders/${order.id}/invoice`}
-                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Rechnung herunterladen
-                </a>
-              </div>
+              {!order.provisional && (
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={`/api/orders/${order.id}/receipt`}
+                    className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Beleg herunterladen
+                  </a>
+                  <a
+                    href={`/api/orders/${order.id}/invoice`}
+                    className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Rechnung herunterladen
+                  </a>
+                </div>
+              )}
             </div>
           ) : null}
 

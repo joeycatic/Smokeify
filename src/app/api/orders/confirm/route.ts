@@ -108,6 +108,61 @@ export async function POST(request: Request) {
     }
   }
 
+  if (checkoutSession.payment_status === "paid") {
+    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+      limit: 100,
+      expand: ["data.price.product"],
+    });
+    const items = await enrichItemsWithManufacturer(
+      (lineItems.data ?? []).map((item) => {
+        const product = item.price?.product as Stripe.Product | null | undefined;
+        const imageUrl = product?.images?.[0] ?? null;
+        const productId =
+          product?.metadata?.productId || item.price?.metadata?.productId || null;
+        return {
+          id: item.id,
+          name: item.description ?? "Item",
+          quantity: item.quantity ?? 0,
+          unitAmount: item.price?.unit_amount ?? 0,
+          totalAmount: item.amount_total ?? 0,
+          currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
+          imageUrl,
+          productId,
+        };
+      })
+    );
+    return NextResponse.json({
+      ok: true,
+      pending: true,
+      order: {
+        id: sessionId,
+        createdAt: checkoutSession.created
+          ? new Date(checkoutSession.created * 1000).toISOString()
+          : new Date().toISOString(),
+        amountSubtotal: checkoutSession.amount_subtotal ?? 0,
+        amountTax: checkoutSession.total_details?.amount_tax ?? 0,
+        amountShipping: checkoutSession.total_details?.amount_shipping ?? 0,
+        amountDiscount: checkoutSession.total_details?.amount_discount ?? 0,
+        amountTotal: checkoutSession.amount_total ?? 0,
+        currency: (checkoutSession.currency ?? "eur").toUpperCase(),
+        paymentStatus: checkoutSession.payment_status ?? "paid",
+        status: checkoutSession.status ?? "open",
+        discountCode: checkoutSession.metadata?.discountCode ?? null,
+        customerEmail: checkoutSession.customer_details?.email ?? null,
+        shippingName: checkoutSession.shipping_details?.name ?? null,
+        shippingLine1: checkoutSession.shipping_details?.address?.line1 ?? null,
+        shippingLine2: checkoutSession.shipping_details?.address?.line2 ?? null,
+        shippingPostalCode:
+          checkoutSession.shipping_details?.address?.postal_code ?? null,
+        shippingCity: checkoutSession.shipping_details?.address?.city ?? null,
+        shippingCountry:
+          checkoutSession.shipping_details?.address?.country ?? null,
+        items,
+        provisional: true,
+      },
+    });
+  }
+
   return NextResponse.json(
     {
       ok: true,

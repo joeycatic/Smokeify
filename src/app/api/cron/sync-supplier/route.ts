@@ -6,8 +6,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const secret = process.env.CRON_SECRET;
   const headerSecret = request.headers.get("x-cron-secret");
+  const authHeader = request.headers.get("authorization");
   if (
     secret &&
+    authHeader !== `Bearer ${secret}` &&
     searchParams.get("secret") !== secret &&
     headerSecret !== secret
   ) {

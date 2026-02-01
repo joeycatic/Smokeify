@@ -57,11 +57,22 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
   const variantIds = items.map((item) => item.variantId);
   const variants = await prisma.variant.findMany({
     where: { id: { in: variantIds } },
-    include: {
-      inventory: true,
+    select: {
+      id: true,
+      title: true,
+      priceCents: true,
+      inventory: { select: { quantityOnHand: true, reserved: true } },
       product: {
-        include: {
-          images: { orderBy: { position: "asc" } },
+        select: {
+          title: true,
+          handle: true,
+          manufacturer: true,
+          shortDescription: true,
+          images: {
+            orderBy: { position: "asc" },
+            take: 1,
+            select: { url: true, altText: true },
+          },
         },
       },
     },
