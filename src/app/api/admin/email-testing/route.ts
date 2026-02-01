@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 
 type EmailType =
   | "confirmation"
@@ -75,6 +77,21 @@ const sanitizeOrder = (input: OrderInput): OrderInput => ({
 });
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-email-testing:ip:${ip}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -2,11 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
 import { revalidatePath } from "next/cache";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-product-variants:ip:${ip}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const { id } = await context.params;
   const session = await requireAdmin();
   if (!session) {
@@ -82,6 +100,15 @@ export async function POST(
       },
     },
     include: { options: true, inventory: true },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "variant.create",
+    targetType: "variant",
+    targetId: variant.id,
+    summary: `Created variant ${variant.title}`,
+    metadata: { productId: id },
   });
 
   const product = await prisma.product.findUnique({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const CURRENCY_MULTIPLIER = 100;
 
@@ -15,6 +16,15 @@ const getAvailability = (quantityOnHand: number | null, reserved: number | null)
 };
 
 export async function GET(request: Request) {
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `customizer:ip:${ip}`,
+    limit: 120,
+    windowMs: 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ options: [] }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const categoryHandle = searchParams.get("category");
   const categoriesParam = searchParams.get("categories");

@@ -132,6 +132,44 @@ export default function ProductDetailClient({
     }));
   }, [options, variants]);
 
+  const selectedCartOptions = useMemo(() => {
+    const fromGroups = optionGroups
+      .map((opt) => ({
+        name: opt.name,
+        value: selectedOptions[opt.name] ?? "",
+      }))
+      .filter((entry) => entry.name && entry.value);
+    if (fromGroups.length > 0) return fromGroups;
+    return (
+      selectedVariant?.options
+        ?.map((opt) => ({ name: opt.name, value: opt.value }))
+        .filter((entry) => entry.name && entry.value) ?? []
+    );
+  }, [optionGroups, selectedOptions, selectedVariant?.options]);
+  const selectedOptionsKey = useMemo(() => {
+    if (!selectedCartOptions.length) return "";
+    return selectedCartOptions
+      .map(
+        (opt) =>
+          `${encodeURIComponent(opt.name)}=${encodeURIComponent(opt.value)}`
+      )
+      .sort()
+      .join("&");
+  }, [selectedCartOptions]);
+
+  const getLineOptionsKey = (
+    options?: Array<{ name: string; value: string }>
+  ) => {
+    if (!options?.length) return "";
+    return options
+      .map(
+        (opt) =>
+          `${encodeURIComponent(opt.name)}=${encodeURIComponent(opt.value)}`
+      )
+      .sort()
+      .join("&");
+  };
+
   useEffect(() => {
     if (!optionGroups.length) return;
     if (selectedVariant?.options?.length) {
@@ -176,8 +214,9 @@ export default function ProductDetailClient({
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
   const cartQuantity =
-    cart?.lines.find((line) => line.merchandise.id === selectedVariantId)
-      ?.quantity ?? 0;
+    cart?.lines
+      .filter((line) => line.merchandise.id === selectedVariantId)
+      .reduce((sum, line) => sum + line.quantity, 0) ?? 0;
   const effectiveAvailable =
     (selectedVariant?.availableQuantity ?? 0) - cartQuantity;
   const isLowStock =
@@ -206,7 +245,7 @@ export default function ProductDetailClient({
     }
     setCheckoutStatus("loading");
     try {
-      await addToCart(selectedVariantId, quantity);
+      await addToCart(selectedVariantId, quantity, selectedCartOptions);
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -425,17 +464,24 @@ export default function ProductDetailClient({
 
                   const beforeQty =
                     cart?.lines.find(
-                      (line) => line.merchandise.id === selectedVariantId,
+                      (line) =>
+                        line.merchandise.id === selectedVariantId &&
+                        getLineOptionsKey(line.merchandise.options) ===
+                          selectedOptionsKey,
                     )?.quantity ?? 0;
 
                   try {
                     const updated = await addToCart(
                       selectedVariantId,
                       quantity,
+                      selectedCartOptions,
                     );
                     const afterQty =
                       updated?.lines.find(
-                        (line) => line.merchandise.id === selectedVariantId,
+                        (line) =>
+                          line.merchandise.id === selectedVariantId &&
+                          getLineOptionsKey(line.merchandise.options) ===
+                            selectedOptionsKey,
                       )?.quantity ?? 0;
 
                     if (afterQty > beforeQty) {

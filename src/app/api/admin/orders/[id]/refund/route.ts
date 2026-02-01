@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 
@@ -19,6 +22,21 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-order-refund:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,7 +54,29 @@ export async function POST(
   const body = (await request.json().catch(() => ({}))) as {
     items?: Array<{ id: string; quantity?: number }>;
     amount?: number;
+    adminPassword?: string;
   };
+  const adminPassword = body.adminPassword?.trim();
+  const admin = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
+  if (!admin?.passwordHash) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  if (!adminPassword) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+  if (!validPassword) {
+    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
+  }
 
   const order = await prisma.order.findUnique({
     where: { id },

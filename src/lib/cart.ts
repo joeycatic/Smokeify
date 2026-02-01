@@ -13,6 +13,7 @@ export type CartLine = {
     image?: { url: string; altText?: string | null } | null;
     shortDescription?: string | null;
     price: { amount: string; currencyCode: string };
+    options?: Array<{ name: string; value: string }>;
   };
 };
 

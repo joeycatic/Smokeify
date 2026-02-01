@@ -6,7 +6,21 @@ type Props = {
   orderId: string;
   existingStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   adminNote: string | null;
-  items: Array<{ id: string; name: string; quantity: number; imageUrl?: string | null }>;
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    imageUrl?: string | null;
+    options?: Array<{ name: string; value: string }>;
+  }>;
+};
+
+const formatOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
 };
 
 export default function ReturnRequestForm({
@@ -107,6 +121,11 @@ export default function ReturnRequestForm({
                   <div className="font-semibold text-emerald-100">
                     {item.name}
                   </div>
+                  {item.options && item.options.length > 0 && (
+                    <div className="text-xs text-emerald-200/60">
+                      {formatOptions(item.options)}
+                    </div>
+                  )}
                   <div className="text-xs text-emerald-200/60">
                     Menge: {item.quantity}
                   </div>

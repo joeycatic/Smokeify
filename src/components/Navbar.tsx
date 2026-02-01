@@ -46,6 +46,14 @@ function formatPrice(amount: string, currencyCode: string) {
   }).format(value);
 }
 
+const formatCartOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
+
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
@@ -1538,6 +1546,12 @@ export function Navbar() {
                               <p className="truncate text-sm font-semibold">
                                 {line.merchandise.product.title}
                               </p>
+                              {line.merchandise.options &&
+                                line.merchandise.options.length > 0 && (
+                                  <p className="truncate text-[11px] text-stone-500">
+                                    {formatCartOptions(line.merchandise.options)}
+                                  </p>
+                                )}
                               <p className="text-xs text-stone-500">
                                 {line.quantity} ×{" "}
                                 {formatPrice(

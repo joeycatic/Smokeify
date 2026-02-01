@@ -5,11 +5,28 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-order-email:ip:${ip}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

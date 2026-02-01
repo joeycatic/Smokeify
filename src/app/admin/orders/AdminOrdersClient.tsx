@@ -11,6 +11,7 @@ type OrderItem = {
   totalAmount: number;
   currency: string;
   imageUrl?: string | null;
+  options?: Array<{ name: string; value: string }>;
 };
 
 type OrderRow = {
@@ -65,6 +66,14 @@ const formatPrice = (amount: number, currency: string) =>
   }).format(amount / 100);
 
 const normalizeStatus = (value: string) => value.trim().toLowerCase();
+
+const formatItemOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
 
 const buildShippingLines = (order: OrderRow) => {
   const lines = [
@@ -159,6 +168,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     orderId: string;
     mode: "full" | "items";
   } | null>(null);
+  const [refundPassword, setRefundPassword] = useState("");
+  const [refundPasswordError, setRefundPasswordError] = useState("");
   const [confirmShippingResend, setConfirmShippingResend] = useState<{
     orderId: string;
   } | null>(null);
@@ -276,7 +287,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     }
   };
 
-  const refundOrder = async (orderId: string) => {
+  const refundOrder = async (orderId: string, adminPassword: string) => {
     setError("");
     setNotice("");
     setRefundId(orderId);
@@ -288,6 +299,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       }
       const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -300,7 +313,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     }
   };
 
-  const refundSelectedItems = async (orderId: string) => {
+  const refundSelectedItems = async (orderId: string, adminPassword: string) => {
     setError("");
     setNotice("");
     setRefundId(orderId);
@@ -320,7 +333,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, adminPassword }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -335,13 +348,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
 
   const confirmRefundAction = async () => {
     if (!confirmRefund) return;
-    const { orderId, mode } = confirmRefund;
-    setConfirmRefund(null);
-    if (mode === "items") {
-      await refundSelectedItems(orderId);
+    const adminPassword = refundPassword.trim();
+    if (!adminPassword) {
+      setRefundPasswordError("Bitte Admin-Passwort eingeben.");
       return;
     }
-    await refundOrder(orderId);
+    const { orderId, mode } = confirmRefund;
+    setConfirmRefund(null);
+    setRefundPassword("");
+    setRefundPasswordError("");
+    if (mode === "items") {
+      await refundSelectedItems(orderId, adminPassword);
+      return;
+    }
+    await refundOrder(orderId, adminPassword);
   };
 
   const sendEmail = async (
@@ -916,6 +936,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                               )}
                               <div>
                                 <div className="font-semibold">{item.name}</div>
+                                {item.options && item.options.length > 0 && (
+                                  <div className="text-[11px] text-stone-500">
+                                    {formatItemOptions(item.options)}
+                                  </div>
+                                )}
                                 <div className="text-xs text-stone-500">
                                   Qty {item.quantity}
                                 </div>
@@ -955,9 +980,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         </p>
                       <button
                         type="button"
-                        onClick={() =>
-                          setConfirmRefund({ orderId: order.id, mode: "items" })
-                        }
+                        onClick={() => {
+                          setRefundPassword("");
+                          setRefundPasswordError("");
+                          setConfirmRefund({ orderId: order.id, mode: "items" });
+                        }}
                         className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                         disabled={refundId === order.id}
                       >
@@ -983,9 +1010,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          setConfirmRefund({ orderId: order.id, mode: "full" })
-                        }
+                        onClick={() => {
+                          setRefundPassword("");
+                          setRefundPasswordError("");
+                          setConfirmRefund({ orderId: order.id, mode: "full" });
+                        }}
                         className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                         disabled={refundId === order.id}
                       >
@@ -1015,6 +1044,19 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             <p className="mt-2 text-sm text-stone-600">
               Diese Rueckerstattung kann nicht rueckgaengig gemacht werden.
             </p>
+            <input
+              type="password"
+              value={refundPassword}
+              onChange={(event) => {
+                setRefundPassword(event.target.value);
+                if (refundPasswordError) setRefundPasswordError("");
+              }}
+              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
+            {refundPasswordError && (
+              <p className="mt-2 text-xs text-red-600">{refundPasswordError}</p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"

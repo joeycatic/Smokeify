@@ -17,6 +17,18 @@ export default async function AdminOrdersPage() {
       user: { select: { email: true, name: true } },
     },
   });
+  const normalizeOptions = (value: unknown) => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        const name = typeof entry?.name === "string" ? entry.name : "";
+        const val = typeof entry?.value === "string" ? entry.value : "";
+        return name && val ? { name, value: val } : null;
+      })
+      .filter(
+        (entry): entry is { name: string; value: string } => Boolean(entry)
+      );
+  };
   const webhookFailures = await prisma.processedWebhookEvent.findMany({
     where: { status: "failed" },
     orderBy: { createdAt: "desc" },
@@ -37,6 +49,10 @@ export default async function AdminOrdersPage() {
           orders={orders.map((order) => ({
             ...order,
             user: order.user ?? { email: null, name: null },
+            items: order.items.map((item) => ({
+              ...item,
+              options: normalizeOptions(item.options),
+            })),
             createdAt: order.createdAt.toISOString(),
             updatedAt: order.updatedAt.toISOString(),
             confirmationEmailSentAt: order.confirmationEmailSentAt

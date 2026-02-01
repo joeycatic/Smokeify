@@ -8,7 +8,7 @@ import { buildInvoiceUrl } from "@/lib/invoiceLink";
 
 export const runtime = "nodejs";
 
-const getStripe = () => {
+  const getStripe = () => {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return null;
   return new Stripe(secret, { apiVersion: "2024-06-20" });
@@ -39,34 +39,91 @@ const formatAmountWithComma = (amountMinor: number, currency: string) => {
   return `${sign}${major},${minor.toString().padStart(2, "0")} ${currency}`;
 };
 
-const enrichItemsWithManufacturer = async <
-  T extends { productId?: string | null }
->(
-  items: T[] | null | undefined
-): Promise<Array<T & { manufacturer: string | null }>> => {
+  const normalizeOptions = (value: unknown) => {
+    if (!Array.isArray(value)) return [] as Array<{ name: string; value: string }>;
+    return value
+      .map((entry) => {
+        const name = typeof entry?.name === "string" ? entry.name : "";
+        const val = typeof entry?.value === "string" ? entry.value : "";
+        return name && val ? { name, value: val } : null;
+      })
+      .filter(
+        (entry): entry is { name: string; value: string } => Boolean(entry)
+      );
+  };
+
+  const enrichItemsWithManufacturer = async <
+    T extends {
+      productId?: string | null;
+      variantId?: string | null;
+      options?: unknown;
+    }
+  >(
+    items: T[] | null | undefined
+  ): Promise<Array<T & { manufacturer: string | null; options: Array<{ name: string; value: string }> }>> => {
   const safeItems = items ?? [];
   const productIds = Array.from(
     new Set(safeItems.map((item) => item.productId).filter(Boolean))
   ) as string[];
-  if (productIds.length === 0) {
-    return safeItems.map((item) => ({ ...item, manufacturer: null }));
-  }
+  const variantIds = Array.from(
+    new Set(safeItems.map((item) => item.variantId).filter(Boolean))
+  ) as string[];
 
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: productIds.length ? { id: { in: productIds } } : { id: "__none__" },
     select: { id: true, manufacturer: true },
   });
   const manufacturerMap = new Map(
     products.map((product) => [product.id, product.manufacturer ?? null])
   );
 
-  return safeItems.map((item) => ({
-    ...item,
-    manufacturer: item.productId
-      ? manufacturerMap.get(item.productId) ?? null
-      : null,
+  const options = await prisma.variantOption.findMany({
+    where: variantIds.length ? { variantId: { in: variantIds } } : { id: "__none__" },
+    select: { variantId: true, name: true, value: true },
+  });
+  const optionsMap = new Map<string, Array<{ name: string; value: string }>>();
+  options.forEach((opt) => {
+    const list = optionsMap.get(opt.variantId) ?? [];
+    list.push({ name: opt.name, value: opt.value });
+    optionsMap.set(opt.variantId, list);
+  });
+
+    return safeItems.map((item) => ({
+      ...item,
+      manufacturer: item.productId
+        ? manufacturerMap.get(item.productId) ?? null
+        : null,
+    options: normalizeOptions(item.options).length
+      ? normalizeOptions(item.options)
+      : item.variantId
+        ? optionsMap.get(item.variantId) ?? []
+        : [],
   }));
 };
+
+  const parseSelectedOptions = (value?: string | null) => {
+    if (!value) return [] as Array<{ name: string; value: string }>;
+    return value
+      .split("&")
+      .map((pair) => {
+        const [rawName, rawValue] = pair.split("=");
+        const name = decodeURIComponent(rawName ?? "").trim();
+        const val = decodeURIComponent(rawValue ?? "").trim();
+        if (!name || !val) return null;
+        return { name, value: val };
+      })
+      .filter(
+        (entry): entry is { name: string; value: string } => Boolean(entry)
+      );
+  };
+
+  const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
+    if (!options?.length) return "";
+    return options
+      .map((opt) => `${opt.name}: ${opt.value}`)
+      .filter(Boolean)
+      .join(" · ");
+  };
 
 const formatItemName = (name: string, manufacturer?: string | null) => {
   const defaultSuffix = / - Default( Title)?$/i;
@@ -241,46 +298,55 @@ const createOrderFromSession = async (
       shippingCountry: address?.country ?? undefined,
       items: {
         create: await Promise.all(
-          (lineItems.data ?? []).map(async (item) => {
-            const product = item.price?.product as Stripe.Product | null | undefined;
-            const variantId =
-              product?.metadata?.variantId || item.price?.metadata?.variantId || "";
-            let name = item.description ?? "Item";
-            let imageUrl = product?.images?.[0] ?? null;
-            const productId = product?.metadata?.productId || item.price?.metadata?.productId || "";
+            (lineItems.data ?? []).map(async (item) => {
+              const product = item.price?.product as Stripe.Product | null | undefined;
+              const variantId =
+                product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+              const selectedOptions = parseSelectedOptions(
+                product?.metadata?.selectedOptions ||
+                  (item.price?.metadata?.selectedOptions as string | undefined) ||
+                  undefined
+              );
+              let name = item.description ?? "Item";
+              let imageUrl = product?.images?.[0] ?? null;
+              const productId = product?.metadata?.productId || item.price?.metadata?.productId || "";
 
-            if (variantId) {
-              const variant = await prisma.variant.findUnique({
-                where: { id: variantId },
-                include: {
-                  product: { include: { images: { orderBy: { position: "asc" } } } },
-                },
-              });
-              if (variant) {
-                const productName = variant.product.title;
-                const variantTitle = variant.title?.trim();
-                name =
-                  variantTitle && variantTitle !== productName
-                    ? `${productName} - ${variantTitle}`
-                    : productName;
-                imageUrl = variant.product.images[0]?.url ?? imageUrl;
+              if (variantId) {
+                const variant = await prisma.variant.findUnique({
+                  where: { id: variantId },
+                  include: {
+                    product: { include: { images: { orderBy: { position: "asc" } } } },
+                  },
+                });
+                if (variant) {
+                  const productName = variant.product.title;
+                  const variantTitle = variant.title?.trim();
+                  name =
+                    variantTitle && variantTitle !== productName
+                      ? `${productName} - ${variantTitle}`
+                      : productName;
+                  imageUrl = variant.product.images[0]?.url ?? imageUrl;
+                }
               }
-            }
+              if (selectedOptions.length > 0) {
+                name = `${name} (${formatOptionsLabel(selectedOptions)})`;
+              }
 
-            return {
-              name,
-              quantity: item.quantity ?? 0,
-              unitAmount: item.price?.unit_amount ?? 0,
-              totalAmount: item.amount_total ?? 0,
-              taxAmount: getLineItemTaxAmount(item),
-              taxRateBasisPoints: getLineItemTaxRateBasisPoints(item),
-              currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
-              imageUrl,
-              productId: productId || undefined,
-              variantId: variantId || undefined,
-            };
-          })
-        ),
+              return {
+                name,
+                quantity: item.quantity ?? 0,
+                unitAmount: item.price?.unit_amount ?? 0,
+                totalAmount: item.amount_total ?? 0,
+                taxAmount: getLineItemTaxAmount(item),
+                taxRateBasisPoints: getLineItemTaxRateBasisPoints(item),
+                currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
+                imageUrl,
+                productId: productId || undefined,
+                variantId: variantId || undefined,
+                options: selectedOptions.length > 0 ? selectedOptions : undefined,
+              };
+            })
+          ),
       },
     },
     include: { items: true },
@@ -374,7 +440,14 @@ const createOrderFromSession = async (
     .map((item) => {
       const qty = item.quantity ?? 0;
       const name = formatItemName(item.name, item.manufacturer);
-      return qty > 0 ? `${qty}x ${name}` : "";
+      const options =
+        item.options && item.options.length > 0
+          ? ` (${item.options
+              .map((opt) => `${opt.name}: ${opt.value}`)
+              .filter(Boolean)
+              .join(" · ")})`
+          : "";
+      return qty > 0 ? `${qty}x ${name}${options}` : "";
     })
     .filter(Boolean)
     .join("; ");

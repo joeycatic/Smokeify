@@ -196,7 +196,7 @@ export async function GET(
   const manufacturerByProductId = new Map(
     products.map((product) => [product.id, product.manufacturer ?? null])
   );
-  const defaultSuffix = / - Default( Title)?$/i;
+  const defaultSuffix = / - Default( Title)?(?=\s*\(|$)/i;
   const formatItemName = (name: string, manufacturer?: string | null) => {
     if (!defaultSuffix.test(name)) return name;
     const trimmed = manufacturer?.trim();

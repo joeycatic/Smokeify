@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, slugify } from "@/lib/adminCatalog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 const buildUniqueHandle = async (base: string) => {
   let handle = base;
@@ -14,9 +17,24 @@ const buildUniqueHandle = async (base: string) => {
 };
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-product-duplicate:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -120,6 +138,15 @@ export async function POST(
     include: {
       _count: { select: { variants: true, images: true } },
     },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.duplicate",
+    targetType: "product",
+    targetId: created.id,
+    summary: `Duplicated product ${product.id} to ${created.id}`,
+    metadata: { sourceId: product.id },
   });
 
   return NextResponse.json({

@@ -1,14 +1,52 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 import type { Cart, CartLine } from "@/lib/cart";
 
 const COOKIE_NAME = "smokeify_cart";
 const CURRENCY_CODE = "EUR";
 
-type CartItem = { variantId: string; quantity: number };
+type CartItem = {
+  variantId: string;
+  quantity: number;
+  options?: Array<{ name: string; value: string }>;
+};
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
+
+const normalizeOptions = (
+  options?: Array<{ name?: string | null; value?: string | null }>
+): Array<{ name: string; value: string }> => {
+  if (!Array.isArray(options)) return [];
+  const seen = new Set<string>();
+  const normalized: Array<{ name: string; value: string }> = [];
+  options.forEach((opt) => {
+    const name = String(opt?.name ?? "").trim();
+    const value = String(opt?.value ?? "").trim();
+    if (!name || !value) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    normalized.push({ name, value });
+  });
+  return normalized;
+};
+
+const serializeOptionsKey = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  const parts = options.map(
+    (opt) => `${encodeURIComponent(opt.name)}=${encodeURIComponent(opt.value)}`
+  );
+  parts.sort();
+  return parts.join("&");
+};
+
+const getLineId = (variantId: string, options?: Array<{ name: string; value: string }>) => {
+  const key = serializeOptionsKey(options);
+  return key ? `${variantId}::${key}` : variantId;
+};
 
 const readCartItems = async () => {
   const store = await cookies();
@@ -22,6 +60,7 @@ const readCartItems = async () => {
       .map((item) => ({
         variantId: String(item.variantId),
         quantity: Math.max(0, Math.floor(Number(item.quantity))),
+        options: normalizeOptions(item.options),
       }))
       .filter((item) => item.quantity > 0);
   } catch {
@@ -61,6 +100,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
       id: true,
       title: true,
       priceCents: true,
+      options: { select: { name: true, value: true } },
       inventory: { select: { quantityOnHand: true, reserved: true } },
       product: {
         select: {
@@ -96,8 +136,9 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
     const image = variant.product.images[0] ?? null;
     const categories =
       variant.product.categories?.map((entry) => entry.category) ?? [];
+    const selectedOptions = item.options ?? [];
     const line: CartLine = {
-      id: variant.id,
+      id: getLineId(variant.id, item.options),
       quantity: item.quantity,
       merchandise: {
         id: variant.id,
@@ -116,6 +157,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
           amount: toAmount(variant.priceCents),
           currencyCode: CURRENCY_CODE,
         },
+        options: selectedOptions,
       },
     };
     lines.push(line);
@@ -143,13 +185,34 @@ const getAvailableQuantity = (inventory: { quantityOnHand: number; reserved: num
   return Math.max(0, onHand - reserved);
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `cart:get:${ip}`,
+    limit: 60,
+    windowMs: 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const items = await readCartItems();
   const cart = await buildCart(items);
   return NextResponse.json(cart);
 }
 
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(req.headers);
+  const ipLimit = await checkRateLimit({
+    key: `cart:post:${ip}`,
+    limit: 40,
+    windowMs: 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const body = await req.json();
   const action = body?.action as string;
   const items = await readCartItems();
@@ -157,6 +220,7 @@ export async function POST(req: Request) {
   if (action === "add") {
     const variantId = String(body?.variantId ?? "");
     const quantity = Math.max(1, Math.floor(Number(body?.quantity ?? 1)));
+    const selectedOptions = normalizeOptions(body?.options);
     if (!variantId) {
       return NextResponse.json({ error: "Missing variantId" }, { status: 400 });
     }
@@ -168,12 +232,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Variant not found" }, { status: 404 });
     }
     const available = getAvailableQuantity(variant.inventory);
-    const existing = items.find((item) => item.variantId === variantId);
+    const lineId = getLineId(variantId, selectedOptions);
+    const existing = items.find(
+      (item) => getLineId(item.variantId, item.options) === lineId
+    );
     const currentQty = existing?.quantity ?? 0;
     const nextQty = Math.min(available, currentQty + quantity);
-    const nextItems = items.filter((item) => item.variantId !== variantId);
+    const nextItems = items.filter(
+      (item) => getLineId(item.variantId, item.options) !== lineId
+    );
     if (nextQty > 0) {
-      nextItems.push({ variantId, quantity: nextQty });
+      nextItems.push(
+        selectedOptions.length > 0
+          ? { variantId, quantity: nextQty, options: selectedOptions }
+          : { variantId, quantity: nextQty }
+      );
     }
     await writeCartItems(nextItems);
     return NextResponse.json(await buildCart(nextItems));
@@ -185,8 +258,14 @@ export async function POST(req: Request) {
     if (!lineId) {
       return NextResponse.json({ error: "Missing lineId" }, { status: 400 });
     }
+    const target = items.find(
+      (item) => getLineId(item.variantId, item.options) === lineId
+    );
+    if (!target) {
+      return NextResponse.json({ error: "Cart line not found" }, { status: 404 });
+    }
     const variant = await prisma.variant.findUnique({
-      where: { id: lineId },
+      where: { id: target.variantId },
       include: { inventory: true },
     });
     if (!variant) {
@@ -194,9 +273,15 @@ export async function POST(req: Request) {
     }
     const available = getAvailableQuantity(variant.inventory);
     const nextQty = Math.min(available, quantity);
-    const nextItems = items.filter((item) => item.variantId !== lineId);
+    const nextItems = items.filter(
+      (item) => getLineId(item.variantId, item.options) !== lineId
+    );
     if (nextQty > 0) {
-      nextItems.push({ variantId: lineId, quantity: nextQty });
+      nextItems.push(
+        target.options && target.options.length > 0
+          ? { variantId: target.variantId, quantity: nextQty, options: target.options }
+          : { variantId: target.variantId, quantity: nextQty }
+      );
     }
     await writeCartItems(nextItems);
     return NextResponse.json(await buildCart(nextItems));
@@ -206,7 +291,9 @@ export async function POST(req: Request) {
     const lineIds = Array.isArray(body?.lineIds)
       ? body.lineIds.map((id: string) => String(id))
       : [];
-    const nextItems = items.filter((item) => !lineIds.includes(item.variantId));
+    const nextItems = items.filter(
+      (item) => !lineIds.includes(getLineId(item.variantId, item.options))
+    );
     await writeCartItems(nextItems);
     return NextResponse.json(await buildCart(nextItems));
   }

@@ -17,6 +17,7 @@ type OrderItem = {
   currency: string;
   imageUrl?: string | null;
   manufacturer?: string | null;
+  options?: Array<{ name: string; value: string }>;
 };
 
 type OrderSummary = {
@@ -50,13 +51,21 @@ const formatPrice = (amount: number, currency: string) =>
   }).format(amount / 100);
 
 const formatItemName = (item: OrderItem) => {
-  const defaultSuffix = / - Default( Title)?$/i;
+  const defaultSuffix = / - Default( Title)?(?=\s*\(|$)/i;
   if (!defaultSuffix.test(item.name)) return item.name;
   const manufacturer = item.manufacturer?.trim();
   if (manufacturer) {
     return item.name.replace(defaultSuffix, ` - ${manufacturer}`);
   }
   return item.name.replace(defaultSuffix, "");
+};
+
+const formatOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
 };
 
 export default function OrderSuccessPage() {
@@ -287,6 +296,11 @@ export default function OrderSuccessPage() {
                           <div className="font-semibold">
                             {formatItemName(item)}
                           </div>
+                          {item.options && item.options.length > 0 && (
+                            <div className="text-xs text-stone-500">
+                              {formatOptions(item.options)}
+                            </div>
+                          )}
                           <div className="text-xs text-stone-500">
                             Menge: {item.quantity}
                           </div>

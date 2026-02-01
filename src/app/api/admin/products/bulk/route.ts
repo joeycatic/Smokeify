@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { sanitizePlainText } from "@/lib/sanitizeHtml";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 type BulkPayload = {
   productIds?: string[];
@@ -26,6 +29,21 @@ type BulkPayload = {
 };
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-products-bulk:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -206,5 +224,12 @@ export async function POST(request: Request) {
   }
 
   await prisma.$transaction(operations);
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.bulk.update",
+    targetType: "product",
+    summary: `Bulk updated ${productIds.length} products`,
+    metadata: { productIds },
+  });
   return NextResponse.json({ ok: true });
 }

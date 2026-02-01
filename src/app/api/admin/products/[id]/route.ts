@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import bcrypt from "bcryptjs";
 import {
   sanitizePlainText,
   sanitizeProductDescription,
@@ -68,6 +71,21 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-product-update:ip:${ip}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const { id } = await context.params;
   const session = await requireAdmin();
   if (!session) {
@@ -315,12 +333,52 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-product-delete:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const { id } = await context.params;
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const body = (await request.json().catch(() => ({}))) as {
+    adminPassword?: string;
+  };
+  const adminPassword = body.adminPassword?.trim();
+  const admin = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
+  if (!admin?.passwordHash || !adminPassword) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+  if (!validPassword) {
+    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
+  }
+
   await prisma.product.delete({ where: { id } });
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.delete",
+    targetType: "product",
+    targetId: id,
+  });
   return NextResponse.json({ ok: true });
 }

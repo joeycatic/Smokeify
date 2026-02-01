@@ -44,6 +44,23 @@ export default async function OrderDetailPage({
   const manufacturerByProductId = new Map(
     products.map((product) => [product.id, product.manufacturer ?? null]),
   );
+  const normalizeOptions = (value: unknown) => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        const name = typeof entry?.name === "string" ? entry.name : "";
+        const val = typeof entry?.value === "string" ? entry.value : "";
+        return name && val ? { name, value: val } : null;
+      })
+      .filter(
+        (entry): entry is { name: string; value: string } => Boolean(entry)
+      );
+  };
+
+  const itemsWithOptions = order.items.map((item) => ({
+    ...item,
+    options: normalizeOptions(item.options),
+  }));
 
   const statusLabelMap: Record<string, string> = {
     PENDING_PAYMENT: "Ausstehend",
@@ -251,7 +268,7 @@ export default async function OrderDetailPage({
                 orderId={order.id}
                 existingStatus={order.returnRequests[0]?.status ?? null}
                 adminNote={order.returnRequests[0]?.adminNote ?? null}
-                items={order.items.map((item) => ({
+                items={itemsWithOptions.map((item) => ({
                   id: item.id,
                   name: formatItemName(
                     item.name,
@@ -261,6 +278,7 @@ export default async function OrderDetailPage({
                   ),
                   quantity: item.quantity,
                   imageUrl: item.imageUrl,
+                  options: item.options,
                 }))}
               />
             </div>

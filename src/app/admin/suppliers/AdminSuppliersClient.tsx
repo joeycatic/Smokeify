@@ -34,6 +34,12 @@ export default function AdminSuppliersClient() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletePasswordError, setDeletePasswordError] = useState("");
   const [newSupplier, setNewSupplier] = useState({
     name: "",
     contactName: "",
@@ -190,13 +196,15 @@ export default function AdminSuppliersClient() {
     }
   };
 
-  const deleteSupplier = async (id: string) => {
+  const deleteSupplier = async (id: string, adminPassword: string) => {
     setError("");
     setNotice("");
     setSavingId(id);
     try {
       const res = await fetch(`/api/admin/suppliers/${id}`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -542,7 +550,14 @@ export default function AdminSuppliersClient() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteSupplier(supplier.id)}
+                    onClick={() => {
+                      setDeletePassword("");
+                      setDeletePasswordError("");
+                      setDeleteTarget({
+                        id: supplier.id,
+                        name: supplier.name,
+                      });
+                    }}
                     className="h-10 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700"
                     disabled={savingId === supplier.id}
                   >
@@ -554,6 +569,68 @@ export default function AdminSuppliersClient() {
           </div>
         )}
       </section>
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDeleteTarget(null)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Lieferant löschen?
+            </h3>
+            <p className="mt-2 text-sm text-stone-600">
+              Der Lieferant wird dauerhaft gelöscht. Diese Aktion kann nicht
+              rückgängig gemacht werden.
+            </p>
+            <p className="mt-2 text-xs text-stone-500">{deleteTarget.name}</p>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(event) => {
+                setDeletePassword(event.target.value);
+                if (deletePasswordError) setDeletePasswordError("");
+              }}
+              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
+            {deletePasswordError && (
+              <p className="mt-2 text-xs text-red-600">{deletePasswordError}</p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const adminPassword = deletePassword.trim();
+                  if (!adminPassword) {
+                    setDeletePasswordError("Bitte Admin-Passwort eingeben.");
+                    return;
+                  }
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  setDeletePassword("");
+                  setDeletePasswordError("");
+                  if (target) {
+                    await deleteSupplier(target.id, adminPassword);
+                  }
+                }}
+                className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

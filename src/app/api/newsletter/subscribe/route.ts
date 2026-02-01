@@ -1,11 +1,29 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 
 const isValidEmail = (value: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `newsletter:ip:${ip}`,
+    limit: 8,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
+
   const body = (await request.json().catch(() => ({}))) as {
     email?: string;
   };
@@ -29,6 +47,17 @@ export async function POST(request: Request) {
   }
 
   const normalizedEmail = email.toLowerCase();
+  const emailLimit = await checkRateLimit({
+    key: `newsletter:email:${normalizedEmail}`,
+    limit: 3,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+  if (!emailLimit.allowed) {
+    return NextResponse.json(
+      { error: "Diese E-Mail wurde kürzlich angemeldet." },
+      { status: 429 }
+    );
+  }
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
     select: { id: true },

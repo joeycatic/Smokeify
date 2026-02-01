@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const CURRENCY_CODE = "EUR";
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
 export async function GET(request: Request) {
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `recommendations:ip:${ip}`,
+    limit: 120,
+    windowMs: 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ results: [] }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const handle = (searchParams.get("handle") ?? "").trim();
   if (!handle) {

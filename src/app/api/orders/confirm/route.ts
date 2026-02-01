@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 
 export const runtime = "nodejs";
 
@@ -13,34 +15,83 @@ const getStripe = () => {
 };
 
 const enrichItemsWithManufacturer = async <
-  T extends { productId: string | null }
+  T extends { productId?: string | null; variantId?: string | null }
 >(
   items: T[]
-): Promise<Array<T & { manufacturer: string | null }>> => {
+): Promise<Array<T & { manufacturer: string | null; options: Array<{ name: string; value: string }> }>> => {
   const productIds = Array.from(
     new Set(items.map((item) => item.productId).filter(Boolean))
   ) as string[];
-  if (productIds.length === 0) {
-    return items.map((item) => ({ ...item, manufacturer: null }));
-  }
+  const variantIds = Array.from(
+    new Set(items.map((item) => item.variantId).filter(Boolean))
+  ) as string[];
 
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: productIds.length ? { id: { in: productIds } } : { id: "__none__" },
     select: { id: true, manufacturer: true },
   });
   const manufacturerMap = new Map(
     products.map((product) => [product.id, product.manufacturer ?? null])
   );
 
+  const options = await prisma.variantOption.findMany({
+    where: variantIds.length ? { variantId: { in: variantIds } } : { id: "__none__" },
+    select: { variantId: true, name: true, value: true },
+  });
+  const optionsMap = new Map<string, Array<{ name: string; value: string }>>();
+  options.forEach((opt) => {
+    const list = optionsMap.get(opt.variantId) ?? [];
+    list.push({ name: opt.name, value: opt.value });
+    optionsMap.set(opt.variantId, list);
+  });
+
   return items.map((item) => ({
     ...item,
     manufacturer: item.productId
       ? manufacturerMap.get(item.productId) ?? null
       : null,
+    options: item.variantId ? optionsMap.get(item.variantId) ?? [] : [],
   }));
 };
 
+const parseSelectedOptions = (value?: string | null) => {
+  if (!value) return [] as Array<{ name: string; value: string }>;
+  return value
+    .split("&")
+    .map((pair) => {
+      const [rawName, rawValue] = pair.split("=");
+      const name = decodeURIComponent(rawName ?? "").trim();
+      const val = decodeURIComponent(rawValue ?? "").trim();
+      if (!name || !val) return null;
+      return { name, value: val };
+    })
+    .filter((entry): entry is { name: string; value: string } => Boolean(entry));
+};
+
+const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
+
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `order-confirm:ip:${ip}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await getServerSession(authOptions);
 
   const stripe = getStripe();
@@ -67,7 +118,12 @@ export async function POST(request: Request) {
     if (existing.userId && existing.userId !== session?.user?.id) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
-    const items = await enrichItemsWithManufacturer(existing.items);
+    const items = await enrichItemsWithManufacturer(
+      existing.items.map((item) => ({
+        ...item,
+        options: Array.isArray(item.options) ? item.options : [],
+      }))
+    );
     return NextResponse.json({
       ok: true,
       order: {
@@ -119,15 +175,28 @@ export async function POST(request: Request) {
         const imageUrl = product?.images?.[0] ?? null;
         const productId =
           product?.metadata?.productId || item.price?.metadata?.productId || null;
+        const variantId =
+          product?.metadata?.variantId || item.price?.metadata?.variantId || null;
+        const selectedOptions = parseSelectedOptions(
+          product?.metadata?.selectedOptions ||
+            (item.price?.metadata?.selectedOptions as string | undefined) ||
+            undefined
+        );
+        const baseName = item.description ?? "Item";
+        const name = selectedOptions.length
+          ? `${baseName} (${formatOptionsLabel(selectedOptions)})`
+          : baseName;
         return {
           id: item.id,
-          name: item.description ?? "Item",
+          name,
           quantity: item.quantity ?? 0,
           unitAmount: item.price?.unit_amount ?? 0,
           totalAmount: item.amount_total ?? 0,
           currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
           imageUrl,
           productId,
+          variantId,
+          options: selectedOptions,
         };
       })
     );

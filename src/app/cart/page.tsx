@@ -80,6 +80,14 @@ function normalizeCountryInput(value?: string | null): ShippingCountry | null {
   return aliases[raw] ?? null;
 }
 
+const formatCartOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
+
 export default function CartPage() {
   const { cart, loading, updateLine, removeLines, error, refresh } = useCart();
   const router = useRouter();
@@ -336,6 +344,12 @@ export default function CartPage() {
                     <p className="text-base font-semibold text-emerald-950">
                       {line.merchandise.product.title}
                     </p>
+                    {line.merchandise.options &&
+                      line.merchandise.options.length > 0 && (
+                        <p className="mt-1 text-xs text-stone-500">
+                          {formatCartOptions(line.merchandise.options)}
+                        </p>
+                      )}
                     {line.merchandise.shortDescription && (
                       <p className="mt-1 hidden text-sm text-stone-500 lg:block">
                         {line.merchandise.shortDescription}
@@ -464,9 +478,12 @@ export default function CartPage() {
                 >
                   Zwischensumme
                 </p>
-                <p className="text-xl font-semibold text-[#2f3e36]">
-                  {formatPrice(subtotal, currencyCode)}
-                </p>
+                  <p className="text-xl font-semibold text-[#2f3e36]">
+                    {formatPrice(subtotal, currencyCode)}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-red-600">
+                    Mindestbestellwert {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
+                  </p>
               </div>
               <div>
                 <p

@@ -19,7 +19,11 @@ type CartCtx = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  addToCart: (variantId: string, quantity?: number) => Promise<Cart>;
+  addToCart: (
+    variantId: string,
+    quantity?: number,
+    options?: Array<{ name: string; value: string }>
+  ) => Promise<Cart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
   removeLines: (lineIds: string[]) => Promise<void>;
   openAddedModal: (item: AddedItem) => void;
@@ -96,9 +100,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => media.removeEventListener("change", update);
   }, []);
 
-  const addToCart = async (variantId: string, quantity = 1) => {
+  const addToCart = async (
+    variantId: string,
+    quantity = 1,
+    options?: Array<{ name: string; value: string }>
+  ) => {
     try {
-      const c = await apiCartAction({ action: "add", variantId, quantity });
+      const c = await apiCartAction({ action: "add", variantId, quantity, options });
       setCart(c);
       setError(null);
       setErrorToast(null);

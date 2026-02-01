@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
 import {
   FREE_SHIPPING_THRESHOLD_EUR,
   MIN_ORDER_TOTAL_EUR,
@@ -63,7 +65,47 @@ const ALLOWED_COUNTRIES = [
 ] as const;
 
 type ShippingCountry = keyof typeof SHIPPING_BASE;
-type CartItem = { variantId: string; quantity: number };
+type CartItem = {
+  variantId: string;
+  quantity: number;
+  options?: Array<{ name: string; value: string }>;
+};
+
+const normalizeOptions = (
+  options?: Array<{ name?: string | null; value?: string | null }>
+): Array<{ name: string; value: string }> => {
+  if (!Array.isArray(options)) return [];
+  const seen = new Set<string>();
+  const normalized: Array<{ name: string; value: string }> = [];
+  options.forEach((opt) => {
+    const name = String(opt?.name ?? "").trim();
+    const value = String(opt?.value ?? "").trim();
+    if (!name || !value) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    normalized.push({ name, value });
+  });
+  return normalized;
+};
+
+const serializeOptionsMetadata = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map(
+      (opt) => `${encodeURIComponent(opt.name)}=${encodeURIComponent(opt.value)}`
+    )
+    .sort()
+    .join("&");
+};
+
+const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
 
 const getShippingEstimate = (country: ShippingCountry, itemCount: number) => {
   const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
@@ -78,13 +120,14 @@ const readCartItems = async () => {
   try {
     const parsed = JSON.parse(raw) as CartItem[];
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item?.variantId && Number.isFinite(item.quantity))
-      .map((item) => ({
-        variantId: String(item.variantId),
-        quantity: Math.max(0, Math.floor(Number(item.quantity))),
-      }))
-      .filter((item) => item.quantity > 0);
+      return parsed
+        .filter((item) => item?.variantId && Number.isFinite(item.quantity))
+        .map((item) => ({
+          variantId: String(item.variantId),
+          quantity: Math.max(0, Math.floor(Number(item.quantity))),
+          options: normalizeOptions(item.options),
+        }))
+        .filter((item) => item.quantity > 0);
   } catch {
     return [];
   }
@@ -195,6 +238,21 @@ const getStripe = () => {
 
 
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(req.headers);
+  const ipLimit = await checkRateLimit({
+    key: `checkout:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const authSession = await getServerSession(authOptions);
 
   const stripe = getStripe();
@@ -271,21 +329,28 @@ export async function POST(req: Request) {
         ? `${baseName} — ${variantTitle}`
         : baseName;
     const image = variant.product.images[0]?.url;
-    lineItems.push({
-      quantity: item.quantity,
-      price_data: {
-        currency: CURRENCY_CODE,
-        unit_amount: variant.priceCents,
-        product_data: {
-          name,
-          images: image && image.startsWith("http") ? [image] : undefined,
-          metadata: {
-            variantId: variant.id,
-            productId: variant.product.id,
+      const selectedOptions = normalizeOptions(item.options);
+      const optionsMeta = serializeOptionsMetadata(selectedOptions);
+      const optionsLabel = selectedOptions.length
+        ? ` (${formatOptionsLabel(selectedOptions)})`
+        : "";
+      const nameWithOptions = `${name}${optionsLabel}`;
+      lineItems.push({
+        quantity: item.quantity,
+        price_data: {
+          currency: CURRENCY_CODE,
+          unit_amount: variant.priceCents,
+          product_data: {
+            name: nameWithOptions.length > 127 ? nameWithOptions.slice(0, 127) : nameWithOptions,
+            images: image && image.startsWith("http") ? [image] : undefined,
+            metadata: {
+              variantId: variant.id,
+              productId: variant.product.id,
+              ...(optionsMeta ? { selectedOptions: optionsMeta } : {}),
+            },
           },
         },
-      },
-    });
+      });
     itemCount += item.quantity;
     subtotalCents += variant.priceCents * item.quantity;
     variantCounts.set(

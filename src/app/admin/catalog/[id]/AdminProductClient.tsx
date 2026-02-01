@@ -234,6 +234,15 @@ export default function AdminProductClient({
   const [confirmVariantText, setConfirmVariantText] = useState("");
   const [confirmVariantError, setConfirmVariantError] = useState("");
   const [confirmVariantLoading, setConfirmVariantLoading] = useState(false);
+  const [confirmVariantPassword, setConfirmVariantPassword] = useState("");
+  const [confirmVariantPasswordError, setConfirmVariantPasswordError] =
+    useState("");
+  const [confirmImageDelete, setConfirmImageDelete] = useState<ImageItem | null>(
+    null
+  );
+  const [confirmImagePassword, setConfirmImagePassword] = useState("");
+  const [confirmImagePasswordError, setConfirmImagePasswordError] =
+    useState("");
   const [shippingOpen, setShippingOpen] = useState(false);
   const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
@@ -607,10 +616,14 @@ export default function AdminProductClient({
     });
   };
 
-  const deleteImage = async (id: string) => {
+  const deleteImage = async (id: string, adminPassword: string) => {
     setMessage("");
     setError("");
-    const res = await fetch(`/api/admin/images/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/images/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminPassword }),
+    });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       setError(data.error ?? "Delete failed");
@@ -776,10 +789,14 @@ export default function AdminProductClient({
     );
   };
 
-  const deleteVariant = async (id: string) => {
+  const deleteVariant = async (id: string, adminPassword: string) => {
     setMessage("");
     setError("");
-    const res = await fetch(`/api/admin/variants/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/variants/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminPassword }),
+    });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       setError(data.error ?? "Delete failed");
@@ -1855,7 +1872,11 @@ export default function AdminProductClient({
                     </span>
                     <button
                       type="button"
-                      onClick={() => deleteImage(image.id)}
+                      onClick={() => {
+                        setConfirmImageDelete(image);
+                        setConfirmImagePassword("");
+                        setConfirmImagePasswordError("");
+                      }}
                       className="flex h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                       aria-label="Delete image"
                     >
@@ -2252,6 +2273,8 @@ export default function AdminProductClient({
                       setConfirmVariantTitle(variant.title);
                       setConfirmVariantText("");
                       setConfirmVariantError("");
+                      setConfirmVariantPassword("");
+                      setConfirmVariantPasswordError("");
                     }}
                     className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                     aria-label="Delete variant"
@@ -2689,8 +2712,25 @@ export default function AdminProductClient({
               className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               placeholder="Bestätigen"
             />
+            <input
+              type="password"
+              value={confirmVariantPassword}
+              onChange={(event) => {
+                setConfirmVariantPassword(event.target.value);
+                if (confirmVariantPasswordError) {
+                  setConfirmVariantPasswordError("");
+                }
+              }}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
             {confirmVariantError && (
               <p className="mt-2 text-xs text-red-600">{confirmVariantError}</p>
+            )}
+            {confirmVariantPasswordError && (
+              <p className="mt-2 text-xs text-red-600">
+                {confirmVariantPasswordError}
+              </p>
             )}
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
@@ -2711,10 +2751,17 @@ export default function AdminProductClient({
                     setConfirmVariantError("Bitte Bestätigen eingeben.");
                     return;
                   }
+                  const adminPassword = confirmVariantPassword.trim();
+                  if (!adminPassword) {
+                    setConfirmVariantPasswordError(
+                      "Bitte Admin-Passwort eingeben."
+                    );
+                    return;
+                  }
                   if (!confirmVariantId) return;
                   setConfirmVariantLoading(true);
                   setConfirmVariantError("");
-                  await deleteVariant(confirmVariantId);
+                  await deleteVariant(confirmVariantId, adminPassword);
                   setConfirmVariantLoading(false);
                   setConfirmVariantId(null);
                 }}
@@ -2722,6 +2769,66 @@ export default function AdminProductClient({
                 className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
                 {confirmVariantLoading ? "Löschen..." : "Löschen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmImageDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+            <h3 className="text-base font-semibold text-stone-900">
+              Bild löschen
+            </h3>
+            <p className="mt-2 text-xs text-stone-600">
+              Dieses Bild wird dauerhaft gelöscht.
+            </p>
+            <input
+              type="password"
+              value={confirmImagePassword}
+              onChange={(event) => {
+                setConfirmImagePassword(event.target.value);
+                if (confirmImagePasswordError) {
+                  setConfirmImagePasswordError("");
+                }
+              }}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
+            {confirmImagePasswordError && (
+              <p className="mt-2 text-xs text-red-600">
+                {confirmImagePasswordError}
+              </p>
+            )}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmImageDelete(null)}
+                className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const adminPassword = confirmImagePassword.trim();
+                  if (!adminPassword) {
+                    setConfirmImagePasswordError(
+                      "Bitte Admin-Passwort eingeben."
+                    );
+                    return;
+                  }
+                  const target = confirmImageDelete;
+                  setConfirmImageDelete(null);
+                  setConfirmImagePassword("");
+                  setConfirmImagePasswordError("");
+                  if (target) {
+                    await deleteImage(target.id, adminPassword);
+                  }
+                }}
+                className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                Löschen
               </button>
             </div>
           </div>

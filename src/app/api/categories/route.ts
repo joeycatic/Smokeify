@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `categories:ip:${ip}`,
+    limit: 120,
+    windowMs: 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ categories: [] }, { status: 429 });
+  }
   const categories = await prisma.category.findMany({
     select: {
       id: true,

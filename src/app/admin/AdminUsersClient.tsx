@@ -36,6 +36,12 @@ export default function AdminUsersClient({
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [roleConfirm, setRoleConfirm] = useState<{
+    id: string;
+    role: UserRow["role"];
+  } | null>(null);
+  const [rolePassword, setRolePassword] = useState("");
+  const [rolePasswordError, setRolePasswordError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
@@ -70,7 +76,11 @@ export default function AdminUsersClient({
     return () => clearTimeout(handle);
   }, [query, router, searchParamsString]);
 
-  const updateRole = async (id: string, role: UserRow["role"]) => {
+  const updateRole = async (
+    id: string,
+    role: UserRow["role"],
+    adminPassword: string
+  ) => {
     setSavingId(id);
     setError("");
     const prev = users;
@@ -79,7 +89,7 @@ export default function AdminUsersClient({
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, role }),
+        body: JSON.stringify({ id, role, adminPassword }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -92,6 +102,20 @@ export default function AdminUsersClient({
     } finally {
       setSavingId(null);
     }
+  };
+
+  const confirmRoleChange = async () => {
+    if (!roleConfirm) return;
+    const adminPassword = rolePassword.trim();
+    if (!adminPassword) {
+      setRolePasswordError("Bitte Admin-Passwort eingeben.");
+      return;
+    }
+    const { id, role } = roleConfirm;
+    setRoleConfirm(null);
+    setRolePassword("");
+    setRolePasswordError("");
+    await updateRole(id, role, adminPassword);
   };
 
   const buildPageHref = (page: number) => {
@@ -144,9 +168,14 @@ export default function AdminUsersClient({
                 <td className="py-3 pr-3">
                   <select
                     value={user.role}
-                    onChange={(event) =>
-                      updateRole(user.id, event.target.value as UserRow["role"])
-                    }
+                    onChange={(event) => {
+                      setRolePassword("");
+                      setRolePasswordError("");
+                      setRoleConfirm({
+                        id: user.id,
+                        role: event.target.value as UserRow["role"],
+                      });
+                    }}
                     disabled={savingId === user.id}
                     className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs font-semibold"
                   >
@@ -223,6 +252,53 @@ export default function AdminUsersClient({
           </Link>
         </div>
       </div>
+      {roleConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setRoleConfirm(null)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Role change bestaetigen?
+            </h3>
+            <p className="mt-2 text-sm text-stone-600">
+              Bitte gib dein Admin-Passwort ein, um die Rolle zu aendern.
+            </p>
+            <input
+              type="password"
+              value={rolePassword}
+              onChange={(event) => {
+                setRolePassword(event.target.value);
+                if (rolePasswordError) setRolePasswordError("");
+              }}
+              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
+            {rolePasswordError && (
+              <p className="mt-2 text-xs text-red-600">{rolePasswordError}</p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRoleConfirm(null)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={confirmRoleChange}
+                className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white"
+              >
+                Bestaetigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

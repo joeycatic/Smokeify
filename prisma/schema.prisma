@@ -73,7 +73,7 @@ model User {
 model NewsletterSubscriber {
   id            String   @id @default(cuid())
   email         String   @unique
-  userId        String?
+  userId        String?  @unique
   subscribedAt  DateTime @default(now())
   unsubscribedAt DateTime?
   createdAt     DateTime @default(now())
@@ -454,6 +454,7 @@ model OrderItem {
   imageUrl     String?
   productId    String?
   variantId    String?
+  options      Json?
 
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   returnItems  ReturnItem[]
