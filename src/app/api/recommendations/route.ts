@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   const categoryIds = product.categories.map((entry) => entry.categoryId);
   const baseWhere = {
-    status: "ACTIVE",
+    status: "ACTIVE" as const,
     id: { not: product.id },
   };
 
