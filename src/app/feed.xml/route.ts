@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ??
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
   "https://www.smokeify.de";
 
 const escapeXml = (value: string) =>
