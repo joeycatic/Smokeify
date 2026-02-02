@@ -7,6 +7,7 @@ import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useCart } from "@/components/CartProvider";
+import { trackAdsConversion } from "@/lib/gtag";
 
 type OrderItem = {
   id: string;
@@ -121,6 +122,7 @@ export default function OrderSuccessPage() {
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 60;
   const retryDelayMs = 8000;
+  const adsPurchaseLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL;
 
   useEffect(() => {
     if (!sessionId) return;
@@ -201,6 +203,11 @@ export default function OrderSuccessPage() {
     if (order.provisional) return;
     purchaseTracked.current = true;
     trackPurchase(order);
+    trackAdsConversion(adsPurchaseLabel, {
+      value: order.amountTotal / 100,
+      currency: order.currency,
+      transaction_id: order.id,
+    });
   }, [loadStatus, order]);
 
   return (
