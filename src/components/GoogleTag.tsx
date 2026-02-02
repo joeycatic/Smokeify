@@ -31,10 +31,11 @@ function canLoadAnalytics(): boolean {
 
 export default function GoogleTag() {
   const googleTagId = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID;
+  const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    if (!googleTagId) return;
+    if (!googleTagId && !googleAdsId) return;
     setEnabled(canLoadAnalytics());
 
     const handler = () => setEnabled(canLoadAnalytics());
@@ -46,14 +47,16 @@ export default function GoogleTag() {
       window.removeEventListener("age-gate-verified", handler);
       window.removeEventListener("storage", handler);
     };
-  }, [googleTagId]);
+  }, [googleAdsId, googleTagId]);
 
-  if (!googleTagId || !enabled) return null;
+  if ((!googleTagId && !googleAdsId) || !enabled) return null;
+
+  const primaryId = googleTagId ?? googleAdsId;
 
   return (
     <>
       <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${googleTagId}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${primaryId}`}
         strategy="afterInteractive"
       />
       <Script id="google-tag-init" strategy="afterInteractive">
@@ -61,7 +64,8 @@ export default function GoogleTag() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){window.dataLayer.push(arguments);}
           gtag("js", new Date());
-          gtag("config", "${googleTagId}");
+          ${googleTagId ? `gtag("config", "${googleTagId}");` : ""}
+          ${googleAdsId ? `gtag("config", "${googleAdsId}");` : ""}
         `}
       </Script>
     </>
