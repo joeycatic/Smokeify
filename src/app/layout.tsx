@@ -1,10 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
+import Script from "next/script";
 import Providers from "@/app/providers";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const googleTagId = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID;
 const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -63,6 +65,22 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
+        {googleTagId ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${googleTagId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-tag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){window.dataLayer.push(arguments);}
+                gtag("js", new Date());
+                gtag("config", "${googleTagId}");
+              `}
+            </Script>
+          </>
+        ) : null}
         <Providers>{children}</Providers>
       </body>
     </html>

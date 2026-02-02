@@ -7,8 +7,11 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const headerSecret = request.headers.get("x-cron-secret");
   const authHeader = request.headers.get("authorization");
+  const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+  const requiresAuth =
+    Boolean(secret) && !isVercelCron;
   if (
-    secret &&
+    requiresAuth &&
     authHeader !== `Bearer ${secret}` &&
     searchParams.get("secret") !== secret &&
     headerSecret !== secret

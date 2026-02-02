@@ -481,9 +481,11 @@ export default function CartPage() {
                   <p className="text-xl font-semibold text-[#2f3e36]">
                     {formatPrice(subtotal, currencyCode)}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-red-600">
-                    Mindestbestellwert {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
-                  </p>
+                  {!meetsMinOrder && (
+                    <p className="mt-1 text-xs font-semibold text-red-600">
+                      Mindestbestellwert {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
+                    </p>
+                  )}
               </div>
               <div>
                 <p
