@@ -28,10 +28,10 @@ const securityHeaders = [
     value:
       "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
       "img-src 'self' data: blob: https:; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com; " +
       "style-src 'self' 'unsafe-inline'; " +
       "font-src 'self' data:; " +
-      "connect-src 'self' https://api.stripe.com https://*.stripe.com; " +
+      "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com; " +
       "frame-src https://js.stripe.com https://*.stripe.com;",
   },
   ...(isProd
