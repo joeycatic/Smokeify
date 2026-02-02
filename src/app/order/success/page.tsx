@@ -8,6 +8,7 @@ import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useCart } from "@/components/CartProvider";
 import { trackAdsConversion } from "@/lib/gtag";
+import { canUseAnalytics } from "@/lib/gtag";
 
 type OrderItem = {
   id: string;
@@ -96,6 +97,35 @@ const trackPurchase = (order: OrderSummary) => {
       price: item.unitAmount / 100,
       quantity: item.quantity,
     })),
+  });
+};
+
+const pushDataLayerPurchase = (order: OrderSummary) => {
+  if (typeof window === "undefined") return;
+  if (!canUseAnalytics()) return;
+  const dataLayer = (window as { dataLayer?: Array<Record<string, unknown>> })
+    .dataLayer;
+  if (!Array.isArray(dataLayer)) return;
+
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "purchase",
+    ecommerce: {
+      transaction_id: order.id,
+      currency: order.currency,
+      value: order.amountTotal / 100,
+      tax: order.amountTax / 100,
+      shipping: order.amountShipping / 100,
+      discount: order.amountDiscount > 0 ? order.amountDiscount / 100 : undefined,
+      items: order.items.map((item) => ({
+        item_id: item.id,
+        item_name: formatItemName(item),
+        item_brand: item.manufacturer ?? undefined,
+        item_variant: item.options ? formatOptions(item.options) : undefined,
+        price: item.unitAmount / 100,
+        quantity: item.quantity,
+      })),
+    },
   });
 };
 
@@ -203,6 +233,7 @@ export default function OrderSuccessPage() {
     if (order.provisional) return;
     purchaseTracked.current = true;
     trackPurchase(order);
+    pushDataLayerPurchase(order);
     trackAdsConversion(adsPurchaseLabel, {
       value: order.amountTotal / 100,
       currency: order.currency,
