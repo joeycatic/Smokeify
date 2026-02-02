@@ -184,6 +184,21 @@ export default function CartPage() {
   }, [cart, loading]);
 
   useEffect(() => {
+    if (!cart) return;
+    const hasLocation = postalCode.trim().length > 0;
+    if (!hasLocation) return;
+    const key = `${country}:${postalCode.trim()}`;
+    if (shippingTrackedRef.current === key) return;
+    shippingTrackedRef.current = key;
+    trackGtagEvent("add_shipping_info", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      shipping_tier: country,
+      items: toCartItems(cart),
+    });
+  }, [cart, country, postalCode]);
+
+  useEffect(() => {
     if (status !== "authenticated") return;
     if (checkoutStatus !== "idle") return;
     if (searchParams.get("startCheckout") !== "1") return;
@@ -320,18 +335,6 @@ export default function CartPage() {
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
 
-  useEffect(() => {
-    if (!cart || !hasLocation) return;
-    const key = `${country}:${postalCode.trim()}`;
-    if (shippingTrackedRef.current === key) return;
-    shippingTrackedRef.current = key;
-    trackGtagEvent("add_shipping_info", {
-      currency: currencyCode,
-      value: subtotal,
-      shipping_tier: country,
-      items: toCartItems(cart),
-    });
-  }, [cart, country, currencyCode, hasLocation, postalCode, subtotal]);
 
   return (
     <PageLayout>
