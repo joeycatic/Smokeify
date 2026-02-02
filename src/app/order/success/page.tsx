@@ -70,36 +70,6 @@ const formatOptions = (options?: Array<{ name: string; value: string }>) => {
     .join(" · ");
 };
 
-const trackPurchase = (order: OrderSummary) => {
-  if (typeof window === "undefined") return;
-  const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
-  if (typeof gtag !== "function") return;
-
-  const currency = order.currency;
-  const value = order.amountTotal / 100;
-  const shipping = order.amountShipping / 100;
-  const tax = order.amountTax / 100;
-  const discount = order.amountDiscount / 100;
-
-  gtag("event", "purchase", {
-    transaction_id: order.id,
-    affiliation: "Smokeify",
-    currency,
-    value,
-    shipping,
-    tax,
-    discount: discount > 0 ? discount : undefined,
-    items: order.items.map((item) => ({
-      item_id: item.id,
-      item_name: formatItemName(item),
-      item_brand: item.manufacturer ?? undefined,
-      item_variant: item.options ? formatOptions(item.options) : undefined,
-      price: item.unitAmount / 100,
-      quantity: item.quantity,
-    })),
-  });
-};
-
 const pushDataLayerPurchase = (order: OrderSummary) => {
   if (typeof window === "undefined") return;
   if (!canUseAnalytics()) return;
@@ -232,7 +202,6 @@ export default function OrderSuccessPage() {
     if (loadStatus !== "ok") return;
     if (order.provisional) return;
     purchaseTracked.current = true;
-    trackPurchase(order);
     pushDataLayerPurchase(order);
     trackAdsConversion(adsPurchaseLabel, {
       value: order.amountTotal / 100,
