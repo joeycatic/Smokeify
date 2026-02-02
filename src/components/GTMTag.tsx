@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Script from "next/script";
 
 import { canUseAnalytics } from "@/lib/gtag";
@@ -8,12 +8,18 @@ import { canUseAnalytics } from "@/lib/gtag";
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "";
 
 export default function GTMTag() {
-  const [enabled, setEnabled] = useState(false);
-
   useEffect(() => {
     if (!GTM_ID) return;
     const update = () => {
-      setEnabled(canUseAnalytics());
+      const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
+      if (typeof gtag !== "function") return;
+      const granted = canUseAnalytics();
+      gtag("consent", "update", {
+        ad_storage: granted ? "granted" : "denied",
+        analytics_storage: granted ? "granted" : "denied",
+        ad_user_data: granted ? "granted" : "denied",
+        ad_personalization: granted ? "granted" : "denied",
+      });
     };
     update();
     window.addEventListener("cookie-consent-accepted", update);
@@ -26,10 +32,22 @@ export default function GTMTag() {
     };
   }, []);
 
-  if (!GTM_ID || !enabled) return null;
+  if (!GTM_ID) return null;
 
   return (
     <>
+      <Script id="gtm-consent-init" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          gtag("consent", "default", {
+            ad_storage: "denied",
+            analytics_storage: "denied",
+            ad_user_data: "denied",
+            ad_personalization: "denied",
+          });
+        `}
+      </Script>
       <Script id="gtm-init" strategy="afterInteractive">
         {`
           (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
