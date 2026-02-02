@@ -35,7 +35,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -523,7 +523,7 @@ export function Navbar() {
         setSearchStatus("idle");
         if (searchTrackedRef.current !== trimmed) {
           searchTrackedRef.current = trimmed;
-          trackGtagEvent("search", { search_term: trimmed });
+          trackAnalyticsEvent("search", { search_term: trimmed });
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
@@ -569,7 +569,7 @@ export function Navbar() {
       router.push("/cart");
       return;
     }
-    trackGtagEvent("begin_checkout", {
+    trackAnalyticsEvent("begin_checkout", {
       currency: cart.cost.subtotalAmount.currencyCode,
       value: Number(cart.cost.subtotalAmount.amount),
       items: toCartItems(cart),
@@ -587,7 +587,7 @@ export function Navbar() {
         router.push("/cart");
         return;
       }
-      trackGtagEvent("add_payment_info", {
+      trackAnalyticsEvent("add_payment_info", {
         currency: cart.cost.subtotalAmount.currencyCode,
         value: Number(cart.cost.subtotalAmount.amount),
         payment_type: "stripe_checkout",
@@ -1173,7 +1173,7 @@ export function Navbar() {
                                 key={item.id}
                                 href={`/products/${item.handle}`}
                                 onClick={() => {
-                                  trackGtagEvent("select_item", {
+                                  trackAnalyticsEvent("select_item", {
                                     item_list_id: "search",
                                     item_list_name: "search",
                                     items: [

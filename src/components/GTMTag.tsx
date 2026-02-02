@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Script from "next/script";
 
-import { canUseAnalytics } from "@/lib/gtag";
+import { canUseAnalytics } from "@/lib/analytics";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "";
 

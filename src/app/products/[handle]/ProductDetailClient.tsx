@@ -16,7 +16,7 @@ import {
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type ProductVariant = {
   id: string;
@@ -285,7 +285,7 @@ export default function ProductDetailClient({
         formatSelectedOptions(selectedCartOptions),
       );
       if (itemPayload) {
-        trackGtagEvent("begin_checkout", {
+        trackAnalyticsEvent("begin_checkout", {
           currency: selectedVariant?.price.currencyCode,
           value: Number(selectedVariant?.price.amount) * quantity,
           items: [itemPayload],
@@ -308,7 +308,7 @@ export default function ProductDetailClient({
         return;
       }
       if (itemPayload) {
-        trackGtagEvent("add_payment_info", {
+        trackAnalyticsEvent("add_payment_info", {
           currency: selectedVariant?.price.currencyCode,
           value: Number(selectedVariant?.price.amount) * quantity,
           payment_type: "stripe_checkout",
@@ -343,7 +343,7 @@ export default function ProductDetailClient({
       formatSelectedOptions(selectedCartOptions),
     );
     if (!itemPayload) return;
-    trackGtagEvent("view_item", {
+    trackAnalyticsEvent("view_item", {
       currency: selectedVariant.price.currencyCode,
       value: Number(selectedVariant.price.amount),
       items: [itemPayload],

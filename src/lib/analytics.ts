@@ -1,10 +1,7 @@
 "use client";
 
-type GtagFn = (...args: unknown[]) => void;
-
 const CONSENT_KEY = "smokeify_cookie_consent";
 const AGE_KEY = "smokeify_age_gate";
-const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
 const readCookieValue = (key: string): string | null => {
   if (typeof document === "undefined") return null;
@@ -29,33 +26,14 @@ export const canUseAnalytics = (): boolean => {
   return consent === "accepted" && ageGate === "verified";
 };
 
-const getGtag = (): GtagFn | null => {
-  if (typeof window === "undefined") return null;
-  const gtag = (window as { gtag?: GtagFn }).gtag;
-  return typeof gtag === "function" ? gtag : null;
-};
-
-export const trackGtagEvent = (eventName: string, params?: Record<string, unknown>) => {
-  const gtag = getGtag();
-  if (!gtag) return;
-  if (!canUseAnalytics()) return;
-  if (params) {
-    gtag("event", eventName, params);
-    return;
-  }
-  gtag("event", eventName);
-};
-
-export const trackAdsConversion = (
-  label: string | undefined,
-  params?: Record<string, unknown>,
+export const trackAnalyticsEvent = (
+  eventName: string,
+  params?: Record<string, unknown>
 ) => {
-  const gtag = getGtag();
-  if (!gtag) return;
+  if (typeof window === "undefined") return;
   if (!canUseAnalytics()) return;
-  if (!GOOGLE_ADS_ID || !label) return;
-  gtag("event", "conversion", {
-    send_to: `${GOOGLE_ADS_ID}/${label}`,
-    ...(params ?? {}),
-  });
+  const dataLayer = (window as { dataLayer?: Array<Record<string, unknown>> })
+    .dataLayer;
+  if (!Array.isArray(dataLayer)) return;
+  dataLayer.push({ event: eventName, ...(params ?? {}) });
 };

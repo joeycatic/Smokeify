@@ -14,7 +14,7 @@ import {
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const SHIPPING_BASE = {
   DE: 4.9,
@@ -135,7 +135,7 @@ export default function CartPage() {
       );
       return;
     }
-    trackGtagEvent("begin_checkout", {
+    trackAnalyticsEvent("begin_checkout", {
       currency: cart.cost.subtotalAmount.currencyCode,
       value: Number(cart.cost.subtotalAmount.amount),
       items: toCartItems(cart),
@@ -159,7 +159,7 @@ export default function CartPage() {
         setCheckoutError(data.error ?? "Checkout fehlgeschlagen.");
         return;
       }
-      trackGtagEvent("add_payment_info", {
+      trackAnalyticsEvent("add_payment_info", {
         currency: cart.cost.subtotalAmount.currencyCode,
         value: Number(cart.cost.subtotalAmount.amount),
         payment_type: "stripe_checkout",
@@ -176,7 +176,7 @@ export default function CartPage() {
     if (!cart || loading || cart.lines.length === 0) return;
     if (viewCartTrackedRef.current === cart.id) return;
     viewCartTrackedRef.current = cart.id;
-    trackGtagEvent("view_cart", {
+    trackAnalyticsEvent("view_cart", {
       currency: cart.cost.subtotalAmount.currencyCode,
       value: Number(cart.cost.subtotalAmount.amount),
       items: toCartItems(cart),
@@ -190,7 +190,7 @@ export default function CartPage() {
     const key = `${country}:${postalCode.trim()}`;
     if (shippingTrackedRef.current === key) return;
     shippingTrackedRef.current = key;
-    trackGtagEvent("add_shipping_info", {
+    trackAnalyticsEvent("add_shipping_info", {
       currency: cart.cost.subtotalAmount.currencyCode,
       value: Number(cart.cost.subtotalAmount.amount),
       shipping_tier: country,

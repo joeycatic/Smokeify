@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
@@ -364,7 +364,7 @@ export default function CheckoutAuthPage() {
                         );
                         return;
                       }
-                      trackGtagEvent("sign_up", { method: "email" });
+                      trackAnalyticsEvent("sign_up", { method: "email" });
                       sessionStorage.setItem("smokeify_verify_email", regEmail);
                       sessionStorage.setItem("smokeify_return_to", returnTo);
                       router.push(

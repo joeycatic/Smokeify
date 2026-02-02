@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export type AddedItem = {
   title: string;
@@ -77,7 +77,7 @@ const trackAddToCart = (line: Cart["lines"][number] | undefined, quantity: numbe
   if (!line) return;
   const unitPrice = Number(line.merchandise.price.amount);
   const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
-  trackGtagEvent("add_to_cart", {
+    trackAnalyticsEvent("add_to_cart", {
     currency: line.merchandise.price.currencyCode,
     value,
     items: [toItemPayload(line, quantity)],
@@ -91,7 +91,7 @@ const trackRemoveFromCart = (
   if (!line || quantity <= 0) return;
   const unitPrice = Number(line.merchandise.price.amount);
   const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
-  trackGtagEvent("remove_from_cart", {
+    trackAnalyticsEvent("remove_from_cart", {
     currency: line.merchandise.price.currencyCode,
     value,
     items: [toItemPayload(line, quantity)],

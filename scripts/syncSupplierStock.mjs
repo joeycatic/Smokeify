@@ -4,6 +4,9 @@ import { pathToFileURL } from "url";
 const prisma = new PrismaClient();
 const RUN_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const MAX_DAILY_RUNS = 4;
+const MAX_RUNTIME_MS = Number(process.env.SUPPLIER_SYNC_MAX_MS ?? 240000);
+const MAX_PRODUCTS = Number(process.env.SUPPLIER_SYNC_MAX_PRODUCTS ?? 120);
+const REQUEST_DELAY_MS = Number(process.env.SUPPLIER_SYNC_DELAY_MS ?? 1000);
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 const TELEGRAM_MESSAGE_LIMIT = 3500;
 
@@ -196,6 +199,9 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
     return;
   }
 
+  const startedAt = Date.now();
+  const deadline = startedAt + MAX_RUNTIME_MS;
+
   const products = await prisma.product.findMany({
     where: {
       status: "ACTIVE",
@@ -214,13 +220,26 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
     },
   });
 
+  const scopedProducts =
+    Number.isFinite(MAX_PRODUCTS) && MAX_PRODUCTS > 0
+      ? products.slice(0, MAX_PRODUCTS)
+      : products;
+
   let updated = 0;
   let skipped = 0;
   let failed = 0;
   const changes = [];
   const unavailable = [];
 
-  for (const product of products) {
+  for (const product of scopedProducts) {
+    if (Date.now() >= deadline) {
+      console.warn(
+        `[sync] Time budget hit after ${Math.round(
+          (Date.now() - startedAt) / 1000
+        )}s, stopping early.`
+      );
+      break;
+    }
     const url = product.sellerUrl;
     if (!url) {
       skipped += 1;
@@ -276,10 +295,14 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
       });
       failed += 1;
     }
-    await sleep(1000);
+    if (REQUEST_DELAY_MS > 0) {
+      await sleep(REQUEST_DELAY_MS);
+    }
   }
 
-  console.log(`Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed}`);
+  console.log(
+    `Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed}`
+  );
 
   if (!isDryRun) {
     const changeLines = changes.map(formatChangeLine);

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -116,7 +116,7 @@ export default function RegisterPage() {
                   setError(data.error ?? "Registrierung fehlgeschlagen.");
                   return;
                 }
-                trackGtagEvent("sign_up", { method: "email" });
+                trackAnalyticsEvent("sign_up", { method: "email" });
                 const returnTo = searchParams.get("returnTo") || "/";
                 sessionStorage.setItem("smokeify_verify_email", email);
                 sessionStorage.setItem("smokeify_verify_password", password);

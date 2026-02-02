@@ -14,7 +14,7 @@ import DisplayProducts, {
 } from "@/components/DisplayProducts";
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
 import { useSearchParams } from "next/navigation";
-import { trackGtagEvent } from "@/lib/gtag";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type Props = {
   initialProducts: Product[];
@@ -204,7 +204,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       price: Number(product.priceRange?.minVariantPrice?.amount ?? 0),
       quantity: 1,
     }));
-    trackGtagEvent("view_item_list", {
+    trackAnalyticsEvent("view_item_list", {
       item_list_id: listId,
       item_list_name: listName,
       items,
@@ -220,7 +220,7 @@ export default function ProductsClient({ initialProducts }: Props) {
     const timer = setTimeout(() => {
       if (searchTrackedRef.current === term) return;
       searchTrackedRef.current = term;
-      trackGtagEvent("search", { search_term: term });
+      trackAnalyticsEvent("search", { search_term: term });
     }, 400);
     return () => clearTimeout(timer);
   }, [filters.searchQuery]);
@@ -380,7 +380,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       gtagItemIndex,
     } = el.dataset;
     if (!gtagItemId || !gtagItemName) return;
-    trackGtagEvent("select_item", {
+    trackAnalyticsEvent("select_item", {
       item_list_id: listId,
       item_list_name: listName,
       items: [
