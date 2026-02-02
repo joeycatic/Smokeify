@@ -62,6 +62,7 @@ export default function AgeGate() {
             onClick={() => {
               persistStatus("verified");
               setStatus("verified");
+              window.dispatchEvent(new Event("age-gate-verified"));
             }}
             className="h-11 rounded-full bg-[#21483b] px-5 text-xs font-semibold uppercase tracking-wide text-white shadow-sm hover:bg-[#1c3d32]"
           >
