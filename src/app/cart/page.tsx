@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "@/components/CartProvider";
@@ -14,6 +14,7 @@ import {
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import { trackGtagEvent } from "@/lib/gtag";
 
 const SHIPPING_BASE = {
   DE: 4.9,
@@ -47,6 +48,17 @@ function getShippingEstimate(country: ShippingCountry, itemCount: number) {
   const perItem = 0.5;
   return base + Math.max(itemCount, 0) * perItem;
 }
+
+const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
+  cart.lines.map((line) => ({
+    item_id: line.merchandise.id,
+    item_name: line.merchandise.product.title,
+    item_variant: line.merchandise.title,
+    item_brand: line.merchandise.product.manufacturer ?? undefined,
+    item_category: line.merchandise.product.categories?.[0]?.name,
+    price: Number(line.merchandise.price.amount),
+    quantity: line.quantity,
+  }));
 
 function normalizeCountryInput(value?: string | null): ShippingCountry | null {
   if (!value) return null;
@@ -107,6 +119,8 @@ export default function CartPage() {
     "idle" | "loading" | "error"
   >("idle");
   const [checkoutError, setCheckoutError] = useState("");
+  const viewCartTrackedRef = useRef<string | null>(null);
+  const shippingTrackedRef = useRef<string | null>(null);
 
   const canCheckout = checkoutStatus !== "loading";
 
@@ -121,6 +135,11 @@ export default function CartPage() {
       );
       return;
     }
+    trackGtagEvent("begin_checkout", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
     setCheckoutStatus("loading");
     setCheckoutError("");
     try {
@@ -140,12 +159,29 @@ export default function CartPage() {
         setCheckoutError(data.error ?? "Checkout fehlgeschlagen.");
         return;
       }
+      trackGtagEvent("add_payment_info", {
+        currency: cart.cost.subtotalAmount.currencyCode,
+        value: Number(cart.cost.subtotalAmount.amount),
+        payment_type: "stripe_checkout",
+        items: toCartItems(cart),
+      });
       window.location.assign(data.url);
     } catch {
       setCheckoutStatus("error");
       setCheckoutError("Checkout fehlgeschlagen.");
     }
   };
+
+  useEffect(() => {
+    if (!cart || loading || cart.lines.length === 0) return;
+    if (viewCartTrackedRef.current === cart.id) return;
+    viewCartTrackedRef.current = cart.id;
+    trackGtagEvent("view_cart", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
+  }, [cart, loading]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -283,6 +319,19 @@ export default function CartPage() {
   const totalEstimate = subtotal + shippingEstimate;
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
+
+  useEffect(() => {
+    if (!cart || !hasLocation) return;
+    const key = `${country}:${postalCode.trim()}`;
+    if (shippingTrackedRef.current === key) return;
+    shippingTrackedRef.current = key;
+    trackGtagEvent("add_shipping_info", {
+      currency: currencyCode,
+      value: subtotal,
+      shipping_tier: country,
+      items: toCartItems(cart),
+    });
+  }, [cart, country, currencyCode, hasLocation, postalCode, subtotal]);
 
   return (
     <PageLayout>

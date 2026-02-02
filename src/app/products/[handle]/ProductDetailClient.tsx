@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BeakerIcon,
@@ -16,6 +16,7 @@ import {
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import { trackGtagEvent } from "@/lib/gtag";
 
 type ProductVariant = {
   id: string;
@@ -29,6 +30,37 @@ type ProductVariant = {
   compareAt?: { amount: string; currencyCode: string } | null;
 };
 import LoadingSpinner from "@/components/LoadingSpinner";
+
+const formatSelectedOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
+
+const buildItemPayload = (
+  product: {
+    id: string;
+    title: string;
+    manufacturer?: string | null;
+    categories?: Array<{ handle: string; title: string; parentId?: string | null }>;
+  },
+  variant: ProductVariant | null | undefined,
+  quantity: number,
+  optionsText?: string,
+) => {
+  if (!variant) return null;
+  return {
+    item_id: variant.id,
+    item_name: product.title,
+    item_brand: product.manufacturer ?? undefined,
+    item_category: product.categories?.[0]?.title,
+    item_variant: optionsText || variant.title,
+    price: Number(variant.price.amount),
+    quantity,
+  };
+};
 
 export default function ProductDetailClient({
   product,
@@ -202,6 +234,7 @@ export default function ProductDetailClient({
       : null;
 
   const { cart, addToCart, openAddedModal } = useCart();
+  const viewTrackedRef = useRef<string | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     text: string;
@@ -245,6 +278,19 @@ export default function ProductDetailClient({
     }
     setCheckoutStatus("loading");
     try {
+      const itemPayload = buildItemPayload(
+        product,
+        selectedVariant,
+        quantity,
+        formatSelectedOptions(selectedCartOptions),
+      );
+      if (itemPayload) {
+        trackGtagEvent("begin_checkout", {
+          currency: selectedVariant?.price.currencyCode,
+          value: Number(selectedVariant?.price.amount) * quantity,
+          items: [itemPayload],
+        });
+      }
       await addToCart(selectedVariantId, quantity, selectedCartOptions);
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -261,6 +307,14 @@ export default function ProductDetailClient({
         setTimeout(() => setToast(null), 1500);
         return;
       }
+      if (itemPayload) {
+        trackGtagEvent("add_payment_info", {
+          currency: selectedVariant?.price.currencyCode,
+          value: Number(selectedVariant?.price.amount) * quantity,
+          payment_type: "stripe_checkout",
+          items: [itemPayload],
+        });
+      }
       window.location.assign(data.url);
     } catch {
       setCheckoutStatus("error");
@@ -276,6 +330,25 @@ export default function ProductDetailClient({
     setNotifyStatus("idle");
     setNotifyMessage(null);
   }, [selectedVariantId, isAvailable]);
+
+  useEffect(() => {
+    if (!selectedVariant) return;
+    const key = `${product.id}:${selectedVariant.id}:${selectedOptionsKey}`;
+    if (viewTrackedRef.current === key) return;
+    viewTrackedRef.current = key;
+    const itemPayload = buildItemPayload(
+      product,
+      selectedVariant,
+      1,
+      formatSelectedOptions(selectedCartOptions),
+    );
+    if (!itemPayload) return;
+    trackGtagEvent("view_item", {
+      currency: selectedVariant.price.currencyCode,
+      value: Number(selectedVariant.price.amount),
+      items: [itemPayload],
+    });
+  }, [product, selectedCartOptions, selectedOptionsKey, selectedVariant]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");

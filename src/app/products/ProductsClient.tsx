@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import {
   Bars3BottomLeftIcon,
   Squares2X2Icon,
@@ -13,6 +14,7 @@ import DisplayProducts, {
 } from "@/components/DisplayProducts";
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
 import { useSearchParams } from "next/navigation";
+import { trackGtagEvent } from "@/lib/gtag";
 
 type Props = {
   initialProducts: Product[];
@@ -87,6 +89,8 @@ export default function ProductsClient({ initialProducts }: Props) {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [isMobile, setIsMobile] = useState(false);
   const lastCategoryParamRef = useRef<string>("");
+  const viewListTrackedRef = useRef<string | null>(null);
+  const searchTrackedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -105,6 +109,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       (a, b) => Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale)),
     );
   }, [normalizedProducts, filters]);
+
 
   const categoryHierarchy = useMemo(() => {
     const parents = new Map<string, string>();
@@ -166,6 +171,59 @@ export default function ProductsClient({ initialProducts }: Props) {
     });
     return categories;
   }, [normalizedProducts]);
+
+  const listName = useMemo(() => {
+    const searchTerm = filters.searchQuery?.trim();
+    if (searchTerm) return `search:${searchTerm}`;
+    if (categoryParam) {
+      const categoryTitle = allCategoryTitlesByHandle.get(categoryParam);
+      return categoryTitle ? `category:${categoryTitle}` : `category:${categoryParam}`;
+    }
+    if (manufacturerParam) return `manufacturer:${manufacturerParam}`;
+    return "products";
+  }, [allCategoryTitlesByHandle, categoryParam, filters.searchQuery, manufacturerParam]);
+
+  const listId = useMemo(() => {
+    const searchTerm = filters.searchQuery?.trim();
+    if (searchTerm) return `search:${searchTerm.toLowerCase()}`;
+    if (categoryParam) return `category:${categoryParam}`;
+    if (manufacturerParam) return `manufacturer:${manufacturerParam.toLowerCase()}`;
+    return "products";
+  }, [categoryParam, filters.searchQuery, manufacturerParam]);
+
+  useEffect(() => {
+    if (filteredProducts.length === 0) return;
+    const key = `${listId}:${filteredProducts.length}`;
+    if (viewListTrackedRef.current === key) return;
+    viewListTrackedRef.current = key;
+    const items = filteredProducts.slice(0, 20).map((product) => ({
+      item_id: product.defaultVariantId ?? product.id,
+      item_name: product.title,
+      item_brand: product.manufacturer ?? undefined,
+      item_category: product.categories?.[0]?.title,
+      price: Number(product.priceRange?.minVariantPrice?.amount ?? 0),
+      quantity: 1,
+    }));
+    trackGtagEvent("view_item_list", {
+      item_list_id: listId,
+      item_list_name: listName,
+      items,
+    });
+  }, [filteredProducts, listId, listName]);
+
+  useEffect(() => {
+    const term = filters.searchQuery?.trim();
+    if (!term) {
+      searchTrackedRef.current = null;
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (searchTrackedRef.current === term) return;
+      searchTrackedRef.current = term;
+      trackGtagEvent("search", { search_term: term });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filters.searchQuery]);
 
   useEffect(() => {
     if (!categoryParam) {
@@ -309,6 +367,36 @@ export default function ProductsClient({ initialProducts }: Props) {
     return chips;
   }, [filters, categoryTitleByHandle, priceMinBound, priceMaxBound]);
 
+  const handleSelectItem = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    const el = target?.closest<HTMLElement>("[data-gtag-item-id]");
+    if (!el) return;
+    const {
+      gtagItemId,
+      gtagItemName,
+      gtagItemBrand,
+      gtagItemCategory,
+      gtagItemPrice,
+      gtagItemIndex,
+    } = el.dataset;
+    if (!gtagItemId || !gtagItemName) return;
+    trackGtagEvent("select_item", {
+      item_list_id: listId,
+      item_list_name: listName,
+      items: [
+        {
+          item_id: gtagItemId,
+          item_name: gtagItemName,
+          item_brand: gtagItemBrand || undefined,
+          item_category: gtagItemCategory || undefined,
+          price: gtagItemPrice ? Number(gtagItemPrice) : undefined,
+          index: gtagItemIndex ? Number(gtagItemIndex) : undefined,
+          quantity: 1,
+        },
+      ],
+    });
+  };
+
   return (
       <div className="w-full text-stone-800">
         {/* Products Header */}
@@ -423,7 +511,7 @@ export default function ProductsClient({ initialProducts }: Props) {
         </div>
       )}
 
-      <div>
+      <div onClick={handleSelectItem}>
         {layout === "grid" ? (
           <DisplayProducts
             products={filteredProducts}

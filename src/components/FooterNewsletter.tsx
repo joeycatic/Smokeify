@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackGtagEvent } from "@/lib/gtag";
 
 export default function FooterNewsletter() {
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -43,6 +44,7 @@ export default function FooterNewsletter() {
             setNewsletterStatus("ok");
             setNewsletterMessage("Danke! Du bist eingetragen.");
             setNewsletterEmail("");
+            trackGtagEvent("generate_lead", { method: "newsletter" });
           } catch {
             setNewsletterStatus("error");
             setNewsletterMessage("Anmeldung fehlgeschlagen.");

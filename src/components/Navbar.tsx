@@ -35,6 +35,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import { trackGtagEvent } from "@/lib/gtag";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -53,6 +54,18 @@ const formatCartOptions = (options?: Array<{ name: string; value: string }>) => 
     .filter(Boolean)
     .join(" · ");
 };
+
+const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
+  cart.lines.map((line) => ({
+    item_id: line.merchandise.id,
+    item_name: line.merchandise.product.title,
+    item_variant: line.merchandise.title,
+    item_brand: line.merchandise.product.manufacturer ?? undefined,
+    item_category: line.merchandise.product.categories?.[0]?.name,
+    price: Number(line.merchandise.price.amount),
+    quantity: line.quantity,
+  }));
+
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
@@ -165,6 +178,7 @@ export function Navbar() {
   const [searchStatus, setSearchStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
+  const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [categoryStack, setCategoryStack] = useState<string[]>([]);
   const [categories, setCategories] = useState<
@@ -483,6 +497,7 @@ export function Navbar() {
     if (!trimmed) {
       setSearchResults([]);
       setSearchStatus("idle");
+      searchTrackedRef.current = null;
       return;
     }
     const controller = new AbortController();
@@ -506,6 +521,10 @@ export function Navbar() {
         };
         setSearchResults(data.results ?? []);
         setSearchStatus("idle");
+        if (searchTrackedRef.current !== trimmed) {
+          searchTrackedRef.current = trimmed;
+          trackGtagEvent("search", { search_term: trimmed });
+        }
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setSearchResults([]);
@@ -550,6 +569,11 @@ export function Navbar() {
       router.push("/cart");
       return;
     }
+    trackGtagEvent("begin_checkout", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
     setCheckoutStatus("loading");
     try {
       const res = await fetch("/api/checkout", {
@@ -563,6 +587,12 @@ export function Navbar() {
         router.push("/cart");
         return;
       }
+      trackGtagEvent("add_payment_info", {
+        currency: cart.cost.subtotalAmount.currencyCode,
+        value: Number(cart.cost.subtotalAmount.amount),
+        payment_type: "stripe_checkout",
+        items: toCartItems(cart),
+      });
       window.location.assign(data.url);
     } catch {
       setCheckoutStatus("error");
@@ -1142,7 +1172,23 @@ export function Navbar() {
                               <Link
                                 key={item.id}
                                 href={`/products/${item.handle}`}
-                                onClick={() => setSearchOpen(false)}
+                                onClick={() => {
+                                  trackGtagEvent("select_item", {
+                                    item_list_id: "search",
+                                    item_list_name: "search",
+                                    items: [
+                                      {
+                                        item_id: item.id,
+                                        item_name: item.title,
+                                        price: item.price
+                                          ? Number(item.price.amount)
+                                          : undefined,
+                                        quantity: 1,
+                                      },
+                                    ],
+                                  });
+                                  setSearchOpen(false);
+                                }}
                                 className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-sm text-stone-800 hover:border-emerald-200 hover:bg-emerald-50/60"
                               >
                                 {item.imageUrl ? (

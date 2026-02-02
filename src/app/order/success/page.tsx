@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -68,11 +68,42 @@ const formatOptions = (options?: Array<{ name: string; value: string }>) => {
     .join(" · ");
 };
 
+const trackPurchase = (order: OrderSummary) => {
+  if (typeof window === "undefined") return;
+  const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag !== "function") return;
+
+  const currency = order.currency;
+  const value = order.amountTotal / 100;
+  const shipping = order.amountShipping / 100;
+  const tax = order.amountTax / 100;
+  const discount = order.amountDiscount / 100;
+
+  gtag("event", "purchase", {
+    transaction_id: order.id,
+    affiliation: "Smokeify",
+    currency,
+    value,
+    shipping,
+    tax,
+    discount: discount > 0 ? discount : undefined,
+    items: order.items.map((item) => ({
+      item_id: item.id,
+      item_name: formatItemName(item),
+      item_brand: item.manufacturer ?? undefined,
+      item_variant: item.options ? formatOptions(item.options) : undefined,
+      price: item.unitAmount / 100,
+      quantity: item.quantity,
+    })),
+  });
+};
+
 export default function OrderSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
   const { refresh } = useCart();
+  const purchaseTracked = useRef(false);
 
   const sessionId = searchParams.get("session_id") || "";
   const returnTo = useMemo(() => {
@@ -163,6 +194,14 @@ export default function OrderSuccessPage() {
     };
     void clearCart();
   }, [cartCleared, order, refresh]);
+
+  useEffect(() => {
+    if (!order || purchaseTracked.current) return;
+    if (loadStatus !== "ok") return;
+    if (order.provisional) return;
+    purchaseTracked.current = true;
+    trackPurchase(order);
+  }, [loadStatus, order]);
 
   return (
     <PageLayout>

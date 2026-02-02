@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
+import { trackGtagEvent } from "@/lib/gtag";
 
 export type AddedItem = {
   title: string;
@@ -59,6 +60,44 @@ const normalizeError = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const toItemPayload = (line: Cart["lines"][number], quantity: number) => {
+  const unitPrice = Number(line.merchandise.price.amount);
+  return {
+    item_id: line.merchandise.id,
+    item_name: line.merchandise.product.title,
+    item_variant: line.merchandise.title,
+    item_brand: line.merchandise.product.manufacturer ?? undefined,
+    item_category: line.merchandise.product.categories?.[0]?.name,
+    price: Number.isFinite(unitPrice) ? unitPrice : undefined,
+    quantity,
+  };
+};
+
+const trackAddToCart = (line: Cart["lines"][number] | undefined, quantity: number) => {
+  if (!line) return;
+  const unitPrice = Number(line.merchandise.price.amount);
+  const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
+  trackGtagEvent("add_to_cart", {
+    currency: line.merchandise.price.currencyCode,
+    value,
+    items: [toItemPayload(line, quantity)],
+  });
+};
+
+const trackRemoveFromCart = (
+  line: Cart["lines"][number] | undefined,
+  quantity: number,
+) => {
+  if (!line || quantity <= 0) return;
+  const unitPrice = Number(line.merchandise.price.amount);
+  const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
+  trackGtagEvent("remove_from_cart", {
+    currency: line.merchandise.price.currencyCode,
+    value,
+    items: [toItemPayload(line, quantity)],
+  });
+};
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +147,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const c = await apiCartAction({ action: "add", variantId, quantity, options });
       setCart(c);
+      const addedLine = c.lines.find((line) => line.merchandise.id === variantId);
+      trackAddToCart(addedLine, quantity);
       setError(null);
       setErrorToast(null);
       return c;
@@ -121,10 +162,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateLine = async (lineId: string, quantity: number) => {
     try {
+      const beforeLine = cart?.lines.find((line) => line.id === lineId);
+      const beforeQty = beforeLine?.quantity ?? 0;
       const c = await apiCartAction({ action: "update", lineId, quantity });
       setCart(c);
       const updatedLine = c.lines.find((line) => line.id === lineId);
       const updatedQty = updatedLine?.quantity ?? 0;
+      if (beforeLine && updatedQty < beforeQty) {
+        trackRemoveFromCart(beforeLine, beforeQty - updatedQty);
+      }
       if (quantity > updatedQty) {
         const message = "Nicht genug Bestand verfügbar.";
         setError(message);
@@ -143,8 +189,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeLines = async (lineIds: string[]) => {
     try {
+      const removedLines =
+        cart?.lines.filter((line) => lineIds.includes(line.id)) ?? [];
       const c = await apiCartAction({ action: "remove", lineIds });
       setCart(c);
+      removedLines.forEach((line) => trackRemoveFromCart(line, line.quantity));
       setError(null);
       setErrorToast(null);
     } catch (err) {

@@ -38,7 +38,7 @@ export default function DisplayProducts({
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
   return (
     <div className={`mt-6 grid gap-3 ${gridColsClass}`}>
-      {products?.map((p) => {
+      {products?.map((p, index) => {
         const showLowStock = getProductLowStockState(p);
         const showSize =
           showGrowboxSize && isGrowboxProduct(p) && Boolean(p.growboxSize);
@@ -53,6 +53,12 @@ export default function DisplayProducts({
               {/* Image */}
               <Link
                 href={`/products/${p.handle}`}
+                data-gtag-item-id={p.defaultVariantId ?? p.id}
+                data-gtag-item-name={p.title}
+                data-gtag-item-brand={p.manufacturer ?? undefined}
+                data-gtag-item-category={p.categories?.[0]?.title}
+                data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
+                data-gtag-item-index={index}
                 className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
               >
                 <ProductImageCarousel
@@ -91,6 +97,12 @@ export default function DisplayProducts({
                 {/* Title */}
                 <Link
                   href={`/products/${p.handle}`}
+                  data-gtag-item-id={p.defaultVariantId ?? p.id}
+                  data-gtag-item-name={p.title}
+                  data-gtag-item-brand={p.manufacturer ?? undefined}
+                  data-gtag-item-category={p.categories?.[0]?.title}
+                  data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
+                  data-gtag-item-index={index}
                   className="mt-1 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   <h2
@@ -179,7 +191,7 @@ export function DisplayProductsList({
 }: Props) {
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
-      {products?.map((p) => {
+      {products?.map((p, index) => {
         const showLowStock = getProductLowStockState(p);
         const descriptionSource = p.shortDescription?.trim() ?? "";
         const descriptionText = descriptionSource
@@ -194,6 +206,12 @@ export function DisplayProductsList({
           >
             <Link
               href={`/products/${p.handle}`}
+              data-gtag-item-id={p.defaultVariantId ?? p.id}
+              data-gtag-item-name={p.title}
+              data-gtag-item-brand={p.manufacturer ?? undefined}
+              data-gtag-item-category={p.categories?.[0]?.title}
+              data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
+              data-gtag-item-index={index}
               className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-56 md:w-64"
             >
               <div className="relative">
@@ -301,6 +319,12 @@ export function DisplayProductsList({
                   />
                   <Link
                     href={`/products/${p.handle}`}
+                    data-gtag-item-id={p.defaultVariantId ?? p.id}
+                    data-gtag-item-name={p.title}
+                    data-gtag-item-brand={p.manufacturer ?? undefined}
+                    data-gtag-item-category={p.categories?.[0]?.title}
+                    data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
+                    data-gtag-item-index={index}
                     className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     aria-label="Zum Produkt"
                     title="Zum Produkt"
