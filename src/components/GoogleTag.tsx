@@ -1,44 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Script from "next/script";
 
-const CONSENT_KEY = "smokeify_cookie_consent";
-const AGE_KEY = "smokeify_age_gate";
-
-function readCookieValue(key: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]+)`));
-  return match?.[1] ?? null;
-}
-
-function readStatus(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(key);
-  if (stored) return stored;
-  const fromCookie = readCookieValue(key);
-  if (fromCookie) {
-    window.localStorage.setItem(key, fromCookie);
-  }
-  return fromCookie;
-}
-
-function canLoadAnalytics(): boolean {
-  const consent = readStatus(CONSENT_KEY);
-  const ageGate = readStatus(AGE_KEY);
-  return consent === "accepted" && ageGate === "verified";
-}
+import { canUseAnalytics } from "@/lib/gtag";
 
 export default function GoogleTag() {
   const googleTagId = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID;
   const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
-  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     if (!googleTagId && !googleAdsId) return;
-    setEnabled(canLoadAnalytics());
-
-    const handler = () => setEnabled(canLoadAnalytics());
+    const handler = () => {
+      const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
+      if (typeof gtag !== "function") return;
+      const granted = canUseAnalytics();
+      gtag("consent", "update", {
+        ad_storage: granted ? "granted" : "denied",
+        analytics_storage: granted ? "granted" : "denied",
+        ad_user_data: granted ? "granted" : "denied",
+        ad_personalization: granted ? "granted" : "denied",
+      });
+    };
+    handler();
     window.addEventListener("cookie-consent-accepted", handler);
     window.addEventListener("age-gate-verified", handler);
     window.addEventListener("storage", handler);
@@ -49,7 +33,7 @@ export default function GoogleTag() {
     };
   }, [googleAdsId, googleTagId]);
 
-  if ((!googleTagId && !googleAdsId) || !enabled) return null;
+  if (!googleTagId && !googleAdsId) return null;
 
   const primaryId = googleTagId ?? googleAdsId;
 
@@ -64,6 +48,12 @@ export default function GoogleTag() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){window.dataLayer.push(arguments);}
           gtag("js", new Date());
+          gtag("consent", "default", {
+            ad_storage: "denied",
+            analytics_storage: "denied",
+            ad_user_data: "denied",
+            ad_personalization: "denied",
+          });
           ${googleTagId ? `gtag("config", "${googleTagId}");` : ""}
           ${googleAdsId ? `gtag("config", "${googleAdsId}");` : ""}
         `}
