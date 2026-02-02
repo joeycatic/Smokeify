@@ -35,7 +35,12 @@ export async function GET(request: Request) {
       title: string;
       images: Array<{ url: string; altText: string | null }>;
       categories: Array<{ category: { handle: string | null; name: string | null } }>;
-      variants: Array<{ id: string; priceCents: number; inventory: { quantityOnHand: number | null; reserved: number | null } | null }>;
+      variants: Array<{
+        id: string;
+        priceCents: number;
+        lowStockThreshold: number;
+        inventory: { quantityOnHand: number | null; reserved: number | null } | null;
+      }>;
       growboxSize: string | null;
       lightSize: string | null;
       airSystemDiameterMm: number | null;
@@ -70,6 +75,16 @@ export async function GET(request: Request) {
         return min;
       }, null as (typeof product.variants)[number] | null);
       const variantForCart = cheapestAvailable ?? cheapestOverall;
+      const lowStock = product.variants.some((variant) => {
+        const availability = getAvailability(
+          variant.inventory?.quantityOnHand ?? 0,
+          variant.inventory?.reserved ?? 0,
+        );
+        return (
+          availability > 0 &&
+          availability <= (variant.lowStockThreshold ?? 0)
+        );
+      });
       const priceSource = cheapestAvailable ?? cheapestOverall;
       const primaryImage = product.images[0] ?? null;
       const categoryTokens = product.categories.flatMap((entry) => {
@@ -85,6 +100,7 @@ export async function GET(request: Request) {
         imageUrl: primaryImage?.url ?? null,
         imageAlt: primaryImage?.altText ?? product.title,
         outOfStock: !available,
+        lowStock,
         variantId: variantForCart?.id ?? undefined,
         isSet,
         size: product.growboxSize ?? product.lightSize ?? undefined,
@@ -129,7 +145,7 @@ export async function GET(request: Request) {
           include: { category: { select: { handle: true, name: true } } },
         },
         variants: {
-          select: { id: true, priceCents: true, inventory: true },
+          select: { id: true, priceCents: true, lowStockThreshold: true, inventory: true },
           orderBy: { position: "asc" },
         },
       },
@@ -182,7 +198,7 @@ export async function GET(request: Request) {
       images: { orderBy: { position: "asc" } },
       categories: { include: { category: { select: { handle: true, name: true } } } },
       variants: {
-        select: { id: true, priceCents: true, inventory: true },
+        select: { id: true, priceCents: true, lowStockThreshold: true, inventory: true },
         orderBy: { position: "asc" },
       },
     },

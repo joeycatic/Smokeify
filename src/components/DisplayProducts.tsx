@@ -70,7 +70,7 @@ export default function DisplayProducts({
                   </span>
                 )}
                 {p.availableForSale && showLowStock && (
-                  <span className="absolute left-3 top-3 rounded-full bg-amber-100 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-amber-800 shadow">
+                  <span className="absolute left-3 top-3 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3.5 sm:py-2 sm:text-sm">
                     Geringer Bestand
                   </span>
                 )}

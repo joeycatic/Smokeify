@@ -16,6 +16,7 @@ type Option = {
   imageUrl?: string | null;
   imageAlt?: string | null;
   outOfStock?: boolean;
+  lowStock?: boolean;
   note?: string;
   size?: string;
   diameterMm?: number;
@@ -40,6 +41,7 @@ type ProductCardProps = {
   imageUrl?: string | null;
   imageAlt?: string | null;
   outOfStock?: boolean;
+  lowStock?: boolean;
   imageHeightClass?: string;
   badges?: string[];
   selected?: boolean;
@@ -317,7 +319,7 @@ function FiltersBar({
                 key={chip.id}
                 type="button"
                 onClick={() => onChipSelect?.(chip.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${hoverClasses} ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${hoverClasses} ${
                   active
                     ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-sm"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
@@ -456,7 +458,8 @@ function ProductCard({
   imageUrl,
   imageAlt,
   outOfStock,
-  imageHeightClass = "h-36 sm:h-28",
+  lowStock,
+  imageHeightClass = "h-60 sm:h-32",
   badges = [],
   selected,
   compatTone,
@@ -500,10 +503,15 @@ function ProductCard({
           const isPng = /\.png($|\?)/i.test(imageUrl);
           return (
             <div
-              className={`mb-4 w-full overflow-hidden rounded-xl ${
+              className={`relative mb-4 w-full overflow-hidden rounded-xl ${
                 isPng ? "bg-white" : "bg-neutral-100"
               } ${imageHeightClass}`}
             >
+              {lowStock && !outOfStock && (
+                <span className="absolute left-1 top-1 rounded-full bg-amber-500/90 px-4 py-2 text-[13px] font-semibold text-white shadow sm:px-2 sm:py-1 sm:text-[11px]">
+                  Niedriger Bestand
+                </span>
+              )}
               <img
                 src={imageUrl}
                 alt={imageAlt ?? title}
@@ -540,7 +548,7 @@ function ProductCard({
             {badges.slice(0, 3).map((badge) => (
               <span
                 key={badge}
-                className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+                className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                   selected
                     ? "border-white/40 text-white/80"
                     : "border-neutral-200 text-neutral-500"
@@ -556,7 +564,7 @@ function ProductCard({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {outOfStock ? (
             <span
-              className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+              className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                 selected
                   ? "border-white/30 bg-white/10 text-white"
                   : "border-red-200 bg-red-50 text-red-700"
@@ -567,7 +575,7 @@ function ProductCard({
           ) : null}
           {compatTone && (
             <span
-              className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${
+              className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                 selected
                   ? "border-white/30 bg-white/10 text-white"
                   : toneStyles[compatTone]
@@ -794,6 +802,7 @@ export default function CustomizerPage() {
   const [extrasSearch, setExtrasSearch] = useState("");
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
   const [nextButtonVisible, setNextButtonVisible] = useState(false);
+  const [hasScrolledDown, setHasScrolledDown] = useState(false);
   const nextButtonRefs = useRef<Record<StepId, HTMLButtonElement | null>>({
     size: null,
     light: null,
@@ -983,6 +992,7 @@ export default function CustomizerPage() {
       compareSizes(a[0], b[0]),
     );
   }, [sizeOptions]);
+
   const sizeGroupsWithStock = useMemo(
     () =>
       sizeGroups.filter(([, options]) =>
@@ -1114,6 +1124,7 @@ export default function CustomizerPage() {
 
   const nextStep = nextStepFor(activeStep);
   const nextButtonRef = nextButtonRefs.current[activeStep];
+  const canProceedToNextStep = nextStep ? canAccessStep(nextStep) : false;
 
   useEffect(() => {
     const target = nextButtonRefs.current[activeStep];
@@ -1130,6 +1141,13 @@ export default function CustomizerPage() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [activeStep]);
+
+  useEffect(() => {
+    const onScroll = () => setHasScrolledDown(window.scrollY > 200);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const sizeGroupOptions =
     sizeGroupKey === "all"
@@ -1596,8 +1614,9 @@ export default function CustomizerPage() {
                           price={opt.price}
                           imageUrl={opt.imageUrl ?? null}
                           imageAlt={opt.imageAlt ?? opt.label}
-                          imageHeightClass="h-52 sm:h-40 lg:h-52 xl:h-56"
+                          imageHeightClass="h-72 sm:h-52 lg:h-64 xl:h-72"
                           outOfStock={opt.outOfStock}
+                          lowStock={opt.lowStock}
                           badges={getOptionBadges(opt)}
                           selected={sizeId === opt.id}
                           onSelect={() =>
@@ -1681,6 +1700,7 @@ export default function CustomizerPage() {
                                 imageUrl={opt.imageUrl ?? null}
                                 imageAlt={opt.imageAlt ?? opt.label}
                                 outOfStock={opt.outOfStock}
+                                lowStock={opt.lowStock}
                                 badges={getOptionBadges(opt)}
                                 selected={lightIds.includes(opt.id)}
                                 compatTone={compatible ? "good" : "bad"}
@@ -1784,8 +1804,9 @@ export default function CustomizerPage() {
                               price={opt.price}
                               imageUrl={opt.imageUrl ?? null}
                               imageAlt={opt.imageAlt ?? opt.label}
-                              imageHeightClass="h-44 sm:h-32"
+                              imageHeightClass="h-64 sm:h-44"
                               outOfStock={opt.outOfStock}
+                              lowStock={opt.lowStock}
                               badges={getOptionBadges(opt)}
                               selected={ventIds.includes(opt.id)}
                               compatTone={compatible ? "good" : "bad"}
@@ -1912,6 +1933,8 @@ export default function CustomizerPage() {
                                       imageUrl={opt.imageUrl ?? null}
                                       imageAlt={opt.imageAlt ?? opt.label}
                                       badges={getOptionBadges(opt)}
+                                      outOfStock={opt.outOfStock}
+                                      lowStock={opt.lowStock}
                                       selected={active}
                                       onSelect={() =>
                                         setExtras((prev) =>
@@ -2066,21 +2089,42 @@ export default function CustomizerPage() {
         selectedCount={selectedCount}
         onOpen={() => setMobileSummaryOpen(true)}
       />
-      {nextStep && nextButtonRef && !nextButtonVisible && (
-        <button
-          type="button"
-          onClick={() =>
-            nextButtonRef.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-            })
-          }
-          className="fixed bottom-24 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f3e36] text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white lg:hidden"
-          aria-label="Nächster Schritt"
-        >
-          ↓
-        </button>
-      )}
+      {nextStep &&
+        nextButtonRef &&
+        !nextButtonVisible &&
+        !mobileSummaryOpen && (
+          <div className="fixed bottom-24 right-4 z-40 flex flex-col items-end gap-2 lg:hidden">
+            {hasScrolledDown && (
+              <button
+                type="button"
+                onClick={() =>
+                  nextButtonRef.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  })
+                }
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2f3e36] text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                aria-label="Nächster Schritt"
+              >
+                ↓
+              </button>
+            )}
+            {selectedCount > 0 && canProceedToNextStep && (
+              <button
+                type="button"
+                onClick={() =>
+                  nextButtonRef.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  })
+                }
+                className="flex items-center justify-center rounded-full bg-[#2f3e36] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Nächster Schritt
+              </button>
+            )}
+          </div>
+        )}
 
       {mobileSummaryOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
