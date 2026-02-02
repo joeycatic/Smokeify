@@ -30,6 +30,11 @@ const resolveImageUrl = (images: Array<{ url: string }>) => {
   return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 };
 
+const buildItemId = (productHandle: string, variantId: string, sku?: string | null) => {
+  const base = sku?.trim() || `${productHandle}-${variantId.slice(0, 8)}`;
+  return base.length > 50 ? base.slice(0, 50) : base;
+};
+
 export async function GET() {
   const products = await prisma.product.findMany({
     where: { status: "ACTIVE" },
@@ -95,10 +100,11 @@ export async function GET() {
         const price = escapeXml(formatPrice(variant.priceCents / 100));
         const sku = variant.sku?.trim() ?? "";
         const identifierExists = sku || brandRaw ? "yes" : "no";
+        const itemId = buildItemId(product.handle, variant.id, sku);
 
         return [
           "<item>",
-          `<g:id>${escapeXml(sku || variant.id)}</g:id>`,
+          `<g:id>${escapeXml(itemId)}</g:id>`,
           `<g:item_group_id>${escapeXml(product.id)}</g:item_group_id>`,
           `<title>${escapeXml(variantTitle)}</title>`,
           `<description>${description}</description>`,
