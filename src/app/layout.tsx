@@ -62,6 +62,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head />
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
         <Providers>{children}</Providers>
       </body>
