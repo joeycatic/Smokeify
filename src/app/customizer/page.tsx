@@ -701,7 +701,7 @@ function SetupSidebar({
           type="button"
           onClick={onPrimary}
           disabled={saving}
-          className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90 hover:shadow-sm disabled:opacity-60"
+          className="w-full rounded-xl bg-neutral-200 px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:bg-neutral-300 hover:shadow-sm disabled:opacity-60"
         >
           {saving ? "Speichern..." : saved ? "Gespeichert" : "Setup speichern"}
         </button>
@@ -814,17 +814,23 @@ export default function CustomizerPage() {
     "idle" | "loading" | "ok" | "error"
   >("idle");
   const [cartActionMessage, setCartActionMessage] = useState("");
-  const appliedQueryRef = useRef(false);
+  const appliedQueryRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (appliedQueryRef.current) return;
+    const queryKey = searchParams.toString();
+    if (appliedQueryRef.current === queryKey) return;
     const sizeParam = searchParams.get("sizeId");
     const lightParam = searchParams.get("lightId");
     const ventParam = searchParams.get("ventId");
     const extrasParam = searchParams.get("extras");
+    const sourceParam = searchParams.get("source");
 
     if (sizeParam) setSizeId(sizeParam);
-    if (lightParam) {
+    if (sourceParam === "pdp") {
+      setLightIds([]);
+      setVentIds([]);
+      setExtras([]);
+    } else if (lightParam) {
       setLightIds(
         lightParam
           .split(",")
@@ -832,7 +838,7 @@ export default function CustomizerPage() {
           .filter(Boolean),
       );
     }
-    if (ventParam) {
+    if (sourceParam !== "pdp" && ventParam) {
       setVentIds(
         ventParam
           .split(",")
@@ -840,7 +846,7 @@ export default function CustomizerPage() {
           .filter(Boolean),
       );
     }
-    if (extrasParam) {
+    if (sourceParam !== "pdp" && extrasParam) {
       setExtras(
         extrasParam
           .split(",")
@@ -848,10 +854,14 @@ export default function CustomizerPage() {
           .filter(Boolean),
       );
     }
-    if (sizeParam || lightParam || ventParam || extrasParam) {
+    if (sourceParam === "pdp") {
+      setActiveStep("size");
+    } else if (lightParam || ventParam || extrasParam) {
       setActiveStep("check");
+    } else if (sizeParam) {
+      setActiveStep("size");
     }
-    appliedQueryRef.current = true;
+    appliedQueryRef.current = queryKey;
   }, [searchParams]);
 
   useEffect(() => {
@@ -1009,11 +1019,18 @@ export default function CustomizerPage() {
       availableGroups[0]?.[0] ??
       sizeKeyFrom(sizeOptions[0].size ?? sizeOptions[0].label);
     if (!firstGroupKey) return;
-    setSizeGroupKey((prev) => prev ?? firstGroupKey);
+    const selectedOption = sizeOptions.find((opt) => opt.id === sizeId);
+    const selectedGroupKey = sizeKeyFrom(
+      selectedOption?.size ?? selectedOption?.label,
+    );
+    if (selectedGroupKey && sizeGroupKey !== selectedGroupKey) {
+      setSizeGroupKey(selectedGroupKey);
+    } else {
+      setSizeGroupKey((prev) => prev ?? firstGroupKey);
+    }
+    const resolvedGroupKey = selectedGroupKey ?? sizeGroupKey ?? firstGroupKey;
     const groupOptions =
-      sizeGroups.find(
-        ([key]) => key === (sizeGroupKey ?? firstGroupKey),
-      )?.[1] ?? sizeOptions;
+      sizeGroups.find(([key]) => key === resolvedGroupKey)?.[1] ?? sizeOptions;
     setSizeId((prev) => {
       if (!prev) return prev;
       const selected = sizeOptions.find((opt) => opt.id === prev);

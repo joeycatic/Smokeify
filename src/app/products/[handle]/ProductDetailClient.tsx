@@ -79,7 +79,12 @@ export default function ProductDetailClient({
       shortDescription?: string | null;
       manufacturer?: string | null;
       growboxSize?: string | null;
-      categories?: Array<{ handle: string; title: string; parentId?: string | null }>;
+      categories?: Array<{
+        handle: string;
+        title: string;
+        parentId?: string | null;
+        parent?: { handle: string; title: string } | null;
+      }>;
     };
   productGroupItems?: Array<{
     id: string;
@@ -268,6 +273,13 @@ export default function ProductDetailClient({
       const title = category.title.toLowerCase();
       return handle === "vaporizer" || title === "vaporizer";
     })
+  );
+  const isGrowboxProduct = Boolean(
+    product.categories?.some((category) => {
+      const handle = category.handle?.toLowerCase() ?? "";
+      const parentHandle = category.parent?.handle?.toLowerCase() ?? "";
+      return handle === "growboxen" || parentHandle === "growboxen";
+    }),
   );
 
   const startCheckout = async () => {
@@ -586,7 +598,7 @@ export default function ProductDetailClient({
                     setTimeout(() => setToast(null), 1500);
                   }
                 }}
-                className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#0f2f44] via-[#0b4f6c] to-[#1282a2] px-4 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sky-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   addedPulse ? "scale-[1.02]" : "scale-100"
                 }`}
               >
@@ -602,7 +614,7 @@ export default function ProductDetailClient({
               type="button"
               onClick={startCheckout}
               disabled={checkoutStatus === "loading"}
-              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-black/25 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               {checkoutStatus === "loading" ? (
                 <span className="flex items-center gap-2">
@@ -610,8 +622,23 @@ export default function ProductDetailClient({
                   Weiterleitung...
                 </span>
               ) : (
-                "Zur Kasse"
+                "Jetzt kaufen"
               )}
+            </button>
+          ) : null}
+          {isGrowboxProduct ? (
+            <button
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams({
+                  sizeId: product.id,
+                  source: "pdp",
+                });
+                router.push(`/customizer?${params.toString()}`);
+              }}
+              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg border border-emerald-900/30 bg-white px-6 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-900/50 hover:shadow-emerald-900/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            >
+              Selber konfigurieren
             </button>
           ) : null}
 
