@@ -13,6 +13,17 @@ export type AddedItem = {
   price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
+  variantChoices?: Array<{
+    id: string;
+    title: string;
+    available: boolean;
+    options: Array<{ name: string; value: string }>;
+  }>;
+  confirmAdd?: (payload: {
+    variantId: string;
+    label?: string;
+    options?: Array<{ name: string; value: string }>;
+  }) => Promise<boolean>;
 };
 
 type CartCtx = {
@@ -215,9 +226,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       openAddedModal: (item: AddedItem) => {
         setAddedItem(item);
         setAddedOpen(true);
-        window.dispatchEvent(
-          new CustomEvent<AddedItem>("cart:item-added", { detail: item })
-        );
+        if (!item.confirmAdd) {
+          window.dispatchEvent(
+            new CustomEvent<AddedItem>("cart:item-added", { detail: item })
+          );
+        }
       },
       closeAddedModal: () => setAddedOpen(false),
       openOutOfStockModal: () => setOutOfStockOpen(true),
@@ -229,7 +242,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider value={value}>
       {children}
-      {!isMobile && (
+      {(!isMobile || addedItem?.confirmAdd) && (
         <AddedToCartModal
           open={addedOpen}
           item={addedItem}

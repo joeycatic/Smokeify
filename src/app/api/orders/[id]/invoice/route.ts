@@ -74,7 +74,7 @@ const buildInvoiceHtml = (order: {
 
         <div class="section">
           <strong>Verkäufer</strong>
-          <div>Somkeify</div>
+          <div>Smokeify</div>
           <div>Brinkeweg 106a</div>
           <div>33758 Schloß Holte Stukenbrock</div>
           <div>Deutschland</div>

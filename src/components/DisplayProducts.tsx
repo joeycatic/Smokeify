@@ -316,6 +316,7 @@ export function DisplayProductsList({
                     itemImageAlt={p.featuredImage?.altText ?? p.title}
                     itemPrice={p.priceRange?.minVariantPrice}
                     itemQuantity={1}
+                    itemHandle={p.handle}
                   />
                   <Link
                     href={`/products/${p.handle}`}
