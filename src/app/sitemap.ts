@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { seoPages } from "@/lib/seoPages";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -21,5 +22,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: toUrl("/pages/return"), lastModified: now },
     { url: toUrl("/pages/imprint"), lastModified: now },
     { url: toUrl("/pages/faq"), lastModified: now },
+    ...seoPages.map((page) => ({
+      url: toUrl(`/${page.slugParts.join("/")}`),
+      lastModified: now,
+    })),
   ];
 }

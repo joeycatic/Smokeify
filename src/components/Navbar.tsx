@@ -36,6 +36,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { seoPages } from "@/lib/seoPages";
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -65,6 +66,28 @@ const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
     price: Number(line.merchandise.price.amount),
     quantity: line.quantity,
   }));
+
+const seoSlugByKey = new Map<string, string>();
+seoPages.forEach((page) => {
+  if (page.slugParts.length === 1) {
+    seoSlugByKey.set(page.slugParts[0], `/${page.slugParts[0]}`);
+    return;
+  }
+  if (page.slugParts.length === 2) {
+    const parent = page.slugParts[0];
+    const child = page.slugParts[1];
+    const full = `/${parent}/${child}`;
+    seoSlugByKey.set(`${parent}/${child}`, full);
+    seoSlugByKey.set(`${parent}-${child}`, full);
+    if (parent.endsWith("en")) {
+      const singular = parent.slice(0, -2);
+      if (singular) {
+        seoSlugByKey.set(`${singular}/${child}`, full);
+        seoSlugByKey.set(`${singular}-${child}`, full);
+      }
+    }
+  }
+});
 
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
@@ -134,7 +157,11 @@ export function Navbar() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
-  const showCategoryBar = pathname === "/" || pathname?.startsWith("/products");
+  const isSeoPage = seoPages.some(
+    (page) => `/${page.slugParts.join("/")}` === pathname,
+  );
+  const showCategoryBar =
+    pathname === "/" || pathname?.startsWith("/products") || isSeoPage;
   const showMobileSearch = showCategoryBar;
   const [accountOpen, setAccountOpen] = useState(false);
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
@@ -246,6 +273,22 @@ export function Navbar() {
 
   const buildCategoryHref = (handle: string) =>
     `/products?category=${encodeURIComponent(handle)}`;
+  const buildSeoCategoryHref = (handle: string, parentHandle?: string | null) => {
+    if (parentHandle) {
+      const key = `${parentHandle}/${handle}`;
+      const slug = seoSlugByKey.get(key);
+      if (slug) return slug;
+      if (handle.startsWith(`${parentHandle}-`)) {
+        const stripped = handle.slice(parentHandle.length + 1);
+        const strippedKey = `${parentHandle}/${stripped}`;
+        const strippedSlug = seoSlugByKey.get(strippedKey);
+        if (strippedSlug) return strippedSlug;
+      }
+    }
+    const mainSlug = seoSlugByKey.get(handle);
+    if (mainSlug) return mainSlug;
+    return buildCategoryHref(handle);
+  };
 
   useEffect(() => {
     if (count === 0) return;
@@ -1438,15 +1481,18 @@ export function Navbar() {
                     className="relative group"
                   >
                     <Link
-                      href={buildCategoryHref(category.handle)}
+                      href={buildSeoCategoryHref(category.handle)}
                       onClick={() => {
-                        setCategoryNavTarget(buildCategoryHref(category.handle));
+                        setCategoryNavTarget(
+                          buildSeoCategoryHref(category.handle),
+                        );
                         setCategoryHoverLocked(true);
                       }}
                       className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
                     >
                       <span>{category.name}</span>
-                      {categoryNavTarget === buildCategoryHref(category.handle) && (
+                      {categoryNavTarget ===
+                        buildSeoCategoryHref(category.handle) && (
                         <LoadingSpinner
                           size="sm"
                           className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
@@ -1481,11 +1527,17 @@ export function Navbar() {
                               return (
                                 <Link
                                   key={child.id}
-                                  href={buildCategoryHref(child.handle)}
+                                  href={buildSeoCategoryHref(
+                                    child.handle,
+                                    category.handle,
+                                  )}
                                   onClick={() =>
                                     {
                                       setCategoryNavTarget(
-                                        buildCategoryHref(child.handle),
+                                        buildSeoCategoryHref(
+                                          child.handle,
+                                          category.handle,
+                                        ),
                                       );
                                       setCategoryHoverLocked(true);
                                     }
@@ -1499,7 +1551,10 @@ export function Navbar() {
                                     {child.name}
                                   </span>
                                   {categoryNavTarget ===
-                                    buildCategoryHref(child.handle) && (
+                                    buildSeoCategoryHref(
+                                      child.handle,
+                                      category.handle,
+                                    ) && (
                                     <LoadingSpinner
                                       size="sm"
                                       className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
