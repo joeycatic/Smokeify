@@ -52,6 +52,19 @@ const sizeKeyFrom = (value?: string | null) => {
   return `${numbers[0]}x${numbers[1]}`;
 };
 
+const buildDefaultFaq = (title: string) => [
+  {
+    question: `Worauf sollte ich bei ${title} achten?`,
+    answer:
+      "Achte auf Qualität, passende Größe/Leistung und eine saubere Verarbeitung. So stellst du sicher, dass das Produkt zuverlässig zu deinem Setup passt.",
+  },
+  {
+    question: `Gibt es Empfehlungen für den Einstieg in ${title}?`,
+    answer:
+      "Starte mit bewährten Basics und erweitere nach Bedarf. Bei Fragen helfen dir Produktdetails und Bewertungen bei der Auswahl.",
+  },
+];
+
 const filterProductsForConfig = (config: SeoPageConfig) => {
   return (product: Awaited<ReturnType<typeof getProducts>>[number]) => {
     const matchesCategoryFilter =
@@ -135,11 +148,14 @@ export default async function SeoCategoryPage({ params }: PageProps) {
     })),
   };
   const faqSchema =
-    config.faq && config.faq.length > 0
+    (config.faq && config.faq.length > 0 ? config.faq : buildDefaultFaq(config.title))
       ? {
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: config.faq.map((entry) => ({
+          mainEntity: (config.faq && config.faq.length > 0
+            ? config.faq
+            : buildDefaultFaq(config.title)
+          ).map((entry) => ({
             "@type": "Question",
             name: entry.question,
             acceptedAnswer: {
@@ -199,6 +215,7 @@ export default async function SeoCategoryPage({ params }: PageProps) {
             title={config.title}
             subtitle={config.description}
             copy={config.copy}
+            faq={config.faq && config.faq.length > 0 ? config.faq : buildDefaultFaq(config.title)}
             sizeLinks={sizeLinks}
           />
         </section>

@@ -19,6 +19,7 @@ type Props = {
   title: string;
   subtitle: string;
   copy?: string[];
+  faq?: Array<{ question: string; answer: string }>;
   sizeLinks?: Array<{ label: string; href: string; active: boolean }>;
 };
 
@@ -27,8 +28,10 @@ export default function SeoProductsClient({
   title,
   subtitle,
   copy,
+  faq,
   sizeLinks,
 }: Props) {
+  const pageSize = 24;
   const parentCategoryById = useMemo(() => {
     const map = new Map<
       string,
@@ -121,6 +124,17 @@ export default function SeoProductsClient({
         Number(Boolean(a.availableForSale)),
     );
   }, [normalizedProducts, filters]);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [filters, pageSize]);
+
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleCount),
+    [filteredProducts, visibleCount],
+  );
+  const canLoadMore = visibleCount < filteredProducts.length;
 
   const availableCategories = useMemo(() => {
     const categories = new Map<string, string>();
@@ -413,7 +427,7 @@ export default function SeoProductsClient({
       <div onClick={handleSelectItem}>
         {layout === "grid" ? (
           <DisplayProducts
-            products={filteredProducts}
+            products={visibleProducts}
             cols={isMobile ? 2 : 4}
             showManufacturer
             titleLines={3}
@@ -422,12 +436,28 @@ export default function SeoProductsClient({
           />
         ) : (
           <DisplayProductsList
-            products={filteredProducts}
+            products={visibleProducts}
             showManufacturer
             showGrowboxSize
           />
         )}
       </div>
+
+      {canLoadMore && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((prev) =>
+                Math.min(prev + pageSize, filteredProducts.length),
+              )
+            }
+            className="rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/25"
+          >
+            Mehr laden
+          </button>
+        </div>
+      )}
 
       {filteredProducts.length === 0 && (
         <div className="text-center py-16">
@@ -447,6 +477,34 @@ export default function SeoProductsClient({
             {copy.map((paragraph, index) => (
               <p key={`${paragraph.slice(0, 24)}-${index}`}>{paragraph}</p>
             ))}
+          </div>
+        </div>
+      )}
+
+      {faq && faq.length > 0 && (
+        <div className="mt-8 rounded-3xl border border-black/10 bg-white px-6 py-6 shadow-sm sm:px-10">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-lg font-semibold text-stone-900">
+              Häufige Fragen
+            </h2>
+            <div className="mt-4 space-y-3">
+              {faq.map((item, index) => (
+                <details
+                  key={`${item.question}-${index}`}
+                  className="group rounded-2xl border border-black/10 bg-white px-4 py-3"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                    <span>{item.question}</span>
+                    <span className="text-stone-400 transition group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <div className="mt-3 text-sm text-stone-600">
+                    {item.answer}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
         </div>
       )}

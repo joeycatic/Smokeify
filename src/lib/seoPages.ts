@@ -53,6 +53,23 @@ export const seoPages: SeoPageConfig[] = [
       "Wähle die Größe passend zu deinem Platz und deinem Ziel: kompakt für Einsteiger, großzügig für anspruchsvolle Setups.",
       "Robuste Materialien, saubere Verarbeitung und durchdachte Details – für langfristig zuverlässige Ergebnisse.",
     ],
+    faq: [
+      {
+        question: "Welche Growbox-Größe ist die richtige?",
+        answer:
+          "Das hängt von Platz und Ziel ab. Für den Einstieg reichen oft kompakte Größen wie 60x60 oder 80x80. Für größere Pflanzen oder mehr Ertrag eignen sich 100x100 oder mehr.",
+      },
+      {
+        question: "Brauche ich zwingend eine Growbox?",
+        answer:
+          "Eine Growbox ist nicht zwingend, bietet aber kontrolliertes Klima, weniger Geruch und bessere Lichtausnutzung. Das sorgt für stabilere Ergebnisse.",
+      },
+      {
+        question: "Welche Ausstattung ist wichtig?",
+        answer:
+          "Wichtig sind eine passende Beleuchtung, eine zuverlässige Abluft und gutes Zubehör. So bleibt Temperatur und Feuchte im idealen Bereich.",
+      },
+    ],
     categoryHandle: "growboxen",
   },
   {
