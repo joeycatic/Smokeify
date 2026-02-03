@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
 import { Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -65,6 +66,7 @@ export default function RootLayout({
       <head />
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
