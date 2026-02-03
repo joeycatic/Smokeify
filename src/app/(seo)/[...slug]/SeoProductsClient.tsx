@@ -18,6 +18,7 @@ type Props = {
   initialProducts: Product[];
   title: string;
   subtitle: string;
+  copy?: string[];
   sizeLinks?: Array<{ label: string; href: string; active: boolean }>;
 };
 
@@ -25,6 +26,7 @@ export default function SeoProductsClient({
   initialProducts,
   title,
   subtitle,
+  copy,
   sizeLinks,
 }: Props) {
   const parentCategoryById = useMemo(() => {
@@ -436,6 +438,16 @@ export default function SeoProductsClient({
           >
             Filter zurücksetzen
           </button>
+        </div>
+      )}
+
+      {copy && copy.length > 0 && (
+        <div className="mt-12 rounded-3xl border border-black/10 bg-white px-6 py-8 text-sm text-black/70 shadow-sm sm:px-10 sm:text-base">
+          <div className="mx-auto max-w-3xl space-y-4">
+            {copy.map((paragraph, index) => (
+              <p key={`${paragraph.slice(0, 24)}-${index}`}>{paragraph}</p>
+            ))}
+          </div>
         </div>
       )}
     </div>

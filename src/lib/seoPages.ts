@@ -2,6 +2,8 @@ export type SeoPageConfig = {
   slugParts: string[];
   title: string;
   description: string;
+  copy?: string[];
+  faq?: Array<{ question: string; answer: string }>;
   categoryHandle?: string;
   subcategoryHandle?: string;
   parentHandle?: string;
@@ -13,24 +15,44 @@ export const seoPages: SeoPageConfig[] = [
     slugParts: ["anzucht"],
     title: "Anzucht",
     description: "Alles für die Anzucht bei Smokeify.",
+    copy: [
+      "Starte sauber und kontrolliert: Für eine starke Anzucht zählen stabiles Klima, passende Feuchte und verlässliche Basics.",
+      "Hier findest du Equipment, das einfach zu bedienen ist und dir konstante Ergebnisse liefert – vom ersten Samen bis zur kräftigen Jungpflanze.",
+      "Wähle unkomplizierte Starterlösungen oder stelle dir dein Setup flexibel zusammen.",
+    ],
     categoryHandle: "anzucht",
   },
   {
     slugParts: ["bewaesserung"],
     title: "Bewässerung",
     description: "Bewässerungslösungen für deine Pflanzen.",
+    copy: [
+      "Gleichmäßige Bewässerung ist der Schlüssel zu gesunden Pflanzen und stressfreiem Gießen.",
+      "Ob manuell, automatisch oder als System: Wir bieten Lösungen, die zu deinem Alltag passen.",
+      "Finde das passende Setup für Größe, Topfanzahl und Pflegeaufwand.",
+    ],
     categoryHandle: "bewaesserung",
   },
   {
     slugParts: ["duenger"],
     title: "Dünger",
     description: "Dünger & Nährstoffe bei Smokeify.",
+    copy: [
+      "Premium Nährstoffe, klar verständlich – für kräftiges Wachstum und stabile Erträge.",
+      "Hier findest du abgestimmte Produkte für jede Phase, vom Start bis zur Ernte.",
+      "Einfach dosieren, zuverlässig versorgen, sichtbar bessere Resultate.",
+    ],
     categoryHandle: "duenger",
   },
   {
     slugParts: ["growboxen"],
     title: "Growboxen",
     description: "Zelte in allen Größen – perfekt für Einsteiger bis Pro-Setups.",
+    copy: [
+      "Growboxen schaffen das ideale Klima auf kleinstem Raum – kontrolliert, effizient und leise.",
+      "Wähle die Größe passend zu deinem Platz und deinem Ziel: kompakt für Einsteiger, großzügig für anspruchsvolle Setups.",
+      "Robuste Materialien, saubere Verarbeitung und durchdachte Details – für langfristig zuverlässige Ergebnisse.",
+    ],
     categoryHandle: "growboxen",
   },
   {
@@ -79,24 +101,44 @@ export const seoPages: SeoPageConfig[] = [
     slugParts: ["headshop"],
     title: "Headshop",
     description: "Headshop-Zubehör bei Smokeify.",
+    copy: [
+      "Ausgewähltes Headshop-Zubehör mit Fokus auf Qualität, Alltagstauglichkeit und Stil.",
+      "Von Klassikern bis zu modernen Essentials – alles, was dein Setup komplett macht.",
+      "Entdecke Zubehör, das langlebig ist und einfach gut aussieht.",
+    ],
     categoryHandle: "headshop",
   },
   {
     slugParts: ["licht"],
     title: "Licht",
     description: "Beleuchtung für dein Setup.",
+    copy: [
+      "Das richtige Licht entscheidet über Wachstum, Gesundheit und Ertrag.",
+      "Hier findest du effiziente Lösungen mit hoher Ausbeute, geringem Verbrauch und stabiler Performance.",
+      "Wähle Licht passend zu Fläche, Pflanzenphase und gewünschter Intensität.",
+    ],
     categoryHandle: "licht",
   },
   {
     slugParts: ["luft"],
     title: "Luft & Klima",
     description: "Abluft, Klima und Zubehör.",
+    copy: [
+      "Stabile Luftführung sorgt für gleichmäßige Bedingungen, gesunde Pflanzen und ein sauberes Klima.",
+      "Von Abluft bis Umluft – finde leise, leistungsstarke Komponenten, die zu deinem Setup passen.",
+      "Einfach kombinieren, zuverlässig betreiben, dauerhaft gute Ergebnisse.",
+    ],
     categoryHandle: "luft",
   },
   {
     slugParts: ["messen"],
     title: "Messen",
     description: "Messgeräte für dein Grow-Setup.",
+    copy: [
+      "Präzise Messwerte geben dir Kontrolle über Klima, Nährstoffe und Wasserqualität.",
+      "Mit den richtigen Tools erkennst du früh, was deine Pflanzen brauchen.",
+      "Einfach ablesen, sicher handeln, bessere Resultate.",
+    ],
     categoryHandle: "messen",
   },
   {

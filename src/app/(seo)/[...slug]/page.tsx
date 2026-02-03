@@ -13,7 +13,11 @@ const getConfig = (slugParts: string[]) => {
   return seoPageBySlug.get(slugParts.join("/")) ?? null;
 };
 
-const matchesCategory = (config: SeoPageConfig, handle: string, parent?: string) => {
+const matchesCategory = (
+  config: SeoPageConfig,
+  handle: string,
+  parent?: string,
+) => {
   const normalizedHandle = handle.toLowerCase();
   const normalizedParent = parent?.toLowerCase() ?? null;
   if (config.subcategoryHandle) {
@@ -66,6 +70,9 @@ const filterProductsForConfig = (config: SeoPageConfig) => {
   };
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const toUrl = (path: string) => `${siteUrl}${path}`;
+
 export async function generateStaticParams() {
   return seoPages.map((page) => ({ slug: page.slugParts }));
 }
@@ -89,7 +96,67 @@ export default async function SeoCategoryPage({ params }: PageProps) {
 
   const products = await getProducts(500);
   const filtered = products.filter(filterProductsForConfig(config));
-  const growboxSizes = ["60x60", "80x80", "100x100", "120x120", "150x150", "200x200"];
+  const itemList = filtered.slice(0, 20).map((product, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    url: toUrl(`/products/${product.handle}`),
+    name: product.title,
+    image: product.featuredImage?.url ?? undefined,
+  }));
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: itemList,
+  };
+  const breadcrumbs = [{ name: "Startseite", url: toUrl("/") }] as Array<{
+    name: string;
+    url: string;
+  }>;
+  if (config.parentHandle) {
+    const parentSlug = `/${config.parentHandle}`;
+    const parentTitle =
+      seoPageBySlug.get(config.parentHandle)?.title ?? config.parentHandle;
+    breadcrumbs.push({ name: parentTitle, url: toUrl(parentSlug) });
+  } else if (config.growboxSize) {
+    breadcrumbs.push({ name: "Growboxen", url: toUrl("/growboxen") });
+  }
+  breadcrumbs.push({
+    name: config.title,
+    url: toUrl(`/${config.slugParts.join("/")}`),
+  });
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbs.map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: crumb.url,
+    })),
+  };
+  const faqSchema =
+    config.faq && config.faq.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: config.faq.map((entry) => ({
+            "@type": "Question",
+            name: entry.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: entry.answer,
+            },
+          })),
+        }
+      : null;
+  const growboxSizes = [
+    "60x60",
+    "80x80",
+    "100x100",
+    "120x120",
+    "150x150",
+    "200x200",
+  ];
   const showGrowboxSizeLinks =
     config.categoryHandle === "growboxen" || config.growboxSize;
   const sizeLinks = showGrowboxSizeLinks
@@ -109,15 +176,46 @@ export default async function SeoCategoryPage({ params }: PageProps) {
 
   return (
     <PageLayout>
-      <main className="mx-auto w-full max-w-7xl px-4 pb-8 pt-2 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-6">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-2 flex flex-wrap items-center gap-2 text-xs text-stone-500"
+        >
+          {breadcrumbs.map((crumb, index) => (
+            <span key={crumb.url} className="flex items-center gap-2">
+              <a
+                href={crumb.url.replace(siteUrl, "")}
+                className="hover:text-stone-700"
+              >
+                {crumb.name}
+              </a>
+              {index < breadcrumbs.length - 1 && <span>/</span>}
+            </span>
+          ))}
+        </nav>
         <section className="mt-2">
           <SeoProductsClient
             initialProducts={filtered}
             title={config.title}
             subtitle={config.description}
+            copy={config.copy}
             sizeLinks={sizeLinks}
           />
         </section>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+        {faqSchema ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          />
+        ) : null}
       </main>
     </PageLayout>
   );
