@@ -2,12 +2,12 @@ import { PrismaClient } from "@prisma/client";
 import { pathToFileURL } from "url";
 
 const prisma = new PrismaClient();
-const RUN_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const MAX_DAILY_RUNS = 4;
 const MAX_RUNTIME_MS = Number(process.env.SUPPLIER_SYNC_MAX_MS ?? 240000);
 const MAX_PRODUCTS = Number(process.env.SUPPLIER_SYNC_MAX_PRODUCTS ?? 120);
 const REQUEST_DELAY_MS = Number(process.env.SUPPLIER_SYNC_DELAY_MS ?? 1000);
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
+const PLANTPLANET_STATUS_REGEX =
+  /<div[^>]*class=["'][^"']*status[^"']*["'][^"']*["'][^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/i;
 const TELEGRAM_MESSAGE_LIMIT = 3500;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,8 +33,11 @@ const sendTelegramMessage = async (text) => {
   }
 };
 
-const formatChangeLine = (change) =>
-  `${change.title}: ${change.previous} → ${change.next} (${change.supplier})`;
+const formatChangeLine = (change) => {
+  const diff = change.next - change.previous;
+  const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+  return `${change.supplier} ${change.title} ${change.previous} -> ${change.next} (${diffLabel})`;
+};
 
 const parseStockFromHtml = (html) => {
   const match = html.match(STATUS_REGEX);
@@ -57,7 +60,6 @@ const parseB2BHeadshopStock = (html, url) => {
   const statusText = match ? normalizeText(match[1]) : "";
   const lower = statusText.toLowerCase();
   if (/sofort\s+verf(u|ü)gbar/.test(lower)) {
-    console.log(`[b2b] ${url} -> "${statusText}" => 20`);
     return { statusText, quantity: 20, inStock: true };
   }
 
@@ -67,26 +69,49 @@ const parseB2BHeadshopStock = (html, url) => {
       .includes('itemprop="availability"') &&
     html.toLowerCase().includes("schema.org/instock");
   if (hasSchemaInStock) {
-    console.log(`[b2b] ${url} -> schema.org/InStock => 20`);
     return { statusText: statusText || "InStock", quantity: 20, inStock: true };
   }
 
   if (!match) {
-    console.log(`[b2b] No status match for ${url}`);
     return { statusText: null, quantity: null, inStock: null };
   }
 
-  console.log(`[b2b] ${url} -> "${statusText}" => 0`);
+  return { statusText, quantity: 0, inStock: false };
+};
+
+const parsePlantPlanetStock = (html, url) => {
+  const match = html.match(PLANTPLANET_STATUS_REGEX);
+  const statusText = match ? normalizeText(match[1]) : "";
+  const lower = statusText.toLowerCase();
+  if (!statusText) {
+    return { statusText: null, quantity: null, inStock: null };
+  }
+  if (lower.includes("nicht auf lager")) {
+    return { statusText, quantity: 0, inStock: false };
+  }
+  const qtyMatch = statusText.match(/(\d+)/);
+  if (qtyMatch) {
+    return { statusText, quantity: Number(qtyMatch[1]), inStock: true };
+  }
+  if (lower.includes("auf lager")) {
+    return { statusText, quantity: null, inStock: true };
+  }
   return { statusText, quantity: 0, inStock: false };
 };
 
 const parseStockForUrl = (url, html) => {
   const normalized = url.toLowerCase();
+  if (normalized.includes("plantplanet.de")) {
+    return parsePlantPlanetStock(html, url);
+  }
   if (normalized.includes("b2b-headshop.de")) {
     return parseB2BHeadshopStock(html, url);
   }
   try {
     const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("plantplanet.de")) {
+      return parsePlantPlanetStock(html, url);
+    }
     if (host.includes("b2b-headshop.de")) {
       return parseB2BHeadshopStock(html, url);
     }
@@ -96,25 +121,6 @@ const parseStockForUrl = (url, html) => {
   return parseStockFromHtml(html);
 };
 
-const shouldSkipRun = async (isDryRun) => {
-  if (isDryRun) return false;
-  if (MAX_DAILY_RUNS <= 0) return false;
-  const last = await prisma.inventoryAdjustment.findFirst({
-    where: { reason: "supplier_scrape" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-  if (!last?.createdAt) return false;
-  const lastTime = last.createdAt.getTime();
-  const age = Date.now() - lastTime;
-  if (age < RUN_INTERVAL_MS) {
-    console.log(
-      `Last run: ${last.createdAt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })} (skipping, <6h)`
-    );
-    return true;
-  }
-  return false;
-};
 
 const fetchHtml = async (url) => {
   const res = await fetch(url, {
@@ -154,9 +160,6 @@ const updateProductStock = async (product, quantity, isDryRun) => {
         previous,
         next: quantity,
       });
-      console.log(
-        `[dry-run] ${product.title} (${variantId}): ${previous} -> ${quantity}`
-      );
       updatedCount += 1;
     }
     return { updated: updatedCount, changes };
@@ -194,11 +197,6 @@ const updateProductStock = async (product, quantity, isDryRun) => {
 };
 
 export const runSupplierSync = async ({ isDryRun = false } = {}) => {
-  if (await shouldSkipRun(isDryRun)) {
-    console.log("Skipping supplier sync: already ran within 6h.");
-    return;
-  }
-
   const startedAt = Date.now();
   const deadline = startedAt + MAX_RUNTIME_MS;
 
@@ -277,12 +275,14 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
       const quantity = parsed.quantity ?? 0;
       const result = await updateProductStock(product, quantity, isDryRun);
       updated += result.updated;
-      changes.push(
-        ...result.changes.map((change) => ({
-          ...change,
-          supplier,
-        }))
-      );
+      const withSupplier = result.changes.map((change) => ({
+        ...change,
+        supplier,
+      }));
+      changes.push(...withSupplier);
+      withSupplier.forEach((change) => {
+        console.log(formatChangeLine(change));
+      });
     } catch (error) {
       console.warn(
         `[sync] Failed ${product.title}: ${error instanceof Error ? error.message : "unknown"}`
@@ -300,8 +300,10 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
     }
   }
 
+  const elapsedMs = Date.now() - startedAt;
+  const elapsedSeconds = Math.round(elapsedMs / 1000);
   console.log(
-    `Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed}`
+    `Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed} duration=${elapsedSeconds}s`
   );
 
   if (!isDryRun) {
@@ -322,6 +324,7 @@ export const runSupplierSync = async ({ isDryRun = false } = {}) => {
         : "Keine.";
     let message =
       `<b>Supplier Sync</b>\n` +
+      `Dauer: ${elapsedSeconds}s\n` +
       `Updates: ${updated}\n` +
       `Skipped: ${skipped}\n` +
       `Failed: ${failed}\n\n` +
