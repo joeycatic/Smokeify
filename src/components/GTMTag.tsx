@@ -6,6 +6,39 @@ import Script from "next/script";
 import { canUseAnalytics } from "@/lib/analytics";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "";
+const EEA_REGIONS = [
+  "AT",
+  "BE",
+  "BG",
+  "HR",
+  "CY",
+  "CZ",
+  "DK",
+  "EE",
+  "FI",
+  "FR",
+  "DE",
+  "GR",
+  "HU",
+  "IE",
+  "IT",
+  "LV",
+  "LT",
+  "LU",
+  "MT",
+  "NL",
+  "PL",
+  "PT",
+  "RO",
+  "SK",
+  "SI",
+  "ES",
+  "SE",
+  "IS",
+  "LI",
+  "NO",
+  "GB",
+];
 
 export default function GTMTag() {
   useEffect(() => {
@@ -23,11 +56,9 @@ export default function GTMTag() {
     };
     update();
     window.addEventListener("cookie-consent-accepted", update);
-    window.addEventListener("age-gate-verified", update);
     window.addEventListener("storage", update);
     return () => {
       window.removeEventListener("cookie-consent-accepted", update);
-      window.removeEventListener("age-gate-verified", update);
       window.removeEventListener("storage", update);
     };
   }, []);
@@ -41,10 +72,17 @@ export default function GTMTag() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){window.dataLayer.push(arguments);}
           gtag("consent", "default", {
+            ad_storage: "granted",
+            analytics_storage: "granted",
+            ad_user_data: "granted",
+            ad_personalization: "granted",
+          });
+          gtag("consent", "default", {
             ad_storage: "denied",
             analytics_storage: "denied",
             ad_user_data: "denied",
             ad_personalization: "denied",
+            region: ${JSON.stringify(EEA_REGIONS)},
           });
         `}
       </Script>

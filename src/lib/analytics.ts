@@ -1,7 +1,6 @@
 "use client";
 
 const CONSENT_KEY = "smokeify_cookie_consent";
-const AGE_KEY = "smokeify_age_gate";
 
 const readCookieValue = (key: string): string | null => {
   if (typeof document === "undefined") return null;
@@ -22,8 +21,7 @@ const readStatus = (key: string): string | null => {
 
 export const canUseAnalytics = (): boolean => {
   const consent = readStatus(CONSENT_KEY);
-  const ageGate = readStatus(AGE_KEY);
-  return consent === "accepted" && ageGate === "verified";
+  return consent === "accepted";
 };
 
 export const trackAnalyticsEvent = (
