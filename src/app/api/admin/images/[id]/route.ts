@@ -4,7 +4,6 @@ import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
-import bcrypt from "bcryptjs";
 
 export async function PATCH(
   request: NextRequest,
@@ -99,25 +98,6 @@ export async function DELETE(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = (await request.json().catch(() => ({}))) as {
-    adminPassword?: string;
-  };
-  const adminPassword = body.adminPassword?.trim();
-  const admin = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { passwordHash: true },
-  });
-  if (!admin?.passwordHash || !adminPassword) {
-    return NextResponse.json(
-      { error: "Passwort erforderlich." },
-      { status: 400 }
-    );
-  }
-  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
-  if (!validPassword) {
-    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
   }
 
   await prisma.productImage.delete({ where: { id } });

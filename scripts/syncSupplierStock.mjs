@@ -5,6 +5,8 @@ const prisma = new PrismaClient();
 const MAX_RUNTIME_MS = Number(process.env.SUPPLIER_SYNC_MAX_MS ?? 240000);
 const MAX_PRODUCTS = Number(process.env.SUPPLIER_SYNC_MAX_PRODUCTS ?? 120);
 const REQUEST_DELAY_MS = Number(process.env.SUPPLIER_SYNC_DELAY_MS ?? 1000);
+const PAGE_SIZE = Number(process.env.SUPPLIER_SYNC_PAGE_SIZE ?? 50);
+const START_AFTER_ID = process.env.SUPPLIER_SYNC_START_AFTER_ID ?? null;
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 const PLANTPLANET_STATUS_REGEX =
   /<div[^>]*class=["'][^"']*status[^"']*["'][^"']*["'][^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/i;
@@ -198,110 +200,140 @@ const updateProductStock = async (product, quantity, isDryRun) => {
 
 export const runSupplierSync = async ({ isDryRun = false } = {}) => {
   const startedAt = Date.now();
-  const deadline = startedAt + MAX_RUNTIME_MS;
-
-  const products = await prisma.product.findMany({
-    where: {
-      status: "ACTIVE",
-      sellerUrl: { not: null },
-    },
-    select: {
-      id: true,
-      title: true,
-      sellerUrl: true,
-      variants: {
-        select: {
-          id: true,
-          inventory: { select: { quantityOnHand: true } },
-        },
-      },
-    },
-  });
-
-  const scopedProducts =
-    Number.isFinite(MAX_PRODUCTS) && MAX_PRODUCTS > 0
-      ? products.slice(0, MAX_PRODUCTS)
-      : products;
+  const deadline =
+    Number.isFinite(MAX_RUNTIME_MS) && MAX_RUNTIME_MS > 0
+      ? startedAt + MAX_RUNTIME_MS
+      : null;
 
   let updated = 0;
   let skipped = 0;
   let failed = 0;
   const changes = [];
   const unavailable = [];
+  let processed = 0;
+  let cursorId = START_AFTER_ID;
+  let timedOut = false;
 
-  for (const product of scopedProducts) {
-    if (Date.now() >= deadline) {
-      console.warn(
-        `[sync] Time budget hit after ${Math.round(
-          (Date.now() - startedAt) / 1000
-        )}s, stopping early.`
-      );
+  const remainingLimit =
+    Number.isFinite(MAX_PRODUCTS) && MAX_PRODUCTS > 0 ? MAX_PRODUCTS : null;
+
+  while (true) {
+    if (deadline !== null && Date.now() >= deadline) {
+      timedOut = true;
       break;
     }
-    const url = product.sellerUrl;
-    if (!url) {
-      skipped += 1;
-      continue;
-    }
-    let supplier = "supplier";
-    try {
+    const remaining = remainingLimit ? remainingLimit - processed : null;
+    if (remaining !== null && remaining <= 0) break;
+    const take =
+      remaining !== null ? Math.min(PAGE_SIZE, remaining) : PAGE_SIZE;
+
+    const products = await prisma.product.findMany({
+      where: {
+        status: "ACTIVE",
+        sellerUrl: { not: null },
+      },
+      orderBy: { id: "asc" },
+      take,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      select: {
+        id: true,
+        title: true,
+        sellerUrl: true,
+        variants: {
+          select: {
+            id: true,
+            inventory: { select: { quantityOnHand: true } },
+          },
+        },
+      },
+    });
+
+    if (!products.length) break;
+
+    for (const product of products) {
+      if (deadline !== null && Date.now() >= deadline) {
+        timedOut = true;
+        break;
+      }
+      const url = product.sellerUrl;
+      if (!url) {
+        skipped += 1;
+        processed += 1;
+        continue;
+      }
+      let supplier = "supplier";
       try {
-        supplier = new URL(url).hostname.toLowerCase();
-      } catch {
-        supplier = "supplier";
-      }
-      const html = await fetchHtml(url);
-      const parsed = parseStockForUrl(url, html);
-      if (parsed.statusText === null) {
-        console.warn(`[sync] Missing status span for ${product.title}`);
+        try {
+          supplier = new URL(url).hostname.toLowerCase();
+        } catch {
+          supplier = "supplier";
+        }
+        const html = await fetchHtml(url);
+        const parsed = parseStockForUrl(url, html);
+        if (parsed.statusText === null) {
+          console.warn(`[sync] Missing status span for ${product.title}`);
+          unavailable.push({
+            title: product.title,
+            url,
+            reason: "Status nicht gefunden",
+          });
+          failed += 1;
+          processed += 1;
+          continue;
+        }
+        if (parsed.inStock && parsed.quantity === null) {
+          console.warn(
+            `[sync] Missing quantity for ${product.title}: ${parsed.statusText}`
+          );
+          unavailable.push({
+            title: product.title,
+            url,
+            reason: "Menge nicht gefunden",
+          });
+          failed += 1;
+          processed += 1;
+          continue;
+        }
+        const quantity = parsed.quantity ?? 0;
+        const result = await updateProductStock(product, quantity, isDryRun);
+        updated += result.updated;
+        const withSupplier = result.changes.map((change) => ({
+          ...change,
+          supplier,
+        }));
+        changes.push(...withSupplier);
+        withSupplier.forEach((change) => {
+          console.log(formatChangeLine(change));
+        });
+      } catch (error) {
+        console.warn(
+          `[sync] Failed ${product.title}: ${error instanceof Error ? error.message : "unknown"}`
+        );
         unavailable.push({
           title: product.title,
           url,
-          reason: "Status nicht gefunden",
+          reason: error instanceof Error ? error.message : "unknown",
+          supplier,
         });
         failed += 1;
-        continue;
       }
-      if (parsed.inStock && parsed.quantity === null) {
-        console.warn(`[sync] Missing quantity for ${product.title}: ${parsed.statusText}`);
-        unavailable.push({
-          title: product.title,
-          url,
-          reason: "Menge nicht gefunden",
-        });
-        failed += 1;
-        continue;
+      processed += 1;
+      if (REQUEST_DELAY_MS > 0) {
+        await sleep(REQUEST_DELAY_MS);
       }
-      const quantity = parsed.quantity ?? 0;
-      const result = await updateProductStock(product, quantity, isDryRun);
-      updated += result.updated;
-      const withSupplier = result.changes.map((change) => ({
-        ...change,
-        supplier,
-      }));
-      changes.push(...withSupplier);
-      withSupplier.forEach((change) => {
-        console.log(formatChangeLine(change));
-      });
-    } catch (error) {
-      console.warn(
-        `[sync] Failed ${product.title}: ${error instanceof Error ? error.message : "unknown"}`
-      );
-      unavailable.push({
-        title: product.title,
-        url,
-        reason: error instanceof Error ? error.message : "unknown",
-        supplier,
-      });
-      failed += 1;
     }
-    if (REQUEST_DELAY_MS > 0) {
-      await sleep(REQUEST_DELAY_MS);
-    }
+
+    cursorId = products[products.length - 1]?.id ?? cursorId;
+    if (timedOut) break;
   }
 
   const elapsedMs = Date.now() - startedAt;
   const elapsedSeconds = Math.round(elapsedMs / 1000);
+  if (timedOut) {
+    console.warn(
+      `[sync] Time budget hit after ${elapsedSeconds}s, stopping early. lastId=${cursorId ?? "none"} processed=${processed}`
+    );
+  }
   console.log(
     `Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed} duration=${elapsedSeconds}s`
   );

@@ -158,6 +158,37 @@ export async function getProducts(limit = 50): Promise<Product[]> {
   return getProductsCached(limit);
 }
 
+const getProductHandlesCached = unstable_cache(
+  async (): Promise<string[]> => {
+    const handles: string[] = [];
+    const batchSize = 500;
+    let cursorId: string | null = null;
+
+    while (true) {
+      const products = await prisma.product.findMany({
+        where: { status: "ACTIVE" },
+        orderBy: { id: "asc" },
+        take: batchSize,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+        select: { id: true, handle: true },
+      });
+
+      if (!products.length) break;
+
+      handles.push(...products.map((product) => product.handle));
+      cursorId = products[products.length - 1]?.id ?? null;
+    }
+
+    return handles;
+  },
+  ["catalog-product-handles"],
+  { revalidate: 300 },
+);
+
+export async function getProductHandlesForSitemap(): Promise<string[]> {
+  return getProductHandlesCached();
+}
+
 export async function getProductByHandle(handle: string) {
   const product = await prisma.product.findUnique({
     where: { handle },

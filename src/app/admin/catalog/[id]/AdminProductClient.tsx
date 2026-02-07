@@ -619,13 +619,11 @@ export default function AdminProductClient({
     });
   };
 
-  const deleteImage = async (id: string, adminPassword: string) => {
+  const deleteImage = async (id: string) => {
     setMessage("");
     setError("");
     const res = await fetch(`/api/admin/images/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminPassword }),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -1887,11 +1885,7 @@ export default function AdminProductClient({
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        const adminPassword = window.prompt("Admin-Passwort");
-                        if (!adminPassword) return;
-                        void deleteImage(image.id, adminPassword.trim());
-                      }}
+                      onClick={() => void deleteImage(image.id)}
                       className="flex h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                       aria-label="Delete image"
                     >
