@@ -165,13 +165,14 @@ const getProductHandlesCached = unstable_cache(
     let cursorId: string | null = null;
 
     while (true) {
-      const products = await prisma.product.findMany({
+      const products: Array<{ id: string; handle: string }> =
+        await prisma.product.findMany({
         where: { status: "ACTIVE" },
         orderBy: { id: "asc" },
         take: batchSize,
         ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
         select: { id: true, handle: true },
-      });
+        });
 
       if (!products.length) break;
 
