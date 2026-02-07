@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import type { AddedItem } from "@/components/CartProvider";
 
@@ -10,8 +12,17 @@ type Props = {
   onClose: () => void;
 };
 
+type Recommendation = {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  price: { amount: string; currencyCode: string } | null;
+};
+
 const formatVariantLabel = (
-  variant: NonNullable<AddedItem["variantChoices"]>[number]
+  variant: NonNullable<AddedItem["variantChoices"]>[number],
 ) => {
   if (!variant.options.length) return variant.title;
   const parts = variant.options
@@ -23,17 +34,27 @@ const formatVariantLabel = (
 const isMeaningfulVariantTitle = (title: string) =>
   !/^(default|default title)$/i.test(title.trim());
 
+const formatPrice = (amount: string, currencyCode: string) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: 2,
+  }).format(Number(amount));
+
 export default function AddedToCartModal({ open, item, onClose }: Props) {
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    null,
+  );
   const [variantError, setVariantError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(
-    {}
-  );
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, string>
+  >({});
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
-  const optionGroups = useMemo(() => {
+  const optionGroups = (() => {
     if (!item?.variantChoices || item.variantChoices.length !== 1) return [];
     const options = item.variantChoices[0]?.options ?? [];
     const groups = new Map<string, Set<string>>();
@@ -47,22 +68,52 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
       name,
       values: Array.from(values),
     }));
-  }, [item?.variantChoices]);
+  })();
 
   const hasOptionGroups = optionGroups.length > 0;
 
   const needsVariantSelection = Boolean(
     item?.variantChoices &&
-      item.confirmAdd &&
-      (hasOptionGroups ||
-        item.variantChoices.some(
-          (choice) =>
-            choice.options.length > 0 || isMeaningfulVariantTitle(choice.title)
-        ))
+    item.confirmAdd &&
+    (hasOptionGroups ||
+      item.variantChoices.some(
+        (choice) =>
+          choice.options.length > 0 || isMeaningfulVariantTitle(choice.title),
+      )),
   );
 
   useEffect(() => {
     if (!open) return;
+    const handle = item?.productHandle?.trim();
+    if (!handle) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRecommendations([]);
+      return;
+    }
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/recommendations?handle=${encodeURIComponent(handle)}`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) {
+          setRecommendations([]);
+          return;
+        }
+        const data = (await res.json()) as { results?: Recommendation[] };
+        setRecommendations(data.results ?? []);
+      } catch {
+        setRecommendations([]);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [open, item?.productHandle]);
+
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVariantError(null);
     setConfirming(false);
     setConfirmed(false);
@@ -88,16 +139,21 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
     }
   }, [open, item, optionGroups]);
 
-  const variantLabelMap = useMemo(() => {
+  const variantLabelMap = (() => {
     if (!item?.variantChoices) return new Map<string, string>();
     return new Map(
-      item.variantChoices.map((variant) => [variant.id, formatVariantLabel(variant)])
+      item.variantChoices.map((variant) => [
+        variant.id,
+        formatVariantLabel(variant),
+      ]),
     );
-  }, [item?.variantChoices]);
+  })();
 
   if (!open || !item) return null;
 
-  const displayTitle = selectedLabel ? `${item.title} · ${selectedLabel}` : item.title;
+  const displayTitle = selectedLabel
+    ? `${item.title} · ${selectedLabel}`
+    : item.title;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -122,14 +178,14 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
 
         <div className="mt-4 flex items-center gap-4">
           {item.imageUrl ? (
-            <img
+            <Image
               src={item.imageUrl}
               alt={item.imageAlt ?? item.title}
-              className="h-20 w-20 rounded-md object-cover"
-              loading="lazy"
-              decoding="async"
               width={80}
               height={80}
+              className="h-20 w-20 rounded-md object-cover"
+              loading="lazy"
+              quality={70}
             />
           ) : (
             <div className="h-20 w-20 rounded-md bg-stone-100" />
@@ -225,9 +281,7 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
                 disabled={
                   confirming ||
                   (hasOptionGroups
-                    ? optionGroups.some(
-                        (group) => !selectedOptions[group.name]
-                      )
+                    ? optionGroups.some((group) => !selectedOptions[group.name])
                     : !selectedVariantId)
                 }
                 onClick={async () => {
@@ -250,8 +304,10 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
                         .filter((opt) => opt.value)
                     : undefined;
                   const label = hasOptionGroups
-                    ? options?.map((opt) => `${opt.name}: ${opt.value}`).join(" · ")
-                    : variantLabelMap.get(variantId) ?? null;
+                    ? options
+                        ?.map((opt) => `${opt.name}: ${opt.value}`)
+                        .join(" · ")
+                    : (variantLabelMap.get(variantId) ?? null);
                   const ok = await item.confirmAdd({
                     variantId,
                     label: label ?? undefined,
@@ -272,6 +328,70 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
               </button>
             </div>
           </div>
+        )}
+
+        {!needsVariantSelection && (
+          <>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Einkauf fortsetzen
+              </button>
+              <Link
+                href="/cart"
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Zur Kasse
+              </Link>
+            </div>
+
+            {recommendations.length > 0 && (
+              <div className="mt-5 border-t border-black/10 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Das könnte dir auch gefallen
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {recommendations.slice(0, 4).map((rec) => (
+                    <Link
+                      key={rec.id}
+                      href={`/products/${rec.handle}`}
+                      onClick={onClose}
+                      className="rounded-lg border border-black/10 bg-white p-2 transition hover:border-black/20"
+                    >
+                      {rec.imageUrl ? (
+                        <Image
+                          src={rec.imageUrl}
+                          alt={rec.imageAlt ?? rec.title}
+                          width={140}
+                          height={80}
+                          className="h-20 w-full rounded-md object-cover"
+                          loading="lazy"
+                          quality={70}
+                        />
+                      ) : (
+                        <div className="h-20 w-full rounded-md bg-stone-100" />
+                      )}
+                      <p className="mt-2 line-clamp-2 text-xs font-semibold text-stone-800">
+                        {rec.title}
+                      </p>
+                      {rec.price && (
+                        <p className="mt-1 text-xs text-stone-600">
+                          {formatPrice(
+                            rec.price.amount,
+                            rec.price.currencyCode,
+                          )}
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

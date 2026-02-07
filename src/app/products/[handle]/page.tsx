@@ -1,5 +1,6 @@
 // src/app/products/[handle]/page.tsx
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getProductByHandle } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import ProductDetailClient from "./ProductDetailClient";
@@ -7,6 +8,58 @@ import ProductImageCarousel from "./ProductImageCarousel";
 import ProductReviews from "./ProductReviews";
 import PageLayout from "@/components/PageLayout";
 import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
+
+const stripHtml = (value: string) =>
+  value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ handle: string }>;
+}): Promise<Metadata> {
+  const { handle } = await params;
+  const product = await getProductByHandle(handle);
+  if (!product) {
+    return {};
+  }
+
+  const title = `${product.title} | Smokeify`;
+  const description =
+    (product.shortDescription?.trim() ||
+      stripHtml(product.description || "").slice(0, 160) ||
+      "Produktdetails bei Smokeify")?.trim();
+  const canonical = `/products/${product.handle}`;
+  const image = product.images?.[0]?.url ?? null;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: {
+        "de-DE": canonical,
+        "x-default": canonical,
+      },
+    },
+    openGraph: {
+      type: "website",
+      url: `${siteUrl}${canonical}`,
+      title,
+      description,
+      images: image ? [{ url: image, alt: product.title }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
 export default async function ProductDetailPage({
   params,
@@ -26,6 +79,58 @@ export default async function ProductDetailPage({
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
+  const canonicalPath = `/products/${product.handle}`;
+  const canonicalUrl = `${siteUrl}${canonicalPath}`;
+  const offers = product.variants.slice(0, 25).map((variant) => ({
+    "@type": "Offer",
+    priceCurrency: variant.price.currencyCode,
+    price: Number(variant.price.amount),
+    availability: variant.availableForSale
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
+    itemCondition: "https://schema.org/NewCondition",
+    url: canonicalUrl,
+    sku: variant.id,
+  }));
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    image: images.map((image) => image.url).slice(0, 10),
+    description: stripHtml(product.shortDescription ?? product.description ?? ""),
+    sku: product.id,
+    brand: product.manufacturer
+      ? {
+          "@type": "Brand",
+          name: product.manufacturer,
+        }
+      : undefined,
+    offers,
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Startseite",
+        item: siteUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Produkte",
+        item: `${siteUrl}/products`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.title,
+        item: canonicalUrl,
+      },
+    ],
+  };
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
   const showAgeNotice = Boolean(
     product.categories?.some((category) => {
@@ -106,6 +211,14 @@ export default async function ProductDetailPage({
         <div className="mt-12">
           <ProductReviews productId={product.id} />
         </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
       </main>
     </PageLayout>
   );

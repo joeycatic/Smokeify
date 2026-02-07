@@ -250,19 +250,33 @@ export function Navbar() {
 
   useEffect(() => {
     if (!isMobile || !mobileAddedOpen) return;
+    let rafId: number | null = null;
     const updateAnchor = () => {
       const rect = cartRef.current?.getBoundingClientRect();
       if (!rect) return;
       const right = Math.max(0, window.innerWidth - rect.right);
       const top = rect.bottom + 8;
-      setMobileAddedAnchor({ top, right });
+      setMobileAddedAnchor((prev) => {
+        if (prev && prev.top === top && prev.right === right) return prev;
+        return { top, right };
+      });
+    };
+    const scheduleAnchorUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateAnchor();
+      });
     };
     updateAnchor();
-    window.addEventListener("resize", updateAnchor);
-    window.addEventListener("scroll", updateAnchor, { passive: true });
+    window.addEventListener("resize", scheduleAnchorUpdate);
+    window.addEventListener("scroll", scheduleAnchorUpdate, { passive: true });
     return () => {
-      window.removeEventListener("resize", updateAnchor);
-      window.removeEventListener("scroll", updateAnchor);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("resize", scheduleAnchorUpdate);
+      window.removeEventListener("scroll", scheduleAnchorUpdate);
     };
   }, [isMobile, mobileAddedOpen]);
 
@@ -441,21 +455,43 @@ export function Navbar() {
 
   useEffect(() => {
     if (!productsOpen || !productsTriggerRef.current) return;
+    let rafId: number | null = null;
     const update = () => {
       const rect = productsTriggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setProductsPopupStyle({
+      const next = {
         top: rect.bottom + 12,
         left: rect.left,
         width: 360,
+      };
+      setProductsPopupStyle((prev) => {
+        if (
+          prev &&
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        update();
       });
     };
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [productsOpen]);
 
@@ -464,6 +500,7 @@ export function Navbar() {
       ? (mobileSearchRef.current ?? searchRef.current)
       : searchRef.current;
     if (!searchOpen || !activeSearchRef) return;
+    let rafId: number | null = null;
     const update = () => {
       const rect = activeSearchRef?.getBoundingClientRect();
       if (!rect) return;
@@ -474,59 +511,124 @@ export function Navbar() {
         Math.max(rect.left, viewportPadding),
         viewportWidth - viewportPadding - width,
       );
-      setSearchPopupStyle({
+      const next = {
         top: rect.bottom + 12,
         left,
         width,
+      };
+      setSearchPopupStyle((prev) => {
+        if (
+          prev &&
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        update();
       });
     };
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [isMobile, searchOpen]);
 
   useEffect(() => {
     if (!accountOpen || !accountRef.current) return;
+    let rafId: number | null = null;
     const update = () => {
       const rect = accountRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = Math.min(320, Math.max(280, rect.width));
-      setAccountPopupStyle({
+      const next = {
         top: rect.bottom + 12,
         left: rect.right - width,
         width,
+      };
+      setAccountPopupStyle((prev) => {
+        if (
+          prev &&
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        update();
       });
     };
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [accountOpen]);
 
   useEffect(() => {
     if (!menuOpen || !menuTriggerRef.current) return;
+    let rafId: number | null = null;
     const update = () => {
       const rect = menuTriggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setMenuPopupStyle({
+      const next = {
         top: rect.bottom,
         left: rect.left,
         width: 240,
+      };
+      setMenuPopupStyle((prev) => {
+        if (
+          prev &&
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        update();
       });
     };
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [menuOpen]);
 

@@ -23,6 +23,8 @@ type Props = {
   sizeLinks?: Array<{ label: string; href: string; active: boolean }>;
 };
 
+type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
+
 export default function SeoProductsClient({
   initialProducts,
   title,
@@ -93,6 +95,7 @@ export default function SeoProductsClient({
     priceMax: priceMaxBound,
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<SortMode>("featured");
   const [isMobile, setIsMobile] = useState(false);
   const viewListTrackedRef = useRef<string | null>(null);
   const searchTrackedRef = useRef<string | null>(null);
@@ -109,6 +112,7 @@ export default function SeoProductsClient({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilters((prev) => ({
       ...prev,
       priceMin: priceMinBound,
@@ -118,23 +122,36 @@ export default function SeoProductsClient({
 
   const filteredProducts = useMemo(() => {
     const results = filterProducts(normalizedProducts, filters);
-    return [...results].sort(
-      (a, b) =>
-        Number(Boolean(b.availableForSale)) -
-        Number(Boolean(a.availableForSale)),
-    );
+    return [...results];
   }, [normalizedProducts, filters]);
+  const sortedProducts = useMemo(() => {
+    const toPrice = (product: Product) =>
+      Number(product.priceRange?.minVariantPrice?.amount ?? 0);
+
+    return [...filteredProducts].sort((a, b) => {
+      const stockDelta =
+        Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+      if (stockDelta !== 0) return stockDelta;
+
+      if (sortBy === "price_asc") return toPrice(a) - toPrice(b);
+      if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
+      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
+
+      return a.title.localeCompare(b.title);
+    });
+  }, [filteredProducts, sortBy]);
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(pageSize);
-  }, [filters, pageSize]);
+  }, [filters, sortBy, pageSize]);
 
   const visibleProducts = useMemo(
-    () => filteredProducts.slice(0, visibleCount),
-    [filteredProducts, visibleCount],
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount],
   );
-  const canLoadMore = visibleCount < filteredProducts.length;
+  const canLoadMore = visibleCount < sortedProducts.length;
 
   const availableCategories = useMemo(() => {
     const categories = new Map<string, string>();
@@ -263,11 +280,11 @@ export default function SeoProductsClient({
   };
 
   useEffect(() => {
-    if (filteredProducts.length === 0) return;
-    const key = `${title}:${filteredProducts.length}`;
+    if (sortedProducts.length === 0) return;
+    const key = `${title}:${sortBy}:${sortedProducts.length}`;
     if (viewListTrackedRef.current === key) return;
     viewListTrackedRef.current = key;
-    const items = filteredProducts.slice(0, 20).map((product) => ({
+    const items = sortedProducts.slice(0, 20).map((product) => ({
       item_id: product.defaultVariantId ?? product.id,
       item_name: product.title,
       item_brand: product.manufacturer ?? undefined,
@@ -280,7 +297,7 @@ export default function SeoProductsClient({
       item_list_name: `seo:${title}`,
       items,
     });
-  }, [filteredProducts, title]);
+  }, [sortedProducts, title, sortBy]);
 
   useEffect(() => {
     const term = filters.searchQuery?.trim();
@@ -350,8 +367,9 @@ export default function SeoProductsClient({
               className="h-12 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-4 text-sm text-stone-700 shadow-[0_12px_30px_rgba(8,18,14,0.15)] outline-none focus:border-white/70 focus-visible:ring-2 focus-visible:ring-white/50"
             />
           </div>
-          <div className="flex items-center justify-center gap-3">
-            <div className="relative grid h-12 w-40 grid-cols-2 rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm overflow-hidden">
+          <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
+            <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
+              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm sm:h-12 sm:w-40">
               <span
                 className={`absolute top-[5px] bottom-[5px] rounded-full bg-[#254237] transition-all duration-200 ease-out ${
                   layout === "grid"
@@ -392,11 +410,27 @@ export default function SeoProductsClient({
               availableManufacturers={availableManufacturers}
               priceMinBound={priceMinBound}
               priceMaxBound={priceMaxBound}
-              resultCount={filteredProducts.length}
+              resultCount={sortedProducts.length}
               onReset={resetFilters}
-              triggerClassName="inline-flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/95 px-6 text-sm font-semibold text-black shadow-sm transition hover:border-white/70"
+              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-white/40 bg-white/95 px-5 text-sm font-semibold text-black shadow-sm transition hover:border-white/70 sm:h-12 sm:w-auto sm:px-6"
               triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black"
             />
+            </div>
+            <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
+              <label className="inline-flex h-11 w-44 items-center rounded-full border border-white/40 bg-white/95 px-3 text-xs font-semibold text-stone-700 shadow-sm sm:h-12 sm:w-auto">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortMode)}
+                aria-label="Sortierung"
+                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-stone-800 outline-none sm:w-auto sm:text-center"
+              >
+                <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
+                <option value="price_asc">Preis aufsteigend</option>
+                <option value="price_desc">Preis absteigend</option>
+                <option value="name_asc">Name A-Z</option>
+              </select>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -449,7 +483,7 @@ export default function SeoProductsClient({
             type="button"
             onClick={() =>
               setVisibleCount((prev) =>
-                Math.min(prev + pageSize, filteredProducts.length),
+                Math.min(prev + pageSize, sortedProducts.length),
               )
             }
             className="rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/25"
@@ -459,7 +493,7 @@ export default function SeoProductsClient({
         </div>
       )}
 
-      {filteredProducts.length === 0 && (
+      {sortedProducts.length === 0 && (
         <div className="text-center py-16">
           <p className="text-gray-500 text-lg mb-4">Keine Produkte gefunden</p>
           <button

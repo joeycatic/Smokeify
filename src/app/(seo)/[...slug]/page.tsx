@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
 import { getProducts } from "@/lib/catalog";
 import { seoPageBySlug, seoPages, type SeoPageConfig } from "@/lib/seoPages";
@@ -83,7 +84,9 @@ const filterProductsForConfig = (config: SeoPageConfig) => {
   };
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
 const toUrl = (path: string) => `${siteUrl}${path}`;
 
 export async function generateStaticParams() {
@@ -96,9 +99,31 @@ export async function generateMetadata({
   const { slug } = await params;
   const config = getConfig(slug);
   if (!config) return {};
+  const path = `/${config.slugParts.join("/")}`;
+  const title = `${config.title} | Smokeify`;
   return {
-    title: `${config.title} | Smokeify`,
+    title,
     description: config.description,
+    alternates: {
+      canonical: path,
+      languages: {
+        "de-DE": path,
+        "x-default": path,
+      },
+    },
+    openGraph: {
+      type: "website",
+      url: toUrl(path),
+      title,
+      description: config.description,
+      images: [{ url: toUrl("/favicons/apple-touch-icon.png"), alt: config.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: config.description,
+      images: [toUrl("/favicons/apple-touch-icon.png")],
+    },
   };
 }
 
@@ -199,12 +224,12 @@ export default async function SeoCategoryPage({ params }: PageProps) {
         >
           {breadcrumbs.map((crumb, index) => (
             <span key={crumb.url} className="flex items-center gap-2">
-              <a
+              <Link
                 href={crumb.url.replace(siteUrl, "")}
                 className="hover:text-stone-700"
               >
                 {crumb.name}
-              </a>
+              </Link>
               {index < breadcrumbs.length - 1 && <span>/</span>}
             </span>
           ))}

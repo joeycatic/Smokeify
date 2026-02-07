@@ -198,6 +198,10 @@ export default function ProductCardActions({
           onClick={async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (!variantChoices && variantId) {
+              await addVariantToCart(variantId);
+              return;
+            }
             const choices = await ensureVariantChoices();
             const hasOptions = choices.some(
               (choice) =>

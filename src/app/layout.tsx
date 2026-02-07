@@ -4,7 +4,9 @@ import Providers from "@/app/providers";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
 const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -18,7 +20,13 @@ export const metadata: Metadata = {
   description: "Modern grow equipment",
   metadataBase: new URL(siteUrl),
   alternates: {
-    canonical: "/",
+    languages: {
+      "de-DE": "/",
+      "x-default": "/",
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
   },
   openGraph: {
     type: "website",
@@ -61,7 +69,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="de">
       <head />
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
         <Providers>{children}</Providers>

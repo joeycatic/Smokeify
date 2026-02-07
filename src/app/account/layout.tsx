@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   robots: {
-    index: true,
+    index: false,
     follow: true,
     googleBot: {
-      index: true,
+      index: false,
       follow: true,
     },
   },
 };
 
-export default function PagesLayout({
+export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;

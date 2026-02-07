@@ -47,6 +47,7 @@ export default function DisplayProducts({
             key={p.id}
             className="
                       group flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white
+                      [content-visibility:auto] [contain-intrinsic-size:420px]
                       transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                   "
           >
@@ -202,7 +203,7 @@ export function DisplayProductsList({
         return (
           <article
             key={p.id}
-            className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row"
+            className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row [content-visibility:auto] [contain-intrinsic-size:320px]"
           >
             <Link
               href={`/products/${p.handle}`}

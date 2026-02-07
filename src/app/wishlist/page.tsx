@@ -9,10 +9,13 @@ import PageLayout from "@/components/PageLayout";
 import { DisplayProductsList } from "@/components/DisplayProducts";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
+type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
+
 export default function WishlistPage() {
   const { ids } = useWishlist();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [sortBy, setSortBy] = useState<SortMode>("featured");
   const [loading, setLoading] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
   const shareNoticeTimer = useRef<number | null>(null);
@@ -27,6 +30,22 @@ export default function WishlistPage() {
 
   const isSharedView = sharedIds.length > 0;
   const activeIds = isSharedView ? sharedIds : ids;
+  const sortedProducts = useMemo(() => {
+    const toPrice = (product: Product) =>
+      Number(product.priceRange?.minVariantPrice?.amount ?? 0);
+
+    return [...products].sort((a, b) => {
+      const stockDelta =
+        Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+      if (stockDelta !== 0) return stockDelta;
+
+      if (sortBy === "price_asc") return toPrice(a) - toPrice(b);
+      if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
+      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
+
+      return a.title.localeCompare(b.title);
+    });
+  }, [products, sortBy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +166,24 @@ export default function WishlistPage() {
           </div>
         )}
         {!loading && activeIds.length > 0 && (
-          <DisplayProductsList products={products} />
+          <>
+            <div className="mb-4 flex justify-end">
+              <label className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortMode)}
+                  aria-label="Sortierung"
+                  className="bg-transparent pr-3 text-sm font-semibold text-stone-800 outline-none"
+                >
+                  <option value="featured">Empfohlen</option>
+                  <option value="price_asc">Preis aufsteigend</option>
+                  <option value="price_desc">Preis absteigend</option>
+                  <option value="name_asc">Name A-Z</option>
+                </select>
+              </label>
+            </div>
+            <DisplayProductsList products={sortedProducts} />
+          </>
         )}
       </div>
     </PageLayout>

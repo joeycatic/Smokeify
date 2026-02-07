@@ -6,56 +6,104 @@ import DisplayProducts from "@/components/DisplayProducts";
 import { getProducts, getProductsByIds } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+    languages: {
+      "de-DE": "/",
+      "x-default": "/",
+    },
+  },
+};
 
 export default async function StorePage() {
-  const allProducts = await getProducts(40);
-  const tentProductIds = await prisma.product.findMany({
-    where: {
-      status: "ACTIVE",
-      categories: {
-        some: {
-          category: {
-            OR: [
-              { handle: { in: ["growboxen", "zelte"], mode: "insensitive" } },
-              {
-                parent: {
-                  handle: { in: ["growboxen", "zelte"], mode: "insensitive" },
+  const [allProducts, tentCandidates, topItems] = await Promise.all([
+    getProducts(40),
+    prisma.product.findMany({
+      where: {
+        status: "ACTIVE",
+        categories: {
+          some: {
+            category: {
+              OR: [
+                { handle: { in: ["growboxen", "zelte"], mode: "insensitive" } },
+                {
+                  parent: {
+                    handle: { in: ["growboxen", "zelte"], mode: "insensitive" },
+                  },
                 },
-              },
-            ],
+              ],
+            },
           },
         },
       },
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 4,
-    select: { id: true },
-  });
-  const tentProducts = tentProductIds.length
-    ? await getProductsByIds(tentProductIds.map((item) => item.id))
-    : [];
+      select: {
+        id: true,
+        variants: {
+          select: {
+            priceCents: true,
+            costCents: true,
+            inventory: {
+              select: { quantityOnHand: true, reserved: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.orderItem.groupBy({
+      by: ["productId"],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 8,
+    }),
+  ]);
+  const inStockAllProducts = allProducts.filter((product) => product.availableForSale);
 
-  const topItems = await prisma.orderItem.groupBy({
-    by: ["productId"],
-    _sum: { quantity: true },
-    orderBy: { _sum: { quantity: "desc" } },
-    take: 8,
-  });
+  const tentIds = tentCandidates
+    .map((product) => {
+      const bestAvailableVariantMarginPct = product.variants.reduce<number>(
+        (bestMarginPct, variant) => {
+          const quantityOnHand = variant.inventory?.quantityOnHand ?? 0;
+          const reserved = variant.inventory?.reserved ?? 0;
+          const available = quantityOnHand - reserved;
+          if (available <= 0 || variant.priceCents <= 0) return bestMarginPct;
+          const marginPct =
+            ((variant.priceCents - variant.costCents) / variant.priceCents) * 100;
+          return Math.max(bestMarginPct, marginPct);
+        },
+        Number.NEGATIVE_INFINITY
+      );
+
+      return { id: product.id, marginPct: bestAvailableVariantMarginPct };
+    })
+    .filter((product) => Number.isFinite(product.marginPct))
+    .sort((a, b) => b.marginPct - a.marginPct)
+    .slice(0, 4)
+    .map((product) => product.id);
+
   const topIds = topItems
     .map((item) => item.productId)
     .filter((id): id is string => Boolean(id));
-  const bestSellers = topIds.length
-    ? await getProductsByIds(topIds)
-    : allProducts.slice(0, 8);
-  const bestSellerIds = new Set(bestSellers.map((item) => item.id));
+  const [tentProducts, bestSellers] = await Promise.all([
+    tentIds.length ? getProductsByIds(tentIds) : Promise.resolve([]),
+    topIds.length
+      ? getProductsByIds(topIds)
+      : Promise.resolve(inStockAllProducts.slice(0, 8)),
+  ]);
+  const inStockTentProducts = tentProducts.filter((product) => product.availableForSale);
+  const inStockBestSellers = bestSellers.filter((product) => product.availableForSale);
+  const bestSellerIds = new Set(inStockBestSellers.map((item) => item.id));
   const bestSellersFilled =
-    bestSellers.length >= 8
-      ? bestSellers
+    inStockBestSellers.length >= 8
+      ? inStockBestSellers
       : [
-          ...bestSellers,
-          ...allProducts
+          ...inStockBestSellers,
+          ...inStockAllProducts
             .filter((item) => !bestSellerIds.has(item.id))
-            .slice(0, 8 - bestSellers.length),
+            .slice(0, 8 - inStockBestSellers.length),
         ];
 
   return (
@@ -87,7 +135,7 @@ export default async function StorePage() {
                     </h3>
                   </div>
                   <DisplayProducts
-                    products={tentProducts}
+                    products={inStockTentProducts}
                     cols={4}
                     showManufacturer
                     showGrowboxSize
@@ -104,54 +152,62 @@ export default async function StorePage() {
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Link
                       href="/products?manufacturer=AC%20Infinity"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="AC Infinity anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/acinifitybanner.png"
                         alt="AC Infinity"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_46%] scale-150"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=diamondbox"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="DiamondBox anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/diamnondboxbanner.png"
                         alt="DiamondBox"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_46%] scale-130"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=sanlight"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="SANlight anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/sanlightbanner.png"
                         alt="SANlight"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[58%_38%] scale-125"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=bloomstar"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Bloomstar anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/bloomstarbanner.png"
                         alt="Bloomstar"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_40%] scale-125"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                   </div>
@@ -179,54 +235,62 @@ export default async function StorePage() {
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Link
                       href="/products?manufacturer=Kailar"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Kailar anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/kailarbanner.avif"
                         alt="Kailar"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-contain scale-100"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=OCB"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="OCB anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/ocbbanner.png"
                         alt="OCB"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-contain object-[50%_45%] scale-100"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=Purize"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-emerald-900/30 bg-[#1f4d3a] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-emerald-900/30 bg-[#1f4d3a] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Purize anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/purizebanner.png"
                         alt="Purize"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_43%] scale-150"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                     <Link
                       href="/products?manufacturer=RAW"
-                      className="flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-amber-200 bg-[#f3e4c2] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-amber-200 bg-[#f3e4c2] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="RAW anzeigen"
                     >
-                      <img
+                      <Image
                         src="/manufacturer-banner/rawbanner.png"
                         alt="RAW"
+                        fill
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_39%] scale-150"
                         loading="lazy"
-                        decoding="async"
+                        quality={70}
                       />
                     </Link>
                   </div>

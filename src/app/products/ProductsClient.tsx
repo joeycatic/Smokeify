@@ -20,6 +20,10 @@ type Props = {
   initialProducts: Product[];
 };
 
+type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
+
+const PAGE_SIZE = 24;
+
 export default function ProductsClient({ initialProducts }: Props) {
   const searchParams = useSearchParams();
   const categoryParam = searchParams?.get("category") ?? "";
@@ -87,6 +91,8 @@ export default function ProductsClient({ initialProducts }: Props) {
     priceMax: priceMaxBound,
   });
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<SortMode>("featured");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isMobile, setIsMobile] = useState(false);
   const lastCategoryParamRef = useRef<string>("");
   const viewListTrackedRef = useRef<string | null>(null);
@@ -105,10 +111,35 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   const filteredProducts = useMemo(() => {
     const results = filterProducts(normalizedProducts, filters);
-    return [...results].sort(
-      (a, b) => Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale)),
-    );
+    return [...results];
   }, [normalizedProducts, filters]);
+
+  const sortedProducts = useMemo(() => {
+    const toPrice = (product: Product) =>
+      Number(product.priceRange?.minVariantPrice?.amount ?? 0);
+
+    return [...filteredProducts].sort((a, b) => {
+      const stockDelta =
+        Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+      if (stockDelta !== 0) return stockDelta;
+
+      if (sortBy === "price_asc") return toPrice(a) - toPrice(b);
+      if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
+      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
+
+      return a.title.localeCompare(b.title);
+    });
+  }, [filteredProducts, sortBy]);
+
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount]
+  );
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(PAGE_SIZE);
+  }, [filters, sortBy, layout, categoryParam, manufacturerParam]);
 
 
   const categoryHierarchy = useMemo(() => {
@@ -192,11 +223,11 @@ export default function ProductsClient({ initialProducts }: Props) {
   }, [categoryParam, filters.searchQuery, manufacturerParam]);
 
   useEffect(() => {
-    if (filteredProducts.length === 0) return;
-    const key = `${listId}:${filteredProducts.length}`;
+    if (sortedProducts.length === 0) return;
+    const key = `${listId}:${sortBy}:${sortedProducts.length}`;
     if (viewListTrackedRef.current === key) return;
     viewListTrackedRef.current = key;
-    const items = filteredProducts.slice(0, 20).map((product) => ({
+    const items = sortedProducts.slice(0, 20).map((product) => ({
       item_id: product.defaultVariantId ?? product.id,
       item_name: product.title,
       item_brand: product.manufacturer ?? undefined,
@@ -209,7 +240,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       item_list_name: listName,
       items,
     });
-  }, [filteredProducts, listId, listName]);
+  }, [sortedProducts, listId, listName, sortBy]);
 
   useEffect(() => {
     const term = filters.searchQuery?.trim();
@@ -228,6 +259,7 @@ export default function ProductsClient({ initialProducts }: Props) {
   useEffect(() => {
     if (!categoryParam) {
       lastCategoryParamRef.current = "";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters((prev) =>
         prev.categories.length === 0 ? prev : { ...prev, categories: [] },
       );
@@ -244,6 +276,7 @@ export default function ProductsClient({ initialProducts }: Props) {
 
   useEffect(() => {
     if (!manufacturerParam) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters((prev) =>
         prev.manufacturers.length === 0 ? prev : { ...prev, manufacturers: [] },
       );
@@ -302,25 +335,6 @@ export default function ProductsClient({ initialProducts }: Props) {
     }));
   };
 
-  const removeCategory = (handle: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      categories: prev.categories.filter((c) => c !== handle),
-    }));
-  };
-
-  const resetPrice = () => {
-    setFilters((prev) => ({
-      ...prev,
-      priceMin: priceMinBound,
-      priceMax: priceMaxBound,
-    }));
-  };
-
-  const clearSearch = () => {
-    setFilters((prev) => ({ ...prev, searchQuery: "" }));
-  };
-
   const activeChips = useMemo(() => {
     const chips: Array<{
       key: string;
@@ -332,7 +346,11 @@ export default function ProductsClient({ initialProducts }: Props) {
       chips.push({
         key: `category-${handle}`,
         label: categoryTitleByHandle.get(handle) ?? handle,
-        onRemove: () => removeCategory(handle),
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            categories: prev.categories.filter((c) => c !== handle),
+          })),
       });
     });
     filters.manufacturers.forEach((manufacturer) => {
@@ -352,7 +370,12 @@ export default function ProductsClient({ initialProducts }: Props) {
       chips.push({
         key: "price",
         label: `EUR ${filters.priceMin.toFixed(2)} - EUR ${filters.priceMax.toFixed(2)}`,
-        onRemove: resetPrice,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            priceMin: priceMinBound,
+            priceMax: priceMaxBound,
+          })),
       });
     }
 
@@ -360,7 +383,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       chips.push({
         key: "search",
         label: `Search: ${filters.searchQuery.trim()}`,
-        onRemove: clearSearch,
+        onRemove: () => setFilters((prev) => ({ ...prev, searchQuery: "" })),
       });
     }
 
@@ -438,8 +461,9 @@ export default function ProductsClient({ initialProducts }: Props) {
               className="h-12 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-4 text-sm text-stone-700 shadow-[0_12px_30px_rgba(8,18,14,0.15)] outline-none focus:border-white/70 focus-visible:ring-2 focus-visible:ring-white/50"
             />
           </div>
-          <div className="flex items-center justify-center gap-3">
-            <div className="relative grid h-12 w-40 grid-cols-2 rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm overflow-hidden">
+          <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
+            <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
+              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm sm:h-12 sm:w-40">
               <span
                 className={`absolute top-[5px] bottom-[5px] rounded-full bg-[#254237] transition-all duration-200 ease-out ${
                   layout === "grid"
@@ -480,11 +504,27 @@ export default function ProductsClient({ initialProducts }: Props) {
               availableManufacturers={availableManufacturers}
               priceMinBound={priceMinBound}
               priceMaxBound={priceMaxBound}
-              resultCount={filteredProducts.length}
+              resultCount={sortedProducts.length}
               onReset={resetFilters}
-              triggerClassName="inline-flex h-12 items-center gap-2 rounded-full border border-white/40 bg-white/95 px-6 text-sm font-semibold text-black shadow-sm transition hover:border-white/70"
+              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-white/40 bg-white/95 px-5 text-sm font-semibold text-black shadow-sm transition hover:border-white/70 sm:h-12 sm:w-auto sm:px-6"
               triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black"
             />
+            </div>
+            <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
+              <label className="inline-flex h-11 w-44 items-center rounded-full border border-white/40 bg-white/95 px-3 text-xs font-semibold text-stone-700 shadow-sm sm:h-12 sm:w-auto">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortMode)}
+                aria-label="Sortierung"
+                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-stone-800 outline-none sm:w-auto sm:text-center"
+              >
+                <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
+                <option value="price_asc">Preis aufsteigend</option>
+                <option value="price_desc">Preis absteigend</option>
+                <option value="name_asc">Name A-Z</option>
+              </select>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -514,7 +554,7 @@ export default function ProductsClient({ initialProducts }: Props) {
       <div onClick={handleSelectItem}>
         {layout === "grid" ? (
           <DisplayProducts
-            products={filteredProducts}
+            products={visibleProducts}
             cols={isMobile ? 2 : 4}
             showManufacturer
             titleLines={3}
@@ -523,14 +563,26 @@ export default function ProductsClient({ initialProducts }: Props) {
           />
         ) : (
           <DisplayProductsList
-            products={filteredProducts}
+            products={visibleProducts}
             showManufacturer
             showGrowboxSize
           />
         )}
       </div>
 
-      {filteredProducts.length === 0 && (
+      {sortedProducts.length > visibleCount && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          >
+            Mehr laden ({Math.max(sortedProducts.length - visibleCount, 0)} verbleibend)
+          </button>
+        </div>
+      )}
+
+      {sortedProducts.length === 0 && (
         <div className="text-center py-16">
           <p className="text-gray-500 text-lg mb-4">Keine Produkte gefunden</p>
           <button

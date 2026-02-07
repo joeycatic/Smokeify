@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type PaymentMethodLogo = {
   label: string;
   src: string;
@@ -27,12 +29,14 @@ export default function PaymentMethodLogos({
           key={method.label}
           className={`inline-flex h-8 items-center rounded-full border border-white/15 bg-white/5 px-3 ${pillClassName}`}
         >
-          <img
+          <Image
             src={method.src}
             alt={method.label}
+            width={56}
+            height={20}
             className={`h-5 w-auto object-contain ${logoClassName}`}
             loading="lazy"
-            decoding="async"
+            quality={70}
           />
         </span>
       ))}
