@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -29,14 +28,7 @@ export default function VerifyPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    const clearStoredPassword = () => {
-      sessionStorage.removeItem("smokeify_verify_password");
-    };
-    window.addEventListener("beforeunload", clearStoredPassword);
-    return () => {
-      clearStoredPassword();
-      window.removeEventListener("beforeunload", clearStoredPassword);
-    };
+    sessionStorage.removeItem("smokeify_verify_password");
   }, []);
 
   return (
@@ -86,23 +78,7 @@ export default function VerifyPage() {
 
                 sessionStorage.removeItem("smokeify_verify_email");
                 sessionStorage.removeItem("smokeify_return_to");
-                const storedPassword = sessionStorage.getItem(
-                  "smokeify_verify_password"
-                );
                 sessionStorage.removeItem("smokeify_verify_password");
-
-                if (storedPassword) {
-                  const loginRes = await signIn("credentials", {
-                    email: identifier,
-                    password: storedPassword,
-                    redirect: false,
-                    callbackUrl: returnTo,
-                  });
-                  if (loginRes?.ok) {
-                    router.push(returnTo);
-                    return;
-                  }
-                }
 
                 router.push(
                   `/auth/signin?verified=1&email=${encodeURIComponent(

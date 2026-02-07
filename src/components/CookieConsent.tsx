@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import Link from "next/link";
 
 type ConsentValue = "accepted" | "declined" | null;
 
@@ -9,16 +10,24 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 180;
 
 function readConsent(): ConsentValue {
   if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "accepted" || stored === "declined") {
-    return stored;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "accepted" || stored === "declined") {
+      return stored;
+    }
+  } catch {
+    // Ignore storage read failures.
   }
   const match = document.cookie.match(
     new RegExp(`(?:^|; )${STORAGE_KEY}=([^;]+)`)
   );
   const value = match?.[1];
   if (value === "accepted" || value === "declined") {
-    window.localStorage.setItem(STORAGE_KEY, value);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, value);
+    } catch {
+      // Ignore storage write failures.
+    }
     return value;
   }
   return null;
@@ -27,18 +36,39 @@ function readConsent(): ConsentValue {
 function persistConsent(value: Exclude<ConsentValue, null>) {
   const secure =
     typeof window !== "undefined" && window.location.protocol === "https:";
-  window.localStorage.setItem(STORAGE_KEY, value);
-  document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${
-    secure ? "; Secure" : ""
-  }`;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, value);
+  } catch {
+    // Ignore storage write failures.
+  }
+  try {
+    document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${
+      secure ? "; Secure" : ""
+    }`;
+  } catch {
+    // Ignore cookie write failures.
+  }
+}
+
+function subscribeConsentChange(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener("smokeify-cookie-consent-change", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener("smokeify-cookie-consent-change", onStoreChange);
+  };
 }
 
 export default function CookieConsent() {
-  const [consent, setConsent] = useState<ConsentValue>(null);
-
-  useEffect(() => {
-    setConsent(readConsent());
-  }, []);
+  const consent = useSyncExternalStore(
+    subscribeConsentChange,
+    readConsent,
+    () => null
+  );
 
   if (consent) {
     return null;
@@ -57,12 +87,12 @@ export default function CookieConsent() {
           </p>
           <p>
             Mehr Infos in unserer{" "}
-            <a
+            <Link
               href="/pages/privacy"
               className="font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-900"
             >
               DSGVO
-            </a>
+            </Link>
             .
           </p>
         </div>
@@ -71,7 +101,7 @@ export default function CookieConsent() {
             type="button"
             onClick={() => {
               persistConsent("declined");
-              setConsent("declined");
+              window.dispatchEvent(new Event("smokeify-cookie-consent-change"));
             }}
             className="h-11 rounded-full border border-black/15 px-5 text-xs font-semibold text-stone-700 hover:border-black/30"
           >
@@ -81,7 +111,7 @@ export default function CookieConsent() {
             type="button"
             onClick={() => {
               persistConsent("accepted");
-              setConsent("accepted");
+              window.dispatchEvent(new Event("smokeify-cookie-consent-change"));
               window.dispatchEvent(new Event("cookie-consent-accepted"));
             }}
             className="h-11 rounded-full bg-[#E4C56C] px-5 text-xs font-semibold text-[#2f3e36] hover:opacity-90"

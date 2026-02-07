@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type GateStatus = "verified" | "denied" | null;
 
@@ -9,16 +9,24 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 function readStatus(): GateStatus {
   if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "verified" || stored === "denied") {
-    return stored;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "verified" || stored === "denied") {
+      return stored;
+    }
+  } catch {
+    // Ignore storage read failures (private mode / blocked storage).
   }
   const match = document.cookie.match(
     new RegExp(`(?:^|; )${STORAGE_KEY}=([^;]+)`)
   );
   const value = match?.[1];
   if (value === "verified" || value === "denied") {
-    window.localStorage.setItem(STORAGE_KEY, value);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, value);
+    } catch {
+      // Ignore storage write failures.
+    }
     return value;
   }
   return null;
@@ -27,18 +35,39 @@ function readStatus(): GateStatus {
 function persistStatus(value: Exclude<GateStatus, null>) {
   const secure =
     typeof window !== "undefined" && window.location.protocol === "https:";
-  window.localStorage.setItem(STORAGE_KEY, value);
-  document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${
-    secure ? "; Secure" : ""
-  }`;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, value);
+  } catch {
+    // Ignore storage write failures.
+  }
+  try {
+    document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${
+      secure ? "; Secure" : ""
+    }`;
+  } catch {
+    // Ignore cookie write failures.
+  }
+}
+
+function subscribeAgeGateChange(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener("smokeify-age-gate-change", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener("smokeify-age-gate-change", onStoreChange);
+  };
 }
 
 export default function AgeGate() {
-  const [status, setStatus] = useState<GateStatus>(null);
-
-  useEffect(() => {
-    setStatus(readStatus());
-  }, []);
+  const status = useSyncExternalStore(
+    subscribeAgeGateChange,
+    readStatus,
+    () => null
+  );
 
   if (status) {
     return null;
@@ -61,7 +90,7 @@ export default function AgeGate() {
             type="button"
             onClick={() => {
               persistStatus("verified");
-              setStatus("verified");
+              window.dispatchEvent(new Event("smokeify-age-gate-change"));
               window.dispatchEvent(new Event("age-gate-verified"));
             }}
             className="h-11 rounded-full bg-[#21483b] px-5 text-xs font-semibold uppercase tracking-wide text-white shadow-sm hover:bg-[#1c3d32]"
@@ -72,7 +101,7 @@ export default function AgeGate() {
             type="button"
             onClick={() => {
               persistStatus("denied");
-              setStatus("denied");
+              window.dispatchEvent(new Event("smokeify-age-gate-change"));
               window.location.href = "/pages/jugendschutzhinweise";
             }}
             className="h-11 rounded-full border border-black/15 px-5 text-xs font-semibold uppercase tracking-wide text-stone-700 hover:border-black/30"

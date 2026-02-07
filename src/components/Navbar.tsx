@@ -68,22 +68,37 @@ const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
   }));
 
 const seoSlugByKey = new Map<string, string>();
+const addSeoKey = (key: string, slug: string) => {
+  const normalized = key.trim().toLowerCase();
+  if (!normalized) return;
+  seoSlugByKey.set(normalized, slug);
+};
+
 seoPages.forEach((page) => {
+  const slug = `/${page.slugParts.join("/")}`;
   if (page.slugParts.length === 1) {
-    seoSlugByKey.set(page.slugParts[0], `/${page.slugParts[0]}`);
-    return;
+    addSeoKey(page.slugParts[0], slug);
+    addSeoKey(page.categoryHandle ?? "", slug);
+    (page.categoryHandleAliases ?? []).forEach((alias) => addSeoKey(alias, slug));
   }
   if (page.slugParts.length === 2) {
     const parent = page.slugParts[0];
     const child = page.slugParts[1];
-    const full = `/${parent}/${child}`;
-    seoSlugByKey.set(`${parent}/${child}`, full);
-    seoSlugByKey.set(`${parent}-${child}`, full);
+    addSeoKey(`${parent}/${child}`, slug);
+    addSeoKey(`${parent}-${child}`, slug);
+    if (page.parentHandle && page.subcategoryHandle) {
+      addSeoKey(`${page.parentHandle}/${page.subcategoryHandle}`, slug);
+      addSeoKey(`${page.parentHandle}-${page.subcategoryHandle}`, slug);
+      (page.subcategoryHandleAliases ?? []).forEach((alias) => {
+        addSeoKey(`${page.parentHandle}/${alias}`, slug);
+        addSeoKey(`${page.parentHandle}-${alias}`, slug);
+      });
+    }
     if (parent.endsWith("en")) {
       const singular = parent.slice(0, -2);
       if (singular) {
-        seoSlugByKey.set(`${singular}/${child}`, full);
-        seoSlugByKey.set(`${singular}-${child}`, full);
+        addSeoKey(`${singular}/${child}`, slug);
+        addSeoKey(`${singular}-${child}`, slug);
       }
     }
   }
@@ -288,18 +303,20 @@ export function Navbar() {
   const buildCategoryHref = (handle: string) =>
     `/products?category=${encodeURIComponent(handle)}`;
   const buildSeoCategoryHref = (handle: string, parentHandle?: string | null) => {
-    if (parentHandle) {
-      const key = `${parentHandle}/${handle}`;
+    const normalizedHandle = handle.trim().toLowerCase();
+    const normalizedParent = parentHandle?.trim().toLowerCase();
+    if (normalizedParent) {
+      const key = `${normalizedParent}/${normalizedHandle}`;
       const slug = seoSlugByKey.get(key);
       if (slug) return slug;
-      if (handle.startsWith(`${parentHandle}-`)) {
-        const stripped = handle.slice(parentHandle.length + 1);
-        const strippedKey = `${parentHandle}/${stripped}`;
+      if (normalizedHandle.startsWith(`${normalizedParent}-`)) {
+        const stripped = normalizedHandle.slice(normalizedParent.length + 1);
+        const strippedKey = `${normalizedParent}/${stripped}`;
         const strippedSlug = seoSlugByKey.get(strippedKey);
         if (strippedSlug) return strippedSlug;
       }
     }
-    const mainSlug = seoSlugByKey.get(handle);
+    const mainSlug = seoSlugByKey.get(normalizedHandle);
     if (mainSlug) return mainSlug;
     return buildCategoryHref(handle);
   };

@@ -88,3 +88,60 @@ export async function PATCH(
 
   return NextResponse.json({ order: updated });
 }
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-order-delete:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    confirmation?: string;
+  };
+  if (body.confirmation !== "DELETE") {
+    return NextResponse.json(
+      { error: 'Bestätigung fehlt. Bitte "DELETE" eingeben.' },
+      { status: 400 }
+    );
+  }
+
+  const { id } = await context.params;
+  const existing = await prisma.order.findUnique({
+    where: { id },
+    select: { id: true, orderNumber: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  await prisma.order.delete({ where: { id } });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "order.delete",
+    targetType: "order",
+    targetId: id,
+    summary: `Deleted order #${existing.orderNumber}`,
+    metadata: { orderNumber: existing.orderNumber },
+  });
+
+  return NextResponse.json({ ok: true });
+}

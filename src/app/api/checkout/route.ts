@@ -396,7 +396,10 @@ export async function POST(req: Request) {
     }
   }
 
-  const origin = req.headers.get("origin") ?? "http://localhost:3000";
+  const appBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+    process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
+    "http://localhost:3000";
   const shippingAmount = getShippingEstimate(country, itemCount);
   const freeShippingCents = toCents(FREE_SHIPPING_THRESHOLD_EUR);
   const shippingCents =
@@ -462,8 +465,8 @@ export async function POST(req: Request) {
         },
       ],
       automatic_tax: { enabled: true },
-      success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/cart?checkout=cancel`,
+      success_url: `${appBaseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appBaseUrl}/cart?checkout=cancel`,
       metadata,
     });
   } catch (error) {

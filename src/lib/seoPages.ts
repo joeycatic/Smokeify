@@ -5,7 +5,9 @@ export type SeoPageConfig = {
   copy?: string[];
   faq?: Array<{ question: string; answer: string }>;
   categoryHandle?: string;
+  categoryHandleAliases?: string[];
   subcategoryHandle?: string;
+  subcategoryHandleAliases?: string[];
   parentHandle?: string;
   growboxSize?: string;
 };
@@ -43,6 +45,46 @@ export const seoPages: SeoPageConfig[] = [
       "Einfach dosieren, zuverlässig versorgen, sichtbar bessere Resultate.",
     ],
     categoryHandle: "duenger",
+  },
+  {
+    slugParts: ["substrateundzubehoer"],
+    title: "Substrate & Zubehör",
+    description: "Substrate und Zubehör für dein Grow-Setup.",
+    copy: [
+      "Substrate und passendes Zubehör bilden die Grundlage für ein stabiles, gut wartbares Setup.",
+      "Hier findest du Produkte für Wurzelgesundheit, Handling und saubere Abläufe im Alltag.",
+      "So kombinierst du die richtige Basis mit den passenden Ergänzungen für bessere Ergebnisse.",
+    ],
+    categoryHandle: "substrate-und-zubehoer",
+    categoryHandleAliases: [
+      "substrat-und-zubehoer",
+      "substrateundzubehoer",
+      "substratundzubehoer",
+      "substrate-zubehoer",
+      "substrat-zubehoer",
+    ],
+  },
+  {
+    slugParts: ["substrate"],
+    title: "Substrate",
+    description: "Substrate & Erden für dein Grow-Setup.",
+    copy: [
+      "Das richtige Substrat schafft die Basis für gesundes Wurzelwachstum und stabile Pflanzenentwicklung.",
+      "Wähle zwischen bewährten Erden und spezialisierten Mischungen passend zu deinem Anbauziel.",
+      "Mit der passenden Struktur und Wasserhaltekapazität erleichterst du Pflege und Nährstoffversorgung.",
+    ],
+    categoryHandle: "substrate",
+  },
+  {
+    slugParts: ["zubehoer"],
+    title: "Zubehör",
+    description: "Praktisches Zubehör für dein Grow-Setup.",
+    copy: [
+      "Mit dem richtigen Zubehör wird dein Setup effizienter, sauberer und einfacher im Alltag.",
+      "Von kleinen Helfern bis zu wichtigen Ergänzungen findest du hier alles für einen reibungslosen Betrieb.",
+      "So optimierst du Pflege, Handling und Langlebigkeit deiner Ausrüstung.",
+    ],
+    categoryHandle: "zubehoer",
   },
   {
     slugParts: ["growboxen"],
@@ -184,6 +226,7 @@ export const seoPages: SeoPageConfig[] = [
     title: "Aufbewahrung",
     description: "Aufbewahrungslösungen aus dem Headshop.",
     subcategoryHandle: "aufbewahrung",
+    subcategoryHandleAliases: ["aufbewahrungen", "aufbewhrung"],
     parentHandle: "headshop",
   },
   {

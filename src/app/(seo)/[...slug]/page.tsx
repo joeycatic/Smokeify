@@ -22,15 +22,27 @@ const matchesCategory = (
   const normalizedHandle = handle.toLowerCase();
   const normalizedParent = parent?.toLowerCase() ?? null;
   if (config.subcategoryHandle) {
-    const directMatch = normalizedHandle === config.subcategoryHandle;
+    const subcategoryHandles = [
+      config.subcategoryHandle,
+      ...(config.subcategoryHandleAliases ?? []),
+    ].map((entry) => entry.toLowerCase());
+    const directMatch = subcategoryHandles.includes(normalizedHandle);
     const prefixedMatch =
       config.parentHandle &&
-      normalizedHandle === `${config.parentHandle}-${config.subcategoryHandle}`;
+      subcategoryHandles.some(
+        (subcategoryHandle) =>
+          normalizedHandle === `${config.parentHandle}-${subcategoryHandle}`,
+      );
+    const singularParentHandle =
+      config.parentHandle && config.parentHandle.endsWith("en")
+        ? config.parentHandle.slice(0, -2)
+        : null;
     const singularPrefixedMatch =
-      config.parentHandle &&
-      config.parentHandle.endsWith("en") &&
-      normalizedHandle ===
-        `${config.parentHandle.slice(0, -2)}-${config.subcategoryHandle}`;
+      singularParentHandle &&
+      subcategoryHandles.some(
+        (subcategoryHandle) =>
+          normalizedHandle === `${singularParentHandle}-${subcategoryHandle}`,
+      );
     if (!directMatch && !prefixedMatch && !singularPrefixedMatch) return false;
     if (config.parentHandle) {
       return normalizedParent === config.parentHandle;
@@ -38,8 +50,12 @@ const matchesCategory = (
     return true;
   }
   if (!config.categoryHandle) return false;
-  if (normalizedHandle === config.categoryHandle) return true;
-  return normalizedParent === config.categoryHandle;
+  const categoryHandles = [
+    config.categoryHandle,
+    ...(config.categoryHandleAliases ?? []),
+  ].map((entry) => entry.toLowerCase());
+  if (categoryHandles.includes(normalizedHandle)) return true;
+  return normalizedParent ? categoryHandles.includes(normalizedParent) : false;
 };
 
 const sizeKeyFrom = (value?: string | null) => {

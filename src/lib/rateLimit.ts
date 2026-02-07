@@ -1,4 +1,5 @@
 import "server-only";
+import { isIP } from "node:net";
 import { prisma } from "@/lib/prisma";
 
 export const LOGIN_RATE_LIMIT = {
@@ -77,9 +78,26 @@ export function getClientIp(
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const forwarded = readHeader("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return readHeader("x-real-ip") ?? "unknown";
+  const parseValidIp = (value: string | undefined) => {
+    if (!value) return undefined;
+    const candidate = value.split(",")[0]?.trim();
+    if (!candidate) return undefined;
+    return isIP(candidate) ? candidate : undefined;
+  };
+
+  const directProxyIp = parseValidIp(readHeader("x-vercel-forwarded-for"));
+  if (directProxyIp) return directProxyIp;
+
+  const cloudflareIp = parseValidIp(readHeader("cf-connecting-ip"));
+  if (cloudflareIp) return cloudflareIp;
+
+  const forwarded = parseValidIp(readHeader("x-forwarded-for"));
+  if (forwarded) return forwarded;
+
+  const realIp = parseValidIp(readHeader("x-real-ip"));
+  if (realIp) return realIp;
+
+  return "unknown";
 }
 
 export async function getRateLimitStatus({

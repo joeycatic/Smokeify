@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Script from "next/script";
 
 import { canUseAnalytics } from "@/lib/analytics";
 
@@ -43,6 +42,39 @@ const EEA_REGIONS = [
 export default function GTMTag() {
   useEffect(() => {
     if (!GTM_ID) return;
+    const w = window as {
+      gtag?: (...args: unknown[]) => void;
+      dataLayer?: unknown[];
+    };
+    const dataLayer = (w.dataLayer = w.dataLayer || []);
+    w.gtag = (...args: unknown[]) => {
+      dataLayer.push(args);
+    };
+
+    w.gtag("consent", "default", {
+      ad_storage: "granted",
+      analytics_storage: "granted",
+      ad_user_data: "granted",
+      ad_personalization: "granted",
+    });
+    w.gtag("consent", "default", {
+      ad_storage: "denied",
+      analytics_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      region: EEA_REGIONS,
+    });
+    dataLayer.push({
+      "gtm.start": Date.now(),
+      event: "gtm.js",
+    });
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_ID}`;
+    script.setAttribute("data-smokeify-gtm", GTM_ID);
+    document.head.appendChild(script);
+
     const update = () => {
       const granted = canUseAnalytics();
       const consentState = {
@@ -51,13 +83,7 @@ export default function GTMTag() {
         ad_user_data: granted ? "granted" : "denied",
         ad_personalization: granted ? "granted" : "denied",
       };
-
-      const w = window as {
-        gtag?: (...args: unknown[]) => void;
-        dataLayer?: unknown[];
-      };
-      w.dataLayer = w.dataLayer || [];
-      w.dataLayer.push(["consent", "update", consentState]);
+      dataLayer.push(["consent", "update", consentState]);
 
       if (typeof w.gtag === "function") {
         w.gtag("consent", "update", consentState);
@@ -69,6 +95,7 @@ export default function GTMTag() {
     return () => {
       window.removeEventListener("cookie-consent-accepted", update);
       window.removeEventListener("storage", update);
+      script.remove();
     };
   }, []);
 
@@ -76,34 +103,6 @@ export default function GTMTag() {
 
   return (
     <>
-      <Script id="gtm-consent-init" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){window.dataLayer.push(arguments);}
-          gtag("consent", "default", {
-            ad_storage: "granted",
-            analytics_storage: "granted",
-            ad_user_data: "granted",
-            ad_personalization: "granted",
-          });
-          gtag("consent", "default", {
-            ad_storage: "denied",
-            analytics_storage: "denied",
-            ad_user_data: "denied",
-            ad_personalization: "denied",
-            region: ${JSON.stringify(EEA_REGIONS)},
-          });
-        `}
-      </Script>
-      <Script id="gtm-init" strategy="afterInteractive">
-        {`
-          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${GTM_ID}');
-        `}
-      </Script>
       <noscript>
         <iframe
           src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}

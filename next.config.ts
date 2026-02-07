@@ -27,8 +27,9 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value:
       "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
+      "object-src 'none'; " +
       "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com; " +
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com; " +
       "style-src 'self' 'unsafe-inline'; " +
       "font-src 'self' data:; " +
       "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net; " +

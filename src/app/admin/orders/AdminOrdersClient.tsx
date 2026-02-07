@@ -177,11 +177,22 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     orderId: string;
     type: "confirmation" | "refund";
   } | null>(null);
+  const [hiddenOrderIds, setHiddenOrderIds] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<{ orderId: string } | null>(
+    null
+  );
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteConfirmationError, setDeleteConfirmationError] = useState("");
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
+  const visibleOrders = useMemo(
+    () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
+    [orders, hiddenOrderIds]
+  );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredOrders = useMemo(() => {
-    if (!normalizedQuery) return orders;
-    return orders.filter((order) => {
+    if (!normalizedQuery) return visibleOrders;
+    return visibleOrders.filter((order) => {
       const email = order.user?.email?.toLowerCase() ?? "";
       const name = order.user?.name?.toLowerCase() ?? "";
       return (
@@ -190,12 +201,12 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
         name.includes(normalizedQuery)
       );
     });
-  }, [orders, normalizedQuery]);
+  }, [visibleOrders, normalizedQuery]);
 
   const sorted = useMemo(() => filteredOrders, [filteredOrders]);
   const customerSummary = useMemo(() => {
     if (!normalizedQuery) return null;
-    const matching = orders.filter((order) => {
+    const matching = visibleOrders.filter((order) => {
       const email = order.user?.email?.toLowerCase() ?? "";
       return email && email.includes(normalizedQuery);
     });
@@ -207,7 +218,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       total,
       currency: matching[0]?.currency ?? "EUR",
     };
-  }, [orders, normalizedQuery]);
+  }, [visibleOrders, normalizedQuery]);
   const fulfilledCount = useMemo(
     () =>
       filteredOrders.reduce((count, order) => {
@@ -292,7 +303,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     setNotice("");
     setRefundId(orderId);
     try {
-      const current = orders.find((order) => order.id === orderId);
+      const current = visibleOrders.find((order) => order.id === orderId);
       if (current?.paymentStatus === "refunded") {
         setError("Order has already been refunded.");
         return;
@@ -408,7 +419,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   };
 
   const requestShippingEmail = async (orderId: string) => {
-    const order = orders.find((entry) => entry.id === orderId);
+    const order = visibleOrders.find((entry) => entry.id === orderId);
     if (order && isShippingEmailSent(order)) {
       setConfirmShippingResend({ orderId });
       return;
@@ -431,7 +442,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     orderId: string,
     type: "confirmation" | "refund"
   ) => {
-    const order = orders.find((entry) => entry.id === orderId);
+    const order = visibleOrders.find((entry) => entry.id === orderId);
     const alreadySent =
       order &&
       (type === "confirmation"
@@ -449,6 +460,44 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     const { orderId, type } = confirmEmailResend;
     setConfirmEmailResend(null);
     await sendEmail(orderId, type, { force: true });
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    setError("");
+    setNotice("");
+    setDeletingOrderId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE" }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error ?? "Delete failed");
+        return;
+      }
+      setHiddenOrderIds((prev) => [...prev, orderId]);
+      if (openId === orderId) setOpenId(null);
+      setNotice("Order deleted.");
+    } catch {
+      setError("Delete failed");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete) return;
+    if (deleteConfirmation.trim() !== "DELETE") {
+      setDeleteConfirmationError('Bitte exakt "DELETE" eingeben.');
+      return;
+    }
+    const { orderId } = confirmDelete;
+    setConfirmDelete(null);
+    setDeleteConfirmation("");
+    setDeleteConfirmationError("");
+    await deleteOrder(orderId);
   };
 
   return (
@@ -658,8 +707,9 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                             className="mt-2 h-10 w-full max-w-[220px] rounded-md border border-black/10 bg-white px-3 text-center text-sm shadow-inner"
                           />
                           <span className="mt-2 block text-[11px] font-normal text-stone-500">
-                            Tip: "complete" is the Stripe checkout status. Use
-                            "fulfilled" once the order is shipped.
+                            Tip: &quot;complete&quot; is the Stripe checkout
+                            status. Use &quot;fulfilled&quot; once the order is
+                            shipped.
                           </span>
                         </label>
                       </div>
@@ -695,6 +745,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                           className="h-10 w-full rounded-md border border-amber-200 px-3 text-xs font-semibold text-amber-800 hover:border-amber-300"
                         >
                           Mark canceled
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteConfirmation("");
+                            setDeleteConfirmationError("");
+                            setConfirmDelete({ orderId: order.id });
+                          }}
+                          className="h-10 w-full rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:border-red-300"
+                          disabled={deletingOrderId === order.id}
+                        >
+                          {deletingOrderId === order.id
+                            ? "Deleting..."
+                            : "Delete order"}
                         </button>
                         <button
                           type="button"
@@ -1029,6 +1093,56 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           );
         })}
       </div>
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmDelete(null)}
+            aria-label="Close dialog"
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-stone-900">
+              Bestellung wirklich löschen?
+            </h3>
+            <p className="mt-2 text-sm text-stone-600">
+              Dieser Vorgang ist endgültig. Tippe{" "}
+              <span className="font-semibold">DELETE</span> zur Bestätigung.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(event) => {
+                setDeleteConfirmation(event.target.value);
+                if (deleteConfirmationError) setDeleteConfirmationError("");
+              }}
+              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
+              placeholder="DELETE"
+            />
+            {deleteConfirmationError && (
+              <p className="mt-2 text-xs text-red-600">
+                {deleteConfirmationError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAction}
+                className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmRefund && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
@@ -1148,3 +1262,4 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     </div>
   );
 }
+
