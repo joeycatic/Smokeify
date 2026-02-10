@@ -60,7 +60,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-white/70 hover:text-white transition"
-                  href="/collections/new"
+                  href="/neuheiten"
                 >
                   Neuheiten
                 </Link>
@@ -68,7 +68,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-white/70 hover:text-white transition"
-                  href="/collections/bestseller"
+                  href="/bestseller"
                 >
                   Bestseller
                 </Link>

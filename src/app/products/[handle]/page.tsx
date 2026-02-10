@@ -8,6 +8,7 @@ import ProductImageCarousel from "./ProductImageCarousel";
 import RecommendedProductsCarousel from "./RecommendedProductsCarousel";
 import ProductReviews from "./ProductReviews";
 import PageLayout from "@/components/PageLayout";
+import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 const siteUrl =
@@ -283,6 +284,12 @@ export default async function ProductDetailPage({
         {recommendedProducts.length > 0 && (
           <RecommendedProductsCarousel items={recommendedProducts} />
         )}
+
+        <RecentlyViewedStrip
+          title="Zuletzt angesehen"
+          excludeHandles={[product.handle]}
+          className="mt-8"
+        />
 
         <div className="mt-12">
           <ProductReviews productId={product.id} />

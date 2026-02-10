@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import {
@@ -127,6 +128,18 @@ export default function SeoProductsClient({
   const sortedProducts = useMemo(() => {
     const toPrice = (product: Product) =>
       Number(product.priceRange?.minVariantPrice?.amount ?? 0);
+    const toCompareAtPrice = (product: Product) =>
+      Number(product.compareAtPrice?.amount ?? 0);
+    const toDiscountRatio = (product: Product) => {
+      const price = toPrice(product);
+      const compareAt = toCompareAtPrice(product);
+      if (!Number.isFinite(price) || !Number.isFinite(compareAt)) return 0;
+      if (price <= 0 || compareAt <= price) return 0;
+      return (compareAt - price) / compareAt;
+    };
+    const indexById = new Map(
+      filteredProducts.map((product, index) => [product.id, index]),
+    );
 
     return [...filteredProducts].sort((a, b) => {
       const stockDelta =
@@ -137,7 +150,12 @@ export default function SeoProductsClient({
       if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
       if (sortBy === "name_asc") return a.title.localeCompare(b.title);
 
-      return a.title.localeCompare(b.title);
+      // Recommended: in-stock first, stronger current discounts first,
+      // then preserve backend order (updated content first from server query).
+      const discountDelta = toDiscountRatio(b) - toDiscountRatio(a);
+      if (discountDelta !== 0) return discountDelta;
+
+      return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
     });
   }, [filteredProducts, sortBy]);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -495,13 +513,36 @@ export default function SeoProductsClient({
 
       {sortedProducts.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-gray-500 text-lg mb-4">Keine Produkte gefunden</p>
-          <button
-            onClick={resetFilters}
-            className="text-green-600 hover:text-green-700 font-medium"
-          >
-            Filter zurücksetzen
-          </button>
+          <p className="text-gray-500 text-lg mb-2">Keine Produkte gefunden</p>
+          <p className="text-sm text-stone-500 mb-6">
+            Passe deine Auswahl an oder starte mit einer kuratierten Seite.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {Boolean(filters.searchQuery?.trim()) && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters((prev) => ({ ...prev, searchQuery: "" }))
+                }
+                className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+              >
+                Suche löschen
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+            >
+              Alle Filter zurücksetzen
+            </button>
+            <Link
+              href="/bestseller"
+              className="inline-flex items-center justify-center rounded-full bg-[#254237] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Zu den Bestsellern
+            </Link>
+          </div>
         </div>
       )}
 

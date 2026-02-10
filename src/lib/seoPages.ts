@@ -36,6 +36,30 @@ export const seoPages: SeoPageConfig[] = [
     categoryHandle: "bewaesserung",
   },
   {
+    slugParts: ["wasserfilter-und-osmose"],
+    title: "Wasserfilter & Osmose",
+    description:
+      "Wasserfilter- und Osmose-Lösungen für stabile Wasserqualität im Grow-Setup.",
+    copy: [
+      "Sauberes Wasser ist die Basis für kontrollierte Nährstoffgabe und gesunde Pflanzenentwicklung.",
+      "Hier findest du Wasserfilter- und Osmose-Produkte für konstante Qualität und reproduzierbare Ergebnisse.",
+      "Wähle Lösungen passend zu Wasserhärte, Durchfluss und deinem Setup.",
+    ],
+    categoryHandle: "wasserfilter-und-osmose",
+  },
+  {
+    slugParts: ["autopot"],
+    title: "Autopot",
+    description:
+      "Autopot Systeme und Zubehör für effiziente, automatisierte Bewässerung.",
+    copy: [
+      "Autopot-Systeme versorgen Pflanzen gleichmäßig und reduzieren täglichen Pflegeaufwand.",
+      "Entdecke Komponenten und Sets für stabile Abläufe von Einsteiger- bis Pro-Setup.",
+      "So baust du eine zuverlässige, skalierbare Bewässerung mit wenig Aufwand auf.",
+    ],
+    categoryHandle: "autopot",
+  },
+  {
     slugParts: ["duenger"],
     title: "Dünger",
     description: "Dünger & Nährstoffe bei Smokeify.",

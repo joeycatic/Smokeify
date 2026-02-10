@@ -177,7 +177,11 @@ export function Navbar() {
     (page) => `/${page.slugParts.join("/")}` === pathname,
   );
   const showCategoryBar =
-    pathname === "/" || pathname?.startsWith("/products") || isSeoPage;
+    pathname === "/" ||
+    pathname?.startsWith("/products") ||
+    pathname === "/bestseller" ||
+    pathname === "/neuheiten" ||
+    isSeoPage;
   const showMobileSearch = showCategoryBar;
   const [accountOpen, setAccountOpen] = useState(false);
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
@@ -1579,6 +1583,22 @@ export function Navbar() {
         {showCategoryBar && (
           <div className="relative z-10 mt-2 hidden border-t border-black/5 bg-stone-100/95 shadow-sm backdrop-blur sm:block">
             <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-3 text-base text-stone-700 sm:px-6 lg:max-w-6xl">
+              <Link
+                href="/bestseller"
+                onClick={() => {
+                  setCategoryNavTarget("/bestseller");
+                  setCategoryHoverLocked(true);
+                }}
+                className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+              >
+                <span>Bestseller</span>
+                {categoryNavTarget === "/bestseller" && (
+                  <LoadingSpinner
+                    size="sm"
+                    className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
+                  />
+                )}
+              </Link>
               {categoriesStatus === "loading" && (
                 <span className="text-xs text-stone-500">
                   Laedt Kategorien...

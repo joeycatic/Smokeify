@@ -17,6 +17,7 @@ import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 
 type ProductVariant = {
   id: string;
@@ -369,6 +370,29 @@ export default function ProductDetailClient({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    const fallbackVariant = variants[0];
+    const price = selectedVariant?.price ?? fallbackVariant?.price;
+    pushRecentlyViewed({
+      handle: currentHandle,
+      title: product.title,
+      imageUrl: imageUrl ?? null,
+      imageAlt: imageAlt ?? product.title,
+      manufacturer: product.manufacturer ?? null,
+      price: price
+        ? { amount: price.amount, currencyCode: price.currencyCode }
+        : null,
+    });
+  }, [
+    currentHandle,
+    imageAlt,
+    imageUrl,
+    product.manufacturer,
+    product.title,
+    selectedVariant?.id,
+    variants,
+  ]);
 
   return (
     <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">

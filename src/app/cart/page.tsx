@@ -14,6 +14,7 @@ import {
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const SHIPPING_BASE = {
@@ -334,6 +335,13 @@ export default function CartPage() {
   const totalEstimate = subtotal + shippingEstimate;
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
+  const cartProductHandles = Array.from(
+    new Set(
+      cart.lines
+        .map((line) => line.merchandise.product.handle)
+        .filter((handle): handle is string => Boolean(handle)),
+    ),
+  );
 
 
   return (
@@ -471,6 +479,12 @@ export default function CartPage() {
             );
           })}
         </div>
+
+        <RecentlyViewedStrip
+          title="Zuletzt angesehen"
+          excludeHandles={cartProductHandles}
+          className="mt-8"
+        />
 
         <div className="my-8 h-px w-full bg-black/10" />
 
