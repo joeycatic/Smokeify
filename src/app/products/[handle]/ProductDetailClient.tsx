@@ -375,7 +375,7 @@ export default function ProductDetailClient({
       <div className="space-y-4">
         <div>
           {product.manufacturer && (
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-black/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-800">
               {product.manufacturer}
             </p>
           )}

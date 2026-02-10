@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import type { AddedItem } from "@/components/CartProvider";
 
 type Props = {
@@ -53,6 +57,17 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
     Record<string, string>
   >({});
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const recTrackRef = useRef<HTMLDivElement | null>(null);
+  const [canRecPrev, setCanRecPrev] = useState(false);
+  const [canRecNext, setCanRecNext] = useState(false);
+
+  const updateRecScrollState = useCallback(() => {
+    const el = recTrackRef.current;
+    if (!el) return;
+    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    setCanRecPrev(el.scrollLeft > 4);
+    setCanRecNext(el.scrollLeft < maxScrollLeft - 4);
+  }, []);
 
   const optionGroups = (() => {
     if (!item?.variantChoices || item.variantChoices.length !== 1) return [];
@@ -113,12 +128,44 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    updateRecScrollState();
+    const el = recTrackRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateRecScrollState, { passive: true });
+    window.addEventListener("resize", updateRecScrollState);
+    return () => {
+      el.removeEventListener("scroll", updateRecScrollState);
+      window.removeEventListener("resize", updateRecScrollState);
+    };
+  }, [open, recommendations, updateRecScrollState]);
+
+  const modalResetKey = `${open ? "1" : "0"}:${item?.productHandle ?? item?.title ?? ""}`;
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!open) return;
     setVariantError(null);
     setConfirming(false);
     setConfirmed(false);
     setSelectedLabel(null);
-    setSelectedOptions({});
+
+    const nextOptionGroups =
+      item?.variantChoices && item.variantChoices.length === 1
+        ? (() => {
+            const options = item.variantChoices[0]?.options ?? [];
+            const groups = new Map<string, Set<string>>();
+            options.forEach((option) => {
+              if (!option?.name || !option?.value) return;
+              const set = groups.get(option.name) ?? new Set<string>();
+              set.add(option.value);
+              groups.set(option.name, set);
+            });
+            return Array.from(groups.entries()).map(([name, values]) => ({
+              name,
+              values: Array.from(values),
+            }));
+          })()
+        : [];
+
     if (item?.variantChoices?.length) {
       const firstAvailable =
         item.variantChoices.find((choice) => choice.available)?.id ??
@@ -128,16 +175,16 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
     } else {
       setSelectedVariantId(null);
     }
-    if (optionGroups.length > 0) {
-      const defaults: Record<string, string> = {};
-      optionGroups.forEach((group) => {
-        if (group.values.length > 0) {
-          defaults[group.name] = group.values[0];
-        }
-      });
-      setSelectedOptions(defaults);
-    }
-  }, [open, item, optionGroups]);
+
+    const defaults: Record<string, string> = {};
+    nextOptionGroups.forEach((group) => {
+      if (group.values.length > 0) {
+        defaults[group.name] = group.values[0];
+      }
+    });
+    setSelectedOptions(defaults);
+  }, [modalResetKey, open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const variantLabelMap = (() => {
     if (!item?.variantChoices) return new Map<string, string>();
@@ -154,6 +201,15 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
   const displayTitle = selectedLabel
     ? `${item.title} · ${selectedLabel}`
     : item.title;
+
+  const scrollRecommendations = (direction: "left" | "right") => {
+    const el = recTrackRef.current;
+    if (!el) return;
+    const base = Math.max(180, Math.floor(el.clientWidth * 0.8));
+    const amount = Math.min(460, base);
+    const delta = direction === "left" ? -amount : amount;
+    el.scrollBy({ left: delta, behavior: "smooth" });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -351,35 +407,60 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
 
             {recommendations.length > 0 && (
               <div className="mt-5 border-t border-black/10 pt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Das könnte dir auch gefallen
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  {recommendations.slice(0, 4).map((rec) => (
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Das könnte dir auch gefallen
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => scrollRecommendations("left")}
+                      disabled={!canRecPrev}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:border-black/30 hover:text-black disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Empfehlungen nach links"
+                    >
+                      <ChevronLeftIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollRecommendations("right")}
+                      disabled={!canRecNext}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:border-black/30 hover:text-black disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Empfehlungen nach rechts"
+                    >
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div
+                  ref={recTrackRef}
+                  className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1"
+                >
+                  {recommendations.slice(0, 8).map((rec) => (
                     <Link
                       key={rec.id}
                       href={`/products/${rec.handle}`}
                       onClick={onClose}
-                      className="rounded-lg border border-black/10 bg-white p-2 transition hover:border-black/20"
+                      className="group w-44 shrink-0 snap-start rounded-xl border border-black/10 bg-white p-2.5 transition hover:border-black/20 hover:shadow-sm"
                     >
                       {rec.imageUrl ? (
                         <Image
                           src={rec.imageUrl}
                           alt={rec.imageAlt ?? rec.title}
-                          width={140}
-                          height={80}
-                          className="h-20 w-full rounded-md object-cover"
+                          width={168}
+                          height={120}
+                          className="h-32 w-full rounded-lg bg-white object-contain transition duration-300 group-hover:scale-[1.03]"
                           loading="lazy"
                           quality={70}
                         />
                       ) : (
-                        <div className="h-20 w-full rounded-md bg-stone-100" />
+                        <div className="h-32 w-full rounded-lg bg-stone-100" />
                       )}
-                      <p className="mt-2 line-clamp-2 text-xs font-semibold text-stone-800">
+                      <p className="mt-2 line-clamp-2 text-sm font-semibold text-stone-800">
                         {rec.title}
                       </p>
                       {rec.price && (
-                        <p className="mt-1 text-xs text-stone-600">
+                        <p className="mt-1 text-sm text-stone-700">
                           {formatPrice(
                             rec.price.amount,
                             rec.price.currencyCode,

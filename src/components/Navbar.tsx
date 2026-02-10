@@ -71,6 +71,7 @@ const seoSlugByKey = new Map<string, string>();
 const addSeoKey = (key: string, slug: string) => {
   const normalized = key.trim().toLowerCase();
   if (!normalized) return;
+  if (seoSlugByKey.has(normalized)) return;
   seoSlugByKey.set(normalized, slug);
 };
 

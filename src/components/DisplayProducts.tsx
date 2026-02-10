@@ -65,8 +65,8 @@ export default function DisplayProducts({
                 <ProductImageCarousel
                   images={getProductImages(p)}
                   alt={p.title}
-                  className="aspect-[9/8] overflow-hidden rounded-t-xl bg-stone-100 sm:aspect-square"
-                  imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  className="aspect-[9/8] overflow-hidden rounded-t-xl bg-white sm:aspect-square"
+                  imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
                 {p.compareAtPrice && (
                   <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-black shadow">
@@ -86,7 +86,7 @@ export default function DisplayProducts({
               {/* Content */}
               <div className="flex flex-1 flex-col p-4">
                 {showManufacturer && p.manufacturer && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
                     {p.manufacturer}
                   </p>
                 )}
@@ -219,8 +219,8 @@ export function DisplayProductsList({
                 <ProductImageCarousel
                   images={getProductImages(p)}
                   alt={p.title}
-                  className="aspect-square overflow-hidden rounded-lg bg-stone-100"
-                  imageClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  className="aspect-square overflow-hidden rounded-lg bg-white"
+                  imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
                 {(p.compareAtPrice || (p.availableForSale && showLowStock)) && (
                   <div className="absolute left-3 top-3 flex flex-col gap-2">
@@ -242,7 +242,7 @@ export function DisplayProductsList({
             <div className="flex flex-1 flex-col gap-4">
               <div className="space-y-2">
                 {showManufacturer && p.manufacturer && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
                     {p.manufacturer}
                   </p>
                 )}
@@ -356,10 +356,8 @@ function ProductImageCarousel({
 }) {
   const current = images[0];
   if (!current) return null;
-  const isPng = /\.png($|\?)/i.test(current.url);
-
   return (
-      <div className={`relative ${className ?? ""} ${isPng ? "bg-white" : ""}`}>
+      <div className={`relative bg-white ${className ?? ""}`}>
         <Image
           src={current.url}
           alt={current.altText ?? alt}

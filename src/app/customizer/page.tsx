@@ -500,12 +500,9 @@ function ProductCard({
     >
       {imageUrl ? (
         (() => {
-          const isPng = /\.png($|\?)/i.test(imageUrl);
           return (
             <div
-              className={`relative mb-4 w-full overflow-hidden rounded-xl ${
-                isPng ? "bg-white" : "bg-neutral-100"
-              } ${imageHeightClass}`}
+              className={`relative mb-4 w-full overflow-hidden rounded-xl bg-white ${imageHeightClass}`}
             >
               {lowStock && !outOfStock && (
                 <span className="absolute left-1 top-1 rounded-full bg-amber-500/90 px-4 py-2 text-[13px] font-semibold text-white shadow sm:px-2 sm:py-1 sm:text-[11px]">
@@ -515,7 +512,7 @@ function ProductCard({
               <img
                 src={imageUrl}
                 alt={imageAlt ?? title}
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                className="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 loading="lazy"
                 decoding="async"
               />
@@ -524,7 +521,7 @@ function ProductCard({
         })()
       ) : (
         <div
-          className={`mb-4 w-full rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 ${imageHeightClass}`}
+          className={`mb-4 w-full rounded-xl bg-white ${imageHeightClass}`}
         />
       )}
       <div className="flex-1">
@@ -651,7 +648,7 @@ function SetupSidebar({
                       <img
                         src={item.imageUrl}
                         alt={item.imageAlt ?? item.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                         loading="lazy"
                         decoding="async"
                       />
@@ -2177,7 +2174,7 @@ export default function CustomizerPage() {
                           <img
                             src={item.imageUrl}
                             alt={item.imageAlt ?? item.title}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain"
                             loading="lazy"
                             decoding="async"
                           />
