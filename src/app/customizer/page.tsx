@@ -120,6 +120,42 @@ const EXTRA_OPTIONS: Option[] = [
   { id: "tray", label: "Gießwanne", price: 22 },
 ];
 
+const CUSTOMIZER_FAQ = [
+  {
+    question: "Was ist der Growbox Konfigurator?",
+    answer:
+      "Mit dem Growbox Konfigurator (Zelt Konfigurator) stellst du dir ein passendes Setup aus Growbox, Licht, Abluft und Extras zusammen.",
+  },
+  {
+    question: "Wie finde ich die richtige Growbox-Größe?",
+    answer:
+      "Wähle die Größe nach verfügbarem Platz und Ziel. Für den Einstieg sind kompakte Größen sinnvoll, für größere Setups entsprechend größere Boxen.",
+  },
+  {
+    question: "Prüft der Konfigurator die Kompatibilität der Komponenten?",
+    answer:
+      "Ja. Der Konfigurator zeigt dir, ob Licht und Abluft zur gewählten Growbox passen und gibt dir Hinweise bei unpassenden Kombinationen.",
+  },
+  {
+    question: "Kann ich das konfigurierte Setup direkt kaufen?",
+    answer:
+      "Ja. Du kannst dein Setup speichern, in den Warenkorb legen und direkt zur Kasse gehen.",
+  },
+] as const;
+
+const CUSTOMIZER_FAQ_JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: CUSTOMIZER_FAQ.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
+    },
+  })),
+});
+
 function formatPrice(amount: number) {
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -165,11 +201,11 @@ function StepHeader({
     <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-green-600">
             Konfigurator
           </p>
           <h1 className="mt-2 text-2xl font-semibold text-neutral-900">
-            Grow Setup Konfigurator
+            Growbox Konfigurator
           </h1>
           <p className="mt-2 text-sm text-neutral-600">
             Stelle dein Setup zusammen und prüfe Passform, Preis und Status.
@@ -2097,6 +2133,36 @@ export default function CustomizerPage() {
           </div>
         </div>
       </div>
+
+      <section className="mt-12 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-2xl font-semibold text-neutral-900">
+          FAQ zum Growbox Konfigurator
+        </h2>
+        <p className="mt-2 text-sm text-neutral-600">
+          Antworten auf die wichtigsten Fragen rund um den Growbox
+          Konfigurator.
+        </p>
+        <div className="mt-6 space-y-4">
+          {CUSTOMIZER_FAQ.map((item) => (
+            <article
+              key={item.question}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+            >
+              <h3 className="text-base font-semibold text-neutral-900">
+                {item.question}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-700">
+                {item.answer}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: CUSTOMIZER_FAQ_JSON_LD }}
+      />
 
       <MobileSetupBottomBar
         total={total}
