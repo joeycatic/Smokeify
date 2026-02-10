@@ -55,6 +55,14 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "bloomtech.de",
+      },
+      {
+        protocol: "https",
+        hostname: "www.bloomtech.de",
+      },
+      {
+        protocol: "https",
         hostname: "pdgpa612bwysfijp.public.blob.vercel-storage.com",
       },
       {

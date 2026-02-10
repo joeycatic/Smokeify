@@ -8,7 +8,9 @@
     "postinstall": "prisma generate",
     "vercel-build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bloomtech:scrape-preview": "node scripts/scrapeBloomtechSupplierPreview.mjs",
+    "bloomtech:import-preview": "node scripts/importBloomtechPreviewToCatalog.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

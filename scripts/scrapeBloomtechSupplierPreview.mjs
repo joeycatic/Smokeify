@@ -203,6 +203,310 @@ const extractPriceFromHtml = (html) => {
   return Number.isFinite(amount) ? amount : null;
 };
 
+const extractSupplierImagesFromHtml = (html, pageUrl) => {
+  const extractFromBloomtechGallery = () => {
+    const extractDivBlockById = (markup, id) => {
+      const openRegex = new RegExp(
+        `<div[^>]*id=["']${id}["'][^>]*>`,
+        "i"
+      );
+      const openMatch = openRegex.exec(markup);
+      if (!openMatch || openMatch.index < 0) return "";
+
+      const start = openMatch.index;
+      const firstTagEnd = start + openMatch[0].length;
+      let depth = 1;
+      const divTagRegex = /<\/?div\b[^>]*>/gi;
+      divTagRegex.lastIndex = firstTagEnd;
+
+      let tagMatch;
+      while ((tagMatch = divTagRegex.exec(markup))) {
+        const tag = tagMatch[0];
+        const isClosing = /^<\s*\/div/i.test(tag);
+        if (isClosing) {
+          depth -= 1;
+          if (depth === 0) {
+            return markup.slice(start, divTagRegex.lastIndex);
+          }
+        } else {
+          depth += 1;
+        }
+      }
+
+      return "";
+    };
+
+    const galleryHtml = extractDivBlockById(html, "gallery");
+    if (!galleryHtml) return [];
+
+    const urls = new Set();
+    const addUrl = (raw) => {
+      if (!raw || typeof raw !== "string") return;
+      const trimmed = raw.trim();
+      if (!trimmed) return;
+      try {
+        const absolute = new URL(trimmed, pageUrl);
+        if (!/^https?:$/i.test(absolute.protocol)) return;
+        absolute.hash = "";
+        const pathname = absolute.pathname.toLowerCase();
+        if (!pathname.includes("/media/image/product/")) return;
+        if (!/\.(jpe?g|png|webp|avif)$/i.test(pathname)) return;
+        urls.add(absolute.toString());
+      } catch {
+        // ignore invalid URLs
+      }
+    };
+
+    const gallerySignals = [
+      /<div[^>]*id=["']gallery["'][^>]*>/i.test(galleryHtml),
+      /class=["'][^"']*\bimg-ct\b[^"']*["']/i.test(galleryHtml),
+      /data-index=["'][^"']+["']/i.test(galleryHtml),
+    ];
+    if (!gallerySignals.some(Boolean)) return [];
+
+    const indexedGalleryImages = new Map();
+    const dataHrefRegex =
+      /<a[^>]*data-href=["']([^"']+)["'][^>]*data-index=["']([^"']+)["'][^>]*>/gi;
+    let dataHrefMatch;
+    while ((dataHrefMatch = dataHrefRegex.exec(galleryHtml))) {
+      const rawUrl = dataHrefMatch[1];
+      const rawIndex = Number(dataHrefMatch[2]);
+      addUrl(rawUrl);
+      if (!Number.isFinite(rawIndex)) continue;
+      try {
+        const absolute = new URL(rawUrl, pageUrl);
+        absolute.hash = "";
+        const pathname = absolute.pathname.toLowerCase();
+        if (
+          /^https?:$/i.test(absolute.protocol) &&
+          pathname.includes("/media/image/product/") &&
+          /\.(jpe?g|png|webp|avif)$/i.test(pathname)
+        ) {
+          indexedGalleryImages.set(rawIndex, absolute.toString());
+        }
+      } catch {
+        // ignore invalid URLs
+      }
+    }
+
+    const imgCtRegex =
+      /<div[^>]*class=["'][^"']*\bimg-ct\b[^"']*["'][^>]*data-src=["']([^"']+)["'][^>]*>/gi;
+    let imgCtMatch;
+    while ((imgCtMatch = imgCtRegex.exec(galleryHtml))) {
+      addUrl(imgCtMatch[1]);
+    }
+
+    const sourceRegex = /<source[^>]*srcset=["']([^"']+)["'][^>]*>/gi;
+    let sourceMatch;
+    while ((sourceMatch = sourceRegex.exec(galleryHtml))) {
+      sourceMatch[1]
+        .split(",")
+        .map((part) => part.trim().split(/\s+/)[0])
+        .filter(Boolean)
+        .forEach((entry) => addUrl(entry));
+    }
+
+    const pictureImgRegex =
+      /<img[^>]*class=["'][^"']*\bproduct-image\b[^"']*["'][^>]*(?:src|data-src)=["']([^"']+)["'][^>]*>/gi;
+    let pictureImgMatch;
+    while ((pictureImgMatch = pictureImgRegex.exec(galleryHtml))) {
+      addUrl(pictureImgMatch[1]);
+    }
+
+    if (indexedGalleryImages.size > 0) {
+      return Array.from(indexedGalleryImages.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map((entry) => entry[1]);
+    }
+
+    return Array.from(urls);
+  };
+
+  const rankAndDedupe = (rawUrls) => {
+    const normalized = rawUrls
+      .map((entry) => {
+        try {
+          const parsed = new URL(entry);
+          const pathname = parsed.pathname.toLowerCase();
+          let score = 0;
+          if (/\/media\/image\/product\//i.test(pathname)) score += 120;
+          if (/\/(lg|xl|original)\//i.test(pathname)) score += 40;
+          if (/\/(sm|xs)\//i.test(pathname)) score -= 20;
+          if (/\.webp$/i.test(pathname)) score += 5;
+          return { url: parsed.toString(), pathname, score };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.url.localeCompare(b.url));
+
+    const seenFamilies = new Set();
+    const unique = [];
+    for (const entry of normalized) {
+      const familyKey = entry.pathname
+        .replace(/\/(xs|sm|md|lg|xl)\//gi, "/")
+        .replace(/\.(jpe?g|png|webp|avif)$/i, "");
+      if (seenFamilies.has(familyKey)) continue;
+      seenFamilies.add(familyKey);
+      unique.push(entry.url);
+    }
+    return unique;
+  };
+
+  const galleryImages = rankAndDedupe(extractFromBloomtechGallery());
+  if (galleryImages.length > 0) return galleryImages;
+
+  const candidates = new Map();
+  const pagePath = (() => {
+    try {
+      return new URL(pageUrl).pathname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  const slugTokens = pagePath
+    .split("/")
+    .pop()
+    ?.split("-")
+    .map((part) => part.trim().toLowerCase())
+    .filter((part) => part.length >= 4) ?? [];
+
+  const blockedPathFragments = [
+    "/media/image/category/",
+    "/media/image/manufacturer/",
+    "/media/image/storage/",
+    "/favicon",
+    "/mibew/",
+    "sprite",
+    "placeholder",
+    "icon",
+    "logo",
+    "banner",
+  ];
+
+  const addCandidate = (raw, source) => {
+    if (!raw || typeof raw !== "string") return;
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    try {
+      const absolute = new URL(trimmed, pageUrl);
+      if (!/^https?:$/i.test(absolute.protocol)) return;
+      absolute.hash = "";
+      const pathname = absolute.pathname.toLowerCase();
+      if (!/\.(jpe?g|png|webp|avif)$/i.test(pathname)) return;
+      if (blockedPathFragments.some((fragment) => pathname.includes(fragment))) {
+        return;
+      }
+      const normalized = absolute.toString();
+      const existing = candidates.get(normalized);
+      if (existing) {
+        existing.sources.add(source);
+        return;
+      }
+      const productPathMatch = pathname.match(/\/media\/image\/product\/(\d+)\//);
+      candidates.set(normalized, {
+        url: normalized,
+        pathname,
+        productId: productPathMatch ? productPathMatch[1] : null,
+        sources: new Set([source]),
+      });
+    } catch {
+      // ignore invalid image URLs
+    }
+  };
+
+  const ogRegex =
+    /<meta[^>]*property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["'][^>]*>/gi;
+  let ogMatch;
+  while ((ogMatch = ogRegex.exec(html))) {
+    addCandidate(ogMatch[1], "og");
+  }
+
+  const scriptRegex =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let scriptMatch;
+  while ((scriptMatch = scriptRegex.exec(html))) {
+    const payload = scriptMatch[1].trim();
+    if (!payload) continue;
+    try {
+      const parsed = JSON.parse(payload);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        if (item["@type"] !== "Product") continue;
+        const candidate = item.image;
+        if (typeof candidate === "string") {
+          addCandidate(candidate, "jsonld");
+        } else if (Array.isArray(candidate)) {
+          candidate.forEach((entry) => addCandidate(entry, "jsonld"));
+        }
+      }
+    } catch {
+      // ignore invalid JSON-LD
+    }
+  }
+
+  const imgRegex =
+    /<img[^>]*(?:src|data-src|data-original)=["']([^"']+)["'][^>]*>/gi;
+  let imgMatch;
+  while ((imgMatch = imgRegex.exec(html))) {
+    addCandidate(imgMatch[1], "img");
+  }
+
+  const srcsetRegex =
+    /(?:srcset|data-srcset)=["']([^"']+)["']/gi;
+  let srcsetMatch;
+  while ((srcsetMatch = srcsetRegex.exec(html))) {
+    srcsetMatch[1]
+      .split(",")
+      .map((part) => part.trim().split(/\s+/)[0])
+      .filter(Boolean)
+      .forEach((entry) => addCandidate(entry, "srcset"));
+  }
+
+  const allCandidates = Array.from(candidates.values());
+  if (allCandidates.length === 0) return [];
+
+  const strongProductIds = allCandidates
+    .filter(
+      (entry) =>
+        entry.productId &&
+        (entry.sources.has("og") || entry.sources.has("jsonld"))
+    )
+    .map((entry) => entry.productId);
+
+  const selectedProductId = (() => {
+    if (strongProductIds.length === 0) return null;
+    const counts = new Map();
+    strongProductIds.forEach((id) => {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+  })();
+
+  const scopedCandidates = selectedProductId
+    ? allCandidates.filter((entry) => entry.productId === selectedProductId)
+    : allCandidates.filter((entry) => entry.pathname.includes("/media/image/product/"));
+
+  const scoringPool = scopedCandidates.length > 0 ? scopedCandidates : allCandidates;
+  const scored = scoringPool
+    .map((entry) => {
+      const filename = entry.pathname.split("/").pop() ?? "";
+      let score = 0;
+      if (entry.sources.has("og")) score += 120;
+      if (entry.sources.has("jsonld")) score += 100;
+      if (entry.pathname.includes("/media/image/product/")) score += 80;
+      if (/\/(lg|xl|original)\//i.test(entry.pathname)) score += 40;
+      if (/\/(sm|xs)\//i.test(entry.pathname)) score -= 25;
+      if (slugTokens.some((token) => filename.includes(token))) score += 30;
+      return { url: entry.url, score };
+    })
+    .sort((a, b) => b.score - a.score || a.url.localeCompare(b.url));
+
+  return rankAndDedupe(scored.map((entry) => entry.url));
+};
+
 const extractManufacturerFromHtml = (html) => {
   const metaMatch = html.match(
     /<meta[^>]*itemprop=["']brand["'][^>]*content=["']([^"']+)["'][^>]*>/i,
@@ -602,12 +906,23 @@ const parseArgs = () => {
   };
   const url = getValue("--url") ?? DEFAULT_URL;
   const limit = Number(getValue("--limit") ?? DEFAULT_LIMIT);
-  const out = getValue("--out") ?? "scripts/bloomtech-preview.json";
+  const out =
+    getValue("--out") ?? "scripts/bloomtech-supplier-preview.json";
   const dumpCategory = getValue("--dump-category");
   const dumpAccount = getValue("--dump-account");
   const dumpLogin = getValue("--dump-login");
   const dumpLoginResponse = getValue("--dump-login-response");
-  return { url, limit, out, dumpCategory, dumpAccount, dumpLogin, dumpLoginResponse };
+  const includeSupplierImages = args.includes("--include-supplier-images");
+  return {
+    url,
+    limit,
+    out,
+    dumpCategory,
+    dumpAccount,
+    dumpLogin,
+    dumpLoginResponse,
+    includeSupplierImages,
+  };
 };
 
 const run = async () => {
@@ -619,6 +934,7 @@ const run = async () => {
     dumpAccount,
     dumpLogin,
     dumpLoginResponse,
+    includeSupplierImages,
   } = parseArgs();
   const envPath = " .env";
   const envFilePath = envPath.trim();
@@ -724,6 +1040,9 @@ const run = async () => {
       }
       const stock = parseStockForUrl(link, html);
       const supplierWeight = extractSupplierWeightFromHtml(html);
+      const supplierImages = includeSupplierImages
+        ? extractSupplierImagesFromHtml(html, link)
+        : [];
       const handleBase = buildHandleBase(cleanedTitle || title, manufacturer);
       const handleSlug = slugifyHandle(handleBase);
       const nextIndex = (handleCounts.get(handleSlug) ?? 0) + 1;
@@ -740,6 +1059,7 @@ const run = async () => {
         price,
         stock,
         supplierWeight,
+        ...(includeSupplierImages ? { supplierImages } : {}),
       });
       await sleep(REQUEST_DELAY_MS);
     } catch (error) {

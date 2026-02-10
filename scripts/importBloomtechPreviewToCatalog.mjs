@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const DEFAULT_INPUT = "scripts/bloomtech-preview.json";
+const DEFAULT_INPUT = "scripts/bloomtech-supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
 
@@ -20,12 +20,146 @@ const parseArgs = () => {
     limit: Number(getValue("--limit") ?? 0),
     apply: args.includes("--apply"),
     allowMissingPrice: args.includes("--allow-missing-price"),
+    mainCategoryId: getValue("--main-category-id"),
+    mainCategoryHandle:
+      getValue("--main-category-handle") ?? getValue("--main-category"),
+    categoryIds: getValue("--category-ids"),
+    categoryHandles: getValue("--category-handles"),
   };
 };
 
 const toCents = (value) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.round(value * 100);
+};
+
+const ceilToNext45Or99 = (targetCents) => {
+  const normalized = Math.max(0, Math.ceil(targetCents));
+  const dollars = Math.floor(normalized / 100);
+  const candidates = [
+    dollars * 100 + 45,
+    dollars * 100 + 99,
+    (dollars + 1) * 100 + 45,
+  ];
+  return candidates.find((candidate) => candidate >= normalized) ?? normalized;
+};
+
+const buildSellPriceCents = (costCents) => {
+  if (typeof costCents !== "number" || !Number.isFinite(costCents)) return 0;
+  const markupTarget = Math.ceil(costCents * 1.15);
+  return ceilToNext45Or99(markupTarget);
+};
+
+const formatCents = (cents) => (cents / 100).toFixed(2);
+
+const toHttpUrl = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+};
+
+const extractSupplierImageUrls = (item) => {
+  const raw = Array.isArray(item?.supplierImages) ? item.supplierImages : [];
+  const seen = new Set();
+  const urls = [];
+  for (const candidate of raw) {
+    const normalized = toHttpUrl(candidate);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    urls.push(normalized);
+  }
+  return urls;
+};
+
+const parseCsvList = (value) =>
+  (value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const resolveCategorySelection = async ({
+  mainCategoryId,
+  mainCategoryHandle,
+  categoryIds,
+  categoryHandles,
+}) => {
+  if (mainCategoryId && mainCategoryHandle) {
+    throw new Error(
+      "Use either --main-category-id or --main-category-handle, not both."
+    );
+  }
+  if (categoryIds && categoryHandles) {
+    throw new Error(
+      "Use either --category-ids or --category-handles, not both."
+    );
+  }
+
+  let mainCategory = null;
+  if (mainCategoryId) {
+    mainCategory = await prisma.category.findUnique({
+      where: { id: mainCategoryId },
+      select: { id: true, handle: true, name: true },
+    });
+    if (!mainCategory) {
+      throw new Error(`Category not found for --main-category-id=${mainCategoryId}`);
+    }
+  } else if (mainCategoryHandle) {
+    mainCategory = await prisma.category.findUnique({
+      where: { handle: mainCategoryHandle },
+      select: { id: true, handle: true, name: true },
+    });
+    if (!mainCategory) {
+      throw new Error(
+        `Category not found for --main-category-handle=${mainCategoryHandle}`
+      );
+    }
+  }
+
+  let categories = [];
+  if (categoryIds) {
+    const ids = parseCsvList(categoryIds);
+    if (ids.length > 0) {
+      categories = await prisma.category.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, handle: true, name: true },
+      });
+      const foundIds = new Set(categories.map((entry) => entry.id));
+      const missing = ids.filter((id) => !foundIds.has(id));
+      if (missing.length > 0) {
+        throw new Error(
+          `Category not found for --category-ids: ${missing.join(", ")}`
+        );
+      }
+    }
+  } else if (categoryHandles) {
+    const handles = parseCsvList(categoryHandles);
+    if (handles.length > 0) {
+      categories = await prisma.category.findMany({
+        where: { handle: { in: handles } },
+        select: { id: true, handle: true, name: true },
+      });
+      const foundHandles = new Set(categories.map((entry) => entry.handle));
+      const missing = handles.filter((handle) => !foundHandles.has(handle));
+      if (missing.length > 0) {
+        throw new Error(
+          `Category not found for --category-handles: ${missing.join(", ")}`
+        );
+      }
+    }
+  }
+
+  return {
+    mainCategory,
+    categories,
+  };
 };
 
 const slugifyFallback = (value) =>
@@ -77,13 +211,28 @@ const buildInventoryQuantity = (stock) => {
 };
 
 const run = async () => {
-  const { input, limit, apply, allowMissingPrice } = parseArgs();
+  const {
+    input,
+    limit,
+    apply,
+    allowMissingPrice,
+    mainCategoryId,
+    mainCategoryHandle,
+    categoryIds,
+    categoryHandles,
+  } = parseArgs();
   const allowWrite = process.env.BLOOMTECH_IMPORT_ALLOW_WRITE === "1";
   const payload = loadPreview(input);
   const items = Array.isArray(payload.items) ? payload.items : [];
   const sellerName = process.env.BLOOMTECH_SELLER_NAME ?? DEFAULT_SELLER_NAME;
   const sellerUrl = process.env.BLOOMTECH_SELLER_URL ?? DEFAULT_SELLER_URL;
   const supplier = await resolveSupplier();
+  const categorySelection = await resolveCategorySelection({
+    mainCategoryId,
+    mainCategoryHandle,
+    categoryIds,
+    categoryHandles,
+  });
 
   if (!apply || !allowWrite) {
     console.log(
@@ -139,21 +288,32 @@ const run = async () => {
       }
     }
 
-    const priceCents = toCents(item.price);
-    if (priceCents === null && !allowMissingPrice) {
+    const costCents = toCents(item.price);
+    if (costCents === null && !allowMissingPrice) {
       results.missingPrice += 1;
       results.skipped += 1;
       skippedItems.push({ handle, title, reason: "missing_price" });
       continue;
     }
+    const sellPriceCents =
+      costCents === null ? 0 : buildSellPriceCents(costCents);
 
     const inventoryQuantity = buildInventoryQuantity(item.stock);
+    const supplierImageUrls = extractSupplierImageUrls(item);
     const weightGrams =
       item.supplierWeight && typeof item.supplierWeight.grams === "number"
         ? Math.round(item.supplierWeight.grams)
         : null;
 
-    if (!apply || !allowWrite) continue;
+    if (!apply || !allowWrite) {
+      const costLabel = costCents === null ? "missing" : formatCents(costCents);
+      const priceLabel =
+        costCents === null ? "0.00" : formatCents(sellPriceCents);
+      console.log(
+        `[import] dry-run pricing handle=${handle} cost=${costLabel} price=${priceLabel} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
+      );
+      continue;
+    }
 
     await prisma.product.create({
       data: {
@@ -177,15 +337,35 @@ const run = async () => {
         supplierId: supplier?.id ?? null,
         sellerName,
         sellerUrl: sourceUrl || sellerUrl,
+        mainCategoryId: categorySelection.mainCategory?.id ?? null,
         leadTimeDays: supplier?.leadTimeDays ?? null,
         weightGrams,
         status: "DRAFT",
+        categories:
+          categorySelection.categories.length > 0
+            ? {
+                create: categorySelection.categories.map((category, index) => ({
+                  categoryId: category.id,
+                  position: index,
+                })),
+              }
+            : undefined,
+        images:
+          supplierImageUrls.length > 0
+            ? {
+                create: supplierImageUrls.map((url, index) => ({
+                  url,
+                  altText: title,
+                  position: index,
+                })),
+              }
+            : undefined,
         variants: {
           create: {
             title: "Default",
             sku: handle,
-            priceCents: 0,
-            costCents: priceCents ?? 0,
+            priceCents: sellPriceCents,
+            costCents: costCents ?? 0,
             position: 0,
             inventory: {
               create: {
