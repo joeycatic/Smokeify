@@ -44,10 +44,9 @@ function formatPrice(amount: string | number, currencyCode: string) {
   }).format(value);
 }
 
-function getShippingEstimate(country: ShippingCountry, itemCount: number) {
+function getShippingEstimate(country: ShippingCountry) {
   const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
-  const perItem = 0.5;
-  return base + Math.max(itemCount, 0) * perItem;
+  return base;
 }
 
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
@@ -330,7 +329,7 @@ export default function CartPage() {
   const shippingEstimate = hasLocation
     ? freeShippingActive
       ? 0
-      : getShippingEstimate(country, itemCount)
+      : getShippingEstimate(country)
     : 0;
   const totalEstimate = subtotal + shippingEstimate;
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;

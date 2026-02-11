@@ -107,10 +107,9 @@ const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) =>
     .join(" · ");
 };
 
-const getShippingEstimate = (country: ShippingCountry, itemCount: number) => {
+const getShippingEstimate = (country: ShippingCountry) => {
   const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
-  const perItem = 0.5;
-  return base + Math.max(itemCount, 0) * perItem;
+  return base;
 };
 
 const readCartItems = async () => {
@@ -400,7 +399,7 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
     process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
     "http://localhost:3000";
-  const shippingAmount = getShippingEstimate(country, itemCount);
+  const shippingAmount = getShippingEstimate(country);
   const freeShippingCents = toCents(FREE_SHIPPING_THRESHOLD_EUR);
   const shippingCents =
     subtotalCents >= freeShippingCents
