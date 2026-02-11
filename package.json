@@ -9,9 +9,16 @@
     "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "bloomtech:scrape-preview": "node scripts/scrapeBloomtechSupplierPreview.mjs",
-    "bloomtech:import-preview": "node scripts/importBloomtechPreviewToCatalog.mjs",
-    "orders:backfill-payment-fees": "node scripts/backfillOrderPaymentFees.mjs"
+    "bloomtech:scrape-preview": "node scripts/bloomtech/scrapeSupplierPreview.mjs",
+    "bloomtech:import-preview": "node scripts/bloomtech/importPreviewToCatalog.mjs",
+    "bloomtech:override-pricing": "node scripts/bloomtech/overridePricesAndCosts.mjs",
+    "bloomtech:report-missing-costs": "node scripts/bloomtech/reportMissingCosts.mjs",
+    "b2b-headshop:scrape-preview": "node scripts/b2b-headshop/scrapeSupplierPreview.mjs",
+    "b2b-headshop:override-pricing": "node scripts/b2b-headshop/overridePricesAndCosts.mjs",
+    "b2b-headshop:report-missing-costs": "node scripts/b2b-headshop/reportMissingCosts.mjs",
+    "orders:backfill-payment-fees": "node scripts/orders/backfillOrderPaymentFees.mjs",
+    "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
+    "testing:seed-orders": "node scripts/testing/seedTestOrders.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

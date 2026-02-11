@@ -4,9 +4,11 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const DEFAULT_INPUT = "scripts/bloomtech-supplier-preview.json";
+const DEFAULT_INPUT = "scripts/bloomtech/supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
+const DEFAULT_MARGIN_PERCENT = 20;
+const DEFAULT_ROUNDING_STRATEGY = "49_or_99";
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
@@ -20,6 +22,9 @@ const parseArgs = () => {
     limit: Number(getValue("--limit") ?? 0),
     apply: args.includes("--apply"),
     allowMissingPrice: args.includes("--allow-missing-price"),
+    updateExistingPrices: args.includes("--update-existing-prices"),
+    marginPercent: getValue("--margin-percent"),
+    rounding: getValue("--rounding"),
     mainCategoryId: getValue("--main-category-id"),
     mainCategoryHandle:
       getValue("--main-category-handle") ?? getValue("--main-category"),
@@ -33,21 +38,72 @@ const toCents = (value) => {
   return Math.round(value * 100);
 };
 
-const ceilToNext45Or99 = (targetCents) => {
+const ceilToNextWithEndings = (targetCents, endings) => {
   const normalized = Math.max(0, Math.ceil(targetCents));
-  const dollars = Math.floor(normalized / 100);
-  const candidates = [
-    dollars * 100 + 45,
-    dollars * 100 + 99,
-    (dollars + 1) * 100 + 45,
-  ];
-  return candidates.find((candidate) => candidate >= normalized) ?? normalized;
+  const euros = Math.floor(normalized / 100);
+  const candidateEuros = [euros, euros + 1];
+  const candidates = candidateEuros.flatMap((value) =>
+    endings.map((ending) => value * 100 + ending)
+  );
+  return candidates
+    .filter((candidate) => candidate >= normalized)
+    .sort((a, b) => a - b)[0] ?? normalized;
 };
 
-const buildSellPriceCents = (costCents) => {
+const parseMarginPercent = (rawValue) => {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return DEFAULT_MARGIN_PERCENT;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid margin percent: ${rawValue}`);
+  }
+  if (parsed < 0 || parsed >= 100) {
+    throw new Error("Margin percent must be >= 0 and < 100.");
+  }
+  return parsed;
+};
+
+const parseRoundingStrategy = (rawValue) => {
+  if (!rawValue) return DEFAULT_ROUNDING_STRATEGY;
+  const normalized = String(rawValue).trim().toLowerCase();
+  if (
+    normalized === "none" ||
+    normalized === "49_or_99" ||
+    normalized === "45_or_99"
+  ) {
+    return normalized;
+  }
+  throw new Error(`Invalid rounding strategy: ${rawValue}`);
+};
+
+const resolvePricingConfig = ({ marginPercentArg, roundingArg }) => {
+  const marginPercent = parseMarginPercent(
+    marginPercentArg ?? process.env.BLOOMTECH_TARGET_MARGIN_PERCENT
+  );
+  const rounding = parseRoundingStrategy(
+    roundingArg ?? process.env.BLOOMTECH_PRICE_ROUNDING
+  );
+  return {
+    marginPercent,
+    rounding,
+    currency: "EUR",
+  };
+};
+
+const buildSellPriceCents = (costCents, pricingConfig) => {
   if (typeof costCents !== "number" || !Number.isFinite(costCents)) return 0;
-  const markupTarget = Math.ceil(costCents * 1.15);
-  return ceilToNext45Or99(markupTarget);
+  // Tax is intentionally excluded from this import pricing formula.
+  const marginMultiplier = 1 - pricingConfig.marginPercent / 100;
+  if (marginMultiplier <= 0) {
+    throw new Error("Invalid margin configuration produced divisor <= 0.");
+  }
+  const targetSellCents = Math.ceil(costCents / marginMultiplier);
+  if (pricingConfig.rounding === "none") return targetSellCents;
+  if (pricingConfig.rounding === "45_or_99") {
+    return ceilToNextWithEndings(targetSellCents, [45, 99]);
+  }
+  return ceilToNextWithEndings(targetSellCents, [49, 99]);
 };
 
 const formatCents = (cents) => (cents / 100).toFixed(2);
@@ -216,6 +272,9 @@ const run = async () => {
     limit,
     apply,
     allowMissingPrice,
+    updateExistingPrices,
+    marginPercent,
+    rounding,
     mainCategoryId,
     mainCategoryHandle,
     categoryIds,
@@ -233,6 +292,10 @@ const run = async () => {
     categoryIds,
     categoryHandles,
   });
+  const pricingConfig = resolvePricingConfig({
+    marginPercentArg: marginPercent,
+    roundingArg: rounding,
+  });
 
   if (!apply || !allowWrite) {
     console.log(
@@ -243,6 +306,7 @@ const run = async () => {
   const results = {
     processed: 0,
     created: 0,
+    updated: 0,
     skipped: 0,
     missingPrice: 0,
   };
@@ -264,15 +328,71 @@ const run = async () => {
         ? item.handle.trim()
         : slugifyFallback(title);
 
-    const sourceUrl =
-      typeof item.sourceUrl === "string" ? item.sourceUrl.trim() : "";
+    const sourceUrl = typeof item.sourceUrl === "string" ? item.sourceUrl.trim() : "";
     const existingByHandle = await prisma.product.findUnique({
       where: { handle },
-      select: { id: true },
+      select: {
+        id: true,
+        supplierId: true,
+        supplier: true,
+        sellerName: true,
+        variants: {
+          orderBy: { position: "asc" },
+          take: 1,
+          select: { id: true, title: true, priceCents: true, costCents: true },
+        },
+      },
     });
     if (existingByHandle) {
-      results.skipped += 1;
-      skippedItems.push({ handle, title, reason: "duplicate_handle" });
+      const costCents = toCents(item.price);
+      if (costCents === null && !allowMissingPrice) {
+        results.missingPrice += 1;
+        results.skipped += 1;
+        skippedItems.push({ handle, title, reason: "missing_price" });
+        continue;
+      }
+      if (!updateExistingPrices) {
+        results.skipped += 1;
+        skippedItems.push({ handle, title, reason: "duplicate_handle" });
+        continue;
+      }
+      const isBloomtechMatch =
+        (supplier?.id && existingByHandle.supplierId === supplier.id) ||
+        String(existingByHandle.supplier ?? "")
+          .toLowerCase()
+          .trim() === String(sellerName).toLowerCase().trim() ||
+        String(existingByHandle.sellerName ?? "")
+          .toLowerCase()
+          .trim() === String(sellerName).toLowerCase().trim();
+      if (!isBloomtechMatch) {
+        results.skipped += 1;
+        skippedItems.push({ handle, title, reason: "existing_not_bloomtech" });
+        continue;
+      }
+      const primaryVariant = existingByHandle.variants[0] ?? null;
+      if (!primaryVariant) {
+        results.skipped += 1;
+        skippedItems.push({ handle, title, reason: "existing_missing_variant" });
+        continue;
+      }
+      const sellPriceCents = costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
+      if (!apply || !allowWrite) {
+        const costLabel = costCents === null ? "missing" : formatCents(costCents);
+        const priceLabel =
+          costCents === null ? "0.00" : formatCents(sellPriceCents);
+        console.log(
+          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency}`
+        );
+        continue;
+      }
+      await prisma.variant.update({
+        where: { id: primaryVariant.id },
+        data: {
+          costCents: costCents ?? 0,
+          priceCents: sellPriceCents,
+        },
+      });
+      results.updated += 1;
       continue;
     }
 
@@ -296,7 +416,7 @@ const run = async () => {
       continue;
     }
     const sellPriceCents =
-      costCents === null ? 0 : buildSellPriceCents(costCents);
+      costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
 
     const inventoryQuantity = buildInventoryQuantity(item.stock);
     const supplierImageUrls = extractSupplierImageUrls(item);
@@ -310,7 +430,7 @@ const run = async () => {
       const priceLabel =
         costCents === null ? "0.00" : formatCents(sellPriceCents);
       console.log(
-        `[import] dry-run pricing handle=${handle} cost=${costLabel} price=${priceLabel} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
+        `[import] dry-run pricing handle=${handle} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
       );
       continue;
     }
@@ -382,7 +502,7 @@ const run = async () => {
   }
 
   console.log(
-    `[import] processed=${results.processed} created=${results.created} skipped=${results.skipped} missingPrice=${results.missingPrice}`
+    `[import] processed=${results.processed} created=${results.created} updated=${results.updated} skipped=${results.skipped} missingPrice=${results.missingPrice} margin=${pricingConfig.marginPercent}% rounding=${pricingConfig.rounding} currency=${pricingConfig.currency}`
   );
   if (!apply || !allowWrite) {
     if (skippedItems.length > 0) {

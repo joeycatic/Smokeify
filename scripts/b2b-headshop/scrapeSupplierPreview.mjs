@@ -1,9 +1,9 @@
-const DEFAULT_URL = "https://bloomtech.de/Biobizz_1";
+const DEFAULT_URL = "https://b2b-headshop.de/";
 const DEFAULT_LIMIT = 50;
 const REQUEST_DELAY_MS = 500;
 const DEFAULT_EMAIL_FIELD = "email";
 const DEFAULT_PASSWORD_FIELD = "passwort";
-const DEFAULT_LOGIN_URL = "https://bloomtech.de/Konto";
+const DEFAULT_LOGIN_URL = "https://b2b-headshop.de/Konto";
 const DEFAULT_LOGIN_SUBMIT_FIELD = "login";
 const DEFAULT_LOGIN_SUBMIT_VALUE = "1";
 const DEFAULT_LOGIN_CHECK_REGEX =
@@ -60,7 +60,7 @@ const extractProductLinksFromCategory = (html, baseUrl) => {
     const raw = linkMatch[1];
     try {
       const url = new URL(raw, baseUrl);
-      if (url.hostname !== "bloomtech.de") continue;
+      if (url.hostname !== "b2b-headshop.de") continue;
       if (url.search || url.hash) continue;
       if (url.pathname.endsWith("/favicon.ico") || url.pathname === "/favicon.ico") {
         continue;
@@ -98,7 +98,7 @@ const extractProductLinksFromJsonLd = (html, baseUrl) => {
           if (!rawUrl || typeof rawUrl !== "string") return;
           try {
             const url = new URL(rawUrl, baseUrl);
-            if (url.hostname !== "bloomtech.de") return;
+            if (url.hostname !== "b2b-headshop.de") return;
             if (url.search || url.hash) return;
             if (url.pathname.endsWith("/favicon.ico") || url.pathname === "/favicon.ico") {
               return;
@@ -125,7 +125,7 @@ const extractLinks = (html, baseUrl) => {
     if (!raw || raw.startsWith("#") || raw.startsWith("mailto:")) continue;
     try {
       const url = new URL(raw, baseUrl);
-      if (url.hostname !== "bloomtech.de") continue;
+      if (url.hostname !== "b2b-headshop.de") continue;
       if (url.search || url.hash) continue;
       if (
         url.pathname.endsWith("/favicon.ico") ||
@@ -823,28 +823,28 @@ const findLoginFormHtml = (html, { emailField, passwordField, submitField }) => 
   return null;
 };
 
-const loginBloomtech = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) => {
-  const loginUrl = process.env.BLOOMTECH_LOGIN_URL ?? DEFAULT_LOGIN_URL;
-  const email = process.env.BLOOMTECH_EMAIL;
-  const password = process.env.BLOOMTECH_PASSWORD;
+const loginB2BHeadshop = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) => {
+  const loginUrl = process.env.B2B_HEADSHOP_LOGIN_URL ?? DEFAULT_LOGIN_URL;
+  const email = process.env.B2B_HEADSHOP_EMAIL;
+  const password = process.env.B2B_HEADSHOP_PASSWORD;
   if (!loginUrl || !email || !password) {
-    if (process.env.BLOOMTECH_DEBUG === "1") {
+    if (process.env.B2B_HEADSHOP_DEBUG === "1") {
       console.log(
-        "[preview] Login skipped. Missing BLOOMTECH_EMAIL or BLOOMTECH_PASSWORD."
+        "[preview] Login skipped. Missing B2B_HEADSHOP_EMAIL or B2B_HEADSHOP_PASSWORD."
       );
     }
     return;
   }
 
-  const emailField = process.env.BLOOMTECH_EMAIL_FIELD ?? DEFAULT_EMAIL_FIELD;
+  const emailField = process.env.B2B_HEADSHOP_EMAIL_FIELD ?? DEFAULT_EMAIL_FIELD;
   const passwordField =
-    process.env.BLOOMTECH_PASSWORD_FIELD ?? DEFAULT_PASSWORD_FIELD;
+    process.env.B2B_HEADSHOP_PASSWORD_FIELD ?? DEFAULT_PASSWORD_FIELD;
   const submitField =
-    process.env.BLOOMTECH_LOGIN_SUBMIT_FIELD ?? DEFAULT_LOGIN_SUBMIT_FIELD;
+    process.env.B2B_HEADSHOP_LOGIN_SUBMIT_FIELD ?? DEFAULT_LOGIN_SUBMIT_FIELD;
   const submitValue =
-    process.env.BLOOMTECH_LOGIN_SUBMIT_VALUE ?? DEFAULT_LOGIN_SUBMIT_VALUE;
+    process.env.B2B_HEADSHOP_LOGIN_SUBMIT_VALUE ?? DEFAULT_LOGIN_SUBMIT_VALUE;
   const loginCheckRegex = new RegExp(
-    process.env.BLOOMTECH_LOGIN_CHECK_REGEX ?? DEFAULT_LOGIN_CHECK_REGEX
+    process.env.B2B_HEADSHOP_LOGIN_CHECK_REGEX ?? DEFAULT_LOGIN_CHECK_REGEX
   );
 
   const loginPageHtml = await fetchHtml(loginUrl, cookieJar);
@@ -888,7 +888,7 @@ const loginBloomtech = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) 
     const responseHtml = await res.text();
     await fs.promises.writeFile(dumpLoginResponse, responseHtml, "utf8");
   }
-  if (process.env.BLOOMTECH_DEBUG === "1") {
+  if (process.env.B2B_HEADSHOP_DEBUG === "1") {
     console.log(`[preview] cookie names after login: ${cookieJar.names().join(", ")}`);
   }
   const accountHtml = await fetchHtml(loginUrl, cookieJar);
@@ -907,7 +907,7 @@ const parseArgs = () => {
   const url = getValue("--url") ?? DEFAULT_URL;
   const limit = Number(getValue("--limit") ?? DEFAULT_LIMIT);
   const out =
-    getValue("--out") ?? "scripts/bloomtech-supplier-preview.json";
+    getValue("--out") ?? "scripts/b2b-headshop/supplier-preview.json";
   const dumpCategory = getValue("--dump-category");
   const dumpAccount = getValue("--dump-account");
   const dumpLogin = getValue("--dump-login");
@@ -960,14 +960,14 @@ const run = async () => {
       });
   }
   const cookieJar = createCookieJar();
-  const cookieOverride = process.env.BLOOMTECH_COOKIE;
+  const cookieOverride = process.env.B2B_HEADSHOP_COOKIE;
   if (cookieOverride) {
     cookieJar.setFromCookieString(cookieOverride);
-    if (process.env.BLOOMTECH_DEBUG === "1") {
-      console.log("[preview] Using BLOOMTECH_COOKIE auth.");
+    if (process.env.B2B_HEADSHOP_DEBUG === "1") {
+      console.log("[preview] Using B2B_HEADSHOP_COOKIE auth.");
     }
   } else {
-    await loginBloomtech(cookieJar, { dumpLogin, dumpLoginResponse });
+    await loginB2BHeadshop(cookieJar, { dumpLogin, dumpLoginResponse });
   }
   if (dumpAccount) {
     const accountHtml = await fetchHtml(DEFAULT_LOGIN_URL, cookieJar);
@@ -1088,3 +1088,4 @@ run().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+

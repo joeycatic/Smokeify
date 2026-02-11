@@ -65,7 +65,17 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm run bloomtech:scrape-preview
+npm run bloomtech:import-preview
+npm run bloomtech:override-pricing
+npm run b2b-headshop:scrape-preview
+npm run b2b-headshop:override-pricing
+npm run suppliers:sync-stock
+npm run orders:backfill-payment-fees
+npm run testing:seed-orders
 ```
+
+Script details are documented in `scripts/README.md`.
 
 ## Critical flow checklist
 
