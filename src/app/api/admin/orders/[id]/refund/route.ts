@@ -9,6 +9,7 @@ import { buildOrderEmail } from "@/lib/orderEmail";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import bcrypt from "bcryptjs";
+import { getAppOrigin } from "@/lib/appOrigin";
 
 export const runtime = "nodejs";
 
@@ -178,11 +179,10 @@ export async function POST(
 
   if (updated.customerEmail) {
     try {
-      const origin =
-        request.headers.get("origin") ??
-        process.env.NEXT_PUBLIC_APP_URL ??
-        "http://localhost:3000";
-      const orderUrl = `${origin}/account/orders/${updated.id}`;
+      const origin = getAppOrigin(request);
+      const orderUrl = updated.userId
+        ? `${origin}/account/orders/${updated.id}`
+        : undefined;
       const email = buildOrderEmail("refund", updated, orderUrl);
       await sendResendEmail({
         to: updated.customerEmail,

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { getAppOrigin } from "@/lib/appOrigin";
 
 export const runtime = "nodejs";
 
@@ -351,7 +352,8 @@ const sendTelegramMessage = async (text: string) => {
 
 const createOrderFromSession = async (
   stripe: Stripe,
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
+  request: Request
 ) => {
   const sessionId = session.id;
   if (!sessionId) {
@@ -566,8 +568,7 @@ const createOrderFromSession = async (
 
   try {
     if (created.customerEmail) {
-      const origin =
-        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const origin = getAppOrigin(request);
       const orderUrl = created.userId
         ? `${origin}/account/orders/${created.id}`
         : undefined;
@@ -716,7 +717,7 @@ export async function POST(request: Request) {
       event.type === "checkout.session.async_payment_succeeded"
     ) {
       const session = event.data.object as Stripe.Checkout.Session;
-      await createOrderFromSession(stripe, session);
+      await createOrderFromSession(stripe, session, request);
     }
   if (event.type === "checkout.session.async_payment_failed") {
     const session = event.data.object as Stripe.Checkout.Session;

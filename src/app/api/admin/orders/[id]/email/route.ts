@@ -7,6 +7,7 @@ import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { getAppOrigin } from "@/lib/appOrigin";
 
 export async function POST(
   request: Request,
@@ -57,11 +58,8 @@ export async function POST(
     );
   }
 
-  const origin =
-    request.headers.get("origin") ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000";
-  const orderUrl = `${origin}/account/orders/${order.id}`;
+  const origin = getAppOrigin(request);
+  const orderUrl = order.userId ? `${origin}/account/orders/${order.id}` : undefined;
   const invoiceUrl =
     type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
   const email = buildOrderEmail(

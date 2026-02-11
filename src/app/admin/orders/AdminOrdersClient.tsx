@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type OrderItem = {
   id: string;
+  productId?: string | null;
+  variantId?: string | null;
   name: string;
   manufacturer?: string | null;
   quantity: number;
@@ -800,6 +803,14 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                             ? "Resend confirmation"
                             : "Send confirmation"}
                         </button>
+                        <a
+                          href={`/api/orders/${order.id}/invoice`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-800 hover:border-sky-300"
+                        >
+                          Download invoice
+                        </a>
                       </div>
                     </div>
                     <div className="rounded-2xl border border-black/10 bg-white p-4">
@@ -991,9 +1002,27 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                           item.name,
                           item.manufacturer
                         );
+                        const productHref = item.productId
+                          ? `/admin/catalog/${item.productId}`
+                          : null;
                         const selection = refundSelection[order.id] ?? {};
                         const selectedQty = selection[item.id] ?? 0;
                         const isSelected = selectedQty > 0;
+                        const itemImage = item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={itemName}
+                            className={`h-10 w-10 rounded-lg border border-black/10 object-cover ${
+                              productHref
+                                ? "transition hover:border-emerald-300"
+                                : ""
+                            }`}
+                            loading="lazy"
+                            decoding="async"
+                            width={40}
+                            height={40}
+                          />
+                        ) : null;
                         return (
                           <div
                             key={item.id}
@@ -1013,21 +1042,28 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                   }))
                                 }
                               />
-                              {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={itemName}
-                                    className="h-10 w-10 rounded-lg border border-black/10 object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                  width={40}
-                                  height={40}
-                                />
+                              {itemImage ? (
+                                productHref ? (
+                                  <Link href={productHref} className="block">
+                                    {itemImage}
+                                  </Link>
+                                ) : (
+                                  itemImage
+                                )
                               ) : (
                                 <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
                               )}
                               <div>
-                                <div className="font-semibold">{itemName}</div>
+                                {productHref ? (
+                                  <Link
+                                    href={productHref}
+                                    className="font-semibold text-stone-900 underline-offset-2 hover:text-emerald-700 hover:underline"
+                                  >
+                                    {itemName}
+                                  </Link>
+                                ) : (
+                                  <div className="font-semibold">{itemName}</div>
+                                )}
                                 {item.options && item.options.length > 0 && (
                                   <div className="text-[11px] text-stone-500">
                                     {formatItemOptions(item.options)}
