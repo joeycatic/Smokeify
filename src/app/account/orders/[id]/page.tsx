@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import ReturnRequestForm from "./ReturnRequestForm";
@@ -17,12 +17,12 @@ export default async function OrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    notFound();
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent(`/account/orders/${id}`)}`);
   }
 
-  const { id } = await params;
   const order = await prisma.order.findFirst({
     where: { id, userId: session.user.id },
     include: { items: true, returnRequests: true },

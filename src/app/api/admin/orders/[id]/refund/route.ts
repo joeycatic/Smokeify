@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
+import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import bcrypt from "bcryptjs";
@@ -180,9 +181,10 @@ export async function POST(
   if (updated.customerEmail) {
     try {
       const origin = getAppOrigin(request);
+      const guestOrderUrl = buildOrderViewUrl(origin, updated.id);
       const orderUrl = updated.userId
         ? `${origin}/account/orders/${updated.id}`
-        : undefined;
+        : guestOrderUrl ?? undefined;
       const email = buildOrderEmail("refund", updated, orderUrl);
       await sendResendEmail({
         to: updated.customerEmail,

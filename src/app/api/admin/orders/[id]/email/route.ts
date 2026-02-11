@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
@@ -59,7 +60,10 @@ export async function POST(
   }
 
   const origin = getAppOrigin(request);
-  const orderUrl = order.userId ? `${origin}/account/orders/${order.id}` : undefined;
+  const guestOrderUrl = buildOrderViewUrl(origin, order.id);
+  const orderUrl = order.userId
+    ? `${origin}/account/orders/${order.id}`
+    : guestOrderUrl ?? undefined;
   const invoiceUrl =
     type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
   const email = buildOrderEmail(
