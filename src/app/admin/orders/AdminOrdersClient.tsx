@@ -71,6 +71,7 @@ const formatPrice = (amount: number, currency: string) =>
   }).format(amount / 100);
 
 const normalizeStatus = (value: string) => value.trim().toLowerCase();
+const NON_RELEVANT_ORDER_STATUSES = new Set(["fulfilled", "refunded"]);
 const getOrderEmail = (order: OrderRow) => order.user?.email ?? order.customerEmail;
 const formatOrderItemName = (name: string, manufacturer?: string | null) => {
   const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
@@ -200,6 +201,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleteConfirmationError, setDeleteConfirmationError] = useState("");
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [showRelevantOrders, setShowRelevantOrders] = useState(true);
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
@@ -246,6 +249,24 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           : count;
       }, 0),
     [filteredOrders]
+  );
+  const relevantOrders = useMemo(
+    () =>
+      sorted.filter(
+        (order) => !NON_RELEVANT_ORDER_STATUSES.has(normalizeStatus(order.status))
+      ),
+    [sorted]
+  );
+  const archivedOrders = useMemo(
+    () =>
+      sorted.filter((order) =>
+        NON_RELEVANT_ORDER_STATUSES.has(normalizeStatus(order.status))
+      ),
+    [sorted]
+  );
+  const categorizedOrders = useMemo(
+    () => [...relevantOrders, ...archivedOrders],
+    [relevantOrders, archivedOrders]
   );
 
   const isConfirmationEmailSent = (order: OrderRow) =>
@@ -623,8 +644,45 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       )}
 
       <div className="space-y-4">
-        {sorted.map((order) => {
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+          <button
+            type="button"
+            onClick={() => setShowRelevantOrders((prev) => !prev)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="text-sm font-semibold text-emerald-900">
+              Non-fulfilled ({relevantOrders.length})
+            </span>
+            <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              {showRelevantOrders ? "Collapse" : "Expand"}
+            </span>
+          </button>
+        </div>
+        <div className="rounded-xl border border-stone-300 bg-stone-100/80 p-3">
+          <button
+            type="button"
+            onClick={() => setShowArchivedOrders((prev) => !prev)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="text-sm font-semibold text-stone-800">
+              Fulfilled / Refunded ({archivedOrders.length})
+            </span>
+            <span className="rounded-full border border-stone-400 bg-white px-2 py-0.5 text-xs font-semibold text-stone-700">
+              {showArchivedOrders ? "Collapse" : "Expand"}
+            </span>
+          </button>
+        </div>
+        {categorizedOrders.map((order) => {
           const isOpen = openId === order.id;
+          const normalizedStatus = normalizeStatus(order.status);
+          const isArchived = NON_RELEVANT_ORDER_STATUSES.has(normalizedStatus);
+          const archivedLabel =
+            normalizedStatus === "refunded"
+              ? "Refunded: no action needed"
+              : "Fulfilled: no action needed";
+          if ((isArchived && !showArchivedOrders) || (!isArchived && !showRelevantOrders)) {
+            return null;
+          }
           const tracking = trackingDrafts[order.id] ?? {
             carrier: order.trackingCarrier ?? "",
             number: order.trackingNumber ?? "",
@@ -640,8 +698,22 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           return (
             <div
               key={order.id}
-              className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm"
+              className={`rounded-2xl border p-5 shadow-sm ${
+                isArchived
+                  ? "border-stone-300 bg-stone-100/90 text-stone-500 ring-1 ring-inset ring-stone-300/70"
+                  : "border-black/10 bg-white"
+              }`}
             >
+              {isArchived && (
+                <div className="mb-3 flex items-center justify-between rounded-lg border border-stone-300 bg-stone-200/80 px-3 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-700">
+                    {archivedLabel}
+                  </span>
+                  <span className="rounded-full border border-stone-400 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">
+                    Archived
+                  </span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}

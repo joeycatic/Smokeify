@@ -18,7 +18,7 @@ const CURRENCY_CODE = "EUR";
 const COOKIE_NAME = "smokeify_cart";
 
 const SHIPPING_BASE = {
-  DE: 6.9,
+  DE: 7.9,
   AT: 7.9,
   CH: 9.9,
   EU: 8.9,

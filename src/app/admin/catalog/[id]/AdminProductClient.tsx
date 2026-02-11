@@ -2325,7 +2325,7 @@ export default function AdminProductClient({
                       })}
                     </div>
                     <div className="mt-1 text-[10px] text-stone-500">
-                      Shipping fee base estimate: +6.90 EUR only for items {"\u003e="} 100 EUR.
+                      Shipping fee base estimate: +7.90 EUR only for items {"\u003e="} 100 EUR.
                     </div>
                   </div>
                   <button
