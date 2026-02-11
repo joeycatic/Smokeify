@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   }
 
   const { runSupplierSync } = await import(
-    "../../../../../scripts/syncSupplierStock.mjs"
+    "../../../../../scripts/suppliers/syncSupplierStock.mjs"
   );
 
   await runSupplierSync();
