@@ -6,6 +6,7 @@ import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 type OrderItem = {
   id: string;
   name: string;
+  manufacturer?: string | null;
   quantity: number;
   unitAmount: number;
   totalAmount: number;
@@ -41,6 +42,7 @@ type OrderRow = {
   shippingEmailSentAt: string | null;
   refundEmailSentAt: string | null;
   discountCode: string | null;
+  customerEmail: string | null;
   user: { email: string | null; name: string | null };
   items: OrderItem[];
 };
@@ -66,6 +68,16 @@ const formatPrice = (amount: number, currency: string) =>
   }).format(amount / 100);
 
 const normalizeStatus = (value: string) => value.trim().toLowerCase();
+const getOrderEmail = (order: OrderRow) => order.user?.email ?? order.customerEmail;
+const formatOrderItemName = (name: string, manufacturer?: string | null) => {
+  const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
+  if (!defaultSuffix.test(name)) return name;
+  const trimmedManufacturer = manufacturer?.trim();
+  if (trimmedManufacturer) {
+    return name.replace(defaultSuffix, ` - ${trimmedManufacturer}`);
+  }
+  return name.replace(defaultSuffix, "").trim();
+};
 
 const formatItemOptions = (options?: Array<{ name: string; value: string }>) => {
   if (!options?.length) return "";
@@ -168,6 +180,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     orderId: string;
     mode: "full" | "items";
   } | null>(null);
+  const [refundIncludeShipping, setRefundIncludeShipping] = useState(false);
   const [refundPassword, setRefundPassword] = useState("");
   const [refundPasswordError, setRefundPasswordError] = useState("");
   const [confirmShippingResend, setConfirmShippingResend] = useState<{
@@ -193,7 +206,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const filteredOrders = useMemo(() => {
     if (!normalizedQuery) return visibleOrders;
     return visibleOrders.filter((order) => {
-      const email = order.user?.email?.toLowerCase() ?? "";
+      const email = getOrderEmail(order)?.toLowerCase() ?? "";
       const name = order.user?.name?.toLowerCase() ?? "";
       return (
         order.id.toLowerCase().includes(normalizedQuery) ||
@@ -207,16 +220,17 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const customerSummary = useMemo(() => {
     if (!normalizedQuery) return null;
     const matching = visibleOrders.filter((order) => {
-      const email = order.user?.email?.toLowerCase() ?? "";
+      const email = getOrderEmail(order)?.toLowerCase() ?? "";
       return email && email.includes(normalizedQuery);
     });
     if (!matching.length) return null;
     const total = matching.reduce((sum, order) => sum + order.amountTotal, 0);
+    const firstMatch = matching[0];
     return {
-      email: matching[0]?.user?.email ?? "Unknown",
+      email: firstMatch ? getOrderEmail(firstMatch) : "Unknown",
       orders: matching.length,
       total,
-      currency: matching[0]?.currency ?? "EUR",
+      currency: firstMatch?.currency ?? "EUR",
     };
   }, [visibleOrders, normalizedQuery]);
   const fulfilledCount = useMemo(
@@ -298,7 +312,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     }
   };
 
-  const refundOrder = async (orderId: string, adminPassword: string) => {
+  const refundOrder = async (
+    orderId: string,
+    adminPassword: string,
+    includeShipping: boolean
+  ) => {
     setError("");
     setNotice("");
     setRefundId(orderId);
@@ -311,7 +329,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword }),
+        body: JSON.stringify({ adminPassword, includeShipping }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -324,7 +342,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     }
   };
 
-  const refundSelectedItems = async (orderId: string, adminPassword: string) => {
+  const refundSelectedItems = async (
+    orderId: string,
+    adminPassword: string,
+    includeShipping: boolean
+  ) => {
     setError("");
     setNotice("");
     setRefundId(orderId);
@@ -344,7 +366,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, adminPassword }),
+        body: JSON.stringify({ items, adminPassword, includeShipping }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -360,6 +382,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const confirmRefundAction = async () => {
     if (!confirmRefund) return;
     const adminPassword = refundPassword.trim();
+    const includeShipping = refundIncludeShipping;
     if (!adminPassword) {
       setRefundPasswordError("Bitte Admin-Passwort eingeben.");
       return;
@@ -368,11 +391,12 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     setConfirmRefund(null);
     setRefundPassword("");
     setRefundPasswordError("");
+    setRefundIncludeShipping(false);
     if (mode === "items") {
-      await refundSelectedItems(orderId, adminPassword);
+      await refundSelectedItems(orderId, adminPassword, includeShipping);
       return;
     }
-    await refundOrder(orderId, adminPassword);
+    await refundOrder(orderId, adminPassword, includeShipping);
   };
 
   const sendEmail = async (
@@ -626,7 +650,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                   </div>
                   <div className="text-xs text-stone-500">
                     {new Date(order.createdAt).toLocaleDateString("de-DE")} ·{" "}
-                    {order.user?.email ?? "No email"}
+                    {getOrderEmail(order) ?? "No email"}
                   </div>
                   {!isOpen && (
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -963,6 +987,10 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                     </div>
                     <div className="space-y-2">
                       {order.items.map((item) => {
+                        const itemName = formatOrderItemName(
+                          item.name,
+                          item.manufacturer
+                        );
                         const selection = refundSelection[order.id] ?? {};
                         const selectedQty = selection[item.id] ?? 0;
                         const isSelected = selectedQty > 0;
@@ -986,12 +1014,12 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                 }
                               />
                               {item.imageUrl ? (
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.name}
-                                  className="h-10 w-10 rounded-lg border border-black/10 object-cover"
-                                  loading="lazy"
-                                  decoding="async"
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={itemName}
+                                    className="h-10 w-10 rounded-lg border border-black/10 object-cover"
+                                    loading="lazy"
+                                    decoding="async"
                                   width={40}
                                   height={40}
                                 />
@@ -999,7 +1027,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                 <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
                               )}
                               <div>
-                                <div className="font-semibold">{item.name}</div>
+                                <div className="font-semibold">{itemName}</div>
                                 {item.options && item.options.length > 0 && (
                                   <div className="text-[11px] text-stone-500">
                                     {formatItemOptions(item.options)}
@@ -1047,6 +1075,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         onClick={() => {
                           setRefundPassword("");
                           setRefundPasswordError("");
+                          setRefundIncludeShipping(false);
                           setConfirmRefund({ orderId: order.id, mode: "items" });
                         }}
                         className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
@@ -1077,6 +1106,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         onClick={() => {
                           setRefundPassword("");
                           setRefundPasswordError("");
+                          setRefundIncludeShipping(true);
                           setConfirmRefund({ orderId: order.id, mode: "full" });
                         }}
                         className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
@@ -1158,6 +1188,16 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             <p className="mt-2 text-sm text-stone-600">
               Diese Rueckerstattung kann nicht rueckgaengig gemacht werden.
             </p>
+            <label className="mt-4 flex items-center gap-2 text-sm text-stone-700">
+              <input
+                type="checkbox"
+                checked={refundIncludeShipping}
+                onChange={(event) =>
+                  setRefundIncludeShipping(event.target.checked)
+                }
+              />
+              Versand in Rueckerstattung einbeziehen
+            </label>
             <input
               type="password"
               value={refundPassword}

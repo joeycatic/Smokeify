@@ -17,6 +17,22 @@ export default async function AdminOrdersPage() {
       user: { select: { email: true, name: true } },
     },
   });
+  const productIds = Array.from(
+    new Set(
+      orders.flatMap((order) =>
+        order.items
+          .map((item) => item.productId)
+          .filter((id): id is string => Boolean(id))
+      )
+    )
+  );
+  const products = await prisma.product.findMany({
+    where: productIds.length ? { id: { in: productIds } } : { id: "__none__" },
+    select: { id: true, manufacturer: true },
+  });
+  const manufacturerByProductId = new Map(
+    products.map((product) => [product.id, product.manufacturer ?? null])
+  );
   const normalizeOptions = (value: unknown) => {
     if (!Array.isArray(value)) return [];
     return value
@@ -51,6 +67,9 @@ export default async function AdminOrdersPage() {
             user: order.user ?? { email: null, name: null },
             items: order.items.map((item) => ({
               ...item,
+              manufacturer: item.productId
+                ? manufacturerByProductId.get(item.productId) ?? null
+                : null,
               options: normalizeOptions(item.options),
             })),
             createdAt: order.createdAt.toISOString(),

@@ -135,6 +135,126 @@ const formatItemName = (name: string, manufacturer?: string | null) => {
   return name.replace(defaultSuffix, "");
 };
 
+type PaymentFeeConfig = {
+  percentBasisPoints: number;
+  fixedCents: number;
+};
+
+const PAYMENT_FEE_BY_METHOD: Record<string, PaymentFeeConfig> = {
+  card: { percentBasisPoints: 150, fixedCents: 25 },
+  link: { percentBasisPoints: 150, fixedCents: 25 },
+  paypal: { percentBasisPoints: 299, fixedCents: 35 },
+  klarna: { percentBasisPoints: 329, fixedCents: 35 },
+  amazon_pay: { percentBasisPoints: 299, fixedCents: 35 },
+};
+
+const DEFAULT_PAYMENT_FEE: PaymentFeeConfig = {
+  percentBasisPoints: 150,
+  fixedCents: 25,
+};
+
+const HIGH_PRICE_SHIPPING_THRESHOLD_CENTS = 10_000;
+
+type CostSnapshotItem = {
+  quantity: number;
+  unitAmount: number;
+  totalAmount: number;
+  baseCostAmount: number;
+};
+
+const allocateByWeight = (total: number, weights: number[]) => {
+  if (total <= 0 || weights.length === 0) return weights.map(() => 0);
+  const positiveWeights = weights.map((weight) => Math.max(0, weight));
+  const weightSum = positiveWeights.reduce((sum, weight) => sum + weight, 0);
+  if (weightSum <= 0) return weights.map(() => 0);
+
+  const allocations = positiveWeights.map((weight) =>
+    Math.floor((total * weight) / weightSum)
+  );
+  let remainder = total - allocations.reduce((sum, value) => sum + value, 0);
+  let index = 0;
+  while (remainder > 0) {
+    if (positiveWeights[index] > 0) {
+      allocations[index] += 1;
+      remainder -= 1;
+    }
+    index = (index + 1) % allocations.length;
+  }
+  return allocations;
+};
+
+const applyPaymentFeesToCosts = (
+  items: CostSnapshotItem[],
+  shippingAmount: number,
+  feeConfig: PaymentFeeConfig
+) => {
+  if (!items.length) {
+    return [] as Array<
+      CostSnapshotItem & { paymentFeeAmount: number; adjustedCostAmount: number }
+    >;
+  }
+
+  const shippingEligibleWeights = items.map((item) =>
+    item.unitAmount >= HIGH_PRICE_SHIPPING_THRESHOLD_CENTS ? item.totalAmount : 0
+  );
+  const shippingShares = allocateByWeight(
+    Math.max(0, shippingAmount),
+    shippingEligibleWeights
+  );
+
+  const percentageFees = items.map((item, index) => {
+    const base = Math.max(0, item.totalAmount) + (shippingShares[index] ?? 0);
+    return Math.max(
+      0,
+      Math.round((base * feeConfig.percentBasisPoints) / 10_000)
+    );
+  });
+
+  const fixedShares = allocateByWeight(
+    Math.max(0, feeConfig.fixedCents),
+    items.map((item) => Math.max(0, item.totalAmount))
+  );
+
+  return items.map((item, index) => {
+    const paymentFeeAmount = (percentageFees[index] ?? 0) + (fixedShares[index] ?? 0);
+    const adjustedCostAmount = Math.max(0, item.baseCostAmount + paymentFeeAmount);
+    return {
+      ...item,
+      paymentFeeAmount,
+      adjustedCostAmount,
+    };
+  });
+};
+
+const resolvePaymentMethod = async (
+  stripe: Stripe,
+  checkoutSession: Stripe.Checkout.Session
+) => {
+  let paymentMethod = checkoutSession.payment_method_types?.[0] ?? "unknown";
+  const paymentIntentId =
+    typeof checkoutSession.payment_intent === "string"
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id;
+  if (!paymentIntentId) return paymentMethod;
+
+  try {
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge"],
+    });
+    const latestCharge = intent.latest_charge as Stripe.Charge | null;
+    const chargeMethod = latestCharge?.payment_method_details?.type;
+    paymentMethod =
+      chargeMethod ??
+      intent.payment_method_types?.[0] ??
+      checkoutSession.payment_method_types?.[0] ??
+      paymentMethod;
+  } catch {
+    paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
+  }
+
+  return paymentMethod;
+};
+
 type LineItemWithTax = Stripe.LineItem & {
   tax_amounts?: Array<{
     amount?: number | null;
@@ -271,6 +391,87 @@ const createOrderFromSession = async (
   const taxAmount = checkoutSession.total_details?.amount_tax ?? 0;
   const { discountTotal, discountCode } = getDiscountDetails(checkoutSession);
   const currency = (checkoutSession.currency ?? "eur").toUpperCase();
+  const paymentMethod = await resolvePaymentMethod(stripe, checkoutSession);
+  const paymentFeeConfig =
+    PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
+
+  const orderItemDrafts = await Promise.all(
+    (lineItems.data ?? []).map(async (item) => {
+      const product = item.price?.product as Stripe.Product | null | undefined;
+      const variantId =
+        product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+      const selectedOptions = parseSelectedOptions(
+        product?.metadata?.selectedOptions ||
+          (item.price?.metadata?.selectedOptions as string | undefined) ||
+          undefined
+      );
+      let name = item.description ?? "Item";
+      let imageUrl = product?.images?.[0] ?? null;
+      const productId =
+        product?.metadata?.productId || item.price?.metadata?.productId || "";
+      const quantity = Math.max(0, item.quantity ?? 0);
+      const unitAmount = Math.max(0, item.price?.unit_amount ?? 0);
+      const totalAmount = Math.max(0, item.amount_total ?? 0);
+      let baseCostAmount = 0;
+
+      if (variantId) {
+        const variant = await prisma.variant.findUnique({
+          where: { id: variantId },
+          include: {
+            product: { include: { images: { orderBy: { position: "asc" } } } },
+          },
+        });
+        if (variant) {
+          const productName = variant.product.title;
+          const variantTitle = variant.title?.trim();
+          name =
+            variantTitle && variantTitle !== productName
+              ? `${productName} - ${variantTitle}`
+              : productName;
+          imageUrl = variant.product.images[0]?.url ?? imageUrl;
+          baseCostAmount = Math.max(0, variant.costCents) * quantity;
+        }
+      }
+      if (selectedOptions.length > 0) {
+        name = `${name} (${formatOptionsLabel(selectedOptions)})`;
+      }
+
+      return {
+        name,
+        quantity,
+        unitAmount,
+        totalAmount,
+        baseCostAmount,
+        taxAmount: getLineItemTaxAmount(item),
+        taxRateBasisPoints: getLineItemTaxRateBasisPoints(item),
+        currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
+        imageUrl,
+        productId: productId || undefined,
+        variantId: variantId || undefined,
+        options: selectedOptions.length > 0 ? selectedOptions : undefined,
+      };
+    })
+  );
+
+  const orderItemsWithFees = applyPaymentFeesToCosts(
+    orderItemDrafts.map((item) => ({
+      quantity: item.quantity,
+      unitAmount: item.unitAmount,
+      totalAmount: item.totalAmount,
+      baseCostAmount: item.baseCostAmount,
+    })),
+    shippingAmount,
+    paymentFeeConfig
+  );
+
+  const orderItemCreates = orderItemDrafts.map((item, index) => {
+    const snapshot = orderItemsWithFees[index];
+    return {
+      ...item,
+      paymentFeeAmount: snapshot?.paymentFeeAmount ?? 0,
+      adjustedCostAmount: snapshot?.adjustedCostAmount ?? item.baseCostAmount,
+    };
+  });
 
   const created = await prisma.order.create({
     data: {
@@ -280,6 +481,7 @@ const createOrderFromSession = async (
         typeof checkoutSession.payment_intent === "string"
           ? checkoutSession.payment_intent
           : checkoutSession.payment_intent?.id,
+      paymentMethod,
       status: checkoutSession.status ?? "open",
       paymentStatus: checkoutSession.payment_status ?? "unpaid",
       currency,
@@ -297,56 +499,7 @@ const createOrderFromSession = async (
       shippingCity: address?.city ?? undefined,
       shippingCountry: address?.country ?? undefined,
       items: {
-        create: await Promise.all(
-            (lineItems.data ?? []).map(async (item) => {
-              const product = item.price?.product as Stripe.Product | null | undefined;
-              const variantId =
-                product?.metadata?.variantId || item.price?.metadata?.variantId || "";
-              const selectedOptions = parseSelectedOptions(
-                product?.metadata?.selectedOptions ||
-                  (item.price?.metadata?.selectedOptions as string | undefined) ||
-                  undefined
-              );
-              let name = item.description ?? "Item";
-              let imageUrl = product?.images?.[0] ?? null;
-              const productId = product?.metadata?.productId || item.price?.metadata?.productId || "";
-
-              if (variantId) {
-                const variant = await prisma.variant.findUnique({
-                  where: { id: variantId },
-                  include: {
-                    product: { include: { images: { orderBy: { position: "asc" } } } },
-                  },
-                });
-                if (variant) {
-                  const productName = variant.product.title;
-                  const variantTitle = variant.title?.trim();
-                  name =
-                    variantTitle && variantTitle !== productName
-                      ? `${productName} - ${variantTitle}`
-                      : productName;
-                  imageUrl = variant.product.images[0]?.url ?? imageUrl;
-                }
-              }
-              if (selectedOptions.length > 0) {
-                name = `${name} (${formatOptionsLabel(selectedOptions)})`;
-              }
-
-              return {
-                name,
-                quantity: item.quantity ?? 0,
-                unitAmount: item.price?.unit_amount ?? 0,
-                totalAmount: item.amount_total ?? 0,
-                taxAmount: getLineItemTaxAmount(item),
-                taxRateBasisPoints: getLineItemTaxRateBasisPoints(item),
-                currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
-                imageUrl,
-                productId: productId || undefined,
-                variantId: variantId || undefined,
-                options: selectedOptions.length > 0 ? selectedOptions : undefined,
-              };
-            })
-          ),
+        create: orderItemCreates,
       },
     },
     include: { items: true },
@@ -455,29 +608,6 @@ const createOrderFromSession = async (
     })
     .filter(Boolean)
     .join("; ");
-  let paymentMethod = "unknown";
-  const paymentIntentId =
-    typeof checkoutSession.payment_intent === "string"
-      ? checkoutSession.payment_intent
-      : checkoutSession.payment_intent?.id;
-  if (paymentIntentId) {
-    try {
-      const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-        expand: ["latest_charge"],
-      });
-      const latestCharge = intent.latest_charge as Stripe.Charge | null;
-      const chargeMethod = latestCharge?.payment_method_details?.type;
-      paymentMethod =
-        chargeMethod ??
-        intent.payment_method_types?.[0] ??
-        checkoutSession.payment_method_types?.[0] ??
-        paymentMethod;
-    } catch {
-      paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
-    }
-  } else {
-    paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
-  }
   const orderTime = new Date(created.createdAt).toLocaleString("de-DE", {
     dateStyle: "short",
     timeStyle: "short",

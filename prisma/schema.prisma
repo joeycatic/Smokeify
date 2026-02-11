@@ -386,6 +386,7 @@ model Order {
   userId               String?
   stripeSessionId      String      @unique
   stripePaymentIntent  String?     @unique
+  paymentMethod        String?
   status               String
   paymentStatus        String
   currency             String
@@ -448,6 +449,9 @@ model OrderItem {
   quantity     Int
   unitAmount   Int
   totalAmount  Int
+  baseCostAmount Int    @default(0)
+  paymentFeeAmount Int  @default(0)
+  adjustedCostAmount Int @default(0)
   taxAmount    Int      @default(0)
   taxRateBasisPoints Int?
   currency     String

@@ -40,7 +40,7 @@ export default function AdminEmailTestingClient() {
   const [currency, setCurrency] = useState("EUR");
   const [amountSubtotal, setAmountSubtotal] = useState("89.90");
   const [amountTax, setAmountTax] = useState("14.36");
-  const [amountShipping, setAmountShipping] = useState("5.90");
+  const [amountShipping, setAmountShipping] = useState("6.90");
   const [amountDiscount, setAmountDiscount] = useState("0");
   const [amountTotal, setAmountTotal] = useState("110.16");
   const [amountRefunded, setAmountRefunded] = useState("0");

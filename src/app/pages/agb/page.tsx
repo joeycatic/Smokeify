@@ -25,6 +25,7 @@ export const AGB_SECTIONS = [
       `Die im Online-Shop dargestellten Produkte stellen kein rechtlich bindendes Angebot dar, sondern eine unverbindliche Aufforderung zur Bestellung.`,
       `Der Vertrag kommt zustande, sobald Smokeify die Bestellung des Kunden durch eine Bestellbestätigung per E-Mail annimmt.`,
       `Die Bestellbestätigung stellt noch keine Versandbestätigung dar.`,
+      `Bei offensichtlichen Preisirrtümern sowie Schreib- und Rechenfehlern behält sich Smokeify vor, Bestellungen abzulehnen oder den Vertrag anzufechten und zu stornieren.`,
       `Vertragssprache ist Deutsch.`,
       `Der Vertragstext wird von Smokeify gespeichert und dem Kunden nach Vertragsschluss per E-Mail (Bestellbestätigung) übermittelt.`,
     ],
@@ -130,7 +131,7 @@ export default function AgbPage() {
               Allgemeine Geschäftsbedingungen
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: 01.02.2026
+              Stand: 11.02.2026
             </p>
           </div>
 

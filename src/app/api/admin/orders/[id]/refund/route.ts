@@ -54,8 +54,10 @@ export async function POST(
   const body = (await request.json().catch(() => ({}))) as {
     items?: Array<{ id: string; quantity?: number }>;
     amount?: number;
+    includeShipping?: boolean;
     adminPassword?: string;
   };
+  const includeShipping = body.includeShipping === true;
   const adminPassword = body.adminPassword?.trim();
   const admin = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -99,6 +101,7 @@ export async function POST(
   }
 
   let refundAmount = 0;
+  let shippingRefundAmount = 0;
 
   if (Array.isArray(body.items) && body.items.length > 0) {
     const itemMap = new Map(order.items.map((item) => [item.id, item]));
@@ -113,6 +116,13 @@ export async function POST(
     refundAmount = Math.max(0, Math.floor(Number(body.amount)));
   } else {
     refundAmount = order.amountTotal - order.amountRefunded;
+  }
+
+  if (includeShipping) {
+    const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
+    const remainingAfterBase = Math.max(0, remaining - refundAmount);
+    shippingRefundAmount = Math.min(order.amountShipping, remainingAfterBase);
+    refundAmount += shippingRefundAmount;
   }
 
   if (refundAmount <= 0) {
@@ -153,8 +163,12 @@ export async function POST(
     action: "order.refund",
     targetType: "order",
     targetId: order.id,
-    summary: `Refunded ${refundAmount} of ${order.amountTotal}`,
+    summary: `Refunded ${refundAmount} of ${order.amountTotal}${
+      shippingRefundAmount > 0 ? ` (incl. ${shippingRefundAmount} shipping)` : ""
+    }`,
     metadata: {
+      includeShipping,
+      shippingRefundAmount,
       refundAmount,
       totalAmount: order.amountTotal,
       newRefunded,

@@ -101,6 +101,36 @@ const parseEuro = (value: string) => {
   return Math.round(amount * 100);
 };
 
+type PaymentFeePreset = {
+  label: string;
+  percentBasisPoints: number;
+  fixedCents: number;
+};
+
+const CATALOG_PAYMENT_FEES: PaymentFeePreset[] = [
+  { label: "Stripe", percentBasisPoints: 150, fixedCents: 25 },
+  { label: "PayPal", percentBasisPoints: 299, fixedCents: 35 },
+  { label: "Klarna", percentBasisPoints: 329, fixedCents: 35 },
+  { label: "Amazon Pay", percentBasisPoints: 299, fixedCents: 35 },
+];
+
+const PRICE_WITH_SHIPPING_THRESHOLD_CENTS = 10_000;
+const ESTIMATED_SHIPPING_CENTS = 690;
+
+const calculateAdjustedCostForProvider = (
+  priceCents: number,
+  costCents: number,
+  provider: PaymentFeePreset
+) => {
+  const includeShipping = priceCents >= PRICE_WITH_SHIPPING_THRESHOLD_CENTS;
+  const feeBase = priceCents + (includeShipping ? ESTIMATED_SHIPPING_CENTS : 0);
+  const percentFee = Math.round((feeBase * provider.percentBasisPoints) / 10_000);
+  const paymentFee = Math.max(0, percentFee + provider.fixedCents);
+  const adjustedCost = Math.max(0, costCents + paymentFee);
+  const profit = priceCents - adjustedCost;
+  return { adjustedCost, paymentFee, profit, includeShipping };
+};
+
 type OptionInput = { name: string; value: string; imagePosition?: number | null };
 
 const normalizeVariantOptions = (
@@ -2267,6 +2297,36 @@ export default function AdminProductClient({
                     >
                       {toEuro(variant.priceCents - variant.costCents)}
                     </span>
+                  </div>
+                  <div className="w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-[11px] text-stone-600">
+                    <div className="mb-1 font-semibold text-stone-700">
+                      Cost incl. payment fees
+                    </div>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      {CATALOG_PAYMENT_FEES.map((provider) => {
+                        const adjusted = calculateAdjustedCostForProvider(
+                          variant.priceCents,
+                          variant.costCents,
+                          provider
+                        );
+                        return (
+                          <div key={`${variant.id}-${provider.label}`}>
+                            <span className="font-semibold">{provider.label}:</span>{" "}
+                            {toEuro(adjusted.adjustedCost)}{" "}
+                            <span
+                              className={
+                                adjusted.profit >= 0 ? "text-stone-700" : "text-red-600"
+                              }
+                            >
+                              (Profit {toEuro(adjusted.profit)})
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-1 text-[10px] text-stone-500">
+                      Shipping fee base estimate: +6.90 EUR only for items {"\u003e="} 100 EUR.
+                    </div>
                   </div>
                   <button
                     type="button"

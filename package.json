@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "bloomtech:scrape-preview": "node scripts/scrapeBloomtechSupplierPreview.mjs",
-    "bloomtech:import-preview": "node scripts/importBloomtechPreviewToCatalog.mjs"
+    "bloomtech:import-preview": "node scripts/importBloomtechPreviewToCatalog.mjs",
+    "orders:backfill-payment-fees": "node scripts/backfillOrderPaymentFees.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

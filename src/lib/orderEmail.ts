@@ -37,11 +37,16 @@ const formatPrice = (amount: number, currency: string) =>
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
+const normalizeItemName = (name: string) => {
+  const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
+  return name.replace(defaultSuffix, "").trim();
+};
+
 const renderItemsText = (items: OrderItem[]) =>
   items
     .map(
       (item) =>
-        `- ${item.name} (x${item.quantity}) ${formatPrice(
+        `- ${normalizeItemName(item.name)} (x${item.quantity}) ${formatPrice(
           item.totalAmount,
           item.currency
         )}`
@@ -53,7 +58,7 @@ const renderItemsHtml = (items: OrderItem[]) =>
     .map(
       (item) => `
         <tr>
-          <td style="padding: 8px 0; font-weight: 600;">${item.name}</td>
+          <td style="padding: 8px 0; font-weight: 600;">${normalizeItemName(item.name)}</td>
           <td style="padding: 8px 0; text-align: center;">x${item.quantity}</td>
           <td style="padding: 8px 0 8px 8px; text-align: left;">${formatPrice(
             item.totalAmount,

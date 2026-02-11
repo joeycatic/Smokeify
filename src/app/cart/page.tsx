@@ -18,7 +18,7 @@ import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const SHIPPING_BASE = {
-  DE: 4.9,
+  DE: 6.9,
   AT: 7.9,
   CH: 9.9,
   EU: 8.9,
