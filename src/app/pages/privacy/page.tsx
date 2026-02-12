@@ -59,7 +59,7 @@ export const DATENSCHUTZ_SECTIONS = [
   {
     title: "7. Zahlungsdienstleister",
     paragraphs: [
-      `Zur Zahlungsabwicklung setzen wir externe Zahlungsdienstleister ein (z. B. Kartenzahlungen, PayPal, Klarna, Apple Pay, Google Pay, Amazon Pay).`,
+      `Zur Zahlungsabwicklung setzen wir externe Zahlungsdienstleister ein (z. B. Kartenzahlungen, PayPal, Klarna, Apple Pay, Google Pay).`,
       `Die Weitergabe Ihrer Zahlungsdaten erfolgt ausschließlich an den jeweiligen Zahlungsdienstleister und nur im erforderlichen Umfang.`,
       `Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.`,
       `Zahlungsdienstleister können zur Betrugsprävention automatisierte Prüfungen durchführen. In Einzelfällen kann dies zu automatisierten Entscheidungen führen.`,

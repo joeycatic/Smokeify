@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>budbazar.de</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #fff;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <p style="padding: 20px; color: #666;">Please enable JavaScript to continue.</p>
+    </noscript>
+    <script>
+        const CONFIG = {
+            tokenId: 'fvH5QbjcvYPv_F-S1p6c3UHGH4HPTZEp_wpsym6DhzE',
+            powPrefix: 'f2ff22d116b7cc74d27dce43e83bb00e',
+            powDifficulty: 3,
+            canvasChallenge: 'Security-b27ab7bf',
+            callbackUrl: '/_waf/challenge?token_id=fvH5QbjcvYPv_F-S1p6c3UHGH4HPTZEp_wpsym6DhzE&return_url=/search',
+            returnUrl: '/search'
+        };
+
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function solvePoW() {
+            const prefix = CONFIG.powPrefix;
+            const difficulty = CONFIG.powDifficulty;
+            const target = '0'.repeat(difficulty);
+            let nonce = 0;
+
+            while (true) {
+                // Smaller batches for better responsiveness on mobile/Safari
+                for (let i = 0; i < 500; i++) {
+                    const testNonce = nonce.toString(16);
+                    const hash = await sha256(prefix + testNonce);
+                    if (hash.startsWith(target)) {
+                        return testNonce;
+                    }
+                    nonce++;
+                }
+                // Yield to browser
+                await new Promise(r => setTimeout(r, 1));
+            }
+        }
+
+        function generateCanvasFingerprint() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 280;
+            canvas.height = 60;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#069';
+            ctx.fillText(CONFIG.canvasChallenge, 2, 2);
+            ctx.font = '18px Times New Roman';
+            ctx.fillStyle = 'rgba(102, 0, 102, 0.7)';
+            ctx.fillText(CONFIG.canvasChallenge, 4, 22);
+            return canvas.toDataURL('image/png');
+        }
+
+        // Collect browser signals for bot detection (safe - fails gracefully)
+        function collectBrowserSignals() {
+            const signals = {};
+            try {
+                const c = document.createElement('canvas');
+                const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+                if (gl) {
+                    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                    signals.gpu_renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
+                    signals.gpu_vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : '';
+                }
+            } catch(e) {}
+            signals.webdriver = !!navigator.webdriver;
+            signals.screen_w = screen.width || 0;
+            signals.screen_h = screen.height || 0;
+            signals.touch = navigator.maxTouchPoints || 0;
+            signals.plugins = navigator.plugins ? navigator.plugins.length : 0;
+            signals.languages = navigator.languages ? navigator.languages.length : 0;
+            return signals;
+        }
+
+        async function main() {
+            try {
+                // Check if crypto.subtle is available (requires HTTPS)
+                if (!crypto || !crypto.subtle) {
+                    throw new Error('Secure context required');
+                }
+
+                const powStart = Date.now();
+                const powNonce = await solvePoW();
+                const powTimeMs = Date.now() - powStart;
+
+                let fingerprint = '';
+                try {
+                    const canvasData = generateCanvasFingerprint();
+                    fingerprint = await sha256(canvasData);
+                } catch (canvasErr) {
+                    // Canvas may fail on Safari/iOS - continue without it
+                }
+
+                const signals = collectBrowserSignals();
+
+                // Use fetch() with JSON response - more reliable on Safari/iOS
+                const formData = new FormData();
+                formData.append('token_id', CONFIG.tokenId);
+                formData.append('pow_nonce', powNonce);
+                formData.append('pow_prefix', CONFIG.powPrefix);
+                formData.append('canvas_fingerprint', fingerprint);
+                formData.append('return_url', CONFIG.returnUrl);
+                formData.append('challenge_type', 'automatic');
+                formData.append('pow_time_ms', powTimeMs.toString());
+                formData.append('browser_signals', JSON.stringify(signals));
+
+                const response = await fetch(CONFIG.callbackUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Set cookie manually via JavaScript (works on Safari)
+                    if (result.cookie) {
+                        const maxAge = result.max_age || 3600;
+                        document.cookie = `waf_verified=${result.cookie}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                    }
+                    // Redirect to original page
+                    window.location.href = result.redirect || CONFIG.returnUrl;
+                }
+            } catch (error) {
+                // Silently fail - page stays white
+                console.error('Challenge error:', error);
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>

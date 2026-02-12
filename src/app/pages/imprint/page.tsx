@@ -25,10 +25,10 @@ export default function ImprintPage() {
               <h2 className="text-xl font-semibold text-stone-900">Kontakt</h2>
               <div className="text-sm text-stone-700 leading-relaxed">
                 <a
-                  href="mailto:contact@smokeify.de"
+                  href="mailto:joey@smokeify.de"
                   className="block font-semibold text-emerald-700 hover:text-emerald-800"
                 >
-                  contact@smokeify.de
+                  joey@smokeify.de
                 </a>
                 <a
                   href="https://www.smokeify.de"

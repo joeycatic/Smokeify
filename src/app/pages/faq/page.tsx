@@ -4,7 +4,7 @@ const FAQ_ITEMS = [
   {
     question: "Wie lange dauert der Versand?",
     answer:
-      "In der Regel 2-5 Werktage innerhalb Deutschlands. Internationale Lieferzeiten variieren je nach Land.",
+      "In der Regel 2-7 Werktage innerhalb der EU. Lieferzeiten können je nach Zielland variieren.",
   },
   {
     question: "Welche Zahlungsarten werden akzeptiert?",
@@ -24,7 +24,7 @@ const FAQ_ITEMS = [
   {
     question: "Wie erreiche ich den Support?",
     answer:
-      "Schreib uns an contact@smokeify.de. Wir melden uns so schnell wie möglich zurück.",
+      "Schreib uns an joey@smokeify.de. Wir melden uns so schnell wie möglich zurück.",
   },
 ];
 

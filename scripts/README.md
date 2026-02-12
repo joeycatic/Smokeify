@@ -20,6 +20,17 @@
 ## `scripts/orders`
 - `backfillOrderPaymentFees.mjs`: backfill Stripe payment fee data on historical orders.
 
+## `scripts/market`
+- `shop-sources.json`: curated grow/headshop source list for direct search scraping. Use `{query}` in each URL template.
+- `shopsPriceStats.mjs`: query configured direct shops from `shop-sources.json` and output aggregated lowest/average/highest prices (JSON + CSV).
+  - useful flags: `--sources`, `--limit`, `--all-statuses`, `--only-shop`, `--max-shops`, `--delay-ms`, `--shop-delay-ms`, `--shop-concurrency`, `--shop-timeout-skip-after`, `--timeout-ms`, `--retries`, `--retry-timeouts`, `--max-html-bytes`, `--show-links`, `--show-reachable-links`, `--max-matched-links-per-shop`, `--no-verify-product-pages`, `--debug-html-dir`
+- `geizhalsPriceStats.mjs`: query Geizhals per product and output lowest/average/highest observed prices (JSON + CSV).
+  - useful flags: `--limit`, `--all-statuses`, `--delay-ms`, `--max-delay-ms`, `--timeout-ms`, `--retries`, `--retry-timeouts`, `--max-html-bytes`, `--throttle-stop-after`, `--cookie`, `--debug-html-dir`
+- `preisvergleichPriceStats.mjs`: query Preisvergleich.de per product and output lowest/average/highest observed prices (JSON + CSV).
+  - useful flags: `--limit`, `--all-statuses`, `--delay-ms`, `--max-delay-ms`, `--timeout-ms`, `--retries`, `--retry-timeouts`, `--max-html-bytes`, `--throttle-stop-after`, `--cookie`, `--debug-html-dir`
+- `googleShoppingPriceStats.mjs`: query Google Shopping per product and output lowest/average/highest observed prices (JSON + CSV).
+  - useful flags: `--limit`, `--country`, `--lang`, `--delay-ms`, `--timeout-ms`, `--retries`, `--debug-html-dir`
+
 ## `scripts/testing`
 - `seedTestOrders.js`: generate test orders for admin/testing flows.
 

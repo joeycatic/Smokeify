@@ -4,6 +4,24 @@ import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import FooterNewsletter from "@/components/FooterNewsletter";
 
 export default function Footer() {
+  const socialLinks = [
+    {
+      href: process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim(),
+      label: "Instagram",
+      icon: <FaInstagram size={18} />,
+    },
+    {
+      href: process.env.NEXT_PUBLIC_TIKTOK_URL?.trim(),
+      label: "TikTok",
+      icon: <FaTiktok size={18} />,
+    },
+    {
+      href: process.env.NEXT_PUBLIC_DISCORD_URL?.trim(),
+      label: "Discord",
+      icon: <FaDiscord size={18} />,
+    },
+  ];
+
   return (
     <footer className="mt-6 bg-[#2f3e36] text-white/90">
       {/* Top */}
@@ -20,29 +38,24 @@ export default function Footer() {
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <a
-                href="#"
-                aria-label="Instagram"
-                className="text-white/70 hover:text-white transition"
-              >
-                <FaInstagram size={18} />
-              </a>
-              <a
-                href="#"
-                aria-label="TikTok"
-                className="text-white/70 hover:text-white transition"
-              >
-                <FaTiktok size={18} />
-              </a>
-              <a
-                href="#"
-                aria-label="Discord"
-                className="text-white/70 hover:text-white transition"
-              >
-                <FaDiscord size={18} />
-              </a>
-            </div>
+            {socialLinks.some((entry) => Boolean(entry.href)) && (
+              <div className="flex items-center gap-4">
+                {socialLinks.map((entry) =>
+                  entry.href ? (
+                    <a
+                      key={entry.label}
+                      href={entry.href}
+                      aria-label={entry.label}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/70 hover:text-white transition"
+                    >
+                      {entry.icon}
+                    </a>
+                  ) : null
+                )}
+              </div>
+            )}
           </div>
 
           {/* Shop */}

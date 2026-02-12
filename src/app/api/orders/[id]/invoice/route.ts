@@ -78,7 +78,7 @@ const buildInvoiceHtml = (order: {
           <div>Brinkeweg 106a</div>
           <div>33758 Schloß Holte Stukenbrock</div>
           <div>Deutschland</div>
-          <div>contact@smokeify.de</div>
+          <div>joey@smokeify.de</div>
         </div>
 
         <div class="section">

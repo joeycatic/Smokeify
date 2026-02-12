@@ -111,7 +111,6 @@ const CATALOG_PAYMENT_FEES: PaymentFeePreset[] = [
   { label: "Stripe", percentBasisPoints: 150, fixedCents: 25 },
   { label: "PayPal", percentBasisPoints: 299, fixedCents: 35 },
   { label: "Klarna", percentBasisPoints: 329, fixedCents: 35 },
-  { label: "Amazon Pay", percentBasisPoints: 299, fixedCents: 35 },
 ];
 
 const PRICE_WITH_SHIPPING_THRESHOLD_CENTS = 10_000;

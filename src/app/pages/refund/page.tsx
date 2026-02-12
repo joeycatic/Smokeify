@@ -24,7 +24,7 @@ export const WIDERRUF_SECTIONS = [
   {
     title: "Ausübung des Widerrufs",
     paragraphs: [
-      `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (Smokeify, Joey Bennett Catic, Brinkeweg 106a, 33758 Schloß Holte-Stukenbrock, Deutschland, contact@smokeify.de) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren.`,
+      `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (Smokeify, Joey Bennett Catic, Brinkeweg 106a, 33758 Schloß Holte-Stukenbrock, Deutschland, joey@smokeify.de) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren.`,
       `Sie können dafür das unten beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.`,
       `Sie können den Widerruf auch über unser Widerrufs-/Retourenportal erklären.`,
       `Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.`,
@@ -88,7 +88,7 @@ export function MusterWiderrufsformular() {
           <br />
           Deutschland
           <br />
-          E-Mail: contact@smokeify.de
+          E-Mail: joey@smokeify.de
         </p>
 
         <p className="mt-4">

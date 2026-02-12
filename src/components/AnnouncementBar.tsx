@@ -9,7 +9,7 @@ export function AnnouncementBar() {
     { icon: <ArrowPathIcon className="h-4 w-4" />, text: "14 Tage Rückgabe" },
     {
       icon: <CheckBadgeIcon className="h-4 w-4" />,
-      text: "Top Onlineshop 2025-2026",
+      text: "Sichere Zahlung mit Stripe",
     },
     {
       icon: <TruckIcon className="h-4 w-4" />,

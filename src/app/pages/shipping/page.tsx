@@ -4,7 +4,7 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
   {
     title: "§1 Versandgebiet",
     paragraphs: [
-      `Die Lieferung erfolgt innerhalb Deutschlands. Lieferungen in andere Länder erfolgen nur, sofern dies im Bestellprozess ausdrücklich angeboten wird.`,
+      `Die Lieferung erfolgt EU-weit. Lieferungen in weitere Länder erfolgen nur, sofern dies im Bestellprozess ausdrücklich angeboten wird.`,
     ],
   },
   {
@@ -17,7 +17,7 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
   {
     title: "§3 Lieferzeiten",
     paragraphs: [
-      `Die Lieferzeit beträgt, sofern nicht beim jeweiligen Produkt anders angegeben, 2–5 Werktage innerhalb Deutschlands.`,
+      `Die Lieferzeit beträgt, sofern nicht beim jeweiligen Produkt anders angegeben, 2-7 Werktage innerhalb der EU (abhängig vom Zielland).`,
       `Bei Speditionsware oder Direktversand können abweichende Lieferzeiten gelten.`,
       `In der Regel erfolgt keine Zustellung an Sonn- und Feiertagen.`,
       `Kommt es zu Lieferverzögerungen, wird der Kunde unverzüglich informiert.`,

@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "description": "Shop sources for direct price checks. Use {query} placeholder.",
+  "shops": [
+    {
+      "name": "Growmart",
+      "category": "growshop",
+      "domain": "www.growmart.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.growmart.de/search?sSearch={query}",
+        "https://www.growmart.de/search?qs={query}",
+        "https://www.growmart.de/suche?q={query}"
+      ]
+    },
+    {
+      "name": "Grow Shop 24",
+      "category": "growshop",
+      "domain": "www.grow-shop24.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.grow-shop24.de/search?sSearch={query}",
+        "https://www.grow-shop24.de/search?qs={query}",
+        "https://www.grow-shop24.de/suche?q={query}"
+      ]
+    },
+    {
+      "name": "Growbee",
+      "category": "growshop",
+      "domain": "growbee.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://growbee.de/search?q={query}",
+        "https://growbee.de/suche?q={query}",
+        "https://growbee.de/search?qs={query}"
+      ]
+    },
+    {
+      "name": "Mary Jane's Growshop",
+      "category": "growshop",
+      "domain": "mary-janes-growshop.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://mary-janes-growshop.de/search?q={query}",
+        "https://mary-janes-growshop.de/search?type=product&q={query}"
+      ]
+    },
+    {
+      "name": "Chillhouse",
+      "category": "growshop",
+      "domain": "www.chillhouse.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.chillhouse.de/search?sSearch={query}",
+        "https://www.chillhouse.de/search?qs={query}",
+        "https://www.chillhouse.de/suche?q={query}"
+      ]
+    },
+    {
+      "name": "Hanfgarten Shop",
+      "category": "growshop",
+      "domain": "www.hanfgartenshop.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.hanfgartenshop.de/search?q={query}",
+        "https://www.hanfgartenshop.de/search?type=product&q={query}"
+      ]
+    },
+    {
+      "name": "Head-Shop",
+      "category": "headshop",
+      "domain": "www.head-shop.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.head-shop.de/search?sSearch={query}",
+        "https://www.head-shop.de/search?qs={query}",
+        "https://www.head-shop.de/suche?q={query}"
+      ]
+    },
+    {
+      "name": "HNBG",
+      "category": "headshop",
+      "domain": "www.hnbg.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.hnbg.de/search?sSearch={query}",
+        "https://www.hnbg.de/search?qs={query}",
+        "https://www.hnbg.de/suche?q={query}"
+      ]
+    },
+    {
+      "name": "BuyHigh",
+      "category": "headshop",
+      "domain": "www.buyhigh.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://www.buyhigh.de/search?q={query}",
+        "https://www.buyhigh.de/search?type=product&q={query}"
+      ]
+    },
+    {
+      "name": "SmokePlus",
+      "category": "headshop",
+      "domain": "smokeplus.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://smokeplus.de/search?q={query}",
+        "https://smokeplus.de/search?type=product&q={query}"
+      ]
+    },
+    {
+      "name": "BudBazar",
+      "category": "growshop_headshop",
+      "domain": "budbazar.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://budbazar.de/search?q={query}",
+        "https://budbazar.de/search?type=product&q={query}"
+      ]
+    },
+    {
+      "name": "Alvar Flame",
+      "category": "growshop",
+      "domain": "alvar-flame.de",
+      "enabled": true,
+      "searchUrlTemplates": [
+        "https://alvar-flame.de/search?sSearch={query}",
+        "https://alvar-flame.de/suche?q={query}",
+        "https://alvar-flame.de/search?q={query}"
+      ]
+    }
+  ]
+}

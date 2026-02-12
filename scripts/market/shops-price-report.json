@@ -1,0 +1,692 @@
+{
+  "generatedAt": "2026-02-11T21:15:38.123Z",
+  "provider": "shop-list",
+  "sourcesPath": "scripts/market/shop-sources.json",
+  "shopConcurrency": 4,
+  "shopTimeoutSkipAfter": 3,
+  "totalProducts": 5,
+  "totalShops": 12,
+  "shopHealth": [
+    {
+      "shop": "Grow Shop 24",
+      "runs": 5,
+      "avgDurationMs": 310,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Growmart",
+      "runs": 5,
+      "avgDurationMs": 569.4,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Mary Jane's Growshop",
+      "runs": 5,
+      "avgDurationMs": 580,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Growbee",
+      "runs": 5,
+      "avgDurationMs": 890,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Head-Shop",
+      "runs": 5,
+      "avgDurationMs": 584.2,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Chillhouse",
+      "runs": 5,
+      "avgDurationMs": 687,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Hanfgarten Shop",
+      "runs": 5,
+      "avgDurationMs": 722.4,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "HNBG",
+      "runs": 5,
+      "avgDurationMs": 8254.2,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "BudBazar",
+      "runs": 5,
+      "avgDurationMs": 96.2,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "BuyHigh",
+      "runs": 5,
+      "avgDurationMs": 110,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "Alvar Flame",
+      "runs": 5,
+      "avgDurationMs": 1474.6,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    },
+    {
+      "shop": "SmokePlus",
+      "runs": 5,
+      "avgDurationMs": 6156.4,
+      "timeoutsInRow": 0,
+      "skipped": 0
+    }
+  ],
+  "results": [
+    {
+      "productId": "cmkrcg93n0000u9konharrcoh",
+      "title": "Cloudlab 722",
+      "handle": "cloudlab-722-60-60-180",
+      "manufacturer": "AC Infinity",
+      "query": "AC Infinity Cloudlab 722",
+      "status": "ok",
+      "referencePrice": 168.99,
+      "lowest": 50,
+      "average": 80.59,
+      "highest": 149,
+      "samples": 5,
+      "sampledShops": 2,
+      "blockedShops": 5,
+      "totalShops": 12,
+      "links": [
+        "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+        "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+        "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20722",
+        "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20722",
+        "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+        "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20722",
+        "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20722",
+        "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20722",
+        "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20722"
+      ],
+      "shopResults": [
+        {
+          "shop": "Growmart",
+          "status": "blocked",
+          "url": "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+          "info": "captcha",
+          "durationMs": 589
+        },
+        {
+          "shop": "Grow Shop 24",
+          "status": "blocked",
+          "url": "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+          "info": "captcha",
+          "durationMs": 305
+        },
+        {
+          "shop": "Growbee",
+          "status": "blocked",
+          "url": "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20722",
+          "info": "captcha",
+          "durationMs": 906
+        },
+        {
+          "shop": "Mary Jane's Growshop",
+          "status": "blocked",
+          "url": "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20722",
+          "info": "captcha",
+          "durationMs": 609
+        },
+        {
+          "shop": "Chillhouse",
+          "status": "ok",
+          "url": "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20722",
+          "lowest": 59.95,
+          "average": 88.24,
+          "highest": 149,
+          "samples": 4,
+          "durationMs": 734
+        },
+        {
+          "shop": "Hanfgarten Shop",
+          "status": "error",
+          "url": "https://www.hanfgartenshop.de/search?type=product&q=AC%20Infinity%20Cloudlab%20722",
+          "info": "HTTP 404",
+          "durationMs": 740
+        },
+        {
+          "shop": "Head-Shop",
+          "status": "ok",
+          "url": "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20722",
+          "lowest": 50,
+          "average": 50,
+          "highest": 50,
+          "samples": 1,
+          "durationMs": 534
+        },
+        {
+          "shop": "HNBG",
+          "status": "error",
+          "url": "https://www.hnbg.de/suche?q=AC%20Infinity%20Cloudlab%20722",
+          "info": "HTTP 404",
+          "durationMs": 8358
+        },
+        {
+          "shop": "BuyHigh",
+          "status": "blocked",
+          "url": "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20722",
+          "info": "captcha",
+          "durationMs": 109
+        },
+        {
+          "shop": "SmokePlus",
+          "status": "error",
+          "url": "https://smokeplus.de/search?type=product&q=AC%20Infinity%20Cloudlab%20722",
+          "info": "HTTP 404",
+          "durationMs": 2763
+        },
+        {
+          "shop": "BudBazar",
+          "status": "no_prices_found",
+          "url": "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20722",
+          "info": "Titel-Match fehlt",
+          "durationMs": 95
+        },
+        {
+          "shop": "Alvar Flame",
+          "status": "no_prices_found",
+          "url": "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20722",
+          "info": "Titel-Match fehlt",
+          "durationMs": 1546
+        }
+      ]
+    },
+    {
+      "productId": "cmkrdc9v5000uu9koljjrxsim",
+      "title": "Cloudlab 632",
+      "handle": "cloudlab-632-90-60-180",
+      "manufacturer": "AC Infinity",
+      "query": "AC Infinity Cloudlab 632",
+      "status": "ok",
+      "referencePrice": 175.49,
+      "lowest": 50,
+      "average": 85.75,
+      "highest": 149,
+      "samples": 4,
+      "sampledShops": 2,
+      "blockedShops": 5,
+      "totalShops": 12,
+      "links": [
+        "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+        "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+        "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20632",
+        "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20632",
+        "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+        "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20632",
+        "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20632",
+        "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20632",
+        "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20632"
+      ],
+      "shopResults": [
+        {
+          "shop": "Growmart",
+          "status": "blocked",
+          "url": "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+          "info": "captcha",
+          "durationMs": 550
+        },
+        {
+          "shop": "Grow Shop 24",
+          "status": "blocked",
+          "url": "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+          "info": "captcha",
+          "durationMs": 344
+        },
+        {
+          "shop": "Growbee",
+          "status": "blocked",
+          "url": "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20632",
+          "info": "captcha",
+          "durationMs": 870
+        },
+        {
+          "shop": "Mary Jane's Growshop",
+          "status": "blocked",
+          "url": "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20632",
+          "info": "captcha",
+          "durationMs": 846
+        },
+        {
+          "shop": "Chillhouse",
+          "status": "ok",
+          "url": "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20632",
+          "lowest": 69,
+          "average": 97.67,
+          "highest": 149,
+          "samples": 3,
+          "durationMs": 687
+        },
+        {
+          "shop": "Hanfgarten Shop",
+          "status": "error",
+          "url": "https://www.hanfgartenshop.de/search?type=product&q=AC%20Infinity%20Cloudlab%20632",
+          "info": "HTTP 404",
+          "durationMs": 668
+        },
+        {
+          "shop": "Head-Shop",
+          "status": "ok",
+          "url": "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20632",
+          "lowest": 50,
+          "average": 50,
+          "highest": 50,
+          "samples": 1,
+          "durationMs": 783
+        },
+        {
+          "shop": "HNBG",
+          "status": "error",
+          "url": "https://www.hnbg.de/suche?q=AC%20Infinity%20Cloudlab%20632",
+          "info": "HTTP 404",
+          "durationMs": 8388
+        },
+        {
+          "shop": "BuyHigh",
+          "status": "blocked",
+          "url": "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20632",
+          "info": "captcha",
+          "durationMs": 135
+        },
+        {
+          "shop": "SmokePlus",
+          "status": "error",
+          "url": "https://smokeplus.de/search?type=product&q=AC%20Infinity%20Cloudlab%20632",
+          "info": "HTTP 404",
+          "durationMs": 3829
+        },
+        {
+          "shop": "BudBazar",
+          "status": "no_prices_found",
+          "url": "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20632",
+          "info": "Titel-Match fehlt",
+          "durationMs": 121
+        },
+        {
+          "shop": "Alvar Flame",
+          "status": "no_prices_found",
+          "url": "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20632",
+          "info": "Titel-Match fehlt",
+          "durationMs": 1279
+        }
+      ]
+    },
+    {
+      "productId": "cmkrdnm4c001pu9ko3f9fkpem",
+      "title": "Cloudlab 642",
+      "handle": "cloudlab-642-120-60-180",
+      "manufacturer": "AC Infinity",
+      "query": "AC Infinity Cloudlab 642",
+      "status": "ok",
+      "referencePrice": 196.49,
+      "lowest": 50,
+      "average": 85.75,
+      "highest": 149,
+      "samples": 4,
+      "sampledShops": 2,
+      "blockedShops": 5,
+      "totalShops": 12,
+      "links": [
+        "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+        "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+        "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20642",
+        "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20642",
+        "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+        "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20642",
+        "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20642",
+        "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20642",
+        "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20642"
+      ],
+      "shopResults": [
+        {
+          "shop": "Growmart",
+          "status": "blocked",
+          "url": "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+          "info": "captcha",
+          "durationMs": 578
+        },
+        {
+          "shop": "Grow Shop 24",
+          "status": "blocked",
+          "url": "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+          "info": "captcha",
+          "durationMs": 269
+        },
+        {
+          "shop": "Growbee",
+          "status": "blocked",
+          "url": "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20642",
+          "info": "captcha",
+          "durationMs": 938
+        },
+        {
+          "shop": "Mary Jane's Growshop",
+          "status": "blocked",
+          "url": "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20642",
+          "info": "captcha",
+          "durationMs": 571
+        },
+        {
+          "shop": "Chillhouse",
+          "status": "ok",
+          "url": "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20642",
+          "lowest": 69,
+          "average": 97.67,
+          "highest": 149,
+          "samples": 3,
+          "durationMs": 686
+        },
+        {
+          "shop": "Hanfgarten Shop",
+          "status": "error",
+          "url": "https://www.hanfgartenshop.de/search?type=product&q=AC%20Infinity%20Cloudlab%20642",
+          "info": "HTTP 404",
+          "durationMs": 719
+        },
+        {
+          "shop": "Head-Shop",
+          "status": "ok",
+          "url": "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20642",
+          "lowest": 50,
+          "average": 50,
+          "highest": 50,
+          "samples": 1,
+          "durationMs": 547
+        },
+        {
+          "shop": "HNBG",
+          "status": "error",
+          "url": "https://www.hnbg.de/suche?q=AC%20Infinity%20Cloudlab%20642",
+          "info": "HTTP 404",
+          "durationMs": 8093
+        },
+        {
+          "shop": "BuyHigh",
+          "status": "blocked",
+          "url": "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20642",
+          "info": "captcha",
+          "durationMs": 113
+        },
+        {
+          "shop": "SmokePlus",
+          "status": "error",
+          "url": "https://smokeplus.de/search?type=product&q=AC%20Infinity%20Cloudlab%20642",
+          "info": "HTTP 404",
+          "durationMs": 3265
+        },
+        {
+          "shop": "BudBazar",
+          "status": "no_prices_found",
+          "url": "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20642",
+          "info": "Titel-Match fehlt",
+          "durationMs": 91
+        },
+        {
+          "shop": "Alvar Flame",
+          "status": "no_prices_found",
+          "url": "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20642",
+          "info": "Titel-Match fehlt",
+          "durationMs": 1285
+        }
+      ]
+    },
+    {
+      "productId": "cmkrdwki6002eu9ko75gngqv7",
+      "title": "Cloudlab 733",
+      "handle": "cloudlab-733-90-90-180",
+      "manufacturer": "AC Infinity",
+      "query": "AC Infinity Cloudlab 733",
+      "status": "ok",
+      "referencePrice": 200.49,
+      "lowest": 50,
+      "average": 91.33,
+      "highest": 149,
+      "samples": 3,
+      "sampledShops": 2,
+      "blockedShops": 5,
+      "totalShops": 12,
+      "links": [
+        "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+        "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+        "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20733",
+        "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20733",
+        "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+        "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20733",
+        "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20733",
+        "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20733",
+        "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20733"
+      ],
+      "shopResults": [
+        {
+          "shop": "Growmart",
+          "status": "blocked",
+          "url": "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+          "info": "captcha",
+          "durationMs": 535
+        },
+        {
+          "shop": "Grow Shop 24",
+          "status": "blocked",
+          "url": "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+          "info": "captcha",
+          "durationMs": 332
+        },
+        {
+          "shop": "Growbee",
+          "status": "blocked",
+          "url": "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20733",
+          "info": "captcha",
+          "durationMs": 868
+        },
+        {
+          "shop": "Mary Jane's Growshop",
+          "status": "blocked",
+          "url": "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20733",
+          "info": "captcha",
+          "durationMs": 492
+        },
+        {
+          "shop": "Chillhouse",
+          "status": "ok",
+          "url": "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20733",
+          "lowest": 75,
+          "average": 112,
+          "highest": 149,
+          "samples": 2,
+          "durationMs": 671
+        },
+        {
+          "shop": "Hanfgarten Shop",
+          "status": "error",
+          "url": "https://www.hanfgartenshop.de/search?type=product&q=AC%20Infinity%20Cloudlab%20733",
+          "info": "HTTP 404",
+          "durationMs": 735
+        },
+        {
+          "shop": "Head-Shop",
+          "status": "ok",
+          "url": "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20733",
+          "lowest": 50,
+          "average": 50,
+          "highest": 50,
+          "samples": 1,
+          "durationMs": 530
+        },
+        {
+          "shop": "HNBG",
+          "status": "error",
+          "url": "https://www.hnbg.de/suche?q=AC%20Infinity%20Cloudlab%20733",
+          "info": "HTTP 404",
+          "durationMs": 8083
+        },
+        {
+          "shop": "BuyHigh",
+          "status": "blocked",
+          "url": "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20733",
+          "info": "captcha",
+          "durationMs": 105
+        },
+        {
+          "shop": "SmokePlus",
+          "status": "error",
+          "url": "https://smokeplus.de/search?type=product&q=AC%20Infinity%20Cloudlab%20733",
+          "info": "HTTP 404",
+          "durationMs": 10314
+        },
+        {
+          "shop": "BudBazar",
+          "status": "no_prices_found",
+          "url": "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20733",
+          "info": "Titel-Match fehlt",
+          "durationMs": 97
+        },
+        {
+          "shop": "Alvar Flame",
+          "status": "no_prices_found",
+          "url": "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20733",
+          "info": "Titel-Match fehlt",
+          "durationMs": 1372
+        }
+      ]
+    },
+    {
+      "productId": "cmkre7bdg003cu9koxcojvb06",
+      "title": "Cloudlab 844",
+      "handle": "cloudlab-844-120-120-200",
+      "manufacturer": "AC Infinity",
+      "query": "AC Infinity Cloudlab 844",
+      "status": "ok",
+      "referencePrice": 275.49,
+      "lowest": 50,
+      "average": 99.5,
+      "highest": 149,
+      "samples": 2,
+      "sampledShops": 2,
+      "blockedShops": 5,
+      "totalShops": 12,
+      "links": [
+        "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+        "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+        "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20844",
+        "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20844",
+        "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+        "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20844",
+        "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20844",
+        "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20844",
+        "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20844"
+      ],
+      "shopResults": [
+        {
+          "shop": "Growmart",
+          "status": "blocked",
+          "url": "https://www.growmart.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+          "info": "captcha",
+          "durationMs": 595
+        },
+        {
+          "shop": "Grow Shop 24",
+          "status": "blocked",
+          "url": "https://www.grow-shop24.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+          "info": "captcha",
+          "durationMs": 300
+        },
+        {
+          "shop": "Growbee",
+          "status": "blocked",
+          "url": "https://growbee.de/search?q=AC%20Infinity%20Cloudlab%20844",
+          "info": "captcha",
+          "durationMs": 868
+        },
+        {
+          "shop": "Mary Jane's Growshop",
+          "status": "blocked",
+          "url": "https://mary-janes-growshop.de/search?q=AC%20Infinity%20Cloudlab%20844",
+          "info": "captcha",
+          "durationMs": 382
+        },
+        {
+          "shop": "Chillhouse",
+          "status": "ok",
+          "url": "https://www.chillhouse.de/search?sSearch=AC%20Infinity%20Cloudlab%20844",
+          "lowest": 149,
+          "average": 149,
+          "highest": 149,
+          "samples": 1,
+          "durationMs": 657
+        },
+        {
+          "shop": "Hanfgarten Shop",
+          "status": "error",
+          "url": "https://www.hanfgartenshop.de/search?type=product&q=AC%20Infinity%20Cloudlab%20844",
+          "info": "HTTP 404",
+          "durationMs": 750
+        },
+        {
+          "shop": "Head-Shop",
+          "status": "ok",
+          "url": "https://www.head-shop.de/search?qs=AC%20Infinity%20Cloudlab%20844",
+          "lowest": 50,
+          "average": 50,
+          "highest": 50,
+          "samples": 1,
+          "durationMs": 527
+        },
+        {
+          "shop": "HNBG",
+          "status": "error",
+          "url": "https://www.hnbg.de/suche?q=AC%20Infinity%20Cloudlab%20844",
+          "info": "HTTP 404",
+          "durationMs": 8349
+        },
+        {
+          "shop": "BuyHigh",
+          "status": "blocked",
+          "url": "https://www.buyhigh.de/search?q=AC%20Infinity%20Cloudlab%20844",
+          "info": "captcha",
+          "durationMs": 88
+        },
+        {
+          "shop": "SmokePlus",
+          "status": "error",
+          "url": "https://smokeplus.de/search?type=product&q=AC%20Infinity%20Cloudlab%20844",
+          "info": "HTTP 404",
+          "durationMs": 10611
+        },
+        {
+          "shop": "BudBazar",
+          "status": "no_prices_found",
+          "url": "https://budbazar.de/search?type=product&q=AC%20Infinity%20Cloudlab%20844",
+          "info": "Titel-Match fehlt",
+          "durationMs": 77
+        },
+        {
+          "shop": "Alvar Flame",
+          "status": "no_prices_found",
+          "url": "https://alvar-flame.de/search?q=AC%20Infinity%20Cloudlab%20844",
+          "info": "Titel-Match fehlt",
+          "durationMs": 1891
+        }
+      ]
+    }
+  ]
+}
