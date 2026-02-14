@@ -749,7 +749,7 @@ export default function ProductDetailClient({
               htmlFor="notify-email"
               className="block text-xs font-semibold text-black/70"
             >
-              Email fur Benachrichtigung
+              Email für Benachrichtigung
             </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input

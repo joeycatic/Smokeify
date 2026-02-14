@@ -7,6 +7,23 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
   "https://www.smokeify.de";
 
+const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
+  "headshop",
+  "aschenbecher",
+  "aufbewahrung",
+  "bongs",
+  "feuerzeuge",
+  "filter",
+  "grinder",
+  "hash-bowl",
+  "papers",
+  "pipes",
+  "rolling-tray",
+  "tubes",
+  "vaporizer",
+  "waagen",
+]);
+
 const escapeXml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -35,11 +52,36 @@ const buildItemId = (productHandle: string, variantId: string, sku?: string | nu
   return base.length > 50 ? base.slice(0, 50) : base;
 };
 
+const isGoogleFeedExcluded = (product: {
+  mainCategory: { handle: string; parent: { handle: string } | null } | null;
+  categories: Array<{ category: { handle: string; parent: { handle: string } | null } }>;
+}) => {
+  if (
+    product.mainCategory &&
+    (GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(product.mainCategory.handle) ||
+      (product.mainCategory.parent &&
+        GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(product.mainCategory.parent.handle)))
+  ) {
+    return true;
+  }
+
+  return product.categories.some(({ category }) => {
+    if (GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(category.handle)) return true;
+    return Boolean(
+      category.parent &&
+        GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(category.parent.handle)
+    );
+  });
+};
+
 export async function GET() {
-  const products = await prisma.product.findMany({
+  const allProducts = await prisma.product.findMany({
     where: { status: "ACTIVE" },
     orderBy: { updatedAt: "desc" },
     include: {
+      mainCategory: {
+        include: { parent: true },
+      },
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
@@ -51,6 +93,7 @@ export async function GET() {
       },
     },
   });
+  const products = allProducts.filter((product) => !isGoogleFeedExcluded(product));
   const now = new Date().toUTCString();
 
   const items = products

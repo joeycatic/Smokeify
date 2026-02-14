@@ -21,6 +21,7 @@
     "market:preisvergleich-prices": "node scripts/market/preisvergleichPriceStats.mjs",
     "market:shops-prices": "node scripts/market/shopsPriceStats.mjs",
     "market:google-shopping-prices": "node scripts/market/googleShoppingPriceStats.mjs",
+    "catalog:rewrite-google-ads-descriptions": "node scripts/catalog/rewriteDescriptionsForGoogleAds.mjs",
     "orders:backfill-payment-fees": "node scripts/orders/backfillOrderPaymentFees.mjs",
     "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
     "testing:seed-orders": "node scripts/testing/seedTestOrders.js"
