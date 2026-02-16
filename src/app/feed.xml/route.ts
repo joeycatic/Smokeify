@@ -34,6 +34,104 @@ const escapeXml = (value: string) =>
 
 const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bbongs?\b/gi, "Wasserpfeife"],
+  [/\bjoints?\b/gi, "Drehpapier"],
+  [/\bweed\b/gi, "Kraeuter"],
+  [/\bcannabis\b/gi, "Kraeuter"],
+  [/\bmarijuana\b/gi, "Kraeuter"],
+  [/\bgras\b/gi, "Kraeuter"],
+  [/\bkiffen\b/gi, "Nutzung"],
+  [/\bgrinders?\b/gi, "Kraeutermuehle"],
+  [/\bstash\s*box\b/gi, "Aufbewahrungsbox"],
+];
+
+const COMPLIANCE_NOTE =
+  " Fuer Erwachsene ab 18 Jahren. Ausschliesslich fuer legale Zwecke.";
+
+const sanitizeDescriptionForGoogleFeed = (raw: string) => {
+  let normalized = stripHtml(raw);
+  for (const [pattern, replacement] of FEED_DESCRIPTION_REPLACEMENTS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+  normalized = normalized.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return `Hochwertiges Zubehoer fuer den vorgesehenen Einsatzzweck.${COMPLIANCE_NOTE}`;
+  }
+  if (/fuer erwachsene ab 18 jahren/i.test(normalized)) return normalized;
+  return `${normalized}${COMPLIANCE_NOTE}`;
+};
+
+type GoogleFeedCategoryMapping = {
+  googleProductCategory: string | null;
+  productType: string | null;
+};
+
+const inferGoogleFeedCategoryMapping = (input: {
+  title: string;
+  description: string | null;
+  shortDescription: string | null;
+  handles: string[];
+  categoryPath: string;
+}): GoogleFeedCategoryMapping => {
+  const haystack = [
+    input.title,
+    input.description ?? "",
+    input.shortDescription ?? "",
+    input.categoryPath,
+    input.handles.join(" "),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const handleSet = new Set(input.handles.map((handle) => handle.toLowerCase()));
+  const hasHandle = (...handles: string[]) => handles.some((h) => handleSet.has(h));
+
+  if (
+    hasHandle("papers", "paper", "filter") ||
+    /\b(papers?|drehpapier|filter)\b/i.test(haystack)
+  ) {
+    return {
+      googleProductCategory: "Tobacco Products > Smoking Accessories",
+      productType: "Raucherzubehoer > Drehbedarf",
+    };
+  }
+
+  if (
+    hasHandle("pipes", "pipe", "bongs", "bong") ||
+    /\b(wasserpfeife|glaspfeife|pipe|pfeife)\b/i.test(haystack)
+  ) {
+    return {
+      googleProductCategory: "Home & Garden > Smoking Accessories",
+      productType: "Raucherzubehoer > Wasserpfeifen",
+    };
+  }
+
+  if (hasHandle("grinder") || /\b(grinder|kraeutermuehle|krautermuhle)\b/i.test(haystack)) {
+    return {
+      googleProductCategory:
+        "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
+      productType: "Raucherzubehoer > Kraeutermuehlen",
+    };
+  }
+
+  if (
+    hasHandle("aufbewahrung", "stash-box", "stash") ||
+    /\b(aufbewahrung|stash box|storage)\b/i.test(haystack)
+  ) {
+    return {
+      googleProductCategory:
+        "Home & Garden > Household Supplies > Storage & Organization",
+      productType: "Raucherzubehoer > Aufbewahrung",
+    };
+  }
+
+  return {
+    googleProductCategory: null,
+    productType: input.categoryPath || null,
+  };
+};
+
 const formatPrice = (value: number, currency = "EUR") =>
   `${value.toFixed(2)} ${currency}`;
 
@@ -100,7 +198,9 @@ export async function GET() {
     .flatMap((product) => {
       const baseTitle = product.title;
       const description = escapeXml(
-        stripHtml(product.description ?? product.shortDescription ?? "")
+        sanitizeDescriptionForGoogleFeed(
+          product.description ?? product.shortDescription ?? ""
+        )
       );
       const link = escapeXml(resolveProductUrl(product.handle));
       const image = escapeXml(resolveImageUrl(product.images));
@@ -113,7 +213,25 @@ export async function GET() {
           ? `${primaryCategory.parent.name} > ${primaryCategory.name}`
           : primaryCategory.name
         : "";
-      const productType = categoryPath ? escapeXml(categoryPath) : "";
+      const categoryHandles = [
+        product.mainCategory?.handle ?? "",
+        product.mainCategory?.parent?.handle ?? "",
+        ...product.categories.map(({ category }) => category.handle),
+        ...product.categories.map(({ category }) => category.parent?.handle ?? ""),
+      ].filter(Boolean);
+      const categoryMapping = inferGoogleFeedCategoryMapping({
+        title: product.title,
+        description: product.description,
+        shortDescription: product.shortDescription,
+        handles: categoryHandles,
+        categoryPath,
+      });
+      const productType = categoryMapping.productType
+        ? escapeXml(categoryMapping.productType)
+        : "";
+      const googleProductCategory = categoryMapping.googleProductCategory
+        ? escapeXml(categoryMapping.googleProductCategory)
+        : "";
       const additionalImages = product.images
         .slice(1, 10)
         .map((img) => escapeXml(img.url))
@@ -163,6 +281,9 @@ export async function GET() {
           `<g:price>${price}</g:price>`,
           `<g:brand>${brand}</g:brand>`,
           sku ? `<g:mpn>${escapeXml(sku)}</g:mpn>` : "",
+          googleProductCategory
+            ? `<g:google_product_category>${googleProductCategory}</g:google_product_category>`
+            : "",
           productType ? `<g:product_type>${productType}</g:product_type>` : "",
           product.weightGrams
             ? `<g:shipping_weight>${escapeXml(
