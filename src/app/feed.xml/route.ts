@@ -54,6 +54,8 @@ const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+
 const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bbongs?\b/gi, "Wasserpfeife"],
   [/\bjoints?\b/gi, "Drehpapier"],
+  [/\bgrowbox(?:en)?\b/gi, "Pflanzzelt"],
+  [/\bgrow(?:en|ing)?\b/gi, "Indoor-Gartenbau"],
   [/\bweed\b/gi, "Kraeuter"],
   [/\bcannabis\b/gi, "Kraeuter"],
   [/\bmarijuana\b/gi, "Kraeuter"],
