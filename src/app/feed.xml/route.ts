@@ -61,6 +61,8 @@ const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bkiffen\b/gi, "Nutzung"],
   [/\bgrinders?\b/gi, "Kraeutermuehle"],
   [/\bstash\s*box\b/gi, "Aufbewahrungsbox"],
+  [/\bautoflowering\b/gi, "schnellbluehende Sorte"],
+  [/\bgeruchsneutral\s+growen\b/gi, "kontrollierte Luftfuehrung"],
 ];
 
 const COMPLIANCE_NOTE =
@@ -102,52 +104,52 @@ type GoogleFeedCategoryMapping = {
 };
 
 const DEFAULT_GOOGLE_PRODUCT_CATEGORY = "Home & Garden > Lawn & Garden > Gardening";
-const DEFAULT_PRODUCT_TYPE = "Grow Equipment > General";
+const DEFAULT_PRODUCT_TYPE = "Indoor-Gartenbau > Allgemein";
 
 const GOOGLE_FEED_PRODUCT_OVERRIDES: Record<string, GoogleFeedCategoryMapping> = {
   "ac-infinity-aktivkohlefilter-150mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Grow Equipment > Air Filtration > Carbon Filters",
+    productType: "Indoor-Gartenbau > Gartentechnik > Lufttechnik > Aktivkohlefilter",
   },
   "ac-infinity-aktivkohlefilter-100mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Grow Equipment > Air Filtration > Carbon Filters",
+    productType: "Indoor-Gartenbau > Gartentechnik > Lufttechnik > Aktivkohlefilter",
   },
   "ac-infinity-aktivkohlefilter-200mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Grow Equipment > Air Filtration > Carbon Filters",
+    productType: "Indoor-Gartenbau > Gartentechnik > Lufttechnik > Aktivkohlefilter",
   },
   "secret-jardin-growbox--for-twenty-100-komplettset-": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Grow Equipment > Indoor Gardening > Grow Tents",
+    productType: "Indoor-Gartenbau > Pflanzenzucht > Zuchtzelte",
   },
   "wasserfilterhalter-9mm-autopot": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "ersatzmembrane-f-r-mega-und-power-grow-150-gdp-gro": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "wasserfilter-2x-16mm-gib": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "ersatzfilter-set-f-r-power-und-mega-grow-growmax-w": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "ersatzfilter-set-f-r-mega-grow-growmax-water": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "tankadapter-mit-klickanschluss-und-filter-9mm-auto": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
   "tankadapter-mit-klickanschluss-und-filter-16mm-aut": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
+    productType: "Indoor-Gartenbau > Gartentechnik > Bewaesserung > Wasserfilter & Osmose",
   },
 };
 
@@ -157,7 +159,7 @@ const toDescriptiveProductType = (categoryPath: string) => {
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return DEFAULT_PRODUCT_TYPE;
-  return `Grow Equipment > ${cleaned}`;
+  return `Indoor-Gartenbau > ${cleaned}`;
 };
 
 const inferGoogleFeedCategoryMapping = (input: {
@@ -192,7 +194,7 @@ const inferGoogleFeedCategoryMapping = (input: {
   ) {
     return {
       googleProductCategory: "Home & Garden > Household Supplies",
-      productType: "Grow Equipment > Consumables > Filter Supplies",
+      productType: "Indoor-Gartenbau > Gartentechnik > Verbrauchsmaterial > Filter",
     };
   }
 
@@ -202,7 +204,7 @@ const inferGoogleFeedCategoryMapping = (input: {
   ) {
     return {
       googleProductCategory: "Home & Garden > Smoking Accessories",
-      productType: "Grow Equipment > Glassware > Pipes & Water Pipes",
+      productType: "Indoor-Gartenbau > Gartentechnik > Glaszubehoer > Pfeifen",
     };
   }
 
@@ -210,7 +212,7 @@ const inferGoogleFeedCategoryMapping = (input: {
     return {
       googleProductCategory:
         "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
-      productType: "Grow Equipment > Preparation Tools > Herb Grinders",
+      productType: "Indoor-Gartenbau > Pflanzenzucht > Vorbereitung > Muehlen",
     };
   }
 
@@ -221,7 +223,7 @@ const inferGoogleFeedCategoryMapping = (input: {
     return {
       googleProductCategory:
         "Home & Garden > Household Supplies > Storage & Organization",
-      productType: "Grow Equipment > Storage & Organization",
+      productType: "Indoor-Gartenbau > Gartentechnik > Lagerung & Organisation",
     };
   }
 
@@ -351,7 +353,7 @@ export async function GET() {
       }
       const image = escapeXml(resolveImageUrl(supportedImages[0] ?? ""));
       const brandRaw = product.manufacturer ?? product.sellerName ?? "";
-      const brand = escapeXml(brandRaw || "Smokeify");
+      const brand = escapeXml(brandRaw || "Indoor-Gartenbau Shop");
       const condition = "new";
       const primaryCategory = product.categories[0]?.category;
       const categoryPath = primaryCategory
@@ -452,7 +454,7 @@ export async function GET() {
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">` +
     `<channel>` +
-    `<title>Smokeify Product Feed</title>` +
+    `<title>Indoor-Gartenbau Produktfeed</title>` +
     `<link>${escapeXml(SITE_URL)}</link>` +
     `<description>Google Merchant Center Feed</description>` +
     `<lastBuildDate>${now}</lastBuildDate>` +
