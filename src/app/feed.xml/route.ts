@@ -67,13 +67,66 @@ type GoogleFeedCategoryMapping = {
   productType: string | null;
 };
 
+const GOOGLE_FEED_PRODUCT_OVERRIDES: Record<string, GoogleFeedCategoryMapping> = {
+  "ac-infinity-aktivkohlefilter-150mm": {
+    googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
+    productType: "Luft",
+  },
+  "ac-infinity-aktivkohlefilter-100mm": {
+    googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
+    productType: "Luft",
+  },
+  "ac-infinity-aktivkohlefilter-200mm": {
+    googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
+    productType: "Luft",
+  },
+  "secret-jardin-growbox--for-twenty-100-komplettset-": {
+    googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
+    productType: "Luft",
+  },
+  "wasserfilterhalter-9mm-autopot": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "ersatzmembrane-f-r-mega-und-power-grow-150-gdp-gro": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "wasserfilter-2x-16mm-gib": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "ersatzfilter-set-f-r-power-und-mega-grow-growmax-w": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "ersatzfilter-set-f-r-mega-grow-growmax-water": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "tankadapter-mit-klickanschluss-und-filter-9mm-auto": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+  "tankadapter-mit-klickanschluss-und-filter-16mm-aut": {
+    googleProductCategory: "Home & Garden > Lawn & Garden",
+    productType: "Bewaesserung > Wasserfilter & Osmose",
+  },
+};
+
 const inferGoogleFeedCategoryMapping = (input: {
+  handle: string;
   title: string;
   description: string | null;
   shortDescription: string | null;
   handles: string[];
   categoryPath: string;
 }): GoogleFeedCategoryMapping => {
+  const productOverride = GOOGLE_FEED_PRODUCT_OVERRIDES[input.handle.toLowerCase()];
+  if (productOverride) {
+    return productOverride;
+  }
+
   const haystack = [
     input.title,
     input.description ?? "",
@@ -92,8 +145,8 @@ const inferGoogleFeedCategoryMapping = (input: {
     /\b(papers?|drehpapier|filter)\b/i.test(haystack)
   ) {
     return {
-      googleProductCategory: "Tobacco Products > Smoking Accessories",
-      productType: "Raucherzubehoer > Drehbedarf",
+      googleProductCategory: "Home & Garden > Household Supplies",
+      productType: "Haushalt > Verbrauchsmaterial",
     };
   }
 
@@ -220,6 +273,7 @@ export async function GET() {
         ...product.categories.map(({ category }) => category.parent?.handle ?? ""),
       ].filter(Boolean);
       const categoryMapping = inferGoogleFeedCategoryMapping({
+        handle: product.handle,
         title: product.title,
         description: product.description,
         shortDescription: product.shortDescription,
@@ -312,10 +366,15 @@ export async function GET() {
     `</channel>` +
     `</rss>`;
 
+  const cacheControl =
+    process.env.NODE_ENV === "development"
+      ? "no-store"
+      : "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400";
+
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+      "Cache-Control": cacheControl,
     },
   });
 }
