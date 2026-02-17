@@ -54,8 +54,13 @@ const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+
 const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bbongs?\b/gi, "Wasserpfeife"],
   [/\bjoints?\b/gi, "Drehpapier"],
+  [/\braucherbereichen?\b/gi, "Innenbereichen"],
+  [/\bhome[\s-]*grower(?:n)?\b/gi, "Indoor-Gaertner"],
+  [/\bgrowlight(?:s)?\b/gi, "Pflanzenleuchte"],
+  [/\bgrowr(?:a|ä)ume?\b/giu, "Anbauraeume"],
+  [/\bgrowfla(?:e|ä)che\b/giu, "Anbauflaeche"],
   [/\bgrowbox(?:en)?\b/gi, "Pflanzzelt"],
-  [/\bgrow(?:en|ing)?\b/gi, "Indoor-Gartenbau"],
+  [/\bgrow[\p{L}-]*\b/giu, "Indoor-Gartenbau"],
   [/\bweed\b/gi, "Kraeuter"],
   [/\bcannabis\b/gi, "Kraeuter"],
   [/\bmarijuana\b/gi, "Kraeuter"],
@@ -68,8 +73,13 @@ const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 
 const FEED_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\braucherbereichen?\b/gi, "Innenbereichen"],
+  [/\bhome[\s-]*grower(?:n)?\b/gi, "Indoor-Gaertner"],
+  [/\bgrowlight(?:s)?\b/gi, "Pflanzenleuchte"],
+  [/\bgrowr(?:a|ä)ume?\b/giu, "Anbauraeume"],
+  [/\bgrowfla(?:e|ä)che\b/giu, "Anbauflaeche"],
   [/\bgrowbox(?:en)?\b/gi, "Pflanzzelt"],
-  [/\bgrow(?:en|ing)?\b/gi, "Indoor-Gartenbau"],
+  [/\bgrow[\p{L}-]*\b/giu, "Indoor-Gartenbau"],
   [/\bautoflowering\b/gi, "schnellbluehende Sorte"],
   [/\bgeruchsneutral\s+growen\b/gi, "kontrollierte Luftfuehrung"],
 ];
@@ -93,12 +103,27 @@ const dedupeRepeatedSentences = (value: string) => {
   return unique.join(" ").trim();
 };
 
+const stripResidualGrowTerms = (value: string) =>
+  value
+    // Remove invisible separators that can break regex matching
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    // Catch compound terms like "Biogrow", "Bio-Grow", "Bio grow"
+    .replace(/\bbio[\s-]*grow[\p{L}-]*\b/giu, "Bio-Indoor-Gartenbau")
+    // Catch confusable-character variants of "grow" (e.g., mixed alphabets)
+    .replace(/[gɢＧ]\s*[rʀＲ]\s*[oοоＯ0]\s*[wｗԝ]/giu, "Indoor-Gartenbau")
+    // Catch stylized/fragmented forms like "g r o w"
+    .replace(/\bg\s*r\s*o\s*w[\p{L}-]*\b/giu, "Indoor-Gartenbau")
+    // Final hard fallback for any remaining "grow" fragments
+    .replace(/grow/gi, "Indoor-Gartenbau")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const sanitizeFeedTerms = (value: string) => {
   let normalized = value;
   for (const [pattern, replacement] of FEED_TERM_REPLACEMENTS) {
     normalized = normalized.replace(pattern, replacement);
   }
-  return normalized.replace(/\s+/g, " ").trim();
+  return stripResidualGrowTerms(normalized);
 };
 
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
@@ -106,6 +131,7 @@ const sanitizeDescriptionForGoogleFeed = (raw: string) => {
   for (const [pattern, replacement] of FEED_DESCRIPTION_REPLACEMENTS) {
     normalized = normalized.replace(pattern, replacement);
   }
+  normalized = stripResidualGrowTerms(normalized);
   normalized = dedupeRepeatedSentences(normalized);
   normalized = normalized.replace(/\s+/g, " ").trim();
   if (!normalized) {
