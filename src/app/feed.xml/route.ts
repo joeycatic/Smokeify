@@ -3,9 +3,26 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
-  "https://www.smokeify.de";
+const DEFAULT_SITE_URL = "https://www.smokeify.de";
+
+const resolveFeedSiteUrl = () => {
+  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!raw) return DEFAULT_SITE_URL;
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    const isLocalHost =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host.endsWith(".local");
+    return isLocalHost ? DEFAULT_SITE_URL : `${url.protocol}//${url.host}`;
+  } catch {
+    return DEFAULT_SITE_URL;
+  }
+};
+
+const SITE_URL = resolveFeedSiteUrl();
 
 const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
   "headshop",
@@ -49,11 +66,28 @@ const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
 const COMPLIANCE_NOTE =
   " Fuer Erwachsene ab 18 Jahren. Ausschliesslich fuer legale Zwecke.";
 
+const dedupeRepeatedSentences = (value: string) => {
+  const sentences = value
+    .split(/(?<=[.!?])\s+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const sentence of sentences) {
+    const key = sentence.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(sentence);
+  }
+  return unique.join(" ").trim();
+};
+
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
   let normalized = stripHtml(raw);
   for (const [pattern, replacement] of FEED_DESCRIPTION_REPLACEMENTS) {
     normalized = normalized.replace(pattern, replacement);
   }
+  normalized = dedupeRepeatedSentences(normalized);
   normalized = normalized.replace(/\s+/g, " ").trim();
   if (!normalized) {
     return `Hochwertiges Zubehoer fuer den vorgesehenen Einsatzzweck.${COMPLIANCE_NOTE}`;
@@ -67,51 +101,63 @@ type GoogleFeedCategoryMapping = {
   productType: string | null;
 };
 
+const DEFAULT_GOOGLE_PRODUCT_CATEGORY = "Home & Garden > Lawn & Garden > Gardening";
+const DEFAULT_PRODUCT_TYPE = "Grow Equipment > General";
+
 const GOOGLE_FEED_PRODUCT_OVERRIDES: Record<string, GoogleFeedCategoryMapping> = {
   "ac-infinity-aktivkohlefilter-150mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Luft",
+    productType: "Grow Equipment > Air Filtration > Carbon Filters",
   },
   "ac-infinity-aktivkohlefilter-100mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Luft",
+    productType: "Grow Equipment > Air Filtration > Carbon Filters",
   },
   "ac-infinity-aktivkohlefilter-200mm": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Luft",
+    productType: "Grow Equipment > Air Filtration > Carbon Filters",
   },
   "secret-jardin-growbox--for-twenty-100-komplettset-": {
     googleProductCategory: "Home & Garden > Lawn & Garden > Gardening",
-    productType: "Luft",
+    productType: "Grow Equipment > Indoor Gardening > Grow Tents",
   },
   "wasserfilterhalter-9mm-autopot": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "ersatzmembrane-f-r-mega-und-power-grow-150-gdp-gro": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "wasserfilter-2x-16mm-gib": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "ersatzfilter-set-f-r-power-und-mega-grow-growmax-w": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "ersatzfilter-set-f-r-mega-grow-growmax-water": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "tankadapter-mit-klickanschluss-und-filter-9mm-auto": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
   "tankadapter-mit-klickanschluss-und-filter-16mm-aut": {
     googleProductCategory: "Home & Garden > Lawn & Garden",
-    productType: "Bewaesserung > Wasserfilter & Osmose",
+    productType: "Grow Equipment > Irrigation > Water Filters & Osmosis",
   },
+};
+
+const toDescriptiveProductType = (categoryPath: string) => {
+  const cleaned = categoryPath
+    .replace(/\s*>\s*/g, " > ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return DEFAULT_PRODUCT_TYPE;
+  return `Grow Equipment > ${cleaned}`;
 };
 
 const inferGoogleFeedCategoryMapping = (input: {
@@ -146,7 +192,7 @@ const inferGoogleFeedCategoryMapping = (input: {
   ) {
     return {
       googleProductCategory: "Home & Garden > Household Supplies",
-      productType: "Haushalt > Verbrauchsmaterial",
+      productType: "Grow Equipment > Consumables > Filter Supplies",
     };
   }
 
@@ -156,7 +202,7 @@ const inferGoogleFeedCategoryMapping = (input: {
   ) {
     return {
       googleProductCategory: "Home & Garden > Smoking Accessories",
-      productType: "Raucherzubehoer > Wasserpfeifen",
+      productType: "Grow Equipment > Glassware > Pipes & Water Pipes",
     };
   }
 
@@ -164,7 +210,7 @@ const inferGoogleFeedCategoryMapping = (input: {
     return {
       googleProductCategory:
         "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
-      productType: "Raucherzubehoer > Kraeutermuehlen",
+      productType: "Grow Equipment > Preparation Tools > Herb Grinders",
     };
   }
 
@@ -175,13 +221,13 @@ const inferGoogleFeedCategoryMapping = (input: {
     return {
       googleProductCategory:
         "Home & Garden > Household Supplies > Storage & Organization",
-      productType: "Raucherzubehoer > Aufbewahrung",
+      productType: "Grow Equipment > Storage & Organization",
     };
   }
 
   return {
-    googleProductCategory: null,
-    productType: input.categoryPath || null,
+    googleProductCategory: DEFAULT_GOOGLE_PRODUCT_CATEGORY,
+    productType: toDescriptiveProductType(input.categoryPath),
   };
 };
 
@@ -191,15 +237,56 @@ const formatPrice = (value: number, currency = "EUR") =>
 const resolveProductUrl = (handle: string) =>
   `${SITE_URL}/products/${handle}`;
 
-const resolveImageUrl = (images: Array<{ url: string }>) => {
-  const url = images[0]?.url ?? "";
+const GOOGLE_SUPPORTED_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".bmp",
+  ".tif",
+  ".tiff",
+]);
+
+const getImageExtension = (rawUrl: string) => {
+  const candidate = rawUrl.startsWith("http")
+    ? rawUrl
+    : `${SITE_URL}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+  try {
+    const parsed = new URL(candidate);
+    const pathname = parsed.pathname.toLowerCase();
+    const dotIndex = pathname.lastIndexOf(".");
+    return dotIndex >= 0 ? pathname.slice(dotIndex) : "";
+  } catch {
+    return "";
+  }
+};
+
+const isGoogleSupportedImageUrl = (rawUrl: string) => {
+  const ext = getImageExtension(rawUrl);
+  if (!ext) return true;
+  return GOOGLE_SUPPORTED_IMAGE_EXTENSIONS.has(ext);
+};
+
+const resolveImageUrl = (urlInput: string) => {
+  const url = urlInput ?? "";
   if (!url) return "";
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http")) {
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        return `${SITE_URL}${parsed.pathname}${parsed.search}`;
+      }
+    } catch {
+      return "";
+    }
+    return url;
+  }
   return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 };
 
-const buildItemId = (productHandle: string, variantId: string, sku?: string | null) => {
-  const base = sku?.trim() || `${productHandle}-${variantId.slice(0, 8)}`;
+const buildItemId = (productHandle: string, variantId: string) => {
+  const base = `${productHandle}-${variantId.slice(0, 8)}`;
   return base.length > 50 ? base.slice(0, 50) : base;
 };
 
@@ -256,7 +343,13 @@ export async function GET() {
         )
       );
       const link = escapeXml(resolveProductUrl(product.handle));
-      const image = escapeXml(resolveImageUrl(product.images));
+      const supportedImages = product.images
+        .map((img) => img.url)
+        .filter((url) => isGoogleSupportedImageUrl(url));
+      if (supportedImages.length === 0) {
+        return [];
+      }
+      const image = escapeXml(resolveImageUrl(supportedImages[0] ?? ""));
       const brandRaw = product.manufacturer ?? product.sellerName ?? "";
       const brand = escapeXml(brandRaw || "Smokeify");
       const condition = "new";
@@ -286,9 +379,9 @@ export async function GET() {
       const googleProductCategory = categoryMapping.googleProductCategory
         ? escapeXml(categoryMapping.googleProductCategory)
         : "";
-      const additionalImages = product.images
+      const additionalImages = supportedImages
         .slice(1, 10)
-        .map((img) => escapeXml(img.url))
+        .map((img) => escapeXml(resolveImageUrl(img)))
         .filter(Boolean);
 
       return product.variants.map((variant) => {
@@ -314,8 +407,9 @@ export async function GET() {
             : baseTitle;
         const price = escapeXml(formatPrice(variant.priceCents / 100));
         const sku = variant.sku?.trim() ?? "";
-        const identifierExists = sku || brandRaw ? "yes" : "no";
-        const itemId = buildItemId(product.handle, variant.id, sku);
+        const itemId = buildItemId(product.handle, variant.id);
+        const hasMpn = Boolean(sku);
+        const identifierExists = hasMpn ? "yes" : "no";
 
         return [
           "<item>",
@@ -334,7 +428,7 @@ export async function GET() {
             : "",
           `<g:price>${price}</g:price>`,
           `<g:brand>${brand}</g:brand>`,
-          sku ? `<g:mpn>${escapeXml(sku)}</g:mpn>` : "",
+          hasMpn ? `<g:mpn>${escapeXml(sku)}</g:mpn>` : "",
           googleProductCategory
             ? `<g:google_product_category>${googleProductCategory}</g:google_product_category>`
             : "",
