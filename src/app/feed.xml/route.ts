@@ -67,6 +67,13 @@ const FEED_DESCRIPTION_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bgeruchsneutral\s+growen\b/gi, "kontrollierte Luftfuehrung"],
 ];
 
+const FEED_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bgrowbox(?:en)?\b/gi, "Pflanzzelt"],
+  [/\bgrow(?:en|ing)?\b/gi, "Indoor-Gartenbau"],
+  [/\bautoflowering\b/gi, "schnellbluehende Sorte"],
+  [/\bgeruchsneutral\s+growen\b/gi, "kontrollierte Luftfuehrung"],
+];
+
 const COMPLIANCE_NOTE =
   " Fuer Erwachsene ab 18 Jahren. Ausschliesslich fuer legale Zwecke.";
 
@@ -84,6 +91,14 @@ const dedupeRepeatedSentences = (value: string) => {
     unique.push(sentence);
   }
   return unique.join(" ").trim();
+};
+
+const sanitizeFeedTerms = (value: string) => {
+  let normalized = value;
+  for (const [pattern, replacement] of FEED_TERM_REPLACEMENTS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+  return normalized.replace(/\s+/g, " ").trim();
 };
 
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
@@ -161,7 +176,7 @@ const toDescriptiveProductType = (categoryPath: string) => {
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return DEFAULT_PRODUCT_TYPE;
-  return `Indoor-Gartenbau > ${cleaned}`;
+  return sanitizeFeedTerms(`Indoor-Gartenbau > ${cleaned}`);
 };
 
 const inferGoogleFeedCategoryMapping = (input: {
@@ -290,7 +305,7 @@ const resolveImageUrl = (urlInput: string) => {
 };
 
 const buildItemId = (productHandle: string, variantId: string) => {
-  const base = `${productHandle}-${variantId.slice(0, 8)}`;
+  const base = `variant-${variantId.slice(0, 12)}`;
   return base.length > 50 ? base.slice(0, 50) : base;
 };
 
@@ -340,7 +355,7 @@ export async function GET() {
 
   const items = products
     .flatMap((product) => {
-      const baseTitle = product.title;
+      const baseTitle = sanitizeFeedTerms(product.title);
       const description = escapeXml(
         sanitizeDescriptionForGoogleFeed(
           product.description ?? product.shortDescription ?? ""
@@ -378,7 +393,7 @@ export async function GET() {
         categoryPath,
       });
       const productType = categoryMapping.productType
-        ? escapeXml(categoryMapping.productType)
+        ? escapeXml(sanitizeFeedTerms(categoryMapping.productType))
         : "";
       const googleProductCategory = categoryMapping.googleProductCategory
         ? escapeXml(categoryMapping.googleProductCategory)
@@ -407,10 +422,11 @@ export async function GET() {
             : null;
         const variantTitle =
           variant.title && !/default/i.test(variant.title)
-            ? `${baseTitle} - ${variant.title}`
+            ? `${baseTitle} - ${sanitizeFeedTerms(variant.title)}`
             : baseTitle;
         const price = escapeXml(formatPrice(variant.priceCents / 100));
-        const sku = variant.sku?.trim() ?? "";
+        const rawSku = variant.sku?.trim() ?? "";
+        const sku = /\bgrow(?:en|ing)?\b/i.test(rawSku) ? "" : rawSku;
         const itemId = buildItemId(product.handle, variant.id);
         const hasMpn = Boolean(sku);
         const identifierExists = hasMpn ? "yes" : "no";
