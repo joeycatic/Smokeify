@@ -8,7 +8,7 @@ const DEFAULT_INPUT = "scripts/bloomtech/supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
 const DEFAULT_MARGIN_PERCENT = 20;
-const DEFAULT_ROUNDING_STRATEGY = "49_or_99";
+const DEFAULT_ROUNDING_STRATEGY = "99";
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
@@ -67,13 +67,8 @@ const parseMarginPercent = (rawValue) => {
 const parseRoundingStrategy = (rawValue) => {
   if (!rawValue) return DEFAULT_ROUNDING_STRATEGY;
   const normalized = String(rawValue).trim().toLowerCase();
-  if (
-    normalized === "none" ||
-    normalized === "49_or_99" ||
-    normalized === "45_or_99"
-  ) {
-    return normalized;
-  }
+  if (normalized === "none" || normalized === "99") return normalized;
+  if (normalized === "49_or_99" || normalized === "45_or_99") return "99";
   throw new Error(`Invalid rounding strategy: ${rawValue}`);
 };
 
@@ -100,10 +95,7 @@ const buildSellPriceCents = (costCents, pricingConfig) => {
   }
   const targetSellCents = Math.ceil(costCents / marginMultiplier);
   if (pricingConfig.rounding === "none") return targetSellCents;
-  if (pricingConfig.rounding === "45_or_99") {
-    return ceilToNextWithEndings(targetSellCents, [45, 99]);
-  }
-  return ceilToNextWithEndings(targetSellCents, [49, 99]);
+  return ceilToNextWithEndings(targetSellCents, [99]);
 };
 
 const formatCents = (cents) => (cents / 100).toFixed(2);
