@@ -8,6 +8,7 @@ import {
   sanitizePlainText,
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
+import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -162,18 +163,49 @@ export async function POST(request: Request) {
     }
   }
 
+  const sanitizedDescription = sanitizeProductDescription(body.description);
+  const sanitizedTechnicalDetails = sanitizeProductDescription(
+    body.technicalDetails
+  );
+  const sanitizedShortDescription = sanitizePlainText(body.shortDescription);
+  const sanitizedProductGroup = sanitizePlainText(body.productGroup);
+  const sanitizedSellerName = sanitizePlainText(body.sellerName);
+  const sanitizedTags = Array.isArray(body.tags)
+    ? body.tags.map((tag) => tag.trim()).filter(Boolean)
+    : [];
+
+  const violations = collectMerchantPolicyViolations({
+    title,
+    description: sanitizedDescription,
+    technicalDetails: sanitizedTechnicalDetails,
+    shortDescription: sanitizedShortDescription,
+    productGroup: sanitizedProductGroup,
+    tags: sanitizedTags.join(" "),
+  });
+
+  if (violations.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Product text includes terms that imply medical claims or illegal use. Please revise wording.",
+        violations,
+      },
+      { status: 400 }
+    );
+  }
+
   const product = await prisma.product.create({
     data: {
       title,
       handle,
-      description: sanitizeProductDescription(body.description),
-      technicalDetails: sanitizeProductDescription(body.technicalDetails),
-      shortDescription: sanitizePlainText(body.shortDescription),
+      description: sanitizedDescription,
+      technicalDetails: sanitizedTechnicalDetails,
+      shortDescription: sanitizedShortDescription,
       manufacturer: body.manufacturer?.trim() || null,
-      productGroup: sanitizePlainText(body.productGroup),
+      productGroup: sanitizedProductGroup,
       supplier: supplierName,
       supplierId,
-      sellerName: sanitizePlainText(body.sellerName),
+      sellerName: sanitizedSellerName,
       sellerUrl: sellerUrlResult.value,
       leadTimeDays,
       weightGrams:
@@ -182,9 +214,7 @@ export async function POST(request: Request) {
       widthMm: typeof body.widthMm === "number" ? body.widthMm : null,
       heightMm: typeof body.heightMm === "number" ? body.heightMm : null,
       shippingClass: body.shippingClass?.trim() || null,
-      tags: Array.isArray(body.tags)
-        ? body.tags.map((tag) => tag.trim()).filter(Boolean)
-        : [],
+      tags: sanitizedTags,
       status: parseStatus(body.status),
       variants: {
         create: {

@@ -32,7 +32,7 @@ const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
   "feuerzeuge",
   "filter",
   "grinder",
-  "hash-bowl",
+  "kraeuterschale",
   "papers",
   "pipes",
   "rolling-tray",
@@ -40,6 +40,39 @@ const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
   "vaporizer",
   "waagen",
 ]);
+
+const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set([
+  "homebox-ambient-q-80-plus",
+  "secret-jardin-hydro-shoot-100-grow-set-100-100-200-cm",
+  "secret-jardin-hydro-shoot-100-grow-set-120-120-200-cm",
+  "secret-jardin-hydro-shoot-60-grow-set-60-60-158-cm",
+  "secret-jardin-hydro-shoot-80-grow-set-80-80-188-cm",
+]);
+
+const HEADSHOP_SIGNAL_TERMS = [
+  "headshop",
+  "bong",
+  "bongs",
+  "pipe",
+  "pipes",
+  "grinder",
+  "grinders",
+  "papers",
+  "rolling-tray",
+  "vaporizer",
+  "tubes",
+  "kraeuterschale",
+  "hash-bowl",
+  "stash",
+];
+
+type GoogleFeedExclusionCheck = {
+  excluded: boolean;
+  forceIncluded: boolean;
+  matchedCategoryHandles: string[];
+  matchedSignalTerms: string[];
+  reasons: string[];
+};
 
 const escapeXml = (value: string) =>
   value
@@ -335,26 +368,64 @@ const buildItemId = (productHandle: string, variantId: string) => {
   return base.length > 50 ? base.slice(0, 50) : base;
 };
 
-const isGoogleFeedExcluded = (product: {
+const getGoogleFeedExclusionCheck = (product: {
+  handle: string;
+  title: string;
+  description: string | null;
+  shortDescription: string | null;
+  tags: string[];
   mainCategory: { handle: string; parent: { handle: string } | null } | null;
   categories: Array<{ category: { handle: string; parent: { handle: string } | null } }>;
-}) => {
-  if (
-    product.mainCategory &&
-    (GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(product.mainCategory.handle) ||
-      (product.mainCategory.parent &&
-        GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(product.mainCategory.parent.handle)))
-  ) {
-    return true;
+}): GoogleFeedExclusionCheck => {
+  const normalizedHandle = product.handle.toLowerCase();
+  if (GOOGLE_FEED_FORCE_INCLUDE_HANDLES.has(normalizedHandle)) {
+    return {
+      excluded: false,
+      forceIncluded: true,
+      matchedCategoryHandles: [],
+      matchedSignalTerms: [],
+      reasons: ["force_include"],
+    };
   }
 
-  return product.categories.some(({ category }) => {
-    if (GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(category.handle)) return true;
-    return Boolean(
-      category.parent &&
-        GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(category.parent.handle)
-    );
-  });
+  const categoryHandles = [
+    product.mainCategory?.handle ?? "",
+    product.mainCategory?.parent?.handle ?? "",
+    ...product.categories.map(({ category }) => category.handle),
+    ...product.categories.map(({ category }) => category.parent?.handle ?? ""),
+  ]
+    .map((entry) => entry.toLowerCase())
+    .filter(Boolean);
+
+  const matchedCategoryHandles = categoryHandles.filter((handle) =>
+    GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(handle)
+  );
+
+  const headshopSignalHaystack = [
+    product.handle,
+    product.title,
+    product.description ?? "",
+    product.shortDescription ?? "",
+    ...(product.tags ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const matchedSignalTerms = HEADSHOP_SIGNAL_TERMS.filter((term) =>
+    headshopSignalHaystack.includes(term)
+  );
+
+  const reasons: string[] = [];
+  if (matchedCategoryHandles.length > 0) reasons.push("category_match");
+  if (matchedSignalTerms.length > 0) reasons.push("term_match");
+
+  return {
+    excluded: reasons.length > 0,
+    forceIncluded: false,
+    matchedCategoryHandles: Array.from(new Set(matchedCategoryHandles)),
+    matchedSignalTerms: Array.from(new Set(matchedSignalTerms)),
+    reasons,
+  };
 };
 
 export async function GET() {
@@ -376,7 +447,9 @@ export async function GET() {
       },
     },
   });
-  const products = allProducts.filter((product) => !isGoogleFeedExcluded(product));
+  const products = allProducts.filter(
+    (product) => !getGoogleFeedExclusionCheck(product).excluded
+  );
   const now = new Date().toUTCString();
 
   const items = products

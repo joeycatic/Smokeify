@@ -282,10 +282,11 @@ export const seoPages: SeoPageConfig[] = [
     parentHandle: "headshop",
   },
   {
-    slugParts: ["headshop", "hash-bowl"],
-    title: "Hash Bowl",
-    description: "Hash Bowls aus dem Headshop.",
-    subcategoryHandle: "hash-bowl",
+    slugParts: ["headshop", "kraeuterschale"],
+    title: "Kräuterschale",
+    description: "Kräuterschalen aus dem Headshop.",
+    subcategoryHandle: "kraeuterschale",
+    subcategoryHandleAliases: ["hash-bowl"],
     parentHandle: "headshop",
   },
   {

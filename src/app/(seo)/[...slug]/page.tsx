@@ -105,6 +105,11 @@ const siteUrl =
   "https://www.smokeify.de";
 const toUrl = (path: string) => `${siteUrl}${path}`;
 
+const isNoindexSeoConfig = (config: SeoPageConfig) =>
+  config.slugParts[0] === "headshop" ||
+  config.categoryHandle === "headshop" ||
+  config.parentHandle === "headshop";
+
 export async function generateStaticParams() {
   return seoPages.map((page) => ({ slug: page.slugParts }));
 }
@@ -117,9 +122,22 @@ export async function generateMetadata({
   if (!config) return {};
   const path = `/${config.slugParts.join("/")}`;
   const title = `${config.title} | Smokeify`;
+  const noindex = isNoindexSeoConfig(config);
   return {
     title,
     description: config.description,
+    robots: noindex
+      ? {
+          index: false,
+          follow: false,
+          nocache: true,
+          googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+          },
+        }
+      : undefined,
     alternates: {
       canonical: path,
       languages: {

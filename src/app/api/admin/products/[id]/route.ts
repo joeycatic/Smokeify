@@ -9,6 +9,7 @@ import {
   sanitizePlainText,
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
+import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -304,6 +305,34 @@ export async function PATCH(
 
   if (body.status) {
     updates.status = parseStatus(body.status);
+  }
+
+  const violations = collectMerchantPolicyViolations({
+    ...(typeof updates.title === "string" ? { title: updates.title } : {}),
+    ...(typeof updates.description !== "undefined"
+      ? { description: updates.description }
+      : {}),
+    ...(typeof updates.technicalDetails !== "undefined"
+      ? { technicalDetails: updates.technicalDetails }
+      : {}),
+    ...(typeof updates.shortDescription !== "undefined"
+      ? { shortDescription: updates.shortDescription }
+      : {}),
+    ...(typeof updates.productGroup !== "undefined"
+      ? { productGroup: updates.productGroup }
+      : {}),
+    ...(Array.isArray(updates.tags) ? { tags: updates.tags.join(" ") } : {}),
+  });
+
+  if (violations.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Product text includes terms that imply medical claims or illegal use. Please revise wording.",
+        violations,
+      },
+      { status: 400 }
+    );
   }
 
   const product = await prisma.product.update({

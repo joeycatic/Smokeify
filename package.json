@@ -22,6 +22,8 @@
     "market:shops-prices": "node scripts/market/shopsPriceStats.mjs",
     "market:google-shopping-prices": "node scripts/market/googleShoppingPriceStats.mjs",
     "catalog:rewrite-google-ads-descriptions": "node scripts/catalog/rewriteDescriptionsForGoogleAds.mjs",
+    "catalog:report-google-feed-headshop-exclusions": "node scripts/catalog/reportGoogleFeedHeadshopExclusions.mjs",
+    "catalog:rename-hash-bowl-category": "node scripts/catalog/renameHashBowlCategory.mjs",
     "orders:backfill-payment-fees": "node scripts/orders/backfillOrderPaymentFees.mjs",
     "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
     "testing:seed-orders": "node scripts/testing/seedTestOrders.js"

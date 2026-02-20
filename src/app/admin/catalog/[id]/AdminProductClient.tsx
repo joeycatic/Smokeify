@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import RichTextEditor from "@/components/admin/RichTextEditor";
+import {
+  collectMerchantPolicyViolations,
+  type MerchantPolicyViolation,
+} from "@/lib/merchantTextPolicy";
 
 type ImageItem = {
   id: string;
@@ -270,6 +274,9 @@ export default function AdminProductClient({
   const [shippingOpen, setShippingOpen] = useState(false);
   const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
+  const [serverPolicyViolations, setServerPolicyViolations] = useState<
+    MerchantPolicyViolation[]
+  >([]);
 
   const parentCategories = useMemo(
     () => categories.filter((item) => !item.parentId),
@@ -378,6 +385,67 @@ export default function AdminProductClient({
     () => (airSystemCategoryId ? categoryIds.has(airSystemCategoryId) : false),
     [categoryIds, airSystemCategoryId]
   );
+  const editorPolicyViolations = useMemo(
+    () =>
+      collectMerchantPolicyViolations({
+        title: details.title,
+        description: details.description,
+        technicalDetails: details.technicalDetails,
+        shortDescription: details.shortDescription,
+        productGroup: details.productGroup,
+        tags: details.tags,
+      }),
+    [
+      details.description,
+      details.productGroup,
+      details.shortDescription,
+      details.tags,
+      details.technicalDetails,
+      details.title,
+    ]
+  );
+  const hasEditorPolicyViolations = editorPolicyViolations.length > 0;
+  const mergedPolicyViolations = useMemo(() => {
+    const map = new Map<string, MerchantPolicyViolation>();
+    for (const violation of [
+      ...editorPolicyViolations,
+      ...serverPolicyViolations,
+    ]) {
+      map.set(
+        `${violation.field}:${violation.reason}:${violation.match}`,
+        violation
+      );
+    }
+    return Array.from(map.values());
+  }, [editorPolicyViolations, serverPolicyViolations]);
+  const policyViolationSummary = useMemo(() => {
+    const grouped = new Map<string, Set<string>>();
+    mergedPolicyViolations.forEach((violation) => {
+      const reasonLabel =
+        violation.reason === "medical_claim"
+          ? "Medical claim terms"
+          : "Illegal-use implication terms";
+      const key = `${reasonLabel} (${violation.field})`;
+      const set = grouped.get(key) ?? new Set<string>();
+      set.add(violation.match);
+      grouped.set(key, set);
+    });
+    return Array.from(grouped.entries()).map(([label, matches]) => ({
+      label,
+      matches: Array.from(matches).slice(0, 6),
+    }));
+  }, [mergedPolicyViolations]);
+
+  useEffect(() => {
+    setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
+  }, [
+    details.title,
+    details.description,
+    details.technicalDetails,
+    details.shortDescription,
+    details.productGroup,
+    details.tags,
+  ]);
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -408,6 +476,7 @@ export default function AdminProductClient({
     setMessage("");
     setError("");
     setHandleError("");
+    setServerPolicyViolations([]);
     if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
       setError("Seller URL must be a valid http(s) link");
       return;
@@ -452,9 +521,15 @@ export default function AdminProductClient({
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as {
+          error?: string;
+          violations?: MerchantPolicyViolation[];
+        };
         const errorMessage = data.error ?? "Update failed";
         setError(errorMessage);
+        if (Array.isArray(data.violations)) {
+          setServerPolicyViolations(data.violations);
+        }
         if (errorMessage.toLowerCase().includes("handle")) {
           setHandleError(errorMessage);
         }
@@ -1481,6 +1556,20 @@ export default function AdminProductClient({
           )}
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
+          {mergedPolicyViolations.length > 0 && (
+            <div className="w-full rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">
+                Policy warning: revise text before saving.
+              </p>
+              <ul className="mt-1 list-disc pl-4">
+                {policyViolationSummary.map((entry) => (
+                  <li key={entry.label}>
+                    {entry.label}: {entry.matches.join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <select
             value={details.status}
             onChange={(event) =>
@@ -1500,6 +1589,7 @@ export default function AdminProductClient({
           <button
             type="button"
             onClick={saveDetails}
+            disabled={hasEditorPolicyViolations}
             className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b]"
           >
             Save details

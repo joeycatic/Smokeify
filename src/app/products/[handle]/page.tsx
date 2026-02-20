@@ -15,10 +15,52 @@ const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
   "https://www.smokeify.de";
 
+const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
+  "headshop",
+  "aschenbecher",
+  "aufbewahrung",
+  "bongs",
+  "feuerzeuge",
+  "filter",
+  "grinder",
+  "kraeuterschale",
+  "hash-bowl",
+  "papers",
+  "pipes",
+  "rolling-tray",
+  "tubes",
+  "vaporizer",
+  "waagen",
+]);
+
+const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set([
+  "homebox-ambient-q-80-plus",
+  "secret-jardin-hydro-shoot-100-grow-set-100-100-200-cm",
+  "secret-jardin-hydro-shoot-100-grow-set-120-120-200-cm",
+  "secret-jardin-hydro-shoot-60-grow-set-60-60-158-cm",
+  "secret-jardin-hydro-shoot-80-grow-set-80-80-188-cm",
+]);
+
 const stripHtml = (value: string) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
+
+const isNoindexProduct = (product: {
+  handle: string;
+  categories: Array<{ handle: string; parent?: { handle: string } | null }>;
+}) => {
+  const normalizedHandle = product.handle.toLowerCase();
+  if (GOOGLE_FEED_FORCE_INCLUDE_HANDLES.has(normalizedHandle)) return false;
+
+  const categoryHandles = product.categories.flatMap((category) => [
+    category.handle?.toLowerCase() ?? "",
+    category.parent?.handle?.toLowerCase() ?? "",
+  ]);
+  return categoryHandles.some((handle) =>
+    GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(handle)
+  );
+};
 
 type RecommendedProduct = {
   id: string;
@@ -103,10 +145,23 @@ export async function generateMetadata({
       "Produktdetails bei Smokeify")?.trim();
   const canonical = `/products/${product.handle}`;
   const image = product.images?.[0]?.url ?? null;
+  const noindex = isNoindexProduct(product);
 
   return {
     title,
     description,
+    robots: noindex
+      ? {
+          index: false,
+          follow: false,
+          nocache: true,
+          googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+          },
+        }
+      : undefined,
     alternates: {
       canonical,
       languages: {
