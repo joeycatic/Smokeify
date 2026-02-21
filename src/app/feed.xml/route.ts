@@ -41,13 +41,7 @@ const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
   "waagen",
 ]);
 
-const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set([
-  "homebox-ambient-q-80-plus",
-  "secret-jardin-hydro-shoot-100-grow-set-100-100-200-cm",
-  "secret-jardin-hydro-shoot-100-grow-set-120-120-200-cm",
-  "secret-jardin-hydro-shoot-60-grow-set-60-60-158-cm",
-  "secret-jardin-hydro-shoot-80-grow-set-80-80-188-cm",
-]);
+const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set<string>();
 
 const HEADSHOP_SIGNAL_TERMS = [
   "headshop",
@@ -66,11 +60,118 @@ const HEADSHOP_SIGNAL_TERMS = [
   "stash",
 ];
 
+const GOOGLE_FEED_NEUTRAL_INCLUDE_TERMS = [
+  "led",
+  "pflanzenlampe",
+  "pflanzenleuchte",
+  "plant lamp",
+  "luefter",
+  "lüfter",
+  "ventilation",
+  "belueftung",
+  "belüftung",
+  "abluft",
+  "zuluft",
+  "fan",
+  "inline",
+  "rohrventilator",
+  "duct",
+];
+
+const GOOGLE_FEED_BLOCKED_TERMS = [
+  "grow",
+  "growbox",
+  "zuchtzelt",
+  "pflanzzelt",
+  "hydro",
+  "autopot",
+  "papers",
+  "paper",
+  "rolling",
+  "joint",
+  "rauchen",
+  "smoking",
+  "smoke",
+  "bong",
+  "pipe",
+  "grinder",
+  "vape",
+  "vaporizer",
+  "stash",
+  "raw",
+  "filter",
+  "aktivkohlefilter",
+];
+
+const GOOGLE_FEED_NEUTRAL_CATEGORY_HANDLES = new Set([
+  "beleuchtung",
+  "led",
+  "ventilation",
+  "belueftung",
+  "luefter",
+  "klima",
+  "lufttechnik",
+]);
+
+const GOOGLE_FEED_ALLOWED_TITLE_PATTERNS: RegExp[] = [
+  /\bled\b/i,
+  /pflanzenlampe/i,
+  /pflanzenleuchte/i,
+  /lighting/i,
+  /ventilator/i,
+  /luefter/i,
+  /lüfter/i,
+  /ventilation/i,
+  /belueftung/i,
+  /belüftung/i,
+  /abluft/i,
+  /zuluft/i,
+  /luftentfeuchter/i,
+  /luftbefeuchter/i,
+  /aluflexschlauch/i,
+  /cloudline/i,
+  /cloudray/i,
+];
+
+const GOOGLE_FEED_BLOCKED_TITLE_PATTERNS: RegExp[] = [
+  /grow/i,
+  /growbox/i,
+  /\bbox\b/i,
+  /zelt/i,
+  /homebox/i,
+  /diamondbox/i,
+  /cloudlab/i,
+  /papers?/i,
+  /raw/i,
+  /bong/i,
+  /pipe/i,
+  /grinder/i,
+  /vape/i,
+  /smoke/i,
+  /joint/i,
+  /autopot/i,
+  /biobizz/i,
+  /topmax/i,
+  /fishmix/i,
+  /root juice/i,
+  /calmag/i,
+  /alg-a-mic/i,
+  /acti vera/i,
+  /bio heaven/i,
+  /bio-bloom/i,
+  /microbes/i,
+  /rezin/i,
+  /vbx/i,
+  /alfa boost/i,
+];
+
 type GoogleFeedExclusionCheck = {
   excluded: boolean;
   forceIncluded: boolean;
+  missingNeutralSignals: boolean;
   matchedCategoryHandles: string[];
   matchedSignalTerms: string[];
+  matchedBlockedTerms: string[];
   reasons: string[];
 };
 
@@ -157,6 +258,14 @@ const sanitizeFeedTerms = (value: string) => {
     normalized = normalized.replace(pattern, replacement);
   }
   return stripResidualGrowTerms(normalized);
+};
+
+const isNeutralFeedTitle = (title: string) => {
+  const hasAllowedSignal = GOOGLE_FEED_ALLOWED_TITLE_PATTERNS.some((pattern) =>
+    pattern.test(title)
+  );
+  if (!hasAllowedSignal) return false;
+  return !GOOGLE_FEED_BLOCKED_TITLE_PATTERNS.some((pattern) => pattern.test(title));
 };
 
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
@@ -382,8 +491,10 @@ const getGoogleFeedExclusionCheck = (product: {
     return {
       excluded: false,
       forceIncluded: true,
+      missingNeutralSignals: false,
       matchedCategoryHandles: [],
       matchedSignalTerms: [],
+      matchedBlockedTerms: [],
       reasons: ["force_include"],
     };
   }
@@ -415,15 +526,39 @@ const getGoogleFeedExclusionCheck = (product: {
     headshopSignalHaystack.includes(term)
   );
 
+  const neutralIncludeHaystack = [
+    product.handle,
+    product.title,
+    product.description ?? "",
+    product.shortDescription ?? "",
+    ...(product.tags ?? []),
+    ...categoryHandles,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const hasNeutralSignal =
+    GOOGLE_FEED_NEUTRAL_INCLUDE_TERMS.some((term) =>
+      neutralIncludeHaystack.includes(term)
+    ) || categoryHandles.some((handle) => GOOGLE_FEED_NEUTRAL_CATEGORY_HANDLES.has(handle));
+
+  const matchedBlockedTerms = GOOGLE_FEED_BLOCKED_TERMS.filter((term) =>
+    neutralIncludeHaystack.includes(term)
+  );
+
   const reasons: string[] = [];
   if (matchedCategoryHandles.length > 0) reasons.push("category_match");
   if (matchedSignalTerms.length > 0) reasons.push("term_match");
+  if (!hasNeutralSignal) reasons.push("missing_neutral_signal");
+  if (matchedBlockedTerms.length > 0) reasons.push("blocked_term_match");
 
   return {
     excluded: reasons.length > 0,
     forceIncluded: false,
+    missingNeutralSignals: !hasNeutralSignal,
     matchedCategoryHandles: Array.from(new Set(matchedCategoryHandles)),
     matchedSignalTerms: Array.from(new Set(matchedSignalTerms)),
+    matchedBlockedTerms: Array.from(new Set(matchedBlockedTerms)),
     reasons,
   };
 };
@@ -523,6 +658,9 @@ export async function GET() {
           variant.title && !/default/i.test(variant.title)
             ? `${baseTitle} - ${sanitizeFeedTerms(variant.title)}`
             : baseTitle;
+        if (!isNeutralFeedTitle(variantTitle)) {
+          return "";
+        }
         const price = escapeXml(formatPrice(variant.priceCents / 100));
         const rawSku = variant.sku?.trim() ?? "";
         const sku = /\bgrow(?:en|ing)?\b/i.test(rawSku) ? "" : rawSku;
