@@ -30,7 +30,6 @@ const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
   "aufbewahrung",
   "bongs",
   "feuerzeuge",
-  "filter",
   "grinder",
   "kraeuterschale",
   "papers",
@@ -76,15 +75,19 @@ const GOOGLE_FEED_NEUTRAL_INCLUDE_TERMS = [
   "inline",
   "rohrventilator",
   "duct",
+  "bewaesserung",
+  "bewässerung",
+  "irrigation",
+  "watering",
+  "wasser",
+  "tank",
+  "pumpe",
+  "dripper",
+  "bewaesserungs",
+  "bewässerungs",
 ];
 
 const GOOGLE_FEED_BLOCKED_TERMS = [
-  "grow",
-  "growbox",
-  "zuchtzelt",
-  "pflanzzelt",
-  "hydro",
-  "autopot",
   "papers",
   "paper",
   "rolling",
@@ -99,8 +102,6 @@ const GOOGLE_FEED_BLOCKED_TERMS = [
   "vaporizer",
   "stash",
   "raw",
-  "filter",
-  "aktivkohlefilter",
 ];
 
 const GOOGLE_FEED_NEUTRAL_CATEGORY_HANDLES = new Set([
@@ -111,13 +112,21 @@ const GOOGLE_FEED_NEUTRAL_CATEGORY_HANDLES = new Set([
   "luefter",
   "klima",
   "lufttechnik",
+  "bewaesserung",
+  "irrigation",
+  "wasserfilter",
+  "wassertechnik",
 ]);
 
-const GOOGLE_FEED_ALLOWED_TITLE_PATTERNS: RegExp[] = [
+const GOOGLE_FEED_LIGHTING_TITLE_PATTERNS: RegExp[] = [
   /\bled\b/i,
   /pflanzenlampe/i,
   /pflanzenleuchte/i,
   /lighting/i,
+  /light/i,
+];
+
+const GOOGLE_FEED_VENTILATION_TITLE_PATTERNS: RegExp[] = [
   /ventilator/i,
   /luefter/i,
   /lüfter/i,
@@ -133,14 +142,23 @@ const GOOGLE_FEED_ALLOWED_TITLE_PATTERNS: RegExp[] = [
   /cloudray/i,
 ];
 
+const GOOGLE_FEED_IRRIGATION_TITLE_PATTERNS: RegExp[] = [
+  /bewaesserung/i,
+  /bewässerung/i,
+  /irrigation/i,
+  /watering/i,
+  /water/i,
+  /tank/i,
+  /dripper/i,
+  /pumpe/i,
+  /sensor/i,
+  /wasserfilter/i,
+  /membrane/i,
+  /adapter/i,
+  /autopot/i,
+];
+
 const GOOGLE_FEED_BLOCKED_TITLE_PATTERNS: RegExp[] = [
-  /grow/i,
-  /growbox/i,
-  /\bbox\b/i,
-  /zelt/i,
-  /homebox/i,
-  /diamondbox/i,
-  /cloudlab/i,
   /papers?/i,
   /raw/i,
   /bong/i,
@@ -164,6 +182,26 @@ const GOOGLE_FEED_BLOCKED_TITLE_PATTERNS: RegExp[] = [
   /vbx/i,
   /alfa boost/i,
 ];
+
+const GOOGLE_FEED_LIGHTING_CATEGORY_HANDLES = new Set([
+  "beleuchtung",
+  "led",
+]);
+
+const GOOGLE_FEED_VENTILATION_CATEGORY_HANDLES = new Set([
+  "ventilation",
+  "belueftung",
+  "luefter",
+  "klima",
+  "lufttechnik",
+]);
+
+const GOOGLE_FEED_IRRIGATION_CATEGORY_HANDLES = new Set([
+  "bewaesserung",
+  "irrigation",
+  "wasserfilter",
+  "wassertechnik",
+]);
 
 type GoogleFeedExclusionCheck = {
   excluded: boolean;
@@ -260,12 +298,46 @@ const sanitizeFeedTerms = (value: string) => {
   return stripResidualGrowTerms(normalized);
 };
 
-const isNeutralFeedTitle = (title: string) => {
-  const hasAllowedSignal = GOOGLE_FEED_ALLOWED_TITLE_PATTERNS.some((pattern) =>
+const isNeutralFeedVariantAllowed = (input: {
+  title: string;
+  categoryHandles: string[];
+}) => {
+  const title = input.title;
+  const categoryHandles = input.categoryHandles.map((entry) => entry.toLowerCase());
+  const hasBlockedSignal = GOOGLE_FEED_BLOCKED_TITLE_PATTERNS.some((pattern) =>
     pattern.test(title)
   );
-  if (!hasAllowedSignal) return false;
-  return !GOOGLE_FEED_BLOCKED_TITLE_PATTERNS.some((pattern) => pattern.test(title));
+  if (hasBlockedSignal) return false;
+
+  const isLightingTitle = GOOGLE_FEED_LIGHTING_TITLE_PATTERNS.some((pattern) =>
+    pattern.test(title)
+  );
+  const isVentilationTitle = GOOGLE_FEED_VENTILATION_TITLE_PATTERNS.some((pattern) =>
+    pattern.test(title)
+  );
+  const isIrrigationTitle = GOOGLE_FEED_IRRIGATION_TITLE_PATTERNS.some((pattern) =>
+    pattern.test(title)
+  );
+
+  const isLightingCategory = categoryHandles.some((handle) =>
+    GOOGLE_FEED_LIGHTING_CATEGORY_HANDLES.has(handle)
+  );
+  const isVentilationCategory = categoryHandles.some((handle) =>
+    GOOGLE_FEED_VENTILATION_CATEGORY_HANDLES.has(handle)
+  );
+  const isIrrigationCategory = categoryHandles.some((handle) =>
+    GOOGLE_FEED_IRRIGATION_CATEGORY_HANDLES.has(handle)
+  );
+
+  const isLighting = isLightingTitle || isLightingCategory;
+  const isVentilation = isVentilationTitle || isVentilationCategory;
+  const isIrrigation = isIrrigationTitle || isIrrigationCategory;
+
+  if (isLighting && /grow/i.test(title)) {
+    return false;
+  }
+
+  return isLighting || isVentilation || isIrrigation;
 };
 
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
@@ -658,7 +730,12 @@ export async function GET() {
           variant.title && !/default/i.test(variant.title)
             ? `${baseTitle} - ${sanitizeFeedTerms(variant.title)}`
             : baseTitle;
-        if (!isNeutralFeedTitle(variantTitle)) {
+        if (
+          !isNeutralFeedVariantAllowed({
+            title: variantTitle,
+            categoryHandles,
+          })
+        ) {
           return "";
         }
         const price = escapeXml(formatPrice(variant.priceCents / 100));
