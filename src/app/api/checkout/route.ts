@@ -375,24 +375,32 @@ export async function POST(req: Request) {
     );
   }
 
-  const inventoryRows = await prisma.variantInventory.findMany({
-    where: { variantId: { in: Array.from(variantCounts.keys()) } },
-  });
-  const inventoryByVariant = new Map(
-    inventoryRows.map((row) => [row.variantId, row])
-  );
-  for (const [variantId, quantity] of variantCounts) {
-    const inventory = inventoryByVariant.get(variantId);
-    const available = Math.max(
-      0,
-      (inventory?.quantityOnHand ?? 0) - (inventory?.reserved ?? 0)
-    );
-    if (available < quantity) {
+  // Atomically reserve inventory for all cart items. Each UPDATE only succeeds
+  // if (quantityOnHand - reserved) >= qty, preventing overselling under concurrency.
+  const reservedVariants: Array<{ variantId: string; qty: number }> = [];
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const [variantId, qty] of variantCounts) {
+        const updated = await tx.$executeRaw`
+          UPDATE "VariantInventory"
+          SET reserved = reserved + ${qty}
+          WHERE "variantId" = ${variantId}
+            AND ("quantityOnHand" - reserved) >= ${qty}
+        `;
+        if (updated === 0) {
+          throw Object.assign(new Error("INSUFFICIENT_INVENTORY"), { variantId });
+        }
+        reservedVariants.push({ variantId, qty });
+      }
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "INSUFFICIENT_INVENTORY") {
       return NextResponse.json(
         { error: "Nicht genug Bestand." },
         { status: 409 }
       );
     }
+    throw err;
   }
 
   const appBaseUrl =
@@ -429,6 +437,18 @@ export async function POST(req: Request) {
   if (appliedDiscountCode) {
     metadata.discountCode = appliedDiscountCode;
   }
+
+  const releaseReservation = async () => {
+    if (reservedVariants.length === 0) return;
+    await prisma.$transaction(async (tx) => {
+      for (const { variantId, qty } of reservedVariants) {
+        await tx.variantInventory.updateMany({
+          where: { variantId, reserved: { gte: qty } },
+          data: { reserved: { decrement: qty } },
+        });
+      }
+    });
+  };
 
   let checkoutSession: Stripe.Checkout.Session;
   try {
@@ -469,6 +489,9 @@ export async function POST(req: Request) {
       metadata,
     });
   } catch (error) {
+    // Session creation failed — release the inventory reservation so stock
+    // isn't held indefinitely with no Stripe session to expire it.
+    await releaseReservation();
     throw error;
   }
 

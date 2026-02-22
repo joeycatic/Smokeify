@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
 
@@ -32,7 +34,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com; " +
       "style-src 'self' 'unsafe-inline'; " +
       "font-src 'self' data:; " +
-      "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net; " +
+      "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
       "frame-src https://js.stripe.com https://*.stripe.com;",
   },
   ...(isProd
@@ -126,4 +128,16 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Only upload source maps and enable Sentry build-time features when DSN is configured
+  silent: !process.env.SENTRY_DSN,
+  disableServerWebpackPlugin: !process.env.SENTRY_DSN,
+  disableClientWebpackPlugin: !process.env.SENTRY_DSN,
+  // Avoid sending source maps to Sentry if no auth token is set
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Tree-shake Sentry debug code from production bundles
+  hideSourceMaps: true,
+  widenClientFileUpload: true,
+});

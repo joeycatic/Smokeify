@@ -7,6 +7,15 @@ import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { getAppOrigin } from "@/lib/appOrigin";
+import { captureException } from "@/lib/sentry";
+import {
+  PAYMENT_FEE_BY_METHOD,
+  DEFAULT_PAYMENT_FEE,
+  HIGH_PRICE_SHIPPING_THRESHOLD_CENTS,
+  allocateByWeight,
+  applyPaymentFeesToCosts,
+  type CostSnapshotItem,
+} from "@/lib/paymentFees";
 
 export const runtime = "nodejs";
 
@@ -137,96 +146,6 @@ const formatItemName = (name: string, manufacturer?: string | null) => {
   return name.replace(defaultSuffix, "");
 };
 
-type PaymentFeeConfig = {
-  percentBasisPoints: number;
-  fixedCents: number;
-};
-
-const PAYMENT_FEE_BY_METHOD: Record<string, PaymentFeeConfig> = {
-  card: { percentBasisPoints: 150, fixedCents: 25 },
-  link: { percentBasisPoints: 150, fixedCents: 25 },
-  paypal: { percentBasisPoints: 299, fixedCents: 35 },
-  klarna: { percentBasisPoints: 329, fixedCents: 35 },
-  amazon_pay: { percentBasisPoints: 299, fixedCents: 35 },
-};
-
-const DEFAULT_PAYMENT_FEE: PaymentFeeConfig = {
-  percentBasisPoints: 150,
-  fixedCents: 25,
-};
-
-const HIGH_PRICE_SHIPPING_THRESHOLD_CENTS = 10_000;
-
-type CostSnapshotItem = {
-  quantity: number;
-  unitAmount: number;
-  totalAmount: number;
-  baseCostAmount: number;
-};
-
-const allocateByWeight = (total: number, weights: number[]) => {
-  if (total <= 0 || weights.length === 0) return weights.map(() => 0);
-  const positiveWeights = weights.map((weight) => Math.max(0, weight));
-  const weightSum = positiveWeights.reduce((sum, weight) => sum + weight, 0);
-  if (weightSum <= 0) return weights.map(() => 0);
-
-  const allocations = positiveWeights.map((weight) =>
-    Math.floor((total * weight) / weightSum)
-  );
-  let remainder = total - allocations.reduce((sum, value) => sum + value, 0);
-  let index = 0;
-  while (remainder > 0) {
-    if (positiveWeights[index] > 0) {
-      allocations[index] += 1;
-      remainder -= 1;
-    }
-    index = (index + 1) % allocations.length;
-  }
-  return allocations;
-};
-
-const applyPaymentFeesToCosts = (
-  items: CostSnapshotItem[],
-  shippingAmount: number,
-  feeConfig: PaymentFeeConfig
-) => {
-  if (!items.length) {
-    return [] as Array<
-      CostSnapshotItem & { paymentFeeAmount: number; adjustedCostAmount: number }
-    >;
-  }
-
-  const shippingEligibleWeights = items.map((item) =>
-    item.unitAmount >= HIGH_PRICE_SHIPPING_THRESHOLD_CENTS ? item.totalAmount : 0
-  );
-  const shippingShares = allocateByWeight(
-    Math.max(0, shippingAmount),
-    shippingEligibleWeights
-  );
-
-  const percentageFees = items.map((item, index) => {
-    const base = Math.max(0, item.totalAmount) + (shippingShares[index] ?? 0);
-    return Math.max(
-      0,
-      Math.round((base * feeConfig.percentBasisPoints) / 10_000)
-    );
-  });
-
-  const fixedShares = allocateByWeight(
-    Math.max(0, feeConfig.fixedCents),
-    items.map((item) => Math.max(0, item.totalAmount))
-  );
-
-  return items.map((item, index) => {
-    const paymentFeeAmount = (percentageFees[index] ?? 0) + (fixedShares[index] ?? 0);
-    const adjustedCostAmount = Math.max(0, item.baseCostAmount + paymentFeeAmount);
-    return {
-      ...item,
-      paymentFeeAmount,
-      adjustedCostAmount,
-    };
-  });
-};
 
 const resolvePaymentMethod = async (
   stripe: Stripe,
@@ -250,7 +169,8 @@ const resolvePaymentMethod = async (
       intent.payment_method_types?.[0] ??
       checkoutSession.payment_method_types?.[0] ??
       paymentMethod;
-  } catch {
+  } catch (err) {
+    captureException(err, { context: "resolvePaymentMethod", paymentIntentId });
     paymentMethod = checkoutSession.payment_method_types?.[0] ?? paymentMethod;
   }
 
@@ -507,12 +427,6 @@ const createOrderFromSession = async (
     },
     include: { items: true },
   });
-  console.info("[stripe webhook] Order created.", {
-    id: created.id,
-    amountTotal: created.amountTotal,
-    currency: created.currency,
-  });
-
   const variantCounts = new Map<string, number>();
   for (const item of lineItems.data ?? []) {
     const product = item.price?.product as Stripe.Product | null | undefined;
@@ -536,11 +450,18 @@ const createOrderFromSession = async (
     await prisma.$transaction(async (tx) => {
       for (const [variantId, qty] of variantCounts) {
         if (qty <= 0) continue;
-        const updated = await tx.variantInventory.updateMany({
-          where: { variantId, quantityOnHand: { gte: qty } },
-          data: { quantityOnHand: { decrement: qty } },
-        });
-        if (updated.count === 0) {
+        // Decrement stock and release checkout reservation in one atomic statement.
+        // GREATEST(0, reserved - qty) ensures backward compatibility with orders
+        // placed before atomic reservation was introduced.
+        const updated = await tx.$executeRaw`
+          UPDATE "VariantInventory"
+          SET
+            "quantityOnHand" = "quantityOnHand" - ${qty},
+            reserved = GREATEST(0, reserved - ${qty})
+          WHERE "variantId" = ${variantId}
+            AND "quantityOnHand" >= ${qty}
+        `;
+        if (updated === 0) {
           console.warn("[stripe webhook] Insufficient inventory for variant.", {
             variantId,
             qty,
@@ -583,8 +504,9 @@ const createOrderFromSession = async (
         text: email.text,
       });
     }
-  } catch {
-    // Ignore email errors for webhook processing.
+  } catch (err) {
+    // Don't fail the webhook — but report so we know the customer didn't get their email.
+    captureException(err, { context: "sendOrderConfirmationEmail", orderId: created.id });
   }
 
   const orderLabel = created.id.slice(0, 8).toUpperCase();
@@ -616,10 +538,6 @@ const createOrderFromSession = async (
     timeStyle: "short",
   });
   const formattedAmount = formatAmountWithComma(created.amountTotal, orderCurrency);
-  const telegramEnvOk = Boolean(
-    process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID
-  );
-  console.info("[stripe webhook] Telegram env present:", telegramEnvOk);
   const telegramResult = await sendTelegramMessage(
     [
       "",
@@ -701,7 +619,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
-  console.info("[stripe webhook] Event received:", event.type);
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[stripe webhook] Event received:", event.type);
+  }
 
   const eventId = event.id ?? "";
   if (!eventId) {
@@ -771,6 +691,7 @@ export async function POST(request: Request) {
       }
     }
   } catch (error) {
+    captureException(error, { eventId, eventType: event.type });
     console.error("[stripe webhook] Handler failed.", {
       eventId,
       type: event.type,
