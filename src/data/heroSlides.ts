@@ -1,7 +1,7 @@
 export const heroSlides = [
   {
     image: "/banners/equipmentbanner.png",
-    title: "Komplette Growbox Sets ab 447 EUR",
+    title: "Komplette Growbox Sets ab 299 €",
     subtitle: "Inkl. Licht, Belueftung und Duenger.",
     cta: "ZUM KONFIGURATOR",
   },
