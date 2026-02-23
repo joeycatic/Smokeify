@@ -37,6 +37,13 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum CustomerGroup {
+  NORMAL
+  VIP
+  WHOLESALE
+  BLOCKED
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -53,6 +60,8 @@ model User {
   image          String?
   passwordHash   String?
   role           UserRole       @default(USER)
+  customerGroup  CustomerGroup  @default(NORMAL)
+  notes          String?
   newsletterOptIn Boolean       @default(false)
   newsletterOptInAt DateTime?
   accounts       Account[]
@@ -213,6 +222,8 @@ model Product {
   description String?
   technicalDetails String?
   shortDescription String?
+  seoTitle     String?
+  seoDescription String?
   manufacturer String?
   supplier    String?
   supplierId  String?

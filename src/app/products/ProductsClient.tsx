@@ -145,7 +145,9 @@ export default function ProductsClient({
         return a.title.localeCompare(b.title);
       }
 
-      // Featured: preserve server order (pre-ranked by bestsellerScore)
+      // Featured: out-of-stock always last, then preserve server order (pre-ranked by bestsellerScore)
+      const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+      if (stockDelta !== 0) return stockDelta;
       return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
     });
   }, [filteredProducts, sortBy]);

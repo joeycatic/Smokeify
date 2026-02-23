@@ -96,8 +96,8 @@ export default function ProductCardActions({
   const cartIconClass = size === "lg" ? "h-6 w-6" : "h-5 w-5";
   const buttonClass =
     size === "lg"
-      ? "rounded-full border p-2.5 transition"
-      : "rounded-full border p-2.5 transition";
+      ? "rounded-full border h-11 w-11 grid place-items-center transition"
+      : "rounded-full border h-11 w-11 grid place-items-center transition";
   const cartGapClass = hideCartLabel ? "gap-0 sm:gap-2" : "gap-2";
 
   const ensureVariantChoices = async () => {
@@ -232,7 +232,7 @@ export default function ProductCardActions({
             available && !adding
               ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
               : "border-stone-200 text-stone-400"
-          } ${size === "lg" ? "px-5 py-2.5 text-sm" : "px-3.5 py-2 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
         >
           <ShoppingCartIcon className={cartIconClass} />
           {hideCartLabel ? (

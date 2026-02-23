@@ -1,0 +1,3 @@
+CREATE TYPE "CustomerGroup" AS ENUM ('NORMAL', 'VIP', 'WHOLESALE', 'BLOCKED');
+ALTER TABLE "User" ADD COLUMN "customerGroup" "CustomerGroup" NOT NULL DEFAULT 'NORMAL';
+ALTER TABLE "User" ADD COLUMN "notes" TEXT;

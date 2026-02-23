@@ -293,6 +293,8 @@ async function _fetchProductByHandle(handle: string) {
     description: product.description ?? "",
     technicalDetails: product.technicalDetails ?? null,
     shortDescription: product.shortDescription ?? null,
+    seoTitle: product.seoTitle ?? null,
+    seoDescription: product.seoDescription ?? null,
     manufacturer: product.manufacturer,
     growboxSize: product.growboxSize ?? null,
     productGroup: product.productGroup ?? null,

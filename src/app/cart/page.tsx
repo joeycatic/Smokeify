@@ -432,7 +432,7 @@ export default function CartPage() {
                             updateLine(line.id, line.quantity - 1);
                           }
                         }}
-                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="add-to-cart-sweep h-11 w-11 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         -
                       </button>
@@ -445,7 +445,7 @@ export default function CartPage() {
                           event.stopPropagation();
                           updateLine(line.id, line.quantity + 1);
                         }}
-                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="add-to-cart-sweep h-11 w-11 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         +
                       </button>
@@ -456,7 +456,7 @@ export default function CartPage() {
                         event.stopPropagation();
                         removeLines([line.id]);
                       }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 shadow-sm hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 shadow-sm hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Entfernen"
                     >
                       <TrashIcon className="h-4 w-4" />

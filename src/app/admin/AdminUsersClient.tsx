@@ -158,13 +158,28 @@ export default function AdminUsersClient({
               <th className="pb-3">Username</th>
               <th className="pb-3">Role</th>
               <th className="pb-3">Created</th>
+              <th className="pb-3" />
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-t border-black/10">
-                <td className="py-3 pr-3">{user.email ?? "-"}</td>
-                <td className="py-3 pr-3">{user.name ?? "-"}</td>
+              <tr key={user.id} className="border-t border-black/10 hover:bg-stone-50 transition-colors">
+                <td className="py-3 pr-3">
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {user.email ?? "-"}
+                  </Link>
+                </td>
+                <td className="py-3 pr-3">
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {user.name ?? "-"}
+                  </Link>
+                </td>
                 <td className="py-3 pr-3">
                   <select
                     value={user.role}
@@ -186,14 +201,26 @@ export default function AdminUsersClient({
                     ))}
                   </select>
                 </td>
-                <td className="py-3">
+                <td className="py-3 pr-3">
                   {new Date(user.createdAt).toLocaleDateString("de-DE")}
+                </td>
+                <td className="py-3 text-right">
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-black/10 text-stone-500 transition hover:border-black/20 hover:bg-stone-100 hover:text-stone-900"
+                    title="Benutzer bearbeiten"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </Link>
                 </td>
               </tr>
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-6 text-center text-stone-500">
+                <td colSpan={5} className="py-6 text-center text-stone-500">
                   No users found.
                 </td>
               </tr>

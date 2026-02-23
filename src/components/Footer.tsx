@@ -86,6 +86,14 @@ export default function Footer() {
                   Bestseller
                 </Link>
               </li>
+              <li>
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/blog"
+                >
+                  Guides & Tipps
+                </Link>
+              </li>
             </ul>
           </div>
 

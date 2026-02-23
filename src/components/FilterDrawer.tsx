@@ -275,14 +275,14 @@ export default function FilterDrawer({
             >
               {/* Header */}
               <div className="h-16 px-5 border-b border-black/10 flex items-center justify-between">
-                <div className="w-8" />
+                <div className="w-11" />
                 <div className="text-base font-semibold text-stone-800">
                   Filter
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="w-9 h-9 grid place-items-center text-2xl"
+                  className="w-11 h-11 grid place-items-center text-2xl"
                   aria-label="Close"
                 >
                   ×
@@ -317,10 +317,10 @@ export default function FilterDrawer({
                           key={filter.key}
                           type="button"
                           onClick={filter.onRemove}
-                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-stone-50 px-3.5 py-1.5 text-sm font-semibold text-stone-700 hover:border-black/30"
+                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-stone-50 px-3.5 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30"
                         >
                           <span>{filter.label}</span>
-                          <span className="text-base">x</span>
+                          <span className="text-sm leading-none" aria-hidden="true">×</span>
                         </button>
                       ))}
                     </div>
@@ -417,7 +417,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
+                        className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "min" ? "z-30" : "z-20"
                         }`}
                         style={{
@@ -426,7 +426,7 @@ export default function FilterDrawer({
                         }}
                       />
                       <div
-                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
+                        className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-black/60 bg-white shadow-sm ${
                           activeThumb === "max" ? "z-30" : "z-20"
                         }`}
                         style={{

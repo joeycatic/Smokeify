@@ -93,7 +93,7 @@ export default function DisplayProducts({
               >
                 <ProductImageCarousel
                   images={getProductImages(p)}
-                  alt={p.title}
+                  alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
                   className="aspect-[9/8] overflow-hidden rounded-t-xl bg-white sm:aspect-square"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
@@ -256,7 +256,7 @@ export function DisplayProductsList({
               <div className="relative">
                 <ProductImageCarousel
                   images={getProductImages(p)}
-                  alt={p.title}
+                  alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
                   className="aspect-square overflow-hidden rounded-lg bg-white"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />

@@ -138,11 +138,15 @@ export async function generateMetadata({
     return {};
   }
 
-  const title = `${product.title} | Smokeify`;
-  const description =
-    (product.shortDescription?.trim() ||
-      stripHtml(product.description || "").slice(0, 160) ||
-      "Produktdetails bei Smokeify")?.trim();
+  const title = product.seoTitle?.trim()
+    ? { absolute: product.seoTitle.trim() }
+    : `${product.title} | Smokeify`;
+  const description = (
+    product.seoDescription?.trim() ||
+    product.shortDescription?.trim() ||
+    stripHtml(product.description || "").slice(0, 160) ||
+    "Produktdetails bei Smokeify"
+  ).trim();
   const canonical = `/products/${product.handle}`;
   const image = product.images?.[0]?.url ?? null;
   const noindex = isNoindexProduct(product);

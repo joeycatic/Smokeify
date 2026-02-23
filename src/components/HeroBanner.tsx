@@ -8,9 +8,13 @@ import { heroSlides } from "@/data/heroSlides";
 export function HeroBanner() {
   const slides = heroSlides;
   const [index, setIndex] = useState(0);
-  const slide = slides[index] ?? slides[0];
+  const [mounted, setMounted] = useState(false);
   const slideCount = slides.length;
   const durationMs = 15000;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (slideCount <= 1) return;
@@ -19,6 +23,9 @@ export function HeroBanner() {
     }, durationMs);
     return () => clearInterval(timer);
   }, [slideCount, durationMs]);
+
+  // Use index 0 during SSR and until mounted to avoid hydration mismatch
+  const slide = slides[mounted ? index : 0] ?? slides[0];
 
   return (
     <section className="relative h-[55vh] w-full overflow-hidden sm:h-[70vh]">
