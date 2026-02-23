@@ -12,7 +12,7 @@ const siteUrl =
 
 export const metadata: Metadata = {
   title: "Bestseller",
-  description: "Produkte mit der hoechsten Marge bei Smokeify.",
+  description: "Die beliebtesten Produkte unserer Kundinnen und Kunden.",
   alternates: {
     canonical: "/bestseller",
     languages: {
@@ -23,11 +23,11 @@ export const metadata: Metadata = {
   openGraph: {
     url: `${siteUrl}/bestseller`,
     title: "Bestseller | Smokeify",
-    description: "Produkte mit der hoechsten Marge bei Smokeify.",
+    description: "Die beliebtesten Produkte unserer Kundinnen und Kunden.",
   },
   twitter: {
     title: "Bestseller | Smokeify",
-    description: "Produkte mit der hoechsten Marge bei Smokeify.",
+    description: "Die beliebtesten Produkte unserer Kundinnen und Kunden.",
   },
 };
 
@@ -93,7 +93,7 @@ export default async function BestsellerPage() {
       <ProductsClient
         initialProducts={products}
         headerTitle="Unsere Bestseller"
-        headerDescription="Diese Auswahl ist nach der hoechsten Marge sortiert."
+        headerDescription="Die beliebtesten Produkte unserer Kundinnen und Kunden."
       />
     </PageLayout>
   );
