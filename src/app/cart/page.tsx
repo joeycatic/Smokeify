@@ -559,14 +559,20 @@ export default function CartPage() {
                   Versand (Schätzung)
                 </p>
                 <p className="text-base font-semibold text-[#2f3e36]">
-                  {hasLocation
-                    ? formatPrice(shippingEstimate, currencyCode)
-                    : "--"}
+                  {freeShippingActive
+                    ? formatPrice(0, currencyCode)
+                    : hasLocation
+                      ? formatPrice(shippingEstimate, currencyCode)
+                      : "--"}
                 </p>
-                {hasLocation && freeShippingActive && (
+                {freeShippingActive ? (
                   <p className="mt-1 text-xs font-semibold text-emerald-700">
-                    Kostenloser Versand ab{" "}
-                    {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)}
+                    Kostenloser Versand aktiv
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-stone-500">
+                    Ab {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)} versandkostenfrei
+                    {" "}(noch {formatPrice(FREE_SHIPPING_THRESHOLD_EUR - subtotal, currencyCode)})
                   </p>
                 )}
               </div>
@@ -577,7 +583,7 @@ export default function CartPage() {
                   Gesamt (Schätzung)
                 </p>
                 <p className="text-2xl font-semibold text-[#2f3e36]">
-                  {hasLocation
+                  {freeShippingActive || hasLocation
                     ? formatPrice(totalEstimate, currencyCode)
                     : "--"}
                 </p>

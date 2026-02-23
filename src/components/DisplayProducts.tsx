@@ -1,6 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowTopRightOnSquareIcon,
+  StarIcon as StarOutlineIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import ProductCardActions from "@/components/ProductCardActions";
 import type { Product } from "@/data/types";
 
@@ -21,6 +25,28 @@ const getProductLowStockState = (product: Product) => {
   return Boolean(product.lowStock || isLowStock);
 };
 
+function ProductRating({ average, count }: { average: number; count: number }) {
+  if (count <= 0) return null;
+  const rounded = Math.max(0, Math.min(5, Math.round(average)));
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5 text-xs text-stone-600">
+      <div className="flex items-center gap-0.5" aria-hidden="true">
+        {Array.from({ length: 5 }).map((_, i) =>
+          i < rounded ? (
+            <StarSolidIcon key={i} className="h-3.5 w-3.5 text-amber-500" />
+          ) : (
+            <StarOutlineIcon key={i} className="h-3.5 w-3.5 text-amber-500" />
+          )
+        )}
+      </div>
+      <span>
+        {average.toFixed(1)} ({count})
+      </span>
+    </div>
+  );
+}
+
 export default function DisplayProducts({
   products,
   cols = 4,
@@ -36,9 +62,12 @@ export default function DisplayProducts({
         ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4";
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
+  const sorted = [...(products ?? [])].sort(
+    (a, b) => Number(b.availableForSale) - Number(a.availableForSale)
+  );
   return (
     <div className={`mt-6 grid gap-3 ${gridColsClass}`}>
-      {products?.map((p, index) => {
+      {sorted.map((p, index) => {
         const showLowStock = getProductLowStockState(p);
         const showSize =
           showGrowboxSize && isGrowboxProduct(p) && Boolean(p.growboxSize);
@@ -130,6 +159,12 @@ export default function DisplayProducts({
                       : "Ausverkauft"}
                   </p>
                 )}
+                {p.reviewSummary && p.reviewSummary.count > 0 && (
+                  <ProductRating
+                    average={p.reviewSummary.average}
+                    count={p.reviewSummary.count}
+                  />
+                )}
 
                 {/* Price */}
                 <div className="mt-2 flex items-baseline gap-2">
@@ -190,9 +225,12 @@ export function DisplayProductsList({
   showGrowboxSize = false,
   hideCartLabel = false,
 }: Props) {
+  const sorted = [...(products ?? [])].sort(
+    (a, b) => Number(b.availableForSale) - Number(a.availableForSale)
+  );
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
-      {products?.map((p, index) => {
+      {sorted.map((p, index) => {
         const showLowStock = getProductLowStockState(p);
         const descriptionSource = p.shortDescription?.trim() ?? "";
         const descriptionText = descriptionSource
@@ -273,6 +311,12 @@ export function DisplayProductsList({
                         : "Verfügbar"
                       : "Ausverkauft"}
                   </p>
+                )}
+                {p.reviewSummary && p.reviewSummary.count > 0 && (
+                  <ProductRating
+                    average={p.reviewSummary.average}
+                    count={p.reviewSummary.count}
+                  />
                 )}
                 {descriptionText && (
                   <p className="hidden text-sm leading-6 text-stone-600/90 line-clamp-3 sm:block">

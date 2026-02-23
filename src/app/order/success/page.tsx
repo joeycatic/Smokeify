@@ -387,6 +387,21 @@ export default function OrderSuccessPage() {
                 </div>
               </div>
 
+              <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+                <p>
+                  Hilf anderen beim Kauf: Bewerte deine Artikel nach der
+                  Lieferung in deiner Bestelluebersicht.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    href="/account"
+                    className="inline-flex items-center justify-center rounded-lg border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:border-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Produkte bewerten
+                  </Link>
+                </div>
+              </div>
+
               {!order.provisional && (
                 <div className="flex flex-wrap gap-3">
                   <a

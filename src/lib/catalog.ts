@@ -43,6 +43,7 @@ const mapProduct = (product: {
     };
   }>;
   collections: Array<{ collection: { id: string; name: string; handle: string } }>;
+  reviews: Array<{ rating: number }>;
 }): Product => {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
   const featuredImage = sortedImages[0] ?? null;
@@ -79,6 +80,12 @@ const mapProduct = (product: {
     );
     return available > 0 && available <= variant.lowStockThreshold;
   });
+  const reviewCount = product.reviews.length;
+  const reviewAverage =
+    reviewCount > 0
+      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
+        reviewCount
+      : 0;
 
   return {
     id: product.id,
@@ -128,6 +135,10 @@ const mapProduct = (product: {
     compareAtPrice: compareAtCents
       ? { amount: toAmount(compareAtCents), currencyCode: CURRENCY_CODE }
       : null,
+    reviewSummary: {
+      average: reviewAverage,
+      count: reviewCount,
+    },
   };
 };
 
@@ -135,7 +146,10 @@ const getProductsCached = unstable_cache(
   async (limit: number): Promise<Product[]> => {
     const products = await prisma.product.findMany({
       where: { status: "ACTIVE" },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [
+        { bestsellerScore: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
       take: limit,
       include: {
         images: { orderBy: { position: "asc" } },
@@ -145,6 +159,10 @@ const getProductsCached = unstable_cache(
         },
         categories: { include: { category: { include: { parent: true } } } },
         collections: { include: { collection: true } },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
       },
     });
 
@@ -308,6 +326,10 @@ const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
       },
       categories: { include: { category: { include: { parent: true } } } },
       collections: { include: { collection: true } },
+      reviews: {
+        where: { status: "APPROVED" },
+        select: { rating: true },
+      },
     },
   });
   const mapped = products.map(mapProduct);
@@ -344,6 +366,10 @@ export async function getProductsByIdsAllowInactive(
       },
       categories: { include: { category: { include: { parent: true } } } },
       collections: { include: { collection: true } },
+      reviews: {
+        where: { status: "APPROVED" },
+        select: { rating: true },
+      },
     },
   });
 

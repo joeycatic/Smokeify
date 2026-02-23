@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BestsellerPage() {
-  const [marginCandidates, fallbackProducts] = await Promise.all([
+  const [priceCandidates, fallbackProducts] = await Promise.all([
     prisma.product.findMany({
       where: { status: "ACTIVE" },
       select: {
@@ -40,7 +40,6 @@ export default async function BestsellerPage() {
         variants: {
           select: {
             priceCents: true,
-            costCents: true,
             inventory: {
               select: { quantityOnHand: true, reserved: true },
             },
@@ -51,24 +50,37 @@ export default async function BestsellerPage() {
     getProducts(160),
   ]);
 
-  const bestsellerIds = marginCandidates
+  const entryPriceMinCents = 2_000;
+  const entryPriceMaxCents = 8_000;
+
+  const bestsellerIds = priceCandidates
     .map((product) => {
-      const bestAvailableVariantMarginCents = product.variants.reduce<number>(
-        (bestMarginCents, variant) => {
+      const cheapestAvailablePriceCents = product.variants.reduce<number>(
+        (bestPriceCents, variant) => {
           const quantityOnHand = variant.inventory?.quantityOnHand ?? 0;
           const reserved = variant.inventory?.reserved ?? 0;
           const available = quantityOnHand - reserved;
-          if (available <= 0 || variant.priceCents <= 0) return bestMarginCents;
-          const marginCents = variant.priceCents - variant.costCents;
-          return Math.max(bestMarginCents, marginCents);
+          if (available <= 0 || variant.priceCents <= 0) return bestPriceCents;
+          return Math.min(bestPriceCents, variant.priceCents);
         },
-        Number.NEGATIVE_INFINITY
+        Number.POSITIVE_INFINITY
       );
 
-      return { id: product.id, marginCents: bestAvailableVariantMarginCents };
+      return {
+        id: product.id,
+        priceCents: cheapestAvailablePriceCents,
+        preferredEntryPrice:
+          cheapestAvailablePriceCents >= entryPriceMinCents &&
+          cheapestAvailablePriceCents <= entryPriceMaxCents,
+      };
     })
-    .filter((product) => Number.isFinite(product.marginCents))
-    .sort((a, b) => b.marginCents - a.marginCents)
+    .filter((product) => Number.isFinite(product.priceCents))
+    .sort((a, b) => {
+      if (a.preferredEntryPrice !== b.preferredEntryPrice) {
+        return a.preferredEntryPrice ? -1 : 1;
+      }
+      return a.priceCents - b.priceCents;
+    })
     .slice(0, 120)
     .map((product) => product.id);
 
@@ -93,7 +105,7 @@ export default async function BestsellerPage() {
       <ProductsClient
         initialProducts={products}
         headerTitle="Unsere Bestseller"
-        headerDescription="Die beliebtesten Produkte unserer Kundinnen und Kunden."
+        headerDescription="Starte mit unseren beliebtesten Produkten zwischen 20 und 80 Euro."
       />
     </PageLayout>
   );

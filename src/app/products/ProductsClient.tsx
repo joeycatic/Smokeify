@@ -124,33 +124,28 @@ export default function ProductsClient({
   const sortedProducts = useMemo(() => {
     const toPrice = (product: Product) =>
       Number(product.priceRange?.minVariantPrice?.amount ?? 0);
-    const toCompareAtPrice = (product: Product) =>
-      Number(product.compareAtPrice?.amount ?? 0);
-    const toDiscountRatio = (product: Product) => {
-      const price = toPrice(product);
-      const compareAt = toCompareAtPrice(product);
-      if (!Number.isFinite(price) || !Number.isFinite(compareAt)) return 0;
-      if (price <= 0 || compareAt <= price) return 0;
-      return (compareAt - price) / compareAt;
-    };
     const indexById = new Map(
       filteredProducts.map((product, index) => [product.id, index]),
     );
 
     return [...filteredProducts].sort((a, b) => {
-      const stockDelta =
-        Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
-      if (stockDelta !== 0) return stockDelta;
+      if (sortBy === "price_asc") {
+        const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+        if (stockDelta !== 0) return stockDelta;
+        return toPrice(a) - toPrice(b);
+      }
+      if (sortBy === "price_desc") {
+        const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+        if (stockDelta !== 0) return stockDelta;
+        return toPrice(b) - toPrice(a);
+      }
+      if (sortBy === "name_asc") {
+        const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+        if (stockDelta !== 0) return stockDelta;
+        return a.title.localeCompare(b.title);
+      }
 
-      if (sortBy === "price_asc") return toPrice(a) - toPrice(b);
-      if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
-      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
-
-      // Recommended: in-stock first, stronger current discounts first,
-      // then preserve backend order (updated content first from server query).
-      const discountDelta = toDiscountRatio(b) - toDiscountRatio(a);
-      if (discountDelta !== 0) return discountDelta;
-
+      // Featured: preserve server order (pre-ranked by bestsellerScore)
       return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
     });
   }, [filteredProducts, sortBy]);

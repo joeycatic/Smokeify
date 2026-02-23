@@ -1,9 +1,9 @@
 export const heroSlides = [
   {
     image: "/banners/equipmentbanner.png",
-    title: "BAUE DEIN SETUP.",
-    subtitle: "Premium Equipment – schnell geliefert.",
-    cta: "JETZT STARTEN",
+    title: "Komplette Growbox Sets ab 447 EUR",
+    subtitle: "Inkl. Licht, Belueftung und Duenger.",
+    cta: "ZUM KONFIGURATOR",
   },
   {
     image: "/banners/lueftungsbanner.png",

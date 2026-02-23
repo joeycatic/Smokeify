@@ -24,6 +24,8 @@
     "market:preisvergleich-prices": "node scripts/market/preisvergleichPriceStats.mjs",
     "market:shops-prices": "node scripts/market/shopsPriceStats.mjs",
     "market:google-shopping-prices": "node scripts/market/googleShoppingPriceStats.mjs",
+    "catalog:override-pricing-all": "node scripts/catalog/overridePricesAllProducts.mjs",
+    "catalog:update-bestseller-scores": "node scripts/catalog/updateBestsellerScores.mjs",
     "catalog:rewrite-google-ads-descriptions": "node scripts/catalog/rewriteDescriptionsForGoogleAds.mjs",
     "catalog:report-google-feed-headshop-exclusions": "node scripts/catalog/reportGoogleFeedHeadshopExclusions.mjs",
     "catalog:rename-hash-bowl-category": "node scripts/catalog/renameHashBowlCategory.mjs",

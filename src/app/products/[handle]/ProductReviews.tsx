@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { StarIcon } from "@heroicons/react/24/solid";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -9,23 +8,22 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 type Review = {
   id: string;
   rating: number;
-  title: string | null;
   body: string | null;
   createdAt: string;
   userName?: string | null;
 };
 
 export default function ProductReviews({ productId }: { productId: string }) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewSummary, setReviewSummary] = useState({ average: 0, count: 0 });
   const [reviewLoading, setReviewLoading] = useState(true);
   const [reviewError, setReviewError] = useState("");
   const [reviewNotice, setReviewNotice] = useState("");
   const [userReview, setUserReview] = useState<Review | null>(null);
-  const [canReview, setCanReview] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
-  const [reviewTitle, setReviewTitle] = useState("");
+  const [hoverRating, setHoverRating] = useState(0);
+  const [guestName, setGuestName] = useState("");
   const [reviewBody, setReviewBody] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
@@ -42,7 +40,6 @@ export default function ProductReviews({ productId }: { productId: string }) {
         reviews?: Review[];
         summary?: { average: number; count: number };
         userReview?: Review | null;
-        canReview?: boolean;
       };
       setReviews(data.reviews ?? []);
       setReviewSummary({
@@ -50,10 +47,8 @@ export default function ProductReviews({ productId }: { productId: string }) {
         count: data.summary?.count ?? 0,
       });
       setUserReview(data.userReview ?? null);
-      setCanReview(Boolean(data.canReview));
       if (data.userReview) {
         setReviewRating(data.userReview.rating);
-        setReviewTitle(data.userReview.title ?? "");
         setReviewBody(data.userReview.body ?? "");
       }
     } catch {
@@ -66,6 +61,12 @@ export default function ProductReviews({ productId }: { productId: string }) {
   useEffect(() => {
     void loadReviews();
   }, [productId]);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.name && !guestName) {
+      setGuestName(session.user.name);
+    }
+  }, [status, session?.user?.name]);
 
   const submitReview = async () => {
     setReviewError("");
@@ -81,8 +82,8 @@ export default function ProductReviews({ productId }: { productId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rating: reviewRating,
-          title: reviewTitle.trim() || undefined,
           body: reviewBody.trim(),
+          name: guestName.trim() || undefined,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -159,9 +160,6 @@ export default function ProductReviews({ productId }: { productId: string }) {
                   {new Date(review.createdAt).toLocaleDateString("de-DE")}
                 </span>
               </div>
-              {review.title && (
-                <p className="mt-2 font-semibold text-black">{review.title}</p>
-              )}
               {review.body && (
                 <p className="mt-1 text-black/70">{review.body}</p>
               )}
@@ -174,75 +172,77 @@ export default function ProductReviews({ productId }: { productId: string }) {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/50">
           Bewertung schreiben
         </p>
-        {status !== "authenticated" ? (
-          <p className="mt-3 text-sm text-black/60">
-            Bitte{" "}
-            <Link href="/auth/signin" className="underline">
-              anmelden
-            </Link>{" "}
-            um eine Bewertung zu schreiben.
-          </p>
-        ) : !canReview ? (
-          <p className="mt-3 text-sm text-black/60">
-            Bewertungen sind nur nach einem Kauf möglich.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-black/60">
-                Bewertung
-              </label>
-              <div className="mt-2 flex gap-2">
-                {[1, 2, 3, 4, 5].map((value) => (
+        <div className="mt-4 grid gap-3">
+          <label className="block text-xs font-semibold text-black/60">
+            Name (optional)
+            <input
+              value={guestName}
+              onChange={(event) => setGuestName(event.target.value)}
+              placeholder="Dein Name"
+              maxLength={64}
+              className="mt-1 h-10 w-full rounded-lg border border-black/15 bg-white px-3 text-sm"
+            />
+          </label>
+          <div>
+            <label className="block text-xs font-semibold text-black/60">
+              Sterne
+            </label>
+            <div
+              className="mt-2 flex items-center gap-1"
+              onMouseLeave={() => setHoverRating(0)}
+            >
+              {[1, 2, 3, 4, 5].map((value) => {
+                const active = (hoverRating || reviewRating) >= value;
+                return (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setReviewRating(value)}
-                    className={`rounded-md border px-2 py-1 ${
-                      reviewRating >= value
-                        ? "border-emerald-300 bg-emerald-50"
-                        : "border-black/10 bg-white"
-                    }`}
-                    aria-label={`Rating ${value}`}
+                    onMouseEnter={() => setHoverRating(value)}
+                    aria-label={`${value} Stern${value !== 1 ? "e" : ""}`}
+                    className="transition-transform duration-100 hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded"
                   >
-                    <StarGlyph filled={reviewRating >= value} />
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-9 w-9 transition-colors duration-100 ${
+                        active ? "text-amber-400" : "text-stone-200"
+                      }`}
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 3.5l2.9 5.9 6.5.9-4.7 4.5 1.1 6.4-5.8-3.1-5.8 3.1 1.1-6.4-4.7-4.5 6.5-.9L12 3.5z" />
+                    </svg>
                   </button>
-                ))}
-              </div>
+                );
+              })}
+              <span className="ml-2 text-sm font-semibold text-stone-600">
+                {["", "Schlecht", "Naja", "Okay", "Gut", "Ausgezeichnet"][hoverRating || reviewRating]}
+              </span>
             </div>
-            <label className="block text-xs font-semibold text-black/60">
-              Titel (optional)
-              <input
-                value={reviewTitle}
-                onChange={(event) => setReviewTitle(event.target.value)}
-                placeholder="Kurz und hilfreich"
-                className="mt-1 h-10 w-full rounded-lg border border-black/15 bg-white px-3 text-sm"
-              />
-            </label>
-            <label className="block text-xs font-semibold text-black/60">
-              Bewertung
-              <textarea
-                value={reviewBody}
-                onChange={(event) => setReviewBody(event.target.value)}
-                placeholder="Was hat dir gefallen?"
-                rows={4}
-                className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={submitReview}
-              disabled={reviewSubmitting}
-              className="h-10 rounded-lg bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
-            >
-              {reviewSubmitting
-                ? "Speichern..."
-                : userReview
-                  ? "Bewertung aktualisieren"
-                  : "Bewertung senden"}
-            </button>
           </div>
-        )}
+          <label className="block text-xs font-semibold text-black/60">
+            Bewertung
+            <textarea
+              value={reviewBody}
+              onChange={(event) => setReviewBody(event.target.value)}
+              placeholder="Was hat dir gefallen?"
+              rows={4}
+              className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={submitReview}
+            disabled={reviewSubmitting}
+            className="h-10 rounded-lg bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+          >
+            {reviewSubmitting
+              ? "Speichern..."
+              : userReview
+                ? "Bewertung aktualisieren"
+                : "Bewertung senden"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -44,6 +44,10 @@ export type Product = {
     minVariantPrice: ProductPrice;
   };
   compareAtPrice?: ProductPrice | null;
+  reviewSummary?: {
+    average: number;
+    count: number;
+  };
 };
 
 export type ProductFilters = {

@@ -3,8 +3,7 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
-import { getProducts, getProductsByIds } from "@/lib/catalog";
-import { prisma } from "@/lib/prisma";
+import { getProducts } from "@/lib/catalog";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -20,91 +19,20 @@ export const metadata: Metadata = {
 };
 
 export default async function StorePage() {
-  const [allProducts, tentCandidates, topItems] = await Promise.all([
-    getProducts(40),
-    prisma.product.findMany({
-      where: {
-        status: "ACTIVE",
-        categories: {
-          some: {
-            category: {
-              OR: [
-                { handle: { in: ["growboxen", "zelte"], mode: "insensitive" } },
-                {
-                  parent: {
-                    handle: { in: ["growboxen", "zelte"], mode: "insensitive" },
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        variants: {
-          select: {
-            priceCents: true,
-            costCents: true,
-            inventory: {
-              select: { quantityOnHand: true, reserved: true },
-            },
-          },
-        },
-      },
-    }),
-    prisma.orderItem.groupBy({
-      by: ["productId"],
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: "desc" } },
-      take: 8,
-    }),
-  ]);
-  const inStockAllProducts = allProducts.filter((product) => product.availableForSale);
+  const allProducts = await getProducts(60);
+  const inStock = allProducts.filter((p) => p.availableForSale);
 
-  const tentIds = tentCandidates
-    .map((product) => {
-      const bestAvailableVariantMarginPct = product.variants.reduce<number>(
-        (bestMarginPct, variant) => {
-          const quantityOnHand = variant.inventory?.quantityOnHand ?? 0;
-          const reserved = variant.inventory?.reserved ?? 0;
-          const available = quantityOnHand - reserved;
-          if (available <= 0 || variant.priceCents <= 0) return bestMarginPct;
-          const marginPct =
-            ((variant.priceCents - variant.costCents) / variant.priceCents) * 100;
-          return Math.max(bestMarginPct, marginPct);
-        },
-        Number.NEGATIVE_INFINITY
-      );
+  const tentProducts = inStock
+    .filter((p) =>
+      p.categories.some(
+        (c) =>
+          ["growboxen", "zelte"].includes(c.handle) ||
+          ["growboxen", "zelte"].includes(c.parent?.handle ?? "")
+      )
+    )
+    .slice(0, 4);
 
-      return { id: product.id, marginPct: bestAvailableVariantMarginPct };
-    })
-    .filter((product) => Number.isFinite(product.marginPct))
-    .sort((a, b) => b.marginPct - a.marginPct)
-    .slice(0, 4)
-    .map((product) => product.id);
-
-  const topIds = topItems
-    .map((item) => item.productId)
-    .filter((id): id is string => Boolean(id));
-  const [tentProducts, bestSellers] = await Promise.all([
-    tentIds.length ? getProductsByIds(tentIds) : Promise.resolve([]),
-    topIds.length
-      ? getProductsByIds(topIds)
-      : Promise.resolve(inStockAllProducts.slice(0, 8)),
-  ]);
-  const inStockTentProducts = tentProducts.filter((product) => product.availableForSale);
-  const inStockBestSellers = bestSellers.filter((product) => product.availableForSale);
-  const bestSellerIds = new Set(inStockBestSellers.map((item) => item.id));
-  const bestSellersFilled =
-    inStockBestSellers.length >= 8
-      ? inStockBestSellers
-      : [
-          ...inStockBestSellers,
-          ...inStockAllProducts
-            .filter((item) => !bestSellerIds.has(item.id))
-            .slice(0, 8 - inStockBestSellers.length),
-        ];
+  const bestSellersFilled = inStock.slice(0, 8);
 
   return (
     <main className="bg-stone-50">
@@ -135,7 +63,7 @@ export default async function StorePage() {
                     </h3>
                   </div>
                   <DisplayProducts
-                    products={inStockTentProducts}
+                    products={tentProducts}
                     cols={4}
                     showManufacturer
                     showGrowboxSize

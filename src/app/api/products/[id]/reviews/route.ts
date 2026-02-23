@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
@@ -17,25 +16,6 @@ const parseRating = (value: unknown) => {
 const normalizeText = (value: unknown) => {
   if (typeof value !== "string") return "";
   return value.trim();
-};
-
-const canUserReview = async (userId: string, productId: string) => {
-  const variants = await prisma.variant.findMany({
-    where: { productId },
-    select: { id: true },
-  });
-  const variantIds = variants.map((variant) => variant.id);
-  const filters: Prisma.OrderItemWhereInput[] = [{ productId }];
-  if (variantIds.length) {
-    filters.push({ variantId: { in: variantIds } });
-  }
-  const purchase = await prisma.orderItem.findFirst({
-    where: {
-      order: { userId },
-      OR: filters,
-    },
-  });
-  return Boolean(purchase);
 };
 
 export async function GET(
@@ -66,14 +46,6 @@ export async function GET(
       : Promise.resolve(null),
   ]);
 
-  let canReview = false;
-  if (session?.user?.id) {
-    canReview = await canUserReview(session.user.id, id);
-    if (userReview) {
-      canReview = true;
-    }
-  }
-
   return NextResponse.json({
     reviews: reviews.map((review) => ({
       id: review.id,
@@ -81,7 +53,7 @@ export async function GET(
       title: review.title,
       body: review.body,
       createdAt: review.createdAt.toISOString(),
-      userName: review.user?.name ?? "Anonymous",
+      userName: review.guestName ?? review.user?.name ?? "Anonym",
     })),
     summary: {
       average: summary._avg.rating ?? 0,
@@ -96,7 +68,7 @@ export async function GET(
           createdAt: userReview.createdAt.toISOString(),
         }
       : null,
-    canReview,
+    canReview: true,
   });
 }
 
@@ -110,7 +82,7 @@ export async function POST(
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
     key: `reviews:ip:${ip}`,
-    limit: 10,
+    limit: 5,
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
@@ -119,50 +91,48 @@ export async function POST(
       { status: 429 }
     );
   }
+
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const userId = session?.user?.id ?? null;
 
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
     rating?: number;
     title?: string;
     body?: string;
+    name?: string;
   };
 
   const rating = parseRating(body.rating);
   const title = normalizeText(body.title);
   const content = normalizeText(body.body);
+  const guestName = normalizeText(body.name).slice(0, 64) || null;
+
   if (!rating) {
-    return NextResponse.json({ error: "Rating must be 1-5." }, { status: 400 });
+    return NextResponse.json({ error: "Bewertung muss zwischen 1 und 5 liegen." }, { status: 400 });
   }
   if (content.length < 10) {
     return NextResponse.json(
-      { error: "Review text is too short." },
+      { error: "Bewertungstext ist zu kurz (mindestens 10 Zeichen)." },
       { status: 400 }
     );
   }
 
-  const existing = await prisma.review.findUnique({
-    where: { productId_userId: { productId: id, userId: session.user.id } },
-  });
-  if (existing) {
-    return NextResponse.json({ error: "Review already exists." }, { status: 409 });
-  }
-
-  const allowed = await canUserReview(session.user.id, id);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Purchase required to review." },
-      { status: 403 }
-    );
+  // Prevent duplicate reviews for logged-in users
+  if (userId) {
+    const existing = await prisma.review.findUnique({
+      where: { productId_userId: { productId: id, userId } },
+    });
+    if (existing) {
+      return NextResponse.json({ error: "Du hast dieses Produkt bereits bewertet." }, { status: 409 });
+    }
   }
 
   const created = await prisma.review.create({
     data: {
       productId: id,
-      userId: session.user.id,
+      userId,
+      guestName,
       rating,
       title: title || null,
       body: content,
@@ -210,7 +180,7 @@ export async function PATCH(
     where: { productId_userId: { productId: id, userId: session.user.id } },
   });
   if (!existing) {
-    return NextResponse.json({ error: "Review not found." }, { status: 404 });
+    return NextResponse.json({ error: "Bewertung nicht gefunden." }, { status: 404 });
   }
 
   const body = (await request.json().catch(() => ({}))) as {
@@ -223,14 +193,14 @@ export async function PATCH(
   const content = normalizeText(body.body);
 
   if (rating === null && !title && !content) {
-    return NextResponse.json({ error: "No updates provided." }, { status: 400 });
+    return NextResponse.json({ error: "Keine Änderungen angegeben." }, { status: 400 });
   }
   if (rating === null && typeof body.rating !== "undefined") {
-    return NextResponse.json({ error: "Rating must be 1-5." }, { status: 400 });
+    return NextResponse.json({ error: "Bewertung muss zwischen 1 und 5 liegen." }, { status: 400 });
   }
   if (content && content.length < 10) {
     return NextResponse.json(
-      { error: "Review text is too short." },
+      { error: "Bewertungstext ist zu kurz (mindestens 10 Zeichen)." },
       { status: 400 }
     );
   }

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd C:/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate deploy 2>&1)",
+      "Bash(tail:*)",
+      "Bash(powershell:*)"
+    ]
+  }
+}

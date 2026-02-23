@@ -234,6 +234,8 @@ model Product {
   shippingClass String?
   tags        String[]       @default([])
   status      ProductStatus  @default(DRAFT)
+  bestsellerScore Float?     // computed weekly by script
+  conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -250,6 +252,8 @@ model Product {
   @@index([supplierId])
   @@index([mainCategoryId])
   @@index([productGroup])
+  @@index([bestsellerScore])
+  @@index([status, bestsellerScore])
 }
 
 model ProductImage {
@@ -486,7 +490,8 @@ model ReturnItem {
 model Review {
   id        String       @id @default(cuid())
   productId String
-  userId    String
+  userId    String?
+  guestName String?
   rating    Int
   title     String?
   body      String?
@@ -495,7 +500,7 @@ model Review {
   updatedAt DateTime     @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([productId, userId])
   @@index([productId, status, createdAt])
