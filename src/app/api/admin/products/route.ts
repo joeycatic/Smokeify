@@ -31,9 +31,32 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Select only list-view fields — description/technicalDetails can be
+  // several KB of HTML each and are fetched by the individual product editor.
   const products = await prisma.product.findMany({
     orderBy: { updatedAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      handle: true,
+      manufacturer: true,
+      supplier: true,
+      supplierId: true,
+      sellerName: true,
+      sellerUrl: true,
+      productGroup: true,
+      shippingClass: true,
+      tags: true,
+      status: true,
+      leadTimeDays: true,
+      weightGrams: true,
+      lengthMm: true,
+      widthMm: true,
+      heightMm: true,
+      growboxSize: true,
+      mainCategoryId: true,
+      createdAt: true,
+      updatedAt: true,
       _count: { select: { variants: true, images: true } },
     },
   });

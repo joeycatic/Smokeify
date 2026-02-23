@@ -14,7 +14,7 @@ export const AGB_SECTIONS = [
   {
     title: "§2 Jugendschutz",
     paragraphs: [
-      `Der Verkauf von Produkten aus den Bereichen Headshop und Growbedarf erfolgt ausschließlich an Personen ab 18 Jahren.`,
+      `Der Verkauf altersbeschränkter Produkte erfolgt ausschließlich an volljährige Personen (ab 18 Jahren).`,
       `Mit Abgabe einer Bestellung bestätigt der Kunde, dass er das 18. Lebensjahr vollendet hat.`,
       `Smokeify behält sich vor, Altersverifikationen durchzuführen und Bestellungen bei Zweifeln abzulehnen.`,
     ],

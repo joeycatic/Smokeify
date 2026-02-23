@@ -129,15 +129,11 @@ const nextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  // Only upload source maps and enable Sentry build-time features when DSN is configured
-  silent: !process.env.SENTRY_DSN,
-  disableServerWebpackPlugin: !process.env.SENTRY_DSN,
-  disableClientWebpackPlugin: !process.env.SENTRY_DSN,
-  // Avoid sending source maps to Sentry if no auth token is set
+  silent: true,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  // Tree-shake Sentry debug code from production bundles
-  hideSourceMaps: true,
-  widenClientFileUpload: true,
+  sourcemaps: {
+    disable: !process.env.SENTRY_DSN,
+  },
 });

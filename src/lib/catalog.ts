@@ -190,7 +190,17 @@ export async function getProductHandlesForSitemap(): Promise<string[]> {
   return getProductHandlesCached();
 }
 
+const getProductByHandleCached = unstable_cache(
+  async (handle: string) => _fetchProductByHandle(handle),
+  ["catalog-product-by-handle"],
+  { revalidate: 60 }
+);
+
 export async function getProductByHandle(handle: string) {
+  return getProductByHandleCached(handle);
+}
+
+async function _fetchProductByHandle(handle: string) {
   const product = await prisma.product.findUnique({
     where: { handle },
     include: {
@@ -287,8 +297,7 @@ export async function getProductByHandle(handle: string) {
   };
 }
 
-export async function getProductsByIds(ids: string[]): Promise<Product[]> {
-  if (!ids.length) return [];
+const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
   const products = await prisma.product.findMany({
     where: { id: { in: ids }, status: "ACTIVE" },
     include: {
@@ -301,10 +310,24 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
       collections: { include: { collection: true } },
     },
   });
-
   const mapped = products.map(mapProduct);
   const order = new Map(ids.map((id, index) => [id, index]));
   return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+};
+
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  if (!ids.length) return [];
+  // Stable cache key: sort IDs so order doesn't produce different cache entries.
+  const sortedIds = [...ids].sort();
+  const cached = unstable_cache(
+    () => _fetchProductsByIds(sortedIds),
+    ["catalog-products-by-ids", sortedIds.join(",")],
+    { revalidate: 30 }
+  );
+  const results = await cached();
+  // Re-sort to match the original caller-supplied order.
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return results.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
 export async function getProductsByIdsAllowInactive(

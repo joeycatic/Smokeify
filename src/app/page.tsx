@@ -161,7 +161,7 @@ export default async function StorePage() {
                         fill
                         sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="h-full w-full object-cover object-[50%_46%] scale-150"
-                        loading="lazy"
+                        priority
                         quality={70}
                       />
                     </Link>
@@ -225,75 +225,6 @@ export default async function StorePage() {
                     showManufacturer
                     hideCartLabel
                   />
-                </section>
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-[#21483b]">
-                      Hersteller
-                    </h3>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Link
-                      href="/products?manufacturer=Kailar"
-                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      aria-label="Kailar anzeigen"
-                    >
-                      <Image
-                        src="/manufacturer-banner/kailarbanner.avif"
-                        alt="Kailar"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className="h-full w-full object-contain scale-100"
-                        loading="lazy"
-                        quality={70}
-                      />
-                    </Link>
-                    <Link
-                      href="/products?manufacturer=OCB"
-                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-black bg-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      aria-label="OCB anzeigen"
-                    >
-                      <Image
-                        src="/manufacturer-banner/ocbbanner.png"
-                        alt="OCB"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className="h-full w-full object-contain object-[50%_45%] scale-100"
-                        loading="lazy"
-                        quality={70}
-                      />
-                    </Link>
-                    <Link
-                      href="/products?manufacturer=Purize"
-                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-emerald-900/30 bg-[#1f4d3a] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      aria-label="Purize anzeigen"
-                    >
-                      <Image
-                        src="/manufacturer-banner/purizebanner.png"
-                        alt="Purize"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className="h-full w-full object-cover object-[50%_43%] scale-150"
-                        loading="lazy"
-                        quality={70}
-                      />
-                    </Link>
-                    <Link
-                      href="/products?manufacturer=RAW"
-                      className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-amber-200 bg-[#f3e4c2] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      aria-label="RAW anzeigen"
-                    >
-                      <Image
-                        src="/manufacturer-banner/rawbanner.png"
-                        alt="RAW"
-                        fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className="h-full w-full object-cover object-[50%_39%] scale-150"
-                        loading="lazy"
-                        quality={70}
-                      />
-                    </Link>
-                  </div>
                 </section>
               </div>
             </div>

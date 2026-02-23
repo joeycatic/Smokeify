@@ -4,7 +4,7 @@ import { getProducts } from "@/lib/catalog";
 import ProductsClient from "./ProductsClient";
 import PageLayout from "@/components/PageLayout";
 
-export const revalidate = 0;
+export const revalidate = 30;
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
   "https://www.smokeify.de";

@@ -1,24 +1,39 @@
 import "server-only";
 import { isIP } from "node:net";
-import { prisma } from "@/lib/prisma";
+
+// ---------------------------------------------------------------------------
+// In-memory rate limiter — replaces the previous DB-backed implementation.
+//
+// Trade-off: limits are per-process. On a multi-instance deployment (e.g.
+// Vercel with many concurrent serverless functions) each cold-start gets its
+// own counter, so a determined attacker could theoretically spread requests
+// across instances. For a small shop this is an acceptable trade-off vs.
+// adding 10-50 ms of DB latency to every API request.
+//
+// Upgrade path: swap the `store` Map for an Upstash Redis client if you ever
+// need cross-instance consistency.
+// ---------------------------------------------------------------------------
+
+type Entry = { count: number; resetAt: number };
+
+const store = new Map<string, Entry>();
+
+// Lazily clean up expired entries on access — avoids setInterval in serverless.
+const getEntry = (key: string, now: number): Entry | undefined => {
+  const entry = store.get(key);
+  if (!entry) return undefined;
+  if (entry.resetAt <= now) {
+    store.delete(key);
+    return undefined;
+  }
+  return entry;
+};
 
 export const LOGIN_RATE_LIMIT = {
   identifierLimit: 5,
   ipLimit: 10,
   windowMs: 10 * 60 * 1000,
 } as const;
-
-const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
-let lastCleanup = 0;
-
-async function cleanupOldRateLimits(now: Date) {
-  const nowMs = now.getTime();
-  if (nowMs - lastCleanup < CLEANUP_INTERVAL_MS) return;
-  lastCleanup = nowMs;
-  await prisma.rateLimit.deleteMany({
-    where: { resetAt: { lt: now } },
-  });
-}
 
 type RateLimitResult = {
   allowed: boolean;
@@ -35,34 +50,38 @@ export async function checkRateLimit({
   limit: number;
   windowMs: number;
 }): Promise<RateLimitResult> {
-  const now = new Date();
-  await cleanupOldRateLimits(now);
-  const existing = await prisma.rateLimit.findUnique({ where: { key } });
+  const now = Date.now();
+  const existing = getEntry(key, now);
 
-  if (!existing || existing.resetAt <= now) {
-    const resetAt = new Date(now.getTime() + windowMs);
-    await prisma.rateLimit.upsert({
-      where: { key },
-      update: { count: 1, resetAt },
-      create: { key, count: 1, resetAt },
-    });
-    return { allowed: true, remaining: Math.max(limit - 1, 0), resetAt };
+  if (!existing) {
+    const resetAt = now + windowMs;
+    store.set(key, { count: 1, resetAt });
+    return { allowed: true, remaining: Math.max(limit - 1, 0), resetAt: new Date(resetAt) };
   }
 
   if (existing.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: existing.resetAt };
+    return { allowed: false, remaining: 0, resetAt: new Date(existing.resetAt) };
   }
 
-  const updated = await prisma.rateLimit.update({
-    where: { key },
-    data: { count: { increment: 1 } },
-  });
-
+  existing.count += 1;
   return {
     allowed: true,
-    remaining: Math.max(limit - updated.count, 0),
-    resetAt: updated.resetAt,
+    remaining: Math.max(limit - existing.count, 0),
+    resetAt: new Date(existing.resetAt),
   };
+}
+
+export async function getRateLimitStatus({
+  key,
+  limit,
+}: {
+  key: string;
+  limit: number;
+}) {
+  const now = Date.now();
+  const entry = getEntry(key, now);
+  if (!entry) return { limited: false, resetAt: new Date(now) };
+  return { limited: entry.count >= limit, resetAt: new Date(entry.resetAt) };
 }
 
 export function getClientIp(
@@ -99,20 +118,3 @@ export function getClientIp(
 
   return "unknown";
 }
-
-export async function getRateLimitStatus({
-  key,
-  limit,
-}: {
-  key: string;
-  limit: number;
-}) {
-  const now = new Date();
-  const record = await prisma.rateLimit.findUnique({ where: { key } });
-  if (!record || record.resetAt <= now) {
-    return { limited: false, resetAt: now };
-  }
-  return { limited: record.count >= limit, resetAt: record.resetAt };
-}
-
-

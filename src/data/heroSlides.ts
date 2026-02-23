@@ -7,7 +7,7 @@ export const heroSlides = [
   },
   {
     image: "/banners/lueftungsbanner.png",
-    title: "DEIN GROW. PERFEKT ABGESTIMMT.",
+    title: "DEIN INDOOR GARTEN. PERFEKT AUSGERÜSTET.",
     subtitle: "Premium Equipment • schnelle Lieferung • sicher bezahlen",
     cta: "JETZT SHOPPEN",
   },

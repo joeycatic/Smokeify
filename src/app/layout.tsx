@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "Smokeify",
     template: "%s | Smokeify",
   },
-  description: "Modern grow equipment",
+  description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   metadataBase: new URL(siteUrl),
   alternates: {
     languages: {
@@ -33,13 +33,13 @@ export const metadata: Metadata = {
     locale: "de_DE",
     url: siteUrl,
     title: "Smokeify",
-    description: "Modern grow equipment",
+    description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
     siteName: "Smokeify",
   },
   twitter: {
     card: "summary_large_image",
     title: "Smokeify",
-    description: "Modern grow equipment",
+    description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   },
   robots: {
     index: true,
