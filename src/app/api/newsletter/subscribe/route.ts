@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
+const escapeHtml = (text: string) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 const isValidEmail = (value: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -86,20 +94,25 @@ export async function POST(request: Request) {
     });
   });
 
-  const transporter = nodemailer.createTransport(server);
-  await transporter.sendMail({
-    to,
-    from,
-    replyTo: email,
-    subject: "Newsletter Anmeldung",
-    text: `Neue Newsletter-Anmeldung: ${normalizedEmail}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5;">
-        <p><strong>Neue Newsletter-Anmeldung</strong></p>
-        <p>${normalizedEmail}</p>
-      </div>
-    `,
-  });
+  // DB subscription already committed — don't fail the user response if the
+  // admin notification email fails. Log it and continue.
+  try {
+    const transporter = nodemailer.createTransport(server);
+    await transporter.sendMail({
+      to,
+      from,
+      subject: "Newsletter Anmeldung",
+      text: `Neue Newsletter-Anmeldung: ${normalizedEmail}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+          <p><strong>Neue Newsletter-Anmeldung</strong></p>
+          <p>${escapeHtml(normalizedEmail)}</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("[newsletter] admin notification email failed:", err);
+  }
 
   return NextResponse.json({ ok: true });
 }

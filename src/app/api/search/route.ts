@@ -112,7 +112,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") ?? "";
   const query = rawQuery.trim();
-  if (!query) {
+  if (!query || query.length > 200) {
     return NextResponse.json({ results: [] });
   }
   const terms = buildSearchTerms(query);

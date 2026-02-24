@@ -1,6 +1,7 @@
 import "server-only";
 import { isIP } from "node:net";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export const LOGIN_RATE_LIMIT = {
   identifierLimit: 5,
@@ -25,52 +26,43 @@ export async function checkRateLimit({
 }): Promise<RateLimitResult> {
   const now = new Date();
   const nextResetAt = new Date(now.getTime() + windowMs);
+  const rows = await prisma.$queryRaw<
+    Array<{ count: number; resetAt: Date }>
+  >(Prisma.sql`
+    INSERT INTO "RateLimit" ("key", "count", "resetAt", "createdAt", "updatedAt")
+    VALUES (${key}, 1, ${nextResetAt}, NOW(), NOW())
+    ON CONFLICT ("key") DO UPDATE
+    SET
+      "count" = CASE
+        WHEN "RateLimit"."resetAt" <= ${now} THEN 1
+        ELSE "RateLimit"."count" + 1
+      END,
+      "resetAt" = CASE
+        WHEN "RateLimit"."resetAt" <= ${now} THEN ${nextResetAt}
+        ELSE "RateLimit"."resetAt"
+      END,
+      "updatedAt" = NOW()
+    WHERE "RateLimit"."resetAt" <= ${now} OR "RateLimit"."count" < ${limit}
+    RETURNING "count", "resetAt"
+  `);
 
-  const incremented = await prisma.rateLimit.updateMany({
-    where: {
-      key,
-      resetAt: { gt: now },
-      count: { lt: limit },
-    },
-    data: { count: { increment: 1 } },
-  });
-
-  if (incremented.count > 0) {
-    const current = await prisma.rateLimit.findUnique({
-      where: { key },
-      select: { count: true, resetAt: true },
-    });
-    const currentCount = current?.count ?? 1;
-    const resetAt = current?.resetAt ?? nextResetAt;
+  if (rows.length > 0) {
+    const current = rows[0];
     return {
       allowed: true,
-      remaining: Math.max(limit - currentCount, 0),
-      resetAt,
+      remaining: Math.max(limit - current.count, 0),
+      resetAt: current.resetAt,
     };
   }
 
   const existing = await prisma.rateLimit.findUnique({
     where: { key },
-    select: { count: true, resetAt: true },
+    select: { resetAt: true },
   });
-
-  if (!existing || existing.resetAt <= now) {
-    await prisma.rateLimit.upsert({
-      where: { key },
-      create: { key, count: 1, resetAt: nextResetAt },
-      update: { count: 1, resetAt: nextResetAt },
-    });
-    return {
-      allowed: true,
-      remaining: Math.max(limit - 1, 0),
-      resetAt: nextResetAt,
-    };
-  }
-
   return {
     allowed: false,
     remaining: 0,
-    resetAt: existing.resetAt,
+    resetAt: existing?.resetAt ?? nextResetAt,
   };
 }
 

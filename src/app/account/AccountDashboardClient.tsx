@@ -76,6 +76,7 @@ export default function AccountDashboardClient({
   const [setupItems, setSetupItems] = useState(setups);
   const [setupBusyId, setSetupBusyId] = useState<string | null>(null);
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
+
   const tabs = useMemo(
     () => [
       {
@@ -92,6 +93,16 @@ export default function AccountDashboardClient({
       },
     ],
     [],
+  );
+
+  const tabMeta: Record<TabId, number | null> = useMemo(
+    () => ({
+      profile: null,
+      orders: orders.length,
+      wishlist: wishlistCount,
+      setups: setupItems.length,
+    }),
+    [orders.length, wishlistCount, setupItems.length],
   );
 
   const normalizeIdList = (value?: string[] | string) => {
@@ -116,7 +127,9 @@ export default function AccountDashboardClient({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:items-start lg:min-h-[calc(100vh-445px)]">
-      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:h-full lg:border-black/10 lg:bg-white lg:p-4">
+      {/* Sidebar */}
+      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:h-full lg:border-black/10 lg:bg-white lg:overflow-hidden">
+        {/* Mobile dropdown */}
         <div className="sm:hidden">
           <div className="mb-4">
             <p className="mb-2 text-xs font-semibold tracking-widest text-stone-500">
@@ -140,7 +153,7 @@ export default function AccountDashboardClient({
                   </span>
                   <span>{tabs.find((tab) => tab.id === activeTab)?.label}</span>
                 </span>
-                <span className="text-xs text-stone-500">
+                <span className="text-xs text-stone-400">
                   {mobileMenuOpen ? "▲" : "▼"}
                 </span>
               </button>
@@ -156,60 +169,96 @@ export default function AccountDashboardClient({
                     className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-black/10 bg-white text-sm shadow-xl"
                     role="listbox"
                   >
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => {
-                          setActiveTab(tab.id as TabId);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-3 px-4 py-3 text-left font-semibold transition ${
-                          activeTab === tab.id
-                            ? "bg-[#2f3e36] text-white"
-                            : "text-stone-700 hover:bg-stone-100"
-                        }`}
-                        role="option"
-                        aria-selected={activeTab === tab.id}
-                      >
-                        <span
-                          className={`rounded-full p-1 ${
+                    {tabs.map((tab) => {
+                      const badge = tabMeta[tab.id as TabId];
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(tab.id as TabId);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-3 px-4 py-3 text-left font-semibold transition ${
                             activeTab === tab.id
-                              ? "bg-white text-[#2f3e36]"
-                              : "bg-stone-100 text-stone-600"
+                              ? "bg-[#2f3e36] text-white"
+                              : "text-stone-700 hover:bg-stone-50"
                           }`}
+                          role="option"
+                          aria-selected={activeTab === tab.id}
                         >
-                          <tab.icon className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <span>{tab.label}</span>
-                      </button>
-                    ))}
+                          <span
+                            className={`rounded-full p-1 ${
+                              activeTab === tab.id
+                                ? "bg-white/20 text-white"
+                                : "bg-stone-100 text-stone-600"
+                            }`}
+                          >
+                            <tab.icon className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="flex-1">{tab.label}</span>
+                          {badge !== null && badge > 0 && (
+                            <span
+                              className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-4 ${
+                                activeTab === tab.id
+                                  ? "bg-white/20 text-white"
+                                  : "bg-stone-200 text-stone-500"
+                              }`}
+                            >
+                              {badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}
             </div>
           </div>
         </div>
-        <nav className="hidden text-sm lg:block lg:space-y-2 sm:block">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as TabId)}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
-                activeTab === tab.id
-                  ? "bg-[#E4C56C] text-[#2f3e36]"
-                  : "text-stone-700 hover:bg-stone-200"
-              }`}
-            >
-              <tab.icon className="h-4 w-4" aria-hidden="true" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+
+        {/* Desktop sidebar nav */}
+        <div className="hidden lg:block sm:block">
+          {/* Sidebar accent bar */}
+          <div className="h-1 bg-gradient-to-r from-[#2f3e36] to-[#44584c] lg:block hidden" />
+          <nav className="lg:p-3 sm:p-0 space-y-1">
+            {tabs.map((tab) => {
+              const badge = tabMeta[tab.id as TabId];
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as TabId)}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all ${
+                    activeTab === tab.id
+                      ? "bg-[#E4C56C] text-[#2f3e36] shadow-sm"
+                      : "text-stone-600 hover:bg-stone-100 hover:text-stone-800"
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="flex-1">{tab.label}</span>
+                  {badge !== null && badge > 0 && (
+                    <span
+                      className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-4 ${
+                        activeTab === tab.id
+                          ? "bg-[#2f3e36]/15 text-[#2f3e36]"
+                          : "bg-stone-200 text-stone-500"
+                      }`}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </aside>
 
-      <div className="space-y-6 lg:rounded-b-2xl lg:pr-4">
+      {/* Main content panels */}
+      <div className="space-y-6 lg:pr-1">
+        {/* Profile */}
         {activeTab === "profile" && (
           <AccountSettingsClient
             initialName={profile.name}
@@ -224,15 +273,31 @@ export default function AccountDashboardClient({
           />
         )}
 
+        {/* Orders */}
         {activeTab === "orders" && (
           <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6 lg:flex lg:h-full lg:flex-col">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              BESTELLUNGEN
-            </h2>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+                BESTELLUNGEN
+              </h2>
+              {orders.length > 0 && (
+                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                  {orders.length}
+                </span>
+              )}
+            </div>
             {orders.length === 0 ? (
-              <p className="text-sm text-stone-600">
-                Noch keine Bestellungen vorhanden.
-              </p>
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
+                  <ShoppingBagIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-semibold text-stone-600">
+                  Noch keine Bestellungen
+                </p>
+                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                  Sobald du bestellst, erscheinen deine Bestellungen hier.
+                </p>
+              </div>
             ) : (
               <div className="pretty-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
                 <ul className="space-y-3 text-sm">
@@ -246,31 +311,29 @@ export default function AccountDashboardClient({
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                          <div className="font-semibold text-white">
-                            Bestellung {order.id.slice(0, 8).toUpperCase()}
+                            <div className="font-semibold text-white">
+                              Bestellung {order.id.slice(0, 8).toUpperCase()}
+                            </div>
+                            <div className="text-xs text-white/60">
+                              {new Date(order.createdAt).toLocaleDateString("de-DE")}
+                            </div>
                           </div>
-                          <div className="text-xs text-white">
-                            {new Date(order.createdAt).toLocaleDateString(
-                              "de-DE",
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-left sm:text-right">
-                          <div className="text-sm font-semibold text-white">
-                            {formatPrice(order.amountTotal, order.currency)}
-                          </div>
-                          <div className="text-xs text-white">
-                            {order.itemsCount} Artikel
-                          </div>
+                          <div className="text-left sm:text-right">
+                            <div className="text-sm font-semibold text-white">
+                              {formatPrice(order.amountTotal, order.currency)}
+                            </div>
+                            <div className="text-xs text-white/60">
+                              {order.itemsCount} Artikel
+                            </div>
                           </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
-                        <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
-                          Status: {order.status}
-                        </span>
-                        <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
-                          Zahlung: {order.paymentStatus}
-                        </span>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
+                            Status: {order.status}
+                          </span>
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
+                            Zahlung: {order.paymentStatus}
+                          </span>
                         </div>
                       </Link>
                     </li>
@@ -281,34 +344,46 @@ export default function AccountDashboardClient({
           </section>
         )}
 
+        {/* Wishlist */}
         {activeTab === "wishlist" && (
           <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              WISHLIST
-            </h2>
-            <div className="flex items-center justify-between rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-sm">
-              <span>Artikel</span>
-              <span className="font-semibold">{wishlistCount}</span>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+                WUNSCHLISTE
+              </h2>
+              {wishlistCount > 0 && (
+                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                  {wishlistCount} Artikel
+                </span>
+              )}
             </div>
             {wishlistPreview.length === 0 ? (
-              <p className="mt-4 text-sm text-stone-600">
-                Noch keine Artikel auf der Wunschliste.
-              </p>
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
+                  <HeartIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-semibold text-stone-600">
+                  Noch keine Artikel
+                </p>
+                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                  Füge Produkte zu deiner Wunschliste hinzu.
+                </p>
+              </div>
             ) : (
-              <ul className="mt-4 space-y-3">
+              <ul className="space-y-2.5">
                 {wishlistPreview.map((item) => (
                   <li key={item.id}>
                     <Link
                       href={`/products/${item.handle}`}
-                      className="flex items-center gap-3 rounded-lg border border-black/10 bg-white p-2 text-sm transition hover:border-black/20"
+                      className="flex items-center gap-3 rounded-xl border border-black/8 bg-stone-50/50 p-2.5 text-sm transition hover:border-black/15 hover:bg-white hover:shadow-sm"
                     >
-                      <div className="relative h-12 w-12 flex-none overflow-hidden rounded-md bg-stone-100">
+                      <div className="relative h-14 w-14 flex-none overflow-hidden rounded-lg bg-stone-100">
                         {item.featuredImage?.url ? (
                           <Image
                             src={item.featuredImage.url}
                             alt={item.featuredImage.altText ?? item.title}
                             fill
-                            sizes="48px"
+                            sizes="56px"
                             className="object-cover"
                           />
                         ) : (
@@ -318,13 +393,14 @@ export default function AccountDashboardClient({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">
+                        <div className="truncate font-semibold text-stone-800">
                           {item.title}
                         </div>
-                        <div className="text-xs text-stone-500">
+                        <div className="mt-0.5 text-xs text-stone-500">
                           {formatProductPrice(item.priceRange?.minVariantPrice)}
                         </div>
                       </div>
+                      <span className="shrink-0 text-xs text-stone-400">→</span>
                     </Link>
                   </li>
                 ))}
@@ -332,22 +408,44 @@ export default function AccountDashboardClient({
             )}
             <Link
               href="/wishlist"
-              className="mt-4 inline-flex w-full justify-center rounded-md border border-black/10 px-4 py-2 text-xs font-semibold text-stone-700 hover:border-black/20 sm:w-auto"
+              className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-black/10 px-4 py-2.5 text-xs font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50 sm:w-auto"
             >
-              Zur Wunschliste
+              Zur Wunschliste →
             </Link>
           </section>
         )}
 
+        {/* Setups */}
         {activeTab === "setups" && (
           <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-            <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
-              SAVED SETUPS
-            </h2>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+                GESPEICHERTE KONFIGURATIONEN
+              </h2>
+              {setupItems.length > 0 && (
+                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                  {setupItems.length}
+                </span>
+              )}
+            </div>
             {setupItems.length === 0 ? (
-              <p className="text-sm text-stone-600">
-                Noch keine gespeicherten Setups.
-              </p>
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
+                  <AdjustmentsHorizontalIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-semibold text-stone-600">
+                  Noch keine Setups
+                </p>
+                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                  Speichere dein erstes Setup im Customizer.
+                </p>
+                <Link
+                  href="/customizer"
+                  className="mt-4 inline-flex items-center rounded-lg border border-black/10 px-4 py-2 text-xs font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50"
+                >
+                  Zum Customizer →
+                </Link>
+              </div>
             ) : (
               <ul className="grid gap-4">
                 {setupItems.map((setup) => {
@@ -368,11 +466,9 @@ export default function AccountDashboardClient({
                           <div className="truncate text-sm font-semibold text-white">
                             {setup.name}
                           </div>
-                          <div className="mt-1 text-xs text-white/70">
+                          <div className="mt-1 text-xs text-white/60">
                             Gespeichert am{" "}
-                            {new Date(setup.createdAt).toLocaleDateString(
-                              "de-DE",
-                            )}
+                            {new Date(setup.createdAt).toLocaleDateString("de-DE")}
                           </div>
                         </Link>
                         <button
@@ -383,9 +479,7 @@ export default function AccountDashboardClient({
                             try {
                               const res = await fetch(
                                 `/api/setups/${setup.id}`,
-                                {
-                                  method: "DELETE",
-                                },
+                                { method: "DELETE" },
                               );
                               if (!res.ok) {
                                 setSetupMessage("Löschen fehlgeschlagen.");

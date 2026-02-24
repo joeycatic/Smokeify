@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { getAppOrigin } from "@/lib/appOrigin";
+import { isCronRequestAuthorized } from "@/lib/cronAuth";
 import {
   getCheckoutRecoveryEventId,
   isRecoverableCheckoutSession,
@@ -108,7 +109,13 @@ export async function GET(request: Request) {
   }
   const headerSecret = request.headers.get("x-cron-secret");
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${secret}` && headerSecret !== secret) {
+  if (
+    !isCronRequestAuthorized({
+      authorizationHeader: authHeader,
+      headerSecret,
+      expectedSecret: secret,
+    })
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

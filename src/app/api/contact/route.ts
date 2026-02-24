@@ -3,6 +3,14 @@ import nodemailer from "nodemailer";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
+const escapeHtml = (text: string) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,20 +53,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email not configured" }, { status: 500 });
   }
 
-  const transporter = nodemailer.createTransport(server);
-  await transporter.sendMail({
-    to,
-    from,
-    replyTo: email,
-    subject: `Contact form - ${name}`,
-    text: `From: ${name} <${email}>\n\n${message}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5;">
-        <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
-        <p>${message.replace(/\n/g, "<br />")}</p>
-      </div>
-    `,
-  });
+  try {
+    const transporter = nodemailer.createTransport(server);
+    await transporter.sendMail({
+      to,
+      from,
+      replyTo: email,
+      subject: `Contact form - ${escapeHtml(name)}`,
+      text: `From: ${name} <${email}>\n\n${message}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+          <p><strong>From:</strong> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</p>
+          <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("[contact] sendMail failed:", err);
+    return NextResponse.json(
+      { error: "Nachricht konnte nicht gesendet werden. Bitte versuche es später erneut." },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { isCronRequestAuthorized } from "@/lib/cronAuth";
 
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+
   const headerSecret = request.headers.get("x-cron-secret");
   const authHeader = request.headers.get("authorization");
   if (
@@ -23,18 +25,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { runSupplierSync } = await import(
-      "../../../../../scripts/suppliers/syncSupplierStock.mjs"
-    );
-    await runSupplierSync();
-  } catch (err) {
-    console.error("[cron/sync-supplier] runSupplierSync failed:", err);
-    return NextResponse.json(
-      { error: "Supplier sync failed.", details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
-  }
+  const now = new Date();
+  const result = await prisma.rateLimit.deleteMany({
+    where: { resetAt: { lte: now } },
+  });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    deleted: result.count,
+    now: now.toISOString(),
+  });
 }

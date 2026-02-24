@@ -31,19 +31,19 @@ export default async function AccountPasswordPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
-        <div className="rounded-md border border-black/10 bg-white p-6">
-          <div className="text-center">
-            <h1
-              className="text-3xl font-bold mb-2"
-              style={{ color: "#2f3e36" }}
-            >
-              Passwort
-            </h1>
-            <p className="text-sm text-stone-600 mb-6">
-              Aktualisiere dein Passwort.
-            </p>
+        <div className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
+          <div className="h-1 w-full bg-gradient-to-r from-[#2f3e36] via-[#44584c] to-[#2f3e36]" />
+          <div className="p-6">
+            <div className="mb-6">
+              <h1 className="text-xl font-semibold text-stone-900">
+                Passwort ändern
+              </h1>
+              <p className="mt-1 text-sm text-stone-500">
+                Aktualisiere dein Passwort.
+              </p>
+            </div>
+            <PasswordChangeClient />
           </div>
-          <PasswordChangeClient />
         </div>
       </div>
     </PageLayout>
