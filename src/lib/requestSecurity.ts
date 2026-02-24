@@ -15,24 +15,11 @@ const getConfiguredHosts = () => {
   return hosts;
 };
 
-const getRequestHost = (request: Request) =>
-  (
-    request.headers.get("x-forwarded-host") ??
-    request.headers.get("host") ??
-    ""
-  )
-    .split(",")[0]
-    ?.trim()
-    .toLowerCase();
-
 export const isSameOrigin = (request: Request) => {
   if (SAFE_METHODS.has(request.method.toUpperCase())) return true;
 
-  const requestHost = getRequestHost(request);
-  if (!requestHost) return false;
-
   const allowedHosts = getConfiguredHosts();
-  allowedHosts.add(requestHost);
+  if (allowedHosts.size === 0) return false;
 
   const origin = request.headers.get("origin");
   if (origin) {
