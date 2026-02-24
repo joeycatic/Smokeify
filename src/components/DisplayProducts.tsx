@@ -1,11 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowTopRightOnSquareIcon,
+  EyeIcon,
   StarIcon as StarOutlineIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import ProductCardActions from "@/components/ProductCardActions";
+import QuickViewModal from "@/components/QuickViewModal";
 import type { Product } from "@/data/types";
 
 type Props = {
@@ -55,6 +60,7 @@ export default function DisplayProducts({
   showGrowboxSize = false,
   hideCartLabel = false,
 }: Props) {
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const gridColsClass =
     cols === 2
       ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2"
@@ -66,6 +72,7 @@ export default function DisplayProducts({
     (a, b) => Number(b.availableForSale) - Number(a.availableForSale)
   );
   return (
+    <>
     <div className={`mt-6 grid gap-3 ${gridColsClass}`}>
       {sorted.map((p, index) => {
         const showLowStock = getProductLowStockState(p);
@@ -110,6 +117,19 @@ export default function DisplayProducts({
                     Geringer Bestand
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setQuickViewProduct(p);
+                  }}
+                  className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 translate-y-1 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-stone-800 opacity-0 shadow-md transition-all duration-150 hover:bg-white group-hover:translate-y-0 group-hover:opacity-100"
+                  aria-label={`Schnellansicht: ${p.title}`}
+                >
+                  <EyeIcon className="h-3.5 w-3.5" />
+                  Schnellansicht
+                </button>
               </Link>
 
               {/* Content */}
@@ -216,6 +236,12 @@ export default function DisplayProducts({
         );
       })}
     </div>
+    <QuickViewModal
+      product={quickViewProduct}
+      open={quickViewProduct !== null}
+      onClose={() => setQuickViewProduct(null)}
+    />
+    </>
   );
 }
 

@@ -209,6 +209,12 @@ export default async function ProductDetailPage({
       })
     : [];
 
+  const reviewSummary = await prisma.review.aggregate({
+    where: { productId: product.id, status: "APPROVED" },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
+
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
   const canonicalPath = `/products/${product.handle}`;
@@ -223,11 +229,17 @@ export default async function ProductDetailPage({
     itemCondition: "https://schema.org/NewCondition",
     url: canonicalUrl,
     sku: variant.id,
+    seller: {
+      "@type": "Organization",
+      name: "Smokeify",
+    },
   }));
+  const reviewCount = reviewSummary._count.rating;
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
+    url: canonicalUrl,
     image: images.map((image) => image.url).slice(0, 10),
     description: stripHtml(product.shortDescription ?? product.description ?? ""),
     sku: product.id,
@@ -237,6 +249,15 @@ export default async function ProductDetailPage({
           name: product.manufacturer,
         }
       : undefined,
+    ...(reviewCount > 0 && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: (reviewSummary._avg.rating ?? 0).toFixed(1),
+        reviewCount,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    }),
     offers,
   };
   const breadcrumbSchema = {

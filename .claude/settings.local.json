@@ -8,7 +8,9 @@
       "Bash(find:*)",
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate deploy 2>&1)",
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && sleep 5 && npx prisma migrate deploy 2>&1)",
-      "Bash(powershell -Command \"Stop-Process -Id 17532 -Force\" 2>&1 && sleep 2 && cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)"
+      "Bash(powershell -Command \"Stop-Process -Id 17532 -Force\" 2>&1 && sleep 2 && cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)",
+      "Bash(head:*)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx eslint src/components/QuickViewModal.tsx src/components/DisplayProducts.tsx 2>&1)"
     ]
   }
 }
