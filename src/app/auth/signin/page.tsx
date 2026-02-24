@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getProviders, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
@@ -14,6 +14,12 @@ const LOGIN_ERROR_MESSAGES: Record<string, string> = {
     "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
   CredentialsSignin: "Email oder Passwort ist falsch.",
   AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+  OAuthSignin: "Google Login konnte nicht gestartet werden.",
+  OAuthCallback: "Google Login Rueckgabe ist fehlgeschlagen.",
+  OAuthCreateAccount: "Google Konto konnte nicht angelegt werden.",
+  OAuthAccountNotLinked:
+    "Diese Email ist bereits mit einer anderen Login-Methode verknuepft.",
+  Configuration: "Google Login ist derzeit nicht korrekt konfiguriert.",
 };
 
 const getLoginErrorMessage = (code?: string) => {
@@ -205,14 +211,69 @@ export default function SignInPage() {
                   setOauthLoading(true);
                   const returnTo = searchParams.get("returnTo") || "/account";
                   try {
-                    await signIn("google", { callbackUrl: returnTo });
+                    const providers = await getProviders();
+                    if (!providers?.google) {
+                      setError(
+                        "Google Login ist nicht aktiviert. Bitte spaeter erneut versuchen."
+                      );
+                      setLoginStatus("error");
+                      return;
+                    }
+                    const oauthRes = await signIn("google", {
+                      redirect: false,
+                      callbackUrl: returnTo,
+                    });
+                    if (oauthRes?.error) {
+                      setError(getLoginErrorMessage(oauthRes.error));
+                      setLoginStatus("error");
+                      return;
+                    }
+                    if (oauthRes?.url) {
+                      router.push(oauthRes.url);
+                      return;
+                    }
+                    setError(
+                      "Google Login konnte nicht gestartet werden. Bitte erneut versuchen."
+                    );
+                    setLoginStatus("error");
+                  } catch {
+                    setError(
+                      "Google Login fehlgeschlagen. Bitte pruefe die Konfiguration."
+                    );
+                    setLoginStatus("error");
                   } finally {
                     setOauthLoading(false);
                   }
                 }}
-                className="h-12 w-full rounded-md border border-black/15 bg-white px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 disabled:opacity-60"
+                className="h-12 w-full cursor-pointer rounded-md border border-[#1647a6] bg-[#1e5bcc] px-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#174aa7] disabled:opacity-60"
               >
-                {oauthLoading ? "Google wird geöffnet..." : "Mit Google fortfahren"}
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-white">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        fill="#EA4335"
+                        d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.8 0 3 .8 3.7 1.5l2.5-2.4C16.8 3.9 14.7 3 12 3 7 3 3 7 3 12s4 9 9 9c5.2 0 8.6-3.6 8.6-8.8 0-.6-.1-1.1-.2-1.5H12z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M3 7.3l3.2 2.3C7 7.2 9.3 5.6 12 5.6c1.8 0 3 .8 3.7 1.5l2.5-2.4C16.8 3.9 14.7 3 12 3 8.1 3 4.7 5.3 3 8.7z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M12 21c2.6 0 4.8-.9 6.4-2.5l-3-2.4c-.8.6-1.8 1-3.4 1-2.7 0-5-1.8-5.8-4.3L3 15.2C4.7 18.7 8.1 21 12 21z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M21 12.2c0-.6-.1-1.1-.2-1.6H12v3.5h5c-.2 1.1-.9 2.1-1.9 2.8l3 2.4c1.8-1.6 2.9-4 2.9-7.1z"
+                      />
+                    </svg>
+                  </span>
+                  {oauthLoading ? "Google wird geöffnet..." : "Mit Google fortfahren"}
+                </span>
               </button>
               <div className="relative py-1">
                 <div className="h-px w-full bg-black/10" />

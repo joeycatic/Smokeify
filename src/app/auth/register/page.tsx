@@ -147,7 +147,7 @@ export default function RegisterPage() {
                   setOauthLoading(false);
                 }
               }}
-              className="h-12 w-full cursor-pointer rounded-md border border-[#1f57c8] bg-[#2f6fdb] px-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#255fbe] disabled:opacity-60"
+              className="h-12 w-full cursor-pointer rounded-md border border-[#1647a6] bg-[#1e5bcc] px-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#174aa7] disabled:opacity-60"
             >
               <span className="inline-flex items-center gap-2">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-white">
