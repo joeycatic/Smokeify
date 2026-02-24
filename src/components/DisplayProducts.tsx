@@ -114,7 +114,10 @@ export default function DisplayProducts({
                 )}
                 {p.availableForSale && showLowStock && (
                   <span className="absolute left-3 top-3 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3.5 sm:py-2 sm:text-sm">
-                    Geringer Bestand
+                    {p.defaultVariantLowStockThreshold != null &&
+                    p.defaultVariantAvailableQuantity != null
+                      ? `Nur noch ${p.defaultVariantAvailableQuantity} verfügbar`
+                      : "Geringer Bestand"}
                   </span>
                 )}
                 <button
@@ -174,7 +177,10 @@ export default function DisplayProducts({
                   >
                     {p.availableForSale
                       ? showLowStock
-                        ? "Verfügbar · Geringer Bestand"
+                        ? p.defaultVariantLowStockThreshold != null &&
+                          p.defaultVariantAvailableQuantity != null
+                          ? `Nur noch ${p.defaultVariantAvailableQuantity} verfügbar`
+                          : "Geringer Bestand"
                         : "Verfügbar"
                       : "Ausverkauft"}
                   </p>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
@@ -25,6 +26,7 @@ export default function RegisterPage() {
   const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState("");
   const hasSymbol = /[^A-Za-z0-9]/.test(password);
 
@@ -131,6 +133,58 @@ export default function RegisterPage() {
             }}
             className="space-y-4"
           >
+            <button
+              type="button"
+              disabled={loading || oauthLoading}
+              onClick={async () => {
+                setError("");
+                setOauthLoading(true);
+                const returnTo = searchParams.get("returnTo") || "/account";
+                try {
+                  trackAnalyticsEvent("sign_up", { method: "google" });
+                  await signIn("google", { callbackUrl: returnTo });
+                } finally {
+                  setOauthLoading(false);
+                }
+              }}
+              className="h-12 w-full cursor-pointer rounded-md border border-[#1f57c8] bg-[#2f6fdb] px-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#255fbe] disabled:opacity-60"
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-white">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                  >
+                    <path
+                      fill="#EA4335"
+                      d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.8 0 3 .8 3.7 1.5l2.5-2.4C16.8 3.9 14.7 3 12 3 7 3 3 7 3 12s4 9 9 9c5.2 0 8.6-3.6 8.6-8.8 0-.6-.1-1.1-.2-1.5H12z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M3 7.3l3.2 2.3C7 7.2 9.3 5.6 12 5.6c1.8 0 3 .8 3.7 1.5l2.5-2.4C16.8 3.9 14.7 3 12 3 8.1 3 4.7 5.3 3 8.7z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M12 21c2.6 0 4.8-.9 6.4-2.5l-3-2.4c-.8.6-1.8 1-3.4 1-2.7 0-5-1.8-5.8-4.3L3 15.2C4.7 18.7 8.1 21 12 21z"
+                    />
+                    <path
+                      fill="#4285F4"
+                      d="M21 12.2c0-.6-.1-1.1-.2-1.6H12v3.5h5c-.2 1.1-.9 2.1-1.9 2.8l3 2.4c1.8-1.6 2.9-4 2.9-7.1z"
+                    />
+                  </svg>
+                </span>
+                {oauthLoading
+                  ? "Google wird geöffnet..."
+                  : "Mit Google registrieren"}
+              </span>
+            </button>
+            <div className="relative">
+              <div className="h-px w-full bg-black/10" />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                oder
+              </span>
+            </div>
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-stone-600">
                 Username *

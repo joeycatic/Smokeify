@@ -258,6 +258,8 @@ model Product {
   inventoryAdjustments InventoryAdjustment[]
   mainCategory Category? @relation("ProductMainCategory", fields: [mainCategoryId], references: [id], onDelete: SetNull)
   supplierRef Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  crossSells         ProductCrossSell[] @relation("ProductCrossSells")
+  crossSellBackRefs  ProductCrossSell[] @relation("ProductCrossSellBackRefs")
 
   @@index([status])
   @@index([supplierId])
@@ -553,4 +555,18 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+}
+
+model ProductCrossSell {
+  id          String   @id @default(cuid())
+  productId   String
+  crossSellId String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  product   Product @relation("ProductCrossSells", fields: [productId], references: [id], onDelete: Cascade)
+  crossSell Product @relation("ProductCrossSellBackRefs", fields: [crossSellId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, crossSellId])
+  @@index([productId, sortOrder])
 }

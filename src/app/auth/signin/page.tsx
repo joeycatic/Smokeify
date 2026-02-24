@@ -34,13 +34,18 @@ export default function SignInPage() {
     "idle"
   );
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const paramsError = searchParams.get("error");
-    if (paramsError === "NEW_DEVICE") {
-      setError("Neues Geraet erkannt. Code wurde per Email gesendet.");
+    if (paramsError) {
+      if (paramsError === "NEW_DEVICE") {
+        setError("Neues Geraet erkannt. Code wurde per Email gesendet.");
+      } else {
+        setError(getLoginErrorMessage(paramsError));
+      }
     }
     const verified = searchParams.get("verified");
     const emailParam = searchParams.get("email");
@@ -190,6 +195,31 @@ export default function SignInPage() {
                 </p>
               )}
               {error && <p className="text-xs text-red-600">{error}</p>}
+              <button
+                type="button"
+                disabled={oauthLoading || loading}
+                onClick={async () => {
+                  setError("");
+                  setNotice("");
+                  setLoginStatus("idle");
+                  setOauthLoading(true);
+                  const returnTo = searchParams.get("returnTo") || "/account";
+                  try {
+                    await signIn("google", { callbackUrl: returnTo });
+                  } finally {
+                    setOauthLoading(false);
+                  }
+                }}
+                className="h-12 w-full rounded-md border border-black/15 bg-white px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 disabled:opacity-60"
+              >
+                {oauthLoading ? "Google wird geöffnet..." : "Mit Google fortfahren"}
+              </button>
+              <div className="relative py-1">
+                <div className="h-px w-full bg-black/10" />
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                  oder
+                </span>
+              </div>
               <button
                 type="submit"
                 disabled={loading}

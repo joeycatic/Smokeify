@@ -6,14 +6,17 @@ import Image from "next/image";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  TruckIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import type { AddedItem } from "@/components/CartProvider";
+import { FREE_SHIPPING_THRESHOLD_EUR } from "@/lib/checkoutPolicy";
 
 type Props = {
   open: boolean;
   item: AddedItem | null;
   onClose: () => void;
+  cartSubtotal?: number;
 };
 
 type Recommendation = {
@@ -45,7 +48,7 @@ const formatPrice = (amount: string, currencyCode: string) =>
     minimumFractionDigits: 2,
   }).format(Number(amount));
 
-export default function AddedToCartModal({ open, item, onClose }: Props) {
+export default function AddedToCartModal({ open, item, onClose, cartSubtotal }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     null,
   );
@@ -388,6 +391,27 @@ export default function AddedToCartModal({ open, item, onClose }: Props) {
 
         {!needsVariantSelection && (
           <>
+            {cartSubtotal !== undefined && (() => {
+              const reached = cartSubtotal >= FREE_SHIPPING_THRESHOLD_EUR;
+              const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD_EUR - cartSubtotal);
+              const progress = Math.min(100, Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100));
+              return (
+                <div className={`mt-4 rounded-xl px-3.5 py-3 ${reached ? "border border-emerald-200 bg-emerald-50" : "border border-stone-100 bg-stone-50"}`}>
+                  <div className={`flex items-center gap-1.5 text-xs font-semibold ${reached ? "text-emerald-700" : "text-stone-700"}`}>
+                    <TruckIcon className="h-3.5 w-3.5 shrink-0" />
+                    {reached
+                      ? "Kostenloser Versand aktiv!"
+                      : `Noch ${formatPrice(remaining.toFixed(2), "EUR")} bis zur versandkostenfreien Lieferung`}
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"

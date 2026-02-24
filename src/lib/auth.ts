@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -105,6 +106,15 @@ providers.push(
   })
 );
 
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers,
@@ -113,6 +123,21 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider !== "google" || !user?.email) {
+        return true;
+      }
+
+      await prisma.user.updateMany({
+        where: {
+          email: { equals: user.email, mode: "insensitive" },
+          emailVerified: null,
+        },
+        data: { emailVerified: new Date() },
+      });
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

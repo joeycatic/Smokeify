@@ -247,6 +247,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           open={addedOpen}
           item={addedItem}
           onClose={() => setAddedOpen(false)}
+          cartSubtotal={cart ? Number(cart.cost.subtotalAmount.amount) : undefined}
         />
       )}
       <OutOfStockModal

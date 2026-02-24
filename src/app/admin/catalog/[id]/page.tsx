@@ -37,13 +37,29 @@ export default async function AdminProductPage({
 
   if (!product) notFound();
 
-  const [categories, collections, suppliers] = await Promise.all([
+  const [categories, collections, suppliers, crossSells] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, leadTimeDays: true },
     }),
+    prisma.productCrossSell
+      ? prisma.productCrossSell.findMany({
+          where: { productId: id },
+          orderBy: { sortOrder: "asc" },
+          include: {
+            crossSell: {
+              select: {
+                id: true,
+                title: true,
+                handle: true,
+                images: { take: 1, orderBy: { position: "asc" } },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -58,6 +74,14 @@ export default async function AdminProductPage({
           categories={categories}
           collections={collections}
           suppliers={suppliers}
+          crossSells={crossSells.map((row) => ({
+            crossSell: {
+              id: row.crossSell.id,
+              title: row.crossSell.title,
+              handle: row.crossSell.handle,
+              imageUrl: row.crossSell.images[0]?.url ?? null,
+            },
+          }))}
         />
       </div>
     </PageLayout>

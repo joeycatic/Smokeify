@@ -7,6 +7,9 @@ import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import RecommendedProductsCarousel from "./RecommendedProductsCarousel";
 import ProductReviews from "./ProductReviews";
+import FrequentlyBoughtTogether, {
+  type FBTProduct,
+} from "./FrequentlyBoughtTogether";
 import PageLayout from "@/components/PageLayout";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
@@ -214,6 +217,61 @@ export default async function ProductDetailPage({
     _avg: { rating: true },
     _count: { rating: true },
   });
+  const fbtRows = prisma.productCrossSell
+    ? await prisma.productCrossSell.findMany({
+        where: {
+          productId: product.id,
+          crossSell: { is: { status: "ACTIVE" } },
+        },
+        orderBy: { sortOrder: "asc" },
+        take: 3,
+        include: {
+          crossSell: {
+            include: {
+              images: { orderBy: { position: "asc" }, take: 1 },
+              variants: {
+                where: {
+                  inventory: { is: { quantityOnHand: { gt: 0 } } },
+                },
+                orderBy: { position: "asc" },
+                take: 1,
+                select: {
+                  id: true,
+                  title: true,
+                  priceCents: true,
+                  inventory: {
+                    select: {
+                      quantityOnHand: true,
+                      reserved: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+    : [];
+  const fbtProducts: FBTProduct[] = fbtRows.map((row) => {
+    const variant = row.crossSell.variants[0] ?? null;
+    const availableQuantity = variant
+      ? Math.max(0, (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0))
+      : 0;
+    return {
+      id: row.crossSell.id,
+      title: row.crossSell.title,
+      handle: row.crossSell.handle,
+      variantId: variant?.id ?? null,
+      imageUrl: row.crossSell.images[0]?.url ?? null,
+      price: variant
+        ? {
+            amount: toAmount(variant.priceCents),
+            currencyCode: "EUR",
+          }
+        : null,
+      availableForSale: availableQuantity > 0,
+    };
+  });
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
@@ -285,6 +343,8 @@ export default async function ProductDetailPage({
     ],
   };
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
+  const currentVariant =
+    product.variants.find((variant) => variant.availableForSale) ?? product.variants[0] ?? null;
   const showAgeNotice = Boolean(
     product.categories?.some((category) => {
       const handle = category.handle?.toLowerCase().trim() ?? "";
@@ -360,6 +420,17 @@ export default async function ProductDetailPage({
             />
           </div>
         </div>
+
+        <FrequentlyBoughtTogether
+          currentProduct={{
+            title: product.title,
+            imageUrl: primaryImage?.url ?? null,
+            variantId: currentVariant?.id ?? null,
+            price: currentVariant?.price ?? null,
+            availableForSale: currentVariant?.availableForSale ?? false,
+          }}
+          items={fbtProducts}
+        />
 
         {recommendedProducts.length > 0 && (
           <RecommendedProductsCarousel items={recommendedProducts} />

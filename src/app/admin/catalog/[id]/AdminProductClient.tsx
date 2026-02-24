@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
@@ -86,11 +87,28 @@ type ProductDetail = {
   collections: { collection: CategoryRow }[];
 };
 
+type CrossSellItem = {
+  crossSell: {
+    id: string;
+    title: string;
+    handle: string;
+    imageUrl: string | null;
+  };
+};
+
+type CrossSellProduct = {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl: string | null;
+};
+
 type Props = {
   product: ProductDetail;
   categories: CategoryRow[];
   collections: CategoryRow[];
   suppliers: SupplierRow[];
+  crossSells: CrossSellItem[];
 };
 
 const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
@@ -180,6 +198,7 @@ export default function AdminProductClient({
   categories,
   collections,
   suppliers,
+  crossSells: initialCrossSells,
 }: Props) {
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
@@ -277,6 +296,16 @@ export default function AdminProductClient({
   const [serverPolicyViolations, setServerPolicyViolations] = useState<
     MerchantPolicyViolation[]
   >([]);
+
+  // FBT state
+  const [fbtItems, setFbtItems] = useState<CrossSellProduct[]>(
+    () => initialCrossSells.map((row) => row.crossSell)
+  );
+  const [fbtSearch, setFbtSearch] = useState("");
+  const [fbtResults, setFbtResults] = useState<CrossSellProduct[]>([]);
+  const [fbtSearching, setFbtSearching] = useState(false);
+  const [fbtSaving, setFbtSaving] = useState(false);
+  const [fbtMessage, setFbtMessage] = useState("");
 
   const parentCategories = useMemo(
     () => categories.filter((item) => !item.parentId),
@@ -580,6 +609,58 @@ export default function AdminProductClient({
       setError("Update failed");
     }
   };
+
+  const saveCrossSells = async () => {
+    setFbtMessage("");
+    setFbtSaving(true);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/cross-sells`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crossSellIds: fbtItems.map((item) => item.id) }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setFbtMessage(data.error ?? "Save failed");
+      } else {
+        setFbtMessage("Saved");
+      }
+    } catch {
+      setFbtMessage("Save failed");
+    } finally {
+      setFbtSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const q = fbtSearch.trim();
+    if (!q) {
+      setFbtResults([]);
+      return;
+    }
+    setFbtSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/products/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = (await res.json()) as CrossSellProduct[];
+          setFbtResults(
+            data
+              .filter((p) => p.id !== product.id && !fbtItems.some((item) => item.id === p.id))
+              .slice(0, 8)
+          );
+        }
+      } catch {
+        // ignore
+      } finally {
+        setFbtSearching(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      setFbtSearching(false);
+    };
+  }, [fbtSearch, product.id, fbtItems]);
 
   const createImage = async (payload: {
     url: string;
@@ -2647,6 +2728,143 @@ export default function AdminProductClient({
           >
             {savingAllVariants ? "Saving..." : "Save variants"}
           </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-stone-900">
+              Häufig zusammen gekauft
+            </h2>
+            <p className="text-xs text-stone-500">
+              Bis zu 3 Produkte manuell zuordnen.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={saveCrossSells}
+            disabled={fbtSaving}
+            className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+          >
+            {fbtSaving ? "Saving..." : "Save FBT"}
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {fbtItems.length > 0 ? (
+            <div className="space-y-2">
+              {fbtItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white px-3 py-2"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">
+                      {index + 1}
+                    </span>
+                    {item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.title}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-md border border-black/10 object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md border border-dashed border-black/10 bg-stone-50" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-stone-800">
+                        {item.title}
+                      </p>
+                      <p className="truncate text-xs text-stone-500">/{item.handle}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFbtItems((prev) => prev.filter((entry) => entry.id !== item.id));
+                      setFbtMessage("");
+                    }}
+                    className="h-8 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-500">Noch keine FBT-Produkte ausgewählt.</p>
+          )}
+
+          <div className="rounded-lg border border-black/10 bg-stone-50 p-3">
+            <label className="text-xs font-semibold text-stone-600">
+              Produkt suchen
+              <input
+                value={fbtSearch}
+                onChange={(event) => {
+                  setFbtSearch(event.target.value);
+                  setFbtMessage("");
+                }}
+                placeholder="Titel eingeben..."
+                className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-black/30"
+              />
+            </label>
+
+            {fbtSearching ? (
+              <p className="mt-2 text-xs text-stone-500">Suche...</p>
+            ) : null}
+
+            {!fbtSearching && fbtSearch.trim() && fbtResults.length > 0 ? (
+              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-black/10 bg-white p-1">
+                {fbtResults.map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    onClick={() => {
+                      setFbtItems((prev) => {
+                        if (prev.some((item) => item.id === result.id) || prev.length >= 3) {
+                          return prev;
+                        }
+                        return [...prev, result];
+                      });
+                      setFbtSearch("");
+                      setFbtResults([]);
+                      setFbtMessage("");
+                    }}
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-stone-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-stone-800">
+                        {result.title}
+                      </span>
+                      <span className="block truncate text-xs text-stone-500">
+                        /{result.handle}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-[#2f3e36]">Hinzufügen</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {fbtItems.length >= 3 ? (
+              <p className="mt-2 text-xs text-amber-700">
+                Maximum erreicht (3 Produkte).
+              </p>
+            ) : null}
+          </div>
+
+          {fbtMessage ? (
+            <p
+              className={`text-xs font-medium ${
+                fbtMessage === "Saved" ? "text-emerald-700" : "text-red-600"
+              }`}
+            >
+              {fbtMessage}
+            </p>
+          ) : null}
         </div>
       </section>
 

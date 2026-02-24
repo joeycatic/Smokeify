@@ -25,9 +25,11 @@ import {
   SparklesIcon,
   SunIcon,
   TrashIcon,
+  TruckIcon,
   UserCircleIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
+import { FREE_SHIPPING_THRESHOLD_EUR } from "@/lib/checkoutPolicy";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -1819,17 +1821,40 @@ export function Navbar() {
                   )}
                 </div>
                 <div className="border-t border-black/10 px-5 py-4 text-sm">
-                  {!loading && cart && cart.lines.length > 0 && (
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs text-stone-500">Gesamt</span>
-                      <span className="text-sm font-semibold text-black/80">
-                        {formatPrice(
-                          cart.cost.totalAmount.amount,
-                          cart.cost.totalAmount.currencyCode,
-                        )}
-                      </span>
-                    </div>
-                  )}
+                  {!loading && cart && cart.lines.length > 0 && (() => {
+                    const subtotal = Number(cart.cost.subtotalAmount.amount);
+                    const currencyCode = cart.cost.subtotalAmount.currencyCode;
+                    const reached = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
+                    const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD_EUR - subtotal);
+                    const progress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100));
+                    return (
+                      <>
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs text-stone-500">Gesamt</span>
+                          <span className="text-sm font-semibold text-black/80">
+                            {formatPrice(
+                              cart.cost.totalAmount.amount,
+                              cart.cost.totalAmount.currencyCode,
+                            )}
+                          </span>
+                        </div>
+                        <div className={`mb-3 rounded-xl px-3 py-2.5 ${reached ? "border border-emerald-200 bg-emerald-50" : "border border-stone-100 bg-stone-50"}`}>
+                          <div className={`flex items-center gap-1.5 text-xs font-semibold ${reached ? "text-emerald-700" : "text-stone-600"}`}>
+                            <TruckIcon className="h-3.5 w-3.5 shrink-0" />
+                            {reached
+                              ? "Kostenloser Versand aktiv!"
+                              : `Noch ${formatPrice(remaining.toFixed(2), currencyCode)} bis zur versandkostenfreien Lieferung`}
+                          </div>
+                          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div className="grid gap-2">
                     <Link
                       href="/cart"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   BeakerIcon,
@@ -241,6 +242,9 @@ export default function ProductDetailClient({
 
   const { cart, addToCart, openAddedModal } = useCart();
   const viewTrackedRef = useRef<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const [navBottom, setNavBottom] = useState(96);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     text: string;
@@ -372,6 +376,68 @@ export default function ProductDetailClient({
   }, []);
 
   useEffect(() => {
+    const nav = document.querySelector("nav");
+    const measured = nav ? nav.getBoundingClientRect().bottom : 96;
+    setNavBottom(measured);
+
+    const el = sentinelRef.current;
+    const initialBottom = el ? el.getBoundingClientRect().bottom : 400;
+    const threshold = Math.max(50, initialBottom + window.scrollY - measured);
+
+    const handleScroll = () => setShowStickyBar(window.scrollY > threshold);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleAddToCart = async () => {
+    if (!selectedVariantId) {
+      setToast({ type: "error", text: "Keine Variante gewählt." });
+      setTimeout(() => setToast(null), 1500);
+      return;
+    }
+    const beforeQty =
+      cart?.lines.find(
+        (line) =>
+          line.merchandise.id === selectedVariantId &&
+          getLineOptionsKey(line.merchandise.options) === selectedOptionsKey,
+      )?.quantity ?? 0;
+    try {
+      const updated = await addToCart(
+        selectedVariantId,
+        quantity,
+        selectedCartOptions,
+      );
+      const afterQty =
+        updated?.lines.find(
+          (line) =>
+            line.merchandise.id === selectedVariantId &&
+            getLineOptionsKey(line.merchandise.options) === selectedOptionsKey,
+        )?.quantity ?? 0;
+      if (afterQty > beforeQty) {
+        setToast({ type: "success", text: "Zum Warenkorb hinzugefügt." });
+        setAddedPulse(true);
+        setTimeout(() => setAddedPulse(false), 250);
+        if (isMobile && selectedVariant) {
+          openAddedModal({
+            title: product.title,
+            imageUrl: imageUrl ?? undefined,
+            imageAlt: imageAlt ?? product.title,
+            price: selectedVariant.price,
+            quantity,
+            productHandle: currentHandle,
+          });
+        }
+      } else {
+        setToast({ type: "error", text: "Nicht genug Bestand." });
+      }
+    } catch {
+      setToast({ type: "error", text: "Hinzufügen fehlgeschlagen." });
+    } finally {
+      setTimeout(() => setToast(null), 1500);
+    }
+  };
+
+  useEffect(() => {
     const fallbackVariant = variants[0];
     const price = selectedVariant?.price ?? fallbackVariant?.price;
     pushRecentlyViewed({
@@ -396,6 +462,49 @@ export default function ProductDetailClient({
 
   return (
     <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">
+      {/* Sticky ATC bar */}
+      <div
+        className={`fixed inset-x-0 z-[45] transition-all duration-200 ${
+          showStickyBar
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 -translate-y-1 pointer-events-none"
+        }`}
+        style={{ top: navBottom }}
+        aria-hidden={!showStickyBar}
+      >
+        <div className="border-b border-black/10 bg-white/95 shadow-md backdrop-blur-sm">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6">
+            {imageUrl && (
+              <Image
+                src={imageUrl}
+                alt={imageAlt ?? product.title}
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 rounded-lg object-contain"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-stone-900">
+                {product.title}
+              </p>
+              {selectedVariant && (
+                <p className="text-sm text-stone-500">{priceLabel}</p>
+              )}
+            </div>
+            {isAvailable && (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                <ShoppingBagIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">In den Warenkorb</span>
+                <span className="sm:hidden">Kaufen</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
       <div className="space-y-4">
         <div>
           {product.manufacturer && (
@@ -523,7 +632,7 @@ export default function ProductDetailClient({
 
         <div className="space-y-2">
           <p className="text-sm font-semibold text-black/80">Menge</p>
-          <div className="flex flex-nowrap items-center gap-3">
+          <div ref={sentinelRef} className="flex flex-nowrap items-center gap-3">
             <div className="inline-flex items-center rounded-lg border border-black/10 bg-white">
               <button
                 type="button"
@@ -561,75 +670,13 @@ export default function ProductDetailClient({
             {isAvailable ? (
               <button
                 type="button"
-                onClick={async () => {
-                  if (!selectedVariantId) {
-                    setToast({
-                      type: "error",
-                      text: "Keine Variante gewählt.",
-                    });
-                    setTimeout(() => setToast(null), 1500);
-                    return;
-                  }
-
-                  const beforeQty =
-                    cart?.lines.find(
-                      (line) =>
-                        line.merchandise.id === selectedVariantId &&
-                        getLineOptionsKey(line.merchandise.options) ===
-                          selectedOptionsKey,
-                    )?.quantity ?? 0;
-
-                  try {
-                    const updated = await addToCart(
-                      selectedVariantId,
-                      quantity,
-                      selectedCartOptions,
-                    );
-                    const afterQty =
-                      updated?.lines.find(
-                        (line) =>
-                          line.merchandise.id === selectedVariantId &&
-                          getLineOptionsKey(line.merchandise.options) ===
-                            selectedOptionsKey,
-                      )?.quantity ?? 0;
-
-                    if (afterQty > beforeQty) {
-                      setToast({
-                        type: "success",
-                        text: "Zum Warenkorb hinzugefügt.",
-                      });
-                      setAddedPulse(true);
-                      setTimeout(() => setAddedPulse(false), 250);
-                      if (isMobile && selectedVariant) {
-                        openAddedModal({
-                          title: product.title,
-                          imageUrl: imageUrl ?? undefined,
-                          imageAlt: imageAlt ?? product.title,
-                          price: selectedVariant.price,
-                          quantity,
-                          productHandle: currentHandle,
-                        });
-                      }
-                    } else {
-                      setToast({ type: "error", text: "Nicht genug Bestand." });
-                    }
-                  } catch (e) {
-                    setToast({
-                      type: "error",
-                      text: "Hinzufügen fehlgeschlagen.",
-                    });
-                  } finally {
-                    setTimeout(() => setToast(null), 1500);
-                  }
-                }}
+                onClick={handleAddToCart}
                 className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   addedPulse ? "scale-[1.02]" : "scale-100"
                 }`}
               >
-                <>
-                  <ShoppingBagIcon className="h-5 w-5" />
-                  <span>In den Warenkorb</span>
-                </>
+                <ShoppingBagIcon className="h-5 w-5" />
+                <span>In den Warenkorb</span>
               </button>
             ) : null}
           </div>
@@ -675,7 +722,7 @@ export default function ProductDetailClient({
                       aria-hidden="true"
                       className="h-2 w-2 rounded-full bg-amber-600"
                     />
-                    Geringer Bestand
+                    Nur noch {effectiveAvailable} verfügbar
                   </p>
                 ) : null}
                 <p className="flex items-center gap-2 text-xs font-semibold text-emerald-700">

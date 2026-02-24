@@ -30,6 +30,7 @@ export default async function StorePage() {
           ["growboxen", "zelte"].includes(c.parent?.handle ?? "")
       )
     )
+    .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 400)
     .slice(0, 4);
 
   const bestSellersFilled = inStock.slice(0, 8);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "@/components/CartProvider";
 import {
@@ -358,6 +358,22 @@ export default function CartPage() {
           <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm">
             {cart.lines.length} Artikel
           </span>
+        </div>
+
+        {/* Free shipping progress bar */}
+        <div className={`mb-5 rounded-2xl px-4 py-3.5 sm:mb-6 ${freeShippingActive ? "border border-emerald-200 bg-emerald-50" : "border border-stone-200 bg-white shadow-sm"}`}>
+          <div className={`flex items-center gap-2 text-xs font-semibold sm:text-sm ${freeShippingActive ? "text-emerald-700" : "text-stone-700"}`}>
+            <TruckIcon className="h-4 w-4 shrink-0" />
+            {freeShippingActive
+              ? "Kostenloser Versand aktiv!"
+              : `Noch ${formatPrice(FREE_SHIPPING_THRESHOLD_EUR - subtotal, currencyCode)} bis zur versandkostenfreien Lieferung`}
+          </div>
+          <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-stone-200">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100))}%` }}
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 text-black/80 sm:gap-6">
