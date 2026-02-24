@@ -203,6 +203,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [showRelevantOrders, setShowRelevantOrders] = useState(true);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [webhookFailureRows, setWebhookFailureRows] =
+    useState<WebhookFailure[]>(webhookFailures);
+  const [reprocessingEventId, setReprocessingEventId] = useState<string | null>(
+    null
+  );
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
@@ -610,7 +615,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           {notice}
         </div>
       )}
-      {webhookFailures.length > 0 && (
+      {webhookFailureRows.length > 0 && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-800 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -618,8 +623,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                 Stripe webhook failures
               </div>
               <div className="mt-2 text-sm font-semibold">
-                {webhookFailures.length} failed event
-                {webhookFailures.length === 1 ? "" : "s"}
+                {webhookFailureRows.length} failed event
+                {webhookFailureRows.length === 1 ? "" : "s"}
               </div>
             </div>
             <div className="text-xs text-rose-700">
@@ -627,7 +632,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             </div>
           </div>
           <div className="mt-3 space-y-2 text-xs text-rose-800">
-            {webhookFailures.map((event) => (
+            {webhookFailureRows.map((event) => (
               <div
                 key={event.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-white/70 px-3 py-2"
@@ -637,6 +642,43 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                 <div className="text-rose-700">
                   {new Date(event.createdAt).toLocaleString("de-DE")}
                 </div>
+                <button
+                  type="button"
+                  disabled={reprocessingEventId === event.eventId}
+                  onClick={async () => {
+                    setError("");
+                    setNotice("");
+                    setReprocessingEventId(event.eventId);
+                    try {
+                      const res = await fetch(
+                        "/api/admin/webhooks/stripe/reprocess",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ eventId: event.eventId }),
+                        }
+                      );
+                      if (!res.ok) {
+                        const data = (await res.json()) as { error?: string };
+                        setError(data.error ?? "Webhook reprocess failed.");
+                        return;
+                      }
+                      setWebhookFailureRows((prev) =>
+                        prev.filter((row) => row.eventId !== event.eventId)
+                      );
+                      setNotice(`Webhook ${event.eventId} reprocessed.`);
+                    } catch {
+                      setError("Webhook reprocess failed.");
+                    } finally {
+                      setReprocessingEventId(null);
+                    }
+                  }}
+                  className="h-8 rounded-md border border-rose-300 bg-rose-100 px-3 text-[11px] font-semibold text-rose-800 hover:bg-rose-200 disabled:opacity-60"
+                >
+                  {reprocessingEventId === event.eventId
+                    ? "Reprocessing..."
+                    : "Reprocess"}
+                </button>
               </div>
             ))}
           </div>

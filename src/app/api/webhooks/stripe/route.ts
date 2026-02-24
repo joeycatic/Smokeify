@@ -19,7 +19,7 @@ import {
 
 export const runtime = "nodejs";
 
-  const getStripe = () => {
+export const getStripe = () => {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return null;
   return new Stripe(secret, { apiVersion: "2024-06-20" });
@@ -230,7 +230,7 @@ const getVariantCountsForSession = async (
   return variantCounts;
 };
 
-const releaseReservedInventory = async (
+export const releaseReservedInventory = async (
   stripe: Stripe,
   sessionId: string
 ) => {
@@ -271,7 +271,7 @@ const sendTelegramMessage = async (text: string) => {
   }
 };
 
-const createOrderFromSession = async (
+export const createOrderFromSession = async (
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   request: Request
