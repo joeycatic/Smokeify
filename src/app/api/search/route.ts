@@ -5,6 +5,9 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 const CURRENCY_CODE = "EUR";
 const MAX_DB_CANDIDATES = 60;
 const MAX_RESULTS = 8;
+const MAX_TOKENS = 4;
+const MAX_TERMS = 8;
+const MAX_FUZZY_TERMS = 3;
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
@@ -45,23 +48,27 @@ const toDeleteDistanceOne = (token: string) => {
 };
 
 const buildSearchTerms = (query: string) => {
-  const tokens = tokenize(query);
+  const tokens = tokenize(query).slice(0, MAX_TOKENS);
   const terms = new Set<string>(tokens);
+  const fuzzyBaseToken = [...tokens]
+    .sort((a, b) => b.length - a.length)[0];
 
   for (const token of tokens) {
     const synonyms = SEARCH_SYNONYMS[token] ?? [];
     for (const synonym of synonyms) {
       terms.add(normalizeSearch(synonym));
     }
-    for (const fuzzy of toDeleteDistanceOne(token)) {
-      terms.add(fuzzy);
+    if (token === fuzzyBaseToken) {
+      for (const fuzzy of toDeleteDistanceOne(token).slice(0, MAX_FUZZY_TERMS)) {
+        terms.add(fuzzy);
+      }
     }
   }
 
   const normalizedQuery = normalizeSearch(query);
   if (normalizedQuery) terms.add(normalizedQuery);
 
-  return Array.from(terms).filter((term) => term.length >= 2);
+  return Array.from(terms).filter((term) => term.length >= 2).slice(0, MAX_TERMS);
 };
 
 const getRelevanceScore = (
@@ -110,11 +117,15 @@ export async function GET(request: Request) {
   }
   const terms = buildSearchTerms(query);
   const queryForDb = normalizeSearch(query);
+  const rawQueryForDb = query;
 
   const products = await prisma.product.findMany({
     where: {
       status: "ACTIVE",
       OR: [
+        { title: { contains: rawQueryForDb, mode: "insensitive" } },
+        { handle: { contains: rawQueryForDb, mode: "insensitive" } },
+        { manufacturer: { contains: rawQueryForDb, mode: "insensitive" } },
         { title: { contains: queryForDb, mode: "insensitive" } },
         { handle: { contains: queryForDb, mode: "insensitive" } },
         { manufacturer: { contains: queryForDb, mode: "insensitive" } },

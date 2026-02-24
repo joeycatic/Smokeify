@@ -871,7 +871,6 @@ export function Navbar() {
               }
               if (res?.error === "NEW_DEVICE") {
                 sessionStorage.setItem("smokeify_verify_email", email);
-                sessionStorage.setItem("smokeify_verify_password", password);
                 sessionStorage.setItem("smokeify_return_to", returnTo);
                 router.push(
                   `/auth/verify?email=${encodeURIComponent(

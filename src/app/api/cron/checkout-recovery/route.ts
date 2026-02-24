@@ -101,6 +101,12 @@ const buildRecoveryEmail = (sessionId: string, appOrigin: string) => {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const secret = process.env.CRON_SECRET;
+  if (process.env.NODE_ENV === "production" && !secret) {
+    return NextResponse.json(
+      { error: "CRON_SECRET is required in production." },
+      { status: 500 }
+    );
+  }
   const headerSecret = request.headers.get("x-cron-secret");
   const authHeader = request.headers.get("authorization");
   const isVercelCron = request.headers.get("x-vercel-cron") === "1";

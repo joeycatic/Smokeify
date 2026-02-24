@@ -10,6 +10,7 @@ import { sendVerificationCodeEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp, LOGIN_RATE_LIMIT } from "@/lib/rateLimit";
 
 const providers: NextAuthOptions["providers"] = [];
+const VERIFY_LOGIN_COOKIE = "smokeify_verify_login";
 
 providers.push(
   CredentialsProvider({
@@ -22,7 +23,7 @@ providers.push(
       const identifier = credentials?.email?.trim() ?? "";
       const identifierLower = identifier.toLowerCase();
       const password = credentials?.password ?? "";
-      if (!identifier || !password) return null;
+      if (!identifier) return null;
 
       const ip = getClientIp(req?.headers ?? new Headers());
       const ipLimit = await checkRateLimit({
@@ -51,7 +52,32 @@ providers.push(
           ],
         },
       });
-      if (!user || !user.passwordHash || !user.email) return null;
+      if (!user || !user.email) return null;
+
+      const cookieStore = await cookies();
+      const verifyLoginToken = cookieStore.get(VERIFY_LOGIN_COOKIE)?.value;
+      if (!password && verifyLoginToken) {
+        const now = new Date();
+        const tokenHash = hashToken(verifyLoginToken);
+        const oneTimeLogin = await prisma.verificationCode.findFirst({
+          where: {
+            userId: user.id,
+            email: user.email,
+            codeHash: tokenHash,
+            expiresAt: { gt: now },
+            purpose: { in: ["SIGNUP", "NEW_DEVICE"] },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (oneTimeLogin) {
+          await prisma.verificationCode.delete({
+            where: { id: oneTimeLogin.id },
+          });
+          return user;
+        }
+      }
+
+      if (!password || !user.passwordHash) return null;
 
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) return null;
@@ -60,7 +86,6 @@ providers.push(
         throw new Error("EMAIL_NOT_VERIFIED");
       }
 
-      const cookieStore = await cookies();
       const deviceToken = cookieStore.get("smokeify_device")?.value;
       if (deviceToken) {
         const tokenHash = hashToken(deviceToken);

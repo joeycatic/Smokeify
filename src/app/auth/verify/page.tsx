@@ -68,47 +68,25 @@ export default function VerifyPage() {
                 }
                 const storedEmail =
                   sessionStorage.getItem("smokeify_verify_email") || identifier;
-                const storedPassword =
-                  sessionStorage.getItem("smokeify_verify_password") || "";
                 const returnTo =
                   searchParams.get("returnTo") ||
                   sessionStorage.getItem("smokeify_return_to") ||
                   "/account";
 
-                if (!storedPassword) {
-                  sessionStorage.removeItem("smokeify_verify_email");
-                  sessionStorage.removeItem("smokeify_return_to");
-                  sessionStorage.removeItem("smokeify_verify_password");
-                  router.push(
-                    `/auth/signin?verified=1&email=${encodeURIComponent(
-                      storedEmail
-                    )}&returnTo=${encodeURIComponent(returnTo)}`
-                  );
-                  return;
-                }
-
                 const loginRes = await signIn("credentials", {
                   email: storedEmail,
-                  password: storedPassword,
                   redirect: false,
                   callbackUrl: returnTo,
                 });
                 if (loginRes?.ok) {
                   sessionStorage.removeItem("smokeify_verify_email");
                   sessionStorage.removeItem("smokeify_return_to");
-                  sessionStorage.removeItem("smokeify_verify_password");
                   router.push(returnTo);
                   return;
                 }
 
-                sessionStorage.removeItem("smokeify_verify_password");
                 setError(
                   "Code bestaetigt, aber automatischer Login fehlgeschlagen. Bitte manuell einloggen."
-                );
-                router.push(
-                  `/auth/signin?verified=1&email=${encodeURIComponent(
-                    storedEmail
-                  )}&returnTo=${encodeURIComponent(returnTo)}`
                 );
               } finally {
                 setLoading(false);
