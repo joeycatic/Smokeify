@@ -173,6 +173,10 @@ export default function CheckoutAuthPage() {
                       }
                       if (res?.error === "NEW_DEVICE") {
                         sessionStorage.setItem("smokeify_verify_email", email);
+                        sessionStorage.setItem(
+                          "smokeify_verify_password",
+                          password
+                        );
                         sessionStorage.setItem("smokeify_return_to", returnTo);
                         router.push(
                           `/auth/verify?email=${encodeURIComponent(
@@ -366,6 +370,10 @@ export default function CheckoutAuthPage() {
                       }
                       trackAnalyticsEvent("sign_up", { method: "email" });
                       sessionStorage.setItem("smokeify_verify_email", regEmail);
+                      sessionStorage.setItem(
+                        "smokeify_verify_password",
+                        regPassword
+                      );
                       sessionStorage.setItem("smokeify_return_to", returnTo);
                       router.push(
                         `/auth/verify?email=${encodeURIComponent(

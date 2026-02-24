@@ -9,6 +9,7 @@ import {
   getStripe,
   releaseReservedInventory,
 } from "@/app/api/webhooks/stripe/route";
+import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 
 export const runtime = "nodejs";
 
@@ -91,17 +92,66 @@ export async function POST(request: Request) {
           ? checkoutSession.payment_intent
           : checkoutSession.payment_intent?.id;
       if (paymentIntent) {
+        const orders = await prisma.order.findMany({
+          where: { stripePaymentIntent: paymentIntent },
+          select: { id: true, status: true, paymentStatus: true },
+        });
         await prisma.order.updateMany({
           where: { stripePaymentIntent: paymentIntent },
           data: { status: "failed", paymentStatus: "failed" },
         });
+        await Promise.all(
+          orders.map((order) =>
+            logOrderTimelineEvent({
+              actor: { id: session.user.id, email: session.user.email ?? null },
+              orderId: order.id,
+              action: "order.lifecycle.payment_failed",
+              summary:
+                "Payment failed (reprocess: checkout.session.async_payment_failed)",
+              metadata: {
+                source: "admin.webhooks.reprocess",
+                event: "checkout.session.async_payment_failed",
+                eventId,
+                previousStatus: order.status,
+                nextStatus: "failed",
+                previousPaymentStatus: order.paymentStatus,
+                nextPaymentStatus: "failed",
+                paymentIntent,
+              },
+            })
+          )
+        );
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent;
+      const orders = await prisma.order.findMany({
+        where: { stripePaymentIntent: intent.id },
+        select: { id: true, status: true, paymentStatus: true },
+      });
       await prisma.order.updateMany({
         where: { stripePaymentIntent: intent.id },
         data: { status: "failed", paymentStatus: "failed" },
       });
+      await Promise.all(
+        orders.map((order) =>
+          logOrderTimelineEvent({
+            actor: { id: session.user.id, email: session.user.email ?? null },
+            orderId: order.id,
+            action: "order.lifecycle.payment_failed",
+            summary: "Payment failed (reprocess: payment_intent.payment_failed)",
+            metadata: {
+              source: "admin.webhooks.reprocess",
+              event: "payment_intent.payment_failed",
+              eventId,
+              previousStatus: order.status,
+              nextStatus: "failed",
+              previousPaymentStatus: order.paymentStatus,
+              nextPaymentStatus: "failed",
+              paymentIntent: intent.id,
+            },
+          })
+        )
+      );
     } else if (event.type === "checkout.session.expired") {
       const checkoutSession = event.data.object as Stripe.Checkout.Session;
       await releaseReservedInventory(stripe, checkoutSession.id ?? "");
@@ -124,6 +174,24 @@ export async function POST(request: Request) {
               amountRefunded: refunded,
               status: fullyRefunded ? "refunded" : order.status,
               paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+            },
+          });
+          await logOrderTimelineEvent({
+            actor: { id: session.user.id, email: session.user.email ?? null },
+            orderId: order.id,
+            action: "order.lifecycle.refund_updated",
+            summary: `Refund updated (reprocess): ${order.amountRefunded} -> ${refunded}`,
+            metadata: {
+              source: "admin.webhooks.reprocess",
+              event: "charge.refunded",
+              eventId,
+              previousAmountRefunded: order.amountRefunded,
+              nextAmountRefunded: refunded,
+              previousStatus: order.status,
+              nextStatus: fullyRefunded ? "refunded" : order.status,
+              previousPaymentStatus: order.paymentStatus,
+              nextPaymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+              chargeId: charge.id,
             },
           });
         }
@@ -155,4 +223,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
-

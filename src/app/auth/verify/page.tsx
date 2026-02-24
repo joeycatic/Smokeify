@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -26,10 +27,6 @@ export default function VerifyPage() {
     const storedEmail = sessionStorage.getItem("smokeify_verify_email");
     if (storedEmail) setIdentifier(storedEmail);
   }, [searchParams]);
-
-  useEffect(() => {
-    sessionStorage.removeItem("smokeify_verify_password");
-  }, []);
 
   return (
     <PageLayout>
@@ -71,15 +68,43 @@ export default function VerifyPage() {
                 }
                 const storedEmail =
                   sessionStorage.getItem("smokeify_verify_email") || identifier;
+                const storedPassword =
+                  sessionStorage.getItem("smokeify_verify_password") || "";
                 const returnTo =
                   searchParams.get("returnTo") ||
                   sessionStorage.getItem("smokeify_return_to") ||
                   "/account";
 
-                sessionStorage.removeItem("smokeify_verify_email");
-                sessionStorage.removeItem("smokeify_return_to");
-                sessionStorage.removeItem("smokeify_verify_password");
+                if (!storedPassword) {
+                  sessionStorage.removeItem("smokeify_verify_email");
+                  sessionStorage.removeItem("smokeify_return_to");
+                  sessionStorage.removeItem("smokeify_verify_password");
+                  router.push(
+                    `/auth/signin?verified=1&email=${encodeURIComponent(
+                      storedEmail
+                    )}&returnTo=${encodeURIComponent(returnTo)}`
+                  );
+                  return;
+                }
 
+                const loginRes = await signIn("credentials", {
+                  email: storedEmail,
+                  password: storedPassword,
+                  redirect: false,
+                  callbackUrl: returnTo,
+                });
+                if (loginRes?.ok) {
+                  sessionStorage.removeItem("smokeify_verify_email");
+                  sessionStorage.removeItem("smokeify_return_to");
+                  sessionStorage.removeItem("smokeify_verify_password");
+                  router.push(returnTo);
+                  return;
+                }
+
+                sessionStorage.removeItem("smokeify_verify_password");
+                setError(
+                  "Code bestaetigt, aber automatischer Login fehlgeschlagen. Bitte manuell einloggen."
+                );
                 router.push(
                   `/auth/signin?verified=1&email=${encodeURIComponent(
                     storedEmail

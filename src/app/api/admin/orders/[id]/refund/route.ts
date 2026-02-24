@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
@@ -175,6 +176,24 @@ export async function POST(
       totalAmount: order.amountTotal,
       newRefunded,
       fullyRefunded,
+    },
+  });
+  await logOrderTimelineEvent({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    orderId: order.id,
+    action: "order.lifecycle.refund_updated",
+    summary: `Refund updated: ${order.amountRefunded} -> ${newRefunded} (${fullyRefunded ? "full" : "partial"})`,
+    metadata: {
+      includeShipping,
+      shippingRefundAmount,
+      refundAmount,
+      previousAmountRefunded: order.amountRefunded,
+      nextAmountRefunded: newRefunded,
+      previousPaymentStatus: order.paymentStatus,
+      nextPaymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+      previousStatus: order.status,
+      nextStatus: fullyRefunded ? "refunded" : order.status,
+      source: "admin.orders.refund",
     },
   });
 

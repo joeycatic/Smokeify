@@ -31,6 +31,21 @@ export default async function OrderDetailPage({
   if (!order) {
     notFound();
   }
+  const timeline = await prisma.adminAuditLog.findMany({
+    where: {
+      targetType: "order",
+      targetId: order.id,
+      action: { startsWith: "order.lifecycle." },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      action: true,
+      summary: true,
+      createdAt: true,
+    },
+  });
 
   const productIds = Array.from(
     new Set(order.items.map((item) => item.productId).filter(Boolean)),
@@ -79,6 +94,13 @@ export default async function OrderDetailPage({
     const trimmed = manufacturer?.trim();
     if (trimmed) return name.replace(defaultSuffix, ` - ${trimmed}`);
     return name.replace(defaultSuffix, "");
+  };
+  const timelineLabelMap: Record<string, string> = {
+    "order.lifecycle.created": "Bestellung erstellt",
+    "order.lifecycle.status_changed": "Status geändert",
+    "order.lifecycle.payment_status_changed": "Zahlungsstatus geändert",
+    "order.lifecycle.payment_failed": "Zahlung fehlgeschlagen",
+    "order.lifecycle.refund_updated": "Rückerstattung aktualisiert",
   };
 
   return (
@@ -256,6 +278,46 @@ export default async function OrderDetailPage({
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#121c17] px-5 py-5">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">
+              Bestellverlauf
+            </h2>
+            <div className="mt-4 space-y-2">
+              {timeline.length === 0 ? (
+                <p className="text-sm text-emerald-200/60">
+                  Noch keine Timeline-Einträge vorhanden.
+                </p>
+              ) : (
+                timeline.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-lg border border-white/5 bg-[#0c1410] px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-emerald-100">
+                        {timelineLabelMap[entry.action] ?? entry.action}
+                      </p>
+                      <p className="text-xs text-emerald-200/60">
+                        {new Date(entry.createdAt).toLocaleString("de-DE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    {entry.summary ? (
+                      <p className="mt-1 text-xs text-emerald-200/70">
+                        {entry.summary}
+                      </p>
+                    ) : null}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

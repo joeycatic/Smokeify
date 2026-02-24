@@ -121,6 +121,7 @@ export default function RegisterPage() {
                 trackAnalyticsEvent("sign_up", { method: "email" });
                 const returnTo = searchParams.get("returnTo") || "/";
                 sessionStorage.setItem("smokeify_verify_email", email);
+                sessionStorage.setItem("smokeify_verify_password", password);
                 sessionStorage.setItem("smokeify_return_to", returnTo);
                 router.push(
                   `/auth/verify?email=${encodeURIComponent(

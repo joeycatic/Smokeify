@@ -8,6 +8,7 @@ import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { captureException } from "@/lib/sentry";
+import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import {
   PAYMENT_FEE_BY_METHOD,
   DEFAULT_PAYMENT_FEE,
@@ -427,6 +428,22 @@ export const createOrderFromSession = async (
     },
     include: { items: true },
   });
+  await logOrderTimelineEvent({
+    orderId: created.id,
+    action: "order.lifecycle.created",
+    summary: `Order created from Stripe session ${sessionId}`,
+    metadata: {
+      source: "stripe.webhook",
+      event: "checkout.session.completed",
+      sessionId,
+      paymentIntentId:
+        typeof checkoutSession.payment_intent === "string"
+          ? checkoutSession.payment_intent
+          : checkoutSession.payment_intent?.id ?? null,
+      status: created.status,
+      paymentStatus: created.paymentStatus,
+    },
+  });
   const variantCounts = new Map<string, number>();
   for (const item of lineItems.data ?? []) {
     const product = item.price?.product as Stripe.Product | null | undefined;
@@ -641,31 +658,75 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       await createOrderFromSession(stripe, session, request);
     }
-  if (event.type === "checkout.session.async_payment_failed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await releaseReservedInventory(stripe, session.id ?? "");
-    const paymentIntent =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await releaseReservedInventory(stripe, session.id ?? "");
+      const paymentIntent =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
           : session.payment_intent?.id;
       if (paymentIntent) {
+        const orders = await prisma.order.findMany({
+          where: { stripePaymentIntent: paymentIntent },
+          select: { id: true, status: true, paymentStatus: true },
+        });
         await prisma.order.updateMany({
           where: { stripePaymentIntent: paymentIntent },
           data: { status: "failed", paymentStatus: "failed" },
         });
+        await Promise.all(
+          orders.map((order) =>
+            logOrderTimelineEvent({
+              orderId: order.id,
+              action: "order.lifecycle.payment_failed",
+              summary: "Payment failed (checkout.session.async_payment_failed)",
+              metadata: {
+                source: "stripe.webhook",
+                event: "checkout.session.async_payment_failed",
+                previousStatus: order.status,
+                nextStatus: "failed",
+                previousPaymentStatus: order.paymentStatus,
+                nextPaymentStatus: "failed",
+                paymentIntent,
+              },
+            })
+          )
+        );
       }
     }
-  if (event.type === "payment_intent.payment_failed") {
-    const intent = event.data.object as Stripe.PaymentIntent;
-    await prisma.order.updateMany({
-      where: { stripePaymentIntent: intent.id },
-      data: { status: "failed", paymentStatus: "failed" },
-    });
-  }
-  if (event.type === "checkout.session.expired") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await releaseReservedInventory(stripe, session.id ?? "");
-  }
+    if (event.type === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      const orders = await prisma.order.findMany({
+        where: { stripePaymentIntent: intent.id },
+        select: { id: true, status: true, paymentStatus: true },
+      });
+      await prisma.order.updateMany({
+        where: { stripePaymentIntent: intent.id },
+        data: { status: "failed", paymentStatus: "failed" },
+      });
+      await Promise.all(
+        orders.map((order) =>
+          logOrderTimelineEvent({
+            orderId: order.id,
+            action: "order.lifecycle.payment_failed",
+            summary: "Payment failed (payment_intent.payment_failed)",
+            metadata: {
+              source: "stripe.webhook",
+              event: "payment_intent.payment_failed",
+              previousStatus: order.status,
+              nextStatus: "failed",
+              previousPaymentStatus: order.paymentStatus,
+              nextPaymentStatus: "failed",
+              paymentIntent: intent.id,
+            },
+          })
+        )
+      );
+    }
+    if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await releaseReservedInventory(stripe, session.id ?? "");
+    }
     if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
       const paymentIntent =
@@ -685,6 +746,22 @@ export async function POST(request: Request) {
               amountRefunded: refunded,
               status: fullyRefunded ? "refunded" : order.status,
               paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+            },
+          });
+          await logOrderTimelineEvent({
+            orderId: order.id,
+            action: "order.lifecycle.refund_updated",
+            summary: `Refund updated from Stripe: ${order.amountRefunded} -> ${refunded}`,
+            metadata: {
+              source: "stripe.webhook",
+              event: "charge.refunded",
+              previousAmountRefunded: order.amountRefunded,
+              nextAmountRefunded: refunded,
+              previousStatus: order.status,
+              nextStatus: fullyRefunded ? "refunded" : order.status,
+              previousPaymentStatus: order.paymentStatus,
+              nextPaymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
+              chargeId: charge.id,
             },
           });
         }

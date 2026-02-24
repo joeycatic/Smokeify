@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
@@ -85,6 +86,35 @@ export async function PATCH(
     summary: `Updated order fields: ${Object.keys(updates).join(", ")}`,
     metadata: { updates },
   });
+  if (typeof updates.status === "string" && updates.status !== existing.status) {
+    await logOrderTimelineEvent({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      orderId: id,
+      action: "order.lifecycle.status_changed",
+      summary: `Status changed: ${existing.status} -> ${updates.status}`,
+      metadata: {
+        previousStatus: existing.status,
+        nextStatus: updates.status,
+        source: "admin.orders.patch",
+      },
+    });
+  }
+  if (
+    typeof updates.paymentStatus === "string" &&
+    updates.paymentStatus !== existing.paymentStatus
+  ) {
+    await logOrderTimelineEvent({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      orderId: id,
+      action: "order.lifecycle.payment_status_changed",
+      summary: `Payment status changed: ${existing.paymentStatus} -> ${updates.paymentStatus}`,
+      metadata: {
+        previousPaymentStatus: existing.paymentStatus,
+        nextPaymentStatus: updates.paymentStatus,
+        source: "admin.orders.patch",
+      },
+    });
+  }
 
   return NextResponse.json({ order: updated });
 }
