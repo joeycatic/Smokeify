@@ -46,66 +46,123 @@ const renderItemsText = (items: OrderItem[]) =>
   items
     .map(
       (item) =>
-        `- ${normalizeItemName(item.name)} (x${item.quantity}) ${formatPrice(
-          item.totalAmount,
-          item.currency
-        )}`
+        `- ${normalizeItemName(item.name)} (x${item.quantity}) ${formatPrice(item.totalAmount, item.currency)}`,
     )
     .join("\n");
 
 const renderItemsHtml = (items: OrderItem[]) =>
   items
     .map(
-      (item) => `
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600;">${normalizeItemName(item.name)}</td>
-          <td style="padding: 8px 0; text-align: center;">x${item.quantity}</td>
-          <td style="padding: 8px 0 8px 8px; text-align: left;">${formatPrice(
-            item.totalAmount,
-            item.currency
-          )}</td>
-        </tr>
-      `
+      (item, i) => `
+      <tr>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:#1a2a22;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">${normalizeItemName(item.name)}</td>
+        <td style="padding:12px 0;font-size:14px;color:#6b7280;text-align:center;width:40px;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">×${item.quantity}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:#1a2a22;text-align:right;width:110px;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">${formatPrice(item.totalAmount, item.currency)}</td>
+      </tr>`,
     )
     .join("");
+
+// ─── Shared layout primitives ──────────────────────────────────────────────
+
+const emailOuter = (cardRows: string) => `
+<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#1a2a22;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
+    <tr>
+      <td style="padding:0 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+          ${cardRows}
+        </table>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
+          <tr>
+            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
+              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
+                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+const emailHeader = (
+  title: string,
+  subtitle: string,
+  headerBg: string,
+) => `
+  <tr>
+    <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+  </tr>
+  <tr>
+    <td style="background-color:${headerBg};padding:32px 32px 28px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
+      <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${title}</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.65);">${subtitle}</div>
+    </td>
+  </tr>`;
+
+const sectionLabel = (text: string) =>
+  `<div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">${text}</div>`;
+
+const divider = () =>
+  `<div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>`;
+
+const primaryBtn = (href: string, label: string) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
+
+const secondaryBtn = (href: string, label: string) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:#f3f4f6;color:#1a2a22;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
+
+// ─── Main builder ──────────────────────────────────────────────────────────
 
 export function buildOrderEmail(
   type: EmailType,
   order: OrderEmailInput,
   orderUrl?: string,
-  invoiceUrl?: string
+  invoiceUrl?: string,
 ) {
   const orderNumber = order.id.slice(0, 8).toUpperCase();
   const discountLabel = order.discountCode
     ? `Rabatt (${order.discountCode})`
     : "Rabatt";
-  const discountLine =
-    order.amountDiscount > 0
-      ? `${discountLabel}: -${formatPrice(order.amountDiscount, order.currency)}`
-      : null;
+
   const headerTitle =
     type === "confirmation"
       ? "Bestellung bestätigt"
       : type === "shipping"
-        ? "Versandupdate"
+        ? "Dein Paket ist unterwegs"
         : type === "refund"
-          ? "Rückerstattung"
+          ? "Rückerstattung verarbeitet"
           : type === "return_confirmation"
             ? "Rücksendung bestätigt"
             : "Bestellung storniert";
+
   const headerSubtitle =
     type === "confirmation"
-      ? "Danke für deine Bestellung."
+      ? "Danke für deine Bestellung bei Smokeify."
       : type === "shipping"
-        ? "Dein Paket ist unterwegs."
+        ? "Wir haben dein Paket auf den Weg gebracht."
         : type === "refund"
-          ? "Deine Rückerstattung wurde verarbeitet."
+          ? "Der Betrag wird in Kürze gutgeschrieben."
           : type === "return_confirmation"
             ? "Wir haben deine Rücksendung erhalten."
             : "Deine Bestellung wurde storniert.";
+
+  const headerBg =
+    type === "cancellation" ? "#374151" : "#2f3e36";
+
+  const orderDate = new Date(order.createdAt).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
   const totalsText = [
     `Zwischensumme: ${formatPrice(order.amountSubtotal, order.currency)}`,
-    discountLine,
+    order.amountDiscount > 0
+      ? `${discountLabel}: -${formatPrice(order.amountDiscount, order.currency)}`
+      : null,
     `Steuern: ${formatPrice(order.amountTax, order.currency)}`,
     `Versand: ${formatPrice(order.amountShipping, order.currency)}`,
     `Gesamt: ${formatPrice(order.amountTotal, order.currency)}`,
@@ -113,43 +170,31 @@ export function buildOrderEmail(
     .filter(Boolean)
     .join("\n");
 
-  const trackingLines = [
-    order.trackingCarrier ? `Carrier: ${order.trackingCarrier}` : null,
-    order.trackingNumber ? `Tracking-Nr: ${order.trackingNumber}` : null,
-    order.trackingUrl ? `Tracking-URL: ${order.trackingUrl}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const trackingHtml = [
-    order.trackingCarrier ? `Carrier: ${order.trackingCarrier}` : null,
-    order.trackingNumber ? `Tracking-Nr: ${order.trackingNumber}` : null,
-    order.trackingUrl
-      ? `Tracking-URL: <a href="${order.trackingUrl}" style="color: #1f2937; text-decoration: underline;">${order.trackingUrl}</a>`
-      : null,
-  ]
-    .filter(Boolean)
-    .map((line) => `<div style="margin-top: 6px;">${line}</div>`)
-    .join("");
-
-  if (type === "confirmation" || type === "return_confirmation" || type === "cancellation") {
+  // ── Confirmation / Return / Cancellation ────────────────────────────────
+  if (
+    type === "confirmation" ||
+    type === "return_confirmation" ||
+    type === "cancellation"
+  ) {
     const subject =
       type === "confirmation"
         ? `Bestellbestätigung ${orderNumber}`
         : type === "return_confirmation"
           ? `Rücksendung bestätigt ${orderNumber}`
           : `Bestellung storniert ${orderNumber}`;
+
     const introLine =
       type === "confirmation"
         ? `Danke für deine Bestellung ${orderNumber}.`
         : type === "return_confirmation"
           ? `Wir haben deine Rücksendung für Bestellung ${orderNumber} erhalten.`
           : `Deine Bestellung ${orderNumber} wurde storniert.`;
-    const noteHtml =
-      type === "confirmation"
-        ? ""
-        : `<div style="margin-top: 14px; padding: 12px; background: #f9fafb; border-radius: 12px; font-size: 14px;">
-            ${introLine}
-          </div>`;
+
+    const statusNote =
+      type !== "confirmation"
+        ? `<div style="margin-bottom:24px;padding:14px 16px;background:#f0fdf4;border-left:3px solid #2f3e36;border-radius:0 8px 8px 0;font-size:14px;color:#1a2a22;">${introLine}</div>`
+        : "";
+
     return {
       subject,
       text: [
@@ -161,112 +206,113 @@ export function buildOrderEmail(
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
         invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
       ].join("\n"),
-      html: `
-        <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-          <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-            <tr>
-              <td>
-                <div style="background: #2f3e36; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                  <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                  <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                  <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-                </div>
-                <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 0 32px 0 0; vertical-align: top;">
-                        <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                        <div style="font-weight: 700; font-size: 16px;">${orderNumber}</div>
-                      </td>
-                      <td style="padding: 0 0 0 32px; vertical-align: top; text-align: right;">
-                        <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Gesamt</div>
-                        <div style="font-weight: 700; font-size: 16px;">${formatPrice(
-                          order.amountTotal,
-                          order.currency
-                        )}</div>
-                      </td>
-                    </tr>
-                  </table>
+      html: emailOuter(`
+        ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+        <tr>
+          <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
 
-                  ${noteHtml}
+            ${statusNote}
 
-                  <div style="margin-top: 20px;">
-                    <div style="font-size: 12px; text-transform: uppercase; color: #6b7280; margin-bottom: 8px;">Artikel</div>
-                    <table style="width: 100%; border-collapse: collapse;">
-                      ${renderItemsHtml(order.items)}
-                    </table>
-                  </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="vertical-align:top;">
+                  ${sectionLabel("Bestellnummer")}
+                  <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+                </td>
+                <td style="vertical-align:top;text-align:right;">
+                  ${sectionLabel("Gesamt")}
+                  <div style="font-size:22px;font-weight:700;color:#2f3e36;">${formatPrice(order.amountTotal, order.currency)}</div>
+                </td>
+              </tr>
+            </table>
 
-                  <div style="margin-top: 20px; background: #f9fafb; border-radius: 12px; padding: 16px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Zwischensumme</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountSubtotal,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      ${
-                        order.amountDiscount > 0
-                          ? `<tr>
-                              <td style="font-size: 14px; padding: 2px 0;">${discountLabel}</td>
-                              <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">-${formatPrice(
-                                order.amountDiscount,
-                                order.currency
-                              )}</td>
-                            </tr>`
-                          : ""
-                      }
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Steuern</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountTax,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Versand</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountShipping,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      <tr>
-                        <td style="font-weight: 700; padding: 6px 0 2px;">Gesamt</td>
-                        <td style="font-weight: 700; padding: 6px 0 2px; text-align: left; width: 140px;">${formatPrice(
-                          order.amountTotal,
-                          order.currency
-                        )}</td>
-                      </tr>
-                    </table>
-                  </div>
+            ${divider()}
 
-                  ${
-                    orderUrl || invoiceUrl
-                      ? `<div style="margin-top: 20px; text-align: center;">
-                          ${
-                            orderUrl
-                              ? `<a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #2f3e36; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; margin: 4px;">Bestellung ansehen</a>`
-                              : ""
-                          }
-                          ${
-                            invoiceUrl
-                              ? `<a href="${invoiceUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #e5e7eb; color: #1f2937; text-decoration: none; font-weight: 600; font-size: 14px; margin: 4px;">Rechnung herunterladen</a>`
-                              : ""
-                          }
-                        </div>`
-                      : ""
-                  }
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `,
+            ${sectionLabel("Artikel")}
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              ${renderItemsHtml(order.items)}
+            </table>
+
+            ${divider()}
+
+            ${sectionLabel("Zahlungsübersicht")}
+            <div style="background:#f9fafb;border-radius:10px;padding:20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">Zwischensumme</td>
+                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0;">${formatPrice(order.amountSubtotal, order.currency)}</td>
+                </tr>
+                ${
+                  order.amountDiscount > 0
+                    ? `<tr>
+                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">${discountLabel}</td>
+                  <td style="font-size:14px;color:#059669;text-align:right;padding:4px 0;">−${formatPrice(order.amountDiscount, order.currency)}</td>
+                </tr>`
+                    : ""
+                }
+                <tr>
+                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">Steuern</td>
+                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0;">${formatPrice(order.amountTax, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:14px;color:#6b7280;padding:4px 0 8px;">Versand</td>
+                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0 8px;">${formatPrice(order.amountShipping, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="height:1px;background:#e5e7eb;padding:0;font-size:0;"></td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px;font-weight:700;color:#1a2a22;padding:12px 0 2px;">Gesamt</td>
+                  <td style="font-size:15px;font-weight:700;color:#2f3e36;text-align:right;padding:12px 0 2px;">${formatPrice(order.amountTotal, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="font-size:12px;color:#9ca3af;padding-bottom:2px;">inkl. MwSt.</td>
+                </tr>
+              </table>
+            </div>
+
+            ${
+              orderUrl || invoiceUrl
+                ? `<div style="margin-top:28px;text-align:center;">
+                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen") : ""}
+                ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen") : ""}
+              </div>`
+                : ""
+            }
+
+          </td>
+        </tr>`),
     };
   }
 
+  // ── Shipping ─────────────────────────────────────────────────────────────
   if (type === "shipping") {
+    const trackingRows = [
+      order.trackingCarrier
+        ? `<tr>
+            <td style="font-size:13px;color:#6b7280;padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Versanddienst</td>
+            <td style="font-size:14px;color:#1a2a22;text-align:right;padding:8px 0;font-weight:600;">${order.trackingCarrier}</td>
+          </tr>`
+        : null,
+      order.trackingNumber
+        ? `<tr>
+            <td style="font-size:13px;color:#6b7280;padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Trackingnummer</td>
+            <td style="font-size:14px;color:#1a2a22;text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${order.trackingNumber}</td>
+          </tr>`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("");
+
+    const trackingLines = [
+      order.trackingCarrier ? `Versanddienst: ${order.trackingCarrier}` : null,
+      order.trackingNumber ? `Trackingnummer: ${order.trackingNumber}` : null,
+      order.trackingUrl ? `Tracking-URL: ${order.trackingUrl}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     return {
       subject: `Versandupdate ${orderNumber}`,
       text: [
@@ -275,40 +321,58 @@ export function buildOrderEmail(
         trackingLines || "Trackingdaten folgen in Kürze.",
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
       ].join("\n"),
-      html: `
-        <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-          <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-            <tr>
-              <td>
-                <div style="background: #1f2937; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                  <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                  <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                  <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-                </div>
-                <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                  <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                  <div style="font-weight: 700; font-size: 16px; margin-bottom: 24px;">${orderNumber}</div>
-                  <div style="margin-top: 6px; background: #f9fafb; border-radius: 12px; padding: 16px; font-size: 14px;">
-                    ${trackingHtml || '<div>Trackingdaten folgen in Kuerze.</div>'}
-                  </div>
-                  ${
-                    orderUrl
-                      ? `<div style="margin-top: 20px; text-align: center;">
-                          <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #1f2937; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
-                        </div>`
-                      : ""
-                  }
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `,
+      html: emailOuter(`
+        ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+        <tr>
+          <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="vertical-align:top;">
+                  ${sectionLabel("Bestellnummer")}
+                  <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+                </td>
+              </tr>
+            </table>
+
+            ${divider()}
+
+            ${sectionLabel("Versandinformationen")}
+            ${
+              trackingRows
+                ? `<div style="background:#f9fafb;border-radius:10px;padding:20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                  ${trackingRows}
+                </table>
+                ${
+                  order.trackingUrl
+                    ? `<div style="margin-top:18px;">
+                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Paket verfolgen &rarr;</a>
+                  </div>`
+                    : ""
+                }
+              </div>`
+                : `<p style="font-size:14px;color:#6b7280;margin:0;">Trackingdaten folgen in Kürze.</p>`
+            }
+
+            ${
+              orderUrl
+                ? `<div style="margin-top:28px;text-align:center;">
+                ${primaryBtn(orderUrl, "Bestellung ansehen")}
+              </div>`
+                : ""
+            }
+
+          </td>
+        </tr>`),
     };
   }
 
+  // ── Refund ────────────────────────────────────────────────────────────────
   const refundedAmount =
     typeof order.amountRefunded === "number" ? order.amountRefunded : 0;
+
   return {
     subject: `Rückerstattung ${orderNumber}`,
     text: [
@@ -316,34 +380,38 @@ export function buildOrderEmail(
       `Rückerstattet: ${formatPrice(refundedAmount, order.currency)}`,
       orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
     ].join("\n"),
-    html: `
-      <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-        <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-          <tr>
-            <td>
-              <div style="background: #6b7280; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                <div style="font-weight: 700; font-size: 16px; margin-bottom: 16px;">${orderNumber}</div>
-                <div style="background: #f9fafb; border-radius: 12px; padding: 16px; font-size: 14px;">
-                  Rückerstattet: ${formatPrice(refundedAmount, order.currency)}
-                </div>
-                ${
-                  orderUrl
-                    ? `<div style="margin-top: 20px; text-align: center;">
-                        <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #6b7280; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
-                      </div>`
-                    : ""
-                }
-              </div>
-            </td>
-          </tr>
-        </table>
-      </div>
-    `,
+    html: emailOuter(`
+      ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+      <tr>
+        <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="vertical-align:top;">
+                ${sectionLabel("Bestellnummer")}
+                <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
+                <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+              </td>
+            </tr>
+          </table>
+
+          ${divider()}
+
+          ${sectionLabel("Rückerstattungsbetrag")}
+          <div style="background:#f0fdf4;border-radius:12px;padding:28px;text-align:center;border:1px solid #d1fae5;">
+            <div style="font-size:38px;font-weight:700;color:#2f3e36;">${formatPrice(refundedAmount, order.currency)}</div>
+            <div style="font-size:13px;color:#6b7280;margin-top:8px;">wird innerhalb von 5–10 Werktagen gutgeschrieben</div>
+          </div>
+
+          ${
+            orderUrl
+              ? `<div style="margin-top:28px;text-align:center;">
+              ${primaryBtn(orderUrl, "Bestellung ansehen")}
+            </div>`
+              : ""
+          }
+
+        </td>
+      </tr>`),
   };
 }

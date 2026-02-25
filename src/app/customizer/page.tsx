@@ -122,26 +122,91 @@ const EXTRA_OPTIONS: Option[] = [
 
 const CUSTOMIZER_FAQ = [
   {
-    question: "Was ist der Growbox Konfigurator?",
+    question: "Wie finde ich die richtige Growbox-Größe für mich?",
     answer:
-      "Mit dem Growbox Konfigurator (Zelt Konfigurator) stellst du dir ein passendes Setup aus Growbox, Licht, Abluft und Extras zusammen.",
+      "Orientiere dich am verfügbaren Platz in deinem Grow-Raum und daran, wie viele Pflanzen du anbauen möchtest. Kleine Zelte (z.B. 60×60 cm) eignen sich für 1–2 Pflanzen und den Einstieg. Mittelgroße Zelte (80×80 bis 100×100 cm) bieten Platz für 4–6 Pflanzen und mehr Flexibilität bei Licht und Abluft. Achte außerdem auf die Höhe des Zelts – Pflanzen brauchen mindestens 30–40 cm Abstand zur Lichtquelle.",
   },
   {
-    question: "Wie finde ich die richtige Growbox-Größe?",
+    question: "Welches Licht passt zu meiner Growbox?",
     answer:
-      "Wähle die Größe nach verfügbarem Platz und Ziel. Für den Einstieg sind kompakte Größen sinnvoll, für größere Setups entsprechend größere Boxen.",
+      "Als Faustregel gilt: Für die Vegetationsphase benötigst du ca. 200–300 W/m², für die Blütephase 400–600 W/m² (bezogen auf die tatsächliche Leistungsaufnahme, nicht den Maximalwert). Der Konfigurator empfiehlt dir passende LEDs direkt zur gewählten Zeltgröße. Achte auch auf den PPFD-Wert des Leuchtmittels – je höher, desto mehr Lichtenergie kommt bei den Pflanzen an.",
   },
   {
-    question: "Prüft der Konfigurator die Kompatibilität der Komponenten?",
+    question: "Wie stark muss die Abluftanlage sein?",
     answer:
-      "Ja. Der Konfigurator zeigt dir, ob Licht und Abluft zur gewählten Growbox passen und gibt dir Hinweise bei unpassenden Kombinationen.",
+      "Die Abluft sollte das Luftvolumen deines Zelts mindestens 60× pro Stunde austauschen. Bei einem 100×100×200 cm Zelt (200 m³) brauchst du also mindestens einen Ventilator mit 200 m³/h. Mit Aktivkohlefilter plane 20–30 % Mehrleistung ein, da der Filter den Luftwiderstand erhöht. Der Konfigurator wählt automatisch eine passende Kombination aus Ventilator und Filter für dein Zelt.",
   },
   {
-    question: "Kann ich das konfigurierte Setup direkt kaufen?",
+    question: "Was bedeuten die Kompatibilitäts-Hinweise?",
     answer:
-      "Ja. Du kannst dein Setup speichern, in den Warenkorb legen und direkt zur Kasse gehen.",
+      "Der Konfigurator prüft automatisch, ob Licht und Abluft zur gewählten Growbox passen. Erscheint ein Hinweis, bedeutet das, dass die Kombination technisch funktioniert, aber möglicherweise nicht optimal ist – zum Beispiel wenn ein Ventilator für das gewählte Zelt überdimensioniert ist. Du kannst solche Kombinationen trotzdem in den Warenkorb legen.",
+  },
+  {
+    question: "Welche Extras lohnen sich wirklich?",
+    answer:
+      "Ein digitales Thermo-/Hygrometer ist für jeden Grow unverzichtbar – du musst Temperatur und Luftfeuchtigkeit im Blick behalten. Eine Zeitschaltuhr für das Licht ist ebenfalls Pflicht, um den Tag-Nacht-Rhythmus zu automatisieren. CO₂-Messgeräte und pH-Meter sind besonders ab dem zweiten Grow sinnvoll. Gießwannen schützen deinen Boden vor Feuchtigkeit.",
+  },
+  {
+    question: "Kann ich das Setup speichern und später kaufen?",
+    answer:
+      "Ja. Dein konfiguriertes Setup bleibt im Browser gespeichert, solange du die Seite nicht verlässt. Du kannst alle Produkte mit einem Klick in den Warenkorb legen und dann direkt zur Kasse gehen oder weiter shoppen. Einzelne Komponenten kannst du auch jederzeit direkt im Shop finden und separat bestellen.",
+  },
+  {
+    question: "Kann ich einzelne Komponenten auch ohne Konfigurator kaufen?",
+    answer:
+      "Natürlich. Alle im Konfigurator enthaltenen Produkte sind auch einzeln in unserem Shop erhältlich. Wenn du gezielt nach einem Artikel suchst oder dein bestehendes Setup erweitern möchtest, kannst du direkt im Sortiment stöbern oder die Suche nutzen.",
   },
 ] as const;
+
+function CustomizerFaqAccordion() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  return (
+    <div className="mt-5 divide-y divide-black/[0.06]">
+      {CUSTOMIZER_FAQ.map((item, index) => {
+        const isOpen = openIndex === index;
+        return (
+          <div key={item.question}>
+            <button
+              type="button"
+              onClick={() => setOpenIndex(isOpen ? null : index)}
+              className="flex w-full items-center justify-between gap-4 py-4 text-left transition hover:opacity-80"
+            >
+              <span className="text-[15px] font-semibold" style={{ color: "#1a2a22" }}>
+                {item.question}
+              </span>
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform duration-200"
+                style={{
+                  background: isOpen ? "#2f3e36" : "rgba(47,62,54,0.08)",
+                  transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path
+                    d="M5 1v8M1 5h8"
+                    stroke={isOpen ? "#E4C56C" : "#2f3e36"}
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </button>
+            <div
+              className="grid transition-all duration-300 ease-in-out"
+              style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+            >
+              <div className="overflow-hidden">
+                <p className="pb-4 text-sm leading-relaxed text-stone-600">
+                  {item.answer}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const CUSTOMIZER_FAQ_JSON_LD = JSON.stringify({
   "@context": "https://schema.org",
@@ -2134,28 +2199,20 @@ export default function CustomizerPage() {
         </div>
       </div>
 
-      <section className="mt-12 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-2xl font-semibold text-neutral-900">
-          FAQ zum Growbox Konfigurator
-        </h2>
-        <p className="mt-2 text-sm text-neutral-600">
-          Antworten auf die wichtigsten Fragen rund um den Growbox
-          Konfigurator.
-        </p>
-        <div className="mt-6 space-y-4">
-          {CUSTOMIZER_FAQ.map((item) => (
-            <article
-              key={item.question}
-              className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
-            >
-              <h3 className="text-base font-semibold text-neutral-900">
-                {item.question}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-neutral-700">
-                {item.answer}
-              </p>
-            </article>
-          ))}
+      <section className="mt-6 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
+        <div className="border-b border-black/[0.06] px-6 py-5 sm:px-8">
+          <div className="flex items-center gap-2.5">
+            <span className="h-4 w-1 rounded-full" style={{ background: "#E4C56C" }} />
+            <h2 className="text-lg font-bold" style={{ color: "#2f3e36" }}>
+              FAQ zum Growbox Konfigurator
+            </h2>
+          </div>
+          <p className="mt-1.5 text-sm text-stone-500">
+            Die wichtigsten Fragen rund um Growboxen, Licht, Abluft und den Konfigurator.
+          </p>
+        </div>
+        <div className="px-6 sm:px-8">
+          <CustomizerFaqAccordion />
         </div>
       </section>
 

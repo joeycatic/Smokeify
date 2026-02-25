@@ -9,7 +9,10 @@ type EmailType =
   | "refund"
   | "return_confirmation"
   | "cancellation"
-  | "newsletter";
+  | "newsletter"
+  | "newsletter_confirmation"
+  | "back_in_stock"
+  | "checkout_recovery";
 
 type ItemRow = {
   id: string;
@@ -55,15 +58,27 @@ export default function AdminEmailTestingClient() {
   const [newsletterBody, setNewsletterBody] = useState(
     "Hallo,\n\nhier ist ein Test-Newsletter von Smokeify.\n\nViele Grüße,\nSmokeify-Team"
   );
+  const [productTitle, setProductTitle] = useState("Beispiel-Shisha");
+  const [variantTitle, setVariantTitle] = useState("Schwarz / Medium");
+  const [sessionId, setSessionId] = useState("cs_test_XXXXXXXXXXXXXXXX");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
   );
   const [message, setMessage] = useState("");
 
   const isNewsletter = type === "newsletter";
+  const isNewsletterConfirmation = type === "newsletter_confirmation";
+  const isBackInStock = type === "back_in_stock";
+  const isCheckoutRecovery = type === "checkout_recovery";
   const isShipping = type === "shipping";
   const isRefund = type === "refund";
-  const canUseOrderInputs = !isNewsletter;
+  const isOrderEmail =
+    type === "confirmation" ||
+    type === "shipping" ||
+    type === "refund" ||
+    type === "return_confirmation" ||
+    type === "cancellation";
+  const canUseOrderInputs = isOrderEmail;
 
   const orderItemsValid = useMemo(() => {
     if (!canUseOrderInputs) return true;
@@ -102,6 +117,8 @@ export default function AdminEmailTestingClient() {
         setMessage("Bitte Betreff und Inhalt für den Newsletter angeben.");
         return;
       }
+    } else if (isNewsletterConfirmation || isBackInStock || isCheckoutRecovery) {
+      // no extra validation required
     } else if (!orderItemsValid) {
       setStatus("error");
       setMessage("Bitte mindestens einen Artikel mit Namen angeben.");
@@ -117,32 +134,47 @@ export default function AdminEmailTestingClient() {
             body: newsletterBody.trim(),
           },
         }
-      : {
-          type,
-          to: recipient.trim(),
-          order: {
-            id: orderId.trim() || "TEST-ORDER-0001",
-            currency: currency.trim().toUpperCase() || "EUR",
-            amountSubtotal: toCents(amountSubtotal),
-            amountTax: toCents(amountTax),
-            amountShipping: toCents(amountShipping),
-            amountDiscount: toCents(amountDiscount),
-            amountTotal: toCents(amountTotal),
-            amountRefunded: toCents(amountRefunded),
-            discountCode: discountCode.trim() || null,
-            trackingCarrier: trackingCarrier.trim() || null,
-            trackingNumber: trackingNumber.trim() || null,
-            trackingUrl: trackingUrl.trim() || null,
-            items: items
-              .filter((item) => item.name.trim())
-              .map((item) => ({
-                name: item.name.trim(),
-                quantity: Math.max(1, Number(item.quantity) || 1),
-                totalAmount: toCents(item.total),
-                currency: currency.trim().toUpperCase() || "EUR",
-              })),
-          },
-        };
+      : isNewsletterConfirmation
+        ? { type, to: recipient.trim() }
+        : isBackInStock
+          ? {
+              type,
+              to: recipient.trim(),
+              productTitle: productTitle.trim(),
+              variantTitle: variantTitle.trim(),
+            }
+          : isCheckoutRecovery
+            ? {
+                type,
+                to: recipient.trim(),
+                sessionId: sessionId.trim(),
+              }
+            : {
+                type,
+                to: recipient.trim(),
+                order: {
+                  id: orderId.trim() || "TEST-ORDER-0001",
+                  currency: currency.trim().toUpperCase() || "EUR",
+                  amountSubtotal: toCents(amountSubtotal),
+                  amountTax: toCents(amountTax),
+                  amountShipping: toCents(amountShipping),
+                  amountDiscount: toCents(amountDiscount),
+                  amountTotal: toCents(amountTotal),
+                  amountRefunded: toCents(amountRefunded),
+                  discountCode: discountCode.trim() || null,
+                  trackingCarrier: trackingCarrier.trim() || null,
+                  trackingNumber: trackingNumber.trim() || null,
+                  trackingUrl: trackingUrl.trim() || null,
+                  items: items
+                    .filter((item) => item.name.trim())
+                    .map((item) => ({
+                      name: item.name.trim(),
+                      quantity: Math.max(1, Number(item.quantity) || 1),
+                      totalAmount: toCents(item.total),
+                      currency: currency.trim().toUpperCase() || "EUR",
+                    })),
+                },
+              };
 
     setStatus("loading");
     try {
@@ -207,7 +239,10 @@ export default function AdminEmailTestingClient() {
                 <option value="refund">Refund</option>
                 <option value="return_confirmation">Return confirmation</option>
                 <option value="cancellation">Cancellation</option>
-                <option value="newsletter">Newsletter</option>
+                <option value="newsletter">Newsletter blast</option>
+                <option value="newsletter_confirmation">Newsletter confirmation</option>
+                <option value="back_in_stock">Back in stock</option>
+                <option value="checkout_recovery">Checkout recovery</option>
               </select>
             </label>
 
@@ -231,6 +266,39 @@ export default function AdminEmailTestingClient() {
                   />
                 </label>
               </>
+            ) : isNewsletterConfirmation ? (
+              <p className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-stone-500">
+                Sendet die Anmelde-Bestätigungsmail an die angegebene Empfänger-Adresse.
+              </p>
+            ) : isBackInStock ? (
+              <>
+                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Produktname
+                  <input
+                    value={productTitle}
+                    onChange={(event) => setProductTitle(event.target.value)}
+                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
+                  />
+                </label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Variante (optional)
+                  <input
+                    value={variantTitle}
+                    onChange={(event) => setVariantTitle(event.target.value)}
+                    placeholder="z.B. Schwarz / Medium"
+                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
+                  />
+                </label>
+              </>
+            ) : isCheckoutRecovery ? (
+              <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                Session-ID (Mock)
+                <input
+                  value={sessionId}
+                  onChange={(event) => setSessionId(event.target.value)}
+                  className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
+                />
+              </label>
             ) : (
               <>
                 <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
@@ -346,7 +414,7 @@ export default function AdminEmailTestingClient() {
           </div>
         </div>
 
-        {!isNewsletter ? (
+        {isOrderEmail ? (
           <div className="rounded-2xl border border-emerald-100 bg-white p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">

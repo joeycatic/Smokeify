@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { isCronRequestAuthorized } from "@/lib/cronAuth";
+import { buildUnsubscribeUrl } from "@/lib/newsletterToken";
 import {
   getCheckoutRecoveryEventId,
   isRecoverableCheckoutSession,
@@ -63,8 +64,14 @@ const failRecoveryEvent = async (eventId: string) => {
   });
 };
 
-const buildRecoveryEmail = (sessionId: string, appOrigin: string) => {
+const buildRecoveryEmail = (
+  sessionId: string,
+  appOrigin: string,
+  userEmail: string
+) => {
   const cartUrl = `${appOrigin}/cart`;
+  const shopUrl = `${appOrigin}/products`;
+  const unsubscribeUrl = buildUnsubscribeUrl(appOrigin, userEmail);
   const subject = "Dein Warenkorb wartet noch bei Smokeify";
   const text = [
     "Du hast einen Checkout gestartet, aber noch nicht abgeschlossen.",
@@ -73,29 +80,66 @@ const buildRecoveryEmail = (sessionId: string, appOrigin: string) => {
     cartUrl,
     "",
     `Referenz: ${sessionId}`,
+    "",
+    "──────────────────────",
+    "Du erhältst diese E-Mail, weil du einen Checkout bei Smokeify begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.",
+    `Abmelden: ${unsubscribeUrl}`,
   ].join("\n");
   const html = `
-    <div style="background:#f6f5f2;padding:24px 0;font-family:Arial,sans-serif;color:#1f2937;line-height:1.5;">
-      <table style="width:100%;max-width:640px;margin:0 auto;border-collapse:collapse;">
-        <tr>
-          <td>
-            <div style="background:#2f3e36;color:#fff;padding:20px 24px;border-radius:16px 16px 0 0;">
-              <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.8;">Smokeify</div>
-              <div style="font-size:22px;font-weight:700;margin-top:6px;">Dein Warenkorb wartet</div>
-              <div style="font-size:14px;margin-top:4px;opacity:.85;">Du kannst deinen Checkout jederzeit fortsetzen.</div>
-            </div>
-            <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 16px 16px;">
-              <p style="margin:0 0 14px;">Du hast einen Checkout gestartet, aber noch nicht abgeschlossen.</p>
-              <div style="text-align:center;margin-top:18px;">
-                <a href="${cartUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#2f3e36;color:#fff;text-decoration:none;font-weight:600;">Zum Warenkorb</a>
+<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
+    <tr>
+      <td style="padding:0 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+
+          <tr>
+            <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#2f3e36;padding:32px 32px 28px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
+              <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Dein Warenkorb wartet</div>
+              <div style="font-size:14px;color:rgba(255,255,255,0.65);">Du kannst deinen Checkout jederzeit fortsetzen.</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+              <p style="margin:0 0 20px;font-size:15px;color:#4b5563;">Du hast einen Checkout gestartet, aber noch nicht abgeschlossen. Dein Warenkorb ist noch für dich reserviert.</p>
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${cartUrl}" style="display:inline-block;padding:14px 32px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Checkout fortsetzen &rarr;</a>
               </div>
-              <p style="margin-top:18px;font-size:12px;color:#6b7280;">Referenz: ${sessionId}</p>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </div>
-  `;
+              <div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>
+              <div style="font-size:12px;color:#9ca3af;text-align:center;">Referenz: ${sessionId}</div>
+            </td>
+          </tr>
+
+        </table>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
+          <tr>
+            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
+              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
+                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
+                &nbsp;·&nbsp;
+                <a href="${appOrigin}/pages/privacy" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
+                &nbsp;·&nbsp;
+                <a href="${appOrigin}/pages/agb" style="color:#9ca3af;text-decoration:none;">AGB</a>
+              </div>
+              <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
+                Du erhältst diese E-Mail, weil du einen Checkout bei Smokeify begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.<br />
+                <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">E-Mail-Benachrichtigungen abmelden</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</div>`;
   return { subject, text, html };
 };
 
@@ -189,7 +233,7 @@ export async function GET(request: Request) {
     }
 
     try {
-      const email = buildRecoveryEmail(session.id, appOrigin);
+      const email = buildRecoveryEmail(session.id, appOrigin, consentUser.email);
       await sendResendEmail({
         to: consentUser.email,
         subject: email.subject,

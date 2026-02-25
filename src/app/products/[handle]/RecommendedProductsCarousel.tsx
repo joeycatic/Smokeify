@@ -62,69 +62,101 @@ export default function RecommendedProductsCarousel({ items }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-10 rounded-2xl border border-black/10 bg-white/90 p-4 shadow-sm sm:p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-black/70">
-          Empfohlen für dich
-        </h2>
-        <div className="flex items-center gap-2">
+    <section className="mt-10 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="h-3.5 w-1 rounded-full"
+            style={{ background: "#E4C56C" }}
+          />
+          <h2 className="text-lg font-bold" style={{ color: "#2f3e36" }}>
+            Empfohlen für dich
+          </h2>
+        </div>
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => scrollTrack("left")}
             disabled={!canScrollPrev}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:border-black/30 hover:text-black disabled:cursor-not-allowed disabled:opacity-35"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach links"
           >
-            <ChevronLeftIcon className="h-5 w-5" />
+            <ChevronLeftIcon className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => scrollTrack("right")}
             disabled={!canScrollNext}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/15 bg-white text-black/70 shadow-sm transition hover:border-black/30 hover:text-black disabled:cursor-not-allowed disabled:opacity-35"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach rechts"
           >
-            <ChevronRightIcon className="h-5 w-5" />
+            <ChevronRightIcon className="h-4 w-4" />
           </button>
           <Link
             href="/products"
-            className="ml-1 text-xs font-semibold text-emerald-800 transition hover:text-emerald-900"
+            className="ml-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition"
+            style={{
+              borderColor: "rgba(47,62,54,0.2)",
+              color: "#2f3e36",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "#2f3e36";
+              (e.currentTarget as HTMLAnchorElement).style.color = "#ffffff";
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2f3e36";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "";
+              (e.currentTarget as HTMLAnchorElement).style.color = "#2f3e36";
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(47,62,54,0.2)";
+            }}
           >
             Alle Produkte
           </Link>
         </div>
       </div>
 
+      {/* Carousel track */}
       <div
         ref={trackRef}
-        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+        className="no-scrollbar flex snap-x snap-mandatory gap-0 overflow-x-auto"
       >
-        {items.map((item) => (
+        {items.map((item, index) => (
           <Link
             key={item.id}
             href={`/products/${item.handle}`}
-            className="group w-[15.5rem] shrink-0 snap-start rounded-2xl border border-black/10 bg-white p-3 transition hover:border-black/20 hover:shadow-md sm:w-[17.5rem]"
+            className="group relative w-[13rem] shrink-0 snap-start border-r border-black/[0.06] p-4 transition last:border-r-0 hover:bg-stone-50/70 sm:w-[15rem]"
           >
-            <div className="relative h-44 overflow-hidden rounded-xl bg-white sm:h-52">
+            {/* Hover top accent */}
+            <span
+              className="absolute inset-x-0 top-0 h-0.5 scale-x-0 transition-transform duration-200 group-hover:scale-x-100"
+              style={{ background: "#E4C56C", transformOrigin: "left" }}
+            />
+
+            <div className="relative h-36 overflow-hidden rounded-xl bg-stone-50 sm:h-44">
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}
                   alt={item.imageAlt ?? item.title}
                   fill
-                  className="object-contain transition duration-300 group-hover:scale-105"
-                  sizes="(min-width: 640px) 280px, 248px"
-                  loading="lazy"
+                  className="object-contain p-2 transition duration-300 group-hover:scale-[1.04]"
+                  sizes="(min-width: 640px) 240px, 208px"
+                  loading={index < 4 ? "eager" : "lazy"}
                   quality={70}
                 />
               ) : (
-                <div className="h-full w-full bg-stone-100" />
+                <div className="h-full w-full" />
               )}
             </div>
-            <p className="mt-3 line-clamp-2 text-sm font-semibold text-black/85">
+
+            <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-stone-800 transition group-hover:text-stone-900">
               {item.title}
             </p>
             {item.price && (
-              <p className="mt-1 text-base font-semibold text-stone-900">
+              <p
+                className="mt-1.5 text-sm font-bold"
+                style={{ color: "#2f3e36" }}
+              >
                 {formatPrice(item.price.amount, item.price.currencyCode)}
               </p>
             )}

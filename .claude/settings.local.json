@@ -13,7 +13,8 @@
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx eslint src/components/QuickViewModal.tsx src/components/DisplayProducts.tsx 2>&1)",
       "Bash(grep:*)",
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate dev --name add_product_cross_sells 2>&1)",
-      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)"
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)",
+      "Bash(cd:*)"
     ]
   }
 }
