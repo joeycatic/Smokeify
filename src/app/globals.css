@@ -568,6 +568,32 @@ body {
   color: #b6d6c0;
 }
 
+@keyframes filter-drawer-in {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.filter-drawer-in {
+  animation: filter-drawer-in 260ms ease-out both;
+}
+
+@keyframes filter-overlay-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.filter-overlay-in {
+  animation: filter-overlay-in 200ms ease-out;
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,

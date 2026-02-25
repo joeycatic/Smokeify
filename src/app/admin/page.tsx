@@ -262,6 +262,24 @@ export default async function AdminPage({
             >
               Inventory adjustments
             </Link>
+            <Link
+              href="/admin/customers"
+              className="inline-flex rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-800 shadow-sm hover:border-indigo-300"
+            >
+              Customers
+            </Link>
+            <Link
+              href="/admin/collections"
+              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
+            >
+              Collections
+            </Link>
+            <Link
+              href="/admin/categories"
+              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
+            >
+              Categories
+            </Link>
             {isAdmin ? (
               <Link
                 href="/admin/email-testing"
