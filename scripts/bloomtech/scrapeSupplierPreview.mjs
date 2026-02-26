@@ -172,6 +172,36 @@ const extractField = (text, label) => {
   return match ? match[1].trim() : "";
 };
 
+const normalizeGtin = (value) => {
+  if (typeof value !== "string") return "";
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  if (![8, 12, 13, 14].includes(digits.length)) return "";
+  return digits;
+};
+
+const extractGtinFromText = (text) => {
+  const candidates = [
+    extractField(text, "GTIN"),
+    extractField(text, "EAN"),
+    extractField(text, "EAN-13"),
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeGtin(candidate);
+    if (normalized) return normalized;
+  }
+  return "";
+};
+
+const extractGtinFromTechnicalDetails = (technicalDetails) => {
+  if (typeof technicalDetails !== "string" || !technicalDetails.trim()) return "";
+  const match = technicalDetails.match(
+    /(?:^|;\s*)(?:GTIN|EAN|EAN-13)\s*:\s*([0-9][0-9\s-]{6,20})/i
+  );
+  if (!match) return "";
+  return normalizeGtin(match[1]);
+};
+
 const extractDescription = (text) => {
   const start = text.indexOf("Beschreibung");
   if (start === -1) return "";
@@ -1012,6 +1042,8 @@ const run = async () => {
         buildShortDescription(description);
       const technicalDetails =
         extractTechnicalDetailsFromHtml(html) || buildTechnicalDetails(text);
+      const gtin =
+        extractGtinFromTechnicalDetails(technicalDetails) || extractGtinFromText(text);
       const basePrice = extractPriceFromHtml(html);
       const price =
         typeof basePrice === "number"
@@ -1056,6 +1088,7 @@ const run = async () => {
         shortDescription,
         description,
         technicalDetails,
+        gtin,
         price,
         stock,
         supplierWeight,

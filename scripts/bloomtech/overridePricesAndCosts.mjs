@@ -282,6 +282,49 @@ const normalizeUrl = (value) => {
   }
 };
 
+const normalizeGtin = (value) => {
+  if (typeof value !== "string") return "";
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  if (![8, 12, 13, 14].includes(digits.length)) return "";
+  return digits;
+};
+
+const extractGtinFromPreviewItem = (item) => {
+  if (!item || typeof item !== "object") return "";
+  const direct = normalizeGtin(item.gtin);
+  if (direct) return direct;
+  if (typeof item.technicalDetails === "string") {
+    const match = item.technicalDetails.match(
+      /(?:^|;\s*)(?:GTIN|EAN|EAN-13)\s*:\s*([0-9][0-9\s-]{6,20})/i
+    );
+    if (match) {
+      const fromDetails = normalizeGtin(match[1]);
+      if (fromDetails) return fromDetails;
+    }
+  }
+  return "";
+};
+
+const mergeTechnicalDetailsWithGtin = (technicalDetails, gtin) => {
+  const normalizedGtin = normalizeGtin(gtin);
+  const source =
+    typeof technicalDetails === "string" ? technicalDetails.trim() : "";
+  const parts = source
+    ? source
+        .split(";")
+        .map((part) => part.trim())
+        .filter(Boolean)
+    : [];
+  const withoutGtin = parts.filter(
+    (part) => !/^(gtin|ean|ean-13)\s*:/i.test(part)
+  );
+  if (normalizedGtin) {
+    withoutGtin.push(`GTIN: ${normalizedGtin}`);
+  }
+  return withoutGtin.length ? withoutGtin.join("; ") : null;
+};
+
 const resolveSupplier = async () => {
   const supplierId = process.env.BLOOMTECH_SUPPLIER_ID ?? null;
   const supplierName = process.env.BLOOMTECH_SUPPLIER_NAME ?? null;
@@ -394,6 +437,7 @@ const run = async () => {
       title: true,
       handle: true,
       sellerUrl: true,
+      technicalDetails: true,
       variants: {
         orderBy: { position: "asc" },
         select: {
@@ -418,6 +462,7 @@ const run = async () => {
     skippedBelowMinPrice: 0,
     skippedNoVariants: 0,
     unchangedVariants: 0,
+    updatedTechnicalDetails: 0,
   };
 
   for (const product of targets) {
@@ -431,6 +476,7 @@ const run = async () => {
 
     let variantUpdates = [];
     let unchangedVariantCount = product.variants.length;
+    let technicalDetailsUpdate = null;
     if (effectiveSource === "preview" || effectiveSource === "hybrid") {
       const previewItem =
         previewByHandle.get(product.handle.toLowerCase()) ??
@@ -491,6 +537,24 @@ const run = async () => {
           results.skippedMissingDbCost += dbResult.missingCostCount;
         }
       }
+
+      const previewGtin = extractGtinFromPreviewItem(previewItem);
+      if (previewGtin) {
+        const nextTechnicalDetails = mergeTechnicalDetailsWithGtin(
+          product.technicalDetails,
+          previewGtin
+        );
+        const previousTechnicalDetails =
+          typeof product.technicalDetails === "string"
+            ? product.technicalDetails.trim() || null
+            : null;
+        if (nextTechnicalDetails !== previousTechnicalDetails) {
+          technicalDetailsUpdate = {
+            nextTechnicalDetails,
+            gtin: previewGtin,
+          };
+        }
+      }
     } else {
       const dbResult = buildUpdatesFromDbCosts(product.variants, pricingConfig);
       variantUpdates = dbResult.variantUpdates;
@@ -516,7 +580,7 @@ const run = async () => {
       results.skippedBelowMinPrice += floorResult.skippedBelowMinPrice;
     }
 
-    if (!variantUpdates.length) {
+    if (!variantUpdates.length && !technicalDetailsUpdate) {
       if (floorResult.skippedBelowMinPrice > 0) {
         console.log(
           `[override] skip handle=${product.handle} reason=below_min_price min=${formatCents(pricingConfig.minPriceCents)}`
@@ -536,34 +600,59 @@ const run = async () => {
           `[override] preview handle=${product.handle} variant=${update.title} cost=${formatCents(update.prevCostCents)}->${formatCents(update.nextCostCents)} price=${formatCents(update.prevPriceCents)}->${formatCents(update.nextPriceCents)}`
         );
       }
+      if (technicalDetailsUpdate) {
+        console.log(
+          `[override] preview handle=${product.handle} technicalDetails=GTIN:${technicalDetailsUpdate.gtin}`
+        );
+      }
       results.updatedProducts += 1;
       results.updatedVariants += variantUpdates.length;
+      if (technicalDetailsUpdate) {
+        results.updatedTechnicalDetails += 1;
+      }
       continue;
     }
 
-    await prisma.$transaction(
-      variantUpdates.map((update) =>
-        prisma.variant.update({
-          where: { id: update.id },
+    const writeOps = variantUpdates.map((update) =>
+      prisma.variant.update({
+        where: { id: update.id },
+        data: {
+          costCents: update.nextCostCents,
+          priceCents: update.nextPriceCents,
+        },
+      })
+    );
+    if (technicalDetailsUpdate) {
+      writeOps.push(
+        prisma.product.update({
+          where: { id: product.id },
           data: {
-            costCents: update.nextCostCents,
-            priceCents: update.nextPriceCents,
+            technicalDetails: technicalDetailsUpdate.nextTechnicalDetails,
           },
         })
-      )
-    );
+      );
+    }
+    await prisma.$transaction(writeOps);
 
     for (const update of variantUpdates) {
       console.log(
         `[override] apply handle=${product.handle} variant=${update.title} cost=${formatCents(update.prevCostCents)}->${formatCents(update.nextCostCents)} price=${formatCents(update.prevPriceCents)}->${formatCents(update.nextPriceCents)}`
       );
     }
+    if (technicalDetailsUpdate) {
+      console.log(
+        `[override] apply handle=${product.handle} technicalDetails=GTIN:${technicalDetailsUpdate.gtin}`
+      );
+    }
     results.updatedProducts += 1;
     results.updatedVariants += variantUpdates.length;
+    if (technicalDetailsUpdate) {
+      results.updatedTechnicalDetails += 1;
+    }
   }
 
   console.log(
-    `[override] done found=${results.bloomtechProductsFound} inspected=${results.inspected} updatedProducts=${results.updatedProducts} updatedVariants=${results.updatedVariants} unchangedVariants=${results.unchangedVariants} skippedNoPreviewMatch=${results.skippedNoPreviewMatch} skippedMissingPreviewPrice=${results.skippedMissingPreviewPrice} skippedMissingDbCost=${results.skippedMissingDbCost} skippedBelowMinPrice=${results.skippedBelowMinPrice} skippedNoVariants=${results.skippedNoVariants} source=${effectiveSource} minPrice=${formatCents(pricingConfig.minPriceCents)} marginBelow=${pricingConfig.marginPercentBelowThreshold}% marginAbove=${pricingConfig.marginPercentAboveThreshold}% threshold=${formatCents(pricingConfig.marginThresholdCents)} rounding=${pricingConfig.rounding} currency=${pricingConfig.currency}`
+    `[override] done found=${results.bloomtechProductsFound} inspected=${results.inspected} updatedProducts=${results.updatedProducts} updatedVariants=${results.updatedVariants} updatedTechnicalDetails=${results.updatedTechnicalDetails} unchangedVariants=${results.unchangedVariants} skippedNoPreviewMatch=${results.skippedNoPreviewMatch} skippedMissingPreviewPrice=${results.skippedMissingPreviewPrice} skippedMissingDbCost=${results.skippedMissingDbCost} skippedBelowMinPrice=${results.skippedBelowMinPrice} skippedNoVariants=${results.skippedNoVariants} source=${effectiveSource} minPrice=${formatCents(pricingConfig.minPriceCents)} marginBelow=${pricingConfig.marginPercentBelowThreshold}% marginAbove=${pricingConfig.marginPercentAboveThreshold}% threshold=${formatCents(pricingConfig.marginThresholdCents)} rounding=${pricingConfig.rounding} currency=${pricingConfig.currency}`
   );
 };
 
