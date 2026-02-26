@@ -98,6 +98,17 @@ const GOOGLE_FEED_BLOCKED_TITLE_PATTERNS: RegExp[] = [
   /alfa boost/i,
 ];
 
+const FEED_KEYWORD_REPLACEMENTS: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\bheadshop\b/gi, replacement: "Indoor-Gaertnerei" },
+  { pattern: /\bsmok(?:e|ing)\b/gi, replacement: "Heimgarten" },
+  { pattern: /\brauch(?:en|er|zubehoer|zubehör)?\b/gi, replacement: "Pflanzenzucht" },
+  { pattern: /\bjoint(?:s)?\b/gi, replacement: "Pflanzenzucht" },
+  { pattern: /\bbong(?:s)?\b/gi, replacement: "Indoor-Gaertnerei" },
+  { pattern: /\bpipe(?:s)?\b/gi, replacement: "Indoor-Gaertnerei" },
+  { pattern: /\bvape(?:r|s|n|d)?\b/gi, replacement: "Heimgarten" },
+  { pattern: /\bvaporizer\b/gi, replacement: "Indoor-Gaertnerei" },
+];
+
 type GoogleFeedExclusionCheck = {
   excluded: boolean;
   forceIncluded: boolean;
@@ -116,6 +127,80 @@ const escapeXml = (value: string) =>
     .replace(/'/g, "&apos;");
 
 const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+const sanitizeFeedKeywordHygiene = (value: string) => {
+  let sanitized = value;
+  for (const entry of FEED_KEYWORD_REPLACEMENTS) {
+    sanitized = sanitized.replace(entry.pattern, entry.replacement);
+  }
+  return sanitized.replace(/\s+/g, " ").trim();
+};
+
+const GENERIC_BRAND_VALUES = new Set([
+  "smokeify",
+  "bloomtech",
+  "b2b headshop",
+  "indoor-gartenbau shop",
+  "indoor gartenbau shop",
+  "growshop",
+]);
+
+const normalizeBrandName = (value: string | null | undefined) => {
+  if (!value) return "";
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  const lower = normalized.toLowerCase();
+  if (GENERIC_BRAND_VALUES.has(lower)) return "";
+  if (lower.replace(/[\s-]/g, "").includes("growshop")) return "";
+  return normalized;
+};
+
+const inferBrandFromTitle = (title: string) => {
+  const cleaned = title.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  const knownPrefixes = [
+    "AC Infinity",
+    "Secret Jardin",
+    "G-Tools",
+    "BioBizz",
+    "Advanced Nutrients",
+    "Athena",
+    "Canna",
+    "Plagron",
+  ];
+  const lower = cleaned.toLowerCase();
+  for (const brand of knownPrefixes) {
+    if (lower.startsWith(brand.toLowerCase())) return brand;
+  }
+  const firstToken = cleaned.split(/[^\p{L}\p{N}\-]+/u).find(Boolean) ?? "";
+  return normalizeBrandName(firstToken);
+};
+
+const resolveFeedBrand = (product: {
+  manufacturer: string | null;
+  title: string;
+}) => {
+  const fromManufacturer = normalizeBrandName(product.manufacturer);
+  if (fromManufacturer) return fromManufacturer;
+  const fromTitle = inferBrandFromTitle(product.title);
+  if (fromTitle) return fromTitle;
+  return "Unknown";
+};
+
+const normalizeGtin = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (![8, 12, 13, 14].includes(digits.length)) return "";
+  return digits;
+};
+
+const extractGtinFromTechnicalDetails = (technicalDetails: string | null) => {
+  if (!technicalDetails) return "";
+  const match = technicalDetails.match(
+    /(?:^|;\s*)(?:GTIN|EAN|EAN-13)\s*:\s*([0-9][0-9\s-]{6,20})/i
+  );
+  if (!match) return "";
+  return normalizeGtin(match[1] ?? "");
+};
 
 const dedupeRepeatedSentences = (value: string) => {
   const sentences = value
@@ -137,7 +222,9 @@ const isFeedVariantAllowed = (title: string) =>
   !GOOGLE_FEED_BLOCKED_TITLE_PATTERNS.some((pattern) => pattern.test(title));
 
 const sanitizeDescriptionForGoogleFeed = (raw: string) => {
-  const normalized = dedupeRepeatedSentences(stripHtml(raw)).replace(/\s+/g, " ").trim();
+  const normalized = sanitizeFeedKeywordHygiene(
+    dedupeRepeatedSentences(stripHtml(raw)).replace(/\s+/g, " ").trim()
+  );
   if (!normalized) return "Hochwertiges Zubehoer fuer den Indoor-Gartenbau.";
   return normalized.length > 5000 ? normalized.slice(0, 5000) : normalized;
 };
@@ -454,8 +541,7 @@ export async function GET() {
         return [];
       }
       const image = escapeXml(resolveImageUrl(supportedImages[0] ?? ""));
-      const brandRaw = product.manufacturer ?? product.sellerName ?? "";
-      const brand = escapeXml(brandRaw || "Indoor-Gartenbau Shop");
+      const brand = escapeXml(resolveFeedBrand(product));
       const condition = "new";
       const primaryCategory = product.categories[0]?.category;
       const categoryPath = primaryCategory
@@ -512,17 +598,20 @@ export async function GET() {
         if (!isFeedVariantAllowed(variantTitle)) {
           return "";
         }
+        const feedTitle = sanitizeFeedKeywordHygiene(variantTitle);
         const price = escapeXml(formatPrice(variant.priceCents / 100));
         const sku = variant.sku?.trim() ?? "";
+        const gtin = extractGtinFromTechnicalDetails(product.technicalDetails);
         const itemId = buildItemId(product.handle, variant.id);
+        const hasGtin = Boolean(gtin);
         const hasMpn = Boolean(sku);
-        const identifierExists = hasMpn ? "yes" : "no";
+        const identifierExists = hasMpn || hasGtin ? "yes" : "no";
 
         return [
           "<item>",
           `<g:id>${escapeXml(itemId)}</g:id>`,
           `<g:item_group_id>${escapeXml(product.id)}</g:item_group_id>`,
-          `<title>${escapeXml(variantTitle)}</title>`,
+          `<title>${escapeXml(feedTitle)}</title>`,
           `<description>${description}</description>`,
           `<link>${link}</link>`,
           image ? `<g:image_link>${image}</g:image_link>` : "",
@@ -535,6 +624,7 @@ export async function GET() {
             : "",
           `<g:price>${price}</g:price>`,
           `<g:brand>${brand}</g:brand>`,
+          hasGtin ? `<g:gtin>${escapeXml(gtin)}</g:gtin>` : "",
           hasMpn ? `<g:mpn>${escapeXml(sku)}</g:mpn>` : "",
           googleProductCategory
             ? `<g:google_product_category>${googleProductCategory}</g:google_product_category>`

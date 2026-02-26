@@ -34,7 +34,7 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     title: "§5 Zahlungsarten",
     paragraphs: [
       `Smokeify bietet die im Bestellprozess angezeigten Zahlungsarten an.`,
-      `Hierzu können insbesondere gehören: PayPal, Kreditkarte, Klarna, Apple Pay, Google Pay sowie weitere im Bestellprozess angebotene Zahlungsmethoden.`,
+      `Die im Shop dargestellten Zahlungslogos dienen der Orientierung; verbindlich und maßgeblich sind ausschließlich die im Checkout konkret auswählbaren Zahlungsarten.`,
     ],
   },
   {

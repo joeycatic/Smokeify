@@ -4,6 +4,8 @@ import { useState } from "react";
 import PageLayout from "@/components/PageLayout";
 
 export default function ContactPage() {
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "joey@smokeify.de";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "error">(
     "idle"
   );
@@ -19,6 +21,15 @@ export default function ContactPage() {
             <p className="mt-4 text-sm text-white/80 sm:text-base">
               Schreib uns eine Nachricht und wir antworten dir per E-Mail.
             </p>
+            <div className="mt-5 rounded-2xl border border-white/15 bg-black/25 px-5 py-4 text-left text-sm text-white/85">
+              <p className="font-semibold text-white">Direktkontakt</p>
+              <p className="mt-1">E-Mail: {contactEmail}</p>
+              {contactPhone ? <p>Telefon: {contactPhone}</p> : null}
+              <p className="mt-1">
+                Anschrift: Smokeify, Joey Bennett Catic, Brinkeweg 106a, 33758
+                Schloß Holte-Stukenbrock, Deutschland
+              </p>
+            </div>
             <ul className="mt-4 inline-flex flex-col gap-2 text-sm text-white/80">
               {[
                 "Schnelle & kompetente Antwort",

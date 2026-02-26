@@ -16,6 +16,7 @@ export const runtime = "nodejs";
 
 const CURRENCY_CODE = "EUR";
 const COOKIE_NAME = "smokeify_cart";
+const ALLOWED_PAYMENT_METHOD_TYPES = ["card", "paypal", "klarna"] as const;
 
 const SHIPPING_BASE = {
   DE: 7.9,
@@ -65,10 +66,27 @@ const ALLOWED_COUNTRIES = [
 ] as const;
 
 type ShippingCountry = keyof typeof SHIPPING_BASE;
+type AllowedPaymentMethodType = (typeof ALLOWED_PAYMENT_METHOD_TYPES)[number];
 type CartItem = {
   variantId: string;
   quantity: number;
   options?: Array<{ name: string; value: string }>;
+};
+
+const parseCheckoutPaymentMethodTypes = (): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined => {
+  const raw = process.env.STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES?.trim();
+  if (!raw) return undefined;
+  const values = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  const deduped = Array.from(new Set(values));
+  const allowed = deduped.filter((entry): entry is AllowedPaymentMethodType =>
+    ALLOWED_PAYMENT_METHOD_TYPES.includes(entry as AllowedPaymentMethodType)
+  );
+  return allowed.length
+    ? (allowed as Stripe.Checkout.SessionCreateParams.PaymentMethodType[])
+    : undefined;
 };
 
 const normalizeOptions = (
@@ -451,9 +469,11 @@ export async function POST(req: Request) {
   };
 
   let checkoutSession: Stripe.Checkout.Session;
+  const paymentMethodTypes = parseCheckoutPaymentMethodTypes();
   try {
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
+      payment_method_types: paymentMethodTypes,
       line_items: lineItems,
       discounts: promotionCodeId
         ? [{ promotion_code: promotionCodeId }]
