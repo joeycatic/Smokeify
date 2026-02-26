@@ -3,7 +3,8 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
-import { getProducts } from "@/lib/catalog";
+import { getProducts, getProductsByIds } from "@/lib/catalog";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -22,15 +23,32 @@ export default async function StorePage() {
   const allProducts = await getProducts(60);
   const inStock = allProducts.filter((p) => p.availableForSale);
 
-  const tentProducts = inStock
-    .filter((p) =>
-      p.categories.some(
-        (c) =>
-          c.handle === "zelte" ||
-          c.parent?.handle === "zelte"
-      )
+  const tentProductRows = await prisma.product.findMany({
+    where: {
+      status: "ACTIVE",
+      categories: {
+        some: {
+          OR: [
+            { category: { handle: "zelte" } },
+            { category: { parent: { is: { handle: "zelte" } } } },
+          ],
+        },
+      },
+    },
+    select: { id: true },
+    take: 120,
+  });
+  const tentProductsSource = tentProductRows.length
+    ? await getProductsByIds(tentProductRows.map((row) => row.id))
+    : [];
+  const tentProducts = tentProductsSource
+    .filter((p) => p.availableForSale)
+    .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 120)
+    .sort(
+      (a, b) =>
+        Number(a.priceRange?.minVariantPrice?.amount ?? Number.POSITIVE_INFINITY) -
+        Number(b.priceRange?.minVariantPrice?.amount ?? Number.POSITIVE_INFINITY)
     )
-    .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 400)
     .slice(0, 4);
 
   const bestSellersFilled = inStock.slice(0, 8);

@@ -2,7 +2,6 @@ import PageLayout from "@/components/PageLayout";
 
 export default function ImprintPage() {
   const contactEmail = process.env.CONTACT_EMAIL?.trim() || "joey@smokeify.de";
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
 
   return (
     <PageLayout>
@@ -20,8 +19,8 @@ export default function ImprintPage() {
               <div className="text-sm text-stone-700 leading-relaxed">
                 <p className="font-semibold text-stone-900">Smokeify</p>
                 <p>Joey Bennett Catic</p>
-                <p>Brinkeweg 106a</p>
                 <p>33758 Schloß Holte-Stukenbrock</p>
+                <p>Brinkeweg 106a</p>
                 <p>Deutschland</p>
               </div>
             </section>
@@ -35,14 +34,6 @@ export default function ImprintPage() {
                 >
                   {contactEmail}
                 </a>
-                {contactPhone ? (
-                  <a
-                    href={`tel:${contactPhone.replace(/\s+/g, "")}`}
-                    className="block text-stone-700 hover:text-stone-900"
-                  >
-                    Telefon: {contactPhone}
-                  </a>
-                ) : null}
                 <a
                   href="https://www.smokeify.de"
                   className="block text-stone-600 hover:text-stone-700"

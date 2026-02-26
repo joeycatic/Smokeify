@@ -41,7 +41,7 @@ export function HeroBanner() {
   }, []);
 
   return (
-    <section className="relative h-[55vh] w-full overflow-hidden sm:h-[70vh]">
+    <section className="relative h-[55vh] w-full overflow-hidden rounded-b-2xl sm:h-[70vh] sm:rounded-b-3xl">
       <video
         ref={videoRef}
         autoPlay

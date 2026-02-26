@@ -41,6 +41,45 @@ const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
 ]);
 
 const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set<string>();
+const GOOGLE_FEED_FORCE_INCLUDE_CATEGORY_HANDLES = new Set([
+  "licht",
+  "abwasser",
+]);
+const GOOGLE_FEED_SAFE_CATEGORY_HANDLES = new Set([
+  "licht",
+  "abwasser",
+  "growbox",
+  "belueftung",
+  "lueftung",
+  "abluft",
+  "bewaesserung",
+  "hydroponik",
+  "substrat",
+  "duenger",
+  "naehrstoffe",
+  "ventilator",
+  "aktivkohlefilter",
+  "zeitschaltuhr",
+]);
+const GOOGLE_FEED_SAFE_TERMS = [
+  "indoor-gartenbau",
+  "indoor gaertnerei",
+  "indoor gardening",
+  "pflanzenzucht",
+  "heimgarten",
+  "growbox",
+  "beleuchtung",
+  "lueftung",
+  "abluft",
+  "abwasser",
+  "bewaesserung",
+  "hydroponik",
+  "substrat",
+  "naehrstoff",
+  "duenger",
+  "ventilator",
+  "filter",
+];
 
 const HEADSHOP_SIGNAL_TERMS = [
   "headshop",
@@ -453,6 +492,22 @@ const getGoogleFeedExclusionCheck = (product: {
     .map((entry) => entry.toLowerCase())
     .filter(Boolean);
 
+  const matchedForceIncludeCategoryHandles = categoryHandles.filter((handle) =>
+    GOOGLE_FEED_FORCE_INCLUDE_CATEGORY_HANDLES.has(handle)
+  );
+  if (matchedForceIncludeCategoryHandles.length > 0) {
+    return {
+      excluded: false,
+      forceIncluded: true,
+      matchedCategoryHandles: Array.from(
+        new Set(matchedForceIncludeCategoryHandles)
+      ),
+      matchedSignalTerms: [],
+      matchedBlockedTerms: [],
+      reasons: ["force_include_category"],
+    };
+  }
+
   const matchedCategoryHandles = categoryHandles.filter((handle) =>
     GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES.has(handle)
   );
@@ -501,6 +556,43 @@ const getGoogleFeedExclusionCheck = (product: {
   };
 };
 
+const isGoogleFeedSafeCandidate = (product: {
+  title: string;
+  description: string | null;
+  shortDescription: string | null;
+  tags: string[];
+  mainCategory: { handle: string; parent: { handle: string } | null } | null;
+  categories: Array<{ category: { handle: string; parent: { handle: string } | null } }>;
+}) => {
+  if (!isFeedVariantAllowed(product.title)) return false;
+
+  const categoryHandles = [
+    product.mainCategory?.handle ?? "",
+    product.mainCategory?.parent?.handle ?? "",
+    ...product.categories.map(({ category }) => category.handle),
+    ...product.categories.map(({ category }) => category.parent?.handle ?? ""),
+  ]
+    .map((entry) => entry.toLowerCase())
+    .filter(Boolean);
+
+  const hasSafeCategory = categoryHandles.some((handle) =>
+    GOOGLE_FEED_SAFE_CATEGORY_HANDLES.has(handle)
+  );
+  if (hasSafeCategory) return true;
+
+  const haystack = [
+    product.title,
+    product.description ?? "",
+    product.shortDescription ?? "",
+    ...(product.tags ?? []),
+    ...categoryHandles,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return GOOGLE_FEED_SAFE_TERMS.some((term) => haystack.includes(term));
+};
+
 export async function GET() {
   const allProducts = await prisma.product.findMany({
     where: { status: "ACTIVE" },
@@ -520,9 +612,12 @@ export async function GET() {
       },
     },
   });
-  const products = allProducts.filter(
-    (product) => !getGoogleFeedExclusionCheck(product).excluded
-  );
+  const products = allProducts.filter((product) => {
+    const exclusionCheck = getGoogleFeedExclusionCheck(product);
+    if (exclusionCheck.forceIncluded) return true;
+    if (exclusionCheck.excluded) return false;
+    return isGoogleFeedSafeCandidate(product);
+  });
   const now = new Date().toUTCString();
 
   const items = products
