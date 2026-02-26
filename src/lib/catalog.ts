@@ -44,6 +44,8 @@ const mapProduct = (product: {
   }>;
   collections: Array<{ collection: { id: string; name: string; handle: string } }>;
   reviews: Array<{ rating: number }>;
+  bestsellerScore?: number | null;
+  createdAt?: Date | null;
 }): Product => {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
   const featuredImage = sortedImages[0] ?? null;
@@ -139,6 +141,8 @@ const mapProduct = (product: {
       average: reviewAverage,
       count: reviewCount,
     },
+    bestsellerScore: product.bestsellerScore ?? null,
+    createdAt: product.createdAt ? product.createdAt.toISOString() : null,
   };
 };
 

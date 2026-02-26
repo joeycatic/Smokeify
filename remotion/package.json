@@ -1,0 +1,23 @@
+{
+  "name": "smokeify-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.tsx --port=3901",
+    "render": "remotion render src/index.tsx ProductShowcase out/product-showcase.mp4",
+    "render:gif": "remotion render src/index.tsx ProductShowcase --codec=gif out/product-showcase.gif",
+    "render:banner": "remotion render src/index.tsx HeroBanner --codec=h264 --crf=18 --timeout=180000 out/banner.mp4",
+    "render:banner:webm": "remotion render src/index.tsx HeroBanner --codec=vp8 --crf=20 --timeout=180000 out/banner.webm"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -4,9 +4,9 @@ import { blogPosts } from "@/lib/blog";
 import PageLayout from "@/components/PageLayout";
 
 export const metadata: Metadata = {
-  title: "Blog – Indoor Growing Guides & Tipps",
+  title: "Blog – Indoor Guides & Tipps",
   description:
-    "Growbox Guides, Dünger-Vergleiche und Einsteiger-Tipps für deinen Indoor-Garten. Alles, was du für erfolgreichen Indoor-Anbau wissen musst.",
+    "Pflanzenzelt Guides, Dünger-Vergleiche und Einsteiger-Tipps für deinen Indoor-Garten. Alles, was du für erfolgreichen Indoor-Anbau wissen musst.",
   alternates: {
     canonical: "/blog",
     languages: { "de-DE": "/blog", "x-default": "/blog" },
@@ -26,7 +26,7 @@ export default function BlogPage() {
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <h1 className="text-3xl font-bold text-stone-900">Blog</h1>
         <p className="mt-3 text-base text-stone-500">
-          Guides, Vergleiche und Tipps rund um Indoor-Anbau und Growbox-Setup.
+          Guides, Vergleiche und Tipps rund um Indoor-Anbau und Pflanzenzelt-Setup.
         </p>
 
         <div className="mt-10 space-y-6">

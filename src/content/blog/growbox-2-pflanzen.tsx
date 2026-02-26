@@ -2,12 +2,12 @@ export default function Growbox2Pflanzen() {
   return (
     <>
       <p className="mt-0 text-lg leading-relaxed text-stone-600">
-        Du planst, zwei Pflanzen in einer Growbox anzubauen, und fragst dich, welche Größe dafür
-        am besten geeignet ist? Die Wahl der Boxgröße hat direkten Einfluss auf Lichteffizienz,
+        Du planst, zwei Pflanzen in einem Pflanzenzelt anzubauen, und fragst dich, welche Größe dafür
+        am besten geeignet ist? Die Wahl der Zeltgröße hat direkten Einfluss auf Lichteffizienz,
         Luftzirkulation und letztlich auf deine Ernte. Wir erklären, worauf es wirklich ankommt.
       </p>
 
-      <h2>Warum die Growbox-Größe so entscheidend ist</h2>
+      <h2>Warum die Zeltgröße so entscheidend ist</h2>
       <p>
         Eine zu kleine Box beengt die Pflanzen, führt zu Hitzestau und macht die Lüftung
         komplizierter. Eine zu große Box verschwendet Strom, da die Lichtfläche nicht vollständig
@@ -102,7 +102,7 @@ export default function Growbox2Pflanzen() {
 
       <h2>Empfehlung: Das richtige Setup für 2 Pflanzen</h2>
       <p>
-        Für die meisten Grower ist eine <strong>80 × 80 cm Growbox</strong> mit einer
+        Für die meisten Indoor-Gärtner ist ein <strong>80 × 80 cm Pflanzenzelt</strong> mit einer
         Full-Spectrum-LED (150–200 W), einem Ablüfter mit Kohlefilter (150–200 m³/h) und einem
         Umluftlüfter das optimale Setup. Es bietet genug Raum für 2 komfortable Pflanzen, ist
         effizient in Stromverbrauch und Platz – und lässt dir Spielraum, wenn du später auf 3
@@ -119,7 +119,7 @@ export default function Growbox2Pflanzen() {
         Die Wahl zwischen 60×60 und 80×80 hängt vor allem davon ab, wie viel Platz du hast und
         ob du deine Pflanzen aktiv trainieren willst. Für unkomplizierten Anbau ohne viel
         Training ist die 80×80-Box die bessere Investition. Beide Formate sind als fertige
-        Grow-Sets erhältlich – inklusive LED, Lüftung und allem, was du für den Start brauchst.
+        Indoor-Sets erhältlich – inklusive LED, Lüftung und allem, was du für den Start brauchst.
       </p>
     </>
   );

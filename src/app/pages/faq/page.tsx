@@ -83,14 +83,14 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     label: "Produkte & Beratung",
     items: [
       {
-        question: "Welche Growbox-Größe ist die richtige für mich?",
+        question: "Welche Zeltgröße ist die richtige für mich?",
         answer:
-          `Das hängt vor allem von der Anzahl deiner Pflanzen und dem verfügbaren Platz ab. Als Faustregel: 60×60 cm für 1–2 Pflanzen, 80×80 cm für 2–3 Pflanzen, 100×100 cm für 4–6 Pflanzen. In unserem Blog-Artikel „Welche Growbox für 2 Pflanzen" findest du eine ausführliche Erklärung.`,
+          `Das hängt vor allem von der Anzahl deiner Pflanzen und dem verfügbaren Platz ab. Als Faustregel: 60×60 cm für 1–2 Pflanzen, 80×80 cm für 2–3 Pflanzen, 100×100 cm für 4–6 Pflanzen. In unserem Blog-Artikel „Welches Pflanzenzelt für 2 Pflanzen" findest du eine ausführliche Erklärung.`,
       },
       {
-        question: "Was ist in den Grow-Sets enthalten?",
+        question: "Was ist in den Indoor-Sets enthalten?",
         answer:
-          `Unsere Grow-Sets enthalten in der Regel das Growzelt, eine LED-Leuchte, einen Ablüfter mit Kohlefilter und einen Umluftlüfter. Genaue Inhalte findest du auf der jeweiligen Produktseite unter „Lieferumfang".`,
+          `Unsere Indoor-Sets enthalten in der Regel das Pflanzenzelt, eine LED-Leuchte, einen Ablüfter mit Kohlefilter und einen Umluftlüfter. Genaue Inhalte findest du auf der jeweiligen Produktseite unter „Lieferumfang".`,
       },
       {
         question: "Bietet ihr Produktberatung an?",

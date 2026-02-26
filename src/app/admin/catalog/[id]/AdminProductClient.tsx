@@ -385,10 +385,10 @@ export default function AdminProductClient({
     setActiveParentId(selectedParent?.id ?? parentCategories[0]?.id ?? null);
   }, [activeParentId, categoryIds, parentCategories]);
   const growboxenCategoryId = useMemo(
-    () => categories.find((item) => item.handle === "growboxen")?.id ?? null,
+    () => categories.find((item) => item.handle === "zelte")?.id ?? null,
     [categories]
   );
-  const showGrowboxenFields = useMemo(
+  const showZelteFields = useMemo(
     () => (growboxenCategoryId ? categoryIds.has(growboxenCategoryId) : false),
     [categoryIds, growboxenCategoryId]
   );
@@ -1244,10 +1244,10 @@ export default function AdminProductClient({
             />
           </label>
         </div>
-        {showGrowboxenFields && (
+        {showZelteFields && (
           <div className="mt-4 rounded-lg border border-emerald-200/70 bg-emerald-50/60 p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Growboxen
+              Zelte
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="text-xs font-semibold text-stone-600">

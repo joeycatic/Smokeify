@@ -16,7 +16,9 @@
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)",
       "Bash(cd:*)",
       "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npm uninstall framer-motion react-icons 2>&1)",
-      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx tsc --noEmit 2>&1)"
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma db execute --stdin <<'EOF'\nSELECT id, name, handle, \"parentId\" FROM \"Category\" WHERE handle ILIKE '%growbox%' OR name ILIKE '%growbox%';\nEOF)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma db execute --schema=prisma/schema.prisma --stdin <<'EOF'\nSELECT id, name, handle, \"parentId\" FROM \"Category\" WHERE handle ILIKE '%growbox%' OR name ILIKE '%growbox%';\nEOF)"
     ]
   }
 }

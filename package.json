@@ -31,7 +31,11 @@
     "catalog:rename-hash-bowl-category": "node scripts/catalog/renameHashBowlCategory.mjs",
     "orders:backfill-payment-fees": "node scripts/orders/backfillOrderPaymentFees.mjs",
     "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
-    "testing:seed-orders": "node scripts/testing/seedTestOrders.js"
+    "testing:seed-orders": "node scripts/testing/seedTestOrders.js",
+    "video:studio": "cd remotion && npm run studio",
+    "video:render": "cd remotion && npm run render",
+    "video:render:banner": "cd remotion && npm run render:banner && npm run render:banner:webm",
+    "video:upload:banner": "node scripts/video/upload-banner.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

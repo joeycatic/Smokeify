@@ -35,7 +35,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'; " +
       "font-src 'self' data:; " +
       "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
-      "frame-src https://js.stripe.com https://*.stripe.com;",
+      "frame-src https://js.stripe.com https://*.stripe.com; " +
+      "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;",
   },
   ...(isProd
     ? [

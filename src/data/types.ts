@@ -48,6 +48,8 @@ export type Product = {
     average: number;
     count: number;
   };
+  bestsellerScore?: number | null;
+  createdAt?: string | null;
 };
 
 export type ProductFilters = {

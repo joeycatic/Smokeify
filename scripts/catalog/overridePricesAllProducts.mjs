@@ -2,9 +2,11 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const DEFAULT_MARGIN_PERCENT = 20;
-const DEFAULT_ROUNDING_STRATEGY = "99";
+const DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD = 15;
+const DEFAULT_MARGIN_PERCENT_ABOVE_THRESHOLD = 20;
+const DEFAULT_ROUNDING_STRATEGY = "nearest_99";
 const DEFAULT_MIN_PRICE_EUR = 10;
+const DEFAULT_MIN_PRICE_DELTA_EUR = 0.5;
 const DEFAULT_MARGIN_THRESHOLD_EUR = 100;
 
 const parseArgs = () => {
@@ -24,6 +26,7 @@ const parseArgs = () => {
     marginThresholdEur: getValue("--margin-threshold-eur"),
     rounding: getValue("--rounding"),
     minPriceEur: getValue("--min-price-eur"),
+    minPriceDeltaEur: getValue("--min-price-delta-eur"),
   };
 };
 
@@ -39,9 +42,21 @@ const ceilToNextWithEndings = (targetCents, endings) => {
     .sort((a, b) => a - b)[0] ?? normalized;
 };
 
-const parseMarginPercent = (rawValue) => {
+const roundToNearest99 = (targetCents, costCents) => {
+  const euros = Math.floor(targetCents / 100);
+  const candidates = [euros - 1, euros, euros + 1]
+    .filter((e) => e >= 0)
+    .map((e) => e * 100 + 99)
+    .filter((c) => c > costCents);
+  if (!candidates.length) return Math.ceil(targetCents);
+  return candidates.reduce((best, c) =>
+    Math.abs(c - targetCents) < Math.abs(best - targetCents) ? c : best
+  );
+};
+
+const parseMarginPercent = (rawValue, defaultValue = DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD) => {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
-    return DEFAULT_MARGIN_PERCENT;
+    return defaultValue;
   }
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed)) {
@@ -67,7 +82,7 @@ const parseMarginThresholdEur = (rawValue) => {
 const parseRoundingStrategy = (rawValue) => {
   if (!rawValue) return DEFAULT_ROUNDING_STRATEGY;
   const normalized = String(rawValue).trim().toLowerCase();
-  if (normalized === "none" || normalized === "99") return normalized;
+  if (normalized === "none" || normalized === "99" || normalized === "nearest_99") return normalized;
   throw new Error(`Invalid rounding strategy: ${rawValue}`);
 };
 
@@ -82,6 +97,17 @@ const parseMinPriceEur = (rawValue) => {
   return parsed;
 };
 
+const parseMinPriceDeltaEur = (rawValue) => {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return DEFAULT_MIN_PRICE_DELTA_EUR;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid minimum price delta EUR: ${rawValue}`);
+  }
+  return parsed;
+};
+
 const resolvePricingConfig = ({
   marginPercentArg,
   marginPercentBelowThresholdArg,
@@ -89,19 +115,21 @@ const resolvePricingConfig = ({
   marginThresholdEurArg,
   roundingArg,
   minPriceEurArg,
+  minPriceDeltaEurArg,
 }) => {
-  const marginPercentFallback = parseMarginPercent(
-    marginPercentArg ?? process.env.CATALOG_TARGET_MARGIN_PERCENT
-  );
   const marginPercentBelowThreshold = parseMarginPercent(
     marginPercentBelowThresholdArg ??
       process.env.CATALOG_TARGET_MARGIN_PERCENT_BELOW_THRESHOLD ??
-      marginPercentFallback
+      marginPercentArg ??
+      process.env.CATALOG_TARGET_MARGIN_PERCENT,
+    DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD
   );
   const marginPercentAboveThreshold = parseMarginPercent(
     marginPercentAboveThresholdArg ??
       process.env.CATALOG_TARGET_MARGIN_PERCENT_ABOVE_THRESHOLD ??
-      marginPercentFallback
+      marginPercentArg ??
+      process.env.CATALOG_TARGET_MARGIN_PERCENT,
+    DEFAULT_MARGIN_PERCENT_ABOVE_THRESHOLD
   );
   const marginThresholdEur = parseMarginThresholdEur(
     marginThresholdEurArg ?? process.env.CATALOG_MARGIN_THRESHOLD_EUR
@@ -112,6 +140,9 @@ const resolvePricingConfig = ({
   const minPriceEur = parseMinPriceEur(
     minPriceEurArg ?? process.env.CATALOG_MIN_PRICE_EUR
   );
+  const minPriceDeltaEur = parseMinPriceDeltaEur(
+    minPriceDeltaEurArg ?? process.env.CATALOG_MIN_PRICE_DELTA_EUR
+  );
 
   return {
     marginPercentBelowThreshold,
@@ -119,6 +150,7 @@ const resolvePricingConfig = ({
     marginThresholdCents: Math.round(marginThresholdEur * 100),
     rounding,
     minPriceCents: Math.round(minPriceEur * 100),
+    minPriceDeltaCents: Math.round(minPriceDeltaEur * 100),
   };
 };
 
@@ -132,9 +164,10 @@ const buildSellPriceCents = (costCents, pricingConfig) => {
   if (marginMultiplier <= 0) {
     throw new Error("Invalid margin configuration produced divisor <= 0.");
   }
-  const targetSellCents = Math.ceil(costCents / marginMultiplier);
-  if (pricingConfig.rounding === "none") return targetSellCents;
-  return ceilToNextWithEndings(targetSellCents, [99]);
+  const targetSellCents = costCents / marginMultiplier;
+  if (pricingConfig.rounding === "none") return Math.ceil(targetSellCents);
+  if (pricingConfig.rounding === "99") return ceilToNextWithEndings(Math.ceil(targetSellCents), [99]);
+  return roundToNearest99(targetSellCents, costCents);
 };
 
 const formatCents = (cents) => (cents / 100).toFixed(2);
@@ -152,6 +185,7 @@ const main = async () => {
     marginThresholdEurArg: args.marginThresholdEur,
     roundingArg: args.rounding,
     minPriceEurArg: args.minPriceEur,
+    minPriceDeltaEurArg: args.minPriceDeltaEur,
   });
 
   if (args.apply && !allowWrite) {
@@ -162,7 +196,7 @@ const main = async () => {
 
   console.log(`[catalog-pricing] mode=${apply ? "apply" : "dry-run"}`);
   console.log(
-    `[catalog-pricing] marginBelow=${pricingConfig.marginPercentBelowThreshold}% marginAbove=${pricingConfig.marginPercentAboveThreshold}% threshold=${formatCents(pricingConfig.marginThresholdCents)} min=${formatCents(pricingConfig.minPriceCents)} rounding=${pricingConfig.rounding}`
+    `[catalog-pricing] marginBelow=${pricingConfig.marginPercentBelowThreshold}% marginAbove=${pricingConfig.marginPercentAboveThreshold}% threshold=${formatCents(pricingConfig.marginThresholdCents)} min=${formatCents(pricingConfig.minPriceCents)} minDelta=${formatCents(pricingConfig.minPriceDeltaCents)} rounding=${pricingConfig.rounding}`
   );
 
   const products = await prisma.product.findMany({
@@ -226,7 +260,10 @@ const main = async () => {
         continue;
       }
 
-      if (nextPriceCents !== variant.priceCents) {
+      if (
+        nextPriceCents !== variant.priceCents &&
+        Math.abs(nextPriceCents - variant.priceCents) >= pricingConfig.minPriceDeltaCents
+      ) {
         variantUpdates.push({
           id: variant.id,
           title: variant.title,

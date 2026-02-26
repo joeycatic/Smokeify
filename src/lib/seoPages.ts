@@ -39,7 +39,7 @@ export const seoPages: SeoPageConfig[] = [
     slugParts: ["wasserfilter-und-osmose"],
     title: "Wasserfilter & Osmose",
     description:
-      "Wasserfilter- und Osmose-Lösungen für stabile Wasserqualität im Grow-Setup.",
+      "Wasserfilter- und Osmose-Lösungen für stabile Wasserqualität im Indoor-Setup.",
     copy: [
       "Sauberes Wasser ist die Basis für kontrollierte Nährstoffgabe und gesunde Pflanzenentwicklung.",
       "Hier findest du Wasserfilter- und Osmose-Produkte für konstante Qualität und reproduzierbare Ergebnisse.",
@@ -73,7 +73,7 @@ export const seoPages: SeoPageConfig[] = [
   {
     slugParts: ["substrateundzubehoer"],
     title: "Substrate & Zubehör",
-    description: "Substrate und Zubehör für dein Grow-Setup.",
+    description: "Substrate und Zubehör für dein Indoor-Setup.",
     copy: [
       "Substrate und passendes Zubehör bilden die Grundlage für ein stabiles, gut wartbares Setup.",
       "Hier findest du Produkte für Wurzelgesundheit, Handling und saubere Abläufe im Alltag.",
@@ -91,7 +91,7 @@ export const seoPages: SeoPageConfig[] = [
   {
     slugParts: ["substrate"],
     title: "Substrate",
-    description: "Substrate & Erden für dein Grow-Setup.",
+    description: "Substrate & Erden für dein Indoor-Setup.",
     copy: [
       "Das richtige Substrat schafft die Basis für gesundes Wurzelwachstum und stabile Pflanzenentwicklung.",
       "Wähle zwischen bewährten Erden und spezialisierten Mischungen passend zu deinem Anbauziel.",
@@ -102,7 +102,7 @@ export const seoPages: SeoPageConfig[] = [
   {
     slugParts: ["zubehoer"],
     title: "Zubehör",
-    description: "Praktisches Zubehör für dein Grow-Setup.",
+    description: "Praktisches Zubehör für dein Indoor-Setup.",
     copy: [
       "Mit dem richtigen Zubehör wird dein Setup effizienter, sauberer und einfacher im Alltag.",
       "Von kleinen Helfern bis zu wichtigen Ergänzungen findest du hier alles für einen reibungslosen Betrieb.",
@@ -111,24 +111,24 @@ export const seoPages: SeoPageConfig[] = [
     categoryHandle: "zubehoer",
   },
   {
-    slugParts: ["growboxen"],
-    title: "Growboxen",
+    slugParts: ["zelte"],
+    title: "Zelte",
     description: "Zelte in allen Größen – perfekt für Einsteiger bis Pro-Setups.",
     copy: [
-      "Growboxen schaffen das ideale Klima auf kleinstem Raum – kontrolliert, effizient und leise.",
+      "Zelte schaffen das ideale Klima auf kleinstem Raum – kontrolliert, effizient und leise.",
       "Wähle die Größe passend zu deinem Platz und deinem Ziel: kompakt für Einsteiger, großzügig für anspruchsvolle Setups.",
       "Robuste Materialien, saubere Verarbeitung und durchdachte Details – für langfristig zuverlässige Ergebnisse.",
     ],
     faq: [
       {
-        question: "Welche Growbox-Größe ist die richtige?",
+        question: "Welche Zeltgröße ist die richtige?",
         answer:
           "Das hängt von Platz und Ziel ab. Für den Einstieg reichen oft kompakte Größen wie 60x60 oder 80x80. Für größere Pflanzen oder mehr Ertrag eignen sich 100x100 oder mehr.",
       },
       {
-        question: "Brauche ich zwingend eine Growbox?",
+        question: "Brauche ich zwingend ein Pflanzenzelt?",
         answer:
-          "Eine Growbox ist nicht zwingend, bietet aber kontrolliertes Klima, weniger Geruch und bessere Lichtausnutzung. Das sorgt für stabilere Ergebnisse.",
+          "Ein Pflanzenzelt ist nicht zwingend, bietet aber kontrolliertes Klima, weniger Geruch und bessere Lichtausnutzung. Das sorgt für stabilere Ergebnisse.",
       },
       {
         question: "Welche Ausstattung ist wichtig?",
@@ -136,48 +136,48 @@ export const seoPages: SeoPageConfig[] = [
           "Wichtig sind eine passende Beleuchtung, eine zuverlässige Abluft und gutes Zubehör. So bleibt Temperatur und Feuchte im idealen Bereich.",
       },
     ],
-    categoryHandle: "growboxen",
+    categoryHandle: "zelte",
   },
   {
-    slugParts: ["growboxen-60x60"],
-    title: "Growboxen 60x60",
-    description: "Growboxen in der Größe 60x60.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-60x60"],
+    title: "Zelte 60x60",
+    description: "Zelte in der Größe 60x60.",
+    categoryHandle: "zelte",
     growboxSize: "60x60",
   },
   {
-    slugParts: ["growboxen-80x80"],
-    title: "Growboxen 80x80",
-    description: "Growboxen in der Größe 80x80.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-80x80"],
+    title: "Zelte 80x80",
+    description: "Zelte in der Größe 80x80.",
+    categoryHandle: "zelte",
     growboxSize: "80x80",
   },
   {
-    slugParts: ["growboxen-100x100"],
-    title: "Growboxen 100x100",
-    description: "Growboxen in der Größe 100x100.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-100x100"],
+    title: "Zelte 100x100",
+    description: "Zelte in der Größe 100x100.",
+    categoryHandle: "zelte",
     growboxSize: "100x100",
   },
   {
-    slugParts: ["growboxen-120x120"],
-    title: "Growboxen 120x120",
-    description: "Growboxen in der Größe 120x120.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-120x120"],
+    title: "Zelte 120x120",
+    description: "Zelte in der Größe 120x120.",
+    categoryHandle: "zelte",
     growboxSize: "120x120",
   },
   {
-    slugParts: ["growboxen-150x150"],
-    title: "Growboxen 150x150",
-    description: "Growboxen in der Größe 150x150.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-150x150"],
+    title: "Zelte 150x150",
+    description: "Zelte in der Größe 150x150.",
+    categoryHandle: "zelte",
     growboxSize: "150x150",
   },
   {
-    slugParts: ["growboxen-200x200"],
-    title: "Growboxen 200x200",
-    description: "Growboxen in der Größe 200x200.",
-    categoryHandle: "growboxen",
+    slugParts: ["zelte-200x200"],
+    title: "Zelte 200x200",
+    description: "Zelte in der Größe 200x200.",
+    categoryHandle: "zelte",
     growboxSize: "200x200",
   },
   {
@@ -216,7 +216,7 @@ export const seoPages: SeoPageConfig[] = [
   {
     slugParts: ["messen"],
     title: "Messen",
-    description: "Messgeräte für dein Grow-Setup.",
+    description: "Messgeräte für dein Indoor-Setup.",
     copy: [
       "Präzise Messwerte geben dir Kontrolle über Klima, Nährstoffe und Wasserqualität.",
       "Mit den richtigen Tools erkennst du früh, was deine Pflanzen brauchen.",
@@ -232,11 +232,11 @@ export const seoPages: SeoPageConfig[] = [
     parentHandle: "anzucht",
   },
   {
-    slugParts: ["growboxen", "sets"],
-    title: "Growboxen Sets",
-    description: "Growboxen-Sets für komplette Setups.",
+    slugParts: ["zelte", "sets"],
+    title: "Zelte Sets",
+    description: "Zelte-Sets für komplette Setups.",
     subcategoryHandle: "sets",
-    parentHandle: "growboxen",
+    parentHandle: "zelte",
   },
   {
     slugParts: ["headshop", "aschenbecher"],

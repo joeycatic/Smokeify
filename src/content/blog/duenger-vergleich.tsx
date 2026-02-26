@@ -11,7 +11,7 @@ export default function DuengerVergleich() {
       <h2>Warum Dünger im Indoor-Anbau unverzichtbar ist</h2>
       <p>
         Im Freien versorgt der Boden Pflanzen über Monate mit Nährstoffen. Im geschlossenen
-        System einer Growbox erschöpft sich das Substrat schnell – spätestens nach 2–4 Wochen
+        System eines Pflanzenzelts erschöpft sich das Substrat schnell – spätestens nach 2–4 Wochen
         sind die Nährstoffreserven der meisten handelsüblichen Erden aufgebraucht. Ab diesem
         Zeitpunkt bist du auf externe Düngung angewiesen, wenn du gesunde, ertragreiche Pflanzen
         willst.
@@ -62,7 +62,7 @@ export default function DuengerVergleich() {
         <li>Etwas aufwändiger als Granulat oder Tabs</li>
       </ul>
       <p>
-        <strong>Empfehlung:</strong> Für ernsthafte Grower, die ihre Pflanzen aktiv steuern
+        <strong>Empfehlung:</strong> Für ernsthafte Indoor-Gärtner, die ihre Pflanzen aktiv steuern
         wollen, ist Flüssigdünger die erste Wahl. Starte mit der halben Herstellerdosis und
         taste dich langsam vor.
       </p>
@@ -106,7 +106,7 @@ export default function DuengerVergleich() {
       <ul>
         <li>Keine schnelle Reaktion bei Mangelerscheinungen möglich</li>
         <li>Oft teurer als Granulat in großen Gebinden</li>
-        <li>Phasenspezifische Düngung (Grow/Bloom) nur mit verschiedenen Tabs realisierbar</li>
+        <li>Phasenspezifische Düngung (Wuchs/Blüte) nur mit verschiedenen Tabs realisierbar</li>
       </ul>
 
       <h2>Wachstumsphase vs. Blütephase: Was wann verwenden?</h2>
@@ -116,14 +116,14 @@ export default function DuengerVergleich() {
       <ul>
         <li>
           <strong>Wachstumsphase (Vegetative Phase):</strong> Hoher Stickstoffbedarf für
-          Trieb- und Blattwachstum. Verwende einen Grow-Dünger mit hohem N-Anteil.
+          Trieb- und Blattwachstum. Verwende einen Wachstumsdünger mit hohem N-Anteil.
         </li>
         <li>
           <strong>Übergang zur Blüte:</strong> Stickstoff schrittweise reduzieren, Phosphor
           und Kalium erhöhen.
         </li>
         <li>
-          <strong>Blütephase:</strong> Bloom-Dünger mit hohem P/K-Anteil. Viele Grower setzen
+          <strong>Blütephase:</strong> Bloom-Dünger mit hohem P/K-Anteil. Viele Indoor-Gärtner setzen
           zusätzlich einen Booster ein, um Blütenbildung und -dichte zu fördern.
         </li>
         <li>
@@ -157,8 +157,8 @@ export default function DuengerVergleich() {
 
       <h2>Fazit: Welcher Dünger ist der richtige?</h2>
       <p>
-        Für die meisten Indoor-Grower ist ein <strong>Flüssigdünger-Set</strong> (Grow +
-        Bloom + optional Boost) die beste Wahl: maximale Kontrolle, schnelle Reaktion bei
+        Für die meisten Indoor-Gärtner ist ein <strong>Flüssigdünger-Set</strong> (Wuchs +
+        Blüte + optional Boost) die beste Wahl: maximale Kontrolle, schnelle Reaktion bei
         Problemen, kompatibel mit allen Substraten. Wer weniger Aufwand möchte und in Erde
         anbaut, kann mit einem Granulat-Dünger in der Wachstumsphase starten und zur Blüte auf
         Flüssigdünger umsteigen.

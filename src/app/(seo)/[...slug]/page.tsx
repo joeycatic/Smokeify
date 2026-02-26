@@ -190,7 +190,7 @@ export default async function SeoCategoryPage({ params }: PageProps) {
       seoPageBySlug.get(config.parentHandle)?.title ?? config.parentHandle;
     breadcrumbs.push({ name: parentTitle, url: toUrl(parentSlug) });
   } else if (config.growboxSize) {
-    breadcrumbs.push({ name: "Growboxen", url: toUrl("/growboxen") });
+    breadcrumbs.push({ name: "Zelte", url: toUrl("/zelte") });
   }
   breadcrumbs.push({
     name: config.title,
@@ -233,17 +233,17 @@ export default async function SeoCategoryPage({ params }: PageProps) {
     "200x200",
   ];
   const showGrowboxSizeLinks =
-    config.categoryHandle === "growboxen" || config.growboxSize;
+    config.categoryHandle === "zelte" || config.growboxSize;
   const sizeLinks = showGrowboxSizeLinks
     ? [
         {
           label: "Alle Größen",
-          href: "/growboxen",
+          href: "/zelte",
           active: !config.growboxSize,
         },
         ...growboxSizes.map((size) => ({
           label: size,
-          href: `/growboxen-${size}`,
+          href: `/zelte-${size}`,
           active: config.growboxSize === size,
         })),
       ]

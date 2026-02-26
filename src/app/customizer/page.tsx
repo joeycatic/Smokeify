@@ -122,12 +122,12 @@ const EXTRA_OPTIONS: Option[] = [
 
 const CUSTOMIZER_FAQ = [
   {
-    question: "Wie finde ich die richtige Growbox-Größe für mich?",
+    question: "Wie finde ich die richtige Zeltgröße für mich?",
     answer:
-      "Orientiere dich am verfügbaren Platz in deinem Grow-Raum und daran, wie viele Pflanzen du anbauen möchtest. Kleine Zelte (z.B. 60×60 cm) eignen sich für 1–2 Pflanzen und den Einstieg. Mittelgroße Zelte (80×80 bis 100×100 cm) bieten Platz für 4–6 Pflanzen und mehr Flexibilität bei Licht und Abluft. Achte außerdem auf die Höhe des Zelts – Pflanzen brauchen mindestens 30–40 cm Abstand zur Lichtquelle.",
+      "Orientiere dich am verfügbaren Platz in deinem Anbaubereich und daran, wie viele Pflanzen du anbauen möchtest. Kleine Zelte (z.B. 60×60 cm) eignen sich für 1–2 Pflanzen und den Einstieg. Mittelgroße Zelte (80×80 bis 100×100 cm) bieten Platz für 4–6 Pflanzen und mehr Flexibilität bei Licht und Abluft. Achte außerdem auf die Höhe des Zelts – Pflanzen brauchen mindestens 30–40 cm Abstand zur Lichtquelle.",
   },
   {
-    question: "Welches Licht passt zu meiner Growbox?",
+    question: "Welches Licht passt zu meinem Pflanzenzelt?",
     answer:
       "Als Faustregel gilt: Für die Vegetationsphase benötigst du ca. 200–300 W/m², für die Blütephase 400–600 W/m² (bezogen auf die tatsächliche Leistungsaufnahme, nicht den Maximalwert). Der Konfigurator empfiehlt dir passende LEDs direkt zur gewählten Zeltgröße. Achte auch auf den PPFD-Wert des Leuchtmittels – je höher, desto mehr Lichtenergie kommt bei den Pflanzen an.",
   },
@@ -139,12 +139,12 @@ const CUSTOMIZER_FAQ = [
   {
     question: "Was bedeuten die Kompatibilitäts-Hinweise?",
     answer:
-      "Der Konfigurator prüft automatisch, ob Licht und Abluft zur gewählten Growbox passen. Erscheint ein Hinweis, bedeutet das, dass die Kombination technisch funktioniert, aber möglicherweise nicht optimal ist – zum Beispiel wenn ein Ventilator für das gewählte Zelt überdimensioniert ist. Du kannst solche Kombinationen trotzdem in den Warenkorb legen.",
+      "Der Konfigurator prüft automatisch, ob Licht und Abluft zum gewählten Pflanzenzelt passen. Erscheint ein Hinweis, bedeutet das, dass die Kombination technisch funktioniert, aber möglicherweise nicht optimal ist – zum Beispiel wenn ein Ventilator für das gewählte Zelt überdimensioniert ist. Du kannst solche Kombinationen trotzdem in den Warenkorb legen.",
   },
   {
     question: "Welche Extras lohnen sich wirklich?",
     answer:
-      "Ein digitales Thermo-/Hygrometer ist für jeden Grow unverzichtbar – du musst Temperatur und Luftfeuchtigkeit im Blick behalten. Eine Zeitschaltuhr für das Licht ist ebenfalls Pflicht, um den Tag-Nacht-Rhythmus zu automatisieren. CO₂-Messgeräte und pH-Meter sind besonders ab dem zweiten Grow sinnvoll. Gießwannen schützen deinen Boden vor Feuchtigkeit.",
+      "Ein digitales Thermo-/Hygrometer ist für jeden Indoor-Anbau unverzichtbar – du musst Temperatur und Luftfeuchtigkeit im Blick behalten. Eine Zeitschaltuhr für das Licht ist ebenfalls Pflicht, um den Tag-Nacht-Rhythmus zu automatisieren. CO₂-Messgeräte und pH-Meter sind besonders ab dem zweiten Anbaudurchgang sinnvoll. Gießwannen schützen deinen Boden vor Feuchtigkeit.",
   },
   {
     question: "Kann ich das Setup speichern und später kaufen?",
@@ -270,7 +270,7 @@ function StepHeader({
             Konfigurator
           </p>
           <h1 className="mt-2 text-2xl font-semibold text-neutral-900">
-            Growbox Konfigurator
+            Pflanzenzelt-Konfigurator
           </h1>
           <p className="mt-2 text-sm text-neutral-600">
             Stelle dein Setup zusammen und prüfe Passform, Preis und Status.
@@ -974,7 +974,7 @@ export default function CustomizerPage() {
     setExtrasError("");
 
     fetch(
-      "/api/customizer/options?categories=growboxen,Licht,Luft,Bewaesserung,Anzucht",
+      "/api/customizer/options?categories=zelte,Licht,Luft,Bewaesserung,Anzucht",
     )
       .then(async (res) => {
         if (!res.ok) {
@@ -988,7 +988,7 @@ export default function CustomizerPage() {
       .then((data) => {
         if (!active) return;
         const optionsByCategory = data.optionsByCategory ?? {};
-        setSizeOptions(optionsByCategory.growboxen ?? []);
+        setSizeOptions(optionsByCategory.zelte ?? []);
         setLightOptions(optionsByCategory.licht ?? []);
         setVentOptions(optionsByCategory.luft ?? []);
         setExtrasWateringOptions(optionsByCategory.bewaesserung ?? []);
@@ -1718,7 +1718,7 @@ export default function CustomizerPage() {
                     </div>
                   ) : sizeOptions.length === 0 ? (
                     <p className="text-xs text-neutral-500">
-                      Keine Growboxen gefunden.
+                      Keine Zelte gefunden.
                     </p>
                   ) : (
                     <ProductGrid>
@@ -1948,7 +1948,7 @@ export default function CustomizerPage() {
                     {!airCompatible && selectedSize && (
                       <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                         Die Abluft passt nicht zum Anschlussdurchmesser der
-                        Growbox.
+                        Pflanzenzelt.
                       </p>
                     )}
                   </div>
@@ -2204,11 +2204,11 @@ export default function CustomizerPage() {
           <div className="flex items-center gap-2.5">
             <span className="h-4 w-1 rounded-full" style={{ background: "#E4C56C" }} />
             <h2 className="text-lg font-bold" style={{ color: "#2f3e36" }}>
-              FAQ zum Growbox Konfigurator
+              FAQ zum Pflanzenzelt-Konfigurator
             </h2>
           </div>
           <p className="mt-1.5 text-sm text-stone-500">
-            Die wichtigsten Fragen rund um Growboxen, Licht, Abluft und den Konfigurator.
+            Die wichtigsten Fragen rund um Zelte, Licht, Abluft und den Konfigurator.
           </p>
         </div>
         <div className="px-6 sm:px-8">

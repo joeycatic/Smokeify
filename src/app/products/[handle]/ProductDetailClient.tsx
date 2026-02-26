@@ -283,7 +283,7 @@ export default function ProductDetailClient({
     product.categories?.some((category) => {
       const handle = category.handle?.toLowerCase() ?? "";
       const parentHandle = category.parent?.handle?.toLowerCase() ?? "";
-      return handle === "growboxen" || parentHandle === "growboxen";
+      return handle === "zelte" || parentHandle === "zelte";
     }),
   );
 

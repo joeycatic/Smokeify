@@ -104,22 +104,34 @@ export default function DisplayProducts({
                   className="aspect-[9/8] overflow-hidden rounded-t-xl bg-white sm:aspect-square"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
-                {p.compareAtPrice && (
-                  <span className="absolute left-3 top-3 rounded-full bg-yellow-500 px-3.5 py-2 text-sm font-semibold uppercase tracking-wide text-black shadow">
-                    {formatDiscountPercentage(
-                      p.compareAtPrice,
-                      p.priceRange?.minVariantPrice,
-                    )}
-                  </span>
-                )}
-                {p.availableForSale && showLowStock && (
-                  <span className="absolute left-3 top-3 rounded-full bg-amber-500/90 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3.5 sm:py-2 sm:text-sm">
-                    {p.defaultVariantLowStockThreshold != null &&
-                    p.defaultVariantAvailableQuantity != null
-                      ? `Nur noch ${p.defaultVariantAvailableQuantity} verfügbar`
-                      : "Geringer Bestand"}
-                  </span>
-                )}
+                <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+                  {p.compareAtPrice && (
+                    <span className="rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow sm:px-3 sm:text-xs">
+                      {formatDiscountPercentage(
+                        p.compareAtPrice,
+                        p.priceRange?.minVariantPrice,
+                      )}
+                    </span>
+                  )}
+                  {p.availableForSale && showLowStock && (
+                    <span className="rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3 sm:text-xs">
+                      {p.defaultVariantLowStockThreshold != null &&
+                      p.defaultVariantAvailableQuantity != null
+                        ? `Noch ${p.defaultVariantAvailableQuantity} verfügbar`
+                        : "Geringer Bestand"}
+                    </span>
+                  )}
+                  {!p.compareAtPrice && p.bestsellerScore != null && p.bestsellerScore > 0 && (
+                    <span className="rounded-full bg-[#2f3e36] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3 sm:text-xs">
+                      Bestseller
+                    </span>
+                  )}
+                  {p.createdAt && new Date(p.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                    <span className="rounded-full bg-[#E4C56C] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2f3e36] shadow sm:px-3 sm:text-xs">
+                      Neu
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -488,8 +500,8 @@ function isGrowboxProduct(product: Product) {
   return (
     product.categories?.some(
       (category) =>
-        category.handle === "growboxen" ||
-        category.parent?.handle === "growboxen",
+        category.handle === "zelte" ||
+        category.parent?.handle === "zelte",
     ) ?? false
   );
 }

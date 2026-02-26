@@ -26,8 +26,8 @@ export default async function StorePage() {
     .filter((p) =>
       p.categories.some(
         (c) =>
-          ["growboxen", "zelte"].includes(c.handle) ||
-          ["growboxen", "zelte"].includes(c.parent?.handle ?? "")
+          c.handle === "zelte" ||
+          c.parent?.handle === "zelte"
       )
     )
     .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 400)
@@ -41,28 +41,11 @@ export default async function StorePage() {
       <div className="mx-auto max-w-6xl px-0 sm:px-6">
         <Navbar />
         <HeroBanner />
-
-        {/* Bestsellers Section */}
-        <section className="relative z-10 -mt-6 pb-12 sm:-mt-10 md:-mt-12">
-          <div className="overflow-hidden rounded-b-3xl bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
-            <div className="px-6 pb-6 pt-10 text-center sm:px-8 sm:pt-12">
-              <h2 className="text-3xl font-bold text-[#21483b] sm:text-4xl">
-                Unsere Bestseller
-              </h2>
-              <div className="mx-auto mt-3 h-1 w-24 rounded-full bg-[#21483b]" />
-              <p className="mt-4 text-base text-stone-600 sm:text-lg">
-                Premium Equipment für premium Ergebnisse
-              </p>
-            </div>
-
-            <div className="px-3 pb-12 pt-1 sm:px-4">
+{/* Bestsellers Section */}
+        <section className="pb-12 pt-2">
+            <div className="pb-12">
               <div className="space-y-10">
                 <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-[#21483b]">
-                      Zelte
-                    </h3>
-                  </div>
                   <DisplayProducts
                     products={tentProducts}
                     cols={4}
@@ -73,11 +56,6 @@ export default async function StorePage() {
                 </section>
 
                 <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-[#21483b]">
-                      Hersteller
-                    </h3>
-                  </div>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Link
                       href="/products?manufacturer=AC%20Infinity"
@@ -143,11 +121,6 @@ export default async function StorePage() {
                 </section>
 
                 <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-[#21483b]">
-                      Meistverkauft
-                    </h3>
-                  </div>
                   <DisplayProducts
                     products={bestSellersFilled}
                     cols={4}
@@ -157,7 +130,6 @@ export default async function StorePage() {
                 </section>
               </div>
             </div>
-          </div>
         </section>
 
         {/* Optional: View All Button */}

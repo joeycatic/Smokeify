@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Growbox Konfigurator",
+  title: "Pflanzenzelt-Konfigurator",
   description:
-    "Growbox Konfigurator (Zelt Konfigurator): Stelle dein Setup aus Zelt, Licht, Abluft und Extras passend zusammen.",
+    "Pflanzenzelt-Konfigurator: Stelle dein Indoor-Setup aus Zelt, Licht, Abluft und Extras passend zusammen.",
   alternates: {
     canonical: "/customizer",
   },

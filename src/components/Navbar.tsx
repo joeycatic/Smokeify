@@ -1073,7 +1073,7 @@ export function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
-                        Growbox-Konfigurator
+                        Pflanzenzelt-Konfigurator
                       </Link>
                     </div>,
                     document.body,
@@ -1248,7 +1248,7 @@ export function Navbar() {
                     href="/customizer"
                     className="cursor-pointer text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
-                    Growbox-Konfigurator
+                    Pflanzenzelt-Konfigurator
                   </Link>
                 </div>
               </div>

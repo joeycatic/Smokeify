@@ -2,15 +2,15 @@ export default function GrowboxEinsteigerGuide() {
   return (
     <>
       <p className="mt-0 text-lg leading-relaxed text-stone-600">
-        Du willst zum ersten Mal eine Growbox aufbauen, weißt aber nicht wo du anfangen sollst?
+        Du willst zum ersten Mal ein Pflanzenzelt aufbauen, weißt aber nicht wo du anfangen sollst?
         Kein Problem – in diesem Guide erklären wir dir Schritt für Schritt, welche Ausrüstung du
         brauchst, welche Größe für dich sinnvoll ist und wie du typische Anfängerfehler von
         vornherein vermeidest.
       </p>
 
-      <h2>Was ist eine Growbox?</h2>
+      <h2>Was ist ein Pflanzenzelt?</h2>
       <p>
-        Eine Growbox ist ein abgeschlossenes Indoor-Anbausystem, das dir eine vollständig
+        Ein Pflanzenzelt ist ein abgeschlossenes Indoor-Anbausystem, das dir eine vollständig
         kontrollierbare Umgebung für deine Pflanzen bietet. Die Box selbst besteht aus einem
         stabilen Metallrahmen und lichtdichtem, innen reflektierendem Stoff – dadurch wird das
         Licht deiner LED-Leuchte optimal genutzt und nach außen nichts sichtbar. Kombiniert mit
@@ -18,17 +18,17 @@ export default function GrowboxEinsteigerGuide() {
         Ergebnisse erzielen – unabhängig von Jahreszeit oder Witterung.
       </p>
 
-      <h2>Die Bestandteile eines kompletten Grow-Setups</h2>
+      <h2>Die Bestandteile eines kompletten Indoor-Setups</h2>
       <p>
-        Ein vollständiges Grow-Setup besteht aus mehreren Komponenten, die aufeinander abgestimmt
+        Ein vollständiges Indoor-Setup besteht aus mehreren Komponenten, die aufeinander abgestimmt
         sein müssen. Hier ein Überblick über alles, was du benötigst:
       </p>
 
-      <h3>1. Das Growzelt</h3>
+      <h3>1. Das Pflanzenzelt</h3>
       <p>
-        Die Box ist das Herzstück deines Setups. Achte auf robustes Material (mindestens 600D
+        Das Zelt ist das Herzstück deines Setups. Achte auf robustes Material (mindestens 600D
         Oxford-Stoff), gut abgedichtete Reißverschlüsse und ausreichend Öffnungen für Kabel,
-        Lüftungsrohre und Bewässerungsleitungen. Für Einsteiger eignen sich fertige Grow-Sets,
+        Lüftungsrohre und Bewässerungsleitungen. Für Einsteiger eignen sich fertige Indoor-Sets,
         bei denen alle Komponenten bereits perfekt aufeinander abgestimmt sind.
       </p>
 
@@ -64,12 +64,12 @@ export default function GrowboxEinsteigerGuide() {
       <h3>5. Dünger und Nährstoffe</h3>
       <p>
         In der Wachstumsphase brauchen Pflanzen viel Stickstoff (N), in der Blütephase mehr
-        Phosphor (P) und Kalium (K). Ein einfaches Drei-Phasen-Set (Grow, Bloom, Boost) reicht
+        Phosphor (P) und Kalium (K). Ein einfaches Drei-Phasen-Set (Wuchs, Blüte, Boost) reicht
         für den Anfang völlig aus. Wichtig: <strong>Fange mit halber Dosierungsempfehlung an</strong>{" "}
         und steigere sie schrittweise – Überdüngung ist der häufigste Anfängerfehler.
       </p>
 
-      <h2>Welche Growbox-Größe ist die richtige?</h2>
+      <h2>Welche Zeltgröße ist die richtige?</h2>
       <p>
         Die Wahl der Größe hängt vom verfügbaren Platz und der Anzahl deiner Pflanzen ab:
       </p>
@@ -83,11 +83,11 @@ export default function GrowboxEinsteigerGuide() {
           Spielraum für die Technik, ohne zu viel Platz zu beanspruchen.
         </li>
         <li>
-          <strong>100 × 100 cm:</strong> 4–6 Pflanzen. Ideal für ernsthafte Hobbygrower, die
+          <strong>100 × 100 cm:</strong> 4–6 Pflanzen. Ideal für ernsthafte Hobbyisten, die
           regelmäßig ernten wollen.
         </li>
         <li>
-          <strong>120 × 120 cm und größer:</strong> 6+ Pflanzen. Für erfahrene Grower mit
+          <strong>120 × 120 cm und größer:</strong> 6+ Pflanzen. Für erfahrene Gärtner mit
           entsprechendem Platzangebot.
         </li>
       </ul>
@@ -101,7 +101,7 @@ export default function GrowboxEinsteigerGuide() {
       <h2>Schritt-für-Schritt: Dein erstes Setup aufbauen</h2>
       <ol>
         <li>
-          <strong>Zelt aufbauen:</strong> Growzelt nach Anleitung montieren und sicherstellen,
+          <strong>Zelt aufbauen:</strong> Pflanzenzelt nach Anleitung montieren und sicherstellen,
           dass es vollständig lichtdicht ist (alle Reißverschlüsse und Öffnungen schließen).
         </li>
         <li>
@@ -150,12 +150,12 @@ export default function GrowboxEinsteigerGuide() {
 
       <h2>Fazit</h2>
       <p>
-        Mit dem richtigen Equipment und etwas Geduld lassen sich mit einer Growbox hervorragende
+        Mit dem richtigen Equipment und etwas Geduld lassen sich mit einem Pflanzenzelt hervorragende
         Ergebnisse erzielen – und der Einstieg ist einfacher als viele denken. Wer auf
         hochwertige, aufeinander abgestimmte Komponenten setzt, spart sich teure
         Trial-and-Error-Erfahrungen. Bei Smokeify findest du alles, was du für den Start
         brauchst: von kompakten Einsteiger-Sets bis hin zu einzelnen Profi-Komponenten für
-        erfahrene Grower.
+        erfahrene Gärtner.
       </p>
     </>
   );

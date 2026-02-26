@@ -7,9 +7,11 @@ const prisma = new PrismaClient();
 const DEFAULT_INPUT = "scripts/bloomtech/supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
-const DEFAULT_MARGIN_PERCENT = 20;
-const DEFAULT_ROUNDING_STRATEGY = "99";
+const DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD = 15;
+const DEFAULT_MARGIN_PERCENT_ABOVE_THRESHOLD = 20;
+const DEFAULT_ROUNDING_STRATEGY = "nearest_99";
 const DEFAULT_MIN_PRICE_EUR = 10;
+const DEFAULT_MIN_PRICE_DELTA_EUR = 0.5;
 const DEFAULT_MARGIN_THRESHOLD_EUR = 100;
 const DEFAULT_SOURCE = "auto";
 
@@ -31,6 +33,7 @@ const parseArgs = () => {
     marginThresholdEur: getValue("--margin-threshold-eur"),
     rounding: getValue("--rounding"),
     minPriceEur: getValue("--min-price-eur"),
+    minPriceDeltaEur: getValue("--min-price-delta-eur"),
     source: getValue("--source") ?? DEFAULT_SOURCE,
   };
 };
@@ -52,9 +55,21 @@ const ceilToNextWithEndings = (targetCents, endings) => {
     .sort((a, b) => a - b)[0] ?? normalized;
 };
 
-const parseMarginPercent = (rawValue) => {
+const roundToNearest99 = (targetCents, costCents) => {
+  const euros = Math.floor(targetCents / 100);
+  const candidates = [euros - 1, euros, euros + 1]
+    .filter((e) => e >= 0)
+    .map((e) => e * 100 + 99)
+    .filter((c) => c > costCents);
+  if (!candidates.length) return Math.ceil(targetCents);
+  return candidates.reduce((best, c) =>
+    Math.abs(c - targetCents) < Math.abs(best - targetCents) ? c : best
+  );
+};
+
+const parseMarginPercent = (rawValue, defaultValue = DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD) => {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
-    return DEFAULT_MARGIN_PERCENT;
+    return defaultValue;
   }
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed)) {
@@ -80,7 +95,7 @@ const parseMarginThresholdEur = (rawValue) => {
 const parseRoundingStrategy = (rawValue) => {
   if (!rawValue) return DEFAULT_ROUNDING_STRATEGY;
   const normalized = String(rawValue).trim().toLowerCase();
-  if (normalized === "none" || normalized === "99") return normalized;
+  if (normalized === "none" || normalized === "99" || normalized === "nearest_99") return normalized;
   if (normalized === "49_or_99" || normalized === "45_or_99") return "99";
   throw new Error(`Invalid rounding strategy: ${rawValue}`);
 };
@@ -96,6 +111,17 @@ const parseMinPriceEur = (rawValue) => {
   return parsed;
 };
 
+const parseMinPriceDeltaEur = (rawValue) => {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return DEFAULT_MIN_PRICE_DELTA_EUR;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid minimum price delta EUR: ${rawValue}`);
+  }
+  return parsed;
+};
+
 const resolvePricingConfig = ({
   marginPercentArg,
   marginPercentBelowThresholdArg,
@@ -103,19 +129,21 @@ const resolvePricingConfig = ({
   marginThresholdEurArg,
   roundingArg,
   minPriceEurArg,
+  minPriceDeltaEurArg,
 }) => {
-  const marginPercentFallback = parseMarginPercent(
-    marginPercentArg ?? process.env.BLOOMTECH_TARGET_MARGIN_PERCENT
-  );
   const marginPercentBelowThreshold = parseMarginPercent(
     marginPercentBelowThresholdArg ??
       process.env.BLOOMTECH_TARGET_MARGIN_PERCENT_BELOW_THRESHOLD ??
-      marginPercentFallback
+      marginPercentArg ??
+      process.env.BLOOMTECH_TARGET_MARGIN_PERCENT,
+    DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD
   );
   const marginPercentAboveThreshold = parseMarginPercent(
     marginPercentAboveThresholdArg ??
       process.env.BLOOMTECH_TARGET_MARGIN_PERCENT_ABOVE_THRESHOLD ??
-      marginPercentFallback
+      marginPercentArg ??
+      process.env.BLOOMTECH_TARGET_MARGIN_PERCENT,
+    DEFAULT_MARGIN_PERCENT_ABOVE_THRESHOLD
   );
   const marginThresholdEur = parseMarginThresholdEur(
     marginThresholdEurArg ?? process.env.BLOOMTECH_MARGIN_THRESHOLD_EUR
@@ -126,12 +154,16 @@ const resolvePricingConfig = ({
   const minPriceEur = parseMinPriceEur(
     minPriceEurArg ?? process.env.BLOOMTECH_MIN_PRICE_EUR
   );
+  const minPriceDeltaEur = parseMinPriceDeltaEur(
+    minPriceDeltaEurArg ?? process.env.BLOOMTECH_MIN_PRICE_DELTA_EUR
+  );
   return {
     marginPercentBelowThreshold,
     marginPercentAboveThreshold,
     marginThresholdCents: Math.round(marginThresholdEur * 100),
     rounding,
     minPriceCents: Math.round(minPriceEur * 100),
+    minPriceDeltaCents: Math.round(minPriceDeltaEur * 100),
     currency: "EUR",
   };
 };
@@ -147,10 +179,14 @@ const buildSellPriceCents = (costCents, pricingConfig) => {
   if (marginMultiplier <= 0) {
     throw new Error("Invalid margin configuration produced divisor <= 0.");
   }
-  const targetSellCents = Math.ceil(costCents / marginMultiplier);
-  if (pricingConfig.rounding === "none") return targetSellCents;
-  return ceilToNextWithEndings(targetSellCents, [99]);
+  const targetSellCents = costCents / marginMultiplier;
+  if (pricingConfig.rounding === "none") return Math.ceil(targetSellCents);
+  if (pricingConfig.rounding === "99") return ceilToNextWithEndings(Math.ceil(targetSellCents), [99]);
+  return roundToNearest99(targetSellCents, costCents);
 };
+
+const isSignificantPriceChange = (prevCents, nextCents, minDeltaCents) =>
+  prevCents !== nextCents && Math.abs(nextCents - prevCents) >= minDeltaCents;
 
 const buildUpdatesFromDbCosts = (variants, pricingConfig) => {
   const eligibleEntries = [];
@@ -180,8 +216,8 @@ const buildUpdatesFromDbCosts = (variants, pricingConfig) => {
   return {
     missingCostCount,
     eligibleCount: eligibleEntries.length,
-    variantUpdates: eligibleEntries.filter(
-      (entry) => entry.prevPriceCents !== entry.nextPriceCents
+    variantUpdates: eligibleEntries.filter((entry) =>
+      isSignificantPriceChange(entry.prevPriceCents, entry.nextPriceCents, pricingConfig.minPriceDeltaCents)
     ),
   };
 };
@@ -303,6 +339,7 @@ const run = async () => {
     marginThresholdEurArg: marginThresholdEur,
     roundingArg: rounding,
     minPriceEurArg: minPriceEur,
+    minPriceDeltaEurArg: minPriceDeltaEur,
   });
   const pricingSource = parseSource(source);
 
@@ -434,7 +471,7 @@ const run = async () => {
           .filter(
             (entry) =>
               entry.prevCostCents !== entry.nextCostCents ||
-              entry.prevPriceCents !== entry.nextPriceCents
+              isSignificantPriceChange(entry.prevPriceCents, entry.nextPriceCents, pricingConfig.minPriceDeltaCents)
           );
       } else {
         if (previewItem && effectiveSource === "hybrid") {

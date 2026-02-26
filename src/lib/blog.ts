@@ -10,22 +10,22 @@ export type BlogPost = {
 export const blogPosts: BlogPost[] = [
   {
     slug: "growbox-einsteiger-guide",
-    title: "Growbox Einsteiger Guide – Alles was du für den Start brauchst",
+    title: "Pflanzenzelt Einsteiger Guide – Alles was du für den Start brauchst",
     description:
-      "Der komplette Growbox Einsteiger Guide: Welche Ausrüstung du brauchst, wie du die richtige Größe wählst und deine ersten Pflanzen erfolgreich anziehst.",
+      "Der komplette Pflanzenzelt Einsteiger Guide: Welche Ausrüstung du brauchst, wie du die richtige Größe wählst und deine ersten Pflanzen erfolgreich anziehst.",
     publishedAt: "2026-02-23",
     excerpt:
-      "Du willst zum ersten Mal eine Growbox aufbauen, weißt aber nicht wo du anfangen sollst? In diesem Guide erklären wir dir Schritt für Schritt, welche Ausrüstung du brauchst und wie du häufige Anfängerfehler vermeidest.",
+      "Du willst zum ersten Mal ein Pflanzenzelt aufbauen, weißt aber nicht wo du anfangen sollst? In diesem Guide erklären wir dir Schritt für Schritt, welche Ausrüstung du brauchst und wie du häufige Anfängerfehler vermeidest.",
     readingTimeMin: 7,
   },
   {
     slug: "growbox-2-pflanzen",
-    title: "Welche Growbox für 2 Pflanzen? Größen & Empfehlungen 2026",
+    title: "Welches Pflanzenzelt für 2 Pflanzen? Größen & Empfehlungen 2026",
     description:
-      "Du planst 2 Pflanzen in einer Growbox? Wir erklären, welche Größe ideal ist, welche LED-Leistung du brauchst und worauf du beim Kauf achten solltest.",
+      "Du planst 2 Pflanzen in einem Pflanzenzelt? Wir erklären, welche Größe ideal ist, welche LED-Leistung du brauchst und worauf du beim Kauf achten solltest.",
     publishedAt: "2026-02-23",
     excerpt:
-      "60×60 oder 80×80 cm? Die Boxgröße macht für zwei Pflanzen einen großen Unterschied. Wir vergleichen die gängigsten Growbox-Maße und erklären, welche Variante für deine Bedürfnisse am besten passt.",
+      "60×60 oder 80×80 cm? Die Zeltgröße macht für zwei Pflanzen einen großen Unterschied. Wir vergleichen die gängigsten Pflanzenzelt-Maße und erklären, welche Variante für deine Bedürfnisse am besten passt.",
     readingTimeMin: 5,
   },
   {
