@@ -60,7 +60,7 @@ export default async function StorePage() {
         <div className="px-0 sm:px-6">
           <Navbar />
         </div>
-        <div className="px-0 sm:px-6">
+        <div className="sm:px-6">
           <HeroBanner />
         </div>
 {/* Bestsellers Section */}
