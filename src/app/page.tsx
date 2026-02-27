@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   alternates: {
@@ -58,7 +59,9 @@ export default async function StorePage() {
       <AnnouncementBar />
       <div className="mx-auto max-w-6xl">
         <div className="px-0 sm:px-6">
-          <Navbar />
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
         </div>
         <div className="sm:px-6">
           <HeroBanner />

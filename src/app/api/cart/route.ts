@@ -217,7 +217,7 @@ const resolveCartItemsForRequest = async (userId?: string | null) => {
   const userItems = await readUserCartItems(userId);
   const merged = await clampCartItemsToInventory(mergeCartItems(userItems, cookieItems));
   await writeUserCartItems(userId, merged);
-  await writeCookieCartItems(merged);
+  await writeCookieCartItems([]);
   return merged;
 };
 
@@ -225,6 +225,8 @@ const persistCartItems = async (items: CartItem[], userId?: string | null) => {
   const clamped = await clampCartItemsToInventory(items);
   if (userId) {
     await writeUserCartItems(userId, clamped);
+    await writeCookieCartItems([]);
+    return clamped;
   }
   await writeCookieCartItems(clamped);
   return clamped;

@@ -426,7 +426,7 @@ export function Navbar() {
     };
   }, []);
 
-  const canPortal = typeof document !== "undefined";
+  const canPortal = mounted;
   const [productsPopupStyle, setProductsPopupStyle] = useState<{
     top: number;
     left: number;
