@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -409,17 +410,16 @@ export default function CartPage() {
               >
                 <div className="flex items-center gap-4">
                   {line.merchandise.image?.url ? (
-                    <img
+                    <Image
                       src={line.merchandise.image.url}
                       alt={
                         line.merchandise.image.altText ??
                         line.merchandise.product.title
                       }
                       className="h-20 w-20 rounded-3xl object-cover ring-1 ring-black/5"
-                      loading="lazy"
-                      decoding="async"
                       width={80}
                       height={80}
+                      sizes="80px"
                     />
                   ) : (
                     <div className="h-20 w-20 rounded-3xl bg-stone-100 ring-1 ring-black/5" />

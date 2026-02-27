@@ -147,6 +147,7 @@ const writeUserCartItems = async (userId: string, items: CartItem[]) => {
 
       for (const item of items) {
         const options = normalizeOptions(item.options);
+        const optionsJson = options.length > 0 ? JSON.stringify(options) : null;
         await tx.$executeRaw`
           INSERT INTO "UserCartItem" (
             id,
@@ -164,7 +165,7 @@ const writeUserCartItems = async (userId: string, items: CartItem[]) => {
             ${item.variantId},
             ${Math.max(1, Math.floor(item.quantity))},
             ${serializeOptionsKey(options)},
-            ${options.length > 0 ? options : null},
+            CAST(${optionsJson} AS jsonb),
             NOW(),
             NOW()
           )

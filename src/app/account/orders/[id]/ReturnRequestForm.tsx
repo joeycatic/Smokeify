@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 type Props = {
   orderId: string;
@@ -105,14 +106,13 @@ export default function ReturnRequestForm({
                   className="h-4 w-4 rounded border border-white/20 bg-[#0f1713] text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
                 />
                 {item.imageUrl ? (
-                  <img
+                  <Image
                     src={item.imageUrl}
                     alt={item.name}
                     className="h-10 w-10 rounded-lg border border-white/10 object-cover"
-                    loading="lazy"
-                    decoding="async"
                     width={40}
                     height={40}
+                    sizes="40px"
                   />
                 ) : (
                   <div className="h-10 w-10 rounded-lg border border-white/10 bg-[#0f1713]" />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import FooterNewsletter from "@/components/FooterNewsletter";
 
@@ -222,12 +223,13 @@ export default function Footer() {
               Versand:
             </span>
             <span className="inline-flex h-8 items-center rounded-full border border-white/15 bg-white/5 px-3">
-              <img
+              <Image
                 src="/shipping-provider-logos/dhl-logo.png"
                 alt="DHL"
                 className="h-5 w-auto object-contain"
-                loading="lazy"
-                decoding="async"
+                width={60}
+                height={20}
+                sizes="60px"
               />
             </span>
           </div>

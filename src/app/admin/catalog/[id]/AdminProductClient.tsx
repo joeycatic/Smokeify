@@ -2005,11 +2005,13 @@ export default function AdminProductClient({
                   </div>
                   <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
                     {image.url ? (
-                      <img
+                      <Image
                         src={image.url}
                         alt={image.altText ?? "Image preview"}
                         className="h-full w-full object-cover"
-                        loading="lazy"
+                        width={96}
+                        height={80}
+                        sizes="96px"
                       />
                     ) : (
                       <span className="text-[10px] text-stone-400">
@@ -2105,11 +2107,13 @@ export default function AdminProductClient({
             <div className="grid items-start gap-3 md:grid-cols-[96px_1.6fr_1fr_120px_auto]">
               <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
                 {newImage.url ? (
-                  <img
+                  <Image
                     src={newImage.url}
                     alt={newImage.altText || "New image preview"}
                     className="h-full w-full object-cover"
-                    loading="lazy"
+                    width={96}
+                    height={80}
+                    sizes="96px"
                   />
                 ) : (
                   <span className="text-[10px] text-stone-400">Preview</span>

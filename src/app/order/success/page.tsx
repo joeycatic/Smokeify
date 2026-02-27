@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -317,14 +318,13 @@ export default function OrderSuccessPage() {
                     >
                       <div className="flex items-center gap-3">
                         {item.imageUrl ? (
-                          <img
+                          <Image
                             src={item.imageUrl}
                             alt={item.name}
                             className="h-12 w-12 rounded-lg border border-black/10 bg-white object-cover"
-                            loading="lazy"
-                            decoding="async"
                             width={48}
                             height={48}
+                            sizes="48px"
                           />
                         ) : (
                           <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-black/10 bg-stone-100 text-xs font-semibold text-stone-500">

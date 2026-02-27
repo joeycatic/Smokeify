@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type OrderItem = {
@@ -1123,7 +1124,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         const selectedQty = selection[item.id] ?? 0;
                         const isSelected = selectedQty > 0;
                         const itemImage = item.imageUrl ? (
-                          <img
+                          <Image
                             src={item.imageUrl}
                             alt={itemName}
                             className={`h-10 w-10 rounded-lg border border-black/10 object-cover ${
@@ -1131,10 +1132,9 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                 ? "transition hover:border-emerald-300"
                                 : ""
                             }`}
-                            loading="lazy"
-                            decoding="async"
                             width={40}
                             height={40}
+                            sizes="40px"
                           />
                         ) : null;
                         return (

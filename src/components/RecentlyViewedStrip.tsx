@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -132,12 +133,12 @@ export default function RecentlyViewedStrip({
 
               <div className="relative h-36 overflow-hidden rounded-xl bg-stone-50 sm:h-44">
                 {item.imageUrl ? (
-                  <img
+                  <Image
                     src={item.imageUrl}
                     alt={item.imageAlt ?? item.title}
                     className="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-[1.04]"
-                    loading="lazy"
-                    decoding="async"
+                    fill
+                    sizes="(min-width: 640px) 15rem, 13rem"
                   />
                 ) : (
                   <div className="h-full w-full" />

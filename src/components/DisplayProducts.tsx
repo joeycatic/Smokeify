@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ArrowTopRightOnSquareIcon,
   EyeIcon,
@@ -10,8 +11,11 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import ProductCardActions from "@/components/ProductCardActions";
-import QuickViewModal from "@/components/QuickViewModal";
 import type { Product } from "@/data/types";
+
+const QuickViewModal = dynamic(() => import("@/components/QuickViewModal"), {
+  ssr: false,
+});
 
 type Props = {
   products?: Product[];

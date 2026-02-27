@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -25,21 +27,43 @@ import {
   SparklesIcon,
   SunIcon,
   TrashIcon,
-  TruckIcon,
   UserCircleIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { FREE_SHIPPING_THRESHOLD_EUR } from "@/lib/checkoutPolicy";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
 import { useWishlist } from "@/hooks/useWishlist";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { seoPages } from "@/lib/seoPages";
+import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
+
+const PaymentMethodLogos = dynamic(
+  () => import("@/components/PaymentMethodLogos"),
+  { ssr: false },
+);
+const CheckoutAuthModal = dynamic(
+  () => import("@/components/CheckoutAuthModal"),
+  { ssr: false },
+);
+const NavbarAccountPanel = dynamic(
+  () => import("@/components/navbar/NavbarAccountPanel"),
+  { ssr: false },
+);
+const NavbarCartDrawer = dynamic(
+  () => import("@/components/navbar/NavbarCartDrawer"),
+  { ssr: false },
+);
+const NavbarSearchResultsPopover = dynamic(
+  () => import("@/components/navbar/NavbarSearchResultsPopover"),
+  { ssr: false },
+);
+const NavbarMobileCategoriesOverlay = dynamic(
+  () => import("@/components/navbar/NavbarMobileCategoriesOverlay"),
+  { ssr: false },
+);
 
 function formatPrice(amount: string, currencyCode: string) {
   const value = Number(amount);
@@ -50,14 +74,6 @@ function formatPrice(amount: string, currencyCode: string) {
     minimumFractionDigits: 2,
   }).format(value);
 }
-
-const formatCartOptions = (options?: Array<{ name: string; value: string }>) => {
-  if (!options?.length) return "";
-  return options
-    .map((opt) => `${opt.name}: ${opt.value}`)
-    .filter(Boolean)
-    .join(" · ");
-};
 
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
   cart.lines.map((line) => ({
@@ -107,25 +123,6 @@ seoPages.forEach((page) => {
     }
   }
 });
-
-
-const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
-  RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
-  NEW_DEVICE:
-    "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
-  CredentialsSignin: "Email oder Passwort ist falsch.",
-  AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
-};
-
-const getLoginErrorMessage = (code?: string) => {
-  if (!code) {
-    return "Login fehlgeschlagen. Bitte pruefe deine Daten.";
-  }
-  return (
-    LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
-  );
-};
 
 const getCategoryIcon = (name: string) => {
   const value = name.toLowerCase();
@@ -187,14 +184,8 @@ export function Navbar() {
     isSeoPage;
   const showMobileSearch = showCategoryBar;
   const [accountOpen, setAccountOpen] = useState(false);
-  const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
-    "idle",
-  );
   const [categoryNavTarget, setCategoryNavTarget] = useState<string | null>(null);
   const [categoryHoverLocked, setCategoryHoverLocked] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginMessage, setLoginMessage] = useState<string | null>(null);
-  const [logoutStatus, setLogoutStatus] = useState<"idle" | "ok">("idle");
   const accountRef = useRef<HTMLDivElement | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const cartRef = useRef<HTMLDivElement | null>(null);
@@ -216,16 +207,7 @@ export function Navbar() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<
-    Array<{
-      id: string;
-      title: string;
-      handle: string;
-      imageUrl: string | null;
-      imageAlt: string | null;
-      price: { amount: string; currencyCode: string } | null;
-    }>
-  >([]);
+  const [searchResults, setSearchResults] = useState<NavbarSearchResult[]>([]);
   const [searchStatus, setSearchStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
@@ -305,6 +287,11 @@ export function Navbar() {
   }, [isMobile, mobileAddedOpen]);
 
   useEffect(() => {
+    if (!cartOpen || isMobile || loading || cart) return;
+    void refresh();
+  }, [cartOpen, cart, isMobile, loading, refresh]);
+
+  useEffect(() => {
     setCategoryNavTarget(null);
     setCategoryHoverLocked(false);
   }, [pathname, searchParams]);
@@ -336,24 +323,6 @@ export function Navbar() {
     const timer = setTimeout(() => setCartPop(false), 250);
     return () => clearTimeout(timer);
   }, [count]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      setLogoutStatus("idle");
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (logoutStatus !== "ok") return;
-    const timer = setTimeout(() => setLogoutStatus("idle"), 3000);
-    return () => clearTimeout(timer);
-  }, [logoutStatus]);
-
-  useEffect(() => {
-    if (loginStatus !== "ok") return;
-    const timer = setTimeout(() => setLoginStatus("idle"), 3000);
-    return () => clearTimeout(timer);
-  }, [loginStatus]);
 
   useEffect(() => {
     if (wishlistCount === 0) return;
@@ -839,6 +808,14 @@ export function Navbar() {
   const activeParentCategory = activeParentId
     ? (categoryById.get(activeParentId) ?? null)
     : null;
+  const childCountByCategoryId = useMemo(() => {
+    const map = new Map<string, number>();
+    categoriesByParent.forEach((list, key) => {
+      if (key === null) return;
+      map.set(key, list.length);
+    });
+    return map;
+  }, [categoriesByParent]);
   const filteredCategories =
     categoryQuery.trim().length > 0
       ? activeCategories.filter((category) =>
@@ -846,197 +823,6 @@ export function Navbar() {
         )
       : activeCategories;
 
-  const accountPanelContent = mounted ? (
-    <>
-      <div className="mb-4 text-center">
-        <p className="text-2xl font-bold" style={{ color: "#2f3e36" }}>
-          Account
-        </p>
-        <p className="mt-1 text-xs text-black/60">
-          {isAuthenticated
-            ? "Verwalten Sie Ihr Profil oder loggen sich aus."
-            : "Melde dich an oder erstelle ein Konto."}
-        </p>
-      </div>
-      {!isAuthenticated && (
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setLoginStatus("idle");
-            setLoginMessage(null);
-            setLogoutStatus("idle");
-            setLoginLoading(true);
-            const form = event.currentTarget as HTMLFormElement;
-            const formData = new FormData(form);
-            const email = String(formData.get("email") ?? "");
-            const password = String(formData.get("password") ?? "");
-            let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
-              null;
-            try {
-              res = await signIn("credentials", {
-                email,
-                password,
-                redirect: false,
-              });
-              if (res?.ok) {
-                setLoginStatus("ok");
-                setLoginMessage("Erfolgreich angemeldet.");
-                setLogoutStatus("idle");
-                return;
-              }
-              if (res?.error === "NEW_DEVICE") {
-                sessionStorage.setItem("smokeify_verify_email", email);
-                sessionStorage.setItem("smokeify_return_to", returnTo);
-                router.push(
-                  `/auth/verify?email=${encodeURIComponent(
-                    email,
-                  )}&returnTo=${encodeURIComponent(returnTo)}`,
-                );
-                return;
-              }
-              if (res?.error) {
-                try {
-                  const rateRes = await fetch("/api/auth/rate-limit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ identifier: email }),
-                  });
-                  if (rateRes.ok) {
-                    const data = (await rateRes.json()) as {
-                      limited?: boolean;
-                    };
-                    if (data.limited) {
-                      setLoginStatus("error");
-                      setLoginMessage(
-                        "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
-                      );
-                      return;
-                    }
-                  }
-                } catch {
-                  // Ignore rate-limit status failures.
-                }
-                setLoginStatus("error");
-                setLoginMessage(getLoginErrorMessage(res.error));
-                return;
-              }
-              setLoginStatus("error");
-              setLoginMessage(getLoginErrorMessage(res?.error ?? undefined));
-            } catch {
-              setLoginStatus("error");
-              setLoginMessage(
-                "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut.",
-              );
-            } finally {
-              setLoginLoading(false);
-            }
-          }}
-          className="space-y-2"
-        >
-          <input
-            name="email"
-            type="text"
-            required
-            aria-label="Email oder Username"
-            placeholder="Email oder Username"
-            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          />
-          <input
-            name="password"
-            type="password"
-            required
-            aria-label="Passwort"
-            placeholder="Passwort"
-            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          />
-          <div className="flex justify-between">
-            <Link
-              href="/auth/verify"
-              className="text-xs font-semibold text-stone-500 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              Account verifizieren
-            </Link>
-            <Link
-              href="/auth/reset"
-              className="text-xs font-semibold text-stone-500 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              Passwort vergessen?
-            </Link>
-          </div>
-          <button
-            type="submit"
-            disabled={loginLoading}
-            className="h-10 w-full cursor-pointer rounded-md bg-[#43584c] px-4 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-60"
-          >
-            {loginLoading ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <LoadingSpinner
-                  size="sm"
-                  className="border-white/40 border-t-white"
-                />
-                Bitte warten...
-              </span>
-            ) : (
-              "Login"
-            )}
-          </button>
-        </form>
-      )}
-      <div className="mt-2 flex items-center gap-3">
-        {isAuthenticated ? (
-          <>
-            <Link
-              href="/account"
-              className="inline-flex flex-1 items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              Anzeigen
-            </Link>
-            <button
-              type="button"
-              onClick={async () => {
-                await signOut({ redirect: false });
-                setLoginStatus("idle");
-                setLogoutStatus("ok");
-              }}
-              className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-black/15 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              Ausloggen
-            </button>
-          </>
-        ) : (
-          <Link
-            href={`/auth/register?returnTo=${encodeURIComponent(returnTo)}`}
-            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#E4C56C] px-4 text-sm font-semibold text-[#2f3e36] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          >
-            Registrieren
-          </Link>
-        )}
-      </div>
-      {!isAuthenticated &&
-        (logoutStatus === "ok" ||
-          loginStatus === "ok" ||
-          loginStatus === "error") && (
-          <p
-            className={`mt-2 text-xs ${
-              logoutStatus === "ok" || loginStatus === "error"
-                ? "text-red-600"
-                : "text-green-700"
-            }`}
-          >
-            {logoutStatus === "ok"
-              ? "Erfolgreich abgemeldet."
-              : (loginMessage ?? "Login fehlgeschlagen.")}
-          </p>
-        )}
-      {isAuthenticated && loginStatus === "ok" && (
-        <p className="mt-2 text-xs text-green-700">Erfolgreich angemeldet.</p>
-      )}
-    </>
-  ) : (
-    <div className="h-24" />
-  );
   return (
     <>
       <nav className="fixed top-10 left-0 z-40 w-full border-b border-black/10 bg-stone-100 isolate">
@@ -1272,13 +1058,11 @@ export function Navbar() {
               <div className="flex flex-wrap items-center justify-center gap-3 sm:col-start-2 sm:flex-nowrap sm:gap-6">
                 <div className="relative flex items-center gap-3 sm:gap-6">
                   <Link href="/" className="flex items-center">
-                    <img
+                    <Image
                       src="/images/smokeify2.png"
                       alt="Smokeify Logo"
                       className="h-12 w-auto object-contain sm:h-16"
-                      loading="eager"
-                      decoding="async"
-                      fetchPriority="high"
+                      priority
                       width={180}
                       height={64}
                     />
@@ -1316,109 +1100,34 @@ export function Navbar() {
                       className="h-10 w-full rounded-full border border-black/10 bg-white pl-9 pr-4 text-sm text-stone-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-600/20"
                     />
                   </div>
-                  {searchOpen &&
-                    canPortal &&
-                    searchPopupStyle &&
-                    (searchStatus === "loading" ||
-                      searchStatus === "error" ||
-                      searchQuery.trim().length > 0) &&
-                    createPortal(
-                      <div
-                        ref={searchPopupRef}
-                        className="fixed z-[990] mt-0 rounded-2xl border border-emerald-200/70 bg-white p-3 text-sm shadow-xl shadow-emerald-900/10"
-                        style={{
-                          top: searchPopupStyle.top,
-                          left: searchPopupStyle.left,
-                          width: searchPopupStyle.width,
-                        }}
-                        aria-hidden={!searchOpen}
-                      >
-                        {searchStatus === "loading" && (
-                          <div className="px-2 py-2 text-xs text-stone-500">
-                            Suche...
-                          </div>
-                        )}
-                        {searchStatus === "error" && (
-                          <div className="px-2 py-2 text-xs text-red-600">
-                            Suche fehlgeschlagen.
-                          </div>
-                        )}
-                        {searchStatus === "idle" &&
-                          searchQuery.trim().length > 0 &&
-                          searchResults.length === 0 && (
-                            <div className="px-2 py-2 text-xs text-stone-500">
-                              Keine Produkte gefunden.
-                            </div>
-                          )}
-                        {searchResults.length > 0 && (
-                          <div className="space-y-2">
-                            {searchResults.slice(0, 6).map((item) => (
-                              <Link
-                                key={item.id}
-                                href={`/products/${item.handle}`}
-                                onClick={() => {
-                                  trackAnalyticsEvent("select_item", {
-                                    item_list_id: "search",
-                                    item_list_name: "search",
-                                    items: [
-                                      {
-                                        item_id: item.id,
-                                        item_name: item.title,
-                                        price: item.price
-                                          ? Number(item.price.amount)
-                                          : undefined,
-                                        quantity: 1,
-                                      },
-                                    ],
-                                  });
-                                  setSearchOpen(false);
-                                }}
-                                className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-sm text-stone-800 hover:border-emerald-200 hover:bg-emerald-50/60"
-                              >
-                                {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.imageAlt ?? item.title}
-                                    className="h-10 w-10 rounded-lg object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                    width={40}
-                                    height={40}
-                                  />
-                                ) : (
-                                  <div className="h-10 w-10 rounded-lg bg-stone-100" />
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold">
-                                    {item.title}
-                                  </p>
-                                  {item.price && (
-                                    <p className="text-xs text-stone-500">
-                                      {formatPrice(
-                                        item.price.amount,
-                                        item.price.currencyCode,
-                                      )}
-                                    </p>
-                                  )}
-                                </div>
-                                <span className="text-xs text-emerald-700">
-                                  →
-                                </span>
-                              </Link>
-                            ))}
-                            <Link
-                              href="/products"
-                              onClick={() => setSearchOpen(false)}
-                              className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-900"
-                            >
-                              Alle Produkte anzeigen
-                              <span>→</span>
-                            </Link>
-                          </div>
-                        )}
-                      </div>,
-                      document.body,
-                    )}
+                  {canPortal && (
+                    <NavbarSearchResultsPopover
+                      open={searchOpen}
+                      searchStatus={searchStatus}
+                      searchQuery={searchQuery}
+                      searchResults={searchResults}
+                      searchPopupStyle={searchPopupStyle}
+                      popupRef={searchPopupRef}
+                      onClose={() => setSearchOpen(false)}
+                      onSelectResult={(item) => {
+                        trackAnalyticsEvent("select_item", {
+                          item_list_id: "search",
+                          item_list_name: "search",
+                          items: [
+                            {
+                              item_id: item.id,
+                              item_name: item.title,
+                              price: item.price
+                                ? Number(item.price.amount)
+                                : undefined,
+                              quantity: 1,
+                            },
+                          ],
+                        });
+                        setSearchOpen(false);
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="relative" ref={cartRef}>
                   <button
@@ -1427,6 +1136,9 @@ export function Navbar() {
                       if (isMobile) {
                         router.push("/cart");
                         return;
+                      }
+                      if (!cart && !loading) {
+                        void refresh();
                       }
                       setCartOpen((prev) => !prev);
                     }}
@@ -1460,16 +1172,15 @@ export function Navbar() {
                       >
                       <div className="flex items-center gap-3">
                         {mobileAddedItem.imageUrl ? (
-                          <img
+                          <Image
                             src={mobileAddedItem.imageUrl}
                             alt={
                               mobileAddedItem.imageAlt ?? mobileAddedItem.title
                             }
                             className="h-12 w-12 rounded-md object-cover"
-                            loading="lazy"
-                            decoding="async"
                             width={48}
                             height={48}
+                            sizes="48px"
                           />
                         ) : (
                           <div className="h-12 w-12 rounded-md bg-stone-100" />
@@ -1557,7 +1268,11 @@ export function Navbar() {
                         }}
                         aria-hidden={!accountOpen}
                       >
-                        {accountPanelContent}
+                        <NavbarAccountPanel
+                          mounted={mounted}
+                          isAuthenticated={isAuthenticated}
+                          returnTo={returnTo}
+                        />
                       </div>,
                       document.body,
                     )}
@@ -1730,174 +1445,17 @@ export function Navbar() {
             </div>
           </div>
         )}
-        {cartOpen && !isMobile && (
-          <>
-            <button
-              type="button"
-              aria-label="Close cart"
-              onClick={() => setCartOpen(false)}
-              className="fixed inset-0 z-40 cursor-pointer bg-black/35 cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            />
-            <aside
-              ref={cartPanelRef}
-              className="fixed right-0 top-0 z-50 h-dvh w-full max-w-sm bg-white shadow-xl cart-slide-in"
-            >
-              <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
-                <div className="text-sm font-semibold tracking-widest">
-                  WARENKORB
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCartOpen(false)}
-                  className="text-xl cursor-pointer text-black/60 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex h-full flex-col">
-                <div className="no-scrollbar overflow-y-auto px-5 py-4 text-sm">
-                  {error ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                      <p>{error}</p>
-                    </div>
-                  ) : loading ? (
-                    <div className="flex items-center gap-2 text-stone-500">
-                      <LoadingSpinner size="sm" />
-                      <span>Warenkorb wird geladen...</span>
-                    </div>
-                  ) : !cart || cart.lines.length === 0 ? (
-                    <p className="text-stone-500">Warenkorb ist leer.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {cart.lines.slice(0, 6).map((line) => {
-                        const lineTotal = (
-                          Number(line.merchandise.price.amount) * line.quantity
-                        ).toFixed(2);
-                        return (
-                          <div
-                            key={line.id}
-                            className="flex items-center gap-3"
-                          >
-                            {line.merchandise.image?.url ? (
-                              <img
-                                src={line.merchandise.image.url}
-                                alt={
-                                  line.merchandise.image.altText ??
-                                  line.merchandise.product.title
-                                }
-                                className="h-12 w-12 rounded-md object-cover"
-                                loading="lazy"
-                                decoding="async"
-                                width={48}
-                                height={48}
-                              />
-                            ) : (
-                              <div className="h-12 w-12 rounded-md bg-stone-100" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              {line.merchandise.product.manufacturer && (
-                                <p className="truncate text-[11px] uppercase tracking-wide text-stone-400">
-                                  {line.merchandise.product.manufacturer}
-                                </p>
-                              )}
-                              <p className="truncate text-sm font-semibold">
-                                {line.merchandise.product.title}
-                              </p>
-                              {line.merchandise.options &&
-                                line.merchandise.options.length > 0 && (
-                                  <p className="truncate text-[11px] text-stone-500">
-                                    {formatCartOptions(line.merchandise.options)}
-                                  </p>
-                                )}
-                              <p className="text-xs text-stone-500">
-                                {line.quantity} ×{" "}
-                                {formatPrice(
-                                  line.merchandise.price.amount,
-                                  line.merchandise.price.currencyCode,
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-right text-xs font-semibold text-black/80">
-                              {formatPrice(
-                                lineTotal,
-                                line.merchandise.price.currencyCode,
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {cart.lines.length > 6 && (
-                        <p className="text-xs text-stone-500">
-                          + {cart.lines.length - 6} weitere Artikel
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="border-t border-black/10 px-5 py-4 text-sm">
-                  {!loading && cart && cart.lines.length > 0 && (() => {
-                    const subtotal = Number(cart.cost.subtotalAmount.amount);
-                    const currencyCode = cart.cost.subtotalAmount.currencyCode;
-                    const reached = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
-                    const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD_EUR - subtotal);
-                    const progress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100));
-                    return (
-                      <>
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs text-stone-500">Gesamt</span>
-                          <span className="text-sm font-semibold text-black/80">
-                            {formatPrice(
-                              cart.cost.totalAmount.amount,
-                              cart.cost.totalAmount.currencyCode,
-                            )}
-                          </span>
-                        </div>
-                        <div className={`mb-3 rounded-xl px-3 py-2.5 ${reached ? "border border-emerald-200 bg-emerald-50" : "border border-stone-100 bg-stone-50"}`}>
-                          <div className={`flex items-center gap-1.5 text-xs font-semibold ${reached ? "text-emerald-700" : "text-stone-600"}`}>
-                            <TruckIcon className="h-3.5 w-3.5 shrink-0" />
-                            {reached
-                              ? "Kostenloser Versand aktiv!"
-                              : `Noch ${formatPrice(remaining.toFixed(2), currencyCode)} bis zur versandkostenfreien Lieferung`}
-                          </div>
-                          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
-                            <div
-                              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                  <div className="grid gap-2">
-                    <Link
-                      href="/cart"
-                      className="block w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Warenkorb editieren
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={startCheckout}
-                      disabled={!canCheckout}
-                      className="block w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      {checkoutStatus === "loading"
-                        ? "Weiterleitung..."
-                        : "Zur Kasse"}
-                    </button>
-                    <PaymentMethodLogos
-                      className="justify-center gap-[2px] sm:gap-2"
-                      pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
-                      logoClassName="h-4 sm:h-5"
-                    />
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </>
-        )}
+        <NavbarCartDrawer
+          open={cartOpen && !isMobile}
+          cart={cart}
+          loading={loading}
+          error={error}
+          canCheckout={canCheckout}
+          checkoutStatus={checkoutStatus}
+          onClose={() => setCartOpen(false)}
+          onStartCheckout={() => void startCheckout()}
+          panelRef={cartPanelRef}
+        />
       </nav>
       <div
         className={
@@ -1905,169 +1463,50 @@ export function Navbar() {
         }
         aria-hidden="true"
       />
-      {isMobile && productsOpen && (
-        <div className="fixed inset-0 z-50 sm:hidden">
-          <button
-            type="button"
-            aria-label="Produkte schliessen"
-            onClick={() => {
-              setProductsOpen(false);
-              setCategoryStack([]);
-              setCategoryQuery("");
-            }}
-            className="absolute inset-0 bg-black/50"
-          />
-          <div
-            ref={mobileProductsRef}
-            className="absolute inset-0 bg-stone-100 p-5 shadow-2xl"
-          >
-            <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[28px] border border-emerald-200 bg-white px-4 py-5 text-emerald-950 shadow-xl">
-              <div className="flex items-center justify-between border-b border-emerald-100 px-1 pb-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600/80">
-                    Kategorien
-                  </p>
-                  <p className="mt-1 text-xl font-semibold text-emerald-950">
-                    {activeParentCategory?.name ?? "Übersicht"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProductsOpen(false);
-                    setCategoryStack([]);
-                    setCategoryQuery("");
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-3xl text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  aria-label="Schliessen"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="relative">
-                <input
-                  type="search"
-                  value={categoryQuery}
-                  onChange={(event) => setCategoryQuery(event.target.value)}
-                  placeholder="Kategorien suchen ..."
-                  className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm text-emerald-950 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-                />
-              </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-700">
-                <div className="flex flex-1 items-center gap-2">
-                  {categoryStack.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCategoryStack((prev) => prev.slice(0, -1))
-                      }
-                      className="rounded-full border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      ← Zurück
-                    </button>
-                  )}
-                  <Link
-                    href="/products"
-                    onClick={() => {
-                      setProductsOpen(false);
-                      setCategoryStack([]);
-                      setCategoryQuery("");
-                    }}
-                    className={`rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-900 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-                      categoryStack.length > 0 ? "ml-auto" : ""
-                    }`}
-                  >
-                    Alle Produkte anzeigen
-                  </Link>
-                </div>
-                <span aria-hidden="true" />
-              </div>
-              <div className="no-scrollbar flex-1 overflow-y-auto pb-4">
-                <div className="space-y-3">
-                  {categoriesStatus === "loading" && (
-                    <div className="px-2 py-2 text-sm text-stone-500">
-                      Laedt Kategorien...
-                    </div>
-                  )}
-                  {categoriesStatus === "error" && (
-                    <div className="px-2 py-2 text-sm text-rose-600">
-                      Kategorien konnten nicht geladen werden.
-                    </div>
-                  )}
-                  {categoriesStatus === "idle" &&
-                    filteredCategories.length === 0 && (
-                      <div className="px-2 py-2 text-sm text-stone-500">
-                        Keine Kategorien gefunden.
-                      </div>
-                    )}
-                  {categoriesStatus === "idle" && activeParentCategory && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        router.push(
-                          `/products?category=${encodeURIComponent(
-                            activeParentCategory.handle,
-                          )}`,
-                        );
-                        setProductsOpen(false);
-                        setCategoryStack([]);
-                        setCategoryQuery("");
-                      }}
-                      className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      <span>Alle {activeParentCategory.name}</span>
-                      <span className="text-sm text-emerald-600">→</span>
-                    </button>
-                  )}
-                  {categoriesStatus === "idle" &&
-                    filteredCategories.map((category) => {
-                      const CategoryIcon = getCategoryIcon(category.name);
-                      const childCount =
-                        categoriesByParent.get(String(category.id))?.length ??
-                        0;
-                      const isLeaf = childCount === 0;
-                      return (
-                        <button
-                          key={category.id}
-                          type="button"
-                          onClick={() => {
-                            if (isLeaf) {
-                              router.push(
-                                `/products?category=${encodeURIComponent(
-                                  category.handle,
-                                )}`,
-                              );
-                              setProductsOpen(false);
-                              setCategoryStack([]);
-                              setCategoryQuery("");
-                              return;
-                            }
-                            setCategoryStack((prev) => [...prev, category.id]);
-                            setCategoryQuery("");
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm">
-                              <CategoryIcon className="h-5 w-5" />
-                            </span>
-                            <span>{category.name}</span>
-                          </span>
-                          <span className="flex items-center gap-2 text-sm text-emerald-600">
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                              {category.totalItemCount}
-                            </span>
-                            {!isLeaf && "›"}
-                          </span>
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <NavbarMobileCategoriesOverlay
+        open={isMobile && productsOpen}
+        mobileProductsRef={mobileProductsRef}
+        activeParentName={activeParentCategory?.name ?? "Übersicht"}
+        categoryQuery={categoryQuery}
+        hasCategoryStack={categoryStack.length > 0}
+        categoriesStatus={categoriesStatus}
+        filteredCategories={filteredCategories}
+        childCountByCategoryId={childCountByCategoryId}
+        onClose={() => {
+          setProductsOpen(false);
+          setCategoryStack([]);
+          setCategoryQuery("");
+        }}
+        onCategoryQueryChange={setCategoryQuery}
+        onBack={() => setCategoryStack((prev) => prev.slice(0, -1))}
+        onViewAllProducts={() => {
+          setProductsOpen(false);
+          setCategoryStack([]);
+          setCategoryQuery("");
+        }}
+        onViewParentCategory={() => {
+          if (!activeParentCategory) return;
+          router.push(
+            `/products?category=${encodeURIComponent(activeParentCategory.handle)}`,
+          );
+          setProductsOpen(false);
+          setCategoryStack([]);
+          setCategoryQuery("");
+        }}
+        onSelectCategory={(category, isLeaf) => {
+          if (isLeaf) {
+            router.push(
+              `/products?category=${encodeURIComponent(category.handle)}`,
+            );
+            setProductsOpen(false);
+            setCategoryStack([]);
+            setCategoryQuery("");
+            return;
+          }
+          setCategoryStack((prev) => [...prev, category.id]);
+          setCategoryQuery("");
+        }}
+      />
       <CheckoutAuthModal
         open={showCheckoutAuthModal}
         returnTo="/checkout/start"

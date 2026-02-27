@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -610,12 +611,13 @@ function ProductCard({
                   Niedriger Bestand
                 </span>
               )}
-              <img
+              <Image
                 src={imageUrl}
                 alt={imageAlt ?? title}
                 className="h-full w-full object-contain transition duration-300 group-hover:scale-105"
-                loading="lazy"
-                decoding="async"
+                width={320}
+                height={320}
+                sizes="(min-width: 1280px) 20rem, (min-width: 640px) 16rem, 100vw"
               />
             </div>
           );
@@ -746,12 +748,13 @@ function SetupSidebar({
                 <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
                   <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
                     {item.imageUrl ? (
-                      <img
+                      <Image
                         src={item.imageUrl}
                         alt={item.imageAlt ?? item.title}
                         className="h-full w-full object-contain"
-                        loading="lazy"
-                        decoding="async"
+                        width={32}
+                        height={32}
+                        sizes="32px"
                       />
                     ) : (
                       "▢"
@@ -2294,12 +2297,13 @@ export default function CustomizerPage() {
                     <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
                       <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
                         {item.imageUrl ? (
-                          <img
+                          <Image
                             src={item.imageUrl}
                             alt={item.imageAlt ?? item.title}
                             className="h-full w-full object-contain"
-                            loading="lazy"
-                            decoding="async"
+                            width={32}
+                            height={32}
+                            sizes="32px"
                           />
                         ) : (
                           "▢"

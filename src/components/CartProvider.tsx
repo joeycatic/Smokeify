@@ -1,11 +1,18 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import AddedToCartModal from "@/components/AddedToCartModal";
-import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+
+const AddedToCartModal = dynamic(() => import("@/components/AddedToCartModal"), {
+  ssr: false,
+});
+const OutOfStockModal = dynamic(() => import("@/components/OutOfStockModal"), {
+  ssr: false,
+});
 
 export type AddedItem = {
   title: string;
@@ -119,8 +126,9 @@ const trackRemoveFromCart = (
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
+  const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
@@ -141,9 +149,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const shouldLoadCartImmediately =
+    pathname === "/cart" ||
+    pathname?.startsWith("/checkout") ||
+    pathname?.startsWith("/order");
+
   useEffect(() => {
-    refresh();
-  }, []);
+    if (shouldLoadCartImmediately) {
+      void refresh();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [shouldLoadCartImmediately]);
 
   useEffect(() => {
     if (status !== "authenticated") return;

@@ -971,12 +971,13 @@ export default function ProductDetailClient({
             logoClassName="h-5"
           />
           <span className="inline-flex h-8 items-center rounded-full bg-white px-3">
-            <img
+            <Image
               src="/shipping-provider-logos/dhl-logo.png"
               alt="DHL"
               className="h-5 w-auto object-contain"
-              loading="lazy"
-              decoding="async"
+              width={60}
+              height={20}
+              sizes="60px"
             />
           </span>
         </div>
