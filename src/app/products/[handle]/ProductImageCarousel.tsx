@@ -28,12 +28,12 @@ export default function ProductImageCarousel({ images, alt }: Props) {
   const thumbnailsRef = useRef<HTMLDivElement | null>(null);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const count = images.length;
-  const current = images[index];
-
-  if (!current) return null;
+  const current = images[index] ?? null;
 
   const handlePrev = () => {
     if (count <= 1) return;
+    setIsZoomed(false);
+    setZoomOrigin({ x: 50, y: 50 });
     setSlideDirection("left");
     setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev - 1 + count) % count);
@@ -41,12 +41,15 @@ export default function ProductImageCarousel({ images, alt }: Props) {
 
   const handleNext = () => {
     if (count <= 1) return;
+    setIsZoomed(false);
+    setZoomOrigin({ x: 50, y: 50 });
     setSlideDirection("right");
     setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev + 1) % count);
   };
 
   useEffect(() => {
+    if (!current) return;
     const container = thumbnailsRef.current;
     const target = thumbnailRefs.current[index];
     if (!container || !target) return;
@@ -61,14 +64,10 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     );
 
     container.scrollTo({ left: clampedScrollLeft, behavior: "smooth" });
-  }, [index]);
+  }, [current, index]);
 
   useEffect(() => {
-    setIsZoomed(false);
-    setZoomOrigin({ x: 50, y: 50 });
-  }, [index]);
-
-  useEffect(() => {
+    if (images.length === 0) return;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ position?: number | null }>).detail;
       const position = detail?.position;
@@ -77,11 +76,15 @@ export default function ProductImageCarousel({ images, alt }: Props) {
         (image) => image.position === position,
       );
       if (nextIndex < 0) return;
+      setIsZoomed(false);
+      setZoomOrigin({ x: 50, y: 50 });
       setIndex(nextIndex);
     };
     window.addEventListener("product-image-position", handler);
     return () => window.removeEventListener("product-image-position", handler);
   }, [images]);
+
+  if (!current) return null;
 
   return (
     <div className="space-y-1">
@@ -169,7 +172,11 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               <button
                 key={img.url}
                 type="button"
-                onClick={() => setIndex(imgIndex)}
+                onClick={() => {
+                  setIsZoomed(false);
+                  setZoomOrigin({ x: 50, y: 50 });
+                  setIndex(imgIndex);
+                }}
                 ref={(el) => {
                   thumbnailRefs.current[imgIndex] = el;
                 }}

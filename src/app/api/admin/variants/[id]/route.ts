@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
@@ -103,7 +104,7 @@ export async function PATCH(
     updates.lowStockThreshold = Math.max(0, Math.floor(body.lowStockThreshold));
   }
 
-  const operations: any[] = [
+  const operations: Prisma.PrismaPromise<unknown>[] = [
     prisma.variant.update({ where: { id }, data: updates }),
   ];
 

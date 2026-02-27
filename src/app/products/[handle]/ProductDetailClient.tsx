@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BeakerIcon,
@@ -921,18 +922,18 @@ export default function ProductDetailClient({
                     Verfügbarkeit. Rücksendungen innerhalb von 14 Tagen möglich.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
-                    <a
+                    <Link
                       className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       href="/pages/shipping"
                     >
                       Versanddetails
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       href="/pages/return"
                     >
                       Rücksendungen
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>

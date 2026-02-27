@@ -29,6 +29,7 @@ const getProductLowStockState = (product: Product) => {
     threshold !== null && available > 0 && available <= threshold;
   return Boolean(product.lowStock || isLowStock);
 };
+const NEW_BADGE_CUTOFF_MS = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
 function ProductRating({ average, count }: { average: number; count: number }) {
   if (count <= 0) return null;
@@ -126,7 +127,7 @@ export default function DisplayProducts({
                       Bestseller
                     </span>
                   )}
-                  {p.createdAt && new Date(p.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                  {p.createdAt && new Date(p.createdAt).getTime() > NEW_BADGE_CUTOFF_MS && (
                     <span className="rounded-full bg-[#E4C56C] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2f3e36] shadow sm:px-3 sm:text-xs">
                       Neu
                     </span>

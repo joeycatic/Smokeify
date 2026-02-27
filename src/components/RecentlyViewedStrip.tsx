@@ -31,14 +31,10 @@ export default function RecentlyViewedStrip({
   excludeHandles = [],
   maxItems = 8,
 }: Props) {
-  const [items, setItems] = useState<RecentlyViewedItem[]>([]);
+  const [items] = useState<RecentlyViewedItem[]>(() => readRecentlyViewed());
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
-
-  useEffect(() => {
-    setItems(readRecentlyViewed());
-  }, []);
 
   const visibleItems = useMemo(() => {
     if (items.length === 0) return [];

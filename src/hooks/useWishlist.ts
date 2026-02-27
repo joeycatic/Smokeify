@@ -32,11 +32,9 @@ function writeStoredIds(ids: string[]) {
 export function useWishlist() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
-  const [ids, setIds] = useState<string[]>([]);
+  const [ids, setIds] = useState<string[]>(() => readStoredIds());
 
   useEffect(() => {
-    if (!isAuthenticated) setIds(readStoredIds());
-
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) setIds(readStoredIds());
     };

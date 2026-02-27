@@ -16,21 +16,15 @@ const AdminThemeContext = createContext<AdminThemeContextValue | null>(null);
 const STORAGE_KEY = "smokeify-admin-theme";
 
 export function AdminThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<AdminTheme>("light");
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
+  const [theme, setTheme] = useState<AdminTheme>(() => {
+    if (typeof window === "undefined") return "light";
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light") {
-      setTheme(stored);
-    }
-  }, []);
+    return stored === "dark" || stored === "light" ? stored : "light";
+  });
 
   useEffect(() => {
-    if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [hydrated, theme]);
+  }, [theme]);
 
   const value = useMemo(
     () => ({

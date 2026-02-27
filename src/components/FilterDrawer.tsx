@@ -182,7 +182,15 @@ export default function FilterDrawer({
     }
 
     return items;
-  }, [filters, categoryMap, priceMinBound, priceMaxBound, setFilters]);
+  }, [
+    filters,
+    categoryMap,
+    priceMinBound,
+    priceMaxBound,
+    setFilters,
+    toggleCategory,
+    toggleManufacturer,
+  ]);
 
   const priceRange = Math.max(priceMaxBound - priceMinBound, 1);
   const minPercent = ((filters.priceMin - priceMinBound) / priceRange) * 100;
