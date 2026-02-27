@@ -41,19 +41,19 @@ export function HeroBanner() {
   }, []);
 
   return (
-    <section className="relative h-[55vh] w-full overflow-hidden rounded-b-2xl sm:h-[70vh] sm:rounded-b-3xl">
+    <section className="relative w-full">
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
         loop
-        className="absolute inset-0 h-full w-full object-cover"
+        className="block h-[38vh] w-full rounded-2xl object-cover sm:h-[52vh] sm:rounded-3xl"
       >
         <source src={slide.videoMp4} type="video/mp4" />
         <source src={slide.videoWebm} type="video/webm" />
       </video>
-      <Link href={href} className="absolute inset-0 z-10" aria-label="Produkt ansehen" />
+      <Link href={href} className="absolute inset-0 z-10 rounded-2xl sm:rounded-3xl" aria-label="Produkt ansehen" />
     </section>
   );
 }

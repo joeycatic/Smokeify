@@ -3,7 +3,6 @@
 import { SessionProvider } from "next-auth/react";
 import { CartProvider } from "@/components/CartProvider";
 import CookieConsent from "@/components/CookieConsent";
-import AgeGate from "@/components/AgeGate";
 import GTMTag from "@/components/GTMTag";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -12,7 +11,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <CartProvider>
         {children}
         <GTMTag />
-        <AgeGate />
         <CookieConsent />
       </CartProvider>
     </SessionProvider>

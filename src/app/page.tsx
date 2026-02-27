@@ -56,11 +56,15 @@ export default async function StorePage() {
   return (
     <main className="bg-stone-50">
       <AnnouncementBar />
-      <div className="mx-auto max-w-6xl px-0 sm:px-6">
-        <Navbar />
-        <HeroBanner />
+      <div className="mx-auto max-w-6xl">
+        <div className="px-0 sm:px-6">
+          <Navbar />
+        </div>
+        <div className="px-0 sm:px-6">
+          <HeroBanner />
+        </div>
 {/* Bestsellers Section */}
-        <section className="pb-12 pt-2">
+        <section className="px-0 pb-12 pt-2 sm:px-6">
             <div className="pb-12">
               <div className="space-y-10">
                 <section className="space-y-4">
