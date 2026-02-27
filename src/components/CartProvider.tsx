@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import AddedToCartModal from "@/components/AddedToCartModal";
 import OutOfStockModal from "@/components/OutOfStockModal";
 import type { Cart } from "@/lib/cart";
@@ -36,6 +37,13 @@ type CartCtx = {
     quantity?: number,
     options?: Array<{ name: string; value: string }>
   ) => Promise<Cart>;
+  addManyToCart: (
+    items: Array<{
+      variantId: string;
+      quantity?: number;
+      options?: Array<{ name: string; value: string }>;
+    }>
+  ) => Promise<Cart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
   removeLines: (lineIds: string[]) => Promise<void>;
   openAddedModal: (item: AddedItem) => void;
@@ -55,7 +63,7 @@ async function apiGetCart(): Promise<Cart> {
   return res.json();
 }
 
-async function apiCartAction(payload: any): Promise<Cart> {
+async function apiCartAction(payload: unknown): Promise<Cart> {
   const res = await fetch("/api/cart", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -110,6 +118,7 @@ const trackRemoveFromCart = (
 };
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { status } = useSession();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +146,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (status !== "authenticated") return;
+    void refresh();
+  }, [status]);
+
+  useEffect(() => {
     if (!errorToast) return;
     const timer = setTimeout(() => setErrorToast(null), 3000);
     return () => clearTimeout(timer);
@@ -162,6 +176,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       trackAddToCart(addedLine, quantity);
       setError(null);
       setErrorToast(null);
+      return c;
+    } catch (err) {
+      const message = normalizeError(err, "Cart action failed");
+      setError(message);
+      setErrorToast(message);
+      throw err;
+    }
+  };
+
+  const addManyToCart = async (
+    items: Array<{
+      variantId: string;
+      quantity?: number;
+      options?: Array<{ name: string; value: string }>;
+    }>
+  ) => {
+    const normalized = items
+      .map((item) => ({
+        variantId: item.variantId,
+        quantity: Math.max(1, Math.floor(Number(item.quantity ?? 1))),
+        options: item.options,
+      }))
+      .filter((item) => item.variantId);
+    if (normalized.length === 0) {
+      throw new Error("No items to add");
+    }
+    try {
+      const c = await apiCartAction({ action: "addMany", items: normalized });
+      setCart(c);
+      setError(null);
+      setErrorToast(null);
+      normalized.forEach((item) => {
+        const line = c.lines.find((entry) => entry.merchandise.id === item.variantId);
+        trackAddToCart(line, item.quantity);
+      });
       return c;
     } catch (err) {
       const message = normalizeError(err, "Cart action failed");
@@ -221,6 +270,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       error: errorToast,
       refresh,
       addToCart,
+      addManyToCart,
       updateLine,
       removeLines,
       openAddedModal: (item: AddedItem) => {

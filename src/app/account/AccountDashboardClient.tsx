@@ -12,6 +12,8 @@ import {
 } from "@heroicons/react/24/outline";
 import type { Product } from "@/data/types";
 import AccountSettingsClient from "./AccountSettingsClient";
+import { useCart } from "@/components/CartProvider";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 type SetupItem = {
   id: string;
@@ -76,6 +78,9 @@ export default function AccountDashboardClient({
   const [setupItems, setSetupItems] = useState(setups);
   const [setupBusyId, setSetupBusyId] = useState<string | null>(null);
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
+  const [reorderBusyId, setReorderBusyId] = useState<string | null>(null);
+  const [reorderMessage, setReorderMessage] = useState<string | null>(null);
+  const { addManyToCart } = useCart();
 
   const tabs = useMemo(
     () => [
@@ -300,42 +305,113 @@ export default function AccountDashboardClient({
               </div>
             ) : (
               <div className="pretty-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                {reorderMessage && (
+                  <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    {reorderMessage}
+                  </p>
+                )}
                 <ul className="space-y-3 text-sm">
                   {orders.map((order) => (
                     <li key={order.id}>
-                      <Link
-                        href={`/account/orders/${order.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 px-3 py-3 shadow-sm transition hover:border-emerald-700 hover:from-emerald-700/95 hover:via-emerald-800/95 hover:to-emerald-950/95 sm:px-4"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <div className="font-semibold text-white">
-                              Bestellung {order.id.slice(0, 8).toUpperCase()}
+                      <div className="rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 px-3 py-3 shadow-sm sm:px-4">
+                        <Link
+                          href={`/account/orders/${order.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block transition hover:opacity-95"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <div className="font-semibold text-white">
+                                Bestellung {order.id.slice(0, 8).toUpperCase()}
+                              </div>
+                              <div className="text-xs text-white/60">
+                                {new Date(order.createdAt).toLocaleDateString("de-DE")}
+                              </div>
                             </div>
-                            <div className="text-xs text-white/60">
-                              {new Date(order.createdAt).toLocaleDateString("de-DE")}
+                            <div className="text-left sm:text-right">
+                              <div className="text-sm font-semibold text-white">
+                                {formatPrice(order.amountTotal, order.currency)}
+                              </div>
+                              <div className="text-xs text-white/60">
+                                {order.itemsCount} Artikel
+                              </div>
                             </div>
                           </div>
-                          <div className="text-left sm:text-right">
-                            <div className="text-sm font-semibold text-white">
-                              {formatPrice(order.amountTotal, order.currency)}
-                            </div>
-                            <div className="text-xs text-white/60">
-                              {order.itemsCount} Artikel
-                            </div>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
+                              Status: {order.status}
+                            </span>
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
+                              Zahlung: {order.paymentStatus}
+                            </span>
                           </div>
+                        </Link>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            disabled={reorderBusyId === order.id}
+                            onClick={async () => {
+                              setReorderBusyId(order.id);
+                              setReorderMessage(null);
+                              try {
+                                const res = await fetch(
+                                  `/api/account/orders/${order.id}/reorder`,
+                                  { method: "POST" }
+                                );
+                                const data = (await res.json().catch(() => ({}))) as {
+                                  items?: Array<{
+                                    variantId: string;
+                                    quantity: number;
+                                    options?: Array<{ name: string; value: string }>;
+                                  }>;
+                                  error?: string;
+                                  addedCount?: number;
+                                  skippedCount?: number;
+                                };
+                                if (!res.ok) {
+                                  setReorderMessage(
+                                    data.error ?? "Erneut bestellen fehlgeschlagen."
+                                  );
+                                  return;
+                                }
+                                const items = data.items ?? [];
+                                if (items.length === 0) {
+                                  setReorderMessage(
+                                    "Keine verfügbaren Artikel aus dieser Bestellung gefunden."
+                                  );
+                                  return;
+                                }
+                                await addManyToCart(items);
+                                setReorderMessage(
+                                  data.skippedCount && data.skippedCount > 0
+                                    ? `${data.addedCount ?? items.length} Artikel erneut zum Warenkorb hinzugefügt, ${data.skippedCount} nicht verfügbar.`
+                                    : `${data.addedCount ?? items.length} Artikel erneut zum Warenkorb hinzugefügt.`
+                                );
+                              } catch {
+                                setReorderMessage(
+                                  "Erneut bestellen fehlgeschlagen."
+                                );
+                              } finally {
+                                setReorderBusyId(null);
+                              }
+                            }}
+                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                          >
+                            {reorderBusyId === order.id ? (
+                              <>
+                                <LoadingSpinner
+                                  size="sm"
+                                  className="border-white/40 border-t-white"
+                                />
+                                Wird hinzugefügt...
+                              </>
+                            ) : (
+                              "Erneut bestellen"
+                            )}
+                          </button>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
-                            Status: {order.status}
-                          </span>
-                          <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
-                            Zahlung: {order.paymentStatus}
-                          </span>
-                        </div>
-                      </Link>
+                      </div>
                     </li>
                   ))}
                 </ul>

@@ -86,7 +86,10 @@ export default function ProductReviews({ productId }: { productId: string }) {
           name: guestName.trim() || undefined,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        incentive?: { code: string; percentOff: number };
+      };
       if (!res.ok) {
         setReviewError(
           data.error ?? "Bewertung konnte nicht gespeichert werden.",
@@ -96,6 +99,11 @@ export default function ProductReviews({ productId }: { productId: string }) {
       setReviewNotice(
         userReview ? "Bewertung aktualisiert." : "Bewertung gespeichert.",
       );
+      if (data.incentive?.code) {
+        setReviewNotice(
+          `Bewertung gespeichert. Danke! Dein Gutschein: ${data.incentive.code} (${data.incentive.percentOff}% Rabatt, einmalig).`
+        );
+      }
       await loadReviews();
     } catch {
       setReviewError("Bewertung konnte nicht gespeichert werden.");

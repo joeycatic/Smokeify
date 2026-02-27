@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -17,6 +18,14 @@ const normalizeText = (value: unknown) => {
   if (typeof value !== "string") return "";
   return value.trim();
 };
+
+const getStripe = () => {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) return null;
+  return new Stripe(secret, { apiVersion: "2024-06-20" });
+};
+
+const randomCodePart = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
 export async function GET(
   _request: Request,
@@ -140,6 +149,74 @@ export async function POST(
     },
   });
 
+  let incentive:
+    | {
+        code: string;
+        percentOff: number;
+      }
+    | undefined;
+  const stripe = getStripe();
+  const percentOff = Math.max(
+    1,
+    Math.min(100, Math.floor(Number(process.env.REVIEW_INCENTIVE_PERCENT_OFF ?? "5") || 5))
+  );
+  const eligibleForIncentive = userId
+    ? await prisma.order.findFirst({
+        where: {
+          userId,
+          paymentStatus: "paid",
+          items: { some: { productId: id } },
+        },
+        select: { id: true },
+      })
+    : null;
+  if (stripe && eligibleForIncentive) {
+    try {
+      const coupon = await stripe.coupons.create({
+        percent_off: percentOff,
+        duration: "once",
+        name: `Review thank-you ${percentOff}%`,
+      });
+      const code = `REVIEW-${randomCodePart()}`;
+      const promotion = await stripe.promotionCodes.create({
+        coupon: coupon.id,
+        code,
+        max_redemptions: 1,
+        metadata: {
+          source: "product_review",
+          reviewId: created.id,
+          productId: id,
+          userId: userId ?? "",
+        },
+      });
+
+      await prisma.$executeRaw`
+        INSERT INTO "ReviewIncentive" (
+          id,
+          "reviewId",
+          "userId",
+          email,
+          "promotionCode",
+          "stripePromotionCodeId",
+          "createdAt"
+        )
+        VALUES (
+          ${crypto.randomUUID()},
+          ${created.id},
+          ${userId},
+          ${session?.user?.email ?? null},
+          ${code},
+          ${promotion.id},
+          NOW()
+        )
+      `;
+      incentive = { code, percentOff };
+    } catch {
+      // Review creation must succeed even if incentive creation fails.
+      incentive = undefined;
+    }
+  }
+
   return NextResponse.json({
     review: {
       id: created.id,
@@ -148,6 +225,7 @@ export async function POST(
       body: created.body,
       createdAt: created.createdAt.toISOString(),
     },
+    incentive,
   });
 }
 

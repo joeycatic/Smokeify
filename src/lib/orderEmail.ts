@@ -194,6 +194,14 @@ export function buildOrderEmail(
       type !== "confirmation"
         ? `<div style="margin-bottom:24px;padding:14px 16px;background:#f0fdf4;border-left:3px solid #2f3e36;border-radius:0 8px 8px 0;font-size:14px;color:#1a2a22;">${introLine}</div>`
         : "";
+    const reviewInviteText =
+      type === "confirmation"
+        ? "Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein."
+        : null;
+    const reviewInviteHtml =
+      type === "confirmation"
+        ? `<div style="margin-top:20px;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#374151;">Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein.</div>`
+        : "";
 
     return {
       subject,
@@ -203,6 +211,7 @@ export function buildOrderEmail(
         renderItemsText(order.items),
         "",
         totalsText,
+        reviewInviteText ? `\n${reviewInviteText}` : "",
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
         invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
       ].join("\n"),
@@ -280,6 +289,7 @@ export function buildOrderEmail(
               </div>`
                 : ""
             }
+            ${reviewInviteHtml}
 
           </td>
         </tr>`),

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import ReturnRequestForm from "./ReturnRequestForm";
+import ReorderButton from "./ReorderButton";
 import PageLayout from "@/components/PageLayout";
 
 const formatPrice = (amount: number, currency: string) =>
@@ -131,6 +132,7 @@ export default async function OrderDetailPage({
               <p className="text-2xl font-bold text-emerald-50">
                 {formatPrice(order.amountTotal, order.currency)}
               </p>
+              <ReorderButton orderId={order.id} />
             </div>
           </div>
 

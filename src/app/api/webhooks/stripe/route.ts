@@ -51,6 +51,77 @@ const formatAmountWithComma = (amountMinor: number, currency: string) => {
   return `${sign}${major},${minor.toString().padStart(2, "0")} ${currency}`;
 };
 
+const awardLoyaltyPointsForOrder = async (order: {
+  id: string;
+  userId: string | null;
+  amountSubtotal: number;
+  amountDiscount: number;
+  amountShipping: number;
+  currency: string;
+}) => {
+  if (!order.userId) return 0;
+  if (order.currency.toUpperCase() !== "EUR") return 0;
+
+  const netSpendCents = Math.max(
+    0,
+    order.amountSubtotal - Math.max(0, order.amountDiscount)
+  );
+  const pointsPerEuro = Math.max(
+    1,
+    Math.floor(Number(process.env.LOYALTY_POINTS_PER_EUR ?? "1") || 1)
+  );
+  const points = Math.max(0, Math.floor(netSpendCents / 100) * pointsPerEuro);
+  if (points <= 0) return 0;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id
+        FROM "LoyaltyPointTransaction"
+        WHERE "orderId" = ${order.id}
+        LIMIT 1
+      `;
+      if (existing.length > 0) return;
+
+      await tx.$executeRaw`
+        INSERT INTO "LoyaltyPointTransaction" (
+          id,
+          "userId",
+          "orderId",
+          "pointsDelta",
+          reason,
+          metadata,
+          "createdAt"
+        )
+        VALUES (
+          ${crypto.randomUUID()},
+          ${order.userId as string},
+          ${order.id},
+          ${points},
+          ${"order_paid"},
+          ${{
+            amountSubtotal: order.amountSubtotal,
+            amountDiscount: order.amountDiscount,
+            amountShipping: order.amountShipping,
+          }},
+          NOW()
+        )
+      `;
+      await tx.$executeRaw`
+        UPDATE "User"
+        SET "loyaltyPointsBalance" = "loyaltyPointsBalance" + ${points}
+        WHERE id = ${order.userId as string}
+      `;
+    });
+  } catch (error) {
+    // Don't fail webhook on loyalty accounting issues.
+    captureException(error, { context: "awardLoyaltyPointsForOrder", orderId: order.id });
+    return 0;
+  }
+
+  return points;
+};
+
   const normalizeOptions = (value: unknown) => {
     if (!Array.isArray(value)) return [] as Array<{ name: string; value: string }>;
     return value
@@ -502,6 +573,16 @@ export const createOrderFromSession = async (
           },
         });
       }
+    });
+  }
+
+  const awardedPoints = await awardLoyaltyPointsForOrder(created);
+  if (awardedPoints > 0) {
+    await logOrderTimelineEvent({
+      orderId: created.id,
+      action: "order.lifecycle.status_changed",
+      summary: `${awardedPoints} loyalty points awarded`,
+      metadata: { points: awardedPoints, source: "stripe.webhook" },
     });
   }
 

@@ -8,6 +8,34 @@ import SignOutButton from "@/components/SignOutButton";
 import DeleteAccountButton from "@/components/DeleteAccountButton";
 import AccountDashboardClient from "./AccountDashboardClient";
 
+type LoyaltyTransactionRow = {
+  id: string;
+  pointsDelta: number;
+  reason: string;
+  createdAt: Date;
+  orderId: string | null;
+};
+
+type AccountUserRow = {
+  name: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  street: string | null;
+  houseNumber: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+};
+
+const isMissingRelationError = (error: unknown, relation: string) =>
+  error instanceof Error &&
+  error.message.includes(`relation "${relation}" does not exist`);
+
+const isMissingColumnError = (error: unknown, column: string) =>
+  error instanceof Error &&
+  error.message.includes(`column "${column}" does not exist`);
+
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
 
@@ -36,7 +64,7 @@ export default async function AccountPage() {
     );
   }
 
-  const [setups, wishlistCount, wishlistItems, user, orders] =
+  const [setups, wishlistCount, wishlistItems, userRow, loyaltyBalanceRows, orders, loyaltyTransactions] =
     await Promise.all([
       prisma.savedSetup.findMany({
         where: { userId: session.user.id },
@@ -66,6 +94,21 @@ export default async function AccountPage() {
           country: true,
         },
       }),
+      (async () => {
+        try {
+          return await prisma.$queryRaw<Array<{ loyaltyPointsBalance: number }>>`
+            SELECT "loyaltyPointsBalance"
+            FROM "User"
+            WHERE id = ${session.user.id}
+            LIMIT 1
+          `;
+        } catch (error) {
+          if (isMissingColumnError(error, "loyaltyPointsBalance")) {
+            return [] as Array<{ loyaltyPointsBalance: number }>;
+          }
+          throw error;
+        }
+      })(),
       prisma.order.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: "desc" },
@@ -80,10 +123,38 @@ export default async function AccountPage() {
           _count: { select: { items: true } },
         },
       }),
+      (async () => {
+        try {
+          return await prisma.$queryRaw<LoyaltyTransactionRow[]>`
+            SELECT
+              id,
+              "pointsDelta",
+              reason,
+              "createdAt",
+              "orderId"
+            FROM "LoyaltyPointTransaction"
+            WHERE "userId" = ${session.user.id}
+            ORDER BY "createdAt" DESC
+            LIMIT 5
+          `;
+        } catch (error) {
+          if (isMissingRelationError(error, "LoyaltyPointTransaction")) {
+            return [] as LoyaltyTransactionRow[];
+          }
+          throw error;
+        }
+      })(),
     ]);
 
+  const loyaltyPointsBalance = loyaltyBalanceRows[0]?.loyaltyPointsBalance ?? 0;
+  const user: AccountUserRow | null = userRow
+    ? {
+        ...userRow,
+      }
+    : null;
+
   const wishlistPreview = await getProductsByIdsAllowInactive(
-    wishlistItems.map((item) => item.productId),
+    wishlistItems.map((item: { productId: string }) => item.productId),
   );
 
   const setupItems = setups.map(
@@ -105,7 +176,15 @@ export default async function AccountPage() {
     }),
   );
 
-  const orderItems = orders.map((order) => ({
+  const orderItems = orders.map((order: {
+    id: string;
+    createdAt: Date;
+    amountTotal: number;
+    currency: string;
+    paymentStatus: string;
+    status: string;
+    _count: { items: number };
+  }) => ({
     id: order.id,
     createdAt: order.createdAt.toISOString(),
     amountTotal: order.amountTotal,
@@ -171,6 +250,46 @@ export default async function AccountPage() {
           setups={setupItems}
           orders={orderItems}
         />
+
+        <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 sm:p-5">
+          <p className="mb-3 text-[11px] font-semibold tracking-widest text-black/40">
+            LOYALTY POINTS
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-stone-600">
+              Aktueller Stand
+            </p>
+            <p className="text-2xl font-bold text-[#2f3e36]">
+              {loyaltyPointsBalance}
+            </p>
+          </div>
+          <p className="mt-1 text-xs text-stone-500">
+            Du erhältst standardmäßig {process.env.LOYALTY_POINTS_PER_EUR ?? "1"} Punkt(e) pro 1,00 EUR Warenwert.
+          </p>
+          {loyaltyTransactions.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {loyaltyTransactions.map((entry: {
+                id: string;
+                pointsDelta: number;
+                reason: string;
+                createdAt: Date;
+              }) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-xs"
+                >
+                  <span className="text-stone-600">
+                    {entry.reason === "order_paid" ? "Bestellung bezahlt" : entry.reason}{" "}
+                    · {new Date(entry.createdAt).toLocaleDateString("de-DE")}
+                  </span>
+                  <span className="font-semibold text-emerald-700">
+                    +{entry.pointsDelta}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {/* Konto-Aktionen */}
         <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 sm:p-5">

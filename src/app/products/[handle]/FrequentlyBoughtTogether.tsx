@@ -35,10 +35,12 @@ const formatPrice = (price: { amount: string; currencyCode: string } | null) => 
 };
 
 export default function FrequentlyBoughtTogether({ currentProduct, items }: Props) {
-  const { addToCart } = useCart();
+  const { addManyToCart } = useCart();
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     items.filter((item) => item.availableForSale && item.variantId).map((item) => item.id)
   );
+  const [currentQty, setCurrentQty] = useState(1);
+  const [bundleQuantities, setBundleQuantities] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -48,13 +50,14 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
   );
 
   const total = useMemo(() => {
-    const base = Number(currentProduct.price?.amount ?? 0);
+    const base = Number(currentProduct.price?.amount ?? 0) * currentQty;
     const extras = selectedItems.reduce(
-      (sum, item) => sum + Number(item.price?.amount ?? 0),
+      (sum, item) =>
+        sum + Number(item.price?.amount ?? 0) * (bundleQuantities[item.id] ?? 1),
       0
     );
     return base + extras;
-  }, [currentProduct.price?.amount, selectedItems]);
+  }, [bundleQuantities, currentProduct.price?.amount, currentQty, selectedItems]);
 
   if (items.length === 0) return null;
 
@@ -87,9 +90,22 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
 
       <div className="mt-4 space-y-2">
         <label className="flex items-center justify-between gap-4 rounded-md bg-stone-50 px-3 py-2 text-sm">
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-3">
             <input type="checkbox" checked disabled />
             <span>{currentProduct.title}</span>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={currentQty}
+              onChange={(event) =>
+                setCurrentQty(
+                  Math.max(1, Math.min(10, Math.floor(Number(event.target.value) || 1)))
+                )
+              }
+              className="h-8 w-16 rounded-md border border-black/15 bg-white px-2 text-xs"
+              aria-label="Menge Hauptprodukt"
+            />
           </span>
           <span className="font-semibold text-stone-800">{formatPrice(currentProduct.price)}</span>
         </label>
@@ -115,6 +131,24 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
                 }
               />
               <span>{item.title}</span>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={bundleQuantities[item.id] ?? 1}
+                disabled={!selectedIds.includes(item.id) || submitting}
+                onChange={(event) =>
+                  setBundleQuantities((prev) => ({
+                    ...prev,
+                    [item.id]: Math.max(
+                      1,
+                      Math.min(10, Math.floor(Number(event.target.value) || 1)
+                    )),
+                  }))
+                }
+                className="h-8 w-16 rounded-md border border-black/15 bg-white px-2 text-xs"
+                aria-label={`Menge ${item.title}`}
+              />
             </span>
             <span className="font-semibold text-stone-800">{formatPrice(item.price)}</span>
           </label>
@@ -144,12 +178,16 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
             setSubmitting(true);
             setMessage(null);
             try {
-              await addToCart(currentProduct.variantId, 1);
-              for (const item of selectedItems) {
-                if (!item.variantId) continue;
-                await addToCart(item.variantId, 1);
-              }
-              setMessage("Produkte zum Warenkorb hinzugefügt.");
+              await addManyToCart([
+                { variantId: currentProduct.variantId, quantity: currentQty },
+                ...selectedItems
+                  .filter((item) => Boolean(item.variantId))
+                  .map((item) => ({
+                    variantId: item.variantId as string,
+                    quantity: bundleQuantities[item.id] ?? 1,
+                  })),
+              ]);
+              setMessage("Bundle zum Warenkorb hinzugefügt.");
             } catch {
               setMessage("Hinzufügen fehlgeschlagen.");
             } finally {
@@ -158,7 +196,7 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
           }}
           className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
         >
-          {submitting ? "Hinzufügen..." : "Alle hinzufügen"}
+          {submitting ? "Hinzufügen..." : "Bundle hinzufügen"}
         </button>
       </div>
 
