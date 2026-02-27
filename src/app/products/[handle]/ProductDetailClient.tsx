@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +18,7 @@ import {
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 
@@ -253,6 +255,8 @@ export default function ProductDetailClient({
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">(
     "idle",
   );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { status: authStatus } = useSession();
   const [isMobile, setIsMobile] = useState(false);
 
   const isAvailable = Boolean(selectedVariant?.availableForSale);
@@ -287,12 +291,8 @@ export default function ProductDetailClient({
     }),
   );
 
-  const startCheckout = async () => {
-    if (!selectedVariantId) {
-      setToast({ type: "error", text: "Keine Variante gewählt." });
-      setTimeout(() => setToast(null), 1500);
-      return;
-    }
+  const runCheckout = async () => {
+    setShowAuthModal(false);
     setCheckoutStatus("loading");
     try {
       const itemPayload = buildItemPayload(
@@ -341,6 +341,19 @@ export default function ProductDetailClient({
       });
       setTimeout(() => setToast(null), 1500);
     }
+  };
+
+  const startCheckout = () => {
+    if (!selectedVariantId) {
+      setToast({ type: "error", text: "Keine Variante gewählt." });
+      setTimeout(() => setToast(null), 1500);
+      return;
+    }
+    if (authStatus === "unauthenticated") {
+      setShowAuthModal(true);
+      return;
+    }
+    void runCheckout();
   };
 
   useEffect(() => {
@@ -461,6 +474,7 @@ export default function ProductDetailClient({
   ]);
 
   return (
+    <>
     <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">
       {/* Sticky ATC bar */}
       <div
@@ -1005,6 +1019,17 @@ export default function ProductDetailClient({
           )}
         </div>
       </div>
+
+      <CheckoutAuthModal
+        open={showAuthModal}
+        returnTo={`/products/${currentHandle}`}
+        onClose={() => setShowAuthModal(false)}
+        onContinueAsGuest={() => {
+          setShowAuthModal(false);
+          return runCheckout();
+        }}
+      />
+    </>
   );
 }
 

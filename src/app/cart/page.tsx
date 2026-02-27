@@ -15,6 +15,7 @@ import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
+import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const SHIPPING_BASE = {
@@ -671,53 +672,15 @@ export default function CartPage() {
         </div>
       </div>
 
-      {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-4 pb-4 sm:pb-0">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowAuthModal(false)}
-            aria-label="Schließen"
-          />
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold text-stone-900">
-              Wie möchtest du fortfahren?
-            </h2>
-            <p className="mt-1 text-sm text-stone-500">
-              Melde dich an, um Bestellungen zu verfolgen, oder fahre als Gast fort.
-            </p>
-
-            <div className="mt-5 flex flex-col gap-3">
-              <a
-                href={`/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`}
-                className="flex w-full items-center justify-between rounded-xl border-2 border-[#2f3e36] bg-[#2f3e36] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#24312b]"
-              >
-                <span>Anmelden / Registrieren</span>
-                <span className="text-xs font-normal text-white/70">Bestellhistorie & Vorteile</span>
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAuthModal(false);
-                  void proceedToCheckout();
-                }}
-                className="flex w-full items-center justify-between rounded-xl border-2 border-black/10 bg-white px-5 py-3.5 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50"
-              >
-                <span>Als Gast fortfahren</span>
-                <span className="text-xs font-normal text-stone-400">Ohne Account</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAuthModal(false)}
-              className="mt-4 w-full text-center text-xs text-stone-400 hover:text-stone-600"
-            >
-              Abbrechen
-            </button>
-          </div>
-        </div>
-      )}
+      <CheckoutAuthModal
+        open={showAuthModal}
+        returnTo="/cart?startCheckout=1"
+        onClose={() => setShowAuthModal(false)}
+        onContinueAsGuest={() => {
+          setShowAuthModal(false);
+          return proceedToCheckout();
+        }}
+      />
     </PageLayout>
   );
 }

@@ -37,6 +37,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { seoPages } from "@/lib/seoPages";
 
@@ -201,6 +202,7 @@ export function Navbar() {
   const [checkoutStatus, setCheckoutStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
+  const [showCheckoutAuthModal, setShowCheckoutAuthModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileAddedItem, setMobileAddedItem] = useState<AddedItem | null>(
@@ -733,7 +735,7 @@ export function Navbar() {
     };
   }, [isMobile]);
 
-  const startCheckout = async () => {
+  const proceedToCheckout = async () => {
     if (!cart || cart.lines.length === 0) {
       router.push("/cart");
       return;
@@ -767,6 +769,19 @@ export function Navbar() {
       setCheckoutStatus("error");
       router.push("/cart");
     }
+  };
+
+  const startCheckout = async () => {
+    if (!cart || cart.lines.length === 0) {
+      router.push("/cart");
+      return;
+    }
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
+      setShowCheckoutAuthModal(true);
+      return;
+    }
+    await proceedToCheckout();
   };
 
   const categoriesByParent = useMemo(() => {
@@ -2053,6 +2068,15 @@ export function Navbar() {
           </div>
         </div>
       )}
+      <CheckoutAuthModal
+        open={showCheckoutAuthModal}
+        returnTo="/checkout/start"
+        onClose={() => setShowCheckoutAuthModal(false)}
+        onContinueAsGuest={() => {
+          setShowCheckoutAuthModal(false);
+          return proceedToCheckout();
+        }}
+      />
     </>
   );
 }
