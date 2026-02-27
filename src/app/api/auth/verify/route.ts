@@ -41,6 +41,11 @@ export async function POST(request: Request) {
     where: {
       OR: [{ email: identifierLower }, { name: identifier }],
     },
+    select: {
+      id: true,
+      email: true,
+      emailVerified: true,
+    },
   });
   if (!user) {
     return NextResponse.json({ error: "Invalid code" }, { status: 400 });

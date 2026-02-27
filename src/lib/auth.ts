@@ -51,6 +51,15 @@ providers.push(
             { name: { equals: identifier, mode: "insensitive" } },
           ],
         },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          image: true,
+          passwordHash: true,
+          emailVerified: true,
+          role: true,
+        },
       });
       if (!user || !user.email) return null;
 
