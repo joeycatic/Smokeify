@@ -40,6 +40,7 @@
       "category": "growshop",
       "domain": "mary-janes-growshop.de",
       "enabled": true,
+      "type": "shopify",
       "searchUrlTemplates": [
         "https://mary-janes-growshop.de/search?q={query}",
         "https://mary-janes-growshop.de/search?type=product&q={query}"
