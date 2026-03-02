@@ -114,15 +114,15 @@ export default async function StorePage() {
           <section className="reveal-up relative overflow-hidden sm:rounded-3xl">
             <HeroBanner />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 via-black/20 to-transparent sm:rounded-b-3xl" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 text-white sm:p-8">
-              <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/30 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-2.5 text-white sm:p-8">
+              <p className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.18em]">
                 <SparklesIcon className="h-3.5 w-3.5" />
                 Smokeify Selection
               </p>
-              <h1 className="max-w-2xl text-2xl font-extrabold tracking-tight sm:text-4xl">
+              <h1 className="max-w-[13rem] text-[1.05rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-4xl">
                 Mehr Ernte. Weniger Aufwand.
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-white/90 sm:text-base">
+              <p className="mt-1 max-w-[16.5rem] text-[10px] leading-snug text-white/90 sm:mt-2 sm:max-w-xl sm:text-base sm:leading-normal">
                 Kuratierte Hardware für Indoor-Gärten. Von LED bis Lüftung, mit
                 schneller Lieferung aus Deutschland.
               </p>
@@ -163,12 +163,12 @@ export default async function StorePage() {
                     Starke Brands für jeden Grow-Anspruch
                   </h2>
                 </header>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 px-4 sm:gap-4 sm:px-0 sm:grid-cols-2 lg:grid-cols-4">
                   {brandCards.map((brand, index) => (
                     <Link
                       key={brand.href}
                       href={brand.href}
-                      className={`group interactive-lift reveal-up relative flex h-32 items-end overflow-hidden rounded-2xl border p-3 shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-36 ${
+                      className={`group interactive-lift reveal-up relative flex h-24 items-end overflow-hidden rounded-xl border p-2.5 shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-36 sm:rounded-2xl sm:p-3 ${
                         brand.cardClass
                       } ${index > 1 ? "reveal-delay-2" : "reveal-delay-1"}`}
                       aria-label={`${brand.label} anzeigen`}
@@ -185,10 +185,10 @@ export default async function StorePage() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
                       <div className="relative z-10">
-                        <p className="text-sm font-bold tracking-wide text-white">
+                        <p className="text-xs font-bold tracking-wide text-white sm:text-sm">
                           {brand.label}
                         </p>
-                        <p className="text-xs text-white/85">{brand.note}</p>
+                        <p className="text-[11px] text-white/85 sm:text-xs">{brand.note}</p>
                       </div>
                     </Link>
                   ))}

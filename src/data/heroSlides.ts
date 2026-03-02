@@ -4,5 +4,8 @@ export const heroSlides = [
   {
     videoMp4: `${BLOB}/videos/banner.mp4`,
     videoWebm: `${BLOB}/videos/banner.webm`,
+    videoMobileMp4: `${BLOB}/videos/banner-mobile.mp4`,
+    videoMobileWebm: `${BLOB}/videos/banner-mobile.webm`,
+    poster: `${BLOB}/videos/banner-poster.png`,
   },
 ];

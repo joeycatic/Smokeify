@@ -84,6 +84,16 @@ export const Root: React.FC = () => {
       />
 
       <Composition
+        id="HeroBannerMobile"
+        component={HeroBanner}
+        durationInFrames={heroFrames(BANNER.products.length)}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{ introTagline: BANNER.introTagline, products: BANNER.products }}
+      />
+
+      <Composition
         id="HeroBannerHQ"
         component={HeroBannerHQ}
         durationInFrames={heroFrames(BANNER.products.length)}

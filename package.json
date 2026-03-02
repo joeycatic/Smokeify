@@ -34,7 +34,7 @@
     "testing:seed-orders": "node scripts/testing/seedTestOrders.js",
     "video:studio": "cd remotion && npm run studio",
     "video:render": "cd remotion && npm run render",
-    "video:render:banner": "cd remotion && npm run render:banner && npm run render:banner:webm",
+    "video:render:banner": "cd remotion && npm run render:banner && npm run render:banner:webm && npm run render:banner:mobile && npm run render:banner:mobile:webm && npm run render:banner:poster",
     "video:upload:banner": "node scripts/video/upload-banner.mjs"
   },
   "dependencies": {

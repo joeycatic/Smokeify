@@ -44,14 +44,26 @@ export function HeroBanner() {
     <section className="relative w-full overflow-hidden">
       <video
         ref={videoRef}
+        poster={slide.poster}
         autoPlay
         muted
         playsInline
         loop
+        preload="metadata"
         className="block h-auto w-full aspect-video object-contain"
       >
-        <source src={slide.videoMp4} type="video/mp4" />
+        <source
+          src={slide.videoMobileWebm ?? slide.videoWebm}
+          type="video/webm"
+          media="(max-width: 767px)"
+        />
+        <source
+          src={slide.videoMobileMp4 ?? slide.videoMp4}
+          type="video/mp4"
+          media="(max-width: 767px)"
+        />
         <source src={slide.videoWebm} type="video/webm" />
+        <source src={slide.videoMp4} type="video/mp4" />
       </video>
       <Link
         href={href}

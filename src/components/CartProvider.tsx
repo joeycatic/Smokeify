@@ -61,6 +61,26 @@ type CartCtx = {
 
 const CartContext = createContext<CartCtx | null>(null);
 
+const CART_UNAVAILABLE_ERROR = "Cart context unavailable";
+const cartFallback: CartCtx = {
+  cart: null,
+  loading: false,
+  error: null,
+  refresh: async () => {},
+  addToCart: async () => {
+    throw new Error(CART_UNAVAILABLE_ERROR);
+  },
+  addManyToCart: async () => {
+    throw new Error(CART_UNAVAILABLE_ERROR);
+  },
+  updateLine: async () => {},
+  removeLines: async () => {},
+  openAddedModal: () => {},
+  closeAddedModal: () => {},
+  openOutOfStockModal: () => {},
+  closeOutOfStockModal: () => {},
+};
+
 async function apiGetCart(): Promise<Cart> {
   const res = await fetch("/api/cart", { method: "GET" });
   if (!res.ok) {
@@ -330,6 +350,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
 export function useCart() {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  if (!ctx) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("useCart was called outside CartProvider. Returning fallback context.");
+    }
+    return cartFallback;
+  }
   return ctx;
 }

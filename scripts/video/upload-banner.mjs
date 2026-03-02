@@ -25,8 +25,23 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 }
 
 const FILES = [
-  { path: "remotion/out/banner.mp4",  blobName: "videos/banner.mp4",  type: "video/mp4"  },
+  { path: "remotion/out/banner.mp4", blobName: "videos/banner.mp4", type: "video/mp4" },
   { path: "remotion/out/banner.webm", blobName: "videos/banner.webm", type: "video/webm" },
+  {
+    path: "remotion/out/banner-mobile.mp4",
+    blobName: "videos/banner-mobile.mp4",
+    type: "video/mp4",
+  },
+  {
+    path: "remotion/out/banner-mobile.webm",
+    blobName: "videos/banner-mobile.webm",
+    type: "video/webm",
+  },
+  {
+    path: "remotion/out/banner-poster.png",
+    blobName: "videos/banner-poster.png",
+    type: "image/png",
+  },
 ];
 
 for (const file of FILES) {
