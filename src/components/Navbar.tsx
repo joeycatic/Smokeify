@@ -40,6 +40,20 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 import { seoPages } from "@/lib/seoPages";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 
+type NavbarCategory = {
+  id: string;
+  name: string;
+  handle: string;
+  parentId: string | null;
+  itemCount: number;
+  totalItemCount: number;
+};
+
+let categoriesCache: NavbarCategory[] | null = null;
+let categoriesCacheFetchedAt = 0;
+let categoriesRequest: Promise<NavbarCategory[]> | null = null;
+const CATEGORIES_CACHE_TTL_MS = 60_000;
+
 const PaymentMethodLogos = dynamic(
   () => import("@/components/PaymentMethodLogos"),
   { ssr: false },
@@ -163,6 +177,29 @@ const getCategoryIcon = (name: string) => {
     return WrenchScrewdriverIcon;
   return BoltIcon;
 };
+
+async function loadCategoriesCached(): Promise<NavbarCategory[]> {
+  const cached = categoriesCache;
+  const hasFreshCache =
+    cached && Date.now() - categoriesCacheFetchedAt < CATEGORIES_CACHE_TTL_MS;
+  if (hasFreshCache) return cached;
+  if (categoriesRequest) return categoriesRequest;
+
+  categoriesRequest = fetch("/api/categories")
+    .then(async (res) => {
+      if (!res.ok) throw new Error("Failed");
+      const data = (await res.json()) as { categories?: NavbarCategory[] };
+      const next = data.categories ?? [];
+      categoriesCache = next;
+      categoriesCacheFetchedAt = Date.now();
+      return next;
+    })
+    .finally(() => {
+      categoriesRequest = null;
+    });
+
+  return categoriesRequest;
+}
 
 export function Navbar() {
   const { cart, loading, error, refresh } = useCart();
@@ -398,20 +435,9 @@ export function Navbar() {
     const loadCategories = async () => {
       setCategoriesStatus("loading");
       try {
-        const res = await fetch("/api/categories");
-        if (!res.ok) throw new Error("Failed");
-        const data = (await res.json()) as {
-          categories?: Array<{
-            id: string;
-            name: string;
-            handle: string;
-            parentId: string | null;
-            itemCount: number;
-            totalItemCount: number;
-          }>;
-        };
+        const data = await loadCategoriesCached();
         if (!ignore) {
-          setCategories(data.categories ?? []);
+          setCategories(data);
           setCategoriesStatus("idle");
         }
       } catch {
