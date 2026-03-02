@@ -629,7 +629,11 @@ export function Navbar() {
 
   const mainCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
-    return [...roots].sort((a, b) => a.name.localeCompare(b.name));
+    return [...roots].sort((a, b) => {
+      if (a.handle === "zelte" && b.handle !== "zelte") return -1;
+      if (b.handle === "zelte" && a.handle !== "zelte") return 1;
+      return a.name.localeCompare(b.name);
+    });
   }, [categories]);
 
   useEffect(() => {

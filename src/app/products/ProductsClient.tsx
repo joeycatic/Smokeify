@@ -16,6 +16,7 @@ import DisplayProducts, {
 import FilterDrawer from "@/components/FilterDrawer"; // <- Datei wie besprochen erstellen
 import { useSearchParams } from "next/navigation";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { seoPages } from "@/lib/seoPages";
 
 type Props = {
   initialProducts: Product[];
@@ -24,6 +25,7 @@ type Props = {
 };
 
 type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
+type CategoryFaqItem = { question: string; answer: string };
 
 const PAGE_SIZE = 24;
 
@@ -320,6 +322,44 @@ export default function ProductsClient({
     () => new Map(allCategoryTitlesByHandle),
     [allCategoryTitlesByHandle],
   );
+
+  const categoryFaq = useMemo(() => {
+    if (!categoryParam) return null;
+    const normalized = categoryParam.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const config = seoPages.find((page) => {
+      if (!page.categoryHandle) return false;
+      const handles = [
+        page.categoryHandle,
+        ...(page.categoryHandleAliases ?? []),
+      ].map((entry) => entry.toLowerCase());
+      return handles.includes(normalized);
+    });
+    if (!config) return null;
+
+    const title = config.title ?? categoryTitleByHandle.get(categoryParam) ?? categoryParam;
+    const items: CategoryFaqItem[] =
+      config.faq && config.faq.length > 0
+        ? config.faq
+        : [
+            {
+              question: `Worauf sollte ich bei ${title} achten?`,
+              answer:
+                "Achte auf Qualität, sinnvolle Größe/Leistung und ein Setup, das zu deinem Alltag passt. So bekommst du stabilere Ergebnisse und weniger Anpassungsaufwand.",
+            },
+            {
+              question: `Welche Produkte sind bei ${title} besonders sinnvoll für Einsteiger?`,
+              answer:
+                "Starte mit bewährten Basics und erweitere erst nach Bedarf. Das reduziert Fehlkäufe und hilft dir, schneller ein funktionierendes Setup aufzubauen.",
+            },
+          ];
+
+    return {
+      title,
+      items,
+    };
+  }, [categoryParam, categoryTitleByHandle]);
 
   const resetFilters = () => {
     setFilters({
@@ -634,6 +674,34 @@ export default function ProductsClient({
             >
               Zu den Bestsellern
             </Link>
+          </div>
+        </div>
+      )}
+
+      {categoryFaq && categoryFaq.items.length > 0 && (
+        <div className="mt-10 rounded-3xl border border-black/10 bg-white px-6 py-6 shadow-sm sm:px-10">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-lg font-semibold text-stone-900">
+              Häufige Fragen zu {categoryFaq.title}
+            </h2>
+            <div className="mt-4 space-y-3">
+              {categoryFaq.items.map((item, index) => (
+                <details
+                  key={`${item.question}-${index}`}
+                  className="group rounded-2xl border border-black/10 bg-white px-4 py-3"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                    <span>{item.question}</span>
+                    <span className="text-stone-400 transition group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <div className="mt-3 text-sm text-stone-600">
+                    {item.answer}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
         </div>
       )}

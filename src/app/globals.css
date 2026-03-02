@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --brand-forest: #14532d;
+  --brand-sage: #2f3e36;
+  --brand-mint: #0f766e;
+  --brand-gold: #e4c56c;
+  --brand-cream: #f8f6ef;
 }
 
 @theme inline {
@@ -27,7 +32,57 @@ body {
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "Manrope", "Segoe UI", sans-serif;
+}
+
+.brand-page-bg {
+  background:
+    radial-gradient(
+      120% 70% at 50% -8%,
+      rgba(228, 197, 108, 0.2) 0%,
+      rgba(228, 197, 108, 0) 55%
+    ),
+    radial-gradient(
+      80% 55% at 100% 12%,
+      rgba(20, 83, 45, 0.09) 0%,
+      rgba(20, 83, 45, 0) 65%
+    ),
+    var(--brand-cream);
+}
+
+.interactive-lift {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-3px);
+  filter: saturate(1.04);
+}
+
+.reveal-up {
+  animation: reveal-up 650ms ease-out both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 90ms;
+}
+
+.reveal-delay-2 {
+  animation-delay: 180ms;
+}
+
+@keyframes reveal-up {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes badge-pop {
@@ -196,6 +251,21 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .interactive-lift {
+    transition: none;
+  }
+
+  .interactive-lift:hover {
+    transform: none;
+    filter: none;
+  }
+
+  .reveal-up,
+  .reveal-delay-1,
+  .reveal-delay-2 {
+    animation: none;
+  }
+
   .announcement-marquee {
     animation: none;
     transform: translateX(0);

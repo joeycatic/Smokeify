@@ -22,6 +22,23 @@ export const seoPages: SeoPageConfig[] = [
       "Hier findest du Equipment, das einfach zu bedienen ist und dir konstante Ergebnisse liefert – vom ersten Samen bis zur kräftigen Jungpflanze.",
       "Wähle unkomplizierte Starterlösungen oder stelle dir dein Setup flexibel zusammen.",
     ],
+    faq: [
+      {
+        question: "Was ist in der Anzucht am wichtigsten?",
+        answer:
+          "In der Anzucht sind vor allem konstante Bedingungen entscheidend: passende Feuchtigkeit, moderate Temperaturen und nicht zu aggressive Lichtintensität. Stabilität bringt hier mehr als extreme Werte.",
+      },
+      {
+        question: "Welche Produkte reichen für einen sinnvollen Start?",
+        answer:
+          "Für den Einstieg genügen meist Anzuchtmedium, passende Beleuchtung und einfache Klima-Basics. So baust du ein übersichtliches Setup auf, das sich später gezielt erweitern lässt.",
+      },
+      {
+        question: "Welche typischen Fehler sollte ich vermeiden?",
+        answer:
+          "Häufige Fehler sind Überwässerung, zu starke Beleuchtung und zu viele Änderungen auf einmal. Besser ist ein ruhiger Start mit kleinen Anpassungsschritten.",
+      },
+    ],
     categoryHandle: "anzucht",
   },
   {
@@ -32,6 +49,23 @@ export const seoPages: SeoPageConfig[] = [
       "Gleichmäßige Bewässerung ist der Schlüssel zu gesunden Pflanzen und stressfreiem Gießen.",
       "Ob manuell, automatisch oder als System: Wir bieten Lösungen, die zu deinem Alltag passen.",
       "Finde das passende Setup für Größe, Topfanzahl und Pflegeaufwand.",
+    ],
+    faq: [
+      {
+        question: "Welche Bewässerung passt zu meinem Setup?",
+        answer:
+          "Für kleine Setups reicht oft manuelles Gießen mit passenden Hilfen. Bei mehreren Pflanzen oder wenig Zeit lohnt sich ein automatisches System, das gleichmäßiger arbeitet und den Alltag deutlich entlastet.",
+      },
+      {
+        question: "Worauf sollte ich bei automatischer Bewässerung achten?",
+        answer:
+          "Wichtig sind ein passender Tank, zuverlässige Verteilung und die richtige Dimensionierung für Topfanzahl und Fläche. Starte lieber konservativ und teste dein System vor dem Dauerbetrieb.",
+      },
+      {
+        question: "Wie vermeide ich Über- oder Unterwässerung?",
+        answer:
+          "Achte auf Substrat, Topfgröße und Gießintervall als Gesamtpaket. Gleichmäßige, moderate Wasserzufuhr ist meist besser als große Schwankungen zwischen sehr trocken und sehr nass.",
+      },
     ],
     categoryHandle: "bewaesserung",
   },
@@ -68,6 +102,23 @@ export const seoPages: SeoPageConfig[] = [
       "Hier findest du abgestimmte Produkte für jede Phase, vom Start bis zur Ernte.",
       "Einfach dosieren, zuverlässig versorgen, sichtbar bessere Resultate.",
     ],
+    faq: [
+      {
+        question: "Welchen Dünger brauche ich für den Start?",
+        answer:
+          "Für den Einstieg sind klar strukturierte Basis-Schemata sinnvoll. Ein abgestimmtes Set für Wachstum und Blüte ist meist einfacher als viele Einzelprodukte auf einmal.",
+      },
+      {
+        question: "Wie oft sollte ich düngen?",
+        answer:
+          "Starte mit einer moderaten Dosierung nach Herstellerangabe und beobachte die Pflanzenreaktion. Eine zu schnelle Erhöhung führt häufiger zu Problemen als ein vorsichtiger Start mit schrittweiser Anpassung.",
+      },
+      {
+        question: "Kann ich verschiedene Dünger kombinieren?",
+        answer:
+          "Ja, aber nur mit klarem Plan. Kombiniere Produkte, die zusammen gedacht sind, und vermeide überlappende Additive ohne Bedarf. Weniger, aber sauber abgestimmt, funktioniert in der Praxis oft besser.",
+      },
+    ],
     categoryHandle: "duenger",
   },
   {
@@ -78,6 +129,23 @@ export const seoPages: SeoPageConfig[] = [
       "Substrate und passendes Zubehör bilden die Grundlage für ein stabiles, gut wartbares Setup.",
       "Hier findest du Produkte für Wurzelgesundheit, Handling und saubere Abläufe im Alltag.",
       "So kombinierst du die richtige Basis mit den passenden Ergänzungen für bessere Ergebnisse.",
+    ],
+    faq: [
+      {
+        question: "Wie wähle ich das passende Substrat?",
+        answer:
+          "Achte auf Luftigkeit, Wasserhaltevermögen und darauf, wie häufig du pflegen kannst. Ein Substrat sollte zu deinem Gießrhythmus und deinem Setup passen.",
+      },
+      {
+        question: "Welches Zubehör macht bei Substraten wirklich Sinn?",
+        answer:
+          "Sinnvoll sind vor allem Töpfe mit guter Drainage, Untersetzer und praktische Pflegehilfen. Diese Basics verbessern Handhabung und Stabilität im Alltag deutlich.",
+      },
+      {
+        question: "Kann ich später auf ein anderes Substrat wechseln?",
+        answer:
+          "Ja, ein Wechsel ist möglich, sollte aber geplant und sauber umgesetzt werden. Am besten den Wechsel mit angepasster Bewässerung und Versorgung kombinieren.",
+      },
     ],
     categoryHandle: "substrate-und-zubehoer",
     categoryHandleAliases: [
@@ -97,6 +165,23 @@ export const seoPages: SeoPageConfig[] = [
       "Wähle zwischen bewährten Erden und spezialisierten Mischungen passend zu deinem Anbauziel.",
       "Mit der passenden Struktur und Wasserhaltekapazität erleichterst du Pflege und Nährstoffversorgung.",
     ],
+    faq: [
+      {
+        question: "Worauf sollte ich bei Substraten achten?",
+        answer:
+          "Wichtige Faktoren sind Strukturstabilität, Luftanteil und Wasserführung. Ein gutes Substrat unterstützt Wurzelgesundheit und erleichtert die tägliche Pflege.",
+      },
+      {
+        question: "Sind vorgedüngte Substrate für Einsteiger sinnvoll?",
+        answer:
+          "Vorgedüngte Varianten können den Einstieg erleichtern, weil die Grundversorgung schon enthalten ist. Zusätzliche Nährstoffe sollten dann schrittweise und nicht zu früh ergänzt werden.",
+      },
+      {
+        question: "Wie erkenne ich, dass ein Substrat nicht passt?",
+        answer:
+          "Hinweise sind ungleichmäßige Trocknung, dauerhaft zu nasse Bereiche oder schlechte Wasseraufnahme. In solchen Fällen hilft meist ein besser abgestimmtes Substrat.",
+      },
+    ],
     categoryHandle: "substrate",
   },
   {
@@ -107,6 +192,23 @@ export const seoPages: SeoPageConfig[] = [
       "Mit dem richtigen Zubehör wird dein Setup effizienter, sauberer und einfacher im Alltag.",
       "Von kleinen Helfern bis zu wichtigen Ergänzungen findest du hier alles für einen reibungslosen Betrieb.",
       "So optimierst du Pflege, Handling und Langlebigkeit deiner Ausrüstung.",
+    ],
+    faq: [
+      {
+        question: "Welches Zubehör sollte ich zuerst kaufen?",
+        answer:
+          "Starte mit Zubehör, das du täglich brauchst: saubere Aufbewahrung, einfache Messhilfen und Wartungs-Basics. Das bringt im Alltag den größten Nutzen.",
+      },
+      {
+        question: "Wie stelle ich ein sinnvolles Zubehör-Set zusammen?",
+        answer:
+          "Wähle zuerst die Pflichtteile für dein bestehendes Setup und ergänze dann nach Bedarf. So vermeidest du Fehlkäufe und hältst dein Setup übersichtlich.",
+      },
+      {
+        question: "Lohnt sich günstiges Zubehör?",
+        answer:
+          "Günstige Produkte können funktionieren, wenn Verarbeitung und Zuverlässigkeit passen. Bei intensiv genutzten Teilen lohnt sich oft die robustere Variante.",
+      },
     ],
     categoryHandle: "zubehoer",
   },
@@ -189,6 +291,23 @@ export const seoPages: SeoPageConfig[] = [
       "Von Klassikern bis zu modernen Essentials – alles, was dein Setup komplett macht.",
       "Entdecke Zubehör, das langlebig ist und einfach gut aussieht.",
     ],
+    faq: [
+      {
+        question: "Welches Headshop-Zubehör ist für Einsteiger sinnvoll?",
+        answer:
+          "Ein solider Einstieg sind Grinder, Papers, Filter Tips und eine passende Aufbewahrung. Damit deckst du die wichtigsten Basics alltagstauglich ab.",
+      },
+      {
+        question: "Worauf sollte ich bei der Materialqualität achten?",
+        answer:
+          "Achte auf saubere Verarbeitung, robuste Materialien und gute Reinigbarkeit. Das sorgt für längere Haltbarkeit und ein besseres Nutzungserlebnis.",
+      },
+      {
+        question: "Wie pflege ich Headshop-Zubehör richtig?",
+        answer:
+          "Regelmäßige Reinigung mit geeignetem Cleaner und warmem Wasser verhindert Rückstände und erhält Funktion sowie Geschmack deutlich besser.",
+      },
+    ],
     categoryHandle: "headshop",
   },
   {
@@ -199,6 +318,23 @@ export const seoPages: SeoPageConfig[] = [
       "Das richtige Licht entscheidet über Wachstum, Gesundheit und Ertrag.",
       "Hier findest du effiziente Lösungen mit hoher Ausbeute, geringem Verbrauch und stabiler Performance.",
       "Wähle Licht passend zu Fläche, Pflanzenphase und gewünschter Intensität.",
+    ],
+    faq: [
+      {
+        question: "Wie finde ich die passende Lampe für meine Fläche?",
+        answer:
+          "Orientiere dich an der realen Anbaufläche und den Herstellerangaben zur Ausleuchtung. Eine passende Abdeckung ist in der Praxis wichtiger als reine Maximalleistung.",
+      },
+      {
+        question: "Ist dimmbare Beleuchtung sinnvoll?",
+        answer:
+          "Ja, dimmbare Beleuchtung erleichtert die Anpassung an verschiedene Entwicklungsphasen. So kannst du zu hohe Intensität vermeiden und kontrollierter arbeiten.",
+      },
+      {
+        question: "Wattzahl oder Effizienz – was zählt mehr?",
+        answer:
+          "Für stabile Ergebnisse sind Effizienz und gleichmäßige Lichtverteilung meist wichtiger als eine hohe reine Wattzahl.",
+      },
     ],
     categoryHandle: "licht",
   },
@@ -211,6 +347,23 @@ export const seoPages: SeoPageConfig[] = [
       "Von Abluft bis Umluft – finde leise, leistungsstarke Komponenten, die zu deinem Setup passen.",
       "Einfach kombinieren, zuverlässig betreiben, dauerhaft gute Ergebnisse.",
     ],
+    faq: [
+      {
+        question: "Warum ist Luftführung im Setup so wichtig?",
+        answer:
+          "Eine saubere Luftführung stabilisiert Temperatur und Feuchte, reduziert Stauwärme und unterstützt die Pflanzengesundheit.",
+      },
+      {
+        question: "Wie kombiniere ich Abluft und Umluft richtig?",
+        answer:
+          "Abluft tauscht verbrauchte Luft aus, Umluft verteilt sie gleichmäßig im Setup. Erst das Zusammenspiel beider Komponenten schafft stabile Bedingungen.",
+      },
+      {
+        question: "Worauf sollte ich bei Lüftern und Filtern achten?",
+        answer:
+          "Wichtig sind passende Leistung zur Fläche, Lautstärke und Regelbarkeit. Ein abgestimmtes System läuft ruhiger und zuverlässiger.",
+      },
+    ],
     categoryHandle: "luft",
   },
   {
@@ -221,6 +374,23 @@ export const seoPages: SeoPageConfig[] = [
       "Präzise Messwerte geben dir Kontrolle über Klima, Nährstoffe und Wasserqualität.",
       "Mit den richtigen Tools erkennst du früh, was deine Pflanzen brauchen.",
       "Einfach ablesen, sicher handeln, bessere Resultate.",
+    ],
+    faq: [
+      {
+        question: "Welche Messwerte sollte ich regelmäßig kontrollieren?",
+        answer:
+          "Besonders relevant sind Temperatur, Luftfeuchtigkeit und je nach Setup pH- bzw. EC-Werte. Diese Daten helfen dir, frühzeitig sinnvoll gegenzusteuern.",
+      },
+      {
+        question: "Wie wichtig ist die Kalibrierung von Messgeräten?",
+        answer:
+          "Regelmäßige Kalibrierung ist entscheidend, damit Messwerte zuverlässig bleiben. Richte dich dabei immer nach den Intervallen des Herstellers.",
+      },
+      {
+        question: "Warum sind präzise Messwerte so entscheidend?",
+        answer:
+          "Mit sauberen Messwerten triffst du gezielte Entscheidungen statt zu raten. Das reduziert Überkorrekturen und sorgt für stabilere Ergebnisse.",
+      },
     ],
     categoryHandle: "messen",
   },

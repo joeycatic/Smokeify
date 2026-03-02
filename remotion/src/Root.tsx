@@ -2,6 +2,7 @@ import React from "react";
 import { Composition } from "remotion";
 import { ProductShowcase, TOTAL_FRAMES } from "./ProductShowcase";
 import { HeroBanner, HeroBannerProps, heroFrames } from "./HeroBanner";
+import { HeroBannerHQ } from "./HeroBannerHQ";
 
 // ─── Landing page banner ───────────────────────────────────────────────────────
 
@@ -79,6 +80,16 @@ export const Root: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+        defaultProps={{ introTagline: BANNER.introTagline, products: BANNER.products }}
+      />
+
+      <Composition
+        id="HeroBannerHQ"
+        component={HeroBannerHQ}
+        durationInFrames={heroFrames(BANNER.products.length)}
+        fps={30}
+        width={2560}
+        height={1440}
         defaultProps={{ introTagline: BANNER.introTagline, products: BANNER.products }}
       />
     </>

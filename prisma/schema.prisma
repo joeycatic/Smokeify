@@ -44,6 +44,12 @@ enum CustomerGroup {
   BLOCKED
 }
 
+enum PlantHealthStatus {
+  HEALTHY
+  WARNING
+  CRITICAL
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -79,6 +85,8 @@ model User {
   cartItems       UserCartItem[]
   loyaltyTransactions LoyaltyPointTransaction[]
   reviewIncentives ReviewIncentive[]
+  plantAnalyses  PlantAnalysisRun[]
+  plantAnalysisFeedback PlantAnalysisFeedback[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -620,4 +628,62 @@ model ProductCrossSell {
 
   @@unique([productId, crossSellId])
   @@index([productId, sortOrder])
+}
+
+model PlantAnalysisRun {
+  id          String   @id @default(cuid())
+  userId      String?
+  plantId     String?
+  imageUri    String?
+  imageHash   String
+  imageMime   String?
+  notes       String?
+  provider    String
+  model       String
+  latencyMs   Int
+  confidence  Float
+  healthStatus PlantHealthStatus
+  species     String
+  outputJson  Json
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  issues PlantAnalysisIssue[]
+  feedback PlantAnalysisFeedback[]
+
+  @@index([userId, createdAt])
+  @@index([healthStatus, createdAt])
+  @@index([imageHash])
+}
+
+model PlantAnalysisIssue {
+  id          String   @id @default(cuid())
+  analysisId  String
+  sourceIssueId String?
+  label       String
+  confidence  Float
+  severity    PlantHealthStatus
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, position])
+}
+
+model PlantAnalysisFeedback {
+  id          String   @id @default(cuid())
+  analysisId  String
+  userId      String?
+  isCorrect   Boolean
+  correctLabel String?
+  comment     String?
+  source      String   @default("user")
+  createdAt   DateTime @default(now())
+
+  analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([analysisId, createdAt])
+  @@index([userId, createdAt])
 }

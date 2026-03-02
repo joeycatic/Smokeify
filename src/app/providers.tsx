@@ -4,15 +4,18 @@ import { SessionProvider } from "next-auth/react";
 import { CartProvider } from "@/components/CartProvider";
 import CookieConsent from "@/components/CookieConsent";
 import GTMTag from "@/components/GTMTag";
+import { WishlistProvider } from "@/hooks/useWishlist";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <CartProvider>
-        {children}
-        <GTMTag />
-        <CookieConsent />
-      </CartProvider>
+      <WishlistProvider>
+        <CartProvider>
+          {children}
+          <GTMTag />
+          <CookieConsent />
+        </CartProvider>
+      </WishlistProvider>
     </SessionProvider>
   );
 }

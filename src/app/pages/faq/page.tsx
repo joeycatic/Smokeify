@@ -15,12 +15,12 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Wie lange dauert der Versand?",
         answer:
-          "Bestellungen, die bis 14:00 Uhr eingehen, werden in der Regel noch am selben Werktag verschickt. Die Lieferzeit innerhalb Deutschlands beträgt 1–3 Werktage. In andere EU-Länder dauert es 3–7 Werktage.",
+          "Bestellungen, die werktags bis 14:00 Uhr eingehen, versenden wir in der Regel noch am selben Tag. Innerhalb Deutschlands liegt die Lieferzeit meist bei 1-3 Werktagen, innerhalb der EU bei 3-7 Werktagen.",
       },
       {
-        question: "Welcher Versanddienstleister liefert meine Bestellung?",
+        question: "Wird diskret verpackt?",
         answer:
-          "Wir versenden ausschließlich mit DHL. Nach dem Versand erhältst du eine E-Mail mit deiner Sendungsverfolgungsnummer, mit der du dein Paket jederzeit online tracken kannst.",
+          "Ja. Unsere Sendungen werden neutral und ohne auffällige Produktkennzeichnung verpackt. So bleibt der Inhalt von außen nicht erkennbar.",
       },
       {
         question: "Ab wann ist der Versand kostenlos?",
@@ -32,6 +32,11 @@ const FAQ_CATEGORIES: FaqCategory[] = [
         answer:
           "Ja, wir liefern in alle EU-Länder. Die genauen Versandkosten und Lieferzeiten für dein Land werden dir im Checkout angezeigt. Lieferungen außerhalb der EU sind derzeit nicht möglich.",
       },
+      {
+        question: "Erhalte ich eine Sendungsverfolgung?",
+        answer:
+          "Ja. Nach dem Versand bekommst du automatisch eine E-Mail mit Tracking-Link, damit du den Status deiner Bestellung jederzeit verfolgen kannst.",
+      },
     ],
   },
   {
@@ -40,17 +45,22 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Welche Zahlungsarten akzeptiert ihr?",
         answer:
-          "Wir akzeptieren alle gängigen Zahlungsmethoden: Kreditkarte (Visa, Mastercard), PayPal, Klarna (Ratenkauf & Sofortüberweisung) sowie SEPA-Lastschrift. Die verfügbaren Methoden werden dir beim Checkout angezeigt.",
+          "Wir akzeptieren gängige Zahlungsarten wie Kreditkarte (Visa, Mastercard), PayPal, Klarna und SEPA-Lastschrift. Die für deine Bestellung verfügbaren Methoden werden dir im Checkout angezeigt.",
       },
       {
         question: "Wann wird meine Zahlung belastet?",
         answer:
-          "Die Zahlung wird bei Abschluss der Bestellung sofort eingezogen. Bei Klarna-Ratenkauf gelten die Bedingungen von Klarna.",
+          "Die Zahlung wird bei Abschluss der Bestellung autorisiert bzw. eingezogen. Bei Klarna gelten die jeweiligen Klarna-Bedingungen für die gewählte Zahlungsart.",
       },
       {
         question: "Ist meine Zahlung sicher?",
         answer:
           "Ja. Alle Zahlungen werden über Stripe abgewickelt – einen der weltweit führenden Zahlungsdienstleister. Deine Kartendaten werden ausschließlich verschlüsselt übertragen und nie auf unseren Servern gespeichert.",
+      },
+      {
+        question: "Kann ich nachträglich die Zahlungsart ändern?",
+        answer:
+          "Solange die Bestellung noch nicht final verarbeitet wurde, ist das teilweise möglich. Schreib uns am besten sofort mit deiner Bestellnummer an joey@smokeify.de.",
       },
     ],
   },
@@ -77,30 +87,60 @@ const FAQ_CATEGORIES: FaqCategory[] = [
         answer:
           "Bitte fotografiere den Schaden und schreib uns umgehend an joey@smokeify.de. Wir regeln den Fall schnell und unbürokratisch – entweder mit einem Ersatz oder einer vollständigen Rückerstattung.",
       },
+      {
+        question: "Kann ich benutzte Hygiene-Artikel zurückgeben?",
+        answer:
+          "Aus hygienischen Gründen sind bereits benutzte Artikel in der Regel vom Widerruf ausgeschlossen. Wenn etwas defekt oder fehlerhaft ist, melde dich bitte direkt bei uns, damit wir eine Lösung finden.",
+      },
     ],
   },
   {
-    label: "Produkte & Beratung",
+    label: "Produkte, Nutzung & Beratung",
     items: [
       {
-        question: "Welche Zeltgröße ist die richtige für mich?",
+        question: "Welche Grinder-Größe passt zu mir?",
         answer:
-          `Das hängt vor allem von der Anzahl deiner Pflanzen und dem verfügbaren Platz ab. Als Faustregel: 60×60 cm für 1–2 Pflanzen, 80×80 cm für 2–3 Pflanzen, 100×100 cm für 4–6 Pflanzen. In unserem Blog-Artikel „Welches Pflanzenzelt für 2 Pflanzen" findest du eine ausführliche Erklärung.`,
+          "Für unterwegs reicht meist ein kompakter Grinder (ca. 40-50 mm). Für den täglichen Gebrauch zuhause empfehlen wir mittlere bis große Modelle (55-63 mm), da sie mehr Volumen und meist eine angenehmere Handhabung bieten.",
       },
       {
-        question: "Was ist in den Indoor-Sets enthalten?",
+        question: "Welche Papers sind für Einsteiger sinnvoll?",
         answer:
-          `Unsere Indoor-Sets enthalten in der Regel das Pflanzenzelt, eine LED-Leuchte, einen Ablüfter mit Kohlefilter und einen Umluftlüfter. Genaue Inhalte findest du auf der jeweiligen Produktseite unter „Lieferumfang".`,
+          "Viele starten mit King Size Slim Papers, weil sie gut zu rollen sind und breit verfügbar. Wenn du langsameres Abbrennen willst, sind ungebleichte Varianten eine gute Option. Achte zusätzlich auf passende Filter Tips.",
       },
       {
-        question: "Bietet ihr Produktberatung an?",
+        question: "Wie reinige ich Bong, Pfeife oder Grinder richtig?",
         answer:
-          "Ja! Schreib uns auf Instagram oder per E-Mail an joey@smokeify.de – wir helfen dir gern, das passende Setup für deine Anforderungen zusammenzustellen.",
+          "Am besten regelmäßig mit geeignetem Cleaner und warmem Wasser reinigen. Bei Grindern zuerst trocken ausbürsten, dann nur falls nötig mit etwas Isopropanol arbeiten und anschließend vollständig trocknen lassen. So bleiben Geschmack und Funktion erhalten.",
       },
       {
-        question: "Sind eure Produkte mit Garantie versehen?",
+        question: "Welches Zubehör wird oft zusammen gekauft?",
         answer:
-          "Alle Produkte unterliegen der gesetzlichen Gewährleistung von 2 Jahren. Viele Hersteller bieten darüber hinaus eigene Garantieleistungen an – diese sind auf der jeweiligen Produktseite angegeben.",
+          "Beliebte Kombinationen sind: Papers + Filter Tips, Grinder + Aufbewahrungsdose, Bong + Reinigungszubehör. Auf den Produktseiten findest du passende Ergänzungen für ein stimmiges Setup.",
+      },
+      {
+        question: "Bietet ihr persönliche Produktberatung an?",
+        answer:
+          "Ja. Wenn du unsicher bist, welches Zubehör zu deinem Bedarf passt, schreib uns per E-Mail an joey@smokeify.de oder über Instagram. Wir helfen dir schnell mit einer konkreten Empfehlung.",
+      },
+    ],
+  },
+  {
+    label: "Jugendschutz & rechtliche Hinweise",
+    items: [
+      {
+        question: "Ab welchem Alter kann ich bestellen?",
+        answer:
+          "Bestellungen in unserem Headshop sind nur für volljährige Personen bestimmt. Mit der Bestellung bestätigst du, dass du mindestens 18 Jahre alt bist.",
+      },
+      {
+        question: "Verkauft ihr verbotene Substanzen?",
+        answer:
+          "Nein. Wir verkaufen ausschließlich legales Zubehör und erlaubte Produkte. Die Verantwortung für eine rechtmäßige Nutzung liegt immer bei der kaufenden Person.",
+      },
+      {
+        question: "Kann ich den Versand an eine Packstation senden lassen?",
+        answer:
+          "In vielen Fällen ist der Versand an eine Packstation möglich. Bitte achte im Checkout auf korrekte Daten und prüfe, ob die gewählte Versandart dafür unterstützt wird.",
       },
     ],
   },
@@ -121,6 +161,11 @@ const FAQ_CATEGORIES: FaqCategory[] = [
         question: "Ich habe keine Bestellbestätigung erhalten – was tun?",
         answer:
           "Prüfe zuerst deinen Spam-Ordner. Wenn die Mail dort nicht zu finden ist, melde dich unter joey@smokeify.de mit deinem Namen und der E-Mail-Adresse, die du beim Kauf angegeben hast.",
+      },
+      {
+        question: "Wo sehe ich den Status meiner Bestellung?",
+        answer:
+          "Sobald dein Paket unterwegs ist, erhältst du eine Versandbestätigung mit Tracking-Link. Mit Kundenkonto findest du zusätzlich deine Bestellhistorie direkt im Account-Bereich.",
       },
     ],
   },
@@ -178,7 +223,7 @@ export default function FaqPage() {
             Häufige Fragen
           </h1>
           <p className="mt-3 text-base text-stone-500">
-            Alles Wichtige rund um Bestellung, Versand und Produkte.
+            Alles Wichtige rund um Bestellung, diskreten Versand und Headshop-Zubehör.
           </p>
         </div>
 

@@ -19,6 +19,12 @@ export async function GET() {
     totalRevenue,
     topItems,
     variants,
+    totalAnalyses,
+    fallbackAnalyses,
+    feedbackTotal,
+    feedbackCorrect,
+    lowConfidenceAnalyses,
+    topIssueLabels,
   ] = await Promise.all([
     prisma.order.count(),
     prisma.order.count({ where: { paymentStatus: { in: PAID_STATUSES } } }),
@@ -40,6 +46,23 @@ export async function GET() {
         product: { select: { id: true, title: true } },
         inventory: true,
       },
+    }),
+    prisma.plantAnalysisRun.count(),
+    prisma.plantAnalysisRun.count({
+      where: {
+        model: {
+          in: ["gpt-4o", process.env.AI_MODEL_STRONG ?? "gpt-4o"],
+        },
+      },
+    }),
+    prisma.plantAnalysisFeedback.count(),
+    prisma.plantAnalysisFeedback.count({ where: { isCorrect: true } }),
+    prisma.plantAnalysisRun.count({ where: { confidence: { lt: 0.65 } } }),
+    prisma.plantAnalysisIssue.groupBy({
+      by: ["label"],
+      _count: { _all: true },
+      orderBy: { _count: { label: "desc" } },
+      take: 8,
     }),
   ]);
 
@@ -94,5 +117,16 @@ export async function GET() {
     },
     topProducts,
     stockouts,
+    aiQuality: {
+      totalAnalyses,
+      fallbackRate: totalAnalyses > 0 ? fallbackAnalyses / totalAnalyses : 0,
+      lowConfidenceRate: totalAnalyses > 0 ? lowConfidenceAnalyses / totalAnalyses : 0,
+      feedbackTotal,
+      feedbackCorrectRate: feedbackTotal > 0 ? feedbackCorrect / feedbackTotal : 0,
+      topIssueLabels: topIssueLabels.map((row) => ({
+        label: row.label,
+        count: row._count._all,
+      })),
+    },
   });
 }

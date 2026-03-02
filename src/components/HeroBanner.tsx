@@ -48,7 +48,7 @@ export function HeroBanner() {
         muted
         playsInline
         loop
-        className="block w-full aspect-[3/2] object-cover sm:aspect-auto sm:h-[72vh]"
+        className="block h-auto w-full aspect-video object-contain"
       >
         <source src={slide.videoMp4} type="video/mp4" />
         <source src={slide.videoWebm} type="video/webm" />

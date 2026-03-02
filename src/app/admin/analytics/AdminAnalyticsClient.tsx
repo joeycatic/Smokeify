@@ -34,6 +34,15 @@ type Revenue = {
   totalCents: number;
 };
 
+type AiQuality = {
+  totalAnalyses: number;
+  fallbackRate: number;
+  lowConfidenceRate: number;
+  feedbackTotal: number;
+  feedbackCorrectRate: number;
+  topIssueLabels: Array<{ label: string; count: number }>;
+};
+
 const formatPrice = (amount: number) =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -59,6 +68,14 @@ export default function AdminAnalyticsClient() {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
   const [revenue, setRevenue] = useState<Revenue>({ totalCents: 0 });
+  const [aiQuality, setAiQuality] = useState<AiQuality>({
+    totalAnalyses: 0,
+    fallbackRate: 0,
+    lowConfidenceRate: 0,
+    feedbackTotal: 0,
+    feedbackCorrectRate: 0,
+    topIssueLabels: [],
+  });
 
   const loadAnalytics = async () => {
     setLoading(true);
@@ -75,11 +92,13 @@ export default function AdminAnalyticsClient() {
         revenue?: Revenue;
         topProducts?: TopProduct[];
         stockouts?: Stockout[];
+        aiQuality?: AiQuality;
       };
       setFunnel(data.funnel ?? funnel);
       setRevenue(data.revenue ?? { totalCents: 0 });
       setTopProducts(data.topProducts ?? []);
       setStockouts(data.stockouts ?? []);
+      setAiQuality(data.aiQuality ?? aiQuality);
     } catch {
       setError("Analytics konnte nicht geladen werden.");
     } finally {
@@ -298,6 +317,65 @@ export default function AdminAnalyticsClient() {
                   <div>0</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-cyan-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-sm font-semibold text-cyan-700">
+              04
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">
+                Analyzer quality
+              </p>
+              <p className="text-xs text-stone-500">Live model performance and feedback quality.</p>
+            </div>
+          </div>
+        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-stone-500">
+            <LoadingSpinner size="sm" />
+            <span>Analytics werden geladen...</span>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
+                <p className="text-xs uppercase tracking-wide text-stone-400">Analysen</p>
+                <p className="mt-2 text-2xl font-semibold text-stone-900">{aiQuality.totalAnalyses}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
+                <p className="text-xs uppercase tracking-wide text-stone-400">Fallback-Rate</p>
+                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.fallbackRate * 100)}%</p>
+              </div>
+              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
+                <p className="text-xs uppercase tracking-wide text-stone-400">Low-Confidence</p>
+                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.lowConfidenceRate * 100)}%</p>
+              </div>
+              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
+                <p className="text-xs uppercase tracking-wide text-stone-400">Feedback korrekt</p>
+                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.feedbackCorrectRate * 100)}%</p>
+                <p className="text-xs text-stone-500">{aiQuality.feedbackTotal} Feedbacks</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Top Befunde</p>
+              <div className="mt-3 space-y-2">
+                {aiQuality.topIssueLabels.length === 0 ? (
+                  <p className="text-sm text-stone-500">Noch keine Befunddaten vorhanden.</p>
+                ) : (
+                  aiQuality.topIssueLabels.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between rounded-lg border border-cyan-100 bg-cyan-50/60 px-3 py-2 text-sm">
+                      <span className="font-medium text-stone-800">{item.label}</span>
+                      <span className="font-semibold text-cyan-700">{item.count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}

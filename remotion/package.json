@@ -7,7 +7,9 @@
     "render": "remotion render src/index.tsx ProductShowcase out/product-showcase.mp4",
     "render:gif": "remotion render src/index.tsx ProductShowcase --codec=gif out/product-showcase.gif",
     "render:banner": "remotion render src/index.tsx HeroBanner --codec=h264 --crf=18 --timeout=180000 out/banner.mp4",
-    "render:banner:webm": "remotion render src/index.tsx HeroBanner --codec=vp8 --crf=20 --timeout=180000 out/banner.webm"
+    "render:banner:webm": "remotion render src/index.tsx HeroBanner --codec=vp8 --crf=20 --timeout=180000 out/banner.webm",
+    "render:banner:hq": "remotion render src/index.tsx HeroBannerHQ --codec=h264 --crf=14 --pixel-format=yuv420p --timeout=240000 out/banner-hq.mp4",
+    "render:banner:hq:webm": "remotion render src/index.tsx HeroBannerHQ --codec=vp9 --crf=16 --timeout=240000 out/banner-hq.webm"
   },
   "dependencies": {
     "react": "^18.3.1",
