@@ -46,6 +46,9 @@ export async function GET(request: Request) {
   const result = products.map((product) => {
     const shortSource = toPlainText(product.shortDescription);
     const shortDescription = shortSource ? toShortText(shortSource) : "";
+    const allImageUrls = product.images
+      .map((image) => toAbsoluteUrl(image.url))
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
 
     return {
       id: product.id,
@@ -65,6 +68,8 @@ export async function GET(request: Request) {
       tags: product.tags ?? [],
       checkoutUrl: `https://www.smokeify.de/products/${product.handle}`,
       imageUrl: toAbsoluteUrl(product.featuredImage?.url),
+      imageUrls: allImageUrls,
+      images: allImageUrls.map((url) => ({ url })),
     };
   });
 

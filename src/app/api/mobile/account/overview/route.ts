@@ -23,6 +23,8 @@ export async function GET(request: Request) {
         postalCode: true,
         city: true,
         country: true,
+        role: true,
+        customerGroup: true,
       },
     }),
     prisma.order.findMany({
@@ -64,6 +66,12 @@ export async function GET(request: Request) {
       id: user.id,
       email: user.email,
       displayName,
+      role:
+        user.role === "ADMIN"
+          ? "admin"
+          : user.customerGroup === "VIP"
+            ? "premium"
+            : "user",
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
       street: user.street ?? "",

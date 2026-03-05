@@ -180,6 +180,83 @@ export async function getProducts(limit = 50): Promise<Product[]> {
   return getProductsCached(limit);
 }
 
+const fetchAllActiveProducts = async (): Promise<Product[]> => {
+  const batchSize = 500;
+  let cursorId: string | null = null;
+  const mappedProducts: Product[] = [];
+
+  while (true) {
+    const products: Array<{
+      id: string;
+      title: string;
+      handle: string;
+      description: string | null;
+      shortDescription: string | null;
+      manufacturer: string | null;
+      growboxSize: string | null;
+      tags: string[];
+      variants: Array<{
+        id: string;
+        title: string;
+        priceCents: number;
+        compareAtCents: number | null;
+        position: number;
+        lowStockThreshold: number;
+        inventory: { quantityOnHand: number; reserved: number } | null;
+      }>;
+      images: Array<{ url: string; altText: string | null; position: number }>;
+      categories: Array<{
+        category: {
+          id: string;
+          name: string;
+          handle: string;
+          parentId: string | null;
+          parent?: { id: string; name: string; handle: string } | null;
+        };
+      }>;
+      collections: Array<{ collection: { id: string; name: string; handle: string } }>;
+      reviews: Array<{ rating: number }>;
+      bestsellerScore?: number | null;
+      createdAt?: Date | null;
+    }> = await prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { id: "asc" },
+      take: batchSize,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      include: {
+        images: { orderBy: { position: "asc" } },
+        variants: {
+          orderBy: { position: "asc" },
+          include: { inventory: true },
+        },
+        categories: { include: { category: { include: { parent: true } } } },
+        collections: { include: { collection: true } },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
+      },
+    });
+
+    if (products.length === 0) break;
+
+    mappedProducts.push(...products.map(mapProduct));
+    cursorId = products[products.length - 1]?.id ?? null;
+  }
+
+  return mappedProducts;
+};
+
+const getAllProductsCached = unstable_cache(
+  async (): Promise<Product[]> => fetchAllActiveProducts(),
+  ["catalog-products-all"],
+  { revalidate: 30 },
+);
+
+export async function getAllProducts(): Promise<Product[]> {
+  return getAllProductsCached();
+}
+
 const getProductHandlesCached = unstable_cache(
   async (): Promise<string[]> => {
     const handles: string[] = [];

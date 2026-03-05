@@ -44,6 +44,8 @@ export async function POST(request: Request) {
       name: true,
       firstName: true,
       lastName: true,
+      role: true,
+      customerGroup: true,
       passwordHash: true,
       emailVerified: true,
     },
@@ -78,6 +80,12 @@ export async function POST(request: Request) {
       id: user.id,
       email: user.email,
       displayName,
+      role:
+        user.role === "ADMIN"
+          ? "admin"
+          : user.customerGroup === "VIP"
+            ? "premium"
+            : "user",
     },
   });
 }

@@ -12,10 +12,7 @@ import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import {
   PAYMENT_FEE_BY_METHOD,
   DEFAULT_PAYMENT_FEE,
-  HIGH_PRICE_SHIPPING_THRESHOLD_CENTS,
-  allocateByWeight,
   applyPaymentFeesToCosts,
-  type CostSnapshotItem,
 } from "@/lib/paymentFees";
 
 export const runtime = "nodejs";
@@ -281,16 +278,34 @@ const getLineItemTaxRateBasisPoints = (item: LineItemWithTax) => {
   return rates.every((rate) => rate === rates[0]) ? rates[0] : null;
 };
 
+const listAllCheckoutSessionLineItems = async (
+  stripe: Stripe,
+  sessionId: string
+) => {
+  const items: Stripe.LineItem[] = [];
+  let startingAfter: string | undefined;
+
+  while (true) {
+    const page = await stripe.checkout.sessions.listLineItems(sessionId, {
+      limit: 100,
+      starting_after: startingAfter,
+      expand: ["data.price.product"],
+    });
+    items.push(...(page.data ?? []));
+    if (!page.has_more || page.data.length === 0) break;
+    startingAfter = page.data[page.data.length - 1]?.id;
+  }
+
+  return items;
+};
+
 const getVariantCountsForSession = async (
   stripe: Stripe,
   sessionId: string
 ) => {
-  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
-    limit: 100,
-    expand: ["data.price.product"],
-  });
+  const lineItems = await listAllCheckoutSessionLineItems(stripe, sessionId);
   const variantCounts = new Map<string, number>();
-  for (const item of lineItems.data ?? []) {
+  for (const item of lineItems) {
     const product = item.price?.product as Stripe.Product | null | undefined;
     const variantId =
       product?.metadata?.variantId || item.price?.metadata?.variantId || "";
@@ -374,10 +389,7 @@ export const createOrderFromSession = async (
     return;
   }
 
-  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
-    limit: 100,
-    expand: ["data.price.product"],
-  });
+  const lineItems = await listAllCheckoutSessionLineItems(stripe, sessionId);
   const shipping = checkoutSession.shipping_details;
   const address = shipping?.address;
   const subtotal = checkoutSession.amount_subtotal ?? 0;
@@ -390,8 +402,29 @@ export const createOrderFromSession = async (
   const paymentFeeConfig =
     PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
 
+  const variantIds = Array.from(
+    new Set(
+      lineItems
+        .map((item) => {
+          const product = item.price?.product as Stripe.Product | null | undefined;
+          return product?.metadata?.variantId || item.price?.metadata?.variantId || "";
+        })
+        .filter(Boolean)
+    )
+  );
+  const variantsById = new Map(
+    (
+      await prisma.variant.findMany({
+        where: { id: { in: variantIds } },
+        include: {
+          product: { include: { images: { orderBy: { position: "asc" } } } },
+        },
+      })
+    ).map((variant) => [variant.id, variant])
+  );
+
   const orderItemDrafts = await Promise.all(
-    (lineItems.data ?? []).map(async (item) => {
+    lineItems.map(async (item) => {
       const product = item.price?.product as Stripe.Product | null | undefined;
       const variantId =
         product?.metadata?.variantId || item.price?.metadata?.variantId || "";
@@ -410,12 +443,7 @@ export const createOrderFromSession = async (
       let baseCostAmount = 0;
 
       if (variantId) {
-        const variant = await prisma.variant.findUnique({
-          where: { id: variantId },
-          include: {
-            product: { include: { images: { orderBy: { position: "asc" } } } },
-          },
-        });
+        const variant = variantsById.get(variantId);
         if (variant) {
           const productName = variant.product.title;
           const variantTitle = variant.title?.trim();
@@ -516,7 +544,7 @@ export const createOrderFromSession = async (
     },
   });
   const variantCounts = new Map<string, number>();
-  for (const item of lineItems.data ?? []) {
+  for (const item of lineItems) {
     const product = item.price?.product as Stripe.Product | null | undefined;
     const variantId =
       product?.metadata?.variantId || item.price?.metadata?.variantId || "";
@@ -688,6 +716,68 @@ const finalizeWebhookEvent = async (eventId: string) => {
   });
 };
 
+const PREMIUM_ACTIVE_STATUSES = new Set<Stripe.Subscription.Status>([
+  "active",
+  "trialing",
+  "past_due",
+]);
+
+const resolveSubscriptionUserId = async (
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+) => {
+  const metadataUserId =
+    subscription.metadata?.mobileUserId?.trim() ||
+    subscription.metadata?.userId?.trim() ||
+    "";
+  if (metadataUserId) {
+    return metadataUserId;
+  }
+
+  if (!subscription.customer) {
+    return null;
+  }
+
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer.id;
+  if (!customerId) {
+    return null;
+  }
+
+  const customer = await stripe.customers.retrieve(customerId);
+  if (!("deleted" in customer) || customer.deleted) {
+    return null;
+  }
+  const email = customer.email?.trim().toLowerCase();
+  if (!email) {
+    return null;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+};
+
+const syncPremiumAccessFromSubscription = async (
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+) => {
+  const userId = await resolveSubscriptionUserId(stripe, subscription);
+  if (!userId) {
+    return;
+  }
+
+  const premiumActive = PREMIUM_ACTIVE_STATUSES.has(subscription.status);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { customerGroup: premiumActive ? "VIP" : "NORMAL" },
+  });
+};
+
 export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
@@ -807,6 +897,31 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.expired") {
       const session = event.data.object as Stripe.Checkout.Session;
       await releaseReservedInventory(stripe, session.id ?? "");
+    }
+    if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
+      const subscription = event.data.object as Stripe.Subscription;
+      await syncPremiumAccessFromSubscription(stripe, subscription);
+    }
+    if (event.type === "invoice.paid") {
+      const invoice = event.data.object as Stripe.Invoice;
+      if (!invoice.subscription) {
+        // no-op: non-subscription invoice
+      } else {
+        const subscriptionId =
+          typeof invoice.subscription === "string"
+            ? invoice.subscription
+            : invoice.subscription.id;
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(
+            subscriptionId,
+          );
+          await syncPremiumAccessFromSubscription(stripe, subscription);
+        }
+      }
     }
     if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;

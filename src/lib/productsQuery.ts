@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import type { Product, ProductFilters } from "@/data/types";
-import { getProducts } from "@/lib/catalog";
+import { getAllProducts } from "@/lib/catalog";
 import { filterProducts } from "@/lib/filterProducts";
 
 export type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
@@ -42,7 +42,7 @@ type CatalogMeta = {
 
 const getCachedCatalogMeta = unstable_cache(
   async (): Promise<CatalogMeta> => {
-    const initialProducts = await getProducts(500);
+    const initialProducts = await getAllProducts();
     const parentCategoryById = new Map<
       string,
       { id: string; handle: string; title: string }
@@ -245,4 +245,3 @@ export async function queryProducts(
     allCategoryTitles: Array.from(catalog.allCategoryTitles.entries()),
   };
 }
-

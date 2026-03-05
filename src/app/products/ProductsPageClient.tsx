@@ -62,6 +62,7 @@ export default function ProductsPageClient({ initialData }: Props) {
   const fetchAbortRef = useRef<AbortController | null>(null);
   const viewListTrackedRef = useRef<string | null>(null);
   const searchTrackedRef = useRef<string | null>(null);
+  const skippedInitialFetchRef = useRef(false);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -157,6 +158,10 @@ export default function ProductsPageClient({ initialData }: Props) {
   };
 
   useEffect(() => {
+    if (!skippedInitialFetchRef.current) {
+      skippedInitialFetchRef.current = true;
+      return;
+    }
     void fetchProducts(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -501,4 +506,3 @@ export default function ProductsPageClient({ initialData }: Props) {
     </div>
   );
 }
-

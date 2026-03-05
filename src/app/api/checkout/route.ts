@@ -393,34 +393,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Atomically reserve inventory for all cart items. Each UPDATE only succeeds
-  // if (quantityOnHand - reserved) >= qty, preventing overselling under concurrency.
-  const reservedVariants: Array<{ variantId: string; qty: number }> = [];
-  try {
-    await prisma.$transaction(async (tx) => {
-      for (const [variantId, qty] of variantCounts) {
-        const updated = await tx.$executeRaw`
-          UPDATE "VariantInventory"
-          SET reserved = reserved + ${qty}
-          WHERE "variantId" = ${variantId}
-            AND ("quantityOnHand" - reserved) >= ${qty}
-        `;
-        if (updated === 0) {
-          throw Object.assign(new Error("INSUFFICIENT_INVENTORY"), { variantId });
-        }
-        reservedVariants.push({ variantId, qty });
-      }
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message === "INSUFFICIENT_INVENTORY") {
-      return NextResponse.json(
-        { error: "Nicht genug Bestand." },
-        { status: 409 }
-      );
-    }
-    throw err;
-  }
-
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
     process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
@@ -456,6 +428,9 @@ export async function POST(req: Request) {
     metadata.discountCode = appliedDiscountCode;
   }
 
+  // Atomically reserve inventory for all cart items. Each UPDATE only succeeds
+  // if (quantityOnHand - reserved) >= qty, preventing overselling under concurrency.
+  const reservedVariants: Array<{ variantId: string; qty: number }> = [];
   const releaseReservation = async () => {
     if (reservedVariants.length === 0) return;
     await prisma.$transaction(async (tx) => {
@@ -467,6 +442,31 @@ export async function POST(req: Request) {
       }
     });
   };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const [variantId, qty] of variantCounts) {
+        const updated = await tx.$executeRaw`
+          UPDATE "VariantInventory"
+          SET reserved = reserved + ${qty}
+          WHERE "variantId" = ${variantId}
+            AND ("quantityOnHand" - reserved) >= ${qty}
+        `;
+        if (updated === 0) {
+          throw Object.assign(new Error("INSUFFICIENT_INVENTORY"), { variantId });
+        }
+        reservedVariants.push({ variantId, qty });
+      }
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "INSUFFICIENT_INVENTORY") {
+      return NextResponse.json(
+        { error: "Nicht genug Bestand." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 
   let checkoutSession: Stripe.Checkout.Session;
   const paymentMethodTypes = parseCheckoutPaymentMethodTypes();
