@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
+import SimpleNavbar from "./SimpleNavbar";
 import Footer from "./Footer";
 import CommerceProviders from "@/components/CommerceProviders";
 
@@ -38,7 +39,7 @@ export default function PageLayout({
     <>
       <AnnouncementBar />
       <PageContainer>
-        <Navbar />
+        {commerce ? <Navbar /> : <SimpleNavbar />}
         {children}
       </PageContainer>
       <Footer />
