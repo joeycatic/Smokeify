@@ -4,7 +4,8 @@ import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
 import CommerceProviders from "@/components/CommerceProviders";
-import { getProducts, getProductsByIds } from "@/lib/catalog";
+import { getProductsByIds } from "@/lib/catalog";
+import { getNavbarCategories } from "@/lib/navbarCategories";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
@@ -27,27 +28,60 @@ export const metadata: Metadata = {
 };
 
 export default async function StorePage() {
-  const allProducts = await getProducts(60);
-  const inStock = allProducts.filter((p) => p.availableForSale);
-
-  const tentProductRows = await prisma.product.findMany({
-    where: {
-      status: "ACTIVE",
-      categories: {
-        some: {
-          OR: [
-            { category: { handle: "zelte" } },
-            { category: { parent: { is: { handle: "zelte" } } } },
-          ],
+  const [initialCategories, bestSellerRows, tentProductRows] = await Promise.all([
+    getNavbarCategories(),
+    prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: [
+        { bestsellerScore: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
+      select: { id: true },
+      take: 16,
+    }),
+    prisma.product.findMany({
+      where: {
+        status: "ACTIVE",
+        categories: {
+          some: {
+            OR: [
+              { category: { handle: "zelte" } },
+              { category: { parent: { is: { handle: "zelte" } } } },
+            ],
+          },
         },
       },
-    },
-    select: { id: true },
-    take: 120,
-  });
-  const tentProductsSource = tentProductRows.length
-    ? await getProductsByIds(tentProductRows.map((row) => row.id))
+      select: { id: true },
+      take: 40,
+    }),
+  ]);
+
+  const productIds = Array.from(
+    new Set([
+      ...bestSellerRows.map((row) => row.id),
+      ...tentProductRows.map((row) => row.id),
+    ]),
+  );
+  const hydratedProducts = productIds.length
+    ? await getProductsByIds(productIds)
     : [];
+  const productsById = new Map(hydratedProducts.map((product) => [product.id, product]));
+  const bestSellersFilled = bestSellerRows
+    .map((row) => productsById.get(row.id))
+    .filter(
+      (
+        product,
+      ): product is (typeof hydratedProducts)[number] => Boolean(product),
+    )
+    .filter((product) => product.availableForSale)
+    .slice(0, 8);
+  const tentProductsSource = tentProductRows
+    .map((row) => productsById.get(row.id))
+    .filter(
+      (
+        product,
+      ): product is (typeof hydratedProducts)[number] => Boolean(product),
+    );
   const tentProducts = tentProductsSource
     .filter((p) => p.availableForSale)
     .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 120)
@@ -62,7 +96,6 @@ export default async function StorePage() {
     )
     .slice(0, 4);
 
-  const bestSellersFilled = inStock.slice(0, 8);
   const brandCards = [
     {
       href: "/products?manufacturer=AC%20Infinity",
@@ -109,7 +142,7 @@ export default async function StorePage() {
         <div className="mx-auto max-w-6xl">
           <div className="px-0 sm:px-6">
             <Suspense fallback={null}>
-              <Navbar />
+              <Navbar initialCategories={initialCategories} />
             </Suspense>
           </div>
           <div className="sm:px-6">

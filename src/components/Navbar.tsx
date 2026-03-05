@@ -39,20 +39,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { seoPages } from "@/lib/seoPages";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
-
-type NavbarCategory = {
-  id: string;
-  name: string;
-  handle: string;
-  parentId: string | null;
-  itemCount: number;
-  totalItemCount: number;
-};
-
-let categoriesCache: NavbarCategory[] | null = null;
-let categoriesCacheFetchedAt = 0;
-let categoriesRequest: Promise<NavbarCategory[]> | null = null;
-const CATEGORIES_CACHE_TTL_MS = 60_000;
+import type { NavbarCategory } from "@/lib/navbarCategories";
 
 const PaymentMethodLogos = dynamic(
   () => import("@/components/PaymentMethodLogos"),
@@ -178,30 +165,11 @@ const getCategoryIcon = (name: string) => {
   return BoltIcon;
 };
 
-async function loadCategoriesCached(): Promise<NavbarCategory[]> {
-  const cached = categoriesCache;
-  const hasFreshCache =
-    cached && Date.now() - categoriesCacheFetchedAt < CATEGORIES_CACHE_TTL_MS;
-  if (hasFreshCache) return cached;
-  if (categoriesRequest) return categoriesRequest;
+type NavbarProps = {
+  initialCategories?: NavbarCategory[];
+};
 
-  categoriesRequest = fetch("/api/categories")
-    .then(async (res) => {
-      if (!res.ok) throw new Error("Failed");
-      const data = (await res.json()) as { categories?: NavbarCategory[] };
-      const next = data.categories ?? [];
-      categoriesCache = next;
-      categoriesCacheFetchedAt = Date.now();
-      return next;
-    })
-    .finally(() => {
-      categoriesRequest = null;
-    });
-
-  return categoriesRequest;
-}
-
-export function Navbar() {
+export function Navbar({ initialCategories = [] }: NavbarProps) {
   const { cart, loading, error, refresh } = useCart();
   const { ids } = useWishlist();
   const { status } = useSession();
@@ -251,19 +219,9 @@ export function Navbar() {
   const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [categoryStack, setCategoryStack] = useState<string[]>([]);
-  const [categories, setCategories] = useState<
-    Array<{
-      id: string;
-      name: string;
-      handle: string;
-      parentId: string | null;
-      itemCount: number;
-      totalItemCount: number;
-    }>
-  >([]);
-  const [categoriesStatus, setCategoriesStatus] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
+  const categories = initialCategories;
+  const categoriesStatus: "idle" | "loading" | "error" =
+    initialCategories.length > 0 ? "idle" : "error";
   const productsRef = useRef<HTMLDivElement | null>(null);
   const mobileProductsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
@@ -428,28 +386,6 @@ export function Navbar() {
     update();
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => {
-    let ignore = false;
-    const loadCategories = async () => {
-      setCategoriesStatus("loading");
-      try {
-        const data = await loadCategoriesCached();
-        if (!ignore) {
-          setCategories(data);
-          setCategoriesStatus("idle");
-        }
-      } catch {
-        if (!ignore) {
-          setCategoriesStatus("error");
-        }
-      }
-    };
-    loadCategories();
-    return () => {
-      ignore = true;
-    };
   }, []);
 
   const canPortal = mounted;
@@ -975,11 +911,6 @@ export function Navbar() {
                                 </Link>
                               </div>
                               <div className="mt-2 space-y-2">
-                                {categoriesStatus === "loading" && (
-                                  <div className="px-2 py-2 text-xs text-stone-500">
-                                    Laedt Kategorien...
-                                  </div>
-                                )}
                                 {categoriesStatus === "error" && (
                                   <div className="px-2 py-2 text-xs text-rose-300">
                                     Kategorien konnten nicht geladen werden.
@@ -1361,11 +1292,6 @@ export function Navbar() {
                   />
                 )}
               </Link>
-              {categoriesStatus === "loading" && (
-                <span className="text-xs text-stone-500">
-                  Laedt Kategorien...
-                </span>
-              )}
               {categoriesStatus === "error" && (
                 <span className="text-xs text-red-600">
                   Kategorien konnten nicht geladen werden.
@@ -1475,17 +1401,19 @@ export function Navbar() {
             </div>
           </div>
         )}
-        <NavbarCartDrawer
-          open={cartOpen && !isMobile}
-          cart={cart}
-          loading={loading}
-          error={error}
-          canCheckout={canCheckout}
-          checkoutStatus={checkoutStatus}
-          onClose={() => setCartOpen(false)}
-          onStartCheckout={() => void startCheckout()}
-          panelRef={cartPanelRef}
-        />
+        {cartOpen && !isMobile ? (
+          <NavbarCartDrawer
+            open
+            cart={cart}
+            loading={loading}
+            error={error}
+            canCheckout={canCheckout}
+            checkoutStatus={checkoutStatus}
+            onClose={() => setCartOpen(false)}
+            onStartCheckout={() => void startCheckout()}
+            panelRef={cartPanelRef}
+          />
+        ) : null}
       </nav>
       <div
         className={
@@ -1493,59 +1421,63 @@ export function Navbar() {
         }
         aria-hidden="true"
       />
-      <NavbarMobileCategoriesOverlay
-        open={isMobile && productsOpen}
-        mobileProductsRef={mobileProductsRef}
-        activeParentName={activeParentCategory?.name ?? "Übersicht"}
-        categoryQuery={categoryQuery}
-        hasCategoryStack={categoryStack.length > 0}
-        categoriesStatus={categoriesStatus}
-        filteredCategories={filteredCategories}
-        childCountByCategoryId={childCountByCategoryId}
-        onClose={() => {
-          setProductsOpen(false);
-          setCategoryStack([]);
-          setCategoryQuery("");
-        }}
-        onCategoryQueryChange={setCategoryQuery}
-        onBack={() => setCategoryStack((prev) => prev.slice(0, -1))}
-        onViewAllProducts={() => {
-          setProductsOpen(false);
-          setCategoryStack([]);
-          setCategoryQuery("");
-        }}
-        onViewParentCategory={() => {
-          if (!activeParentCategory) return;
-          router.push(
-            `/products?category=${encodeURIComponent(activeParentCategory.handle)}`,
-          );
-          setProductsOpen(false);
-          setCategoryStack([]);
-          setCategoryQuery("");
-        }}
-        onSelectCategory={(category, isLeaf) => {
-          if (isLeaf) {
+      {isMobile && productsOpen ? (
+        <NavbarMobileCategoriesOverlay
+          open
+          mobileProductsRef={mobileProductsRef}
+          activeParentName={activeParentCategory?.name ?? "Übersicht"}
+          categoryQuery={categoryQuery}
+          hasCategoryStack={categoryStack.length > 0}
+          categoriesStatus={categoriesStatus}
+          filteredCategories={filteredCategories}
+          childCountByCategoryId={childCountByCategoryId}
+          onClose={() => {
+            setProductsOpen(false);
+            setCategoryStack([]);
+            setCategoryQuery("");
+          }}
+          onCategoryQueryChange={setCategoryQuery}
+          onBack={() => setCategoryStack((prev) => prev.slice(0, -1))}
+          onViewAllProducts={() => {
+            setProductsOpen(false);
+            setCategoryStack([]);
+            setCategoryQuery("");
+          }}
+          onViewParentCategory={() => {
+            if (!activeParentCategory) return;
             router.push(
-              `/products?category=${encodeURIComponent(category.handle)}`,
+              `/products?category=${encodeURIComponent(activeParentCategory.handle)}`,
             );
             setProductsOpen(false);
             setCategoryStack([]);
             setCategoryQuery("");
-            return;
-          }
-          setCategoryStack((prev) => [...prev, category.id]);
-          setCategoryQuery("");
-        }}
-      />
-      <CheckoutAuthModal
-        open={showCheckoutAuthModal}
-        returnTo="/checkout/start"
-        onClose={() => setShowCheckoutAuthModal(false)}
-        onContinueAsGuest={() => {
-          setShowCheckoutAuthModal(false);
-          return proceedToCheckout();
-        }}
-      />
+          }}
+          onSelectCategory={(category, isLeaf) => {
+            if (isLeaf) {
+              router.push(
+                `/products?category=${encodeURIComponent(category.handle)}`,
+              );
+              setProductsOpen(false);
+              setCategoryStack([]);
+              setCategoryQuery("");
+              return;
+            }
+            setCategoryStack((prev) => [...prev, category.id]);
+            setCategoryQuery("");
+          }}
+        />
+      ) : null}
+      {showCheckoutAuthModal ? (
+        <CheckoutAuthModal
+          open
+          returnTo="/checkout/start"
+          onClose={() => setShowCheckoutAuthModal(false)}
+          onContinueAsGuest={() => {
+            setShowCheckoutAuthModal(false);
+            return proceedToCheckout();
+          }}
+        />
+      ) : null}
     </>
   );
 }

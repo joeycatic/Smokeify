@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -149,7 +149,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [outOfStockOpen, setOutOfStockOpen] = useState(false);
@@ -158,12 +157,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = async () => {
     setLoading(true);
-    setError(null);
     try {
       const c = await apiGetCart();
       setCart(c);
-    } catch (err) {
-      setError(normalizeError(err, "Failed to load cart"));
+    } catch {
+      // The navbar and cart UI use the toast error channel instead.
     } finally {
       setLoading(false);
     }
@@ -214,12 +212,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setCart(c);
       const addedLine = c.lines.find((line) => line.merchandise.id === variantId);
       trackAddToCart(addedLine, quantity);
-      setError(null);
       setErrorToast(null);
       return c;
     } catch (err) {
       const message = normalizeError(err, "Cart action failed");
-      setError(message);
       setErrorToast(message);
       throw err;
     }
@@ -245,7 +241,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const c = await apiCartAction({ action: "addMany", items: normalized });
       setCart(c);
-      setError(null);
       setErrorToast(null);
       normalized.forEach((item) => {
         const line = c.lines.find((entry) => entry.merchandise.id === item.variantId);
@@ -254,7 +249,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return c;
     } catch (err) {
       const message = normalizeError(err, "Cart action failed");
-      setError(message);
       setErrorToast(message);
       throw err;
     }
@@ -273,16 +267,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       if (quantity > updatedQty) {
         const message = "Nicht genug Bestand verfügbar.";
-        setError(message);
         setErrorToast(message);
         setOutOfStockOpen(true);
         return;
       }
-      setError(null);
       setErrorToast(null);
     } catch (err) {
       const message = normalizeError(err, "Cart update failed");
-      setError(message);
       setErrorToast(message);
     }
   };
@@ -294,40 +285,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const c = await apiCartAction({ action: "remove", lineIds });
       setCart(c);
       removedLines.forEach((line) => trackRemoveFromCart(line, line.quantity));
-      setError(null);
       setErrorToast(null);
     } catch (err) {
       const message = normalizeError(err, "Cart update failed");
-      setError(message);
       setErrorToast(message);
     }
   };
 
-  const value = useMemo(
-    () => ({
-      cart,
-      loading,
-      error: errorToast,
-      refresh,
-      addToCart,
-      addManyToCart,
-      updateLine,
-      removeLines,
-      openAddedModal: (item: AddedItem) => {
-        setAddedItem(item);
-        setAddedOpen(true);
-        if (!item.confirmAdd) {
-          window.dispatchEvent(
-            new CustomEvent<AddedItem>("cart:item-added", { detail: item })
-          );
-        }
-      },
-      closeAddedModal: () => setAddedOpen(false),
-      openOutOfStockModal: () => setOutOfStockOpen(true),
-      closeOutOfStockModal: () => setOutOfStockOpen(false),
-    }),
-    [cart, loading, errorToast]
-  );
+  const value: CartCtx = {
+    cart,
+    loading,
+    error: errorToast,
+    refresh,
+    addToCart,
+    addManyToCart,
+    updateLine,
+    removeLines,
+    openAddedModal: (item: AddedItem) => {
+      setAddedItem(item);
+      setAddedOpen(true);
+      if (!item.confirmAdd) {
+        window.dispatchEvent(
+          new CustomEvent<AddedItem>("cart:item-added", { detail: item })
+        );
+      }
+    },
+    closeAddedModal: () => setAddedOpen(false),
+    openOutOfStockModal: () => setOutOfStockOpen(true),
+    closeOutOfStockModal: () => setOutOfStockOpen(false),
+  };
 
   return (
     <CartContext.Provider value={value}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ProductFilters } from "@/data/types";
 
 function Accordion({
@@ -95,23 +95,23 @@ export default function FilterDrawer({
     return c;
   }, [filters, priceMinBound, priceMaxBound]);
 
-  const toggleCategory = (handle: string) => {
+  const toggleCategory = useCallback((handle: string) => {
     setFilters((prev) => ({
       ...prev,
       categories: prev.categories.includes(handle)
         ? prev.categories.filter((c) => c !== handle)
         : [...prev.categories, handle],
     }));
-  };
+  }, [setFilters]);
 
-  const toggleManufacturer = (manufacturer: string) => {
+  const toggleManufacturer = useCallback((manufacturer: string) => {
     setFilters((prev) => ({
       ...prev,
       manufacturers: (prev.manufacturers ?? []).includes(manufacturer)
         ? (prev.manufacturers ?? []).filter((m) => m !== manufacturer)
         : [...(prev.manufacturers ?? []), manufacturer],
     }));
-  };
+  }, [setFilters]);
 
   const categoryMap = useMemo(
     () => new Map(availableCategories),

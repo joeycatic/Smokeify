@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 
 export const runtime = "nodejs";
 
@@ -593,25 +594,76 @@ const isGoogleFeedSafeCandidate = (product: {
   return GOOGLE_FEED_SAFE_TERMS.some((term) => haystack.includes(term));
 };
 
+const getGoogleFeedProducts = unstable_cache(
+  async () =>
+    prisma.product.findMany({
+      where: {
+        status: "ACTIVE",
+        images: { some: {} },
+        variants: { some: {} },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        handle: true,
+        title: true,
+        description: true,
+        shortDescription: true,
+        technicalDetails: true,
+        manufacturer: true,
+        leadTimeDays: true,
+        weightGrams: true,
+        tags: true,
+        mainCategory: {
+          select: {
+            handle: true,
+            parent: { select: { handle: true } },
+          },
+        },
+        images: {
+          orderBy: { position: "asc" },
+          select: { url: true },
+        },
+        variants: {
+          orderBy: { position: "asc" },
+          select: {
+            id: true,
+            title: true,
+            sku: true,
+            priceCents: true,
+            inventory: {
+              select: {
+                quantityOnHand: true,
+                reserved: true,
+              },
+            },
+          },
+        },
+        categories: {
+          orderBy: { position: "asc" },
+          select: {
+            category: {
+              select: {
+                handle: true,
+                name: true,
+                parent: {
+                  select: {
+                    handle: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ["google-feed-products"],
+  { revalidate: 3600 },
+);
+
 export async function GET() {
-  const allProducts = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      mainCategory: {
-        include: { parent: true },
-      },
-      images: { orderBy: { position: "asc" } },
-      variants: {
-        orderBy: { position: "asc" },
-        include: { inventory: true, options: true },
-      },
-      categories: {
-        orderBy: { position: "asc" },
-        include: { category: { include: { parent: true } } },
-      },
-    },
-  });
+  const allProducts = await getGoogleFeedProducts();
   const products = allProducts.filter((product) => {
     const exclusionCheck = getGoogleFeedExclusionCheck(product);
     if (exclusionCheck.forceIncluded) return true;

@@ -63,6 +63,8 @@ export default function ProductsPageClient({ initialData }: Props) {
   const viewListTrackedRef = useRef<string | null>(null);
   const searchTrackedRef = useRef<string | null>(null);
   const skippedInitialFetchRef = useRef(false);
+  const categoriesKey = filters.categories.join("|");
+  const manufacturersKey = filters.manufacturers.join("|");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -167,8 +169,8 @@ export default function ProductsPageClient({ initialData }: Props) {
   }, [
     categoryParam,
     manufacturerParam,
-    filters.categories.join("|"),
-    filters.manufacturers.join("|"),
+    categoriesKey,
+    manufacturersKey,
     filters.priceMin,
     filters.priceMax,
     filters.searchQuery,
