@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
-import type { Product, ProductFilters } from "@/data/types";
-import { getAllProducts } from "@/lib/catalog";
-import { filterProducts } from "@/lib/filterProducts";
+import type { Product } from "@/data/types";
+import { getProductsByIds } from "@/lib/catalog";
+import { prisma } from "@/lib/prisma";
 
 export type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
 
@@ -28,11 +29,7 @@ export type ProductsQueryResult = {
   allCategoryTitles: Array<[string, string]>;
 };
 
-type CatalogMeta = {
-  normalizedProducts: Product[];
-  parentCategoryById: Map<string, { id: string; handle: string; title: string }>;
-  priceMinBound: number;
-  priceMaxBound: number;
+type CategoryMeta = {
   categoryHierarchy: {
     parents: Map<string, string>;
     childrenByParent: Map<string, Map<string, string>>;
@@ -40,118 +37,167 @@ type CatalogMeta = {
   allCategoryTitles: Map<string, string>;
 };
 
-const getCachedCatalogMeta = unstable_cache(
-  async (): Promise<CatalogMeta> => {
-    const initialProducts = await getAllProducts();
-    const parentCategoryById = new Map<
-      string,
-      { id: string; handle: string; title: string }
-    >();
-
-    initialProducts.forEach((product) => {
-      product.categories?.forEach((category) => {
-        if (!category.parentId) {
-          parentCategoryById.set(category.id, {
-            id: category.id,
-            handle: category.handle,
-            title: category.title,
-          });
-          return;
-        }
-        if (category.parent) {
-          parentCategoryById.set(category.parent.id, {
-            id: category.parent.id,
-            handle: category.parent.handle,
-            title: category.parent.title,
-          });
-        }
-      });
+const getCachedCategoryMeta = unstable_cache(
+  async (): Promise<CategoryMeta> => {
+    const categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        handle: true,
+        parentId: true,
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            handle: true,
+          },
+        },
+      },
+      orderBy: { name: "asc" },
     });
-
-    const normalizedProducts = initialProducts.map((product) => {
-      if (!product.categories?.length) return product;
-      const categories = [...product.categories];
-      const handles = new Set(categories.map((category) => category.handle));
-      categories.forEach((category) => {
-        if (!category.parentId) return;
-        const parent =
-          parentCategoryById.get(category.parentId) ?? category.parent;
-        if (!parent || handles.has(parent.handle)) return;
-        categories.push({ ...parent, parentId: null, parent: null });
-        handles.add(parent.handle);
-      });
-      return { ...product, categories };
-    });
-
-    const prices = normalizedProducts
-      .map((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0))
-      .filter((n) => Number.isFinite(n));
-    const max = prices.length ? Math.max(...prices) : 0;
-    const priceMaxBound = Math.max(10, Math.ceil(max / 10) * 10);
-    const priceMinBound = 0;
 
     const parents = new Map<string, string>();
     const childrenByParent = new Map<string, Map<string, string>>();
     const allCategoryTitles = new Map<string, string>();
 
-    normalizedProducts.forEach((product) => {
-      product.categories?.forEach((category) => {
-        allCategoryTitles.set(category.handle, category.title);
-        if (!category.parentId) {
-          parents.set(category.handle, category.title);
-          return;
-        }
-        const parent =
-          category.parent ?? parentCategoryById.get(category.parentId);
-        if (!parent) return;
-        parents.set(parent.handle, parent.title);
-        const bucket =
-          childrenByParent.get(parent.handle) ?? new Map<string, string>();
-        bucket.set(category.handle, category.title);
-        childrenByParent.set(parent.handle, bucket);
-      });
+    categories.forEach((category) => {
+      allCategoryTitles.set(category.handle, category.name);
+      if (!category.parentId) {
+        parents.set(category.handle, category.name);
+        return;
+      }
+      if (!category.parent) return;
+      parents.set(category.parent.handle, category.parent.name);
+      const bucket =
+        childrenByParent.get(category.parent.handle) ?? new Map<string, string>();
+      bucket.set(category.handle, category.name);
+      childrenByParent.set(category.parent.handle, bucket);
     });
 
     return {
-      normalizedProducts,
-      parentCategoryById,
-      priceMinBound,
-      priceMaxBound,
       categoryHierarchy: { parents, childrenByParent },
       allCategoryTitles,
     };
   },
-  ["products-query-catalog"],
-  { revalidate: 30 },
+  ["products-query-categories"],
+  { revalidate: 60 },
 );
 
-function sortProducts(products: Product[], sortBy: SortMode): Product[] {
-  const toPrice = (product: Product) =>
-    Number(product.priceRange?.minVariantPrice?.amount ?? 0);
-  const indexById = new Map(products.map((product, index) => [product.id, index]));
+const escapeLike = (value: string) =>
+  value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 
-  return [...products].sort((a, b) => {
-    if (sortBy === "price_asc") {
-      const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
-      if (stockDelta !== 0) return stockDelta;
-      return toPrice(a) - toPrice(b);
-    }
-    if (sortBy === "price_desc") {
-      const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
-      if (stockDelta !== 0) return stockDelta;
-      return toPrice(b) - toPrice(a);
-    }
-    if (sortBy === "name_asc") {
-      const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
-      if (stockDelta !== 0) return stockDelta;
-      return a.title.localeCompare(b.title);
-    }
+const buildCategoryWhereSql = (categories: string[]) => {
+  if (categories.length === 0) return Prisma.empty;
+  return Prisma.sql`
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM "ProductCategory" pc
+        JOIN "Category" c ON c.id = pc."categoryId"
+        LEFT JOIN "Category" cp ON cp.id = c."parentId"
+        WHERE pc."productId" = p.id
+          AND (c.handle IN (${Prisma.join(categories)}) OR cp.handle IN (${Prisma.join(categories)}))
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "Category" mc
+        LEFT JOIN "Category" mcp ON mcp.id = mc."parentId"
+        WHERE mc.id = p."mainCategoryId"
+          AND (mc.handle IN (${Prisma.join(categories)}) OR mcp.handle IN (${Prisma.join(categories)}))
+      )
+    )
+  `;
+};
 
-    const stockDelta = Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
-    if (stockDelta !== 0) return stockDelta;
-    return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
+const buildManufacturerWhereSql = (manufacturers: string[]) => {
+  if (manufacturers.length === 0) return Prisma.empty;
+  const conditions = manufacturers.map((value) => {
+    const normalized = `%${escapeLike(value)}%`;
+    return Prisma.sql`COALESCE(p.manufacturer, '') ILIKE ${normalized} ESCAPE '\\'`;
   });
-}
+  const [firstCondition, ...restConditions] = conditions;
+  const combinedConditions = restConditions.reduce(
+    (sql, condition) => Prisma.sql`${sql} OR ${condition}`,
+    firstCondition
+  );
+  return Prisma.sql`AND (${combinedConditions})`;
+};
+
+const buildSearchWhereSql = (searchQuery: string) => {
+  const normalized = searchQuery.trim();
+  if (!normalized) return Prisma.empty;
+  const pattern = `%${escapeLike(normalized)}%`;
+  return Prisma.sql`
+    AND (
+      p.title ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p.description, '') ILIKE ${pattern} ESCAPE '\\'
+      OR EXISTS (
+        SELECT 1
+        FROM "ProductCollection" pcl
+        JOIN "Collection" cl ON cl.id = pcl."collectionId"
+        WHERE pcl."productId" = p.id
+          AND cl.name ILIKE ${pattern} ESCAPE '\\'
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "ProductCategory" pc
+        JOIN "Category" c ON c.id = pc."categoryId"
+        LEFT JOIN "Category" cp ON cp.id = c."parentId"
+        WHERE pc."productId" = p.id
+          AND (
+            c.name ILIKE ${pattern} ESCAPE '\\'
+            OR c.handle ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(cp.name, '') ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(cp.handle, '') ILIKE ${pattern} ESCAPE '\\'
+          )
+      )
+    )
+  `;
+};
+
+const buildOrderBySql = (sortBy: SortMode) => {
+  if (sortBy === "price_asc") {
+    return Prisma.sql`
+      ORDER BY available_for_sale DESC, min_price_cents ASC, title ASC, id ASC
+    `;
+  }
+  if (sortBy === "price_desc") {
+    return Prisma.sql`
+      ORDER BY available_for_sale DESC, min_price_cents DESC, title ASC, id ASC
+    `;
+  }
+  if (sortBy === "name_asc") {
+    return Prisma.sql`
+      ORDER BY available_for_sale DESC, title ASC, id ASC
+    `;
+  }
+  return Prisma.sql`
+    ORDER BY available_for_sale DESC, "bestsellerScore" DESC NULLS LAST, "updatedAt" DESC, id ASC
+  `;
+};
+
+const getPriceBoundsCached = unstable_cache(
+  async () => {
+    const row = await prisma.$queryRaw<Array<{ max_price_cents: number | null }>>`
+      SELECT MAX(min_price_cents)::int AS max_price_cents
+      FROM (
+        SELECT MIN(v."priceCents") AS min_price_cents
+        FROM "Product" p
+        JOIN "Variant" v ON v."productId" = p.id
+        WHERE p.status = 'ACTIVE'
+        GROUP BY p.id
+      ) price_bounds
+    `;
+    const maxPriceCents = row[0]?.max_price_cents ?? 0;
+    const maxPrice = maxPriceCents / 100;
+    return {
+      priceMinBound: 0,
+      priceMaxBound: Math.max(10, Math.ceil(maxPrice / 10) * 10),
+    };
+  },
+  ["products-query-price-bounds"],
+  { revalidate: 30 },
+);
 
 export async function queryProducts(
   params: ProductsQueryParams,
@@ -169,79 +215,128 @@ export async function queryProducts(
     limit = 24,
   } = params;
 
-  const catalog = await getCachedCatalogMeta();
+  const [categoryMeta, priceBounds] = await Promise.all([
+    getCachedCategoryMeta(),
+    getPriceBoundsCached(),
+  ]);
   const safePriceMin =
     Number.isFinite(priceMin) && typeof priceMin === "number"
       ? priceMin
-      : catalog.priceMinBound;
+      : priceBounds.priceMinBound;
   const safePriceMax =
     Number.isFinite(priceMax) && typeof priceMax === "number"
       ? priceMax
-      : catalog.priceMaxBound;
+      : priceBounds.priceMaxBound;
 
-  const mergedManufacturers = [
-    ...manufacturers,
-    ...manufacturerParam
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  ];
+  const mergedManufacturers = Array.from(
+    new Set(
+      [...manufacturers, ...manufacturerParam.split(",")]
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
 
   const normalizedCategoryParam = categoryParam.trim();
-  const mergedCategories = categories.length
-    ? categories
-    : normalizedCategoryParam
-      ? [normalizedCategoryParam]
-      : [];
+  const mergedCategories = Array.from(
+    new Set(
+      (categories.length ? categories : normalizedCategoryParam ? [normalizedCategoryParam] : [])
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
 
-  const filters: ProductFilters = {
-    categories: mergedCategories,
-    manufacturers: mergedManufacturers,
-    priceMin: safePriceMin,
-    priceMax: safePriceMax,
-    searchQuery,
-  };
+  const categoryWhereSql = buildCategoryWhereSql(mergedCategories);
+  const manufacturerWhereSql = buildManufacturerWhereSql(mergedManufacturers);
+  const searchWhereSql = buildSearchWhereSql(searchQuery);
+  const minPriceCents = Math.max(0, Math.round(safePriceMin * 100));
+  const maxPriceCents = Math.max(minPriceCents, Math.round(safePriceMax * 100));
+  const orderBySql = buildOrderBySql(sortBy);
 
-  const filteredProducts = filterProducts(catalog.normalizedProducts, filters);
-  const sortedProducts = sortProducts(filteredProducts, sortBy);
+  const filteredRowsSql = Prisma.sql`
+    WITH filtered_products AS (
+      SELECT
+        p.id,
+        p.title,
+        p."bestsellerScore",
+        p."updatedAt",
+        price_bounds.min_price_cents,
+        EXISTS (
+          SELECT 1
+          FROM "Variant" v2
+          LEFT JOIN "VariantInventory" vi ON vi."variantId" = v2.id
+          WHERE v2."productId" = p.id
+            AND COALESCE(vi."quantityOnHand", 0) - COALESCE(vi.reserved, 0) > 0
+        ) AS available_for_sale
+      FROM "Product" p
+      JOIN LATERAL (
+        SELECT MIN(v."priceCents")::int AS min_price_cents
+        FROM "Variant" v
+        WHERE v."productId" = p.id
+      ) price_bounds ON true
+      WHERE p.status = 'ACTIVE'
+        AND price_bounds.min_price_cents IS NOT NULL
+        AND price_bounds.min_price_cents >= ${minPriceCents}
+        AND price_bounds.min_price_cents <= ${maxPriceCents}
+        ${categoryWhereSql}
+        ${manufacturerWhereSql}
+        ${searchWhereSql}
+    )
+  `;
+
+  const [countRow, pageRows] = await Promise.all([
+    prisma.$queryRaw<Array<{ total: bigint | number }>>`
+      ${filteredRowsSql}
+      SELECT COUNT(*) AS total
+      FROM filtered_products
+    `,
+    prisma.$queryRaw<Array<{ id: string }>>`
+      ${filteredRowsSql}
+      SELECT id
+      FROM filtered_products
+      ${orderBySql}
+      OFFSET ${offset}
+      LIMIT ${limit}
+    `,
+  ]);
+  const pagedIds = pageRows.map((row) => row.id);
+  const products = pagedIds.length ? await getProductsByIds(pagedIds) : [];
+  const total = Number(countRow[0]?.total ?? 0);
 
   const activeCategory = normalizedCategoryParam;
   const availableCategories = (() => {
     const children =
-      activeCategory && catalog.categoryHierarchy.childrenByParent.get(activeCategory);
+      activeCategory &&
+      categoryMeta.categoryHierarchy.childrenByParent.get(activeCategory);
     if (children && children.size > 0) {
       return Array.from(children.entries()).sort((a, b) =>
         a[1].localeCompare(b[1]),
       );
     }
-    return Array.from(catalog.categoryHierarchy.parents.entries()).sort((a, b) =>
+    return Array.from(categoryMeta.categoryHierarchy.parents.entries()).sort((a, b) =>
       a[1].localeCompare(b[1]),
     );
   })();
 
-  const availableManufacturers = (() => {
-    const set = new Set<string>();
-    const categoryFilters = filters.categories ?? [];
-    const sourceProducts =
-      categoryFilters.length === 0
-        ? catalog.normalizedProducts
-        : catalog.normalizedProducts.filter((product) => {
-            const handles = product.categories.map((c) => c.handle);
-            return categoryFilters.some((handle) => handles.includes(handle));
-          });
-    sourceProducts.forEach((product) => {
-      if (product.manufacturer) set.add(product.manufacturer);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  })();
+  const availableManufacturersRows =
+    await prisma.$queryRaw<Array<{ manufacturer: string | null }>>`
+      SELECT DISTINCT p.manufacturer
+      FROM "Product" p
+      WHERE p.status = 'ACTIVE'
+        AND COALESCE(TRIM(p.manufacturer), '') <> ''
+        ${buildCategoryWhereSql(mergedCategories)}
+      ORDER BY p.manufacturer ASC
+    `;
+  const availableManufacturers = availableManufacturersRows
+    .map((row) => row.manufacturer?.trim() ?? "")
+    .filter(Boolean);
 
   return {
-    products: sortedProducts.slice(offset, offset + limit),
-    total: sortedProducts.length,
-    priceMinBound: catalog.priceMinBound,
-    priceMaxBound: catalog.priceMaxBound,
+    products,
+    total,
+    priceMinBound: priceBounds.priceMinBound,
+    priceMaxBound: priceBounds.priceMaxBound,
     availableCategories,
     availableManufacturers,
-    allCategoryTitles: Array.from(catalog.allCategoryTitles.entries()),
+    allCategoryTitles: Array.from(categoryMeta.allCategoryTitles.entries()),
   };
 }

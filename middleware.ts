@@ -6,34 +6,7 @@ const MAINTENANCE_FLAG = "1";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-  const role = token?.role as string | undefined;
-  const isAdmin = role === "ADMIN";
-
-  // /maintenance is admin-only regardless of maintenance mode
-  if (pathname.startsWith("/maintenance")) {
-    if (!isAdmin) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-
-  // Outside maintenance mode — allow everything
-  if (process.env.MAINTENANCE_MODE !== MAINTENANCE_FLAG) {
-    return NextResponse.next();
-  }
-
-  // Maintenance mode active — only admins can browse the site
-  if (isAdmin) {
-    return NextResponse.next();
-  }
-
+  const maintenanceActive = process.env.MAINTENANCE_MODE === MAINTENANCE_FLAG;
   const allowlist = [
     "/admin",
     "/api",
@@ -43,12 +16,37 @@ export async function middleware(request: NextRequest) {
     "/robots.txt",
     "/sitemap.xml",
   ];
+  const isStaticAsset = /\.[a-zA-Z0-9]+$/.test(pathname);
 
-  if (allowlist.some((path) => pathname.startsWith(path))) {
+  if (pathname.startsWith("/maintenance")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    const role = token?.role as string | undefined;
+    const isAdmin = role === "ADMIN";
+    if (!isAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
     return NextResponse.next();
   }
 
-  if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
+  if (!maintenanceActive) {
+    return NextResponse.next();
+  }
+
+  if (allowlist.some((path) => pathname.startsWith(path)) || isStaticAsset) {
+    return NextResponse.next();
+  }
+
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  const role = token?.role as string | undefined;
+  if (role === "ADMIN") {
     return NextResponse.next();
   }
 
