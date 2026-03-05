@@ -3,9 +3,11 @@ import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
 import Footer from "./Footer";
+import CommerceProviders from "@/components/CommerceProviders";
 
 type PageLayoutProps = {
   children: ReactNode;
+  commerce?: boolean;
 };
 
 type LayoutSectionProps = {
@@ -28,15 +30,24 @@ function PageContainer({ children }: LayoutSectionProps) {
   );
 }
 
-export default function PageLayout({ children }: PageLayoutProps) {
-  return (
-    <PageShell>
+export default function PageLayout({
+  children,
+  commerce = false,
+}: PageLayoutProps) {
+  const content = (
+    <>
       <AnnouncementBar />
       <PageContainer>
         <Navbar />
         {children}
       </PageContainer>
       <Footer />
+    </>
+  );
+
+  return (
+    <PageShell>
+      {commerce ? <CommerceProviders>{content}</CommerceProviders> : content}
     </PageShell>
   );
 }

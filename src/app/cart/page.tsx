@@ -303,7 +303,7 @@ export default function CartPage() {
 
   if (!cart || cart.lines.length === 0) {
     return (
-      <PageLayout>
+      <PageLayout commerce>
         <div className="mx-auto max-w-4xl px-6 py-10 text-black/80">
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -359,7 +359,7 @@ export default function CartPage() {
 
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

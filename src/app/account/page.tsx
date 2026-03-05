@@ -41,7 +41,7 @@ export default async function AccountPage() {
 
   if (!session?.user?.id) {
     return (
-      <PageLayout>
+      <PageLayout commerce>
         <div className="mx-auto max-w-4xl px-6 py-12 text-stone-800">
           <h1
             className="text-2xl font-bold mb-4 sm:text-3xl"
@@ -205,7 +205,7 @@ export default async function AccountPage() {
       : (session.user.email?.[0] ?? "?").toUpperCase();
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto max-w-5xl px-6 py-8 text-stone-800">
         {/* User hero card */}
         <div className="mb-7 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">

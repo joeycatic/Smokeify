@@ -38,7 +38,7 @@ export default function CheckoutStartPage() {
   }, []);
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto flex min-h-[50vh] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
         {error ? (
           <>

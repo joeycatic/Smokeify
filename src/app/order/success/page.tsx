@@ -205,7 +205,7 @@ export default function OrderSuccessPage() {
   }, [loadStatus, order]);
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto max-w-4xl px-6 py-10 text-stone-800">
         <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-[#fef7e7] via-white to-[#e7f5ff] p-6 shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
           <div className="mb-6 text-center">

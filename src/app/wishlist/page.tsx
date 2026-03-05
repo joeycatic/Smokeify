@@ -102,7 +102,7 @@ export default function WishlistPage() {
   };
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto max-w-5xl px-6 py-10 text-black/80">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>

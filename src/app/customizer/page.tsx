@@ -1439,7 +1439,7 @@ export default function CustomizerPage() {
       previewExtras.reduce((sum, opt) => sum + opt.price, 0);
 
     return (
-      <PageLayout>
+      <PageLayout commerce>
         <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 py-12 text-stone-800">
           <div className="rounded-2xl border border-[#E4C56C]/70 bg-white p-8 shadow-[0_20px_50px_rgba(58,75,65,0.18)]">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1666,7 +1666,7 @@ export default function CustomizerPage() {
   };
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 pb-20 pt-8 text-stone-800">
         <StepHeader
           activeStep={activeStep}

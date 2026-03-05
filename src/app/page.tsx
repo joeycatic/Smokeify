@@ -3,6 +3,7 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
+import CommerceProviders from "@/components/CommerceProviders";
 import { getProducts, getProductsByIds } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -102,34 +103,35 @@ export default async function StorePage() {
   ];
 
   return (
-    <main className="bg-stone-50">
-      <AnnouncementBar />
-      <div className="mx-auto max-w-6xl">
-        <div className="px-0 sm:px-6">
-          <Suspense fallback={null}>
-            <Navbar />
-          </Suspense>
-        </div>
-        <div className="sm:px-6">
-          <section className="reveal-up relative overflow-hidden sm:rounded-3xl">
-            <HeroBanner />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 via-black/20 to-transparent sm:rounded-b-3xl" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-2.5 text-white sm:p-8">
-              <p className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.18em]">
-                <SparklesIcon className="h-3.5 w-3.5" />
-                Smokeify Selection
-              </p>
-              <h1 className="max-w-[13rem] text-[1.05rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-4xl">
-                Mehr Ernte. Weniger Aufwand.
-              </h1>
-              <p className="mt-1 max-w-[16.5rem] text-[10px] leading-snug text-white/90 sm:mt-2 sm:max-w-xl sm:text-base sm:leading-normal">
-                Kuratierte Hardware für Indoor-Gärten. Von LED bis Lüftung, mit
-                schneller Lieferung aus Deutschland.
-              </p>
-            </div>
-          </section>
-        </div>
-        <section className="px-0 pb-6 pt-6 sm:px-6">
+    <CommerceProviders>
+      <main className="bg-stone-50">
+        <AnnouncementBar />
+        <div className="mx-auto max-w-6xl">
+          <div className="px-0 sm:px-6">
+            <Suspense fallback={null}>
+              <Navbar />
+            </Suspense>
+          </div>
+          <div className="sm:px-6">
+            <section className="reveal-up relative overflow-hidden sm:rounded-3xl">
+              <HeroBanner />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 via-black/20 to-transparent sm:rounded-b-3xl" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-2.5 text-white sm:p-8">
+                <p className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.18em]">
+                  <SparklesIcon className="h-3.5 w-3.5" />
+                  Smokeify Selection
+                </p>
+                <h1 className="max-w-[13rem] text-[1.05rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-4xl">
+                  Mehr Ernte. Weniger Aufwand.
+                </h1>
+                <p className="mt-1 max-w-[16.5rem] text-[10px] leading-snug text-white/90 sm:mt-2 sm:max-w-xl sm:text-base sm:leading-normal">
+                  Kuratierte Hardware für Indoor-Gärten. Von LED bis Lüftung, mit
+                  schneller Lieferung aus Deutschland.
+                </p>
+              </div>
+            </section>
+          </div>
+          <section className="px-0 pb-6 pt-6 sm:px-6">
           <div className="pb-2">
             <div className="space-y-10">
               <section className="space-y-4">
@@ -215,7 +217,7 @@ export default async function StorePage() {
           </div>
         </section>
 
-        <section className="reveal-up reveal-delay-2 px-4 pb-8 sm:px-6">
+          <section className="reveal-up reveal-delay-2 px-4 pb-8 sm:px-6">
           <div className="grid gap-3 rounded-2xl border border-emerald-100/80 bg-white/85 p-4 shadow-lg shadow-emerald-900/5 backdrop-blur sm:grid-cols-3 sm:p-5">
             <div className="interactive-lift rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
               <TruckIcon className="h-5 w-5 text-emerald-800" />
@@ -247,7 +249,7 @@ export default async function StorePage() {
           </div>
         </section>
 
-        <div className="pb-16 text-center">
+          <div className="pb-16 text-center">
           <div className="reveal-up reveal-delay-2 inline-flex flex-col items-center gap-3 sm:flex-row">
             <Link
               href="/products"
@@ -262,9 +264,10 @@ export default async function StorePage() {
               Zu den Bestsellern
             </Link>
           </div>
+          </div>
         </div>
-      </div>
-      <Footer />
-    </main>
+        <Footer />
+      </main>
+    </CommerceProviders>
   );
 }

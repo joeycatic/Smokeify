@@ -9,7 +9,7 @@ export default async function AccountPasswordPage() {
 
   if (!session?.user?.id) {
     return (
-      <PageLayout>
+      <PageLayout commerce>
         <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
           <h1 className="text-3xl font-bold mb-4" style={{ color: "#2f3e36" }}>
             Account
@@ -29,7 +29,7 @@ export default async function AccountPasswordPage() {
   }
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
           <div className="h-1 w-full bg-gradient-to-r from-[#2f3e36] via-[#44584c] to-[#2f3e36]" />

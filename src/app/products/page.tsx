@@ -52,7 +52,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   });
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <ProductsPageClient initialData={initialData} />
     </PageLayout>
   );

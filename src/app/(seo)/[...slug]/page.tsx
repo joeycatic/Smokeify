@@ -250,7 +250,7 @@ export default async function SeoCategoryPage({ params }: PageProps) {
     : [];
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <main className="mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-6">
         <nav
           aria-label="Breadcrumb"

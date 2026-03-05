@@ -40,6 +40,15 @@ const fallbackCache: RemoteWishlistCache = {
   request: null,
   fetchedAt: 0,
 };
+const WISHLIST_UNAVAILABLE_ERROR = "Wishlist context unavailable";
+const wishlistFallback: WishlistContextValue = {
+  ids: [],
+  isWishlisted: () => false,
+  toggle: () => {
+    throw new Error(WISHLIST_UNAVAILABLE_ERROR);
+  },
+  clear: () => {},
+};
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
@@ -223,7 +232,12 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 export function useWishlist() {
   const context = useContext(WishlistContext);
   if (!context) {
-    throw new Error("useWishlist must be used within WishlistProvider");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "useWishlist was called outside WishlistProvider. Returning fallback context."
+      );
+    }
+    return wishlistFallback;
   }
   return context;
 }

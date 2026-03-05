@@ -101,7 +101,7 @@ export default async function BestsellerPage() {
       : inStockFallback.slice(0, 120);
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <ProductsClient
         initialProducts={products}
         headerTitle="Unsere Bestseller"

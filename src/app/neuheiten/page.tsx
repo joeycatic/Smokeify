@@ -49,7 +49,7 @@ export default async function NeuheitenPage() {
       : (await getProducts(120)).filter((product) => product.availableForSale);
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <ProductsClient
         initialProducts={products}
         headerTitle="Unsere Neuheiten"

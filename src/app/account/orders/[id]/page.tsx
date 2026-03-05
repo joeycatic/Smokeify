@@ -105,7 +105,7 @@ export default async function OrderDetailPage({
   };
 
   return (
-    <PageLayout>
+    <PageLayout commerce>
       <div className="relative mx-auto max-w-5xl px-6 py-10 text-stone-200">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(20,40,33,0.55),_transparent_60%),radial-gradient(circle_at_80%_20%,_rgba(17,60,46,0.4),_transparent_45%),radial-gradient(circle_at_10%_85%,_rgba(6,20,16,0.45),_transparent_55%)]" />
         <div className="rounded-3xl border border-white/10 bg-[#0f1713]/90 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur sm:p-8">
