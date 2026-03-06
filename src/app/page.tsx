@@ -2,7 +2,6 @@ import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
-import CommerceProviders from "@/components/CommerceProviders";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { getProductsByIds, getProductsByIdsAllowInactive } from "@/lib/catalog";
 import { getNavbarCategories } from "@/lib/navbarCategories";
@@ -182,8 +181,7 @@ export default async function StorePage() {
   ];
 
   return (
-    <CommerceProviders>
-      <main className="bg-stone-50">
+    <main className="bg-stone-50">
         <AnnouncementBar />
         <div className="mx-auto max-w-6xl">
           <div className="px-0 sm:px-6">
@@ -457,6 +455,5 @@ export default async function StorePage() {
         </div>
         <Footer />
       </main>
-    </CommerceProviders>
   );
 }

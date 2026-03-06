@@ -14,6 +14,12 @@ import {
   DEFAULT_PAYMENT_FEE,
   applyPaymentFeesToCosts,
 } from "@/lib/paymentFees";
+import {
+  buildLoyaltyHoldReason,
+  buildLoyaltyRedeemedReason,
+  buildLoyaltyReleasedReason,
+  getLoyaltyPointsPerEuro,
+} from "@/lib/loyalty";
 
 export const runtime = "nodejs";
 
@@ -63,10 +69,7 @@ const awardLoyaltyPointsForOrder = async (order: {
     0,
     order.amountSubtotal - Math.max(0, order.amountDiscount)
   );
-  const pointsPerEuro = Math.max(
-    1,
-    Math.floor(Number(process.env.LOYALTY_POINTS_PER_EUR ?? "1") || 1)
-  );
+  const pointsPerEuro = getLoyaltyPointsPerEuro();
   const points = Math.max(0, Math.floor(netSpendCents / 100) * pointsPerEuro);
   if (points <= 0) return 0;
 
@@ -117,6 +120,63 @@ const awardLoyaltyPointsForOrder = async (order: {
   }
 
   return points;
+};
+
+const consumeLoyaltyHoldForSession = async (sessionId: string, orderId: string) => {
+  const holdReason = buildLoyaltyHoldReason(sessionId);
+  const redeemedReason = buildLoyaltyRedeemedReason(sessionId);
+  try {
+    await prisma.loyaltyPointTransaction.updateMany({
+      where: { reason: holdReason },
+      data: {
+        reason: redeemedReason,
+        metadata: {
+          sessionId,
+          orderId,
+          status: "redeemed",
+        },
+      },
+    });
+  } catch (error) {
+    captureException(error, { context: "consumeLoyaltyHoldForSession", sessionId, orderId });
+  }
+};
+
+const releaseLoyaltyHoldForSession = async (sessionId: string) => {
+  const holdReason = buildLoyaltyHoldReason(sessionId);
+  const releasedReason = buildLoyaltyReleasedReason(sessionId);
+  try {
+    await prisma.$transaction(async (tx) => {
+      const holds = await tx.loyaltyPointTransaction.findMany({
+        where: { reason: holdReason },
+        select: { id: true, userId: true, pointsDelta: true },
+      });
+      if (holds.length === 0) return;
+
+      for (const hold of holds) {
+        const releasedPoints = Math.max(0, -hold.pointsDelta);
+        if (releasedPoints > 0) {
+          await tx.user.update({
+            where: { id: hold.userId },
+            data: { loyaltyPointsBalance: { increment: releasedPoints } },
+          });
+        }
+        await tx.loyaltyPointTransaction.update({
+          where: { id: hold.id },
+          data: {
+            reason: releasedReason,
+            metadata: {
+              sessionId,
+              releasedPoints,
+              status: "released",
+            },
+          },
+        });
+      }
+    });
+  } catch (error) {
+    captureException(error, { context: "releaseLoyaltyHoldForSession", sessionId });
+  }
 };
 
   const normalizeOptions = (value: unknown) => {
@@ -605,6 +665,7 @@ export const createOrderFromSession = async (
   }
 
   const awardedPoints = await awardLoyaltyPointsForOrder(created);
+  await consumeLoyaltyHoldForSession(sessionId, created.id);
   if (awardedPoints > 0) {
     await logOrderTimelineEvent({
       orderId: created.id,
@@ -832,6 +893,7 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.async_payment_failed") {
       const session = event.data.object as Stripe.Checkout.Session;
       await releaseReservedInventory(stripe, session.id ?? "");
+      await releaseLoyaltyHoldForSession(session.id ?? "");
       const paymentIntent =
         typeof session.payment_intent === "string"
           ? session.payment_intent
@@ -897,6 +959,7 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.expired") {
       const session = event.data.object as Stripe.Checkout.Session;
       await releaseReservedInventory(stripe, session.id ?? "");
+      await releaseLoyaltyHoldForSession(session.id ?? "");
     }
     if (
       event.type === "customer.subscription.created" ||

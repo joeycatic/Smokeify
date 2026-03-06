@@ -12,6 +12,12 @@ import {
   toCents,
 } from "@/lib/checkoutPolicy";
 import { getShippingAmount, SHIPPING_BASE, type ShippingCountry } from "@/lib/shippingPolicy";
+import {
+  buildLoyaltyHoldReason,
+  discountCentsToPoints,
+  formatRedeemRateLabel,
+  pointsToDiscountCents,
+} from "@/lib/loyalty";
 
 export const runtime = "nodejs";
 
@@ -61,6 +67,20 @@ type CartItem = {
   variantId: string;
   quantity: number;
   options?: Array<{ name: string; value: string }>;
+};
+
+type CheckoutUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  street: string | null;
+  houseNumber: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  loyaltyPointsBalance: number;
 };
 
 const parseCheckoutPaymentMethodTypes = (): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined => {
@@ -270,6 +290,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const rawDiscountCode =
     typeof body?.discountCode === "string" ? body.discountCode.trim() : "";
+  const useLoyaltyPoints = body?.useLoyaltyPoints === true;
   if (rawDiscountCode && rawDiscountCode.length > 64) {
     return NextResponse.json(
       { error: "Rabattcode ungueltig." },
@@ -281,6 +302,7 @@ export async function POST(req: Request) {
     ? await prisma.user.findUnique({
         where: { id: userId },
         select: {
+          id: true,
           email: true,
           name: true,
           firstName: true,
@@ -290,9 +312,10 @@ export async function POST(req: Request) {
           postalCode: true,
           city: true,
           country: true,
+          loyaltyPointsBalance: true,
         },
       })
-    : null;
+    : null as CheckoutUser | null;
   const country = getSafeCountry(body?.country);
   const customerId = user
     ? await createStripeCustomer(stripe, user, userId ?? "", country)
@@ -391,7 +414,32 @@ export async function POST(req: Request) {
       ? 0
       : Math.max(0, Math.round(shippingAmount * 100));
 
+  if (useLoyaltyPoints && !userId) {
+    return NextResponse.json(
+      { error: "Smokeify Punkte können nur im Kundenkonto eingelöst werden." },
+      { status: 401 }
+    );
+  }
+  if (useLoyaltyPoints && rawDiscountCode) {
+    return NextResponse.json(
+      { error: "Smokeify Punkte können nicht mit Rabattcodes kombiniert werden." },
+      { status: 400 }
+    );
+  }
+
+  let loyaltyPointsToRedeem = 0;
+  let loyaltyDiscountCents = 0;
+  if (useLoyaltyPoints && user) {
+    loyaltyPointsToRedeem = Math.max(0, Math.floor(user.loyaltyPointsBalance));
+    loyaltyDiscountCents = Math.min(
+      subtotalCents,
+      pointsToDiscountCents(loyaltyPointsToRedeem)
+    );
+    loyaltyPointsToRedeem = discountCentsToPoints(loyaltyDiscountCents);
+  }
+
   let promotionCodeId: string | undefined;
+  let couponId: string | undefined;
   let appliedDiscountCode: string | undefined;
   if (rawDiscountCode) {
     const promotionCodes = await stripe.promotionCodes.list({
@@ -413,6 +461,11 @@ export async function POST(req: Request) {
   const metadata: Record<string, string> = { country };
   if (appliedDiscountCode) {
     metadata.discountCode = appliedDiscountCode;
+  }
+  if (loyaltyPointsToRedeem > 0) {
+    metadata.discountCode = `Smokeify Punkte (${loyaltyPointsToRedeem} Punkte)`;
+    metadata.loyaltyPointsRedeemed = String(loyaltyPointsToRedeem);
+    metadata.loyaltyDiscountAmount = String(loyaltyDiscountCents);
   }
 
   // Atomically reserve inventory for all cart items. Each UPDATE only succeeds
@@ -458,13 +511,29 @@ export async function POST(req: Request) {
   let checkoutSession: Stripe.Checkout.Session;
   const paymentMethodTypes = parseCheckoutPaymentMethodTypes();
   try {
+    if (loyaltyDiscountCents > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: loyaltyDiscountCents,
+        currency: CURRENCY_CODE.toLowerCase(),
+        duration: "once",
+        name: `Smokeify Punkte ${loyaltyPointsToRedeem} Punkte`,
+        metadata: {
+          userId: userId ?? "",
+          loyaltyPointsRedeemed: String(loyaltyPointsToRedeem),
+        },
+      });
+      couponId = coupon.id;
+    }
+
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: paymentMethodTypes,
       line_items: lineItems,
       discounts: promotionCodeId
         ? [{ promotion_code: promotionCodeId }]
-        : undefined,
+        : couponId
+          ? [{ coupon: couponId }]
+          : undefined,
       customer: customerId ?? undefined,
       customer_email: customerId ? undefined : user?.email ?? undefined,
       customer_update: customerId
@@ -500,6 +569,63 @@ export async function POST(req: Request) {
     // isn't held indefinitely with no Stripe session to expire it.
     await releaseReservation();
     throw error;
+  }
+
+  if (loyaltyPointsToRedeem > 0 && userId) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const existing = await tx.loyaltyPointTransaction.findFirst({
+          where: { reason: buildLoyaltyHoldReason(checkoutSession.id) },
+          select: { id: true },
+        });
+        if (existing) return;
+
+        const updated = await tx.user.updateMany({
+          where: {
+            id: userId,
+            loyaltyPointsBalance: { gte: loyaltyPointsToRedeem },
+          },
+          data: {
+            loyaltyPointsBalance: { decrement: loyaltyPointsToRedeem },
+          },
+        });
+
+        if (updated.count === 0) {
+          throw new Error("LOYALTY_POINTS_UNAVAILABLE");
+        }
+
+        await tx.loyaltyPointTransaction.create({
+          data: {
+            userId,
+            pointsDelta: -loyaltyPointsToRedeem,
+            reason: buildLoyaltyHoldReason(checkoutSession.id),
+            metadata: {
+              sessionId: checkoutSession.id,
+              loyaltyPointsRedeemed: loyaltyPointsToRedeem,
+              loyaltyDiscountAmount: loyaltyDiscountCents,
+              description: formatRedeemRateLabel(),
+            },
+          },
+        });
+      });
+    } catch (error) {
+      await releaseReservation();
+      try {
+        await stripe.checkout.sessions.expire(checkoutSession.id);
+      } catch {
+        // Ignore session expiration failures.
+      }
+      return NextResponse.json(
+          {
+            error:
+              error instanceof Error &&
+              error.message === "LOYALTY_POINTS_UNAVAILABLE"
+                ? "Smokeify Punkte standen nicht mehr in ausreichender Höhe zur Verfügung."
+                : "Smokeify Punkte konnten nicht reserviert werden.",
+          },
+          { status: 409 }
+        );
+    }
   }
 
   return NextResponse.json({ url: checkoutSession.url });

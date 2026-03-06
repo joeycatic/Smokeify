@@ -24,6 +24,7 @@ import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { formatRedeemRateLabel } from "@/lib/loyalty";
 
 const pixelNavFont = Pixelify_Sans({
   weight: "400",
@@ -101,6 +102,8 @@ export default function CartPage() {
   const [countryTouched, setCountryTouched] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
+  const [loyaltyPointsBalance, setLoyaltyPointsBalance] = useState(0);
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
     "idle" | "loading" | "ok" | "error"
   >("idle");
@@ -131,6 +134,7 @@ export default function CartPage() {
         body: JSON.stringify({
           country,
           discountCode: normalizedDiscountCode || undefined,
+          useLoyaltyPoints,
         }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
@@ -217,13 +221,19 @@ export default function CartPage() {
         const res = await fetch("/api/account/profile", { method: "GET" });
         if (!res.ok) return;
         const data = (await res.json()) as {
-          user?: { country?: string | null };
+          user?: {
+            country?: string | null;
+            loyaltyPointsBalance?: number | null;
+          };
         };
         if (cancelled) return;
         const normalizedCountry = normalizeCountryInput(data.user?.country);
         if (!countryTouched && normalizedCountry) {
           setCountry(normalizedCountry);
         }
+        setLoyaltyPointsBalance(
+          Math.max(0, Math.floor(Number(data.user?.loyaltyPointsBalance ?? 0))),
+        );
       } finally {
         if (!cancelled) {
           setProfileLoaded(true);
@@ -315,7 +325,13 @@ export default function CartPage() {
     cart.lines.reduce((sum, line) => sum + line.quantity, 0);
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
   const shippingEstimate = freeShippingActive ? 0 : getShippingAmount(country);
+  const redeemablePoints = Math.min(
+    loyaltyPointsBalance,
+    Math.max(0, Math.floor(subtotal * 100)),
+  );
+  const loyaltyDiscount = useLoyaltyPoints ? redeemablePoints / 100 : 0;
   const totalEstimate = subtotal + shippingEstimate;
+  const totalAfterLoyalty = Math.max(0, totalEstimate - loyaltyDiscount);
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
   const cartProductHandles = Array.from(
@@ -567,7 +583,7 @@ export default function CartPage() {
                   Gesamt (Schätzung)
                 </p>
                 <p className="text-2xl font-semibold text-[#2f3e36]">
-                  {formatPrice(totalEstimate, currencyCode)}
+                  {formatPrice(totalAfterLoyalty, currencyCode)}
                 </p>
               </div>
               <p className="text-xs text-[#2f3e36]/60">
@@ -581,11 +597,39 @@ export default function CartPage() {
                 <input
                   type="text"
                   value={discountCode}
-                  onChange={(event) => setDiscountCode(event.target.value)}
+                  onChange={(event) => {
+                    if (useLoyaltyPoints) {
+                      setUseLoyaltyPoints(false);
+                    }
+                    setDiscountCode(event.target.value);
+                  }}
                   placeholder="Code eingeben"
                   className="mt-2 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
               </div>
+              {isAuthenticated && loyaltyPointsBalance > 0 && (
+                <label className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-left text-sm text-emerald-900">
+                  <input
+                    type="checkbox"
+                    checked={useLoyaltyPoints}
+                    onChange={(event) => {
+                      if (event.target.checked && discountCode.trim()) {
+                        setDiscountCode("");
+                      }
+                      setUseLoyaltyPoints(event.target.checked);
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-700 focus:ring-emerald-600"
+                  />
+                  <span>
+                    <span className="block font-semibold">
+                      {redeemablePoints} Smokeify Punkte einlösen
+                    </span>
+                    <span className="block text-xs text-emerald-800/80">
+                      Smokeify Punkte funktionieren wie Shop-Guthaben. {redeemablePoints} Punkte entsprechen aktuell {formatPrice(loyaltyDiscount, currencyCode)} Rabatt. {formatRedeemRateLabel()}.
+                    </span>
+                  </span>
+                </label>
+              )}
               {checkoutError && (
                 <p className="text-xs font-semibold text-red-600">
                   {checkoutError}
@@ -596,6 +640,12 @@ export default function CartPage() {
                   Mindestbestellwert{" "}
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
+              )}
+              {useLoyaltyPoints && loyaltyDiscount > 0 && (
+                <div className="flex items-center justify-between text-sm text-emerald-800">
+                  <span>Smokeify Punkte</span>
+                  <span>-{formatPrice(loyaltyDiscount, currencyCode)}</span>
+                </div>
               )}
               <button
                 type="button"

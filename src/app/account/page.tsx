@@ -7,6 +7,10 @@ import PageLayout from "@/components/PageLayout";
 import SignOutButton from "@/components/SignOutButton";
 import DeleteAccountButton from "@/components/DeleteAccountButton";
 import AccountDashboardClient from "./AccountDashboardClient";
+import {
+  formatRedeemRateLabel,
+  getLoyaltyPointsPerEuro,
+} from "@/lib/loyalty";
 
 type LoyaltyTransactionRow = {
   id: string;
@@ -147,6 +151,7 @@ export default async function AccountPage() {
     ]);
 
   const loyaltyPointsBalance = loyaltyBalanceRows[0]?.loyaltyPointsBalance ?? 0;
+  const loyaltyPointsPerEuro = getLoyaltyPointsPerEuro();
   const user: AccountUserRow | null = userRow
     ? {
         ...userRow,
@@ -253,7 +258,7 @@ export default async function AccountPage() {
 
         <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 sm:p-5">
           <p className="mb-3 text-[11px] font-semibold tracking-widest text-black/40">
-            LOYALTY POINTS
+            SMOKEIFY PUNKTE
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-stone-600">
@@ -264,7 +269,10 @@ export default async function AccountPage() {
             </p>
           </div>
           <p className="mt-1 text-xs text-stone-500">
-            Du erhältst standardmäßig {process.env.LOYALTY_POINTS_PER_EUR ?? "1"} Punkt(e) pro 1,00 EUR Warenwert.
+            Smokeify Punkte sind dein Shop-Guthaben für spätere Bestellungen.
+          </p>
+          <p className="mt-1 text-xs text-stone-500">
+            Du erhältst standardmäßig {loyaltyPointsPerEuro} Smokeify Punkt{loyaltyPointsPerEuro === 1 ? "" : "e"} pro 1,00 EUR Warenwert. Beim Einlösen wird dein Warenkorb direkt günstiger: {formatRedeemRateLabel()}.
           </p>
           {loyaltyTransactions.length > 0 && (
             <ul className="mt-4 space-y-2">
@@ -279,11 +287,22 @@ export default async function AccountPage() {
                   className="flex items-center justify-between rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-xs"
                 >
                   <span className="text-stone-600">
-                    {entry.reason === "order_paid" ? "Bestellung bezahlt" : entry.reason}{" "}
+                    {entry.reason === "order_paid"
+                      ? "Bestellung bezahlt"
+                      : entry.reason.startsWith("loyalty_hold:")
+                        ? "Smokeify Punkte reserviert"
+                        : entry.reason.startsWith("loyalty_redeemed:")
+                          ? "Smokeify Punkte eingelöst"
+                          : entry.reason.startsWith("loyalty_released:")
+                            ? "Smokeify Punkte freigegeben"
+                            : entry.reason}{" "}
                     · {new Date(entry.createdAt).toLocaleDateString("de-DE")}
                   </span>
-                  <span className="font-semibold text-emerald-700">
-                    +{entry.pointsDelta}
+                  <span
+                    className={`font-semibold ${entry.pointsDelta >= 0 ? "text-emerald-700" : "text-amber-700"}`}
+                  >
+                    {entry.pointsDelta > 0 ? "+" : ""}
+                    {entry.pointsDelta}
                   </span>
                 </li>
               ))}

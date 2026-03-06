@@ -219,9 +219,12 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [categoryStack, setCategoryStack] = useState<string[]>([]);
-  const categories = initialCategories;
-  const categoriesStatus: "idle" | "loading" | "error" =
-    initialCategories.length > 0 ? "idle" : "error";
+  const [categories, setCategories] = useState<NavbarCategory[]>(
+    initialCategories,
+  );
+  const [categoriesStatus, setCategoriesStatus] = useState<
+    "idle" | "loading" | "error"
+  >(initialCategories.length > 0 ? "idle" : "loading");
   const productsRef = useRef<HTMLDivElement | null>(null);
   const mobileProductsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
@@ -248,6 +251,40 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (initialCategories.length > 0) {
+      setCategories(initialCategories);
+      setCategoriesStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setCategoriesStatus("loading");
+
+    const loadCategories = async () => {
+      try {
+        const res = await fetch("/api/categories", { method: "GET" });
+        if (!res.ok) {
+          throw new Error("Kategorien konnten nicht geladen werden.");
+        }
+        const data = (await res.json()) as { categories?: NavbarCategory[] };
+        if (cancelled) return;
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
+        setCategoriesStatus("idle");
+      } catch {
+        if (cancelled) return;
+        setCategories([]);
+        setCategoriesStatus("error");
+      }
+    };
+
+    void loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCategories]);
 
   useEffect(() => {
     if (!isMobile || !mobileAddedOpen) return;

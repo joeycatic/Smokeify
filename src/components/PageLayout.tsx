@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
 import Footer from "./Footer";
-import CommerceProviders from "@/components/CommerceProviders";
-import { getNavbarCategories } from "@/lib/navbarCategories";
 
 type PageLayoutProps = {
   children: ReactNode;
@@ -31,16 +29,15 @@ function PageContainer({ children }: LayoutSectionProps) {
   );
 }
 
-export default async function PageLayout({
+export default function PageLayout({
   children,
-  commerce = false,
+  commerce: _commerce = false,
 }: PageLayoutProps) {
-  const initialCategories = await getNavbarCategories();
   const content = (
     <>
       <AnnouncementBar />
       <PageContainer>
-        <Navbar initialCategories={initialCategories} />
+        <Navbar />
         {children}
       </PageContainer>
       <Footer />
@@ -49,7 +46,7 @@ export default async function PageLayout({
 
   return (
     <PageShell>
-      {commerce ? <CommerceProviders>{content}</CommerceProviders> : content}
+      {content}
     </PageShell>
   );
 }

@@ -24,6 +24,7 @@ export async function GET() {
       postalCode: true,
       city: true,
       country: true,
+      loyaltyPointsBalance: true,
     },
   });
 
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
       postalCode: true,
       city: true,
       country: true,
+      loyaltyPointsBalance: true,
     },
   });
 
