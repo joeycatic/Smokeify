@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PageLayout from "@/components/PageLayout";
 
 export const metadata: Metadata = {
   title: "Pflanzenzelt-Konfigurator",
@@ -22,5 +23,5 @@ export default function CustomizerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <PageLayout commerce>{children}</PageLayout>;
 }

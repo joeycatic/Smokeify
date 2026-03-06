@@ -346,58 +346,6 @@ const inferGoogleFeedCategoryMapping = (input: {
     return productOverride;
   }
 
-  const haystack = [
-    input.title,
-    input.description ?? "",
-    input.shortDescription ?? "",
-    input.categoryPath,
-    input.handles.join(" "),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  const handleSet = new Set(input.handles.map((handle) => handle.toLowerCase()));
-  const hasHandle = (...handles: string[]) => handles.some((h) => handleSet.has(h));
-
-  if (
-    hasHandle("papers", "paper", "filter") ||
-    /\b(papers?|drehpapier|filter)\b/i.test(haystack)
-  ) {
-    return {
-      googleProductCategory: "Home & Garden > Household Supplies",
-      productType: "Indoor-Gartenbau > Gartentechnik > Verbrauchsmaterial > Filter",
-    };
-  }
-
-  if (
-    hasHandle("pipes", "pipe", "bongs", "bong") ||
-    /\b(wasserpfeife|glaspfeife|pipe|pfeife)\b/i.test(haystack)
-  ) {
-    return {
-      googleProductCategory: "Home & Garden > Smoking Accessories",
-      productType: "Indoor-Gartenbau > Gartentechnik > Glaszubehoer > Pfeifen",
-    };
-  }
-
-  if (hasHandle("grinder") || /\b(grinder|kraeutermuehle|krautermuhle)\b/i.test(haystack)) {
-    return {
-      googleProductCategory:
-        "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
-      productType: "Indoor-Gartenbau > Pflanzenzucht > Vorbereitung > Muehlen",
-    };
-  }
-
-  if (
-    hasHandle("aufbewahrung", "stash-box", "stash") ||
-    /\b(aufbewahrung|stash box|storage)\b/i.test(haystack)
-  ) {
-    return {
-      googleProductCategory:
-        "Home & Garden > Household Supplies > Storage & Organization",
-      productType: "Indoor-Gartenbau > Gartentechnik > Lagerung & Organisation",
-    };
-  }
-
   return {
     googleProductCategory: DEFAULT_GOOGLE_PRODUCT_CATEGORY,
     productType: toDescriptiveProductType(input.categoryPath),

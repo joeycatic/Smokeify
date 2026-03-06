@@ -275,7 +275,7 @@ export default function ProductDetailClient({
   const featureItems = [
     "Schnelle Lieferung",
     "100% geprüft",
-    "Diskret verpackt",
+    "Neutral verpackt",
   ];
   const showAgeNotice = Boolean(
     product.categories?.some((category) => {

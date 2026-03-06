@@ -58,7 +58,8 @@ export default function Footer() {
                 Smokeify
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/70 max-w-sm">
-                Quality products & trusted service. Curated gear for your setup.
+                Smarte Technik, starke Marken und die passende Ausstattung für
+                ein durchdachtes Indoor-Setup.
               </p>
             </div>
 
@@ -108,6 +109,14 @@ export default function Footer() {
                   href="/bestseller"
                 >
                   Bestseller
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-white/70 hover:text-white transition"
+                  href="/pages/about"
+                >
+                  Über uns
                 </Link>
               </li>
               <li>

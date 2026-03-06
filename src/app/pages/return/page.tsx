@@ -27,7 +27,7 @@ export const RETURN_POLICY_SECTIONS = [
     title: "4. Vom Umtausch ausgeschlossene Artikel",
     paragraphs: [
       `Das Widerrufsrecht erlischt bei versiegelten Waren, die aus Gründen des Gesundheitsschutzes oder der Hygiene nicht zur Rückgabe geeignet sind, wenn ihre Versiegelung nach der Lieferung entfernt wurde (§ 312g Abs. 2 Nr. 3 BGB).`,
-      `Hierzu zählen insbesondere hygienisch versiegelte Produkte oder Verbrauchsartikel (z. B. Filtertips, Papers, Mundstücke, Grinder-Zubehör) nach Entfernung des Siegels.`,
+      `Hierzu zählen insbesondere hygienisch versiegelte Produkte oder Verbrauchsartikel nach Entfernung des Siegels.`,
       `Die gesetzlichen Ausnahmen vom Widerrufsrecht bleiben unberührt.`,
     ],
   },
@@ -43,6 +43,7 @@ export const RETURN_POLICY_SECTIONS = [
     title: "6. Kosten der Rücksendung",
     paragraphs: [
       `Die unmittelbaren Kosten der Rücksendung tragen Sie als Kunde, sofern nichts anderes vereinbart wurde.`,
+      `Bei beschädigten oder fehlerhaften Artikeln übernehmen wir die Rücksendekosten.`,
     ],
   },
   {

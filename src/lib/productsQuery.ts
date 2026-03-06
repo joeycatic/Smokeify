@@ -31,10 +31,10 @@ export type ProductsQueryResult = {
 
 type CategoryMeta = {
   categoryHierarchy: {
-    parents: Map<string, string>;
-    childrenByParent: Map<string, Map<string, string>>;
+    parents: Array<[string, string]>;
+    childrenByParent: Array<[string, Array<[string, string]>]>;
   };
-  allCategoryTitles: Map<string, string>;
+  allCategoryTitles: Array<[string, string]>;
 };
 
 const getCachedCategoryMeta = unstable_cache(
@@ -75,8 +75,13 @@ const getCachedCategoryMeta = unstable_cache(
     });
 
     return {
-      categoryHierarchy: { parents, childrenByParent },
-      allCategoryTitles,
+      categoryHierarchy: {
+        parents: Array.from(parents.entries()),
+        childrenByParent: Array.from(childrenByParent.entries()).map(
+          ([parentHandle, children]) => [parentHandle, Array.from(children.entries())],
+        ),
+      },
+      allCategoryTitles: Array.from(allCategoryTitles.entries()),
     };
   },
   ["products-query-categories"],
@@ -219,6 +224,14 @@ export async function queryProducts(
     getCachedCategoryMeta(),
     getPriceBoundsCached(),
   ]);
+  const categoryParents = new Map(categoryMeta.categoryHierarchy.parents);
+  const childrenByParent = new Map(
+    categoryMeta.categoryHierarchy.childrenByParent.map(([parentHandle, children]) => [
+      parentHandle,
+      new Map(children),
+    ]),
+  );
+  const allCategoryTitles = new Map(categoryMeta.allCategoryTitles);
   const safePriceMin =
     Number.isFinite(priceMin) && typeof priceMin === "number"
       ? priceMin
@@ -304,15 +317,13 @@ export async function queryProducts(
 
   const activeCategory = normalizedCategoryParam;
   const availableCategories = (() => {
-    const children =
-      activeCategory &&
-      categoryMeta.categoryHierarchy.childrenByParent.get(activeCategory);
+    const children = activeCategory && childrenByParent.get(activeCategory);
     if (children && children.size > 0) {
       return Array.from(children.entries()).sort((a, b) =>
         a[1].localeCompare(b[1]),
       );
     }
-    return Array.from(categoryMeta.categoryHierarchy.parents.entries()).sort((a, b) =>
+    return Array.from(categoryParents.entries()).sort((a, b) =>
       a[1].localeCompare(b[1]),
     );
   })();
@@ -337,6 +348,6 @@ export async function queryProducts(
     priceMaxBound: priceBounds.priceMaxBound,
     availableCategories,
     availableManufacturers,
-    allCategoryTitles: Array.from(categoryMeta.allCategoryTitles.entries()),
+    allCategoryTitles: Array.from(allCategoryTitles.entries()),
   };
 }

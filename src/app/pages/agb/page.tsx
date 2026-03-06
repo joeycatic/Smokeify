@@ -5,7 +5,7 @@ export const AGB_SECTIONS = [
     title: "§1 Geltungsbereich",
     paragraphs: [
       `Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen`,
-      `Smokeify, joey@smokeify.de`,
+      `Smokeify, contact@smokeify.de`,
       `und den Kunden über den Online-Shop unter www.smokeify.de.`,
       `Das Angebot richtet sich ausschließlich an Verbraucher im Sinne des § 13 BGB, sofern nicht ausdrücklich anders angegeben.`,
       `Abweichende Bedingungen des Kunden werden nicht anerkannt, es sei denn, ihrer Geltung wird ausdrücklich schriftlich zugestimmt.`,
@@ -151,10 +151,10 @@ export default function AgbPage() {
               </p>
               <div className="flex flex-col items-start gap-1">
                 <a
-                  href="mailto:joey@smokeify.de"
+                  href="mailto:contact@smokeify.de"
                   className="font-semibold text-emerald-700 hover:text-emerald-800"
                 >
-                  joey@smokeify.de
+                  contact@smokeify.de
                 </a>
                 <a
                   href="https://www.smokeify.de"

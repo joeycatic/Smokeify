@@ -1,7 +1,7 @@
 import PageLayout from "@/components/PageLayout";
 
 export default function ImprintPage() {
-  const contactEmail = process.env.CONTACT_EMAIL?.trim() || "joey@smokeify.de";
+  const contactEmail = process.env.CONTACT_EMAIL?.trim() || "contact@smokeify.de";
 
   return (
     <PageLayout>

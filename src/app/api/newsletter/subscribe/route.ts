@@ -130,7 +130,7 @@ export async function POST(request: Request) {
 
   const server = process.env.EMAIL_SERVER;
   const from = process.env.EMAIL_FROM;
-  const adminTo = process.env.CONTACT_EMAIL?.trim() || "joey@smokeify.de";
+  const adminTo = process.env.CONTACT_EMAIL?.trim() || "contact@smokeify.de";
 
   const normalizedEmail = email.toLowerCase();
   const emailLimit = await checkRateLimit({

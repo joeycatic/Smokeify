@@ -10,7 +10,7 @@ export const DATENSCHUTZ_SECTIONS = [
       `Brinkeweg 106a`,
       `33758 Schloß Holte-Stukenbrock`,
       `Deutschland`,
-      `E-Mail: joey@smokeify.de`,
+      `E-Mail: contact@smokeify.de`,
     ],
   },
   {

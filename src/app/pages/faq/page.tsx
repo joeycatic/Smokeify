@@ -1,9 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import PageLayout from "@/components/PageLayout";
-import Link from "next/link";
+import FaqPageClient from "./FaqPageClient";
 
 type FaqItem = { question: string; answer: string };
 type FaqCategory = { label: string; items: FaqItem[] };
@@ -15,12 +11,12 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Wie lange dauert der Versand?",
         answer:
-          "Bestellungen, die werktags bis 14:00 Uhr eingehen, versenden wir in der Regel noch am selben Tag. Innerhalb Deutschlands liegt die Lieferzeit meist bei 1-3 Werktagen, innerhalb der EU bei 3-7 Werktagen.",
+          "Bestellungen, die werktags bis 14:00 Uhr eingehen, bearbeiten wir in der Regel noch am selben Tag. Sofern beim Produkt nichts anderes angegeben ist, liegt die Lieferzeit meist bei 2-5 Werktagen innerhalb Deutschlands und 3-7 Werktagen innerhalb der EU.",
       },
       {
-        question: "Wird diskret verpackt?",
+        question: "Wie wird verpackt?",
         answer:
-          "Ja. Unsere Sendungen werden neutral und ohne auffällige Produktkennzeichnung verpackt. So bleibt der Inhalt von außen nicht erkennbar.",
+          "Unsere Sendungen werden neutral und ohne unnötige Produktkennzeichnung verpackt. Relevante Versand- und Empfängerdaten bleiben natürlich sichtbar, damit die Zustellung reibungslos funktioniert.",
       },
       {
         question: "Ab wann ist der Versand kostenlos?",
@@ -60,7 +56,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Kann ich nachträglich die Zahlungsart ändern?",
         answer:
-          "Solange die Bestellung noch nicht final verarbeitet wurde, ist das teilweise möglich. Schreib uns am besten sofort mit deiner Bestellnummer an joey@smokeify.de.",
+          "Solange die Bestellung noch nicht final verarbeitet wurde, ist das teilweise möglich. Schreib uns am besten sofort mit deiner Bestellnummer an contact@smokeify.de.",
       },
     ],
   },
@@ -75,17 +71,17 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Wie sende ich einen Artikel zurück?",
         answer:
-          "Schreib uns einfach an joey@smokeify.de mit deiner Bestellnummer und dem Grund der Rücksendung. Wir senden dir dann ein Rücksendeetikett und weitere Anweisungen.",
+          "Melde deine Rücksendung bitte per E-Mail oder über das Retourenportal an. Bei einem regulären Widerruf trägst du die unmittelbaren Rücksendekosten selbst; bei beschädigten oder fehlerhaften Artikeln stellen wir ein Rücksendeetikett oder erstatten die Versandkosten.",
       },
       {
         question: "Wann erhalte ich meine Rückerstattung?",
         answer:
-          "Sobald wir die Rücksendung erhalten und geprüft haben, erstatten wir den Betrag innerhalb von 5–7 Werktagen auf deine ursprüngliche Zahlungsmethode zurück.",
+          "Sobald wir die Rücksendung erhalten und geprüft haben, erstatten wir den Betrag über deine ursprüngliche Zahlungsmethode. Spätestens erfolgt die Rückzahlung binnen 14 Tagen ab Zugang deines Widerrufs.",
       },
       {
         question: "Was mache ich, wenn ein Artikel beschädigt ankam?",
         answer:
-          "Bitte fotografiere den Schaden und schreib uns umgehend an joey@smokeify.de. Wir regeln den Fall schnell und unbürokratisch – entweder mit einem Ersatz oder einer vollständigen Rückerstattung.",
+          "Bitte fotografiere den Schaden und schreib uns umgehend an contact@smokeify.de. Wir regeln den Fall schnell und unbürokratisch – entweder mit einem Ersatz oder einer vollständigen Rückerstattung.",
       },
       {
         question: "Kann ich benutzte Hygiene-Artikel zurückgeben?",
@@ -95,32 +91,32 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
-    label: "Produkte, Nutzung & Beratung",
+    label: "Produkte, Setup & Beratung",
     items: [
       {
-        question: "Welche Grinder-Größe passt zu mir?",
+        question: "Welche Growbox-Größe passt zu meinem Raum?",
         answer:
-          "Für unterwegs reicht meist ein kompakter Grinder (ca. 40-50 mm). Für den täglichen Gebrauch zuhause empfehlen wir mittlere bis große Modelle (55-63 mm), da sie mehr Volumen und meist eine angenehmere Handhabung bieten.",
+          "Für kleine Flächen eignen sich kompakte Formate wie 60x60 cm. Wer mehr Flexibilität bei Licht, Abluft und Pflanzenhöhe braucht, plant meist mit 80x80 cm bis 120x120 cm. Entscheidend sind Grundfläche, Höhe und die passende Klima- und Lichttechnik.",
       },
       {
-        question: "Welche Papers sind für Einsteiger sinnvoll?",
+        question: "Welche Beleuchtung ist für Einsteiger sinnvoll?",
         answer:
-          "Viele starten mit King Size Slim Papers, weil sie gut zu rollen sind und breit verfügbar. Wenn du langsameres Abbrennen willst, sind ungebleichte Varianten eine gute Option. Achte zusätzlich auf passende Filter Tips.",
+          "Viele Einsteiger starten mit effizienten LED-Systemen, weil sie wenig Abwärme erzeugen und einfach zu steuern sind. Wichtig ist, dass Leistung, Abdeckung und Zeltgröße zusammenpassen.",
       },
       {
-        question: "Wie reinige ich Bong, Pfeife oder Grinder richtig?",
+        question: "Wie halte ich mein Setup sauber und zuverlässig?",
         answer:
-          "Am besten regelmäßig mit geeignetem Cleaner und warmem Wasser reinigen. Bei Grindern zuerst trocken ausbürsten, dann nur falls nötig mit etwas Isopropanol arbeiten und anschließend vollständig trocknen lassen. So bleiben Geschmack und Funktion erhalten.",
+          "Regelmäßige Reinigung von Luftwegen, Filtern, Wasserleitungen und Auffangflächen hilft, Leistung und Hygiene stabil zu halten. Verwende dafür passende Reiniger, beachte Herstellerhinweise und lasse Komponenten vor der Wiederverwendung vollständig trocknen.",
       },
       {
         question: "Welches Zubehör wird oft zusammen gekauft?",
         answer:
-          "Beliebte Kombinationen sind: Papers + Filter Tips, Grinder + Aufbewahrungsdose, Bong + Reinigungszubehör. Auf den Produktseiten findest du passende Ergänzungen für ein stimmiges Setup.",
+          "Häufig kombiniert werden etwa Growbox + LED, Abluft + Aktivkohlefilter, Bewässerung + Schlauchsysteme oder Messgeräte + Klima-Zubehör. Auf den Produktseiten findest du passende Ergänzungen für ein stimmiges Setup.",
       },
       {
         question: "Bietet ihr persönliche Produktberatung an?",
         answer:
-          "Ja. Wenn du unsicher bist, welches Zubehör zu deinem Bedarf passt, schreib uns per E-Mail an joey@smokeify.de oder über Instagram. Wir helfen dir schnell mit einer konkreten Empfehlung.",
+          "Ja. Wenn du unsicher bist, welches Zubehör zu deinem Bedarf passt, schreib uns per E-Mail an contact@smokeify.de oder über Instagram. Wir helfen dir schnell mit einer konkreten Empfehlung.",
       },
     ],
   },
@@ -130,7 +126,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Ab welchem Alter kann ich bestellen?",
         answer:
-          "Bestellungen in unserem Headshop sind nur für volljährige Personen bestimmt. Mit der Bestellung bestätigst du, dass du mindestens 18 Jahre alt bist.",
+          "Der Kauf altersbeschränkter Produkte ist nur für volljährige Personen zulässig. Falls ein Artikel rechtlich nur an Erwachsene abgegeben werden darf, weisen wir darauf im Shop hin und behalten uns eine Altersprüfung vor.",
       },
       {
         question: "Verkauft ihr verbotene Substanzen?",
@@ -155,12 +151,12 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Kann ich meine Bestellung noch ändern oder stornieren?",
         answer:
-          "Bitte kontaktiere uns so schnell wie möglich unter joey@smokeify.de. Bestellungen, die bereits versendet wurden, können nicht mehr storniert werden – in diesem Fall greift das Widerrufsrecht.",
+          "Bitte kontaktiere uns so schnell wie möglich unter contact@smokeify.de. Bestellungen, die bereits versendet wurden, können nicht mehr storniert werden – in diesem Fall greift das Widerrufsrecht.",
       },
       {
         question: "Ich habe keine Bestellbestätigung erhalten – was tun?",
         answer:
-          "Prüfe zuerst deinen Spam-Ordner. Wenn die Mail dort nicht zu finden ist, melde dich unter joey@smokeify.de mit deinem Namen und der E-Mail-Adresse, die du beim Kauf angegeben hast.",
+          "Prüfe zuerst deinen Spam-Ordner. Wenn die Mail dort nicht zu finden ist, melde dich unter contact@smokeify.de mit deinem Namen und der E-Mail-Adresse, die du beim Kauf angegeben hast.",
       },
       {
         question: "Wo sehe ich den Status meiner Bestellung?",
@@ -171,91 +167,10 @@ const FAQ_CATEGORIES: FaqCategory[] = [
   },
 ];
 
-function FaqAccordion({ items }: { items: FaqItem[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  return (
-    <div className="divide-y divide-black/6">
-      {items.map((item, index) => {
-        const isOpen = openIndex === index;
-        return (
-          <div key={index}>
-            <button
-              type="button"
-              onClick={() => setOpenIndex(isOpen ? null : index)}
-              className="flex w-full items-center justify-between gap-4 py-4 text-left"
-              aria-expanded={isOpen}
-            >
-              <span className="text-sm font-semibold text-stone-900 sm:text-base">
-                {item.question}
-              </span>
-              <ChevronDownIcon
-                className={`h-5 w-5 shrink-0 text-stone-400 transition-transform duration-200 ${
-                  isOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            <div
-              className={`grid transition-all duration-200 ease-in-out ${
-                isOpen ? "grid-rows-[1fr] pb-4" : "grid-rows-[0fr]"
-              }`}
-            >
-              <div className="overflow-hidden">
-                <p className="text-sm leading-relaxed text-stone-600">
-                  {item.answer}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function FaqPage() {
   return (
     <PageLayout>
-      <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
-            Häufige Fragen
-          </h1>
-          <p className="mt-3 text-base text-stone-500">
-            Alles Wichtige rund um Bestellung, diskreten Versand und Headshop-Zubehör.
-          </p>
-        </div>
-
-        {/* Categories */}
-        <div className="space-y-4">
-          {FAQ_CATEGORIES.map((category) => (
-            <section
-              key={category.label}
-              className="rounded-2xl border border-black/8 bg-white px-5 shadow-sm"
-            >
-              <h2 className="border-b border-black/6 py-4 text-xs font-bold uppercase tracking-widest text-emerald-800">
-                {category.label}
-              </h2>
-              <FaqAccordion items={category.items} />
-            </section>
-          ))}
-        </div>
-
-        {/* Contact CTA */}
-        <div className="mt-10 rounded-2xl bg-[#2f3e36] px-6 py-8 text-center text-white">
-          <p className="text-base font-semibold">Deine Frage ist nicht dabei?</p>
-          <p className="mt-1 text-sm text-white/70">
-            Unser Support hilft dir direkt weiter.
-          </p>
-          <Link
-            href="/pages/contact"
-            className="mt-4 inline-flex h-10 items-center rounded-full bg-white px-6 text-sm font-semibold text-[#2f3e36] transition hover:bg-white/90"
-          >
-            Kontakt aufnehmen
-          </Link>
-        </div>
-      </main>
+      <FaqPageClient categories={FAQ_CATEGORIES} />
     </PageLayout>
   );
 }

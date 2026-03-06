@@ -2,7 +2,6 @@
 import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
-import SimpleNavbar from "./SimpleNavbar";
 import Footer from "./Footer";
 import CommerceProviders from "@/components/CommerceProviders";
 import { getNavbarCategories } from "@/lib/navbarCategories";
@@ -36,12 +35,12 @@ export default async function PageLayout({
   children,
   commerce = false,
 }: PageLayoutProps) {
-  const initialCategories = commerce ? await getNavbarCategories() : [];
+  const initialCategories = await getNavbarCategories();
   const content = (
     <>
       <AnnouncementBar />
       <PageContainer>
-        {commerce ? <Navbar initialCategories={initialCategories} /> : <SimpleNavbar />}
+        <Navbar initialCategories={initialCategories} />
         {children}
       </PageContainer>
       <Footer />
