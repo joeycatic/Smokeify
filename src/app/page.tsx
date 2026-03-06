@@ -14,6 +14,7 @@ import {
   ArrowRightIcon,
   SparklesIcon,
   TruckIcon,
+  PhotoIcon,
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
@@ -319,6 +320,68 @@ export default async function StorePage() {
           <section className="px-0 pb-6 pt-6 sm:px-6">
           <div className="pb-2">
             <div className="space-y-10">
+              <section className="reveal-up rounded-[28px] border border-emerald-100 bg-[linear-gradient(135deg,#f7fbf9_0%,#ffffff_55%,#eef7f1_100%)] p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
+                <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                      Neu auf der Website
+                    </p>
+                    <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">
+                      Pflanzen Analyzer mit Foto-Upload und Shop-Empfehlungen
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
+                      Lade ein Foto hoch, erhalte 1–2 Problemschätzungen und
+                      sieh direkt passende Produkte und Guides aus dem Smokeify
+                      Shop.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <Link
+                        href="/pflanzen-analyzer"
+                        className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5"
+                      >
+                        Analyzer öffnen
+                      </Link>
+                      <Link
+                        href="/blog"
+                        className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-stone-800 transition hover:border-black/20"
+                      >
+                        Guides ansehen
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <PhotoIcon className="h-5 w-5 text-emerald-700" />
+                      <p className="mt-2 text-sm font-semibold text-stone-900">
+                        Foto hochladen
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                        Schnelle Ersteinschätzung direkt auf der Website.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <SparklesIcon className="h-5 w-5 text-emerald-700" />
+                      <p className="mt-2 text-sm font-semibold text-stone-900">
+                        Problem schätzen
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                        1–2 wahrscheinliche Befunde mit konkreten nächsten
+                        Schritten.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <ArrowRightIcon className="h-5 w-5 text-emerald-700" />
+                      <p className="mt-2 text-sm font-semibold text-stone-900">
+                        Produkte finden
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                        Direkt weiter zu passenden Artikeln und Guides im Shop.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
               <section className="space-y-4">
                 <header className="reveal-up space-y-2 px-2 sm:px-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-900/75">
