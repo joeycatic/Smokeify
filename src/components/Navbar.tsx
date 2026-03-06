@@ -32,12 +32,14 @@ import {
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
+import { useNavbarCategories } from "@/components/NavbarCategoriesProvider";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { seoPages } from "@/lib/seoPages";
+import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
 
@@ -169,9 +171,10 @@ type NavbarProps = {
   initialCategories?: NavbarCategory[];
 };
 
-export function Navbar({ initialCategories = [] }: NavbarProps) {
+export function Navbar({ initialCategories }: NavbarProps) {
   const { cart, loading, error, refresh } = useCart();
   const { ids } = useWishlist();
+  const contextCategories = useNavbarCategories();
   const { status } = useSession();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
@@ -198,6 +201,8 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   const [checkoutStatus, setCheckoutStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
+  const [drawerDiscountCode, setDrawerDiscountCode] = useState("");
+  const [appliedDrawerDiscountCode, setAppliedDrawerDiscountCode] = useState("");
   const [showCheckoutAuthModal, setShowCheckoutAuthModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -219,12 +224,12 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [categoryStack, setCategoryStack] = useState<string[]>([]);
-  const [categories, setCategories] = useState<NavbarCategory[]>(
-    initialCategories,
-  );
-  const [categoriesStatus, setCategoriesStatus] = useState<
-    "idle" | "loading" | "error"
-  >(initialCategories.length > 0 ? "idle" : "loading");
+  const categories =
+    initialCategories && initialCategories.length > 0
+      ? initialCategories
+      : contextCategories;
+  const categoriesStatus: "idle" | "loading" | "error" =
+    categories.length > 0 ? "idle" : "error";
   const productsRef = useRef<HTMLDivElement | null>(null);
   const mobileProductsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
@@ -242,6 +247,14 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   const [wishlistPop, setWishlistPop] = useState(false);
   const canCheckout =
     !loading && !!cart && cart.lines.length > 0 && checkoutStatus !== "loading";
+  const normalizedDrawerDiscountCode = drawerDiscountCode.trim();
+  const appliedDrawerDiscountAmount =
+    appliedDrawerDiscountCode && cart
+      ? Math.min(
+          Number(cart.cost.totalAmount.amount),
+          NEWSLETTER_OFFER_DISCOUNT_CENTS / 100,
+        )
+      : 0;
   const returnTo = useMemo(() => {
     if (pathname?.startsWith("/auth")) return "/";
     const query = searchParams?.toString();
@@ -251,40 +264,6 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (initialCategories.length > 0) {
-      setCategories(initialCategories);
-      setCategoriesStatus("idle");
-      return;
-    }
-
-    let cancelled = false;
-    setCategoriesStatus("loading");
-
-    const loadCategories = async () => {
-      try {
-        const res = await fetch("/api/categories", { method: "GET" });
-        if (!res.ok) {
-          throw new Error("Kategorien konnten nicht geladen werden.");
-        }
-        const data = (await res.json()) as { categories?: NavbarCategory[] };
-        if (cancelled) return;
-        setCategories(Array.isArray(data.categories) ? data.categories : []);
-        setCategoriesStatus("idle");
-      } catch {
-        if (cancelled) return;
-        setCategories([]);
-        setCategoriesStatus("error");
-      }
-    };
-
-    void loadCategories();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialCategories]);
 
   useEffect(() => {
     if (!isMobile || !mobileAddedOpen) return;
@@ -722,7 +701,10 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ country: "DE" }),
+        body: JSON.stringify({
+          country: "DE",
+          discountCode: appliedDrawerDiscountCode || undefined,
+        }),
       });
       const data = (await res.json()) as { url?: string };
       if (!res.ok || !data.url) {
@@ -754,6 +736,10 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
       return;
     }
     await proceedToCheckout();
+  };
+
+  const applyDrawerDiscountCode = () => {
+    setAppliedDrawerDiscountCode(normalizedDrawerDiscountCode);
   };
 
   const categoriesByParent = useMemo(() => {
@@ -1446,6 +1432,14 @@ export function Navbar({ initialCategories = [] }: NavbarProps) {
             error={error}
             canCheckout={canCheckout}
             checkoutStatus={checkoutStatus}
+            discountCode={drawerDiscountCode}
+            appliedDiscountCode={appliedDrawerDiscountCode}
+            appliedDiscountAmount={appliedDrawerDiscountAmount}
+            onDiscountCodeChange={(value) => {
+              setAppliedDrawerDiscountCode("");
+              setDrawerDiscountCode(value);
+            }}
+            onApplyDiscountCode={applyDrawerDiscountCode}
             onClose={() => setCartOpen(false)}
             onStartCheckout={() => void startCheckout()}
             panelRef={cartPanelRef}

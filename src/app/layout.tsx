@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
+import { getNavbarCategories } from "@/lib/navbarCategories";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -63,16 +64,20 @@ export const metadata: Metadata = {
   manifest: "/favicons/site.webmanifest",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const initialNavbarCategories = await getNavbarCategories();
+
   return (
     <html lang="de">
       <head />
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
-        <Providers>{children}</Providers>
+        <Providers initialNavbarCategories={initialNavbarCategories}>
+          {children}
+        </Providers>
       </body>
     </html>
   );

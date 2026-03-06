@@ -82,6 +82,8 @@ model User {
   backInStockRequests BackInStockRequest[]
   newsletterSubscriber NewsletterSubscriber?
   loyaltyPointsBalance Int      @default(0)
+  newsletterOfferClaimedAt DateTime?
+  newsletterOfferClaimedEmail String?
   cartItems       UserCartItem[]
   loyaltyTransactions LoyaltyPointTransaction[]
   reviewIncentives ReviewIncentive[]

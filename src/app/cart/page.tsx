@@ -25,6 +25,7 @@ import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { formatRedeemRateLabel } from "@/lib/loyalty";
+import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 
 const pixelNavFont = Pixelify_Sans({
   weight: "400",
@@ -102,6 +103,7 @@ export default function CartPage() {
   const [countryTouched, setCountryTouched] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
   const [loyaltyPointsBalance, setLoyaltyPointsBalance] = useState(0);
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
@@ -116,6 +118,16 @@ export default function CartPage() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const canCheckout = checkoutStatus !== "loading";
+  const normalizedDiscountCode = discountCode.trim();
+  const activeDiscountCode = appliedDiscountCode || normalizedDiscountCode;
+
+  const applyDiscountCode = () => {
+    setAppliedDiscountCode(normalizedDiscountCode);
+    setCheckoutError("");
+    if (normalizedDiscountCode) {
+      setUseLoyaltyPoints(false);
+    }
+  };
 
   const proceedToCheckout = async () => {
     if (!cart || cart.lines.length === 0) return;
@@ -127,13 +139,12 @@ export default function CartPage() {
     setCheckoutStatus("loading");
     setCheckoutError("");
     try {
-      const normalizedDiscountCode = discountCode.trim();
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           country,
-          discountCode: normalizedDiscountCode || undefined,
+          discountCode: activeDiscountCode || undefined,
           useLoyaltyPoints,
         }),
       });
@@ -325,13 +336,20 @@ export default function CartPage() {
     cart.lines.reduce((sum, line) => sum + line.quantity, 0);
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
   const shippingEstimate = freeShippingActive ? 0 : getShippingAmount(country);
+  const appliedDiscountAmount =
+    activeDiscountCode && !useLoyaltyPoints
+      ? Math.min(subtotal + shippingEstimate, NEWSLETTER_OFFER_DISCOUNT_CENTS / 100)
+      : 0;
   const redeemablePoints = Math.min(
     loyaltyPointsBalance,
     Math.max(0, Math.floor(subtotal * 100)),
   );
   const loyaltyDiscount = useLoyaltyPoints ? redeemablePoints / 100 : 0;
   const totalEstimate = subtotal + shippingEstimate;
-  const totalAfterLoyalty = Math.max(0, totalEstimate - loyaltyDiscount);
+  const totalAfterDiscounts = Math.max(
+    0,
+    totalEstimate - appliedDiscountAmount - loyaltyDiscount,
+  );
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
   const cartProductHandles = Array.from(
@@ -583,7 +601,7 @@ export default function CartPage() {
                   Gesamt (Schätzung)
                 </p>
                 <p className="text-2xl font-semibold text-[#2f3e36]">
-                  {formatPrice(totalAfterLoyalty, currencyCode)}
+                  {formatPrice(totalAfterDiscounts, currencyCode)}
                 </p>
               </div>
               <p className="text-xs text-[#2f3e36]/60">
@@ -594,18 +612,42 @@ export default function CartPage() {
                 <label className="block text-xs font-semibold text-stone-600">
                   Rabattcode
                 </label>
-                <input
-                  type="text"
-                  value={discountCode}
-                  onChange={(event) => {
-                    if (useLoyaltyPoints) {
-                      setUseLoyaltyPoints(false);
-                    }
-                    setDiscountCode(event.target.value);
-                  }}
-                  placeholder="Code eingeben"
-                  className="mt-2 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                />
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(event) => {
+                      if (useLoyaltyPoints) {
+                        setUseLoyaltyPoints(false);
+                      }
+                      setAppliedDiscountCode("");
+                      setDiscountCode(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyDiscountCode();
+                      }
+                    }}
+                    placeholder="Code eingeben"
+                    className="h-10 min-w-0 flex-1 rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyDiscountCode}
+                    disabled={!normalizedDiscountCode}
+                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-md border border-[#2f3e36]/20 bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Anwenden
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  {appliedDiscountCode && (
+                    <span className="text-xs font-semibold text-emerald-700">
+                      Code angewendet: {appliedDiscountCode}
+                    </span>
+                  )}
+                </div>
               </div>
               {isAuthenticated && loyaltyPointsBalance > 0 && (
                 <label className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-left text-sm text-emerald-900">
@@ -640,6 +682,12 @@ export default function CartPage() {
                   Mindestbestellwert{" "}
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
+              )}
+              {appliedDiscountAmount > 0 && (
+                <div className="flex items-center justify-between text-sm font-semibold text-red-600">
+                  <span>Rabattcode</span>
+                  <span>-{formatPrice(appliedDiscountAmount, currencyCode)}</span>
+                </div>
               )}
               {useLoyaltyPoints && loyaltyDiscount > 0 && (
                 <div className="flex items-center justify-between text-sm text-emerald-800">

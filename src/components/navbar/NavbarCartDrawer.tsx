@@ -16,6 +16,11 @@ type Props = {
   error: string | null;
   canCheckout: boolean;
   checkoutStatus: "idle" | "loading" | "error";
+  discountCode: string;
+  appliedDiscountCode: string;
+  appliedDiscountAmount: number;
+  onDiscountCodeChange: (value: string) => void;
+  onApplyDiscountCode: () => void;
   onClose: () => void;
   onStartCheckout: () => void;
   panelRef?: React.MutableRefObject<HTMLElement | null>;
@@ -46,11 +51,19 @@ export default function NavbarCartDrawer({
   error,
   canCheckout,
   checkoutStatus,
+  discountCode,
+  appliedDiscountCode,
+  appliedDiscountAmount,
+  onDiscountCodeChange,
+  onApplyDiscountCode,
   onClose,
   onStartCheckout,
   panelRef,
 }: Props) {
   if (!open) return null;
+  const normalizedDiscountCode = discountCode.trim();
+  const hasAppliedDiscount =
+    appliedDiscountCode.trim().length > 0 && appliedDiscountAmount > 0;
 
   return (
     <>
@@ -156,6 +169,7 @@ export default function NavbarCartDrawer({
           <div className="border-t border-black/10 px-5 py-4 text-sm">
             {!loading && cart && cart.lines.length > 0 && (() => {
               const subtotal = Number(cart.cost.subtotalAmount.amount);
+              const total = Number(cart.cost.totalAmount.amount);
               const currencyCode = cart.cost.subtotalAmount.currencyCode;
               const reached = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
               const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD_EUR - subtotal);
@@ -163,16 +177,103 @@ export default function NavbarCartDrawer({
                 100,
                 Math.round((subtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100),
               );
+              const discountedTotal = Math.max(0, total - appliedDiscountAmount);
               return (
                 <>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs text-stone-500">Gesamt</span>
-                    <span className="text-sm font-semibold text-black/80">
-                      {formatPrice(
-                        cart.cost.totalAmount.amount,
-                        cart.cost.totalAmount.currencyCode,
-                      )}
-                    </span>
+                  <div className="mb-3">
+                    <label className="block text-xs font-semibold text-stone-600">
+                      Rabattcode
+                    </label>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        type="text"
+                        value={discountCode}
+                        onChange={(event) => onDiscountCodeChange(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            onApplyDiscountCode();
+                          }
+                        }}
+                        placeholder="Code eingeben"
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-black/10 px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={onApplyDiscountCode}
+                        disabled={!normalizedDiscountCode}
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Anwenden
+                      </button>
+                    </div>
+                    {appliedDiscountCode && (
+                      <p className="mt-2 text-xs font-semibold text-emerald-700">
+                        Code angewendet: {appliedDiscountCode}
+                      </p>
+                    )}
+                  </div>
+                  {hasAppliedDiscount && (
+                    <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                            Rabatt aktiv
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-red-700">
+                            Du sparst sofort im Warenkorb.
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                            Ersparnis
+                          </p>
+                          <p className="text-lg font-bold text-red-700">
+                            -{formatPrice(
+                              appliedDiscountAmount.toFixed(2),
+                              cart.cost.totalAmount.currencyCode,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="mb-3 rounded-xl border border-black/10 bg-stone-50 px-3 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-stone-500">Gesamt</span>
+                      <span
+                        className={`text-sm font-semibold ${
+                          hasAppliedDiscount
+                            ? "text-stone-400 line-through"
+                            : "text-black/80"
+                        }`}
+                      >
+                        {formatPrice(total.toFixed(2), currencyCode)}
+                      </span>
+                    </div>
+                    {hasAppliedDiscount && (
+                      <>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-red-600">
+                            Rabattcode
+                          </span>
+                          <span className="text-sm font-semibold text-red-600">
+                            -{formatPrice(
+                              appliedDiscountAmount.toFixed(2),
+                              currencyCode,
+                            )}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between border-t border-black/10 pt-2">
+                          <span className="text-xs font-semibold text-black/70">
+                            Neuer Gesamtbetrag
+                          </span>
+                          <span className="text-base font-bold text-[#b91c1c]">
+                            {formatPrice(discountedTotal.toFixed(2), currencyCode)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div
                     className={`mb-3 rounded-xl px-3 py-2.5 ${

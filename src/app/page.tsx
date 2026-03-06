@@ -4,7 +4,6 @@ import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { getProductsByIds, getProductsByIdsAllowInactive } from "@/lib/catalog";
-import { getNavbarCategories } from "@/lib/navbarCategories";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
@@ -46,8 +45,7 @@ export default async function StorePage() {
     },
   };
 
-  const [initialCategories, bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
-    getNavbarCategories(),
+  const [bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
     prisma.product.findMany({
       where: nonHeadshopWhere,
       orderBy: [
@@ -186,7 +184,7 @@ export default async function StorePage() {
         <div className="mx-auto max-w-6xl">
           <div className="px-0 sm:px-6">
             <Suspense fallback={null}>
-              <Navbar initialCategories={initialCategories} />
+              <Navbar />
             </Suspense>
           </div>
           <div className="pt-3 sm:px-6 sm:pt-5">
