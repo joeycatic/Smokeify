@@ -12,24 +12,18 @@ import {
   FREE_SHIPPING_THRESHOLD_EUR,
   MIN_ORDER_TOTAL_EUR,
 } from "@/lib/checkoutPolicy";
+import {
+  getShippingAmount,
+  SHIPPING_BASE,
+  SHIPPING_COUNTRY_LABELS,
+  type ShippingCountry,
+} from "@/lib/shippingPolicy";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
-
-const SHIPPING_BASE = {
-  DE: 7.9,
-  AT: 7.9,
-  CH: 9.9,
-  EU: 8.9,
-  UK: 9.9,
-  US: 12.9,
-  OTHER: 12.9,
-} as const;
-
-type ShippingCountry = keyof typeof SHIPPING_BASE;
 
 const pixelNavFont = Pixelify_Sans({
   weight: "400",
@@ -44,11 +38,6 @@ function formatPrice(amount: string | number, currencyCode: string) {
     currency: currencyCode,
     minimumFractionDigits: 2,
   }).format(value);
-}
-
-function getShippingEstimate(country: ShippingCountry) {
-  const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
-  return base;
 }
 
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
@@ -109,9 +98,7 @@ export default function CartPage() {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const [country, setCountry] = useState<ShippingCountry>("DE");
-  const [postalCode, setPostalCode] = useState("");
   const [countryTouched, setCountryTouched] = useState(false);
-  const [postalTouched, setPostalTouched] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
@@ -143,7 +130,6 @@ export default function CartPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           country,
-          postalCode,
           discountCode: normalizedDiscountCode || undefined,
         }),
       });
@@ -197,9 +183,7 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!cart) return;
-    const hasLocation = postalCode.trim().length > 0;
-    if (!hasLocation) return;
-    const key = `${country}:${postalCode.trim()}`;
+    const key = country;
     if (shippingTrackedRef.current === key) return;
     shippingTrackedRef.current = key;
     trackAnalyticsEvent("add_shipping_info", {
@@ -208,7 +192,7 @@ export default function CartPage() {
       shipping_tier: country,
       items: toCartItems(cart),
     });
-  }, [cart, country, postalCode]);
+  }, [cart, country]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -233,15 +217,12 @@ export default function CartPage() {
         const res = await fetch("/api/account/profile", { method: "GET" });
         if (!res.ok) return;
         const data = (await res.json()) as {
-          user?: { postalCode?: string | null; country?: string | null };
+          user?: { country?: string | null };
         };
         if (cancelled) return;
         const normalizedCountry = normalizeCountryInput(data.user?.country);
         if (!countryTouched && normalizedCountry) {
           setCountry(normalizedCountry);
-        }
-        if (!postalTouched && data.user?.postalCode) {
-          setPostalCode(data.user.postalCode);
         }
       } finally {
         if (!cancelled) {
@@ -254,7 +235,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [countryTouched, postalTouched, profileLoaded, status]);
+  }, [countryTouched, profileLoaded, status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -329,23 +310,11 @@ export default function CartPage() {
 
   const subtotal = Number(cart.cost.subtotalAmount.amount);
   const currencyCode = cart.cost.subtotalAmount.currencyCode;
-  const hasLocation = postalCode.trim().length > 0;
   const itemCount =
     cart.totalQuantity ??
     cart.lines.reduce((sum, line) => sum + line.quantity, 0);
-  const hasVapesInCart = cart.lines.some((line) =>
-    line.merchandise.product.categories?.some((category) => {
-      const handle = category.handle.toLowerCase();
-      const name = category.name.toLowerCase();
-      return handle === "vaporizer" || name === "vaporizer";
-    })
-  );
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
-  const shippingEstimate = hasLocation
-    ? freeShippingActive
-      ? 0
-      : getShippingEstimate(country)
-    : 0;
+  const shippingEstimate = freeShippingActive ? 0 : getShippingAmount(country);
   const totalEstimate = subtotal + shippingEstimate;
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
@@ -520,48 +489,35 @@ export default function CartPage() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1.2fr]">
           <div className="order-2 rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] lg:order-1">
             <p className="text-xs font-semibold tracking-widest text-black/60">
-              Versandkostenkalkulator
+              Versandkosten
             </p>
-            <p className="mt-2 text-sm text-stone-600">
-              Trage Land und Postleitzahl ein, um eine Schätzung zu erhalten.
+              <p className="mt-2 text-sm text-stone-600">
+              Die Versandkosten richten sich nach dem Zielland und stimmen mit
+              den Angaben auf unserer Versandseite überein.
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Land
-                </label>
-                <select
-                  value={country}
-                  onChange={(event) => {
-                    setCountryTouched(true);
-                    setCountry(event.target.value as ShippingCountry);
-                  }}
-                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  <option value="DE">Deutschland</option>
-                  <option value="AT">Österreich</option>
-                  <option value="CH">Schweiz</option>
-                  <option value="EU">EU (sonstige)</option>
-                  <option value="UK">Vereinigtes Königreich</option>
-                  <option value="US">USA</option>
-                  <option value="OTHER">Andere</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Postleitzahl
-                </label>
-                <input
-                  type="text"
-                  value={postalCode}
-                  onChange={(event) => {
-                    setPostalTouched(true);
-                    setPostalCode(event.target.value);
-                  }}
-                  placeholder="z.B. 10115"
-                  className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                />
-              </div>
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-stone-600">
+                Zielland
+              </label>
+              <select
+                value={country}
+                onChange={(event) => {
+                  setCountryTouched(true);
+                  setCountry(event.target.value as ShippingCountry);
+                }}
+                className="mt-2 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                <option value="DE">Deutschland</option>
+                <option value="AT">Österreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="EU">EU (sonstige)</option>
+                <option value="UK">Vereinigtes Königreich</option>
+                <option value="US">USA</option>
+                <option value="OTHER">Andere</option>
+              </select>
+              <p className="mt-2 text-xs text-stone-500">
+                Ausgewählt: {SHIPPING_COUNTRY_LABELS[country]}
+              </p>
             </div>
           </div>
 
@@ -591,9 +547,7 @@ export default function CartPage() {
                 <p className="text-base font-semibold text-[#2f3e36]">
                   {freeShippingActive
                     ? formatPrice(0, currencyCode)
-                    : hasLocation
-                      ? formatPrice(shippingEstimate, currencyCode)
-                      : "--"}
+                    : formatPrice(shippingEstimate, currencyCode)}
                 </p>
                 {freeShippingActive ? (
                   <p className="mt-1 text-xs font-semibold text-emerald-700">
@@ -613,13 +567,12 @@ export default function CartPage() {
                   Gesamt (Schätzung)
                 </p>
                 <p className="text-2xl font-semibold text-[#2f3e36]">
-                  {freeShippingActive || hasLocation
-                    ? formatPrice(totalEstimate, currencyCode)
-                    : "--"}
+                  {formatPrice(totalEstimate, currencyCode)}
                 </p>
               </div>
               <p className="text-xs text-[#2f3e36]/60">
-                Schätzungen können je nach Versanddienst abweichen.
+                Die endgültigen Versandkosten werden vor dem Kaufabschluss im
+                Stripe-Checkout angezeigt.
               </p>
               <div className="text-left">
                 <label className="block text-xs font-semibold text-stone-600">
@@ -643,14 +596,6 @@ export default function CartPage() {
                   Mindestbestellwert{" "}
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
-              )}
-              {hasVapesInCart && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-                  Der Verkauf erfolgt ausschließlich an Personen ab 18 Jahren.
-                  Mit Abschluss der Bestellung bestätigen Sie Ihre Volljährigkeit.
-                  Wir behalten uns vor, im Rahmen der Zustellung eine Altersprüfung
-                  durchzuführen.
-                </div>
               )}
               <button
                 type="button"

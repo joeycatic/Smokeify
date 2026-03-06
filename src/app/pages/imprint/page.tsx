@@ -1,7 +1,11 @@
 import PageLayout from "@/components/PageLayout";
 
 export default function ImprintPage() {
-  const contactEmail = process.env.CONTACT_EMAIL?.trim() || "contact@smokeify.de";
+  const contactEmail =
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_EMAIL?.trim() ||
+    "contact@smokeify.de";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
 
   return (
     <PageLayout>
@@ -34,6 +38,14 @@ export default function ImprintPage() {
                 >
                   {contactEmail}
                 </a>
+                {contactPhone ? (
+                  <a
+                    href={`tel:${contactPhone.replace(/\s+/g, "")}`}
+                    className="block text-stone-600 hover:text-stone-700"
+                  >
+                    {contactPhone}
+                  </a>
+                ) : null}
                 <a
                   href="https://www.smokeify.de"
                   className="block text-stone-600 hover:text-stone-700"

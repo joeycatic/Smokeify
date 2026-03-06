@@ -12,11 +12,11 @@ export const AGB_SECTIONS = [
     ],
   },
   {
-    title: "§2 Jugendschutz",
+    title: "§2 Produktauswahl und zulässige Nutzung",
     paragraphs: [
-      `Der Verkauf altersbeschränkter Produkte erfolgt ausschließlich an volljährige Personen (ab 18 Jahren).`,
-      `Mit Abgabe einer Bestellung bestätigt der Kunde, dass er das 18. Lebensjahr vollendet hat.`,
-      `Smokeify behält sich vor, Altersverifikationen durchzuführen und Bestellungen bei Zweifeln abzulehnen.`,
+      `Smokeify verkauft ausschließlich legale Produkte und Zubehörartikel innerhalb des jeweils angebotenen Sortiments.`,
+      `Eine Nutzung der angebotenen Produkte hat ausschließlich im Rahmen der geltenden gesetzlichen Vorschriften und Herstellerhinweise zu erfolgen.`,
+      `Smokeify behält sich vor, Bestellungen abzulehnen, wenn ein begründeter Verdacht auf eine rechtswidrige oder missbräuchliche Verwendung besteht.`,
     ],
   },
   {
@@ -122,6 +122,12 @@ export const AGB_SECTIONS = [
 ];
 
 export default function AgbPage() {
+  const contactEmail =
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_EMAIL?.trim() ||
+    "contact@smokeify.de";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+
   return (
     <PageLayout>
       <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
@@ -151,11 +157,12 @@ export default function AgbPage() {
               </p>
               <div className="flex flex-col items-start gap-1">
                 <a
-                  href="mailto:contact@smokeify.de"
+                  href={`mailto:${contactEmail}`}
                   className="font-semibold text-emerald-700 hover:text-emerald-800"
                 >
-                  contact@smokeify.de
+                  {contactEmail}
                 </a>
+                {contactPhone ? <span>{contactPhone}</span> : null}
                 <a
                   href="https://www.smokeify.de"
                   className="text-stone-600 hover:text-stone-700"

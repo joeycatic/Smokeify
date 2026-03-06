@@ -1,12 +1,18 @@
 import PageLayout from "@/components/PageLayout";
 
 const ABOUT_POINTS = [
-  "Kuratierte Technik und Zubehör für Indoor-Gartenbau und Pflanzenpflege.",
-  "Auswahl mit Fokus auf Zuverlässigkeit, Lieferfähigkeit und nachvollziehbare Produktinformationen.",
-  "Persönlicher Support bei Fragen zu Ausstattung, Bestellung und Versand.",
+  "Kuratierte Auswahl mit Fokus auf Zuverlässigkeit, Lieferfähigkeit und nachvollziehbare Produktinformationen.",
+  "Klare Infos zu Versand, Rückgabe, Verfügbarkeit und Kontakt ohne versteckte Bedingungen.",
+  "Persönlicher Support bei Fragen zu Produkten, Bestellung und Lieferung.",
 ];
 
 export default function AboutPage() {
+  const contactEmail =
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_EMAIL?.trim() ||
+    "contact@smokeify.de";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+
   return (
     <PageLayout>
       <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
@@ -16,10 +22,11 @@ export default function AboutPage() {
               Über Smokeify
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-600">
-              Smokeify ist ein deutscher Online-Shop für Indoor-Gartenbau,
-              Beleuchtung, Klima, Bewässerung und passendes Zubehör. Wir
-              konzentrieren uns auf Produkte, die für Planung, Aufbau und
-              Pflege eines sauberen Indoor-Setups geeignet sind.
+              Smokeify ist ein deutscher Online-Shop für Technik, Zubehör und
+              Ausstattung rund um Indoor-Gartenbau, Pflanzenpflege und
+              funktionale Home-Grow-Setups. Wir legen Wert auf transparente
+              Produktangaben, erreichbaren Support und nachvollziehbare
+              Shop-Informationen.
             </p>
           </div>
 
@@ -38,9 +45,10 @@ export default function AboutPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Kontakt
               </p>
-              <p>E-Mail: contact@smokeify.de</p>
+              <p>E-Mail: {contactEmail}</p>
+              {contactPhone ? <p>Telefon: {contactPhone}</p> : null}
               <p>Website: www.smokeify.de</p>
-              <p>Support über Kontaktformular oder E-Mail.</p>
+              <p>Support über Kontaktformular, E-Mail und Telefon.</p>
             </div>
           </div>
 

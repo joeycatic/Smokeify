@@ -1,13 +1,10 @@
 import PageLayout from "@/components/PageLayout";
 
 const GUIDELINES = [
-  "Der Schutz von Kindern und Jugendlichen ist uns ein wichtiges Anliegen. Altersbeschränkte Produkte verkaufen wir ausschließlich an volljährige Personen (ab 18 Jahren).",
-  "Mit dem Abschluss einer Bestellung bestätigen Sie bei altersbeschränkten Artikeln, dass Sie das 18. Lebensjahr vollendet haben und zum Erwerb berechtigt sind.",
-  "Wir behalten uns vor:",
-  "Bestellungen abzulehnen, wenn ein begründeter Verdacht auf Minderjährigkeit besteht,",
-  "im Einzelfall eine Altersprüfung (z. B. durch Ausweiskontrolle) anzufordern,",
-  "eine Zustellung nur nach erfolgreicher Altersprüfung vorzunehmen.",
-  "Eine Abgabe altersbeschränkter Produkte an Minderjährige ist ausgeschlossen.",
+  "Der Schutz von Kindern und Jugendlichen ist uns wichtig.",
+  "Aktuell verkaufen wir über diesen Shop keine Produkte, die ausschließlich an volljährige Personen abgegeben werden dürfen.",
+  "Sollte sich das Sortiment in Zukunft ändern, werden rechtliche Hinweise und etwaige Schutzmaßnahmen transparent auf den betroffenen Produktseiten und im Checkout ausgewiesen.",
+  "Unabhängig davon sind alle angebotenen Produkte entsprechend der gesetzlichen Vorgaben und Herstellerhinweise zu verwenden und außerhalb der Reichweite von Kindern aufzubewahren.",
 ];
 
 export default function JugendschutzhinweisePage() {
@@ -20,8 +17,8 @@ export default function JugendschutzhinweisePage() {
               Jugendschutzhinweise
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Wichtige Informationen zu altersbeschränkten Artikeln und zum
-              Schutz Minderjähriger.
+              Informationen zum Schutz Minderjähriger und zum aktuellen
+              Sortiment.
             </p>
           </div>
 

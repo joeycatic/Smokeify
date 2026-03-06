@@ -26,7 +26,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Liefert ihr auch ins Ausland?",
         answer:
-          "Ja, wir liefern in alle EU-Länder. Die genauen Versandkosten und Lieferzeiten für dein Land werden dir im Checkout angezeigt. Lieferungen außerhalb der EU sind derzeit nicht möglich.",
+          "Ja. Wir liefern in viele EU-Länder und zusätzlich in ausgewählte weitere Länder. Die aktuell geltenden Versandkosten findest du auf unserer Seite „Versand & Zahlungsbedingungen“ und vor Abschluss der Bestellung nochmals im Checkout.",
       },
       {
         question: "Erhalte ich eine Sendungsverfolgung?",
@@ -41,7 +41,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Welche Zahlungsarten akzeptiert ihr?",
         answer:
-          "Wir akzeptieren gängige Zahlungsarten wie Kreditkarte (Visa, Mastercard), PayPal, Klarna und SEPA-Lastschrift. Die für deine Bestellung verfügbaren Methoden werden dir im Checkout angezeigt.",
+          "Wir akzeptieren je nach Konfiguration und Gerät insbesondere Kartenzahlung, PayPal und Klarna. Apple Pay und Google Pay können zusätzlich verfügbar sein, wenn sie von Gerät, Browser und Zahlungsdienst unterstützt werden. Verbindlich sind die im Checkout angezeigten Methoden.",
       },
       {
         question: "Wann wird meine Zahlung belastet?",
@@ -121,12 +121,12 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
-    label: "Jugendschutz & rechtliche Hinweise",
+    label: "Rechtliche Hinweise",
     items: [
       {
-        question: "Ab welchem Alter kann ich bestellen?",
+        question: "Verkauft ihr altersbeschränkte Produkte?",
         answer:
-          "Der Kauf altersbeschränkter Produkte ist nur für volljährige Personen zulässig. Falls ein Artikel rechtlich nur an Erwachsene abgegeben werden darf, weisen wir darauf im Shop hin und behalten uns eine Altersprüfung vor.",
+          "Aktuell verkaufen wir keine Produkte, die nur an volljährige Personen abgegeben werden dürfen. Sollten wir unser Sortiment künftig erweitern, würden wir rechtliche Hinweise und Abläufe transparent im Shop ausweisen.",
       },
       {
         question: "Verkauft ihr verbotene Substanzen?",

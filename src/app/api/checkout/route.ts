@@ -11,22 +11,13 @@ import {
   MIN_ORDER_TOTAL_EUR,
   toCents,
 } from "@/lib/checkoutPolicy";
+import { getShippingAmount, SHIPPING_BASE, type ShippingCountry } from "@/lib/shippingPolicy";
 
 export const runtime = "nodejs";
 
 const CURRENCY_CODE = "EUR";
 const COOKIE_NAME = "smokeify_cart";
 const ALLOWED_PAYMENT_METHOD_TYPES = ["card", "paypal", "klarna"] as const;
-
-const SHIPPING_BASE = {
-  DE: 7.9,
-  AT: 7.9,
-  CH: 9.9,
-  EU: 8.9,
-  UK: 9.9,
-  US: 12.9,
-  OTHER: 12.9,
-} as const;
 
 const ALLOWED_COUNTRIES = [
   "AT",
@@ -65,7 +56,6 @@ const ALLOWED_COUNTRIES = [
   "NZ",
 ] as const;
 
-type ShippingCountry = keyof typeof SHIPPING_BASE;
 type AllowedPaymentMethodType = (typeof ALLOWED_PAYMENT_METHOD_TYPES)[number];
 type CartItem = {
   variantId: string;
@@ -74,7 +64,9 @@ type CartItem = {
 };
 
 const parseCheckoutPaymentMethodTypes = (): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined => {
-  const raw = process.env.STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES?.trim();
+  const raw =
+    process.env.STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES?.trim() ??
+    process.env.NEXT_PUBLIC_PAYMENT_METHOD_LOGOS?.trim();
   if (!raw) return undefined;
   const values = raw
     .split(",")
@@ -123,11 +115,6 @@ const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) =>
     .map((opt) => `${opt.name}: ${opt.value}`)
     .filter(Boolean)
     .join(" · ");
-};
-
-const getShippingEstimate = (country: ShippingCountry) => {
-  const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
-  return base;
 };
 
 const readCartItems = async () => {
@@ -397,7 +384,7 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
     process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
     "http://localhost:3000";
-  const shippingAmount = getShippingEstimate(country);
+  const shippingAmount = getShippingAmount(country);
   const freeShippingCents = toCents(FREE_SHIPPING_THRESHOLD_EUR);
   const shippingCents =
     subtotalCents >= freeShippingCents

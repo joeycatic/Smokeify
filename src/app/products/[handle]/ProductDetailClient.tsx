@@ -277,13 +277,6 @@ export default function ProductDetailClient({
     "100% geprüft",
     "Neutral verpackt",
   ];
-  const showAgeNotice = Boolean(
-    product.categories?.some((category) => {
-      const handle = category.handle.toLowerCase();
-      const title = category.title.toLowerCase();
-      return handle === "vaporizer" || title === "vaporizer";
-    })
-  );
   const isGrowboxProduct = Boolean(
     product.categories?.some((category) => {
       const handle = category.handle?.toLowerCase() ?? "";
@@ -1012,13 +1005,6 @@ export default function ProductDetailClient({
               </details>
             </div>
           ) : null}
-          {showAgeNotice && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:hidden">
-              Hinweis zum Jugendschutz: Dieses Produkt ist ausschließlich für
-              Personen ab 18 Jahren bestimmt. Eine Abgabe an Minderjährige ist
-              ausgeschlossen.
-            </div>
-          )}
         </div>
       </div>
 

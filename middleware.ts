@@ -56,5 +56,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Skip static assets entirely so the edge middleware only runs for pages/API
+  // routes that might actually need maintenance gating.
+  matcher: ["/((?!_next/static|_next/image|.*\\..*).*)"],
 };

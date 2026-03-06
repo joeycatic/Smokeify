@@ -28,6 +28,11 @@ function IconDiscord() {
 }
 
 export default function Footer() {
+  const contactEmail =
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_EMAIL?.trim() ||
+    "contact@smokeify.de";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
   const socialLinks = [
     {
       href: process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim(),
@@ -58,9 +63,29 @@ export default function Footer() {
                 Smokeify
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/70 max-w-sm">
-                Smarte Technik, starke Marken und die passende Ausstattung für
-                ein durchdachtes Indoor-Setup.
+                Kuratierte Technik und Zubehör für Indoor-Gartenbau,
+                Pflanzenpflege und saubere Setups mit klaren Informationen zu
+                Versand, Rückgabe und Support.
               </p>
+            </div>
+
+            <div className="space-y-1 text-sm text-white/75">
+              <p>Brinkeweg 106a</p>
+              <p>33758 Schloß Holte-Stukenbrock</p>
+              <a
+                href={`mailto:${contactEmail}`}
+                className="block transition hover:text-white"
+              >
+                {contactEmail}
+              </a>
+              {contactPhone ? (
+                <a
+                  href={`tel:${contactPhone.replace(/\s+/g, "")}`}
+                  className="block transition hover:text-white"
+                >
+                  {contactPhone}
+                </a>
+              ) : null}
             </div>
 
             {socialLinks.some((entry) => Boolean(entry.href)) && (
@@ -196,14 +221,6 @@ export default function Footer() {
                     href="/pages/refund"
                   >
                     Widerruf
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    className="text-white/70 hover:text-white transition"
-                    href="/pages/jugendschutzhinweise"
-                  >
-                    Jugendschutzhinweise
                   </Link>
                 </li>
                 <li>

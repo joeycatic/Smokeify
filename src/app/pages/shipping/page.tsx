@@ -1,4 +1,9 @@
 import PageLayout from "@/components/PageLayout";
+import {
+  FREE_SHIPPING_THRESHOLD_EUR,
+  SHIPPING_BASE,
+  SHIPPING_COUNTRY_LABELS,
+} from "@/lib/shippingPolicy";
 
 export const VERSAND_ZAHLUNG_SECTIONS = [
   {
@@ -12,6 +17,7 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     paragraphs: [
       `Die anfallenden Versandkosten werden dem Kunden im Bestellprozess deutlich mitgeteilt.`,
       `Sofern nicht anders angegeben, fallen keine zusätzlichen Kosten für Verpackung oder Bearbeitung an.`,
+      `Ab einem Bestellwert von ${FREE_SHIPPING_THRESHOLD_EUR.toFixed(2)} EUR liefern wir versandkostenfrei.`,
     ],
   },
   {
@@ -76,6 +82,35 @@ export default function ShippingPage() {
           </div>
 
           <div className="space-y-10">
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-stone-900">
+                Aktuelle Versandkosten
+              </h2>
+              <div className="overflow-hidden rounded-2xl border border-black/10">
+                <table className="w-full border-collapse text-left text-sm text-stone-700">
+                  <thead className="bg-stone-50 text-stone-900">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Zielland</th>
+                      <th className="px-4 py-3 font-semibold">Versandkosten</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(SHIPPING_BASE).map(([country, amount]) => (
+                      <tr key={country} className="border-t border-black/10">
+                        <td className="px-4 py-3">
+                          {
+                            SHIPPING_COUNTRY_LABELS[
+                              country as keyof typeof SHIPPING_COUNTRY_LABELS
+                            ]
+                          }
+                        </td>
+                        <td className="px-4 py-3">{amount.toFixed(2)} EUR</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
             {VERSAND_ZAHLUNG_SECTIONS.map((section) => (
               <section key={section.title} className="space-y-3">
                 <h2 className="text-xl font-semibold text-stone-900">

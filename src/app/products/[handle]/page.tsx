@@ -345,14 +345,6 @@ export default async function ProductDetailPage({
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
   const currentVariant =
     product.variants.find((variant) => variant.availableForSale) ?? product.variants[0] ?? null;
-  const showAgeNotice = Boolean(
-    product.categories?.some((category) => {
-      const handle = category.handle?.toLowerCase().trim() ?? "";
-      const title = category.title?.toLowerCase().trim() ?? "";
-      return handle === "vaporizer" || title === "vaporizer";
-    })
-  );
-
   return (
     <PageLayout commerce>
       <main className="mx-auto w-full max-w-7xl px-0 sm:px-2 py-6">
@@ -390,14 +382,6 @@ export default async function ProductDetailPage({
                   </details>
                 </div>
               )}
-              {showAgeNotice && (
-                <div className="hidden rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 sm:block">
-                  Hinweis zum Jugendschutz: Dieses Produkt ist ausschließlich
-                  für Personen ab 18 Jahren bestimmt. Eine Abgabe an
-                  Minderjährige ist ausgeschlossen.
-                </div>
-              )}
-
             </div>
 
             <ProductDetailClient
