@@ -6,9 +6,8 @@ import AdminCategoriesClient from "./AdminCategoriesClient";
 
 export default async function AdminCategoriesPage() {
   const session = await getServerSession(authOptions);
-  const isAdminOrStaff =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  if (!isAdminOrStaff) notFound();
+  const isAdmin = session?.user?.role === "ADMIN";
+  if (!isAdmin) notFound();
 
   return (
     <PageLayout>

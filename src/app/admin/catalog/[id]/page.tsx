@@ -12,9 +12,8 @@ export default async function AdminProductPage({
 }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
-  const isAdminOrStaff =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  if (!isAdminOrStaff) notFound();
+  const isAdmin = session?.user?.role === "ADMIN";
+  if (!isAdmin) notFound();
 
   const product = await prisma.product.findUnique({
     where: { id },

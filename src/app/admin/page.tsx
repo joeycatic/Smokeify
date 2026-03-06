@@ -22,8 +22,7 @@ export default async function AdminPage({
 }) {
   const session = await getServerSession(authOptions);
   const isAdmin = session?.user?.role === "ADMIN";
-  const isAdminOrStaff = isAdmin || session?.user?.role === "STAFF";
-  if (!isAdminOrStaff) notFound();
+  if (!isAdmin) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)

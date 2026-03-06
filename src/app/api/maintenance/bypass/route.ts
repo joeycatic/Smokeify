@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
-  if (role !== "ADMIN" && role !== "STAFF") {
+  if (role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -55,7 +55,7 @@ export async function DELETE(request: Request) {
   }
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
-  if (role !== "ADMIN" && role !== "STAFF") {
+  if (role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const response = NextResponse.json({ ok: true });

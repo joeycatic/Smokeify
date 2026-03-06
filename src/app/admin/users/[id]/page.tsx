@@ -11,9 +11,8 @@ export default async function AdminUserPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  const ok =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  if (!ok) notFound();
+  const isAdmin = session?.user?.role === "ADMIN";
+  if (!isAdmin) notFound();
 
   const { id } = await params;
 
