@@ -1,10 +1,10 @@
 import { AnnouncementBar } from "@/components/AnnouncementBar";
-import { HeroBanner } from "@/components/HeroBanner";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
 import CommerceProviders from "@/components/CommerceProviders";
-import { getProductsByIds } from "@/lib/catalog";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import { getProductsByIds, getProductsByIdsAllowInactive } from "@/lib/catalog";
 import { getNavbarCategories } from "@/lib/navbarCategories";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
   ShieldCheckIcon,
+  ArrowRightIcon,
   SparklesIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
@@ -27,11 +28,29 @@ export const metadata: Metadata = {
   },
 };
 
+const HERO_PRODUCT_HANDLES = [
+  "diamondbox-sl-60",
+  "lux-helios-pro-300-watt-2-8",
+  "ac-infinity-controller-69-pro",
+] as const;
+
 export default async function StorePage() {
-  const [initialCategories, bestSellerRows, tentProductRows] = await Promise.all([
+  const nonHeadshopWhere = {
+    status: "ACTIVE" as const,
+    categories: {
+      none: {
+        OR: [
+          { category: { handle: "headshop" } },
+          { category: { parent: { is: { handle: "headshop" } } } },
+        ],
+      },
+    },
+  };
+
+  const [initialCategories, bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
     getNavbarCategories(),
     prisma.product.findMany({
-      where: { status: "ACTIVE" },
+      where: nonHeadshopWhere,
       orderBy: [
         { bestsellerScore: { sort: "desc", nulls: "last" } },
         { updatedAt: "desc" },
@@ -41,18 +60,32 @@ export default async function StorePage() {
     }),
     prisma.product.findMany({
       where: {
-        status: "ACTIVE",
-        categories: {
-          some: {
-            OR: [
-              { category: { handle: "zelte" } },
-              { category: { parent: { is: { handle: "zelte" } } } },
-            ],
+        AND: [
+          nonHeadshopWhere,
+          {
+            categories: {
+              some: {
+                OR: [
+                  { category: { handle: "zelte" } },
+                  { category: { parent: { is: { handle: "zelte" } } } },
+                ],
+              },
+            },
           },
-        },
+        ],
       },
       select: { id: true },
       take: 40,
+    }),
+    prisma.product.findMany({
+      where: {
+        ...nonHeadshopWhere,
+        handle: { in: [...HERO_PRODUCT_HANDLES] },
+      },
+      select: {
+        id: true,
+      },
+      take: HERO_PRODUCT_HANDLES.length,
     }),
   ]);
 
@@ -60,11 +93,15 @@ export default async function StorePage() {
     new Set([
       ...bestSellerRows.map((row) => row.id),
       ...tentProductRows.map((row) => row.id),
+      ...heroBannerRows.map((row) => row.id),
     ]),
   );
-  const hydratedProducts = productIds.length
-    ? await getProductsByIds(productIds)
-    : [];
+  const [hydratedProducts, hydratedHeroProducts] = await Promise.all([
+    productIds.length ? getProductsByIds(productIds) : Promise.resolve([]),
+    heroBannerRows.length
+      ? getProductsByIdsAllowInactive(heroBannerRows.map((row) => row.id))
+      : Promise.resolve([]),
+  ]);
   const productsById = new Map(hydratedProducts.map((product) => [product.id, product]));
   const bestSellersFilled = bestSellerRows
     .map((row) => productsById.get(row.id))
@@ -95,6 +132,15 @@ export default async function StorePage() {
         ),
     )
     .slice(0, 4);
+  const heroProducts = HERO_PRODUCT_HANDLES.map((handle) =>
+    hydratedHeroProducts.find((product) => product.handle === handle) ?? null,
+  )
+    .filter(
+      (
+        product,
+      ): product is (typeof hydratedProducts)[number] =>
+        Boolean(product && product.availableForSale),
+    );
 
   const brandCards = [
     {
@@ -145,22 +191,132 @@ export default async function StorePage() {
               <Navbar initialCategories={initialCategories} />
             </Suspense>
           </div>
-          <div className="sm:px-6">
-            <section className="reveal-up relative overflow-hidden sm:rounded-3xl">
-              <HeroBanner />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 via-black/20 to-transparent sm:rounded-b-3xl" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-2.5 text-white sm:p-8">
-                <p className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.18em]">
-                  <SparklesIcon className="h-3.5 w-3.5" />
-                  Smokeify Selection
-                </p>
-                <h1 className="max-w-[13rem] text-[1.05rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-4xl">
-                  Mehr Ernte. Weniger Aufwand.
-                </h1>
-                <p className="mt-1 max-w-[16.5rem] text-[10px] leading-snug text-white/90 sm:mt-2 sm:max-w-xl sm:text-base sm:leading-normal">
-                  Kuratierte Hardware für Indoor-Gärten. Von LED bis Lüftung, mit
-                  schneller Lieferung aus Deutschland.
-                </p>
+          <div className="pt-3 sm:px-6 sm:pt-5">
+            <section className="reveal-up relative overflow-hidden bg-[#16382d] px-4 pb-6 pt-6 text-white shadow-[0_28px_80px_rgba(11,28,21,0.18)] sm:rounded-3xl sm:px-8 sm:pb-8 sm:pt-8">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(228,197,108,0.25),transparent_26%),radial-gradient(circle_at_82%_12%,rgba(120,164,143,0.24),transparent_30%),linear-gradient(135deg,#15372c_0%,#1f4336_35%,#355c4d_68%,#d3be8f_100%)]" />
+              <div className="absolute -right-10 top-10 h-40 w-40 rounded-full bg-[#e4c56c]/20 blur-3xl sm:h-56 sm:w-56" />
+              <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[#84a794]/20 blur-3xl sm:h-44 sm:w-44" />
+
+              <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-10">
+                <div className="max-w-3xl py-2 sm:py-4">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-[#E4C56C]/35 bg-[#E4C56C]/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#f4e4b8] sm:text-xs">
+                    <SparklesIcon className="h-4 w-4" />
+                    Smokeify Auswahl
+                  </p>
+                  <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[0.96] tracking-tight sm:text-5xl lg:text-6xl">
+                    Technik und Zubehör für Pflanzen, die nicht nach
+                    Zufall aussehen.
+                  </h1>
+                  <p className="mt-5 max-w-2xl text-sm leading-6 text-white/84 sm:text-base sm:leading-7">
+                    Entdecke kuratierte Zelte, starke LED-Systeme, saubere
+                    Abluftlösungen und sinnvolles Zubehör. Direkt sortiert nach
+                    Relevanz, Marken und echten Topsellern aus dem Shop.
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Link
+                      href="/products"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#E4C56C] px-5 py-3 text-sm font-bold text-[#20342b] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-[#edd48f]"
+                    >
+                      Jetzt Sortiment entdecken
+                    </Link>
+                    <Link
+                      href="/customizer"
+                      className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                    >
+                      Konfigurator öffnen
+                    </Link>
+                  </div>
+
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                      <TruckIcon className="h-5 w-5 text-[#e4c56c]" />
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        Schneller Versand
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-white/74">
+                        Zügige Lieferung aus Deutschland für einen schnellen
+                        Projektstart.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                      <ShieldCheckIcon className="h-5 w-5 text-[#e4c56c]" />
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        Verlässliche Marken
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-white/74">
+                        Ausgewählte Hersteller mit sauberem Preis-Leistungs-Fokus.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                      <SparklesIcon className="h-5 w-5 text-[#e4c56c]" />
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        Kuratierte Auswahl
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-white/74">
+                        Relevante Produkte statt überladener Massenlisten.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <PaymentMethodLogos
+                      className="flex-wrap gap-2.5 sm:gap-3"
+                      pillClassName="border-white/12 bg-white/10"
+                      logoClassName="brightness-[1.02]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:gap-5">
+                  {heroProducts.map((product, index) => (
+                    <Link
+                      key={product.id}
+                      href={`/products/${product.handle}`}
+                      className={`group relative overflow-hidden rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur transition hover:-translate-y-1 hover:bg-white/14 sm:p-5 ${
+                        index === 0 ? "lg:min-h-[204px]" : "lg:min-h-[168px]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 lg:gap-5">
+                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.05))] sm:h-28 sm:w-28 lg:h-24 lg:w-24">
+                          {product.featuredImage ? (
+                            <Image
+                              src={product.featuredImage.url}
+                              alt={product.featuredImage.altText ?? product.title}
+                              fill
+                              sizes="112px"
+                              className="object-contain p-3 transition duration-300 group-hover:scale-105"
+                              priority={index === 0}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#e4c56c]">
+                            Empfohlen
+                          </p>
+                          {product.manufacturer ? (
+                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/58">
+                              {product.manufacturer}
+                            </p>
+                          ) : null}
+                          <h2 className="mt-2 max-w-[22rem] text-lg font-bold leading-tight text-white lg:text-[1.75rem] lg:leading-[1.05]">
+                            {product.title}
+                          </h2>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-white/92">
+                              {product.priceRange?.minVariantPrice.amount}{" "}
+                              {product.priceRange?.minVariantPrice.currencyCode}
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/72 transition group-hover:text-white">
+                              Ansehen
+                              <ArrowRightIcon className="h-3.5 w-3.5" />
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </section>
           </div>
