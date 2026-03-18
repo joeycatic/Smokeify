@@ -22,7 +22,7 @@ const formatDate = (iso: string) =>
 
 export default function BlogPage() {
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <h1 className="text-3xl font-bold text-stone-900">Blog</h1>
         <p className="mt-3 text-base text-stone-500">

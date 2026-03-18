@@ -65,7 +65,7 @@ export default async function BlogPostPage({
   if (!post || !Content) notFound();
 
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center gap-2 text-sm text-stone-400">

@@ -1,9 +1,11 @@
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
+import CommerceShell from "@/components/CommerceShell";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { getProductsByIds, getProductsByIdsAllowInactive } from "@/lib/catalog";
+import { measureServerExecution } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
@@ -46,60 +48,80 @@ export default async function StorePage() {
     },
   };
 
-  const [bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
-    prisma.product.findMany({
-      where: nonHeadshopWhere,
-      orderBy: [
-        { bestsellerScore: { sort: "desc", nulls: "last" } },
-        { updatedAt: "desc" },
-      ],
-      select: { id: true },
-      take: 16,
-    }),
-    prisma.product.findMany({
-      where: {
-        AND: [
-          nonHeadshopWhere,
-          {
-            categories: {
-              some: {
-                OR: [
-                  { category: { handle: "zelte" } },
-                  { category: { parent: { is: { handle: "zelte" } } } },
-                ],
+  const { result: homepageData } = await measureServerExecution(
+    "page.home",
+    async () => {
+      const [bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
+        prisma.product.findMany({
+          where: nonHeadshopWhere,
+          orderBy: [
+            { bestsellerScore: { sort: "desc", nulls: "last" } },
+            { updatedAt: "desc" },
+          ],
+          select: { id: true },
+          take: 16,
+        }),
+        prisma.product.findMany({
+          where: {
+            AND: [
+              nonHeadshopWhere,
+              {
+                categories: {
+                  some: {
+                    OR: [
+                      { category: { handle: "zelte" } },
+                      { category: { parent: { is: { handle: "zelte" } } } },
+                    ],
+                  },
+                },
               },
-            },
+            ],
           },
-        ],
-      },
-      select: { id: true },
-      take: 40,
-    }),
-    prisma.product.findMany({
-      where: {
-        ...nonHeadshopWhere,
-        handle: { in: [...HERO_PRODUCT_HANDLES] },
-      },
-      select: {
-        id: true,
-      },
-      take: HERO_PRODUCT_HANDLES.length,
-    }),
-  ]);
+          select: { id: true },
+          take: 40,
+        }),
+        prisma.product.findMany({
+          where: {
+            ...nonHeadshopWhere,
+            handle: { in: [...HERO_PRODUCT_HANDLES] },
+          },
+          select: {
+            id: true,
+          },
+          take: HERO_PRODUCT_HANDLES.length,
+        }),
+      ]);
 
-  const productIds = Array.from(
-    new Set([
-      ...bestSellerRows.map((row) => row.id),
-      ...tentProductRows.map((row) => row.id),
-      ...heroBannerRows.map((row) => row.id),
-    ]),
+      const productIds = Array.from(
+        new Set([
+          ...bestSellerRows.map((row) => row.id),
+          ...tentProductRows.map((row) => row.id),
+          ...heroBannerRows.map((row) => row.id),
+        ]),
+      );
+      const [hydratedProducts, hydratedHeroProducts] = await Promise.all([
+        productIds.length ? getProductsByIds(productIds) : Promise.resolve([]),
+        heroBannerRows.length
+          ? getProductsByIdsAllowInactive(heroBannerRows.map((row) => row.id))
+          : Promise.resolve([]),
+      ]);
+
+      return {
+        bestSellerRows,
+        tentProductRows,
+        hydratedHeroProducts,
+        hydratedProducts,
+        heroBannerRows,
+      };
+    },
   );
-  const [hydratedProducts, hydratedHeroProducts] = await Promise.all([
-    productIds.length ? getProductsByIds(productIds) : Promise.resolve([]),
-    heroBannerRows.length
-      ? getProductsByIdsAllowInactive(heroBannerRows.map((row) => row.id))
-      : Promise.resolve([]),
-  ]);
+  const {
+    bestSellerRows,
+    tentProductRows,
+    hydratedHeroProducts,
+    hydratedProducts,
+    heroBannerRows,
+  } = homepageData;
   const productsById = new Map(hydratedProducts.map((product) => [product.id, product]));
   const bestSellersFilled = bestSellerRows
     .map((row) => productsById.get(row.id))
@@ -180,7 +202,8 @@ export default async function StorePage() {
   ];
 
   return (
-    <main className="bg-stone-50">
+    <CommerceShell>
+      <main className="bg-stone-50">
         <AnnouncementBar />
         <div className="mx-auto max-w-6xl">
           <div className="px-0 sm:px-6">
@@ -516,5 +539,6 @@ export default async function StorePage() {
         </div>
         <Footer />
       </main>
+    </CommerceShell>
   );
 }

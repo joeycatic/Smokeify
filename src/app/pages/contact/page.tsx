@@ -7,7 +7,7 @@ export default function ContactPage() {
   const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
 
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <ContactPageClient
         contactEmail={contactEmail}
         contactPhone={contactPhone}

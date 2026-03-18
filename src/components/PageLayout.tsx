@@ -2,7 +2,9 @@
 import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
+import CommerceShell from "./CommerceShell";
 import Footer from "./Footer";
+import SimpleHeader from "./SimpleHeader";
 
 type PageLayoutProps = {
   children: ReactNode;
@@ -29,24 +31,30 @@ function PageContainer({ children }: LayoutSectionProps) {
   );
 }
 
-export default function PageLayout({
+export default async function PageLayout({
   children,
-  commerce: _commerce = false,
+  commerce = true,
 }: PageLayoutProps) {
-  const content = (
-    <>
-      <AnnouncementBar />
-      <PageContainer>
-        <Navbar />
-        {children}
-      </PageContainer>
-      <Footer />
-    </>
-  );
+  if (!commerce) {
+    return (
+      <PageShell>
+        <SimpleHeader />
+        <PageContainer>{children}</PageContainer>
+        <Footer />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>
-      {content}
+      <CommerceShell>
+        <AnnouncementBar />
+        <PageContainer>
+          <Navbar />
+          {children}
+        </PageContainer>
+        <Footer />
+      </CommerceShell>
     </PageShell>
   );
 }

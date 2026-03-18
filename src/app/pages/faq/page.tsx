@@ -169,7 +169,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
 
 export default function FaqPage() {
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <FaqPageClient categories={FAQ_CATEGORIES} />
     </PageLayout>
   );

@@ -1,7 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
-import { getNavbarCategories } from "@/lib/navbarCategories";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -69,15 +68,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const initialNavbarCategories = await getNavbarCategories();
-
   return (
     <html lang="de">
       <head />
       <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
-        <Providers initialNavbarCategories={initialNavbarCategories}>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -14,7 +14,7 @@ export default function AboutPage() {
   const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
 
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
         <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <div className="mb-8">
