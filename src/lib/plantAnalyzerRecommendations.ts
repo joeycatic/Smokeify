@@ -1,24 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { blogPosts } from "@/lib/blog";
-import type { PlantAnalyzerIssue } from "@/lib/plantAnalyzer";
-
-export type PlantAnalyzerProductSuggestion = {
-  id: string;
-  title: string;
-  handle: string;
-  imageUrl: string | null;
-  imageAlt: string;
-  price: { amount: string; currencyCode: "EUR" } | null;
-  reason: string;
-};
-
-export type PlantAnalyzerGuideSuggestion = {
-  slug: string;
-  title: string;
-  description: string;
-  href: string;
-};
+import type {
+  PlantAnalyzerGuideSuggestion,
+  PlantAnalyzerIssue,
+  PlantAnalyzerProductSuggestion,
+} from "@/lib/plantAnalyzerTypes";
 
 type ProductSuggestionRecord = Prisma.ProductGetPayload<{
   include: {
@@ -371,40 +358,38 @@ export async function getPlantAnalyzerProductSuggestions(
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 2);
 
-  const suggestions: PlantAnalyzerProductSuggestion[] = [];
-  const seen = new Set<string>();
+  const collectSuggestions = async (
+    profiles: ProductSearchProfile[],
+  ): Promise<PlantAnalyzerProductSuggestion[]> => {
+    const suggestions: PlantAnalyzerProductSuggestion[] = [];
+    const seen = new Set<string>();
+    const matchesByProfile = await Promise.all(
+      profiles.map((profile) => findProductsForProfile(profile)),
+    );
 
-  for (const issue of rankedIssues) {
-    const profile = getIssueProductProfile(issue);
-    if (profile.skip) continue;
-    const matches = await findProductsForProfile(profile);
+    matchesByProfile.forEach((matches, index) => {
+      const profile = profiles[index];
+      if (!profile) return;
 
-    for (const product of matches) {
-      if (seen.has(product.id)) continue;
-      seen.add(product.id);
-      suggestions.push(toProductSuggestion(product, profile.reason));
-      if (suggestions.length >= 4) {
-        return suggestions;
-      }
-    }
-  }
-
-  if (suggestions.length === 0) {
-    for (const fallbackProfile of getFallbackProductProfiles(rankedIssues)) {
-      const matches = await findProductsForProfile(fallbackProfile);
-
-      for (const product of matches) {
-        if (seen.has(product.id)) continue;
+      matches.forEach((product) => {
+        if (suggestions.length >= 4 || seen.has(product.id)) return;
         seen.add(product.id);
-        suggestions.push(toProductSuggestion(product, fallbackProfile.reason));
-        if (suggestions.length >= 4) {
-          return suggestions;
-        }
-      }
-    }
+        suggestions.push(toProductSuggestion(product, profile.reason));
+      });
+    });
+
+    return suggestions;
+  };
+
+  const primaryProfiles = rankedIssues
+    .map((issue) => getIssueProductProfile(issue))
+    .filter((profile): profile is ProductSearchProfile => !profile.skip);
+  const primarySuggestions = await collectSuggestions(primaryProfiles);
+  if (primarySuggestions.length > 0) {
+    return primarySuggestions;
   }
 
-  return suggestions;
+  return collectSuggestions(getFallbackProductProfiles(rankedIssues));
 }
 
 export function getPlantAnalyzerGuideSuggestions(
@@ -446,4 +431,18 @@ export function getPlantAnalyzerGuideSuggestions(
       description: post.description,
       href: `/blog/${post.slug}`,
     }));
+}
+
+export async function getPlantAnalyzerSuggestions(
+  issues: PlantAnalyzerIssue[],
+): Promise<{
+  productSuggestions: PlantAnalyzerProductSuggestion[];
+  guideSuggestions: PlantAnalyzerGuideSuggestion[];
+}> {
+  const primaryIssues = issues.slice(0, 2);
+  const productSuggestions =
+    await getPlantAnalyzerProductSuggestions(primaryIssues);
+  const guideSuggestions = getPlantAnalyzerGuideSuggestions(primaryIssues);
+
+  return { productSuggestions, guideSuggestions };
 }

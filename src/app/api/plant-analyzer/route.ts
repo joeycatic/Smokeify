@@ -1,25 +1,37 @@
 import { NextResponse } from "next/server";
+import { put } from "@vercel/blob";
+import { createHash, randomUUID } from "node:crypto";
 import { getServerSession } from "next-auth";
-import { analyzePlantImage, type PlantAnalyzerIssue } from "@/lib/plantAnalyzer";
+import { analyzePlantImage } from "@/lib/plantAnalyzer";
 import { authOptions } from "@/lib/auth";
 import { attachServerTiming, getNow } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import {
-  getPlantAnalyzerGuideSuggestions,
-  getPlantAnalyzerProductSuggestions,
-} from "@/lib/plantAnalyzerRecommendations";
-
-type AnalyzeBody = {
-  imageUri?: string;
-  notes?: string;
-};
+import { isSameOrigin } from "@/lib/requestSecurity";
 
 const FREE_ANALYSIS_LIMIT = 3;
 const FREE_ANALYSIS_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
+
+const getFileExtension = (file: File) => {
+  const providedExtension =
+    file.name && file.name.includes(".")
+      ? `.${file.name.split(".").pop()?.toLowerCase()}`
+      : "";
+  if (providedExtension) return providedExtension;
+  if (file.type === "image/png") return ".png";
+  if (file.type === "image/webp") return ".webp";
+  return ".jpg";
+};
 
 export async function POST(request: Request) {
   const startedAt = getNow();
+  if (!isSameOrigin(request)) {
+    return attachServerTiming(
+      NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+    );
+  }
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return attachServerTiming(
@@ -50,19 +62,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as AnalyzeBody;
-  const imageUri = body.imageUri?.trim();
-  const notes = body.notes?.trim() ?? "";
+  const formData = await request.formData().catch(() => null);
+  const file = formData?.get("file");
+  const notes =
+    typeof formData?.get("notes") === "string"
+      ? formData.get("notes")?.toString().trim() ?? ""
+      : "";
 
-  if (!imageUri) {
+  if (!(file instanceof File)) {
     return attachServerTiming(
       NextResponse.json({ error: "Bitte ein Foto hochladen." }, { status: 400 }),
       [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
-  if (imageUri.length < 20 || imageUri.length > 12_000_000) {
+  if (!file.type.startsWith("image/")) {
     return attachServerTiming(
       NextResponse.json({ error: "Das Bildformat ist ungültig." }, { status: 400 }),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+    );
+  }
+  if (file.size === 0 || file.size > MAX_IMAGE_SIZE_BYTES) {
+    return attachServerTiming(
+      NextResponse.json(
+        { error: "Bitte ein Bild bis maximal 8 MB hochladen." },
+        { status: 400 },
+      ),
       [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
@@ -90,15 +114,26 @@ export async function POST(request: Request) {
   }
 
   try {
+    const uploadStartedAt = getNow();
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const imageHash = createHash("sha256").update(buffer).digest("hex");
+    const filename = `plant-analyzer/${session.user.id}/${randomUUID()}${getFileExtension(file)}`;
+    const blob = await put(filename, buffer, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: file.type || undefined,
+    });
+    const uploadDuration = getNow() - uploadStartedAt;
+
+    const analyzeStartedAt = getNow();
     const result = await analyzePlantImage({
-      imageUri,
+      imageUrl: blob.url,
+      imageHash,
+      imageMime: file.type || null,
       notes,
       userId: session.user.id,
     });
-    const primaryIssues = result.issues.slice(0, 2);
-    const productSuggestions =
-      await getPlantAnalyzerProductSuggestions(primaryIssues);
-    const guideSuggestions = getPlantAnalyzerGuideSuggestions(primaryIssues);
+    const analyzeDuration = getNow() - analyzeStartedAt;
 
     return attachServerTiming(
       NextResponse.json({
@@ -106,13 +141,17 @@ export async function POST(request: Request) {
           healthStatus: result.healthStatus,
           species: result.species,
           confidence: result.confidence,
-          issues: primaryIssues,
+          issues: result.issues.slice(0, 2),
           recommendations: result.recommendations.slice(0, 3),
         },
-        productSuggestions,
-        guideSuggestions,
+        productSuggestions: result.productSuggestions,
+        guideSuggestions: result.guideSuggestions,
       }),
-      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+      [
+        { name: "analyzer_upload", durationMs: uploadDuration, description: "upload" },
+        { name: "analyzer_model", durationMs: analyzeDuration, description: "model" },
+        { name: "analyzer", durationMs: getNow() - startedAt, description: "submit" },
+      ],
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

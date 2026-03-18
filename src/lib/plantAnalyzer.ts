@@ -1,18 +1,14 @@
 import { createHash } from "node:crypto";
 import type { PlantHealthStatus } from "@prisma/client";
+import { mergePlantAnalyzerStoredOutput } from "@/lib/plantAnalyzerOutput";
 import { prisma } from "@/lib/prisma";
-
-export type PlantAnalyzerIssueSeverity =
-  | "healthy"
-  | "warning"
-  | "critical";
-
-export type PlantAnalyzerIssue = {
-  id: string;
-  label: string;
-  confidence: number;
-  severity: PlantAnalyzerIssueSeverity;
-};
+import { getPlantAnalyzerSuggestions } from "@/lib/plantAnalyzerRecommendations";
+import type {
+  PlantAnalyzerGuideSuggestion,
+  PlantAnalyzerIssue,
+  PlantAnalyzerIssueSeverity,
+  PlantAnalyzerProductSuggestion,
+} from "@/lib/plantAnalyzerTypes";
 
 export type PlantAnalyzerResult = {
   id: string;
@@ -27,10 +23,15 @@ export type PlantAnalyzerResult = {
   modelVersion: string;
   rawProvider: "openai";
   usedFallback: boolean;
+  productSuggestions: PlantAnalyzerProductSuggestion[];
+  guideSuggestions: PlantAnalyzerGuideSuggestion[];
 };
 
 type AnalyzePlantImageInput = {
-  imageUri: string;
+  imageUri?: string;
+  imageUrl?: string;
+  imageHash?: string | null;
+  imageMime?: string | null;
   notes?: string;
   plantId?: string | null;
   userId?: string | null;
@@ -326,6 +327,9 @@ async function callVisionModel({
 
 export async function analyzePlantImage({
   imageUri,
+  imageUrl,
+  imageHash,
+  imageMime,
   notes = "",
   plantId = null,
   userId = null,
@@ -345,11 +349,16 @@ export async function analyzePlantImage({
     process.env.AI_ANALYZER_ESCALATION_CONFIDENCE,
     0.72,
   );
+  const analysisImageUri = imageUrl ?? imageUri;
+
+  if (!analysisImageUri) {
+    throw new Error("Plant analysis requires an image payload");
+  }
 
   const fastResult = await callVisionModel({
     apiKey,
     model: modelFast,
-    imageUri,
+    imageUri: analysisImageUri,
     notes,
   });
 
@@ -361,7 +370,7 @@ export async function analyzePlantImage({
     ? await callVisionModel({
         apiKey,
         model: modelStrong,
-        imageUri,
+        imageUri: analysisImageUri,
         notes,
       })
     : fastResult;
@@ -370,7 +379,27 @@ export async function analyzePlantImage({
   const normalizedHealthStatus = toApiHealthStatus(
     finalResult.parsed.healthStatus,
   );
-  const imageMeta = parseDataUriMeta(imageUri);
+  const imageMeta = imageUrl
+    ? {
+        imageUri: imageUrl,
+        imageHash:
+          imageHash?.trim() ||
+          createHash("sha256").update(imageUrl).digest("hex"),
+        imageMime: imageMime?.trim() || null,
+      }
+    : parseDataUriMeta(analysisImageUri);
+  let productSuggestions: PlantAnalyzerProductSuggestion[] = [];
+  let guideSuggestions: PlantAnalyzerGuideSuggestion[] = [];
+
+  try {
+    const suggestionSet = await getPlantAnalyzerSuggestions(
+      finalResult.parsed.issues,
+    );
+    productSuggestions = suggestionSet.productSuggestions;
+    guideSuggestions = suggestionSet.guideSuggestions;
+  } catch (suggestionError) {
+    console.error("Failed to build plant analyzer suggestions", suggestionError);
+  }
 
   let analysisId = `analysis-${Date.now()}`;
   try {
@@ -388,7 +417,11 @@ export async function analyzePlantImage({
         confidence: finalResult.parsed.confidence,
         healthStatus: toDbHealthStatus(normalizedHealthStatus),
         species: finalResult.parsed.species,
-        outputJson: finalResult.parsed,
+        outputJson: mergePlantAnalyzerStoredOutput(finalResult.parsed, {
+          productSuggestions,
+          guideSuggestions,
+          usedFallback: needsFallback,
+        }),
         issues: {
           create: finalResult.parsed.issues.map((issue, index) => ({
             sourceIssueId: issue.id,
@@ -408,7 +441,7 @@ export async function analyzePlantImage({
 
   return {
     id: analysisId,
-    imageUri,
+    imageUri: imageMeta.imageUri,
     species: finalResult.parsed.species,
     confidence: finalResult.parsed.confidence,
     healthStatus: normalizedHealthStatus,
@@ -422,5 +455,7 @@ export async function analyzePlantImage({
     modelVersion: finalModel,
     rawProvider: "openai",
     usedFallback: needsFallback,
+    productSuggestions,
+    guideSuggestions,
   };
 }

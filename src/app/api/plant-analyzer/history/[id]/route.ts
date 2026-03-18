@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  getPlantAnalyzerCachedSuggestions,
+  getPlantAnalyzerStoredOutput,
+  mergePlantAnalyzerStoredOutput,
+} from "@/lib/plantAnalyzerOutput";
 import { attachServerTiming, getNow } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
-import {
-  getPlantAnalyzerGuideSuggestions,
-  getPlantAnalyzerProductSuggestions,
-} from "@/lib/plantAnalyzerRecommendations";
+import { getPlantAnalyzerSuggestions } from "@/lib/plantAnalyzerRecommendations";
 
 const toHealthStatus = (value: string): "healthy" | "warning" | "critical" => {
   if (value === "HEALTHY") return "healthy";
@@ -47,19 +49,33 @@ export async function GET(
     );
   }
 
-  const output = (row.outputJson ?? {}) as {
-    recommendations?: string[];
-  };
+  const output = row.outputJson ?? {};
+  const storedOutput = getPlantAnalyzerStoredOutput(output);
   const issues = row.issues.map((issue) => ({
     id: issue.sourceIssueId ?? issue.id,
     label: issue.label,
     confidence: issue.confidence,
     severity: toHealthStatus(issue.severity),
   }));
-  const primaryIssues = issues.slice(0, 2);
-  const productSuggestions =
-    await getPlantAnalyzerProductSuggestions(primaryIssues);
-  const guideSuggestions = getPlantAnalyzerGuideSuggestions(primaryIssues);
+  const cachedSuggestions = getPlantAnalyzerCachedSuggestions(output);
+  const suggestions =
+    cachedSuggestions ?? (await getPlantAnalyzerSuggestions(issues));
+
+  if (!cachedSuggestions) {
+    void prisma.plantAnalysisRun
+      .update({
+        where: { id: row.id },
+        data: {
+          outputJson: mergePlantAnalyzerStoredOutput(output, {
+            productSuggestions: suggestions.productSuggestions,
+            guideSuggestions: suggestions.guideSuggestions,
+          }),
+        },
+      })
+      .catch((persistError) => {
+        console.error("Failed to backfill analyzer suggestions", persistError);
+      });
+  }
 
   return attachServerTiming(
     NextResponse.json({
@@ -70,12 +86,12 @@ export async function GET(
         species: row.species,
         confidence: row.confidence,
         issues,
-        recommendations: Array.isArray(output.recommendations)
-          ? output.recommendations
+        recommendations: Array.isArray(storedOutput.recommendations)
+          ? storedOutput.recommendations
           : [],
       },
-      productSuggestions,
-      guideSuggestions,
+      productSuggestions: suggestions.productSuggestions,
+      guideSuggestions: suggestions.guideSuggestions,
     }),
     [{ name: "analyzer_detail", durationMs: getNow() - startedAt, description: "history-detail" }],
   );
