@@ -20,66 +20,347 @@ export type PlantAnalyzerGuideSuggestion = {
   href: string;
 };
 
+type ProductSuggestionRecord = Prisma.ProductGetPayload<{
+  include: {
+    images: { orderBy: { position: "asc" }; take: 1 };
+    variants: {
+      orderBy: { position: "asc" };
+      select: { priceCents: true };
+    };
+  };
+}>;
+
 const CURRENCY_CODE = "EUR";
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
-function buildIssueSearchTerms(issue: PlantAnalyzerIssue) {
+type IssueProductProfile = {
+  reason: string;
+  categoryHandles?: string[];
+  titleTerms?: string[];
+  handleTerms?: string[];
+  manufacturers?: string[];
+  excludeTitleTerms?: string[];
+  excludeHandleTerms?: string[];
+  skip?: boolean;
+};
+
+const GLOBAL_EXCLUDED_CATEGORY_HANDLES = ["headshop"];
+
+type ProductSearchProfile = {
+  reason: string;
+  categoryHandles?: string[];
+  titleTerms?: string[];
+  handleTerms?: string[];
+  manufacturers?: string[];
+  excludeTitleTerms?: string[];
+  excludeHandleTerms?: string[];
+};
+
+function getIssueProductProfile(issue: PlantAnalyzerIssue): IssueProductProfile {
   const value = issue.label.toLowerCase();
+
   if (value.includes("calcium") || value.includes("magnes")) {
     return {
-      terms: ["calmag", "calcium", "magnesium", "calcium magnesium"],
       reason: "Passend bei Verdacht auf Calcium- oder Magnesiummangel.",
+      categoryHandles: ["duenger"],
+      titleTerms: ["calmag"],
+      handleTerms: ["calmag"],
+      manufacturers: ["BioBizz"],
     };
   }
-  if (value.includes("stickstoff") || value.includes("nährstoff")) {
+
+  if (value.includes("ph")) {
     return {
-      terms: ["dünger", "duenger", "grow", "bio", "base nutrient"],
-      reason: "Passend zur Nährstoffversorgung und Basisdüngung.",
+      reason: "Passend zur Korrektur eines instabilen pH-Werts.",
+      categoryHandles: ["ph-regulatoren"],
+      titleTerms: ["ph+", "ph-", "ph up", "ph down"],
+      handleTerms: ["ph-up", "ph-down"],
+      manufacturers: ["BioBizz"],
     };
   }
+
+  if (value.includes("nährstoffverbrennung")) {
+    return {
+      reason: "Bei Nährstoffverbrennung ist eher Zurückhaltung als zusätzliches Produkt sinnvoll.",
+      skip: true,
+    };
+  }
+
+  if (value.includes("stickstoff")) {
+    return {
+      reason: "Passend zur vorsichtigen Basisdüngung bei Stickstoffmangel.",
+      categoryHandles: ["duenger"],
+      titleTerms: ["bio-grow", "fishmix", "starter pack"],
+      handleTerms: ["bio-grow", "fishmix", "try-pack"],
+      manufacturers: ["BioBizz"],
+      excludeTitleTerms: ["topmax", "bio-bloom"],
+    };
+  }
+
   if (value.includes("kali")) {
     return {
-      terms: ["bloom", "blüte", "bluete", "pk", "dünger", "duenger"],
-      reason: "Passend bei Verdacht auf Kalium- oder Blütedüngungsprobleme.",
+      reason: "Passend bei Verdacht auf Kalium- bzw. Blütedüngungsprobleme.",
+      categoryHandles: ["duenger"],
+      titleTerms: ["bio-bloom"],
+      handleTerms: ["bio-bloom"],
+      manufacturers: ["BioBizz"],
     };
   }
-  if (value.includes("überwässer") || value.includes("unterwässer")) {
+
+  if (value.includes("nährstoff")) {
     return {
-      terms: ["substrat", "erde", "topf", "bewässer", "bewaesser"],
-      reason: "Hilft bei Gießrhythmus und Wurzelzone.",
+      reason: "Passend zur Basisversorgung oder zum schonenden Wiedereinstieg in die Düngung.",
+      categoryHandles: ["duenger"],
+      titleTerms: ["bio-grow", "calmag", "starter pack"],
+      handleTerms: ["bio-grow", "calmag", "try-pack"],
+      manufacturers: ["BioBizz"],
+      excludeTitleTerms: ["topmax"],
     };
   }
+
   if (value.includes("licht") || value.includes("hitz")) {
     return {
-      terms: ["led", "lampe", "clip fan", "ventilator", "lüfter", "luefter"],
-      reason: "Hilft bei Lichtabstand, Intensität und Klima.",
+      reason: "Hilft bei Luftbewegung und Hitzestau im Pflanzenbereich.",
+      categoryHandles: ["ventilatoren"],
+      titleTerms: ["clipventilator", "cloudray"],
+      handleTerms: ["clipventilator", "cloudray"],
+      manufacturers: ["RAM", "AC Infinity"],
     };
   }
+
+  if (value.includes("schimmel")) {
+    return {
+      reason: "Hilft bei Luftzirkulation und Feuchtigkeitskontrolle.",
+      categoryHandles: ["ventilatoren", "luftentfeuchter"],
+      titleTerms: ["clipventilator", "cloudray", "luftentfeuchter"],
+      handleTerms: ["clipventilator", "cloudray", "luftentfeuchter"],
+      manufacturers: ["RAM", "AC Infinity"],
+    };
+  }
+
   if (
     value.includes("schädl") ||
     value.includes("thrips") ||
     value.includes("spinnmil")
   ) {
     return {
-      terms: ["neem", "pflanzenschutz", "sprüh", "sprueh", "sticky", "gelbtafel"],
-      reason: "Sinnvoll bei Schädlingskontrolle und Monitoring.",
+      reason: "Für diesen Befund gibt es aktuell keine wirklich passende Produktempfehlung im Shop.",
+      skip: true,
     };
   }
-  if (value.includes("schimmel")) {
+
+  if (value.includes("überwässer") || value.includes("unterwässer")) {
     return {
-      terms: ["entfeucht", "luft", "lüfter", "luefter", "clip fan"],
-      reason: "Hilft bei Luftzirkulation und Feuchtigkeitsmanagement.",
+      reason: "Dieser Befund braucht vor allem Gießanpassung, nicht blind ein Zusatzprodukt.",
+      skip: true,
     };
   }
 
   return {
-    terms: issue.label
-      .split(/[\s,/()]+/)
-      .map((term) => term.trim())
-      .filter((term) => term.length >= 4)
-      .slice(0, 5),
-    reason: "Ausgewählt auf Basis der erkannten Symptome.",
+    reason: "Für diesen Befund gibt es aktuell keine saubere Produktempfehlung im Shop.",
+    skip: true,
   };
+}
+
+function toProductSuggestion(
+  product: ProductSuggestionRecord,
+  reason: string,
+): PlantAnalyzerProductSuggestion {
+  const minPrice =
+    product.variants.length > 0
+      ? Math.min(...product.variants.map((variant) => variant.priceCents))
+      : null;
+
+  return {
+    id: product.id,
+    title: product.title,
+    handle: product.handle,
+    imageUrl: product.images[0]?.url ?? null,
+    imageAlt: product.images[0]?.altText ?? product.title,
+    price:
+      minPrice !== null
+        ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
+        : null,
+    reason,
+  };
+}
+
+async function findProductsForProfile(
+  profile: ProductSearchProfile,
+  take = 4,
+): Promise<ProductSuggestionRecord[]> {
+  const orFilters: Prisma.ProductWhereInput[] = [];
+
+  for (const term of profile.titleTerms ?? []) {
+    orFilters.push({
+      OR: [
+        { title: { contains: term, mode: "insensitive" } },
+        { shortDescription: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  for (const term of profile.handleTerms ?? []) {
+    orFilters.push({
+      handle: { contains: term, mode: "insensitive" },
+    });
+  }
+
+  for (const categoryHandle of profile.categoryHandles ?? []) {
+    orFilters.push({
+      categories: {
+        some: {
+          category: { handle: categoryHandle },
+        },
+      },
+    });
+  }
+
+  return prisma.product.findMany({
+    where: {
+      status: "ACTIVE",
+      AND: [
+        orFilters.length > 0 ? { OR: orFilters } : {},
+        profile.manufacturers?.length
+          ? { manufacturer: { in: profile.manufacturers } }
+          : {},
+        profile.excludeTitleTerms?.length
+          ? {
+              NOT: profile.excludeTitleTerms.map((term) => ({
+                OR: [
+                  { title: { contains: term, mode: "insensitive" } },
+                  {
+                    shortDescription: {
+                      contains: term,
+                      mode: "insensitive",
+                    },
+                  },
+                  { description: { contains: term, mode: "insensitive" } },
+                ],
+              })),
+            }
+          : {},
+        profile.excludeHandleTerms?.length
+          ? {
+              NOT: profile.excludeHandleTerms.map((term) => ({
+                handle: { contains: term, mode: "insensitive" },
+              })),
+            }
+          : {},
+        {
+          NOT: {
+            categories: {
+              some: {
+                category: {
+                  handle: { in: GLOBAL_EXCLUDED_CATEGORY_HANDLES },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+    orderBy: [
+      { bestsellerScore: { sort: "desc", nulls: "last" } },
+      { updatedAt: "desc" },
+    ],
+    include: {
+      images: { orderBy: { position: "asc" }, take: 1 },
+      variants: {
+        orderBy: { position: "asc" },
+        select: { priceCents: true },
+      },
+    },
+    take,
+  });
+}
+
+function getFallbackProductProfiles(
+  issues: PlantAnalyzerIssue[],
+): ProductSearchProfile[] {
+  const issueText = issues.map((issue) => issue.label.toLowerCase()).join(" ");
+
+  if (
+    issueText.includes("schädl") ||
+    issueText.includes("thrips") ||
+    issueText.includes("spinnmil") ||
+    issueText.includes("schimmel") ||
+    issueText.includes("licht") ||
+    issueText.includes("hitz")
+  ) {
+    return [
+      {
+        reason:
+          "Kein direktes Spezialmittel im Shop, aber sinnvolle Klima- und Setup-Produkte zur Stabilisierung.",
+        categoryHandles: ["ventilatoren", "luftentfeuchter"],
+        titleTerms: ["clipventilator", "cloudray", "luftentfeuchter"],
+        handleTerms: ["clipventilator", "cloudray", "luftentfeuchter"],
+        manufacturers: ["RAM", "AC Infinity"],
+      },
+      {
+        reason:
+          "Als allgemeine Basis für stabile Pflanzenwerte und eine saubere Pflege sinnvoll.",
+        categoryHandles: ["ph-regulatoren", "duenger"],
+        titleTerms: ["ph down", "ph up", "calmag", "bio-grow"],
+        handleTerms: ["ph-down", "ph-up", "calmag", "bio-grow"],
+        manufacturers: ["BioBizz"],
+      },
+    ];
+  }
+
+  if (
+    issueText.includes("überwässer") ||
+    issueText.includes("unterwässer") ||
+    issueText.includes("ph") ||
+    issueText.includes("nährstoff") ||
+    issueText.includes("calcium") ||
+    issueText.includes("magnes") ||
+    issueText.includes("stickstoff") ||
+    issueText.includes("kali")
+  ) {
+    return [
+      {
+        reason:
+          "Als sichere Basis für Wasser-, pH- und Nährstoffmanagement im Setup sinnvoll.",
+        categoryHandles: ["duenger", "ph-regulatoren"],
+        titleTerms: ["calmag", "bio-grow", "bio-bloom", "ph down", "ph up"],
+        handleTerms: ["calmag", "bio-grow", "bio-bloom", "ph-down", "ph-up"],
+        manufacturers: ["BioBizz"],
+      },
+      {
+        reason:
+          "Zusätzlich sinnvoll, um das Klima rund um die Pflanze stabiler zu halten.",
+        categoryHandles: ["ventilatoren"],
+        titleTerms: ["clipventilator", "cloudray"],
+        handleTerms: ["clipventilator", "cloudray"],
+        manufacturers: ["RAM", "AC Infinity"],
+      },
+    ];
+  }
+
+  return [
+    {
+      reason:
+        "Als allgemeine Grow-Basis für stabile Pflanzenwerte und eine sinnvollere Ersteinschätzung geeignet.",
+      categoryHandles: ["duenger", "ph-regulatoren", "ventilatoren"],
+      titleTerms: [
+        "calmag",
+        "bio-grow",
+        "bio-bloom",
+        "ph down",
+        "clipventilator",
+      ],
+      handleTerms: [
+        "calmag",
+        "bio-grow",
+        "bio-bloom",
+        "ph-down",
+        "clipventilator",
+      ],
+      manufacturers: ["BioBizz", "RAM", "AC Infinity"],
+    },
+  ];
 }
 
 export async function getPlantAnalyzerProductSuggestions(
@@ -94,113 +375,32 @@ export async function getPlantAnalyzerProductSuggestions(
   const seen = new Set<string>();
 
   for (const issue of rankedIssues) {
-    const { terms, reason } = buildIssueSearchTerms(issue);
-    if (terms.length === 0) continue;
-
-    const orFilters: Prisma.ProductWhereInput[] = terms.map((term) => ({
-      OR: [
-        { title: { contains: term, mode: "insensitive" } },
-        { shortDescription: { contains: term, mode: "insensitive" } },
-        { description: { contains: term, mode: "insensitive" } },
-        { manufacturer: { contains: term, mode: "insensitive" } },
-        { tags: { has: term.toLowerCase() } },
-        {
-          categories: {
-            some: {
-              OR: [
-                { category: { name: { contains: term, mode: "insensitive" } } },
-                { category: { handle: { contains: term, mode: "insensitive" } } },
-              ],
-            },
-          },
-        },
-      ],
-    }));
-
-    const matches = await prisma.product.findMany({
-      where: {
-        status: "ACTIVE",
-        OR: orFilters,
-      },
-      orderBy: [
-        { bestsellerScore: { sort: "desc", nulls: "last" } },
-        { updatedAt: "desc" },
-      ],
-      include: {
-        images: { orderBy: { position: "asc" }, take: 1 },
-        variants: {
-          orderBy: { position: "asc" },
-          select: { priceCents: true },
-        },
-      },
-      take: 4,
-    });
+    const profile = getIssueProductProfile(issue);
+    if (profile.skip) continue;
+    const matches = await findProductsForProfile(profile);
 
     for (const product of matches) {
       if (seen.has(product.id)) continue;
       seen.add(product.id);
-      const minPrice =
-        product.variants.length > 0
-          ? Math.min(...product.variants.map((variant) => variant.priceCents))
-          : null;
-      suggestions.push({
-        id: product.id,
-        title: product.title,
-        handle: product.handle,
-        imageUrl: product.images[0]?.url ?? null,
-        imageAlt: product.images[0]?.altText ?? product.title,
-        price:
-          minPrice !== null
-            ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
-            : null,
-        reason,
-      });
+      suggestions.push(toProductSuggestion(product, profile.reason));
       if (suggestions.length >= 4) {
         return suggestions;
       }
     }
   }
 
-  if (suggestions.length >= 3) {
-    return suggestions;
-  }
+  if (suggestions.length === 0) {
+    for (const fallbackProfile of getFallbackProductProfiles(rankedIssues)) {
+      const matches = await findProductsForProfile(fallbackProfile);
 
-  const fallback = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: [
-      { bestsellerScore: { sort: "desc", nulls: "last" } },
-      { updatedAt: "desc" },
-    ],
-    include: {
-      images: { orderBy: { position: "asc" }, take: 1 },
-      variants: {
-        orderBy: { position: "asc" },
-        select: { priceCents: true },
-      },
-    },
-    take: 4,
-  });
-
-  for (const product of fallback) {
-    if (seen.has(product.id)) continue;
-    const minPrice =
-      product.variants.length > 0
-        ? Math.min(...product.variants.map((variant) => variant.priceCents))
-        : null;
-    suggestions.push({
-      id: product.id,
-      title: product.title,
-      handle: product.handle,
-      imageUrl: product.images[0]?.url ?? null,
-      imageAlt: product.images[0]?.altText ?? product.title,
-      price:
-        minPrice !== null
-          ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
-          : null,
-      reason: "Beliebte Produkte aus dem Shop für Pflege, Klima und Setup.",
-    });
-    if (suggestions.length >= 4) {
-      break;
+      for (const product of matches) {
+        if (seen.has(product.id)) continue;
+        seen.add(product.id);
+        suggestions.push(toProductSuggestion(product, fallbackProfile.reason));
+        if (suggestions.length >= 4) {
+          return suggestions;
+        }
+      }
     }
   }
 

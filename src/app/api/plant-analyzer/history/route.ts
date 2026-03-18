@@ -39,6 +39,7 @@ export async function GET(request: Request) {
       };
       return {
         id: row.id,
+        imageUri: row.imageUri ?? "",
         species: row.species,
         confidence: row.confidence,
         healthStatus: toHealthStatus(row.healthStatus),

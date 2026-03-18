@@ -55,6 +55,7 @@ export async function GET(
 
   return NextResponse.json({
     id: row.id,
+    imageUri: row.imageUri ?? "",
     diagnosis: {
       healthStatus: toHealthStatus(row.healthStatus),
       species: row.species,

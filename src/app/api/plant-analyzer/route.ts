@@ -14,6 +14,9 @@ type AnalyzeBody = {
   notes?: string;
 };
 
+const FREE_ANALYSIS_LIMIT = 3;
+const FREE_ANALYSIS_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -51,14 +54,18 @@ export async function POST(request: Request) {
   }
 
   if (!isPrivilegedUser) {
+    const windowStart = new Date(Date.now() - FREE_ANALYSIS_WINDOW_MS);
     const existingAnalysesCount = await prisma.plantAnalysisRun.count({
-      where: { userId: session.user.id },
+      where: {
+        userId: session.user.id,
+        createdAt: { gte: windowStart },
+      },
     });
-    if (existingAnalysesCount >= 1) {
+    if (existingAnalysesCount >= FREE_ANALYSIS_LIMIT) {
       return NextResponse.json(
         {
           error:
-            "Dein kostenloses Analysebild wurde bereits verwendet. Weitere Analysen sind hier nicht verfügbar.",
+            "Deine 3 kostenlosen Analysen in den letzten 24 Stunden wurden bereits verwendet. Das Limit setzt sich nach 24 Stunden zurück.",
         },
         { status: 403 },
       );
@@ -86,17 +93,27 @@ export async function POST(request: Request) {
       },
       productSuggestions,
       guideSuggestions,
-      cta: {
-        title: "Mehr Analyse in der Smokeify App",
-        description:
-          "In der App bekommst du tiefere Analysen, Verlauf und mehr Detailhinweise.",
-      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    const status = message.includes("OPENAI_API_KEY missing") ? 503 : 502;
+    const status = message.includes("OPENAI_API_KEY missing")
+      ? 503
+      : error instanceof Error &&
+          error.name === "PlantAnalyzerInvalidImageError"
+        ? 422
+      : message.includes("Model refused plant analysis")
+        ? 422
+        : 502;
     return NextResponse.json(
-      { error: "Analyse fehlgeschlagen.", details: message.slice(0, 500) },
+      {
+        error:
+          error instanceof Error && error.name === "PlantAnalyzerInvalidImageError"
+            ? message
+            : message.includes("Model refused plant analysis")
+              ? "Die Bildanalyse konnte nicht sicher ausgewertet werden. Bitte lade ein klareres Pflanzenfoto hoch oder ergänze mehr Kontext."
+              : "Analyse fehlgeschlagen.",
+        details: message.slice(0, 500),
+      },
       { status },
     );
   }
