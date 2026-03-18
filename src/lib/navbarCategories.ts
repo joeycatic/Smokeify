@@ -1,13 +1,59 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { seoPages } from "@/lib/seoPages";
 
 export type NavbarCategory = {
   id: string;
   name: string;
   handle: string;
   parentId: string | null;
+  href: string;
   itemCount: number;
   totalItemCount: number;
+};
+
+const buildCategoryHref = (handle: string) =>
+  `/products?category=${encodeURIComponent(handle)}`;
+
+const buildSeoSlugByKey = () => {
+  const seoSlugByKey = new Map<string, string>();
+  const addSeoKey = (key: string, slug: string) => {
+    const normalized = key.trim().toLowerCase();
+    if (!normalized || seoSlugByKey.has(normalized)) return;
+    seoSlugByKey.set(normalized, slug);
+  };
+
+  seoPages.forEach((page) => {
+    const slug = `/${page.slugParts.join("/")}`;
+    if (page.slugParts.length === 1) {
+      addSeoKey(page.slugParts[0], slug);
+      addSeoKey(page.categoryHandle ?? "", slug);
+      (page.categoryHandleAliases ?? []).forEach((alias) => addSeoKey(alias, slug));
+    }
+    if (page.slugParts.length === 2) {
+      const parent = page.slugParts[0];
+      const child = page.slugParts[1];
+      addSeoKey(`${parent}/${child}`, slug);
+      addSeoKey(`${parent}-${child}`, slug);
+      if (page.parentHandle && page.subcategoryHandle) {
+        addSeoKey(`${page.parentHandle}/${page.subcategoryHandle}`, slug);
+        addSeoKey(`${page.parentHandle}-${page.subcategoryHandle}`, slug);
+        (page.subcategoryHandleAliases ?? []).forEach((alias) => {
+          addSeoKey(`${page.parentHandle}/${alias}`, slug);
+          addSeoKey(`${page.parentHandle}-${alias}`, slug);
+        });
+      }
+      if (parent.endsWith("en")) {
+        const singular = parent.slice(0, -2);
+        if (singular) {
+          addSeoKey(`${singular}/${child}`, slug);
+          addSeoKey(`${singular}-${child}`, slug);
+        }
+      }
+    }
+  });
+
+  return seoSlugByKey;
 };
 
 const getNavbarCategoriesCached = unstable_cache(
@@ -25,6 +71,8 @@ const getNavbarCategoriesCached = unstable_cache(
         where: { mainCategoryId: { not: null } },
       }),
     ]);
+    const categoryById = new Map(categories.map((category) => [category.id, category]));
+    const seoSlugByKey = buildSeoSlugByKey();
 
     const categoryProducts = new Map<string, Set<string>>();
     const addProductToCategory = (categoryId: string, productId: string) => {
@@ -65,6 +113,24 @@ const getNavbarCategoriesCached = unstable_cache(
 
     return categories.map((category) => ({
       ...category,
+      href: (() => {
+        const normalizedHandle = category.handle.trim().toLowerCase();
+        const parentHandle = category.parentId
+          ? categoryById.get(category.parentId)?.handle?.trim().toLowerCase() ?? null
+          : null;
+        if (parentHandle) {
+          const directSlug = seoSlugByKey.get(`${parentHandle}/${normalizedHandle}`);
+          if (directSlug) return directSlug;
+          if (normalizedHandle.startsWith(`${parentHandle}-`)) {
+            const strippedHandle = normalizedHandle.slice(parentHandle.length + 1);
+            const strippedSlug = seoSlugByKey.get(
+              `${parentHandle}/${strippedHandle}`,
+            );
+            if (strippedSlug) return strippedSlug;
+          }
+        }
+        return seoSlugByKey.get(normalizedHandle) ?? buildCategoryHref(category.handle);
+      })(),
       itemCount: categoryProducts.get(category.id)?.size ?? 0,
       totalItemCount: getSubtreeProducts(category.id).size,
     }));

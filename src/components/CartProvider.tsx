@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
 import type { Cart } from "@/lib/cart";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
@@ -145,7 +144,6 @@ const trackRemoveFromCart = (
 };
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { status } = useSession();
   const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(false);
@@ -170,23 +168,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const shouldLoadCartImmediately =
     pathname === "/cart" ||
     pathname?.startsWith("/checkout") ||
-    pathname?.startsWith("/order");
+    pathname?.startsWith("/order") ||
+    pathname?.startsWith("/products/");
 
   useEffect(() => {
-    if (shouldLoadCartImmediately) {
-      void refresh();
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      void refresh();
-    }, 1500);
-    return () => window.clearTimeout(timer);
-  }, [shouldLoadCartImmediately]);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
+    if (!shouldLoadCartImmediately) return;
     void refresh();
-  }, [status]);
+  }, [shouldLoadCartImmediately]);
 
   useEffect(() => {
     if (!errorToast) return;

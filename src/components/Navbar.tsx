@@ -38,7 +38,6 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
-import { seoPages } from "@/lib/seoPages";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
@@ -88,44 +87,6 @@ const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
     price: Number(line.merchandise.price.amount),
     quantity: line.quantity,
   }));
-
-const seoSlugByKey = new Map<string, string>();
-const addSeoKey = (key: string, slug: string) => {
-  const normalized = key.trim().toLowerCase();
-  if (!normalized) return;
-  if (seoSlugByKey.has(normalized)) return;
-  seoSlugByKey.set(normalized, slug);
-};
-
-seoPages.forEach((page) => {
-  const slug = `/${page.slugParts.join("/")}`;
-  if (page.slugParts.length === 1) {
-    addSeoKey(page.slugParts[0], slug);
-    addSeoKey(page.categoryHandle ?? "", slug);
-    (page.categoryHandleAliases ?? []).forEach((alias) => addSeoKey(alias, slug));
-  }
-  if (page.slugParts.length === 2) {
-    const parent = page.slugParts[0];
-    const child = page.slugParts[1];
-    addSeoKey(`${parent}/${child}`, slug);
-    addSeoKey(`${parent}-${child}`, slug);
-    if (page.parentHandle && page.subcategoryHandle) {
-      addSeoKey(`${page.parentHandle}/${page.subcategoryHandle}`, slug);
-      addSeoKey(`${page.parentHandle}-${page.subcategoryHandle}`, slug);
-      (page.subcategoryHandleAliases ?? []).forEach((alias) => {
-        addSeoKey(`${page.parentHandle}/${alias}`, slug);
-        addSeoKey(`${page.parentHandle}-${alias}`, slug);
-      });
-    }
-    if (parent.endsWith("en")) {
-      const singular = parent.slice(0, -2);
-      if (singular) {
-        addSeoKey(`${singular}/${child}`, slug);
-        addSeoKey(`${singular}-${child}`, slug);
-      }
-    }
-  }
-});
 
 const getCategoryIcon = (name: string) => {
   const value = name.toLowerCase();
@@ -181,16 +142,6 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
-  const isSeoPage = seoPages.some(
-    (page) => `/${page.slugParts.join("/")}` === pathname,
-  );
-  const showCategoryBar =
-    pathname === "/" ||
-    pathname?.startsWith("/products") ||
-    pathname === "/bestseller" ||
-    pathname === "/neuheiten" ||
-    isSeoPage;
-  const showMobileSearch = showCategoryBar;
   const [accountOpen, setAccountOpen] = useState(false);
   const [categoryNavTarget, setCategoryNavTarget] = useState<string | null>(null);
   const [categoryHoverLocked, setCategoryHoverLocked] = useState(false);
@@ -228,6 +179,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
     initialCategories && initialCategories.length > 0
       ? initialCategories
       : contextCategories;
+  const isSeoPage = categories.some((category) => category.href === pathname);
+  const showCategoryBar =
+    pathname === "/" ||
+    pathname?.startsWith("/products") ||
+    pathname === "/bestseller" ||
+    pathname === "/neuheiten" ||
+    isSeoPage;
+  const showMobileSearch = showCategoryBar;
   const categoriesStatus: "idle" | "loading" | "error" =
     categories.length > 0 ? "idle" : "error";
   const productsRef = useRef<HTMLDivElement | null>(null);
@@ -306,27 +265,6 @@ export function Navbar({ initialCategories }: NavbarProps) {
     setCategoryNavTarget(null);
     setCategoryHoverLocked(false);
   }, [pathname, searchParams]);
-
-  const buildCategoryHref = (handle: string) =>
-    `/products?category=${encodeURIComponent(handle)}`;
-  const buildSeoCategoryHref = (handle: string, parentHandle?: string | null) => {
-    const normalizedHandle = handle.trim().toLowerCase();
-    const normalizedParent = parentHandle?.trim().toLowerCase();
-    if (normalizedParent) {
-      const key = `${normalizedParent}/${normalizedHandle}`;
-      const slug = seoSlugByKey.get(key);
-      if (slug) return slug;
-      if (normalizedHandle.startsWith(`${normalizedParent}-`)) {
-        const stripped = normalizedHandle.slice(normalizedParent.length + 1);
-        const strippedKey = `${normalizedParent}/${stripped}`;
-        const strippedSlug = seoSlugByKey.get(strippedKey);
-        if (strippedSlug) return strippedSlug;
-      }
-    }
-    const mainSlug = seoSlugByKey.get(normalizedHandle);
-    if (mainSlug) return mainSlug;
-    return buildCategoryHref(handle);
-  };
 
   useEffect(() => {
     if (count === 0) return;
@@ -752,6 +690,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
         name: string;
         handle: string;
         parentId: string | null;
+        href: string;
         itemCount: number;
         totalItemCount: number;
       }>
@@ -784,12 +723,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
       : null;
   const activeCategories = categoriesByParent.get(activeParentId) ?? [];
   const categoryById = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; handle: string }>();
+    const map = new Map<
+      string,
+      { id: string; name: string; handle: string; href: string }
+    >();
     categories.forEach((category) => {
       map.set(category.id, {
         id: category.id,
         name: category.name,
         handle: category.handle,
+        href: category.href,
       });
     });
     return map;
@@ -1345,18 +1288,15 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     className="relative group"
                   >
                     <Link
-                      href={buildSeoCategoryHref(category.handle)}
+                      href={category.href}
                       onClick={() => {
-                        setCategoryNavTarget(
-                          buildSeoCategoryHref(category.handle),
-                        );
+                        setCategoryNavTarget(category.href);
                         setCategoryHoverLocked(true);
                       }}
                       className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
                     >
                       <span>{category.name}</span>
-                      {categoryNavTarget ===
-                        buildSeoCategoryHref(category.handle) && (
+                      {categoryNavTarget === category.href && (
                         <LoadingSpinner
                           size="sm"
                           className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
@@ -1391,21 +1331,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
                               return (
                                 <Link
                                   key={child.id}
-                                  href={buildSeoCategoryHref(
-                                    child.handle,
-                                    category.handle,
-                                  )}
-                                  onClick={() =>
-                                    {
-                                      setCategoryNavTarget(
-                                        buildSeoCategoryHref(
-                                          child.handle,
-                                          category.handle,
-                                        ),
-                                      );
-                                      setCategoryHoverLocked(true);
-                                    }
-                                  }
+                                  href={child.href}
+                                  onClick={() => {
+                                    setCategoryNavTarget(child.href);
+                                    setCategoryHoverLocked(true);
+                                  }}
                                   className="flex items-center gap-1.5 rounded-lg px-3.5 py-3 font-semibold text-stone-700 hover:bg-emerald-50 hover:text-emerald-900"
                                 >
                                   <span className="flex h-8 w-8 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700">
@@ -1414,11 +1344,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                   <span className="flex-1 whitespace-nowrap">
                                     {child.name}
                                   </span>
-                                  {categoryNavTarget ===
-                                    buildSeoCategoryHref(
-                                      child.handle,
-                                      category.handle,
-                                    ) && (
+                                  {categoryNavTarget === child.href && (
                                     <LoadingSpinner
                                       size="sm"
                                       className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
