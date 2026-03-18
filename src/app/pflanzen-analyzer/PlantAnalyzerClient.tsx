@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { prepareAnalyzerImageFile } from "@/app/pflanzen-analyzer/clientImageUpload";
@@ -105,6 +105,39 @@ export default function PlantAnalyzerClient() {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!showAuthPrompt && !selectedHistoryEntry) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedHistoryEntry, showAuthPrompt]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!showAuthPrompt && !selectedHistoryEntry) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      if (selectedHistoryEntry) {
+        closeHistoryReport();
+        return;
+      }
+
+      if (showAuthPrompt) {
+        setShowAuthPrompt(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedHistoryEntry, showAuthPrompt]);
+
+  useEffect(() => {
     if (
       status !== "loading" ||
       typeof window === "undefined" ||
@@ -140,7 +173,7 @@ export default function PlantAnalyzerClient() {
     return () => window.clearInterval(intervalId);
   }, [loadingSteps.length, status]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (effectiveSessionStatus !== "authenticated") {
       setHistory([]);
       return;
@@ -161,7 +194,7 @@ export default function PlantAnalyzerClient() {
     } catch {
       setHistoryStatus("error");
     }
-  };
+  }, [effectiveSessionStatus]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -172,7 +205,7 @@ export default function PlantAnalyzerClient() {
     }
     if (!historyRequested) return;
     void loadHistory();
-  }, [effectiveSessionStatus, hasHydrated, historyRequested]);
+  }, [effectiveSessionStatus, hasHydrated, historyRequested, loadHistory]);
 
   const clearSelectedImage = () => {
     resetSelectedImage();

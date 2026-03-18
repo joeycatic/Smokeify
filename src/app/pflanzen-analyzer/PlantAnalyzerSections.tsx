@@ -245,7 +245,7 @@ function ProductSuggestionGrid({
         <Link
           key={product.id}
           href={`/products/${product.handle}`}
-          className="group rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-3 transition hover:border-emerald-300 hover:bg-emerald-50/40"
+          className={`group rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-3 transition hover:border-emerald-300 hover:bg-emerald-50/40 ${lightFocusRing}`}
         >
           <div className="flex gap-3">
             <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white">
@@ -264,13 +264,13 @@ function ProductSuggestionGrid({
               )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              <p className="line-clamp-2 text-base font-semibold leading-6 text-stone-900 sm:text-[1.05rem]">
+              <p className="line-clamp-2 break-words text-base font-semibold leading-6 text-stone-900 sm:text-[1.05rem]">
                 {product.title}
               </p>
-              <p className="mt-2 text-xs leading-5 text-stone-500">
+              <p className="mt-2 break-words text-xs leading-5 text-stone-500">
                 {product.reason}
               </p>
-              <div className="mt-3 flex items-center justify-between gap-3">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-lg font-bold tracking-tight text-emerald-800">
                   {product.price
                     ? formatPrice(
@@ -315,10 +315,10 @@ function GuideSuggestionList({
         <Link
           key={guide.slug}
           href={guide.href}
-          className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-emerald-300 hover:bg-emerald-50/40"
+          className={`rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-emerald-300 hover:bg-emerald-50/40 ${lightFocusRing}`}
         >
-          <p className="text-sm font-semibold text-stone-900">{guide.title}</p>
-          <p className="mt-2 text-sm leading-6 text-stone-500">
+          <p className="break-words text-sm font-semibold text-stone-900">{guide.title}</p>
+          <p className="mt-2 break-words text-sm leading-6 text-stone-500">
             {guide.description}
           </p>
         </Link>
@@ -846,8 +846,8 @@ export function PlantAnalyzerResultSection({
           <div className="relative z-10 mb-4 inline-flex items-center rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#f5e8bc] backdrop-blur-sm">
             {isGerman ? "Live-Analyse" : "Live analysis"}
           </div>
-          <div className="relative z-10 flex items-start justify-between gap-4">
-            <div>
+          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f5e8bc]">
                 {isGerman ? "Analyse läuft" : "Analysis running"}
               </p>
@@ -862,7 +862,7 @@ export function PlantAnalyzerResultSection({
                   : "The image is being reviewed, likely issues are being estimated and next steps plus product hints are being prepared."}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-[#f5e8bc] shadow-[0_12px_30px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+            <div className="w-fit rounded-2xl border border-white/10 bg-white/10 p-3 text-[#f5e8bc] shadow-[0_12px_30px_rgba(15,23,42,0.12)] backdrop-blur-sm">
               <BeakerIcon className="h-7 w-7 animate-pulse" />
             </div>
           </div>
@@ -940,7 +940,7 @@ export function PlantAnalyzerResultSection({
           <button
             type="button"
             onClick={onCancelAnalysis}
-            className="relative z-10 mt-6 inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+            className={`relative z-10 mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/12 sm:w-auto ${darkFocusRing}`}
           >
             <XMarkIcon className="mr-2 h-4 w-4" />
             {isGerman ? "Analyse abbrechen" : "Cancel analysis"}
@@ -949,7 +949,7 @@ export function PlantAnalyzerResultSection({
       ) : result ? (
         <div className="space-y-5 sm:space-y-6">
           <div
-            className={`rounded-[24px] border px-5 py-4 ${healthStatusClasses(
+            className={`rounded-[24px] border px-4 py-4 sm:px-5 ${healthStatusClasses(
               result.diagnosis.healthStatus,
             )}`}
           >
@@ -960,7 +960,7 @@ export function PlantAnalyzerResultSection({
                     {isGerman ? "Analyse" : "Analysis"}
                   </p>
                   <h3
-                    className={`mt-2 text-3xl font-bold tracking-tight ${
+                    className={`mt-2 text-[1.9rem] font-bold tracking-tight sm:text-3xl ${
                       result.diagnosis.issues.length > 0
                         ? "text-red-700"
                         : "text-emerald-800"
@@ -968,18 +968,28 @@ export function PlantAnalyzerResultSection({
                   >
                     {healthStatusLabel(result.diagnosis.healthStatus, locale)}
                   </h3>
-                  <p
-                    className={`mt-2 text-lg ${
-                      result.diagnosis.issues.length > 0
-                        ? "text-red-700"
-                        : "text-stone-800"
-                    }`}
-                  >
-                    {isGerman ? "Erkannt" : "Detected"}:{" "}
-                    {result.diagnosis.species || (isGerman ? "Unbekannt" : "Unknown")} ·{" "}
-                    {isGerman ? "Sicherheit" : "Confidence"}{" "}
-                    {confidenceLabel(result.diagnosis.confidence)}
-                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                        result.diagnosis.issues.length > 0
+                          ? "bg-white/70 text-red-700"
+                          : "bg-white/70 text-stone-800"
+                      }`}
+                    >
+                      {isGerman ? "Erkannt" : "Detected"}:{" "}
+                      {result.diagnosis.species || (isGerman ? "Unbekannt" : "Unknown")}
+                    </span>
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                        result.diagnosis.issues.length > 0
+                          ? "bg-white/70 text-red-700"
+                          : "bg-white/70 text-stone-800"
+                      }`}
+                    >
+                      {isGerman ? "Sicherheit" : "Confidence"}{" "}
+                      {confidenceLabel(result.diagnosis.confidence)}
+                    </span>
+                  </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="rounded-2xl bg-white/70 px-3 py-3 text-center">
@@ -1000,9 +1010,9 @@ export function PlantAnalyzerResultSection({
                   </div>
                 </div>
               </div>
-              <div className="flex justify-center overflow-hidden rounded-[22px] border border-white/70 bg-white/70 p-4">
+              <div className="flex justify-center overflow-hidden rounded-[22px] border border-white/70 bg-white/70 p-3 sm:p-4">
                 {imagePreview ? (
-                  <div className="h-[220px] w-[220px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100">
+                  <div className="aspect-square w-full max-w-[220px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100">
                     <UploadedPlantImage
                       src={imagePreview}
                       alt={
@@ -1014,7 +1024,7 @@ export function PlantAnalyzerResultSection({
                     />
                   </div>
                 ) : (
-                  <div className="flex h-[220px] w-[220px] items-center justify-center rounded-[18px] border border-stone-200 bg-stone-100 text-stone-400">
+                  <div className="flex aspect-square w-full max-w-[220px] items-center justify-center rounded-[18px] border border-stone-200 bg-stone-100 text-stone-400">
                     <PhotoIcon className="h-8 w-8" />
                   </div>
                 )}
@@ -1032,7 +1042,7 @@ export function PlantAnalyzerResultSection({
                   )}`}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <span
                         className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                           issue.severity === "critical"
@@ -1044,8 +1054,8 @@ export function PlantAnalyzerResultSection({
                       >
                         <SeverityIcon severity={issue.severity} />
                       </span>
-                      <div>
-                        <p className="text-base font-semibold text-stone-900">
+                      <div className="min-w-0">
+                        <p className="break-words text-base font-semibold text-stone-900">
                           {issue.label}
                         </p>
                         <p className="mt-1 text-sm text-stone-500">
@@ -1146,8 +1156,8 @@ export function PlantAnalyzerHistorySection({
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-[#d4dbd2] bg-[linear-gradient(180deg,#ffffff_0%,#f6f4ec_100%)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
-      <div className="flex items-start justify-between gap-3 rounded-[24px] border border-[#d8dfd4] bg-white/80 px-4 py-4 sm:gap-4">
-        <div>
+      <div className="flex flex-col gap-3 rounded-[24px] border border-[#d8dfd4] bg-white/80 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
             {isGerman ? "Analyseverlauf" : "Analysis history"}
           </p>
@@ -1162,7 +1172,7 @@ export function PlantAnalyzerHistorySection({
               : "Earlier analyses stay visible so you can compare symptoms, trends and recommendations more calmly later on."}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#d8dfd4] bg-stone-50 p-3 text-stone-700">
+        <div className="w-fit rounded-2xl border border-[#d8dfd4] bg-stone-50 p-3 text-stone-700">
           <ClockIcon className="h-6 w-6" />
         </div>
       </div>
@@ -1185,13 +1195,13 @@ export function PlantAnalyzerHistorySection({
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link
               href={`/auth/signin?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-              className="inline-flex items-center justify-center rounded-2xl bg-[#2f3e36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#24312b]"
+              className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[#2f3e36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#24312b] sm:w-auto ${lightFocusRing}`}
             >
               {isGerman ? "Anmelden" : "Sign in"}
             </Link>
             <Link
               href={`/auth/register?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50"
+              className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50 sm:w-auto ${lightFocusRing}`}
             >
               {isGerman ? "Registrieren" : "Register"}
             </Link>
@@ -1212,7 +1222,7 @@ export function PlantAnalyzerHistorySection({
           <button
             type="button"
             onClick={onLoadHistory}
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-2xl border border-[#184a39] bg-[#1f5a45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(31,90,69,0.18)] transition hover:bg-[#184a39]"
+            className={`mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#184a39] bg-[#1f5a45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(31,90,69,0.18)] transition hover:bg-[#184a39] sm:w-auto ${lightFocusRing}`}
           >
             {isGerman ? "Verlauf laden" : "Load history"}
           </button>
@@ -1231,7 +1241,7 @@ export function PlantAnalyzerHistorySection({
           <button
             type="button"
             onClick={onLoadHistory}
-            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+            className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 sm:w-auto ${lightFocusRing}`}
           >
             {isGerman ? "Erneut versuchen" : "Try again"}
           </button>
@@ -1255,7 +1265,7 @@ export function PlantAnalyzerHistorySection({
           {history.map((entry) => (
             <div
               key={entry.id}
-              className="rounded-[26px] border border-[#d8dfd4] bg-[linear-gradient(180deg,#ffffff_0%,#fafaf7_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]"
+              className="rounded-[26px] border border-[#d8dfd4] bg-[linear-gradient(180deg,#ffffff_0%,#fafaf7_100%)] p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] sm:p-5"
             >
               <div className="flex flex-col gap-5 sm:flex-row">
                 <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-[22px] border border-stone-200 bg-stone-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)] sm:h-28 sm:w-28">
@@ -1301,7 +1311,7 @@ export function PlantAnalyzerHistorySection({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-stone-900">
+                            <p className="break-words text-sm font-semibold text-stone-900">
                               {issue.label}
                             </p>
                             <p className="mt-1 text-xs text-stone-500">
@@ -1330,7 +1340,7 @@ export function PlantAnalyzerHistorySection({
                     <button
                       type="button"
                       onClick={() => onOpenHistoryReport(entry)}
-                      className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-[#184a39] bg-[#1f5a45] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(31,90,69,0.24)] transition hover:bg-[#184a39]"
+                      className={`inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-[#184a39] bg-[#1f5a45] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(31,90,69,0.24)] transition hover:bg-[#184a39] ${lightFocusRing}`}
                     >
                       {isGerman
                         ? "Vollständigen Bericht öffnen"
@@ -1357,9 +1367,11 @@ export function PlantAnalyzerAuthModal({
   onClose: () => void;
 }) {
   const isGerman = locale === "de";
+  const dialogTitleId = "plant-analyzer-auth-title";
+  const dialogDescriptionId = "plant-analyzer-auth-description";
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center px-4 pb-4 sm:items-center sm:pb-0">
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center px-4 pb-4 pt-6 sm:items-center sm:pb-6">
       <button
         type="button"
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
@@ -1367,19 +1379,29 @@ export function PlantAnalyzerAuthModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative w-full max-w-sm rounded-3xl border border-[#d8dfd4] bg-[linear-gradient(180deg,#fffef9_0%,#ffffff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.30)] sm:p-6"
+        className="relative w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-[#d8dfd4] bg-[linear-gradient(180deg,#fffef9_0%,#ffffff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.30)] sm:p-6"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={dialogTitleId}
+        aria-describedby={dialogDescriptionId}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={isGerman ? "Schließen" : "Close"}
+          className={`absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-900 ${lightFocusRing}`}
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
         <div className="mb-4 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
           {isGerman ? "Analyse mit Verlauf" : "Analysis with history"}
         </div>
-        <h3 className="text-xl font-semibold text-stone-900">
+        <h3 id={dialogTitleId} className="pr-12 text-xl font-semibold text-stone-900">
           {isGerman
             ? "Bitte anmelden oder registrieren"
             : "Please sign in or register"}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-stone-500">
+        <p id={dialogDescriptionId} className="mt-2 text-sm leading-relaxed text-stone-500">
           {isGerman
             ? "Damit deine Pflanzenanalysen gespeichert werden und im Verlauf sichtbar bleiben, brauchst du ein Smokeify Konto."
             : "You need a Smokeify account so your plant analyses are saved and stay visible in your history."}
@@ -1388,14 +1410,14 @@ export function PlantAnalyzerAuthModal({
           <Link
             href={`/auth/signin?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
             onClick={onClose}
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-[#2f3e36] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#24312b]"
+            className={`inline-flex w-full items-center justify-center rounded-2xl bg-[#2f3e36] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#24312b] ${lightFocusRing}`}
           >
             {isGerman ? "Anmelden" : "Sign in"}
           </Link>
           <Link
             href={`/auth/register?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
             onClick={onClose}
-            className="inline-flex w-full items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3.5 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50"
+            className={`inline-flex w-full items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3.5 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50 ${lightFocusRing}`}
           >
             {isGerman ? "Registrieren" : "Register"}
           </Link>
@@ -1403,7 +1425,7 @@ export function PlantAnalyzerAuthModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full text-center text-xs text-stone-400 transition hover:text-stone-600"
+          className={`mt-4 w-full text-center text-xs text-stone-400 transition hover:text-stone-600 ${lightFocusRing}`}
         >
           {isGerman ? "Abbrechen" : "Cancel"}
         </button>
@@ -1426,6 +1448,7 @@ export function PlantAnalyzerHistoryModal({
   onClose: () => void;
 }) {
   const isGerman = locale === "de";
+  const dialogTitleId = "plant-analyzer-history-title";
 
   return (
     <div className="fixed inset-0 z-[1100] overflow-y-auto overscroll-contain bg-black/50 px-4 pb-4 pt-6 backdrop-blur-[6px] sm:pb-6">
@@ -1436,14 +1459,15 @@ export function PlantAnalyzerHistoryModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative z-10 mx-auto w-full max-w-2xl rounded-3xl border border-black/10 bg-white p-4 shadow-[0_22px_50px_rgba(15,23,42,0.20)] sm:my-6 sm:p-6"
+        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-3xl border border-black/10 bg-white p-4 shadow-[0_22px_50px_rgba(15,23,42,0.20)] sm:my-6 sm:p-6"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={dialogTitleId}
       >
         <div className="-mx-4 -mt-4 overflow-hidden rounded-t-3xl border-b border-[#244136] bg-[#16382d] px-4 py-4 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-5">
           <div className="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-xl font-bold tracking-tight sm:text-2xl">
+              <h3 id={dialogTitleId} className="pr-12 text-xl font-bold tracking-tight sm:text-2xl">
                 {isGerman ? "Deine Pflanze" : "Your plant"}
               </h3>
               <p className="mt-2 text-sm text-white/78">
@@ -1457,6 +1481,14 @@ export function PlantAnalyzerHistoryModal({
             >
               {healthStatusLabel(entry.healthStatus, locale)}
             </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={isGerman ? "Schließen" : "Close"}
+              className={`absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/10 text-white transition hover:bg-white/16 ${darkFocusRing}`}
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
 
           <div className="relative mt-5 grid gap-3 sm:grid-cols-3">
@@ -1487,10 +1519,10 @@ export function PlantAnalyzerHistoryModal({
           </div>
         </div>
 
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-6 overflow-y-auto pr-1">
           {detail?.imageUri ? (
             <div className="rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
                   {isGerman ? "Analysiertes Foto" : "Analyzed photo"}
                 </h4>
@@ -1499,7 +1531,7 @@ export function PlantAnalyzerHistoryModal({
                 </span>
               </div>
               <div className="mt-3 flex justify-center p-2">
-                <div className="h-[260px] w-[260px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100 sm:h-[320px] sm:w-[320px]">
+                <div className="aspect-square w-full max-w-[320px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100">
                   <UploadedPlantImage
                     src={detail.imageUri}
                     alt={
@@ -1527,7 +1559,7 @@ export function PlantAnalyzerHistoryModal({
                   )}`}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <span
                         className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                           issue.severity === "critical"
@@ -1539,8 +1571,8 @@ export function PlantAnalyzerHistoryModal({
                       >
                         <SeverityIcon severity={issue.severity} />
                       </span>
-                      <div>
-                        <p className="text-base font-semibold text-stone-900">
+                      <div className="min-w-0">
+                        <p className="break-words text-base font-semibold text-stone-900">
                           {issue.label}
                         </p>
                         <p className="mt-1 text-sm text-stone-500">
@@ -1634,7 +1666,7 @@ export function PlantAnalyzerHistoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 sm:w-auto"
+            className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 sm:w-auto ${lightFocusRing}`}
           >
             {isGerman ? "Schließen" : "Close"}
           </button>
