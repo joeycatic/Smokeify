@@ -865,6 +865,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       >
                         Konfigurator
                       </Link>
+                      <Link
+                        href="/pflanzen-analyzer"
+                        onClick={() => setMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Pflanzen Analyse
+                      </Link>
                     </div>,
                     document.body,
                   )}
@@ -1034,6 +1041,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     className="cursor-pointer text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
                     Konfigurator
+                  </Link>
+                  <Link
+                    href="/pflanzen-analyzer"
+                    className="cursor-pointer whitespace-nowrap text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Pflanzen Analyse
                   </Link>
                 </div>
               </div>
