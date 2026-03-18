@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { attachServerTiming, getNow } from "@/lib/perf";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const CURRENCY_CODE = "EUR";
@@ -100,6 +101,7 @@ const getRelevanceScore = (
 };
 
 export async function GET(request: Request) {
+  const startedAt = getNow();
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
     key: `search:ip:${ip}`,
@@ -107,13 +109,18 @@ export async function GET(request: Request) {
     windowMs: 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json({ results: [] }, { status: 429 });
+    return attachServerTiming(
+      NextResponse.json({ results: [] }, { status: 429 }),
+      [{ name: "search", durationMs: getNow() - startedAt, description: "navbar-search" }],
+    );
   }
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") ?? "";
   const query = rawQuery.trim();
   if (!query || query.length > 200) {
-    return NextResponse.json({ results: [] });
+    return attachServerTiming(NextResponse.json({ results: [] }), [
+      { name: "search", durationMs: getNow() - startedAt, description: "navbar-search" },
+    ]);
   }
   const terms = buildSearchTerms(query);
   const queryForDb = normalizeSearch(query);
@@ -179,5 +186,7 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({ results });
+  return attachServerTiming(NextResponse.json({ results }), [
+    { name: "search", durationMs: getNow() - startedAt, description: "navbar-search" },
+  ]);
 }

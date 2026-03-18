@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { analyzePlantImage, type PlantAnalyzerIssue } from "@/lib/plantAnalyzer";
 import { authOptions } from "@/lib/auth";
+import { attachServerTiming, getNow } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
@@ -18,11 +19,15 @@ const FREE_ANALYSIS_LIMIT = 3;
 const FREE_ANALYSIS_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
+  const startedAt = getNow();
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Bitte anmelden oder registrieren." },
-      { status: 401 },
+    return attachServerTiming(
+      NextResponse.json(
+        { error: "Bitte anmelden oder registrieren." },
+        { status: 401 },
+      ),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
   const isPrivilegedUser =
@@ -36,9 +41,12 @@ export async function POST(request: Request) {
   });
 
   if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte kurz warten." },
-      { status: 429 },
+    return attachServerTiming(
+      NextResponse.json(
+        { error: "Zu viele Anfragen. Bitte kurz warten." },
+        { status: 429 },
+      ),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
 
@@ -47,10 +55,16 @@ export async function POST(request: Request) {
   const notes = body.notes?.trim() ?? "";
 
   if (!imageUri) {
-    return NextResponse.json({ error: "Bitte ein Foto hochladen." }, { status: 400 });
+    return attachServerTiming(
+      NextResponse.json({ error: "Bitte ein Foto hochladen." }, { status: 400 }),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+    );
   }
   if (imageUri.length < 20 || imageUri.length > 12_000_000) {
-    return NextResponse.json({ error: "Das Bildformat ist ungültig." }, { status: 400 });
+    return attachServerTiming(
+      NextResponse.json({ error: "Das Bildformat ist ungültig." }, { status: 400 }),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+    );
   }
 
   if (!isPrivilegedUser) {
@@ -62,12 +76,15 @@ export async function POST(request: Request) {
       },
     });
     if (existingAnalysesCount >= FREE_ANALYSIS_LIMIT) {
-      return NextResponse.json(
-        {
-          error:
-            "Deine 3 kostenlosen Analysen in den letzten 24 Stunden wurden bereits verwendet. Das Limit setzt sich nach 24 Stunden zurück.",
-        },
-        { status: 403 },
+      return attachServerTiming(
+        NextResponse.json(
+          {
+            error:
+              "Deine 3 kostenlosen Analysen in den letzten 24 Stunden wurden bereits verwendet. Das Limit setzt sich nach 24 Stunden zurück.",
+          },
+          { status: 403 },
+        ),
+        [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
       );
     }
   }
@@ -83,17 +100,20 @@ export async function POST(request: Request) {
       await getPlantAnalyzerProductSuggestions(primaryIssues);
     const guideSuggestions = getPlantAnalyzerGuideSuggestions(primaryIssues);
 
-    return NextResponse.json({
-      diagnosis: {
-        healthStatus: result.healthStatus,
-        species: result.species,
-        confidence: result.confidence,
-        issues: primaryIssues,
-        recommendations: result.recommendations.slice(0, 3),
-      },
-      productSuggestions,
-      guideSuggestions,
-    });
+    return attachServerTiming(
+      NextResponse.json({
+        diagnosis: {
+          healthStatus: result.healthStatus,
+          species: result.species,
+          confidence: result.confidence,
+          issues: primaryIssues,
+          recommendations: result.recommendations.slice(0, 3),
+        },
+        productSuggestions,
+        guideSuggestions,
+      }),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     const status = message.includes("OPENAI_API_KEY missing")
@@ -104,17 +124,20 @@ export async function POST(request: Request) {
       : message.includes("Model refused plant analysis")
         ? 422
         : 502;
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error && error.name === "PlantAnalyzerInvalidImageError"
-            ? message
-            : message.includes("Model refused plant analysis")
-              ? "Die Bildanalyse konnte nicht sicher ausgewertet werden. Bitte lade ein klareres Pflanzenfoto hoch oder ergänze mehr Kontext."
-              : "Analyse fehlgeschlagen.",
-        details: message.slice(0, 500),
-      },
-      { status },
+    return attachServerTiming(
+      NextResponse.json(
+        {
+          error:
+            error instanceof Error && error.name === "PlantAnalyzerInvalidImageError"
+              ? message
+              : message.includes("Model refused plant analysis")
+                ? "Die Bildanalyse konnte nicht sicher ausgewertet werden. Bitte lade ein klareres Pflanzenfoto hoch oder ergänze mehr Kontext."
+                : "Analyse fehlgeschlagen.",
+          details: message.slice(0, 500),
+        },
+        { status },
+      ),
+      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
 }

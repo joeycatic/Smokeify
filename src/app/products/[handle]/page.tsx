@@ -12,6 +12,7 @@ import FrequentlyBoughtTogether, {
 } from "./FrequentlyBoughtTogether";
 import PageLayout from "@/components/PageLayout";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
+import { measureServerExecution } from "@/lib/perf";
 import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 const siteUrl =
@@ -198,60 +199,79 @@ export default async function ProductDetailPage({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  const product = await getProductByHandle(handle);
-  if (!product) return notFound();
-  const recommendedProducts = await getRecommendedProducts(
-    product.id,
-    product.categories.map((category) => category.id)
-  );
-  const groupProducts = product.productGroup
-    ? await prisma.product.findMany({
-        where: { productGroup: product.productGroup, status: "ACTIVE" },
-        select: { id: true, title: true, handle: true, growboxSize: true },
-        orderBy: { title: "asc" },
-      })
-    : [];
+  const { result: productPageData } = await measureServerExecution(
+    "page.product-detail",
+    async () => {
+      const product = await getProductByHandle(handle);
+      if (!product) return null;
+      const recommendedProducts = await getRecommendedProducts(
+        product.id,
+        product.categories.map((category) => category.id)
+      );
+      const groupProducts = product.productGroup
+        ? await prisma.product.findMany({
+            where: { productGroup: product.productGroup, status: "ACTIVE" },
+            select: { id: true, title: true, handle: true, growboxSize: true },
+            orderBy: { title: "asc" },
+          })
+        : [];
 
-  const reviewSummary = await prisma.review.aggregate({
-    where: { productId: product.id, status: "APPROVED" },
-    _avg: { rating: true },
-    _count: { rating: true },
-  });
-  const fbtRows = prisma.productCrossSell
-    ? await prisma.productCrossSell.findMany({
-        where: {
-          productId: product.id,
-          crossSell: { is: { status: "ACTIVE" } },
-        },
-        orderBy: { sortOrder: "asc" },
-        take: 3,
-        include: {
-          crossSell: {
+      const reviewSummary = await prisma.review.aggregate({
+        where: { productId: product.id, status: "APPROVED" },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
+      const fbtRows = prisma.productCrossSell
+        ? await prisma.productCrossSell.findMany({
+            where: {
+              productId: product.id,
+              crossSell: { is: { status: "ACTIVE" } },
+            },
+            orderBy: { sortOrder: "asc" },
+            take: 3,
             include: {
-              images: { orderBy: { position: "asc" }, take: 1 },
-              variants: {
-                where: {
-                  inventory: { is: { quantityOnHand: { gt: 0 } } },
-                },
-                orderBy: { position: "asc" },
-                take: 1,
-                select: {
-                  id: true,
-                  title: true,
-                  priceCents: true,
-                  inventory: {
+              crossSell: {
+                include: {
+                  images: { orderBy: { position: "asc" }, take: 1 },
+                  variants: {
+                    where: {
+                      inventory: { is: { quantityOnHand: { gt: 0 } } },
+                    },
+                    orderBy: { position: "asc" },
+                    take: 1,
                     select: {
-                      quantityOnHand: true,
-                      reserved: true,
+                      id: true,
+                      title: true,
+                      priceCents: true,
+                      inventory: {
+                        select: {
+                          quantityOnHand: true,
+                          reserved: true,
+                        },
+                      },
                     },
                   },
                 },
               },
             },
-          },
-        },
-      })
-    : [];
+          })
+        : [];
+
+      return {
+        fbtRows,
+        groupProducts,
+        product,
+        recommendedProducts,
+        reviewSummary,
+      };
+    },
+  );
+  const product = productPageData?.product ?? null;
+  if (!product || !productPageData) return notFound();
+  const recommendedProducts = productPageData.recommendedProducts;
+  const groupProducts = productPageData.groupProducts;
+  const reviewSummary = productPageData.reviewSummary;
+  const fbtRows = productPageData.fbtRows;
   const fbtProducts: FBTProduct[] = fbtRows.map((row) => {
     const variant = row.crossSell.variants[0] ?? null;
     const availableQuantity = variant

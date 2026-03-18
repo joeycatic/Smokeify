@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import ProductsPageClient from "./ProductsPageClient";
 import PageLayout from "@/components/PageLayout";
+import { measureServerExecution } from "@/lib/perf";
 import { queryProducts } from "@/lib/productsQuery";
 
 export const revalidate = 30;
@@ -43,13 +44,17 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     ? resolvedSearchParams.manufacturer[0] ?? ""
     : (resolvedSearchParams.manufacturer ?? "");
 
-  const initialData = await queryProducts({
-    categoryParam,
-    manufacturerParam,
-    offset: 0,
-    limit: 24,
-    sortBy: "featured",
-  });
+  const { result: initialData } = await measureServerExecution(
+    "page.products",
+    () =>
+      queryProducts({
+        categoryParam,
+        manufacturerParam,
+        offset: 0,
+        limit: 24,
+        sortBy: "featured",
+      }),
+  );
 
   return (
     <PageLayout commerce>
