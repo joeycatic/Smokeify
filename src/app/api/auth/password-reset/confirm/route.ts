@@ -67,14 +67,21 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { passwordHash },
-  });
-
-  await prisma.verificationCode.deleteMany({
-    where: { userId: user.id, purpose: "PASSWORD_RESET" },
-  });
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    }),
+    prisma.device.deleteMany({
+      where: { userId: user.id },
+    }),
+    prisma.session.deleteMany({
+      where: { userId: user.id },
+    }),
+    prisma.verificationCode.deleteMany({
+      where: { userId: user.id, purpose: "PASSWORD_RESET" },
+    }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }
