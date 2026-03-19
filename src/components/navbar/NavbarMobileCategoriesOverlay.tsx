@@ -2,26 +2,7 @@
 
 import type { MutableRefObject } from "react";
 import Link from "next/link";
-import {
-  ArchiveBoxIcon,
-  ArrowPathIcon,
-  ArrowsRightLeftIcon,
-  BeakerIcon,
-  BoltIcon,
-  CloudIcon,
-  CubeIcon,
-  DocumentTextIcon,
-  FireIcon,
-  FunnelIcon,
-  LightBulbIcon,
-  RectangleStackIcon,
-  ScaleIcon,
-  Squares2X2Icon,
-  SparklesIcon,
-  SunIcon,
-  TrashIcon,
-  WrenchScrewdriverIcon,
-} from "@heroicons/react/24/outline";
+import { getCategoryIcon } from "@/components/navbar/categoryIcons";
 
 type Category = {
   id: string;
@@ -47,46 +28,6 @@ type Props = {
   onViewAllProducts: () => void;
   onViewParentCategory: () => void;
   onSelectCategory: (category: Category, isLeaf: boolean) => void;
-};
-
-const getCategoryIcon = (name: string) => {
-  const value = name.toLowerCase();
-  if (value.includes("aschenbecher") || value.includes("ashtray"))
-    return TrashIcon;
-  if (value.includes("aufbewahrung") || value.includes("storage"))
-    return ArchiveBoxIcon;
-  if (value.includes("feuerzeug") || value.includes("lighter"))
-    return FireIcon;
-  if (value.includes("papers") || value.includes("papier"))
-    return DocumentTextIcon;
-  if (value.includes("rolling tray") || value.includes("tray"))
-    return RectangleStackIcon;
-  if (value.includes("waage") || value.includes("waagen") || value.includes("scale"))
-    return ScaleIcon;
-  if (value.includes("duenger") || value.includes("dünger")) return BeakerIcon;
-  if (value.includes("substrat") || value.includes("erde")) return BeakerIcon;
-  if (value.includes("filter")) return FunnelIcon;
-  if (value.includes("growbox") || value.includes("zelt")) return CubeIcon;
-  if (value.includes("heat") || value.includes("heiz")) return FireIcon;
-  if (value.includes("licht")) return SunIcon;
-  if (value.includes("led") || value.includes("lampe")) return LightBulbIcon;
-  if (value.includes("luft") || value.includes("luefter") || value.includes("lüfter"))
-    return CloudIcon;
-  if (value.includes("bewaesser") || value.includes("bewässer") || value.includes("wasser"))
-    return CloudIcon;
-  if (value.includes("entfeucht") || value.includes("befeucht"))
-    return CloudIcon;
-  if (value.includes("schlauch") || value.includes("kanal") || value.includes("duct"))
-    return ArrowsRightLeftIcon;
-  if (value.includes("ventilator") || value.includes("rohrventilator"))
-    return ArrowPathIcon;
-  if (value.includes("set") || value.includes("bundle"))
-    return Squares2X2Icon;
-  if (value.includes("anzucht") || value.includes("samen") || value.includes("seed"))
-    return SparklesIcon;
-  if (value.includes("zubehoer") || value.includes("zubehör") || value.includes("tool"))
-    return WrenchScrewdriverIcon;
-  return BoltIcon;
 };
 
 export default function NavbarMobileCategoriesOverlay({

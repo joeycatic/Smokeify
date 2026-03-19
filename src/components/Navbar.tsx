@@ -7,28 +7,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bars3Icon,
-  ArchiveBoxIcon,
-  ArrowPathIcon,
-  ArrowsRightLeftIcon,
-  BeakerIcon,
-  BoltIcon,
-  CloudIcon,
-  CubeIcon,
-  DocumentTextIcon,
-  FireIcon,
-  FunnelIcon,
   HeartIcon,
-  LightBulbIcon,
   MagnifyingGlassIcon,
-  RectangleStackIcon,
-  ScaleIcon,
-  Squares2X2Icon,
   ShoppingBagIcon,
-  SparklesIcon,
-  SunIcon,
-  TrashIcon,
   UserCircleIcon,
-  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import type { AddedItem } from "./CartProvider";
@@ -41,6 +23,7 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
+import { getCategoryIcon } from "@/components/navbar/categoryIcons";
 
 const PaymentMethodLogos = dynamic(
   () => import("@/components/PaymentMethodLogos"),
@@ -87,46 +70,6 @@ const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
     price: Number(line.merchandise.price.amount),
     quantity: line.quantity,
   }));
-
-const getCategoryIcon = (name: string) => {
-  const value = name.toLowerCase();
-  if (value.includes("aschenbecher") || value.includes("ashtray"))
-    return TrashIcon;
-  if (value.includes("aufbewahrung") || value.includes("storage"))
-    return ArchiveBoxIcon;
-  if (value.includes("feuerzeug") || value.includes("lighter"))
-    return FireIcon;
-  if (value.includes("papers") || value.includes("papier"))
-    return DocumentTextIcon;
-  if (value.includes("rolling tray") || value.includes("tray"))
-    return RectangleStackIcon;
-  if (value.includes("waage") || value.includes("waagen") || value.includes("scale"))
-    return ScaleIcon;
-  if (value.includes("duenger") || value.includes("dünger")) return BeakerIcon;
-  if (value.includes("substrat") || value.includes("erde")) return BeakerIcon;
-  if (value.includes("filter")) return FunnelIcon;
-  if (value.includes("growbox") || value.includes("zelt")) return CubeIcon;
-  if (value.includes("heat") || value.includes("heiz")) return FireIcon;
-  if (value.includes("licht")) return SunIcon;
-  if (value.includes("led") || value.includes("lampe")) return LightBulbIcon;
-  if (value.includes("luft") || value.includes("luefter") || value.includes("lüfter"))
-    return CloudIcon;
-  if (value.includes("bewaesser") || value.includes("bewässer") || value.includes("wasser"))
-    return CloudIcon;
-  if (value.includes("entfeucht") || value.includes("befeucht"))
-    return CloudIcon;
-  if (value.includes("schlauch") || value.includes("kanal") || value.includes("duct"))
-    return ArrowsRightLeftIcon;
-  if (value.includes("ventilator") || value.includes("rohrventilator"))
-    return ArrowPathIcon;
-  if (value.includes("set") || value.includes("bundle"))
-    return Squares2X2Icon;
-  if (value.includes("anzucht") || value.includes("samen") || value.includes("seed"))
-    return SparklesIcon;
-  if (value.includes("zubehoer") || value.includes("zubehör") || value.includes("tool"))
-    return WrenchScrewdriverIcon;
-  return BoltIcon;
-};
 
 type NavbarProps = {
   initialCategories?: NavbarCategory[];
