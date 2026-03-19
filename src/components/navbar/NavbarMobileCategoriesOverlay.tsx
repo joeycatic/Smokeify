@@ -113,13 +113,13 @@ export default function NavbarMobileCategoriesOverlay({
         type="button"
         aria-label="Produkte schliessen"
         onClick={onClose}
-        className="absolute inset-0 bg-black/68 backdrop-blur-[2px]"
+        className="webshop-overlay-fade absolute inset-0 bg-black/68 backdrop-blur-[2px]"
       />
       <div
         ref={mobileProductsRef}
         className="absolute inset-0 bg-[#090b0b]/82 p-4 shadow-2xl"
       >
-        <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-white/10 bg-[#101312]/96 px-4 py-5 text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl">
+        <div className="webshop-mobile-sheet-in mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-white/10 bg-[#101312]/96 px-4 py-5 text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-white/10 px-1 pb-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-stone-400">

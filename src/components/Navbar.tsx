@@ -786,7 +786,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   createPortal(
                     <div
                       ref={menuPopupRef}
-                      className="fixed z-[1300] mt-3 w-60 rounded-[24px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
+                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[24px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
                       style={{
                         top: menuPopupStyle.top,
                         left: menuPopupStyle.left,
@@ -854,7 +854,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
+                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
