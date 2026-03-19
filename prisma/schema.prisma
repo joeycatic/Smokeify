@@ -65,6 +65,7 @@ model User {
   emailVerified  DateTime?
   image          String?
   passwordHash   String?
+  authVersion    Int            @default(0)
   role           UserRole       @default(USER)
   customerGroup  CustomerGroup  @default(NORMAL)
   notes          String?

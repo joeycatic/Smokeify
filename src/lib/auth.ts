@@ -59,6 +59,7 @@ providers.push(
           passwordHash: true,
           emailVerified: true,
           role: true,
+          authVersion: true,
         },
       });
       if (!user || !user.email) return null;
@@ -174,22 +175,57 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user }) {
       if (user) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: String(user.id) },
+          select: { role: true, authVersion: true },
+        });
+        if (!dbUser) {
+          token.invalidated = true;
+          delete token.id;
+          delete token.role;
+          delete token.authVersion;
+          return token;
+        }
         token.id = user.id;
-        token.role = user.role;
+        token.role = dbUser.role;
+        token.authVersion = dbUser.authVersion;
+        token.invalidated = false;
         return token;
       }
 
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: String(token.id) },
-          select: { role: true },
+          select: { role: true, authVersion: true },
         });
-        token.role = dbUser?.role ?? "USER";
+        if (!dbUser) {
+          token.invalidated = true;
+          delete token.id;
+          delete token.role;
+          delete token.authVersion;
+          return token;
+        }
+        if (
+          typeof token.authVersion === "number" &&
+          token.authVersion !== dbUser.authVersion
+        ) {
+          token.invalidated = true;
+          delete token.id;
+          delete token.role;
+          delete token.authVersion;
+          return token;
+        }
+        token.role = dbUser.role;
+        token.authVersion = dbUser.authVersion;
+        token.invalidated = false;
       }
 
       return token;
     },
     session({ session, token }) {
+      if (token.invalidated || !token.id) {
+        return null as never;
+      }
       if (session.user) {
         session.user.id = String(token.id ?? "");
         session.user.role = (token.role as "USER" | "ADMIN" | "STAFF") ?? "USER";
