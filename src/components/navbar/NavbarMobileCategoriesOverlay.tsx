@@ -113,26 +113,26 @@ export default function NavbarMobileCategoriesOverlay({
         type="button"
         aria-label="Produkte schliessen"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/68 backdrop-blur-[2px]"
       />
       <div
         ref={mobileProductsRef}
-        className="absolute inset-0 bg-stone-100 p-5 shadow-2xl"
+        className="absolute inset-0 bg-[#090b0b]/82 p-4 shadow-2xl"
       >
-        <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[28px] border border-emerald-200 bg-white px-4 py-5 text-emerald-950 shadow-xl">
-          <div className="flex items-center justify-between border-b border-emerald-100 px-1 pb-4">
+        <div className="mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-white/10 bg-[#101312]/96 px-4 py-5 text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-white/10 px-1 pb-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600/80">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-stone-400">
                 Kategorien
               </p>
-              <p className="mt-1 text-xl font-semibold text-emerald-950">
+              <p className="mt-1 text-xl font-semibold text-white">
                 {activeParentName}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-3xl text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-3xl text-stone-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
               aria-label="Schliessen"
             >
               ×
@@ -144,16 +144,16 @@ export default function NavbarMobileCategoriesOverlay({
               value={categoryQuery}
               onChange={(event) => onCategoryQueryChange(event.target.value)}
               placeholder="Kategorien suchen ..."
-              className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm text-emerald-950 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+              className="h-11 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-stone-100 shadow-sm outline-none transition placeholder:text-stone-500 focus:border-white/20 focus:bg-white/[0.06] focus:ring-2 focus:ring-white/10"
             />
           </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-emerald-700">
+          <div className="flex items-center justify-between text-xs font-semibold text-stone-300">
             <div className="flex flex-1 items-center gap-2">
               {hasCategoryStack && (
                 <button
                   type="button"
                   onClick={onBack}
-                  className="rounded-full border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-900 hover:border-emerald-300 hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-sm font-semibold text-stone-100 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                 >
                   ← Zurück
                 </button>
@@ -161,7 +161,7 @@ export default function NavbarMobileCategoriesOverlay({
               <Link
                 href="/products"
                 onClick={onViewAllProducts}
-                className={`rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-900 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`rounded-full border border-white/10 bg-white/[0.06] px-4 py-1.5 text-sm font-semibold text-stone-100 shadow-sm transition hover:border-white/20 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312] ${
                   hasCategoryStack ? "ml-auto" : ""
                 }`}
               >
@@ -173,17 +173,17 @@ export default function NavbarMobileCategoriesOverlay({
           <div className="no-scrollbar flex-1 overflow-y-auto pb-4">
             <div className="space-y-3">
               {categoriesStatus === "loading" && (
-                <div className="px-2 py-2 text-sm text-stone-500">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 text-sm text-stone-400">
                   Laedt Kategorien...
                 </div>
               )}
               {categoriesStatus === "error" && (
-                <div className="px-2 py-2 text-sm text-rose-600">
+                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
                   Kategorien konnten nicht geladen werden.
                 </div>
               )}
               {categoriesStatus === "idle" && filteredCategories.length === 0 && (
-                <div className="px-2 py-2 text-sm text-stone-500">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 text-sm text-stone-400">
                   Keine Kategorien gefunden.
                 </div>
               )}
@@ -191,10 +191,10 @@ export default function NavbarMobileCategoriesOverlay({
                 <button
                   type="button"
                   onClick={onViewParentCategory}
-                  className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="flex w-full items-center justify-between rounded-[24px] border border-white/12 bg-white/[0.06] px-4 py-3 text-left text-base font-semibold text-white shadow-sm transition hover:border-white/20 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                 >
                   <span>Alle {activeParentName}</span>
-                  <span className="text-sm text-emerald-600">→</span>
+                  <span className="text-sm text-stone-400">→</span>
                 </button>
               )}
               {categoriesStatus === "idle" &&
@@ -207,16 +207,16 @@ export default function NavbarMobileCategoriesOverlay({
                       key={category.id}
                       type="button"
                       onClick={() => onSelectCategory(category, isLeaf)}
-                      className="flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-left text-base font-semibold text-emerald-950 shadow-sm hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="flex w-full items-center justify-between rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-3 text-left text-base font-semibold text-stone-100 shadow-sm transition hover:border-white/14 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                     >
                       <span className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-stone-300 shadow-sm">
                           <CategoryIcon className="h-5 w-5" />
                         </span>
                         <span>{category.name}</span>
                       </span>
-                      <span className="flex items-center gap-2 text-sm text-emerald-600">
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                      <span className="flex items-center gap-2 text-sm text-stone-400">
+                        <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-0.5 text-xs font-semibold text-stone-200">
                           {category.totalItemCount}
                         </span>
                         {!isLeaf && "›"}
