@@ -770,8 +770,8 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     ref={menuTriggerRef}
                     className={`flex h-10 w-10 items-center justify-center rounded-full border text-stone-100 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 ${
                       menuOpen
-                        ? "border-white/14 bg-[#141818] shadow-lg shadow-black/20 focus-visible:ring-offset-[#101312]"
-                        : "border-white/10 bg-[#101312]/94 hover:border-white/18 hover:bg-[#141818] focus-visible:ring-offset-white"
+                        ? "border-emerald-700/40 bg-[#142019] shadow-lg shadow-black/20 focus-visible:ring-offset-[#101312]"
+                        : "border-emerald-900/40 bg-[#101312]/94 hover:border-emerald-700/45 hover:bg-[#142019] focus-visible:ring-offset-white"
                     }`}
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
@@ -786,7 +786,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   createPortal(
                     <div
                       ref={menuPopupRef}
-                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[24px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
+                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[24px] border border-emerald-900/45 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
                       style={{
                         top: menuPopupStyle.top,
                         left: menuPopupStyle.left,
@@ -801,21 +801,21 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           setMenuOpen(false);
                           setProductsOpen(true);
                         }}
-                        className="block rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5 text-sm font-semibold text-stone-100 transition hover:border-white/16 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                        className="block rounded-2xl border border-emerald-900/35 bg-emerald-950/20 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                       >
                         Webshop
                       </Link>
                       <Link
                         href="/customizer"
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5 text-sm font-semibold text-stone-100 transition hover:border-white/16 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                        className="mt-2 block rounded-2xl border border-emerald-900/35 bg-emerald-950/20 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                       >
                         Konfigurator
                       </Link>
                       <Link
                         href="/pflanzen-analyzer"
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5 text-sm font-semibold text-stone-100 transition hover:border-white/16 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                        className="mt-2 block rounded-2xl border border-emerald-900/35 bg-emerald-950/20 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                       >
                         Pflanzen Analyse
                       </Link>
@@ -839,7 +839,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         }
                         className={`inline-flex cursor-pointer items-center rounded-full border px-4 py-2 text-base font-semibold transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                           productsOpen
-                            ? "border-white/15 bg-[#141818] text-stone-50 shadow-lg shadow-black/20"
+                            ? "border-emerald-700/40 bg-[#142019] text-emerald-50 shadow-lg shadow-black/20"
                             : "border-transparent text-[#2f3e36] hover:border-black/10 hover:bg-black/[0.04] hover:text-[#1f2a24]"
                         }`}
                         aria-expanded={productsOpen}
@@ -854,15 +854,15 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-white/10 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
+                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-emerald-900/45 bg-[#101312]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/35 backdrop-blur-xl"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
                               width: productsPopupStyle.width,
                             }}
                           >
-                            <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-3 py-3">
-                              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <div className="rounded-[22px] border border-emerald-900/35 bg-emerald-950/12 px-3 py-3">
+                              <div className="flex items-center justify-between border-b border-emerald-900/35 pb-3">
                                 {categoryStack.length > 0 ? (
                                   <button
                                     type="button"
@@ -871,12 +871,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                         prev.slice(0, -1),
                                       )
                                     }
-                                    className="cursor-pointer rounded-full border border-white/12 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-stone-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                                    className="cursor-pointer rounded-full border border-emerald-800/35 bg-emerald-950/30 px-3 py-1 text-sm font-semibold text-emerald-100 transition hover:border-emerald-700/45 hover:bg-emerald-900/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                                   >
                                     ← Zurück
                                   </button>
                                 ) : (
-                                  <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-stone-400">
+                                  <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300/65">
                                     Kategorien
                                   </span>
                                 )}
@@ -886,7 +886,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                     setProductsOpen(false);
                                     setCategoryStack([]);
                                   }}
-                                  className="cursor-pointer rounded-full border border-white/12 bg-white/[0.06] px-4 py-1.5 text-sm font-semibold text-stone-100 transition hover:border-white/20 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                                  className="cursor-pointer rounded-full border border-emerald-800/35 bg-emerald-950/35 px-4 py-1.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/45 hover:bg-emerald-900/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                                 >
                                   Alle Produkte
                                 </Link>
@@ -899,7 +899,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                 )}
                                 {categoriesStatus === "idle" &&
                                   activeCategories.length === 0 && (
-                                    <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 text-xs text-stone-400">
+                                    <div className="rounded-2xl border border-emerald-900/30 bg-emerald-950/12 px-3 py-2 text-xs text-emerald-100/65">
                                       Keine Kategorien gefunden.
                                     </div>
                                   )}
@@ -916,12 +916,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                         setProductsOpen(false);
                                         setCategoryStack([]);
                                       }}
-                                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-left text-base font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-emerald-800/35 bg-emerald-950/32 px-4 py-3 text-left text-base font-semibold text-white transition hover:border-emerald-700/45 hover:bg-emerald-900/32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                                     >
                                       <span>
                                         Alle {activeParentCategory.name}
                                       </span>
-                                      <span className="text-sm text-stone-400">
+                                      <span className="text-sm text-emerald-200/70">
                                         →
                                       </span>
                                     </button>
@@ -956,16 +956,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                             category.id,
                                           ]);
                                         }}
-                                        className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-left text-base font-semibold text-stone-100 transition hover:border-white/16 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
+                                        className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-emerald-900/30 bg-emerald-950/14 px-4 py-3 text-left text-base font-semibold text-stone-100 transition hover:border-emerald-700/35 hover:bg-emerald-900/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101312]"
                                       >
                                         <span className="flex items-center gap-3">
-                                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-stone-300">
+                                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-800/30 bg-emerald-950/38 text-emerald-200/85">
                                             <CategoryIcon className="h-4 w-4" />
                                           </span>
                                           <span>{category.name}</span>
                                         </span>
-                                        <span className="flex items-center gap-2 text-sm text-stone-400">
-                                          <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-0.5 text-xs font-semibold text-stone-200">
+                                        <span className="flex items-center gap-2 text-sm text-emerald-100/65">
+                                          <span className="rounded-full border border-emerald-800/30 bg-emerald-950/38 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">
                                             {category.totalItemCount}
                                           </span>
                                           {!isLeaf && <span>›</span>}
@@ -1321,7 +1321,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           }`}
                         >
                           <div
-                            className="grid grid-flow-col auto-cols-max gap-2 rounded-[24px] border border-white/10 bg-[#101312]/96 p-3 text-[15px] text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl"
+                            className="grid grid-flow-col auto-cols-max gap-2 rounded-[24px] border border-emerald-900/45 bg-[#101312]/96 p-3 text-[15px] text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl"
                             style={{
                               gridTemplateRows: `repeat(${Math.max(
                                 1,
@@ -1344,9 +1344,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                       setCategoryNavTarget(child.href);
                                       setCategoryHoverLocked(true);
                                     }}
-                                    className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-3.5 py-3 font-semibold text-stone-100 transition hover:border-white/14 hover:bg-white/[0.08]"
+                                    className="flex items-center gap-2 rounded-2xl border border-emerald-900/30 bg-emerald-950/14 px-3.5 py-3 font-semibold text-stone-100 transition hover:border-emerald-700/35 hover:bg-emerald-900/18"
                                   >
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-stone-300">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-800/30 bg-emerald-950/38 text-emerald-200/85">
                                       <ChildIcon className="h-4.5 w-4.5" />
                                     </span>
                                     <span className="flex-1 whitespace-nowrap">
