@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzePlantImage } from "@/lib/plantAnalyzer";
+import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { parseMobileToken } from "@/lib/mobileToken";
 
@@ -22,15 +23,25 @@ export async function POST(request: Request) {
   }
 
   const tokenPayload = parseMobileToken(request.headers.get("authorization"));
-  if (tokenPayload?.sub) {
-    const userLimit = await checkRateLimit({
-      key: `mobile-ai-analyze:user:${tokenPayload.sub}`,
-      limit: 120,
-      windowMs: 60 * 1000,
-    });
-    if (!userLimit.allowed) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-    }
+  if (!tokenPayload?.sub) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userLimit = await checkRateLimit({
+    key: `mobile-ai-analyze:user:${tokenPayload.sub}`,
+    limit: 120,
+    windowMs: 60 * 1000,
+  });
+  if (!userLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: tokenPayload.sub },
+    select: { id: true },
+  });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => ({}))) as AnalyzeBody;
@@ -53,7 +64,7 @@ export async function POST(request: Request) {
       imageUri,
       notes,
       plantId,
-      userId: tokenPayload?.sub ?? null,
+      userId: tokenPayload.sub,
     });
     return NextResponse.json(result);
   } catch (error) {

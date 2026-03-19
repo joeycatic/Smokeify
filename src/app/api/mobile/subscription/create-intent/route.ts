@@ -20,12 +20,12 @@ const PREMIUM_STATUSES = new Set<Stripe.Subscription.Status>([
   "past_due",
 ]);
 
-const getPriceIdForPlan = (plan: Plan, bodyPriceId?: string) => {
+const getPriceIdForPlan = (plan: Plan) => {
   const configured =
     plan === "monthly"
       ? process.env.MOBILE_PREMIUM_PRICE_MONTHLY_ID
       : process.env.MOBILE_PREMIUM_PRICE_YEARLY_ID;
-  return (bodyPriceId?.trim() || configured || "").trim();
+  return (configured || "").trim();
 };
 
 const getOrCreateCustomer = async (stripe: Stripe, user: { id: string; email: string; name?: string | null }) => {
@@ -72,10 +72,9 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     plan?: Plan;
-    priceId?: string;
   };
   const plan: Plan = body.plan === "yearly" ? "yearly" : "monthly";
-  const priceId = getPriceIdForPlan(plan, body.priceId);
+  const priceId = getPriceIdForPlan(plan);
   if (!priceId) {
     return NextResponse.json(
       { error: "Premium price id not configured." },

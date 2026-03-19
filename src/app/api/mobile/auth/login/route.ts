@@ -31,6 +31,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing identifier or password" }, { status: 400 });
   }
 
+  const identifierLimit = await checkRateLimit({
+    key: `mobile-login:identifier:${identifierLower}`,
+    limit: LOGIN_RATE_LIMIT.identifierLimit,
+    windowMs: LOGIN_RATE_LIMIT.windowMs,
+  });
+  if (!identifierLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const user = await prisma.user.findFirst({
     where: {
       OR: [
@@ -67,12 +76,20 @@ export async function POST(request: Request) {
   const displayName =
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.name || user.email;
 
-  const token = signMobileToken({
-    sub: user.id,
-    email: user.email,
-    name: displayName,
-    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
-  });
+  let token: string;
+  try {
+    token = signMobileToken({
+      sub: user.id,
+      email: user.email,
+      name: displayName,
+      exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Mobile auth is not configured" },
+      { status: 503 },
+    );
+  }
 
   return NextResponse.json({
     token,
