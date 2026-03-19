@@ -8,21 +8,13 @@ import { attachServerTiming, getNow } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { detectImageFromBuffer } from "@/lib/uploadValidation";
 
 const FREE_ANALYSIS_LIMIT = 3;
 const FREE_ANALYSIS_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
-const getFileExtension = (file: File) => {
-  const providedExtension =
-    file.name && file.name.includes(".")
-      ? `.${file.name.split(".").pop()?.toLowerCase()}`
-      : "";
-  if (providedExtension) return providedExtension;
-  if (file.type === "image/png") return ".png";
-  if (file.type === "image/webp") return ".webp";
-  return ".jpg";
-};
+const ALLOWED_ANALYZER_IMAGE_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export async function POST(request: Request) {
   const startedAt = getNow();
@@ -75,12 +67,6 @@ export async function POST(request: Request) {
       [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
     );
   }
-  if (!file.type.startsWith("image/")) {
-    return attachServerTiming(
-      NextResponse.json({ error: "Das Bildformat ist ungültig." }, { status: 400 }),
-      [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
-    );
-  }
   if (file.size === 0 || file.size > MAX_IMAGE_SIZE_BYTES) {
     return attachServerTiming(
       NextResponse.json(
@@ -116,12 +102,22 @@ export async function POST(request: Request) {
   try {
     const uploadStartedAt = getNow();
     const buffer = Buffer.from(await file.arrayBuffer());
+    const detectedImage = detectImageFromBuffer(buffer);
+    if (!detectedImage || !ALLOWED_ANALYZER_IMAGE_FORMATS.has(detectedImage.format)) {
+      return attachServerTiming(
+        NextResponse.json(
+          { error: "Bitte ein JPEG-, PNG- oder WebP-Bild hochladen." },
+          { status: 400 },
+        ),
+        [{ name: "analyzer", durationMs: getNow() - startedAt, description: "submit" }],
+      );
+    }
     const imageHash = createHash("sha256").update(buffer).digest("hex");
-    const filename = `plant-analyzer/${session.user.id}/${randomUUID()}${getFileExtension(file)}`;
+    const filename = `plant-analyzer/${session.user.id}/${randomUUID()}${detectedImage.extension}`;
     const blob = await put(filename, buffer, {
       access: "public",
       addRandomSuffix: false,
-      contentType: file.type || undefined,
+      contentType: detectedImage.mime,
     });
     const uploadDuration = getNow() - uploadStartedAt;
 
@@ -129,7 +125,7 @@ export async function POST(request: Request) {
     const result = await analyzePlantImage({
       imageUrl: blob.url,
       imageHash,
-      imageMime: file.type || null,
+      imageMime: detectedImage.mime,
       notes,
       userId: session.user.id,
     });
