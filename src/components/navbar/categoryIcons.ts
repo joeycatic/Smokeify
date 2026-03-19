@@ -12,6 +12,7 @@ import {
   CloudIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
+  EyeDropperIcon,
   FireIcon,
   FunnelIcon,
   HomeModernIcon,
@@ -102,7 +103,7 @@ export function getCategoryIcon(name: string): CategoryIcon {
     value.includes("osmose") ||
     value.includes("autopot")
   ) {
-    return CloudIcon;
+    return EyeDropperIcon;
   }
 
   if (
