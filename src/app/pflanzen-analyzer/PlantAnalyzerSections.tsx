@@ -247,14 +247,14 @@ function ProductSuggestionGrid({
           href={`/products/${product.handle}`}
           className={`group rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-3 transition hover:border-emerald-300 hover:bg-emerald-50/40 ${lightFocusRing}`}
         >
-          <div className="flex gap-3">
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white">
+          <div className="flex flex-col gap-3 min-[420px]:flex-row">
+            <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-2xl bg-white min-[420px]:h-20 min-[420px]:w-20">
               {product.imageUrl ? (
                 <Image
                   src={product.imageUrl}
                   alt={product.imageAlt}
                   fill
-                  sizes="80px"
+                  sizes="(min-width: 420px) 80px, 100vw"
                   className="object-cover"
                 />
               ) : (
@@ -343,13 +343,13 @@ export function PlantAnalyzerHero({
           <span className="h-2 w-2 rounded-full bg-[#E4C56C]" />
           {isGerman ? "Smokeify Pflanzenhilfe" : "Smokeify Plant Care"}
         </div>
-        <div className="inline-flex w-fit self-start rounded-full border border-stone-200 bg-white p-1 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+        <div className="inline-flex w-full self-start rounded-full border border-stone-200 bg-white p-1 shadow-[0_10px_24px_rgba(15,23,42,0.06)] sm:w-fit">
           <button
             type="button"
             onClick={() => onLocaleChange("de")}
             aria-label="Deutsch"
             aria-pressed={isGerman}
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition sm:flex-none ${
               isGerman
                 ? "bg-[#E4C56C] text-[#20342b]"
                 : "text-stone-600 hover:bg-stone-100"
@@ -363,7 +363,7 @@ export function PlantAnalyzerHero({
             onClick={() => onLocaleChange("en")}
             aria-label="English"
             aria-pressed={!isGerman}
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition sm:flex-none ${
               !isGerman
                 ? "bg-[#E4C56C] text-[#20342b]"
                 : "text-stone-600 hover:bg-stone-100"
@@ -379,7 +379,7 @@ export function PlantAnalyzerHero({
         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
           {isGerman ? "Blitzschnelle Einschätzung" : "Quick first assessment"}
         </p>
-        <h1 className="mt-2 max-w-4xl text-[2rem] font-extrabold leading-[1.04] tracking-tight text-stone-950 sm:text-[3rem]">
+        <h1 className="mt-2 max-w-4xl break-words text-[1.85rem] font-extrabold leading-[1.04] tracking-tight text-stone-950 sm:text-[3rem]">
           {isGerman
             ? "Foto hochladen, klare Empfehlung erhalten, komplett kostenlos"
             : "Upload a photo, add context, get a clear recommendation."}
@@ -469,7 +469,7 @@ export function PlantAnalyzerUploadSection({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
             {isGerman ? "Upload" : "Upload"}
           </p>
-          <h2 className="mt-2 text-[1.75rem] font-bold tracking-tight text-stone-950 sm:text-2xl">
+          <h2 className="mt-2 break-words text-[1.65rem] font-bold tracking-tight text-stone-950 sm:text-2xl">
             {isGerman
               ? "Foto und Kontext für die Analyse"
               : "Photo and context for analysis"}
@@ -594,6 +594,7 @@ export function PlantAnalyzerUploadSection({
           id={inputId}
           type="file"
           accept="image/*"
+          capture="environment"
           onChange={(event) => {
             const nextFile = event.target.files?.[0] ?? null;
             onFileChange(nextFile);
@@ -619,9 +620,10 @@ export function PlantAnalyzerUploadSection({
             type="button"
             onClick={onClearImage}
             aria-label={isGerman ? "Foto entfernen" : "Remove photo"}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 ${lightFocusRing}`}
+            className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl border border-stone-300 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 sm:h-10 sm:w-auto sm:rounded-full sm:px-3 sm:text-xs ${lightFocusRing}`}
           >
             <TrashIcon className="h-4.5 w-4.5" />
+            <span>{isGerman ? "Foto entfernen" : "Remove photo"}</span>
           </button>
         </div>
       ) : null}
@@ -769,13 +771,13 @@ export function PlantAnalyzerUploadSection({
             <div className="flex flex-col gap-3 sm:min-w-[260px] sm:flex-row sm:justify-end">
               <Link
                 href={`/auth/signin?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-                className={`inline-flex min-h-11 items-center justify-center rounded-2xl border border-[#1d4d3a] bg-[#1f5a45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(31,90,69,0.18)] transition hover:bg-[#184a39] ${lightFocusRing}`}
+                className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#1d4d3a] bg-[#1f5a45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(31,90,69,0.18)] transition hover:bg-[#184a39] sm:w-auto ${lightFocusRing}`}
               >
                 {isGerman ? "Anmelden" : "Sign in"}
               </Link>
               <Link
                 href={`/auth/register?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-                className={`inline-flex min-h-11 items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-100 ${lightFocusRing}`}
+                className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-100 sm:w-auto ${lightFocusRing}`}
               >
                 {isGerman ? "Registrieren" : "Register"}
               </Link>
@@ -879,7 +881,7 @@ export function PlantAnalyzerResultSection({
                       : "border-white/10 bg-white/10"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="relative flex h-3.5 w-3.5 items-center justify-center">
                       <div
                         className={`absolute inset-0 rounded-full ${
@@ -894,7 +896,7 @@ export function PlantAnalyzerResultSection({
                     </div>
                     <p className="text-sm font-semibold">{step.title}</p>
                     <span
-                      className={`ml-auto rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] sm:ml-auto ${
                         isActive
                           ? "bg-white/16 text-[#f5e8bc]"
                           : "bg-white/8 text-white/55"
@@ -1079,7 +1081,7 @@ export function PlantAnalyzerResultSection({
             )}
           </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
             <h3 className="text-lg font-semibold text-stone-900">
               {isGerman ? "Konkrete nächste Schritte" : "Concrete next steps"}
             </h3>
@@ -1087,7 +1089,7 @@ export function PlantAnalyzerResultSection({
               {result.diagnosis.recommendations.map((entry, index) => (
                 <li
                   key={entry}
-                  className="flex gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3"
+                  className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3"
                 >
                   <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
                     {index + 1}
@@ -1098,7 +1100,7 @@ export function PlantAnalyzerResultSection({
             </ul>
           </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
             <h3 className="text-lg font-semibold text-stone-900">
               {isGerman
                 ? "Passende Produkte aus dem Shop"
@@ -1112,7 +1114,7 @@ export function PlantAnalyzerResultSection({
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
             <h3 className="text-lg font-semibold text-stone-900">
               {isGerman ? "Weiterführende Guides" : "Further guides"}
             </h3>
@@ -1172,17 +1174,17 @@ export function PlantAnalyzerHistorySection({
               : "Earlier analyses stay visible so you can compare symptoms, trends and recommendations more calmly later on."}
           </p>
         </div>
-        <div className="w-fit rounded-2xl border border-[#d8dfd4] bg-stone-50 p-3 text-stone-700">
+        <div className="w-fit self-start rounded-2xl border border-[#d8dfd4] bg-stone-50 p-3 text-stone-700 sm:self-auto">
           <ClockIcon className="h-6 w-6" />
         </div>
       </div>
 
       {!hasHydrated || effectiveSessionStatus === "loading" ? (
-        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-6 py-8 text-sm text-stone-500">
+        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-4 py-8 text-sm text-stone-500 sm:px-6">
           {isGerman ? "Verlauf wird geladen ..." : "Loading history ..."}
         </div>
       ) : !isAuthenticated ? (
-        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-6 py-10 text-center">
+        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-4 py-10 text-center sm:px-6">
           <UserCircleIcon className="mx-auto h-8 w-8 text-stone-400" />
           <p className="mt-4 text-base font-semibold text-stone-800">
             {isGerman ? "Verlauf nach Login verfügbar" : "History after login"}
@@ -1208,7 +1210,7 @@ export function PlantAnalyzerHistorySection({
           </div>
         </div>
       ) : !historyRequested ? (
-        <div className="mt-6 rounded-[24px] border border-stone-200 bg-white px-6 py-8 text-center shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+        <div className="mt-6 rounded-[24px] border border-stone-200 bg-white px-4 py-8 text-center shadow-[0_12px_30px_rgba(15,23,42,0.05)] sm:px-6">
           <p className="text-base font-semibold text-stone-900">
             {isGerman
               ? "Verlauf bei Bedarf laden"
@@ -1228,11 +1230,11 @@ export function PlantAnalyzerHistorySection({
           </button>
         </div>
       ) : historyStatus === "loading" ? (
-        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-6 py-8 text-sm text-stone-500">
+        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-4 py-8 text-sm text-stone-500 sm:px-6">
           {isGerman ? "Verlauf wird geladen ..." : "Loading history ..."}
         </div>
       ) : historyStatus === "error" ? (
-        <div className="mt-6 rounded-[24px] border border-red-200 bg-red-50 px-6 py-8 text-center">
+        <div className="mt-6 rounded-[24px] border border-red-200 bg-red-50 px-4 py-8 text-center sm:px-6">
           <p className="text-base font-semibold text-red-900">
             {isGerman
               ? "Verlauf konnte nicht geladen werden"
@@ -1247,7 +1249,7 @@ export function PlantAnalyzerHistorySection({
           </button>
         </div>
       ) : history.length === 0 ? (
-        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-6 py-10 text-center">
+        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-4 py-10 text-center sm:px-6">
           <ClockIcon className="mx-auto h-8 w-8 text-stone-400" />
           <p className="mt-4 text-base font-semibold text-stone-800">
             {isGerman
@@ -1309,7 +1311,7 @@ export function PlantAnalyzerHistorySection({
                         key={issue.id}
                         className="rounded-[18px] border border-stone-200 bg-white px-3 py-3"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <p className="break-words text-sm font-semibold text-stone-900">
                               {issue.label}
@@ -1371,7 +1373,7 @@ export function PlantAnalyzerAuthModal({
   const dialogDescriptionId = "plant-analyzer-auth-description";
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center px-4 pb-4 pt-6 sm:items-center sm:pb-6">
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:items-center sm:px-4 sm:pb-6 sm:pt-6">
       <button
         type="button"
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
@@ -1379,7 +1381,7 @@ export function PlantAnalyzerAuthModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-[#d8dfd4] bg-[linear-gradient(180deg,#fffef9_0%,#ffffff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.30)] sm:p-6"
+        className="relative w-full max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] overflow-y-auto rounded-[28px] border border-[#d8dfd4] bg-[linear-gradient(180deg,#fffef9_0%,#ffffff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.30)] sm:rounded-3xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
@@ -1451,7 +1453,7 @@ export function PlantAnalyzerHistoryModal({
   const dialogTitleId = "plant-analyzer-history-title";
 
   return (
-    <div className="fixed inset-0 z-[1100] overflow-y-auto overscroll-contain bg-black/50 px-4 pb-4 pt-6 backdrop-blur-[6px] sm:pb-6">
+    <div className="fixed inset-0 z-[1100] overflow-y-auto overscroll-contain bg-black/50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-[6px] sm:px-4 sm:pb-6 sm:pt-6">
       <button
         type="button"
         className="absolute inset-0 z-0"
@@ -1459,7 +1461,7 @@ export function PlantAnalyzerHistoryModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-3xl border border-black/10 bg-white p-4 shadow-[0_22px_50px_rgba(15,23,42,0.20)] sm:my-6 sm:p-6"
+        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white p-4 shadow-[0_22px_50px_rgba(15,23,42,0.20)] sm:my-6 sm:rounded-3xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
