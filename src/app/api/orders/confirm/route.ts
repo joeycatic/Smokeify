@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { verifyGuestCheckoutAccess } from "@/lib/checkoutAccess";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
@@ -104,19 +105,56 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     sessionId?: string;
+    guestToken?: string;
+    guestExpires?: number | string;
   };
   const sessionId = body.sessionId?.trim();
+  const guestToken = body.guestToken?.trim() ?? "";
+  const guestExpiresRaw =
+    typeof body.guestExpires === "number" || typeof body.guestExpires === "string"
+      ? Number(body.guestExpires)
+      : NaN;
   if (!sessionId) {
     return NextResponse.json({ error: "Missing session id." }, { status: 400 });
   }
+
+  const isAdmin = session?.user?.role === "ADMIN";
+  const userId = session?.user?.id ?? null;
+  let cachedCheckoutSession: Stripe.Checkout.Session | null = null;
+  const loadCheckoutSession = async () => {
+    if (cachedCheckoutSession) return cachedCheckoutSession;
+    cachedCheckoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+    return cachedCheckoutSession;
+  };
+  const isGuestSessionAuthorized = async () => {
+    const checkoutSession = await loadCheckoutSession();
+    const expectedHash = checkoutSession.metadata?.guestCheckoutAccessHash ?? null;
+    const expectedExpires = Number(
+      checkoutSession.metadata?.guestCheckoutAccessExpiresAt ?? NaN
+    );
+    if (!verifyGuestCheckoutAccess({
+      token: guestToken,
+      expiresAt: guestExpiresRaw,
+      expectedHash,
+    })) {
+      return false;
+    }
+    return expectedExpires === guestExpiresRaw;
+  };
 
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
     include: { items: true },
   });
   if (existing) {
-    if (existing.userId && existing.userId !== session?.user?.id) {
+    if (existing.userId && !isAdmin && existing.userId !== userId) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+    if (!existing.userId && !isAdmin && !userId) {
+      const authorized = await isGuestSessionAuthorized();
+      if (!authorized) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
     const items = await enrichItemsWithManufacturer(
       existing.items.map((item) => ({
@@ -150,17 +188,22 @@ export async function POST(request: Request) {
     });
   }
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+  const checkoutSession = await loadCheckoutSession();
   if (!checkoutSession) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
   if (checkoutSession.client_reference_id) {
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (checkoutSession.client_reference_id !== session.user.id) {
+    if (!isAdmin && checkoutSession.client_reference_id !== userId) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+  } else if (!isAdmin && !userId) {
+    const authorized = await isGuestSessionAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
 

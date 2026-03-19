@@ -107,6 +107,8 @@ export default function OrderSuccessPage() {
   const purchaseTracked = useRef(false);
 
   const sessionId = searchParams.get("session_id") || "";
+  const guestToken = searchParams.get("guest_token") || "";
+  const guestExpires = searchParams.get("guest_expires") || "";
   const returnTo = useMemo(() => {
     const base = "/order/success";
     return sessionId
@@ -134,7 +136,11 @@ export default function OrderSuccessPage() {
         const res = await fetch("/api/orders/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          body: JSON.stringify({
+            sessionId,
+            guestToken: guestToken || undefined,
+            guestExpires: guestExpires || undefined,
+          }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           order?: OrderSummary;
@@ -164,7 +170,7 @@ export default function OrderSuccessPage() {
     };
 
     void loadOrder();
-  }, [loadStatus, returnTo, router, sessionId, status]);
+  }, [guestExpires, guestToken, loadStatus, returnTo, router, sessionId, status]);
 
   useEffect(() => {
     if (loadStatus !== "pending") return;

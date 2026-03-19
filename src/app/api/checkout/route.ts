@@ -18,6 +18,7 @@ import {
   formatRedeemRateLabel,
   pointsToDiscountCents,
 } from "@/lib/loyalty";
+import { createGuestCheckoutAccess } from "@/lib/checkoutAccess";
 
 export const runtime = "nodejs";
 
@@ -335,7 +336,6 @@ export async function POST(req: Request) {
   const variantMap = new Map(variants.map((variant) => [variant.id, variant]));
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
-  let itemCount = 0;
   let subtotalCents = 0;
   const variantCounts = new Map<string, number>();
 
@@ -378,7 +378,6 @@ export async function POST(req: Request) {
           },
         },
       });
-    itemCount += item.quantity;
     subtotalCents += variant.priceCents * item.quantity;
     variantCounts.set(
       variant.id,
@@ -468,6 +467,14 @@ export async function POST(req: Request) {
     metadata.loyaltyDiscountAmount = String(loyaltyDiscountCents);
   }
 
+  const guestCheckoutAccess = userId ? null : createGuestCheckoutAccess();
+  if (guestCheckoutAccess) {
+    metadata.guestCheckoutAccessHash = guestCheckoutAccess.tokenHash;
+    metadata.guestCheckoutAccessExpiresAt = String(
+      guestCheckoutAccess.expiresAt
+    );
+  }
+
   // Atomically reserve inventory for all cart items. Each UPDATE only succeeds
   // if (quantityOnHand - reserved) >= qty, preventing overselling under concurrency.
   const reservedVariants: Array<{ variantId: string; qty: number }> = [];
@@ -525,6 +532,16 @@ export async function POST(req: Request) {
       couponId = coupon.id;
     }
 
+    const successUrl = new URL("/order/success", appBaseUrl);
+    successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+    if (guestCheckoutAccess) {
+      successUrl.searchParams.set("guest_token", guestCheckoutAccess.token);
+      successUrl.searchParams.set(
+        "guest_expires",
+        String(guestCheckoutAccess.expiresAt)
+      );
+    }
+
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: paymentMethodTypes,
@@ -560,7 +577,7 @@ export async function POST(req: Request) {
         },
       ],
       automatic_tax: { enabled: true },
-      success_url: `${appBaseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl.toString(),
       cancel_url: `${appBaseUrl}/cart?checkout=cancel`,
       metadata,
     });
