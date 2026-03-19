@@ -45,8 +45,8 @@ const NavbarSearchResultsPopover = dynamic(
   () => import("@/components/navbar/NavbarSearchResultsPopover"),
   { ssr: false },
 );
-const NavbarMobileCategoriesOverlay = dynamic(
-  () => import("@/components/navbar/NavbarMobileCategoriesOverlay"),
+const NavbarMobileCategoriesSheet = dynamic(
+  () => import("@/components/navbar/NavbarMobileCategoriesSheet"),
   { ssr: false },
 );
 
@@ -1343,7 +1343,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
         aria-hidden="true"
       />
       {isMobile && productsOpen ? (
-        <NavbarMobileCategoriesOverlay
+        <NavbarMobileCategoriesSheet
           open
           mobileProductsRef={mobileProductsRef}
           activeParentName={activeParentCategory?.name ?? "Übersicht"}

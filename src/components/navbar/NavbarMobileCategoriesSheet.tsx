@@ -30,7 +30,7 @@ type Props = {
   onSelectCategory: (category: Category, isLeaf: boolean) => void;
 };
 
-export default function NavbarMobileCategoriesOverlay({
+export default function NavbarMobileCategoriesSheet({
   open,
   mobileProductsRef,
   activeParentName,
