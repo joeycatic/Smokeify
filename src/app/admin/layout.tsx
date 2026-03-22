@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { AdminThemeProvider } from "@/components/admin/AdminThemeProvider";
+import AdminShell from "@/components/admin/AdminShell";
 import { authOptions } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -22,5 +23,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     notFound();
   }
 
-  return <AdminThemeProvider>{children}</AdminThemeProvider>;
+  return (
+    <AdminThemeProvider>
+      <AdminShell userEmail={session.user.email ?? null}>{children}</AdminShell>
+    </AdminThemeProvider>
+  );
 }

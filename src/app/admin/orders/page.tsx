@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
-import PageLayout from "@/components/PageLayout";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AdminOrdersClient from "./AdminOrdersClient";
@@ -52,40 +51,38 @@ export default async function AdminOrdersPage() {
   });
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminOrdersClient
-          webhookFailures={webhookFailures.map((event) => ({
-            id: event.id,
-            eventId: event.eventId,
-            type: event.type,
-            status: event.status,
-            createdAt: event.createdAt.toISOString(),
-          }))}
-          orders={orders.map((order) => ({
-            ...order,
-            user: order.user ?? { email: null, name: null },
-            items: order.items.map((item) => ({
-              ...item,
-              manufacturer: item.productId
-                ? manufacturerByProductId.get(item.productId) ?? null
-                : null,
-              options: normalizeOptions(item.options),
-            })),
-            createdAt: order.createdAt.toISOString(),
-            updatedAt: order.updatedAt.toISOString(),
-            confirmationEmailSentAt: order.confirmationEmailSentAt
-              ? order.confirmationEmailSentAt.toISOString()
+    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+      <AdminOrdersClient
+        webhookFailures={webhookFailures.map((event) => ({
+          id: event.id,
+          eventId: event.eventId,
+          type: event.type,
+          status: event.status,
+          createdAt: event.createdAt.toISOString(),
+        }))}
+        orders={orders.map((order) => ({
+          ...order,
+          user: order.user ?? { email: null, name: null },
+          items: order.items.map((item) => ({
+            ...item,
+            manufacturer: item.productId
+              ? manufacturerByProductId.get(item.productId) ?? null
               : null,
-            shippingEmailSentAt: order.shippingEmailSentAt
-              ? order.shippingEmailSentAt.toISOString()
-              : null,
-            refundEmailSentAt: order.refundEmailSentAt
-              ? order.refundEmailSentAt.toISOString()
-              : null,
-          }))}
-        />
-      </div>
-    </PageLayout>
+            options: normalizeOptions(item.options),
+          })),
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+          confirmationEmailSentAt: order.confirmationEmailSentAt
+            ? order.confirmationEmailSentAt.toISOString()
+            : null,
+          shippingEmailSentAt: order.shippingEmailSentAt
+            ? order.shippingEmailSentAt.toISOString()
+            : null,
+          refundEmailSentAt: order.refundEmailSentAt
+            ? order.refundEmailSentAt.toISOString()
+            : null,
+        }))}
+      />
+    </div>
   );
 }

@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import PageLayout from "@/components/PageLayout";
 import AdminUsersClient from "./AdminUsersClient";
 import AdminInventoryAlertsClient from "./AdminInventoryAlertsClient";
 import Link from "next/link";
@@ -192,8 +191,7 @@ export default async function AdminPage({
     .slice(0, 25);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
+      <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
         <div className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -365,6 +363,5 @@ export default async function AdminPage({
           )}
         </div>
       </div>
-    </PageLayout>
   );
 }

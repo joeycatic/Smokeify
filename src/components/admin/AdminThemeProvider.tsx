@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext } from "react";
 
 type AdminTheme = "light" | "dark";
 
@@ -13,34 +13,16 @@ type AdminThemeContextValue = {
 
 const AdminThemeContext = createContext<AdminThemeContextValue | null>(null);
 
-const STORAGE_KEY = "smokeify-admin-theme";
-
 export function AdminThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<AdminTheme>(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === "dark" || stored === "light" ? stored : "light";
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
-
-  const value = useMemo(
-    () => ({
-      theme,
-      setTheme,
-      toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
-    }),
-    [theme]
-  );
+  const value: AdminThemeContextValue = {
+    theme: "dark",
+    setTheme: () => {},
+    toggleTheme: () => {},
+  };
 
   return (
     <AdminThemeContext.Provider value={value}>
-      <div
-        className={`admin-theme ${theme === "dark" ? "admin-dark" : "admin-light"}`}
-        data-admin-theme={theme}
-      >
+      <div className="admin-theme admin-dark" data-admin-theme="dark">
         {children}
       </div>
     </AdminThemeContext.Provider>

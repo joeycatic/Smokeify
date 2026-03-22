@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import PageLayout from "@/components/PageLayout";
 import AdminUserEditClient from "./AdminUserEditClient";
 
 export default async function AdminUserPage({
@@ -61,28 +60,26 @@ export default async function AdminUserPage({
   if (!user) notFound();
 
   return (
-    <PageLayout>
-      <AdminUserEditClient
-        user={{
-          ...user,
-          newsletterOptInAt: user.newsletterOptInAt?.toISOString() ?? null,
-          createdAt: user.createdAt.toISOString(),
-          updatedAt: user.updatedAt.toISOString(),
-        }}
-        recentOrders={recentOrders.map((o) => ({
-          ...o,
-          createdAt: o.createdAt.toISOString(),
-        }))}
-        auditLogs={auditLogs.map((l) => ({
-          id: l.id,
-          actorEmail: l.actorEmail,
-          action: l.action,
-          summary: l.summary,
-          metadata: l.metadata as Record<string, unknown> | null,
-          createdAt: l.createdAt.toISOString(),
-        }))}
-        actorRole={session.user.role}
-      />
-    </PageLayout>
+    <AdminUserEditClient
+      user={{
+        ...user,
+        newsletterOptInAt: user.newsletterOptInAt?.toISOString() ?? null,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }}
+      recentOrders={recentOrders.map((o) => ({
+        ...o,
+        createdAt: o.createdAt.toISOString(),
+      }))}
+      auditLogs={auditLogs.map((l) => ({
+        id: l.id,
+        actorEmail: l.actorEmail,
+        action: l.action,
+        summary: l.summary,
+        metadata: l.metadata as Record<string, unknown> | null,
+        createdAt: l.createdAt.toISOString(),
+      }))}
+      actorRole={session.user.role}
+    />
   );
 }

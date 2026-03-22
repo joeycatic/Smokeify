@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import PageLayout from "@/components/PageLayout";
 import AdminProductClient from "./AdminProductClient";
 
 export default async function AdminProductPage({
@@ -62,27 +61,25 @@ export default async function AdminProductPage({
   ]);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminProductClient
-          product={{
-            ...product,
-            createdAt: product.createdAt.toISOString(),
-            updatedAt: product.updatedAt.toISOString(),
-          }}
-          categories={categories}
-          collections={collections}
-          suppliers={suppliers}
-          crossSells={crossSells.map((row) => ({
-            crossSell: {
-              id: row.crossSell.id,
-              title: row.crossSell.title,
-              handle: row.crossSell.handle,
-              imageUrl: row.crossSell.images[0]?.url ?? null,
-            },
-          }))}
-        />
-      </div>
-    </PageLayout>
+    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+      <AdminProductClient
+        product={{
+          ...product,
+          createdAt: product.createdAt.toISOString(),
+          updatedAt: product.updatedAt.toISOString(),
+        }}
+        categories={categories}
+        collections={collections}
+        suppliers={suppliers}
+        crossSells={crossSells.map((row) => ({
+          crossSell: {
+            id: row.crossSell.id,
+            title: row.crossSell.title,
+            handle: row.crossSell.handle,
+            imageUrl: row.crossSell.images[0]?.url ?? null,
+          },
+        }))}
+      />
+    </div>
   );
 }

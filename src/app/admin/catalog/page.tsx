@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import PageLayout from "@/components/PageLayout";
 import AdminCatalogClient from "./AdminCatalogClient";
 
 const PAGE_SIZE = 25;
@@ -139,40 +138,38 @@ export default async function AdminCatalogPage({
   ]);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminCatalogClient
-          initialProducts={products.map((product) => {
-            const { variants, ...rest } = product;
-            const available = variants.reduce((sum, variant) => {
-              const inventory = variant.inventory;
-              const onHand = inventory?.quantityOnHand ?? 0;
-              const reserved = inventory?.reserved ?? 0;
-              return sum + Math.max(0, onHand - reserved);
-            }, 0);
-            const fallbackCategory =
-              product.categories.find((entry) => entry.category.parentId === null)
-                ?.category ?? null;
-            return {
-              ...rest,
-              createdAt: product.createdAt.toISOString(),
-              updatedAt: product.updatedAt.toISOString(),
-              outOfStock: available <= 0,
-              mainCategory: product.mainCategory ?? fallbackCategory ?? null,
-            };
-          })}
-          initialQuery={rawQuery}
-          initialSortKey={sortKey}
-          initialSortDirection={sortDirection}
-          totalCount={totalCount}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageSize={PAGE_SIZE}
-          initialCategories={categories}
-          initialCollections={collections}
-          initialSuppliers={suppliers}
-        />
-      </div>
-    </PageLayout>
+    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+      <AdminCatalogClient
+        initialProducts={products.map((product) => {
+          const { variants, ...rest } = product;
+          const available = variants.reduce((sum, variant) => {
+            const inventory = variant.inventory;
+            const onHand = inventory?.quantityOnHand ?? 0;
+            const reserved = inventory?.reserved ?? 0;
+            return sum + Math.max(0, onHand - reserved);
+          }, 0);
+          const fallbackCategory =
+            product.categories.find((entry) => entry.category.parentId === null)
+              ?.category ?? null;
+          return {
+            ...rest,
+            createdAt: product.createdAt.toISOString(),
+            updatedAt: product.updatedAt.toISOString(),
+            outOfStock: available <= 0,
+            mainCategory: product.mainCategory ?? fallbackCategory ?? null,
+          };
+        })}
+        initialQuery={rawQuery}
+        initialSortKey={sortKey}
+        initialSortDirection={sortDirection}
+        totalCount={totalCount}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        pageSize={PAGE_SIZE}
+        initialCategories={categories}
+        initialCollections={collections}
+        initialSuppliers={suppliers}
+      />
+    </div>
   );
 }

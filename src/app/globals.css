@@ -467,6 +467,46 @@ body {
   color: inherit;
 }
 
+.admin-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.admin-shell__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at top left, rgba(97, 106, 255, 0.16), transparent 22%),
+    radial-gradient(circle at top right, rgba(0, 214, 201, 0.12), transparent 22%),
+    radial-gradient(circle at bottom, rgba(255, 255, 255, 0.04), transparent 28%),
+    linear-gradient(180deg, #05070a 0%, #080b11 50%, #05070a 100%);
+}
+
+.admin-sidebar {
+  box-shadow: 20px 0 60px rgba(0, 0, 0, 0.35);
+}
+
+.admin-theme.admin-dark .text-stone-300 {
+  color: #cbd5e1;
+}
+
+.admin-theme.admin-dark .text-stone-200 {
+  color: #e2e8f0;
+}
+
+.admin-theme.admin-dark .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.admin-theme.admin-dark .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-theme.admin-dark .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 .admin-theme.admin-dark .bg-white {
   background-color: #151b18;
 }
