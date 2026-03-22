@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import { HorizontalBarsChart, type AdminChartPoint } from "@/components/admin/AdminCharts";
 
 type Supplier = {
   id: string;
@@ -14,10 +14,12 @@ type Supplier = {
   leadTimeDays: number | null;
   createdAt: string;
   updatedAt: string;
+  productCount: number;
+  activeProductCount: number;
+  lowStockProductCount: number;
 };
 
-const isValidWebsite = (value: string) =>
-  !value || /^https?:\/\//i.test(value);
+const isValidWebsite = (value: string) => !value || /^https?:\/\//i.test(value);
 
 const normalizeLeadTime = (value: string) => {
   const trimmed = value.trim();
@@ -34,6 +36,7 @@ export default function AdminSuppliersClient() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -74,7 +77,51 @@ export default function AdminSuppliersClient() {
     void loadSuppliers();
   }, []);
 
-  const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
+  const filteredSuppliers = useMemo(() => {
+    if (!query.trim()) return suppliers;
+    const normalized = query.trim().toLowerCase();
+    return suppliers.filter((supplier) =>
+      [
+        supplier.name,
+        supplier.contactName ?? "",
+        supplier.email ?? "",
+        supplier.phone ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized)
+    );
+  }, [query, suppliers]);
+
+  const totalSuppliers = suppliers.length;
+  const averageLeadTime = useMemo(() => {
+    const values = suppliers
+      .map((supplier) => supplier.leadTimeDays)
+      .filter((value): value is number => typeof value === "number");
+    if (values.length === 0) return 0;
+    return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  }, [suppliers]);
+  const totalProducts = useMemo(
+    () => suppliers.reduce((sum, supplier) => sum + supplier.productCount, 0),
+    [suppliers]
+  );
+  const totalLowStockProducts = useMemo(
+    () => suppliers.reduce((sum, supplier) => sum + supplier.lowStockProductCount, 0),
+    [suppliers]
+  );
+
+  const supplierBars = useMemo<AdminChartPoint[]>(
+    () =>
+      [...suppliers]
+        .sort((a, b) => b.productCount - a.productCount)
+        .slice(0, 6)
+        .map((supplier) => ({
+          label: supplier.name,
+          value: supplier.productCount,
+          secondaryValue: supplier.lowStockProductCount,
+        })),
+    [suppliers]
+  );
 
   const resetForm = () => {
     setNewSupplier({
@@ -124,14 +171,9 @@ export default function AdminSuppliersClient() {
         setError(data.error ?? "Failed to create supplier.");
         return;
       }
-      const data = (await res.json()) as { supplier?: Supplier };
-      if (data.supplier) {
-        setSuppliers((prev) => [data.supplier!, ...prev]);
-      } else {
-        await loadSuppliers();
-      }
       resetForm();
       setNotice("Supplier created.");
+      await loadSuppliers();
     } catch {
       setError("Failed to create supplier.");
     }
@@ -156,10 +198,7 @@ export default function AdminSuppliersClient() {
       setError("Lead time must be a non-negative number.");
       return;
     }
-    const leadTimeDays =
-      supplier.leadTimeDays === null
-        ? null
-        : Math.floor(supplier.leadTimeDays);
+
     setSavingId(supplier.id);
     try {
       const res = await fetch(`/api/admin/suppliers/${supplier.id}`, {
@@ -172,7 +211,8 @@ export default function AdminSuppliersClient() {
           phone: supplier.phone?.trim() || null,
           website: supplier.website?.trim() || null,
           notes: supplier.notes?.trim() || null,
-          leadTimeDays,
+          leadTimeDays:
+            supplier.leadTimeDays === null ? null : Math.floor(supplier.leadTimeDays),
         }),
       });
       if (!res.ok) {
@@ -180,15 +220,8 @@ export default function AdminSuppliersClient() {
         setError(data.error ?? "Failed to update supplier.");
         return;
       }
-      const data = (await res.json()) as { supplier?: Supplier };
-      if (data.supplier) {
-        setSuppliers((prev) =>
-          prev.map((item) => (item.id === supplier.id ? data.supplier! : item))
-        );
-      } else {
-        await loadSuppliers();
-      }
       setNotice("Supplier updated.");
+      await loadSuppliers();
     } catch {
       setError("Failed to update supplier.");
     } finally {
@@ -211,8 +244,8 @@ export default function AdminSuppliersClient() {
         setError(data.error ?? "Failed to delete supplier.");
         return;
       }
-      setSuppliers((prev) => prev.filter((item) => item.id !== id));
       setNotice("Supplier deleted.");
+      await loadSuppliers();
     } catch {
       setError("Failed to delete supplier.");
     } finally {
@@ -221,284 +254,296 @@ export default function AdminSuppliersClient() {
   };
 
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / SUPPLIERS
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+              Admin / Suppliers
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">Supplier CRM</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {totalSuppliers} suppliers
-              </span>
-            </div>
+            <h1 className="mt-3 text-3xl font-semibold text-white">
+              Supplier CRM and exposure overview
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-slate-400">
+              Contact maintenance, lead time visibility, supplier exposure, and
+              stock pressure across catalog relationships.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <button
-              type="button"
-              onClick={loadSuppliers}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Refresh"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={loadSuppliers}
+            className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh suppliers"}
+          </button>
         </div>
-      </div>
 
-      {(error || notice) && (
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Suppliers" value={String(totalSuppliers)} />
+          <MetricCard label="Catalog products" value={String(totalProducts)} />
+          <MetricCard label="Avg. lead time" value={`${averageLeadTime} days`} />
+          <MetricCard label="Low-stock products" value={String(totalLowStockProducts)} />
+        </div>
+      </section>
+
+      {(error || notice) ? (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          className={`rounded-2xl border px-4 py-3 text-sm ${
             error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
+              ? "border-red-500/20 bg-red-500/10 text-red-200"
+              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
           }`}
         >
           {error || notice}
         </div>
-      )}
+      ) : null}
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-              01
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                New supplier
-              </p>
-              <p className="text-xs text-stone-500">
-                Keep supplier contact details in one place.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
-            Supplier name
-            <input
-              value={newSupplier.name}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({ ...prev, name: event.target.value }))
-              }
-              placeholder="e.g. GreenGrow Logistics"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Primary contact
-            <input
-              value={newSupplier.contactName}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({
-                  ...prev,
-                  contactName: event.target.value,
-                }))
-              }
-              placeholder="e.g. Jamie Fischer"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Email
-            <input
-              value={newSupplier.email}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({ ...prev, email: event.target.value }))
-              }
-              placeholder="ops@greengrow.de"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Phone
-            <input
-              value={newSupplier.phone}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({ ...prev, phone: event.target.value }))
-              }
-              placeholder="+49 30 1234567"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Website
-            <input
-              value={newSupplier.website}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({
-                  ...prev,
-                  website: event.target.value,
-                }))
-              }
-              placeholder="https://greengrow.de"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Lead time (days)
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={newSupplier.leadTimeDays}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({
-                  ...prev,
-                  leadTimeDays: event.target.value,
-                }))
-              }
-              placeholder="e.g. 7"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600 md:col-span-2">
-            Notes
-            <input
-              value={newSupplier.notes}
-              onChange={(event) =>
-                setNewSupplier((prev) => ({ ...prev, notes: event.target.value }))
-              }
-              placeholder="Delivery days, MOQ, pricing notes..."
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={createSupplier}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
-          >
-            Create supplier
-          </button>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="h-10 rounded-md border border-black/10 px-4 text-xs font-semibold text-stone-700"
-          >
-            Reset
-          </button>
-        </div>
-      </section>
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Panel
+          eyebrow="Exposure"
+          title="Supplier footprint"
+          description="Largest suppliers by attached catalog products."
+        >
+          <HorizontalBarsChart
+            data={supplierBars}
+            colorClassName="bg-cyan-400"
+            valueFormatter={(value) => `${value} products`}
+          />
+        </Panel>
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-              02
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Supplier list
-              </p>
-              <p className="text-xs text-stone-500">
-                Edit contact details or remove suppliers.
-              </p>
-            </div>
+        <Panel
+          eyebrow="Create"
+          title="New supplier"
+          description="Create supplier records with contact and delivery details."
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Supplier name">
+              <input
+                value={newSupplier.name}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="e.g. GreenGrow Logistics"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Primary contact">
+              <input
+                value={newSupplier.contactName}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({
+                    ...prev,
+                    contactName: event.target.value,
+                  }))
+                }
+                placeholder="Jamie Fischer"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                value={newSupplier.email}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({ ...prev, email: event.target.value }))
+                }
+                placeholder="ops@example.com"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Phone">
+              <input
+                value={newSupplier.phone}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                placeholder="+49 30 1234567"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Website">
+              <input
+                value={newSupplier.website}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({ ...prev, website: event.target.value }))
+                }
+                placeholder="https://supplier.example"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Lead time (days)">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={newSupplier.leadTimeDays}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({
+                    ...prev,
+                    leadTimeDays: event.target.value,
+                  }))
+                }
+                placeholder="7"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Notes" className="md:col-span-2">
+              <textarea
+                value={newSupplier.notes}
+                onChange={(event) =>
+                  setNewSupplier((prev) => ({ ...prev, notes: event.target.value }))
+                }
+                rows={3}
+                placeholder="MOQ, shipping terms, pricing notes..."
+                className={`${inputClass} min-h-[96px] py-3`}
+              />
+            </Field>
           </div>
-          <div className="text-xs text-stone-500">
-            {suppliers.length ? `${suppliers.length} total` : "No suppliers yet"}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={createSupplier}
+              className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a]"
+            >
+              Create supplier
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+            >
+              Reset
+            </button>
           </div>
+        </Panel>
+      </div>
+
+      <Panel
+        eyebrow="Directory"
+        title="Supplier records"
+        description="Search, update, and remove supplier records with catalog context."
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search suppliers by name, email, contact..."
+            className="h-10 min-w-[260px] flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+          />
+          <span className="text-xs text-slate-500">
+            {filteredSuppliers.length} suppliers
+          </span>
         </div>
-        {suppliers.length === 0 ? (
-          <div className="rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-6 text-sm text-stone-500">
-            No suppliers added yet.
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {suppliers.map((supplier) => (
+
+        <div className="grid gap-4">
+          {filteredSuppliers.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+              No suppliers found.
+            </div>
+          ) : (
+            filteredSuppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className="rounded-xl border border-amber-200/70 bg-white p-4"
+                className="rounded-[24px] border border-white/10 bg-[#090d12] p-4"
               >
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{supplier.name}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                      <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
+                        {supplier.productCount} products
+                      </span>
+                      <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
+                        {supplier.activeProductCount} active
+                      </span>
+                      <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-300">
+                        {supplier.lowStockProductCount} low stock
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Updated {new Date(supplier.updatedAt).toLocaleDateString("de-DE")}
+                  </div>
+                </div>
+
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="text-xs font-semibold text-stone-600">
-                    Supplier name
+                  <Field label="Supplier name">
                     <input
                       value={supplier.name}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, name: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, name: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Primary contact
+                  </Field>
+                  <Field label="Primary contact">
                     <input
                       value={supplier.contactName ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, contactName: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, contactName: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Email
+                  </Field>
+                  <Field label="Email">
                     <input
                       value={supplier.email ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, email: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, email: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Phone
+                  </Field>
+                  <Field label="Phone">
                     <input
                       value={supplier.phone ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, phone: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, phone: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Website
+                  </Field>
+                  <Field label="Website">
                     <input
                       value={supplier.website ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, website: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, website: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Lead time (days)
+                  </Field>
+                  <Field label="Lead time (days)">
                     <input
                       type="number"
                       min={0}
@@ -506,86 +551,80 @@ export default function AdminSuppliersClient() {
                       value={supplier.leadTimeDays ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
+                          prev.map((item) =>
+                            item.id === supplier.id
                               ? {
-                                  ...row,
+                                  ...item,
                                   leadTimeDays:
                                     event.target.value === ""
                                       ? null
                                       : Number(event.target.value),
                                 }
-                              : row
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      className={inputClass}
                     />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600 md:col-span-2">
-                    Notes
-                    <input
+                  </Field>
+                  <Field label="Notes" className="md:col-span-2">
+                    <textarea
                       value={supplier.notes ?? ""}
                       onChange={(event) =>
                         setSuppliers((prev) =>
-                          prev.map((row) =>
-                            row.id === supplier.id
-                              ? { ...row, notes: event.target.value }
-                              : row
+                          prev.map((item) =>
+                            item.id === supplier.id
+                              ? { ...item, notes: event.target.value }
+                              : item
                           )
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+                      rows={3}
+                      className={`${inputClass} min-h-[96px] py-3`}
                     />
-                  </label>
+                  </Field>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+
+                <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => updateSupplier(supplier)}
-                    className="h-10 rounded-md border border-amber-200 px-4 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                    onClick={() => void updateSupplier(supplier)}
                     disabled={savingId === supplier.id}
+                    className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a] disabled:opacity-60"
                   >
-                    Save
+                    {savingId === supplier.id ? "Saving..." : "Save supplier"}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setDeletePassword("");
                       setDeletePasswordError("");
-                      setDeleteTarget({
-                        id: supplier.id,
-                        name: supplier.name,
-                      });
+                      setDeleteTarget({ id: supplier.id, name: supplier.name });
                     }}
-                    className="h-10 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700"
-                    disabled={savingId === supplier.id}
+                    className="inline-flex h-10 items-center rounded-full border border-red-400/20 bg-red-400/10 px-4 text-sm font-semibold text-red-200"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
-      {deleteTarget && (
+            ))
+          )}
+        </div>
+      </Panel>
+
+      {deleteTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/70"
             onClick={() => setDeleteTarget(null)}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-stone-900">
-              Lieferant löschen?
-            </h3>
-            <p className="mt-2 text-sm text-stone-600">
-              Der Lieferant wird dauerhaft gelöscht. Diese Aktion kann nicht
-              rückgängig gemacht werden.
+          <div className="relative z-10 w-full max-w-md rounded-[28px] border border-white/10 bg-[#0a0d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+            <h3 className="text-lg font-semibold text-white">Delete supplier?</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              This will permanently delete <span className="font-semibold text-slate-100">{deleteTarget.name}</span>.
             </p>
-            <p className="mt-2 text-xs text-stone-500">{deleteTarget.name}</p>
             <input
               type="password"
               value={deletePassword}
@@ -593,44 +632,99 @@ export default function AdminSuppliersClient() {
                 setDeletePassword(event.target.value);
                 if (deletePasswordError) setDeletePasswordError("");
               }}
-              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
-              placeholder="Admin-Passwort"
+              placeholder="Admin password"
+              className="mt-4 h-10 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500"
             />
-            {deletePasswordError && (
-              <p className="mt-2 text-xs text-red-600">{deletePasswordError}</p>
-            )}
+            {deletePasswordError ? (
+              <p className="mt-2 text-xs text-red-300">{deletePasswordError}</p>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+                className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
               >
-                Abbrechen
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={async () => {
                   const adminPassword = deletePassword.trim();
                   if (!adminPassword) {
-                    setDeletePasswordError("Bitte Admin-Passwort eingeben.");
+                    setDeletePasswordError("Enter your admin password.");
                     return;
                   }
                   const target = deleteTarget;
                   setDeleteTarget(null);
                   setDeletePassword("");
                   setDeletePasswordError("");
-                  if (target) {
-                    await deleteSupplier(target.id, adminPassword);
-                  }
+                  if (!target) return;
+                  await deleteSupplier(target.id, adminPassword);
                 }}
-                className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
+                className="inline-flex h-10 items-center rounded-full bg-red-500 px-4 text-sm font-semibold text-white"
               >
-                Löschen
+                Delete supplier
               </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
+  );
+}
+
+const inputClass =
+  "mt-1 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500";
+
+function Panel({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
+        <p className="mt-1 text-sm text-slate-400">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block text-xs font-semibold text-slate-400 ${className}`}>
+      {label}
+      {children}
+    </label>
   );
 }

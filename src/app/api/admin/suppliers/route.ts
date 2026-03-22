@@ -28,9 +28,63 @@ export async function GET() {
 
   const suppliers = await prisma.supplier.findMany({
     orderBy: { name: "asc" },
+    include: {
+      products: {
+        select: {
+          id: true,
+          status: true,
+          variants: {
+            select: {
+              lowStockThreshold: true,
+              inventory: {
+                select: {
+                  quantityOnHand: true,
+                  reserved: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      _count: {
+        select: {
+          products: true,
+        },
+      },
+    },
   });
 
-  return NextResponse.json({ suppliers });
+  return NextResponse.json({
+    suppliers: suppliers.map((supplier) => {
+      const activeProducts = supplier.products.filter(
+        (product) => product.status === "ACTIVE"
+      ).length;
+      const lowStockProducts = supplier.products.filter((product) =>
+        product.variants.some((variant) => {
+          const onHand = variant.inventory?.quantityOnHand ?? 0;
+          const reserved = variant.inventory?.reserved ?? 0;
+          const available = Math.max(0, onHand - reserved);
+          return available <= variant.lowStockThreshold;
+        })
+      ).length;
+
+      return {
+        id: supplier.id,
+        name: supplier.name,
+        contactName: supplier.contactName,
+        email: supplier.email,
+        phone: supplier.phone,
+        website: supplier.website,
+        notes: supplier.notes,
+        leadTimeDays: supplier.leadTimeDays,
+        createdAt: supplier.createdAt,
+        updatedAt: supplier.updatedAt,
+        productCount: supplier._count.products,
+        activeProductCount: activeProducts,
+        lowStockProductCount: lowStockProducts,
+      };
+    }),
+  });
 }
 
 export async function POST(request: Request) {

@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import {
+  type AdminChartPoint,
+  HorizontalBarsChart,
+  SparklineChart,
+} from "@/components/admin/AdminCharts";
 
 type Funnel = {
   totalOrders: number;
@@ -30,8 +34,37 @@ type Stockout = {
   reserved: number;
   available: number;
 };
+
 type Revenue = {
   totalCents: number;
+  last30DaysCents: number;
+};
+
+type InventorySummary = {
+  stockoutCount: number;
+  lowStockCount: number;
+  trackedVariants: number;
+};
+
+type Trends = {
+  daily: Array<{
+    label: string;
+    revenueCents: number;
+    orders: number;
+  }>;
+  orderVelocity: {
+    today: number;
+    last7Days: number;
+    last30Days: number;
+  };
+};
+
+type CustomerSummary = {
+  registeredCount: number;
+  guestCount: number;
+  repeatRegisteredCount: number;
+  repeatGuestCount: number;
+  highValueRegisteredCount: number;
 };
 
 type AiQuality = {
@@ -50,41 +83,73 @@ const formatPrice = (amount: number) =>
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
-const toPercent = (value: number, total: number) => {
-  if (!total) return "0%";
-  return `${Math.round((value / total) * 100)}%`;
+const percent = (value: number) => `${Math.round(value * 100)}%`;
+
+const initialFunnel: Funnel = {
+  totalOrders: 0,
+  paidOrders: 0,
+  fulfilledOrders: 0,
+  refundedOrders: 0,
+  canceledOrders: 0,
+};
+
+const initialRevenue: Revenue = {
+  totalCents: 0,
+  last30DaysCents: 0,
+};
+
+const initialInventory: InventorySummary = {
+  stockoutCount: 0,
+  lowStockCount: 0,
+  trackedVariants: 0,
+};
+
+const emptyTrends: Trends = {
+  daily: [],
+  orderVelocity: {
+    today: 0,
+    last7Days: 0,
+    last30Days: 0,
+  },
+};
+
+const initialCustomers: CustomerSummary = {
+  registeredCount: 0,
+  guestCount: 0,
+  repeatRegisteredCount: 0,
+  repeatGuestCount: 0,
+  highValueRegisteredCount: 0,
+};
+
+const initialAiQuality: AiQuality = {
+  totalAnalyses: 0,
+  fallbackRate: 0,
+  lowConfidenceRate: 0,
+  feedbackTotal: 0,
+  feedbackCorrectRate: 0,
+  topIssueLabels: [],
 };
 
 export default function AdminAnalyticsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [funnel, setFunnel] = useState<Funnel>({
-    totalOrders: 0,
-    paidOrders: 0,
-    fulfilledOrders: 0,
-    refundedOrders: 0,
-    canceledOrders: 0,
-  });
+  const [funnel, setFunnel] = useState<Funnel>(initialFunnel);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
-  const [revenue, setRevenue] = useState<Revenue>({ totalCents: 0 });
-  const [aiQuality, setAiQuality] = useState<AiQuality>({
-    totalAnalyses: 0,
-    fallbackRate: 0,
-    lowConfidenceRate: 0,
-    feedbackTotal: 0,
-    feedbackCorrectRate: 0,
-    topIssueLabels: [],
-  });
+  const [revenue, setRevenue] = useState<Revenue>(initialRevenue);
+  const [inventory, setInventory] = useState<InventorySummary>(initialInventory);
+  const [trends, setTrends] = useState<Trends>(emptyTrends);
+  const [customers, setCustomers] = useState<CustomerSummary>(initialCustomers);
+  const [aiQuality, setAiQuality] = useState<AiQuality>(initialAiQuality);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/admin/analytics");
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Analytics konnte nicht geladen werden.");
+        setError(data.error ?? "Failed to load analytics.");
         return;
       }
       const data = (await res.json()) as {
@@ -92,294 +157,311 @@ export default function AdminAnalyticsClient() {
         revenue?: Revenue;
         topProducts?: TopProduct[];
         stockouts?: Stockout[];
+        inventory?: InventorySummary;
+        trends?: Trends;
+        customers?: CustomerSummary;
         aiQuality?: AiQuality;
       };
-      setFunnel(data.funnel ?? funnel);
-      setRevenue(data.revenue ?? { totalCents: 0 });
+      setFunnel(data.funnel ?? initialFunnel);
+      setRevenue(data.revenue ?? initialRevenue);
       setTopProducts(data.topProducts ?? []);
       setStockouts(data.stockouts ?? []);
-      setAiQuality(data.aiQuality ?? aiQuality);
+      setInventory(data.inventory ?? initialInventory);
+      setTrends(data.trends ?? emptyTrends);
+      setCustomers(data.customers ?? initialCustomers);
+      setAiQuality(data.aiQuality ?? initialAiQuality);
     } catch {
-      setError("Analytics konnte nicht geladen werden.");
+      setError("Failed to load analytics.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadAnalytics();
-  }, []);
+  }, [loadAnalytics]);
 
-  const stages = useMemo(
+  const revenueTrend = useMemo<AdminChartPoint[]>(
+    () =>
+      trends.daily.map((point) => ({
+        label: point.label,
+        value: point.revenueCents,
+      })),
+    [trends.daily]
+  );
+
+  const ordersTrend = useMemo<AdminChartPoint[]>(
+    () =>
+      trends.daily.map((point) => ({
+        label: point.label,
+        value: point.orders,
+      })),
+    [trends.daily]
+  );
+
+  const topProductBars = useMemo<AdminChartPoint[]>(
+    () =>
+      topProducts.slice(0, 6).map((item) => ({
+        label: item.productTitle ?? item.name,
+        value: item.revenueCents,
+        secondaryValue: item.units,
+      })),
+    [topProducts]
+  );
+
+  const issueBars = useMemo<AdminChartPoint[]>(
+    () =>
+      aiQuality.topIssueLabels.map((item) => ({
+        label: item.label,
+        value: item.count,
+      })),
+    [aiQuality.topIssueLabels]
+  );
+
+  const customerMixBars = useMemo<AdminChartPoint[]>(
     () => [
-      { label: "Orders", value: funnel.totalOrders, percent: "100%" },
-      {
-        label: "Paid",
-        value: funnel.paidOrders,
-        percent: toPercent(funnel.paidOrders, funnel.totalOrders),
-      },
-      {
-        label: "Fulfilled",
-        value: funnel.fulfilledOrders,
-        percent: toPercent(funnel.fulfilledOrders, funnel.totalOrders),
-      },
-      {
-        label: "Refunded",
-        value: funnel.refundedOrders,
-        percent: toPercent(funnel.refundedOrders, funnel.totalOrders),
-      },
+      { label: "Registered", value: customers.registeredCount },
+      { label: "Guest", value: customers.guestCount },
+      { label: "Repeat (reg)", value: customers.repeatRegisteredCount },
+      { label: "Repeat (guest)", value: customers.repeatGuestCount },
+      { label: "High value", value: customers.highValueRegisteredCount },
     ],
-    [funnel]
+    [customers]
   );
 
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / ANALYTICS
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+              Admin / Analytics
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">Analytics</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {funnel.totalOrders} orders
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {stockouts.length} stockouts
-              </span>
-            </div>
+            <h1 className="mt-3 text-3xl font-semibold text-white">
+              Revenue, conversion, inventory and CRM
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-slate-400">
+              Operational readout for commerce, stock pressure, customer mix, and
+              analyzer quality.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <button
-              type="button"
-              onClick={loadAnalytics}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-              disabled={loading}
+          <button
+            type="button"
+            onClick={() => void loadAnalytics()}
+            className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh analytics"}
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <MetricCard label="Lifetime revenue" value={formatPrice(revenue.totalCents)} />
+          <MetricCard label="30d revenue" value={formatPrice(revenue.last30DaysCents)} />
+          <MetricCard
+            label="Paid conversion"
+            value={
+              funnel.totalOrders > 0
+                ? `${Math.round((funnel.paidOrders / funnel.totalOrders) * 100)}%`
+                : "0%"
+            }
+          />
+          <MetricCard label="Low-stock variants" value={String(inventory.lowStockCount)} />
+          <MetricCard label="Stockouts" value={String(inventory.stockoutCount)} />
+        </div>
+      </section>
+
+      {error ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="flex min-h-[18rem] items-center justify-center rounded-[28px] border border-white/10 bg-white/[0.03]">
+          <div className="flex items-center gap-3 text-slate-300">
+            <LoadingSpinner size="lg" />
+            <span className="text-sm font-semibold">Loading analytics...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+            <Panel
+              eyebrow="Trend"
+              title="Revenue, last 14 days"
+              description={`Orders today: ${trends.orderVelocity.today} · last 7 days: ${trends.orderVelocity.last7Days} · last 30 days: ${trends.orderVelocity.last30Days}`}
             >
-              {loading ? "Laden..." : "Aktualisieren"}
-            </button>
-          </div>
-        </div>
-      </div>
+              <SparklineChart data={revenueTrend} />
+            </Panel>
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-              01
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                Conversion funnel
-              </p>
-              <p className="text-xs text-stone-500">
-                Orders to paid and fulfilled.
-              </p>
-            </div>
-          </div>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <LoadingSpinner size="sm" />
-            <span>Analytics werden geladen...</span>
-          </div>
-        ) : error ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-            {error}
-          </p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-5">
-            <div className="rounded-xl border border-emerald-200/70 bg-white p-4">
-              <p className="text-xs uppercase tracking-wide text-stone-400">
-                Total Umsatz
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-stone-900">
-                {formatPrice(revenue.totalCents)}
-              </p>
-              <p className="text-xs text-stone-500">Paid orders only</p>
-            </div>
-            {stages.map((stage) => (
-              <div
-                key={stage.label}
-                className="rounded-xl border border-emerald-200/70 bg-white p-4"
-              >
-                <p className="text-xs uppercase tracking-wide text-stone-400">
-                  {stage.label}
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-stone-900">
-                  {stage.value}
-                </p>
-                <p className="text-xs text-stone-500">{stage.percent}</p>
+            <Panel
+              eyebrow="Funnel"
+              title="Conversion health"
+              description="Raw order lifecycle counts."
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard label="Orders" value={String(funnel.totalOrders)} compact />
+                <MetricCard label="Paid" value={String(funnel.paidOrders)} compact />
+                <MetricCard
+                  label="Fulfilled"
+                  value={String(funnel.fulfilledOrders)}
+                  compact
+                />
+                <MetricCard label="Refunded" value={String(funnel.refundedOrders)} compact />
+                <MetricCard label="Canceled" value={String(funnel.canceledOrders)} compact />
+                <MetricCard
+                  label="Tracked variants"
+                  value={String(inventory.trackedVariants)}
+                  compact
+                />
               </div>
-            ))}
+            </Panel>
           </div>
-        )}
-      </section>
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-              02
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Top products
-              </p>
-              <p className="text-xs text-stone-500">By revenue and units sold.</p>
-            </div>
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_1.15fr_0.8fr]">
+            <Panel
+              eyebrow="Orders"
+              title="Daily order volume"
+              description="Recent order count trend."
+            >
+              <SparklineChart
+                data={ordersTrend}
+                strokeClassName="stroke-violet-300"
+                fillClassName="fill-violet-400/10"
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Top products"
+              title="Revenue leaders"
+              description="Highest revenue products from order snapshots."
+            >
+              <HorizontalBarsChart
+                data={topProductBars}
+                valueFormatter={(value) => formatPrice(value)}
+                colorClassName="bg-emerald-400"
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Customers"
+              title="Customer mix"
+              description="Registered, guest and repeat segments."
+            >
+              <HorizontalBarsChart
+                data={customerMixBars}
+                colorClassName="bg-cyan-400"
+              />
+            </Panel>
           </div>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <LoadingSpinner size="sm" />
-            <span>Analytics werden geladen...</span>
-          </div>
-        ) : topProducts.length === 0 ? (
-          <p className="text-sm text-stone-500">Noch keine Bestellungen.</p>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-amber-200/70 bg-white">
-            <div className="grid grid-cols-1 gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-800 sm:grid-cols-[2fr_120px_140px]">
-              <div>Produkt</div>
-              <div>Units</div>
-              <div>Umsatz</div>
-            </div>
-            <div className="divide-y divide-amber-100">
-              {topProducts.map((item) => (
-                <div
-                  key={`${item.productId ?? "unknown"}-${item.name}`}
-                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_120px_140px]"
-                >
-                  <div>
-                    <div className="font-semibold text-stone-900">
-                      {item.productTitle ?? item.name}
-                    </div>
-                    {item.productId && (
-                      <div className="text-xs text-stone-500">{item.productId}</div>
-                    )}
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Panel
+              eyebrow="Inventory"
+              title="Stock pressure"
+              description="Variants currently fully out of stock."
+            >
+              <div className="space-y-3">
+                {stockouts.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-400">
+                    No stockouts right now.
                   </div>
-                  <div>{item.units}</div>
-                  <div>{formatPrice(item.revenueCents)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-rose-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(248,113,113,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-700">
-              03
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-700">
-                Stockouts
-              </p>
-              <p className="text-xs text-stone-500">Variants with zero stock.</p>
-            </div>
-          </div>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <LoadingSpinner size="sm" />
-            <span>Analytics werden geladen...</span>
-          </div>
-        ) : stockouts.length === 0 ? (
-          <p className="text-sm text-stone-500">
-            Keine Produkte sind aktuell ausverkauft.
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-rose-200/70 bg-white">
-            <div className="grid grid-cols-1 gap-3 border-b border-rose-200/60 bg-rose-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-rose-800 sm:grid-cols-[2fr_1fr_120px]">
-              <div>Produkt</div>
-              <div>Variante</div>
-              <div>Verfuegbar</div>
-            </div>
-            <div className="divide-y divide-rose-100">
-              {stockouts.map((item) => (
-                <div
-                  key={item.variantId}
-                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_1fr_120px]"
-                >
-                  <div>
-                    <div className="font-semibold text-stone-900">
-                      {item.productTitle}
-                    </div>
-                    <div className="text-xs text-stone-500">
-                      {item.sku ? `SKU ${item.sku}` : item.variantId}
-                    </div>
-                  </div>
-                  <div>{item.variantTitle}</div>
-                  <div>0</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-cyan-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-sm font-semibold text-cyan-700">
-              04
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">
-                Analyzer quality
-              </p>
-              <p className="text-xs text-stone-500">Live model performance and feedback quality.</p>
-            </div>
-          </div>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <LoadingSpinner size="sm" />
-            <span>Analytics werden geladen...</span>
-          </div>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-stone-400">Analysen</p>
-                <p className="mt-2 text-2xl font-semibold text-stone-900">{aiQuality.totalAnalyses}</p>
-              </div>
-              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-stone-400">Fallback-Rate</p>
-                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.fallbackRate * 100)}%</p>
-              </div>
-              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-stone-400">Low-Confidence</p>
-                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.lowConfidenceRate * 100)}%</p>
-              </div>
-              <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-stone-400">Feedback korrekt</p>
-                <p className="mt-2 text-2xl font-semibold text-stone-900">{Math.round(aiQuality.feedbackCorrectRate * 100)}%</p>
-                <p className="text-xs text-stone-500">{aiQuality.feedbackTotal} Feedbacks</p>
-              </div>
-            </div>
-            <div className="rounded-xl border border-cyan-200/70 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Top Befunde</p>
-              <div className="mt-3 space-y-2">
-                {aiQuality.topIssueLabels.length === 0 ? (
-                  <p className="text-sm text-stone-500">Noch keine Befunddaten vorhanden.</p>
                 ) : (
-                  aiQuality.topIssueLabels.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-lg border border-cyan-100 bg-cyan-50/60 px-3 py-2 text-sm">
-                      <span className="font-medium text-stone-800">{item.label}</span>
-                      <span className="font-semibold text-cyan-700">{item.count}</span>
+                  stockouts.slice(0, 6).map((item) => (
+                    <div
+                      key={item.variantId}
+                      className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-100">
+                            {item.productTitle}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {item.variantTitle}
+                            {item.sku ? ` · SKU ${item.sku}` : ""}
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 text-[11px] font-semibold text-red-200">
+                          0 available
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
-            </div>
+            </Panel>
+
+            <Panel
+              eyebrow="Analyzer"
+              title="Model quality"
+              description={`Fallback ${percent(aiQuality.fallbackRate)} · Low confidence ${percent(aiQuality.lowConfidenceRate)} · Correct feedback ${percent(aiQuality.feedbackCorrectRate)}`}
+            >
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <MetricCard label="Analyses" value={String(aiQuality.totalAnalyses)} compact />
+                <MetricCard label="Feedback" value={String(aiQuality.feedbackTotal)} compact />
+                <MetricCard
+                  label="Correct rate"
+                  value={percent(aiQuality.feedbackCorrectRate)}
+                  compact
+                />
+              </div>
+              <HorizontalBarsChart data={issueBars} colorClassName="bg-amber-400" />
+            </Panel>
           </div>
-        )}
-      </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Panel({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
+        <p className="mt-1 text-sm text-slate-400">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border border-white/10 bg-white/[0.04] ${
+        compact ? "p-3" : "p-4"
+      }`}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-2 font-semibold text-white ${compact ? "text-xl" : "text-2xl"}`}>
+        {value}
+      </p>
     </div>
   );
 }
