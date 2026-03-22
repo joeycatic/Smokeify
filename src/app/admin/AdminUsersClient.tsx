@@ -136,7 +136,7 @@ export default function AdminUsersClient({
   };
 
   return (
-    <section className="rounded-xl border border-black/10 bg-white p-6">
+    <section className="admin-legacy-page rounded-xl border border-black/10 bg-white p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-sm font-semibold tracking-widest text-black/70">
           USERS
@@ -233,6 +233,7 @@ export default function AdminUsersClient({
           Showing{" "}
           <span className="font-semibold text-stone-700">{users.length}</span> of{" "}
           <span className="font-semibold text-stone-700">{totalCount}</span>
+          <span className="ml-2 text-stone-400">Page size {pageSize}</span>
         </div>
         <div className="flex items-center gap-1">
           <Link

@@ -190,178 +190,214 @@ export default async function AdminPage({
     })
     .slice(0, 25);
 
-  return (
-      <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
-        <div className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2" style={{ color: "#2f3e36" }}>
-                Admin
-              </h1>
-              <p className="text-sm text-stone-600">
-                Nutzerverwaltung und Rollensteuerung.
-              </p>
-            </div>
-            <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-              Dashboard
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              href="/admin/catalog"
-              className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
-            >
-              Manage catalog
-            </Link>
-            <Link
-              href="/admin/suppliers"
-              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
-            >
-              Supplier CRM
-            </Link>
-            {isAdmin ? (
-              <Link
-                href="/admin/orders"
-                className="inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-300"
-              >
-                Manage orders
-              </Link>
-            ) : null}
-            {isAdmin ? (
-              <Link
-                href="/admin/returns"
-                className="inline-flex rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:border-amber-300"
-              >
-                Manage returns
-              </Link>
-            ) : null}
-            <Link
-              href="/admin/discounts"
-              className="inline-flex rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-700 shadow-sm hover:border-rose-300"
-            >
-              Manage discounts
-            </Link>
-            <Link
-              href="/admin/analytics"
-              className="inline-flex rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 shadow-sm hover:border-violet-300"
-            >
-              Analytics
-            </Link>
-            <Link
-              href="/admin/audit"
-              className="inline-flex rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:border-stone-300"
-            >
-              Audit log
-            </Link>
-            <Link
-              href="/admin/inventory-adjustments"
-              className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
-            >
-              Inventory adjustments
-            </Link>
-            <Link
-              href="/admin/customers"
-              className="inline-flex rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-800 shadow-sm hover:border-indigo-300"
-            >
-              Customers
-            </Link>
-            <Link
-              href="/admin/collections"
-              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
-            >
-              Collections
-            </Link>
-            <Link
-              href="/admin/categories"
-              className="inline-flex rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-semibold text-teal-800 shadow-sm hover:border-teal-300"
-            >
-              Categories
-            </Link>
-            {isAdmin ? (
-              <Link
-                href="/admin/email-testing"
-                className="inline-flex rounded-full border border-cyan-200 bg-white px-4 py-2 text-xs font-semibold text-cyan-800 shadow-sm hover:border-cyan-300"
-              >
-                Email testing
-              </Link>
-            ) : null}
-          </div>
-        </div>
-        {isAdmin ? (
-          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-            <AdminUsersClient
-              initialUsers={users.map((user) => ({
-                ...user,
-                createdAt: user.createdAt.toISOString(),
-              }))}
-              initialQuery={normalizedQuery}
-              totalCount={totalUsers}
-              currentPage={currentUserPage}
-              totalPages={totalUserPages}
-              pageSize={USERS_PAGE_SIZE}
-            />
-          </div>
-        ) : null}
-        <div className="mt-12">
-          <AdminInventoryAlertsClient
-            variants={lowStockPage.map((variant) => ({
-              ...variant,
-              updatedAt: variant.updatedAt.toISOString(),
-            }))}
-            totalCount={lowStockCount}
-            outOfStockCount={outOfStockCount}
-            currentPage={currentInvPage}
-            totalPages={totalInvPages}
-            pageSize={INVENTORY_PAGE_SIZE}
-            initialQuery={normalizedInvQuery}
-          />
-        </div>
-        <div className="mt-12 rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold mb-2" style={{ color: "#2f3e36" }}>
-            Back-in-stock requests
-          </h2>
-          <p className="text-sm text-stone-600 mb-4">
-            Overview of recent notification requests (top 25 by pending count).
-          </p>
-          {backInStockRows.length === 0 ? (
-            <p className="text-sm text-stone-500">No requests yet.</p>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
-              <div className="grid grid-cols-1 gap-3 border-b border-black/10 bg-stone-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-stone-500 sm:grid-cols-[2fr_120px_120px_2fr]">
-                <div>Product</div>
-                <div>Total</div>
-                <div>Pending</div>
-                <div>Logged-in users</div>
-              </div>
-              <div className="divide-y divide-black/10">
-                {backInStockRows.map((row) => {
-                  const usersList = Array.from(row.users.values())
-                    .map((user) => user.name || user.email || "Unknown")
-                    .join(", ");
+  const quickLinks = [
+    {
+      href: "/admin/catalog",
+      label: "Catalog",
+      description: "Products, variants, categories, and collections",
+    },
+    {
+      href: "/admin/orders",
+      label: "Orders",
+      description: "Fulfillment, refunds, tracking, and webhook recovery",
+    },
+    {
+      href: "/admin/customers",
+      label: "Customers",
+      description: "CRM segments, repeat buyers, and spend concentration",
+    },
+    {
+      href: "/admin/suppliers",
+      label: "Suppliers",
+      description: "Supplier CRM, lead times, and catalog exposure",
+    },
+    {
+      href: "/admin/discounts",
+      label: "Discounts",
+      description: "Promotion codes, activation, and redemption control",
+    },
+    {
+      href: "/admin/analytics",
+      label: "Analytics",
+      description: "Revenue, stock pressure, conversion, and AI quality",
+    },
+  ];
 
-                  return (
-                    <div
-                      key={row.productId}
-                      className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_120px_120px_2fr]"
-                    >
-                      <div>
-                        <div className="font-semibold text-stone-800">
-                          {row.productTitle || row.productId}
-                        </div>
-                        <div className="text-xs text-stone-500">{row.productId}</div>
-                      </div>
-                      <div>{row.total}</div>
-                      <div>{row.pending}</div>
-                      <div className="text-xs text-stone-600">
-                        {usersList || "None"}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+  return (
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+              Admin / Dashboard
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">
+              Operations, access control, and stock pressure
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm text-slate-400">
+              Central launch point for catalog work, order operations, CRM, and
+              admin-only controls across the live commerce system.
+            </p>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+            ADMIN only
+          </div>
         </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Users" value={String(totalUsers)} detail={`${totalUserPages} pages`} />
+          <StatCard label="Low stock" value={String(lowStockCount)} detail={`${outOfStockCount} fully out`} />
+          <StatCard label="Back in stock requests" value={String(backInStockRows.length)} detail="Top pending products" />
+          <StatCard label="Quick actions" value={String(quickLinks.length)} detail="Primary admin areas" />
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        {quickLinks.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 transition hover:bg-white/[0.05]"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Workspace
+            </p>
+            <h2 className="mt-3 text-lg font-semibold text-white">{item.label}</h2>
+            <p className="mt-2 text-sm text-slate-400">{item.description}</p>
+          </Link>
+        ))}
+      </section>
+
+      <Panel
+        eyebrow="Access"
+        title="User administration"
+        description="Role control and direct user detail access. Admin area remains ADMIN-only."
+      >
+        <AdminUsersClient
+          initialUsers={users.map((user) => ({
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+          }))}
+          initialQuery={normalizedQuery}
+          totalCount={totalUsers}
+          currentPage={currentUserPage}
+          totalPages={totalUserPages}
+          pageSize={USERS_PAGE_SIZE}
+        />
+      </Panel>
+
+      <Panel
+        eyebrow="Inventory"
+        title="Low-stock watchlist"
+        description="Active variants at or below threshold, with direct links into the catalog editor."
+      >
+        <AdminInventoryAlertsClient
+          variants={lowStockPage.map((variant) => ({
+            ...variant,
+            updatedAt: variant.updatedAt.toISOString(),
+          }))}
+          totalCount={lowStockCount}
+          outOfStockCount={outOfStockCount}
+          currentPage={currentInvPage}
+          totalPages={totalInvPages}
+          pageSize={INVENTORY_PAGE_SIZE}
+          initialQuery={normalizedInvQuery}
+        />
+      </Panel>
+
+      <Panel
+        eyebrow="CRM"
+        title="Back-in-stock demand"
+        description="Recent notification demand across products, prioritised by pending requests."
+      >
+        {backInStockRows.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
+            No back-in-stock requests yet.
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
+            <div className="grid grid-cols-1 gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 sm:grid-cols-[2fr_120px_120px_2fr]">
+              <div>Product</div>
+              <div>Total</div>
+              <div>Pending</div>
+              <div>Logged-in users</div>
+            </div>
+            <div className="divide-y divide-white/5">
+              {backInStockRows.map((row) => {
+                const usersList = Array.from(row.users.values())
+                  .map((user) => user.name || user.email || "Unknown")
+                  .join(", ");
+
+                return (
+                  <div
+                    key={row.productId}
+                    className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-slate-300 sm:grid-cols-[2fr_120px_120px_2fr]"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-100">
+                        {row.productTitle || row.productId}
+                      </div>
+                      <div className="text-xs text-slate-500">{row.productId}</div>
+                    </div>
+                    <div className="tabular-nums">{row.total}</div>
+                    <div className="tabular-nums font-semibold text-amber-300">
+                      {row.pending}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {usersList || "None"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function Panel({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
+        <p className="mt-1 text-sm text-slate-400">{description}</p>
       </div>
+      {children}
+    </section>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-2 text-xs text-slate-500">{detail}</p>
+    </div>
   );
 }

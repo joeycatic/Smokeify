@@ -623,7 +623,7 @@ export default function AdminCatalogClient({
   });
 
   return (
-    <div className="admin-catalog-shell space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+    <div className="admin-legacy-page admin-catalog-shell space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
       <div className="admin-catalog-hero rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

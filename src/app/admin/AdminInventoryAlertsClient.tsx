@@ -83,7 +83,7 @@ export default function AdminInventoryAlertsClient({
   };
 
   return (
-    <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+    <div className="admin-legacy-page rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold" style={{ color: "#2f3e36" }}>

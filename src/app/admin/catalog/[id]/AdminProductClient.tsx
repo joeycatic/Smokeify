@@ -1125,7 +1125,7 @@ export default function AdminProductClient({
   }, [details.supplierId, suppliers]);
 
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+    <div className="admin-legacy-page space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
       <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

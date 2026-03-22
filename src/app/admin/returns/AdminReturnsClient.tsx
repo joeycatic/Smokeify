@@ -60,7 +60,7 @@ export default function AdminReturnsClient({ requests }: Props) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="admin-legacy-page space-y-8">
       <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

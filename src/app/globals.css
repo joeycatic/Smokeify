@@ -729,6 +729,126 @@ body {
   color: #b6d6c0;
 }
 
+.admin-theme.admin-dark .admin-legacy-page {
+  color: #d9e3f0;
+}
+
+.admin-theme.admin-dark .admin-legacy-page input,
+.admin-theme.admin-dark .admin-legacy-page select,
+.admin-theme.admin-dark .admin-legacy-page textarea {
+  background-color: rgba(8, 12, 18, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page input::placeholder,
+.admin-theme.admin-dark .admin-legacy-page textarea::placeholder {
+  color: #64748b !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page input:focus,
+.admin-theme.admin-dark .admin-legacy-page select:focus,
+.admin-theme.admin-dark .admin-legacy-page textarea:focus {
+  border-color: rgba(125, 211, 252, 0.32) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .bg-white {
+  background-color: rgba(10, 14, 20, 0.96);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .bg-white\/90 {
+  background-color: rgba(10, 14, 20, 0.9);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .bg-white\/80,
+.admin-theme.admin-dark .admin-legacy-page .bg-white\/70 {
+  background-color: rgba(10, 14, 20, 0.78);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .bg-stone-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-stone-100,
+.admin-theme.admin-dark .admin-legacy-page .bg-emerald-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-amber-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-rose-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-sky-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-violet-50,
+.admin-theme.admin-dark .admin-legacy-page .bg-emerald-50\/60,
+.admin-theme.admin-dark .admin-legacy-page .bg-amber-50\/60,
+.admin-theme.admin-dark .admin-legacy-page .bg-rose-50\/60,
+.admin-theme.admin-dark .admin-legacy-page .bg-violet-50\/60 {
+  background-color: rgba(15, 20, 28, 0.88);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .from-white,
+.admin-theme.admin-dark .admin-legacy-page .via-white,
+.admin-theme.admin-dark .admin-legacy-page .to-white,
+.admin-theme.admin-dark .admin-legacy-page .from-emerald-50,
+.admin-theme.admin-dark .admin-legacy-page .via-emerald-50,
+.admin-theme.admin-dark .admin-legacy-page .to-emerald-50,
+.admin-theme.admin-dark .admin-legacy-page .from-amber-50,
+.admin-theme.admin-dark .admin-legacy-page .via-amber-50,
+.admin-theme.admin-dark .admin-legacy-page .to-amber-50 {
+  --tw-gradient-from: rgba(15, 20, 28, 0.95) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(15, 20, 28, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(11, 15, 22, 0.95) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .border-emerald-100,
+.admin-theme.admin-dark .admin-legacy-page .border-emerald-200,
+.admin-theme.admin-dark .admin-legacy-page .border-emerald-200\/70,
+.admin-theme.admin-dark .admin-legacy-page .border-amber-100,
+.admin-theme.admin-dark .admin-legacy-page .border-amber-200,
+.admin-theme.admin-dark .admin-legacy-page .border-amber-200\/70,
+.admin-theme.admin-dark .admin-legacy-page .border-rose-100,
+.admin-theme.admin-dark .admin-legacy-page .border-rose-200,
+.admin-theme.admin-dark .admin-legacy-page .border-sky-100,
+.admin-theme.admin-dark .admin-legacy-page .border-sky-200,
+.admin-theme.admin-dark .admin-legacy-page .border-violet-100,
+.admin-theme.admin-dark .admin-legacy-page .border-violet-200,
+.admin-theme.admin-dark .admin-legacy-page .border-violet-200\/70,
+.admin-theme.admin-dark .admin-legacy-page .border-stone-200 {
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .text-emerald-900,
+.admin-theme.admin-dark .admin-legacy-page .text-emerald-800,
+.admin-theme.admin-dark .admin-legacy-page .text-emerald-700,
+.admin-theme.admin-dark .admin-legacy-page .text-emerald-600,
+.admin-theme.admin-dark .admin-legacy-page .text-sky-800,
+.admin-theme.admin-dark .admin-legacy-page .text-sky-700,
+.admin-theme.admin-dark .admin-legacy-page .text-violet-700 {
+  color: #7dd3fc;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .text-amber-800,
+.admin-theme.admin-dark .admin-legacy-page .text-amber-700,
+.admin-theme.admin-dark .admin-legacy-page .text-rose-700 {
+  color: #fcd34d;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .shadow-sm,
+.admin-theme.admin-dark .admin-legacy-page .shadow-lg,
+.admin-theme.admin-dark .admin-legacy-page .shadow-xl {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.admin-theme.admin-dark .admin-legacy-page .rich-text-editor,
+.admin-theme.admin-dark .admin-legacy-page .ProseMirror {
+  color: #e2e8f0;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .rich-text-editor h2,
+.admin-theme.admin-dark .admin-legacy-page .rich-text-editor h3,
+.admin-theme.admin-dark .admin-legacy-page .rich-text-editor h4 {
+  color: #f8fafc;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .rich-text-editor .ProseMirror {
+  caret-color: #f8fafc;
+}
+
 @keyframes filter-drawer-in {
   0% {
     transform: translateX(100%);
