@@ -951,13 +951,14 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           </div>
         </div>
 
-        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.95fr)] lg:px-8">
-          <div className="grid auto-rows-min gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)] lg:px-8">
+          <div className="grid auto-rows-fr gap-4 md:grid-cols-2">
             <SummaryCard
               label="Visible orders"
               value={String(sorted.length)}
               detail="Current query scope"
               change={periodComparison.orderDeltaLabel}
+              footnote={`${relevantOrders.length} active queue`}
             />
             <SummaryCard
               label="Paid revenue"
@@ -965,6 +966,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               detail={`${paidCount} paid orders`}
               change={periodComparison.revenueDeltaLabel}
               tone="emerald"
+              footnote={`${formatPrice(averageOrderValueCents, dashboardCurrency)} avg basket`}
             />
             <SummaryCard
               label="Average order value"
@@ -972,6 +974,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               detail="Confirmed-payment basket size"
               change={periodComparison.paidDeltaLabel}
               tone="violet"
+              footnote={`${paidCount} orders in paid cohort`}
             />
             <SummaryCard
               label="Action queue"
@@ -979,6 +982,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               detail={`${trackingMissingCount} tracking gaps`}
               change={`${confirmationPendingCount} emails pending`}
               tone="amber"
+              footnote={`${readyToFulfillCount} ready to fulfill`}
             />
           </div>
           <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 xl:sticky xl:top-4">
@@ -1274,9 +1278,9 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}
-                className="flex w-full flex-col gap-4 text-left xl:flex-row xl:items-start xl:justify-between"
+                className="grid w-full gap-5 text-left xl:grid-cols-[minmax(0,1fr)_220px]"
               >
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
                       Order {order.id.slice(0, 8).toUpperCase()}
@@ -1293,7 +1297,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                   <div className="mt-3 text-sm font-semibold text-stone-900">
                     {getOrderEmail(order) ?? "No email"}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                  <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">
                     <span className={getOrderStatusBadgeClass(order.status)}>
                       Status: {order.status}
                     </span>
@@ -1312,8 +1316,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                     )}
                   </div>
                   {!isOpen && (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
                           Items
                         </div>
@@ -1321,7 +1325,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                           {order.items.length}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
                           Refunded
                         </div>
@@ -1329,7 +1333,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                           {formatPrice(order.amountRefunded, order.currency)}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
                           Tracking
                         </div>
@@ -1337,10 +1341,18 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                           {tracking.number?.trim() ? "Ready" : "Missing"}
                         </div>
                       </div>
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Updated
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {new Date(order.updatedAt).toLocaleDateString("de-DE")}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div className="flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
+                <div className="orders-total-panel flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                     Total value
                   </div>
@@ -2059,12 +2071,14 @@ function SummaryCard({
   value,
   detail,
   change,
+  footnote,
   tone = "slate",
 }: {
   label: string;
   value: string;
   detail: string;
   change?: string;
+  footnote?: string;
   tone?: "slate" | "emerald" | "violet" | "amber";
 }) {
   const toneClasses =
@@ -2084,25 +2098,32 @@ function SummaryCard({
           ? "text-amber-700 bg-amber-100/80 border-amber-200"
           : "text-slate-700 bg-slate-100 border-slate-200";
   return (
-    <div className={`rounded-[22px] border p-4 shadow-sm ${toneClasses}`}>
+    <div className={`orders-kpi-card rounded-[22px] border p-5 shadow-sm ${toneClasses}`}>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
           {label}
         </p>
         {change ? (
           <span
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${accentClasses}`}
+            className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${accentClasses}`}
           >
             {change}
           </span>
         ) : null}
       </div>
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <p className="max-w-full text-[clamp(1.9rem,2.4vw,2.5rem)] font-semibold leading-none tracking-tight text-stone-900">
+      <div className="mt-6">
+        <p className="max-w-full text-[clamp(2.1rem,2.8vw,3rem)] font-semibold leading-none tracking-tight text-stone-900">
           {value}
         </p>
       </div>
-      <p className="mt-3 max-w-[24ch] text-sm leading-5 text-stone-600">{detail}</p>
+      <div className="mt-5 space-y-2">
+        <p className="max-w-[26ch] text-sm leading-5 text-stone-600">{detail}</p>
+        {footnote ? (
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+            {footnote}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
