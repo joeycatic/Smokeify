@@ -954,7 +954,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           </div>
         </div>
 
-        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)] lg:px-8">
+        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-2 lg:px-8">
           <div className="grid auto-rows-fr gap-4 md:grid-cols-2">
             <SummaryCard
               label="Visible orders"
@@ -988,7 +988,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               footnote={`${readyToFulfillCount} ready to fulfill`}
             />
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 xl:sticky xl:top-4">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 h-full">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-300/75">
