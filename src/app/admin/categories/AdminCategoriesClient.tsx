@@ -93,26 +93,10 @@ export default function AdminCategoriesClient() {
     () => topLevel.reduce((sum, category) => sum + (childMap.get(category.id)?.length ?? 0), 0),
     [childMap, topLevel]
   );
-  const parentCategory = useMemo(
-    () =>
-      selectedCategory?.parentId
-        ? categories.find((category) => category.id === selectedCategory.parentId) ?? null
-        : null,
-    [categories, selectedCategory]
-  );
   const selectedChildren = useMemo(
     () => (selectedCategory ? childMap.get(selectedCategory.id) ?? [] : []),
     [childMap, selectedCategory]
   );
-  const siblingCategories = useMemo(() => {
-    if (!selectedCategory) return [];
-    if (!selectedCategory.parentId) {
-      return topLevel.filter((category) => category.id !== selectedCategory.id);
-    }
-    return (childMap.get(selectedCategory.parentId) ?? []).filter(
-      (category) => category.id !== selectedCategory.id
-    );
-  }, [childMap, selectedCategory, topLevel]);
 
   const updateSelected = (patch: Partial<Category>) => {
     if (!selectedCategory) return;
@@ -253,13 +237,13 @@ export default function AdminCategoriesClient() {
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid items-stretch gap-6 xl:grid-cols-[0.84fr_1.16fr]">
-        <div className="grid h-full min-h-[760px] gap-6 xl:grid-rows-[auto_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(360px,0.82fr)_minmax(0,1.18fr)]">
+        <div className="grid gap-6">
           <AdminPanel
             eyebrow="Create"
             title="Add category"
             description="Create a new root or child category without leaving the taxonomy workspace."
-            className="admin-reveal-delay-1 h-full xl:min-h-[380px]"
+            className="admin-reveal-delay-1"
           >
             <div className="grid gap-4">
               <AdminField label="Name">
@@ -318,7 +302,7 @@ export default function AdminCategoriesClient() {
             eyebrow="Hierarchy"
             title="Category tree"
             description="Browse the full structure below the create form and jump directly into the selected node."
-            className="admin-reveal-delay-2 flex h-full min-h-0 flex-col"
+            className="admin-reveal-delay-2"
           >
             {categories.length === 0 ? (
               <AdminEmptyState
@@ -326,7 +310,7 @@ export default function AdminCategoriesClient() {
                 description="Create the first taxonomy node to start building the catalog structure."
               />
             ) : (
-              <div className="space-y-3 overflow-y-auto pr-1">
+              <div className="space-y-3">
                 {topLevel.map((category) => {
                   const children = childMap.get(category.id) ?? [];
                   const activeRoot = selectedId === category.id;
@@ -406,11 +390,11 @@ export default function AdminCategoriesClient() {
         <AdminPanel
           eyebrow="Editor"
           title="Category detail editor"
-          description="Select a node from the tree, then edit its structure and metadata while the relationship map shows where it sits."
-          className="admin-reveal-delay-2 h-full min-h-[760px]"
+          description="Select a node from the tree, then edit its structure and metadata."
+          className="admin-reveal-delay-2"
         >
           {selectedCategory ? (
-            <div className="flex h-full flex-col gap-6">
+            <div className="space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -442,227 +426,57 @@ export default function AdminCategoriesClient() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <AdminField label="Name">
-                    <AdminInput
-                      value={selectedCategory.name}
-                      onChange={(event) => updateSelected({ name: event.target.value })}
-                    />
-                  </AdminField>
-                  <AdminField label="Handle">
-                    <AdminInput
-                      value={selectedCategory.handle}
-                      onChange={(event) => updateSelected({ handle: event.target.value })}
-                    />
-                  </AdminField>
-                  <AdminField label="Parent" optional="optional">
-                    <AdminSelect
-                      value={selectedCategory.parentId ?? ""}
-                      onChange={(event) =>
-                        updateSelected({ parentId: event.target.value || null })
-                      }
-                    >
-                      <option value="">No parent (top level)</option>
-                      {topLevel
-                        .filter((category) => category.id !== selectedCategory.id)
-                        .map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                    </AdminSelect>
-                  </AdminField>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Metadata
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-300">
-                      <div>Created: {new Date(selectedCategory.createdAt).toLocaleDateString("de-DE")}</div>
-                      <div>Updated: {new Date(selectedCategory.updatedAt).toLocaleDateString("de-DE")}</div>
-                      <div>Children: {selectedChildren.length}</div>
-                    </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminField label="Name">
+                  <AdminInput
+                    value={selectedCategory.name}
+                    onChange={(event) => updateSelected({ name: event.target.value })}
+                  />
+                </AdminField>
+                <AdminField label="Handle">
+                  <AdminInput
+                    value={selectedCategory.handle}
+                    onChange={(event) => updateSelected({ handle: event.target.value })}
+                  />
+                </AdminField>
+                <AdminField label="Parent" optional="optional">
+                  <AdminSelect
+                    value={selectedCategory.parentId ?? ""}
+                    onChange={(event) =>
+                      updateSelected({ parentId: event.target.value || null })
+                    }
+                  >
+                    <option value="">No parent (top level)</option>
+                    {topLevel
+                      .filter((category) => category.id !== selectedCategory.id)
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </AdminSelect>
+                </AdminField>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Metadata
                   </div>
-                  <div className="md:col-span-2">
-                    <AdminField label="Description" optional="optional">
-                      <AdminTextarea
-                        rows={5}
-                        value={selectedCategory.description ?? ""}
-                        onChange={(event) =>
-                          updateSelected({ description: event.target.value })
-                        }
-                        placeholder="Internal note or shopper-facing summary"
-                      />
-                    </AdminField>
+                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                    <div>Created: {new Date(selectedCategory.createdAt).toLocaleDateString("de-DE")}</div>
+                    <div>Updated: {new Date(selectedCategory.updatedAt).toLocaleDateString("de-DE")}</div>
+                    <div>Children: {selectedChildren.length}</div>
                   </div>
                 </div>
-
-                <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.34)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Relationship map
-                      </div>
-                      <div className="mt-2 text-sm text-slate-300">
-                        Parent, current node, siblings, and children in one hierarchy view.
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em]">
-                      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-cyan-200">
-                        Parent
-                      </span>
-                      <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-amber-200">
-                        Selected
-                      </span>
-                      <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-emerald-200">
-                        Sibling
-                      </span>
-                      <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-2 py-1 text-violet-200">
-                        Child
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 rounded-[26px] border border-white/[0.08] bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-4">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                          Parent level
-                        </div>
-                        <div className="mt-2 text-2xl font-semibold text-white">
-                          {parentCategory ? "1" : "0"}
-                        </div>
-                        <div className="mt-1 text-xs text-cyan-100/70">
-                          {parentCategory ? "Linked parent node" : "Top-level category"}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                          Siblings
-                        </div>
-                        <div className="mt-2 text-2xl font-semibold text-white">
-                          {siblingCategories.length}
-                        </div>
-                        <div className="mt-1 text-xs text-emerald-100/70">
-                          Categories on the same level
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.08] px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">
-                          Children
-                        </div>
-                        <div className="mt-2 text-2xl font-semibold text-white">
-                          {selectedChildren.length}
-                        </div>
-                        <div className="mt-1 text-xs text-violet-100/70">
-                          Direct descendants in this branch
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 space-y-4">
-                    {parentCategory ? (
-                      <div className="mx-auto max-w-sm rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-center shadow-[0_0_0_1px_rgba(34,211,238,0.08)]">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                          Parent
-                        </div>
-                        <div className="mt-2 font-semibold text-white">{parentCategory.name}</div>
-                        <div className="mt-1 text-xs text-cyan-100/70">/{parentCategory.handle}</div>
-                      </div>
-                    ) : (
-                      <div className="mx-auto max-w-sm rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-center shadow-[0_0_0_1px_rgba(34,211,238,0.08)]">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                          Root node
-                        </div>
-                        <div className="mt-2 text-sm text-slate-100">
-                          This category currently sits at the top level.
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-center">
-                      <div className="h-10 w-px bg-gradient-to-b from-cyan-400/70 via-amber-400/70 to-amber-400/20" />
-                    </div>
-
-                    <div className="mx-auto max-w-md rounded-2xl border border-amber-400/20 bg-[linear-gradient(180deg,rgba(251,191,36,0.16),rgba(251,191,36,0.07))] p-4 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
-                        Selected
-                      </div>
-                      <div className="mt-2 font-semibold text-white">{selectedCategory.name}</div>
-                      <div className="mt-1 text-xs text-amber-100/70">/{selectedCategory.handle}</div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em] text-amber-100/80">
-                        <span className="rounded-full border border-amber-400/20 bg-black/20 px-2 py-1">
-                          {selectedCategory.parentId ? "Nested node" : "Top level"}
-                        </span>
-                        <span className="rounded-full border border-amber-400/20 bg-black/20 px-2 py-1">
-                          {selectedChildren.length} child{selectedChildren.length === 1 ? "" : "ren"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center">
-                      <div className="h-10 w-px bg-gradient-to-b from-amber-400/70 via-violet-400/50 to-violet-400/15" />
-                    </div>
-
-                    <div className="grid gap-3 xl:grid-cols-[0.95fr_1.05fr]">
-                      <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                          Siblings
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {siblingCategories.length ? (
-                            siblingCategories.map((category) => (
-                              <button
-                                key={category.id}
-                                type="button"
-                                onClick={() => setSelectedId(category.id)}
-                                className="flex w-full items-center justify-between rounded-xl border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-2 text-left text-sm text-emerald-50 transition hover:border-emerald-400/25 hover:bg-emerald-400/12"
-                              >
-                                <span className="flex items-center gap-2">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-                                  <span>{category.name}</span>
-                                </span>
-                                <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-200">
-                                  Sibling
-                                </span>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="text-sm text-slate-500">No siblings at this level.</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-violet-400/15 bg-violet-400/[0.06] p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">
-                          Children
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {selectedChildren.length ? (
-                            selectedChildren.map((category) => (
-                              <button
-                                key={category.id}
-                                type="button"
-                                onClick={() => setSelectedId(category.id)}
-                                className="flex w-full items-center justify-between rounded-xl border border-violet-400/20 bg-violet-400/10 px-3 py-2 text-left text-sm text-violet-100 transition hover:border-violet-400/30 hover:bg-violet-400/14"
-                              >
-                                <span className="flex items-center gap-2">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-violet-300" />
-                                  <span>{category.name}</span>
-                                </span>
-                                <span className="text-[10px] uppercase tracking-[0.18em] text-violet-200">
-                                  Child
-                                </span>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="text-sm text-slate-500">No children beneath this node.</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    </div>
-                  </div>
+                <div className="md:col-span-2">
+                  <AdminField label="Description" optional="optional">
+                    <AdminTextarea
+                      rows={5}
+                      value={selectedCategory.description ?? ""}
+                      onChange={(event) =>
+                        updateSelected({ description: event.target.value })
+                      }
+                      placeholder="Internal note or shopper-facing summary"
+                    />
+                  </AdminField>
                 </div>
               </div>
             </div>
