@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
   type AdminChartPoint,
+  DonutChart,
+  FunnelChart,
   HorizontalBarsChart,
+  MultiSeriesTrendChart,
   SparklineChart,
 } from "@/components/admin/AdminCharts";
 
@@ -32,6 +35,7 @@ type Funnel = {
   productViews: number;
   addToCart: number;
   beginCheckout: number;
+  purchaseSessions: number;
   paidOrders: number;
   sessionToOrderRate: number;
   viewToCartRate: number;
@@ -43,6 +47,29 @@ type Funnel = {
   fulfilledOrders: number;
   refundedOrders: number;
   canceledOrders: number;
+};
+
+type FunnelComparison = {
+  sessions: ComparisonMetric;
+  beginCheckout: ComparisonMetric;
+  paidOrders: ComparisonMetric;
+  purchaseSessions: ComparisonMetric;
+  sessionToOrderRate: ComparisonMetric;
+  checkoutAbandonmentRate: ComparisonMetric;
+  cartAbandonmentRate: ComparisonMetric;
+};
+
+type FunnelTrendPoint = {
+  label: string;
+  sessions: number;
+  productViews: number;
+  addToCart: number;
+  beginCheckout: number;
+  purchases: number;
+  paidOrders: number;
+  revenueCents: number;
+  sessionConversionRate: number;
+  checkoutRate: number;
 };
 
 type ProductPerformance = {
@@ -165,6 +192,13 @@ const formatDelta = (value: number | null, percentMode = true) => {
   return `${sign}${Math.round(numeric)}${percentMode ? "%" : ""}`;
 };
 
+const getDeltaToneClassName = (value: number | null, inverted = false) => {
+  if (value === null || value === 0) return "text-slate-500";
+  const positive = value > 0;
+  const isGood = inverted ? !positive : positive;
+  return isGood ? "text-emerald-300" : "text-rose-300";
+};
+
 const initialLive: LiveSnapshot = {
   activeVisitorCount: 0,
   topPages: [],
@@ -176,6 +210,7 @@ const initialFunnel: Funnel = {
   productViews: 0,
   addToCart: 0,
   beginCheckout: 0,
+  purchaseSessions: 0,
   paidOrders: 0,
   sessionToOrderRate: 0,
   viewToCartRate: 0,
@@ -189,17 +224,21 @@ const initialFunnel: Funnel = {
   canceledOrders: 0,
 };
 
+const initialFunnelComparison: FunnelComparison = {
+  sessions: { current: 0, previous: 0, deltaRatio: 0 },
+  beginCheckout: { current: 0, previous: 0, deltaRatio: 0 },
+  paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
+  purchaseSessions: { current: 0, previous: 0, deltaRatio: 0 },
+  sessionToOrderRate: { current: 0, previous: 0, deltaRatio: 0 },
+  checkoutAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
+  cartAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
+};
+
 const initialRevenue: Revenue = {
   totalCents: 0,
   last30DaysCents: 0,
   newRevenueCents: 0,
   returningRevenueCents: 0,
-};
-
-const initialInventory: InventorySummary = {
-  stockoutCount: 0,
-  lowStockCount: 0,
-  trackedVariants: 0,
 };
 
 const emptyTrends: Trends = {
@@ -254,8 +293,11 @@ export default function AdminAnalyticsClient() {
   const [underperformingProducts, setUnderperformingProducts] = useState<ProductPerformance[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
   const [revenue, setRevenue] = useState<Revenue>(initialRevenue);
-  const [inventory, setInventory] = useState<InventorySummary>(initialInventory);
   const [trends, setTrends] = useState<Trends>(emptyTrends);
+  const [funnelTrend, setFunnelTrend] = useState<FunnelTrendPoint[]>([]);
+  const [funnelComparison, setFunnelComparison] = useState<FunnelComparison>(
+    initialFunnelComparison,
+  );
   const [customers, setCustomers] = useState<CustomerSummary>(initialCustomers);
   const [aiQuality, setAiQuality] = useState<AiQuality>(initialAiQuality);
   const [trafficSources, setTrafficSources] = useState<TrafficSource[]>([]);
@@ -279,6 +321,8 @@ export default function AdminAnalyticsClient() {
       const data = (await res.json()) as {
         live?: LiveSnapshot;
         funnel?: Funnel;
+        funnelComparison?: FunnelComparison;
+        funnelTrend?: FunnelTrendPoint[];
         revenue?: Revenue;
         topProducts?: ProductPerformance[];
         underperformingProducts?: ProductPerformance[];
@@ -299,8 +343,9 @@ export default function AdminAnalyticsClient() {
       setTopProducts(data.topProducts ?? []);
       setUnderperformingProducts(data.underperformingProducts ?? []);
       setStockouts(data.stockouts ?? []);
-      setInventory(data.inventory ?? initialInventory);
       setTrends(data.trends ?? emptyTrends);
+      setFunnelTrend(data.funnelTrend ?? []);
+      setFunnelComparison(data.funnelComparison ?? initialFunnelComparison);
       setCustomers(data.customers ?? initialCustomers);
       setTrafficSources(data.trafficSources ?? []);
       setDiscountAnalysis(data.discountAnalysis ?? []);
@@ -378,6 +423,107 @@ export default function AdminAnalyticsClient() {
     [paymentAnalysis],
   );
 
+  const funnelLabels = useMemo(() => funnelTrend.map((point) => point.label), [funnelTrend]);
+
+  const funnelSeries = useMemo(
+    () => [
+      {
+        label: "Sessions",
+        color: "#22d3ee",
+        values: funnelTrend.map((point) => point.sessions),
+      },
+      {
+        label: "Checkout",
+        color: "#a78bfa",
+        values: funnelTrend.map((point) => point.beginCheckout),
+      },
+      {
+        label: "Purchases",
+        color: "#34d399",
+        values: funnelTrend.map((point) => point.purchases),
+      },
+    ],
+    [funnelTrend],
+  );
+
+  const funnelStages = useMemo(
+    () => [
+      {
+        label: "Sessions",
+        value: funnel.sessions,
+        helper: "Top-of-funnel visitors",
+        color: "#22d3ee",
+      },
+      {
+        label: "Product views",
+        value: funnel.productViews,
+        helper: percent(funnel.productViews > 0 && funnel.sessions > 0 ? funnel.productViews / funnel.sessions : 0),
+        color: "#60a5fa",
+      },
+      {
+        label: "Add to cart",
+        value: funnel.addToCart,
+        helper: percent(funnel.viewToCartRate),
+        color: "#f59e0b",
+      },
+      {
+        label: "Begin checkout",
+        value: funnel.beginCheckout,
+        helper: percent(funnel.cartToCheckoutRate),
+        color: "#a78bfa",
+      },
+      {
+        label: "Purchases",
+        value: funnel.purchaseSessions > 0 ? funnel.purchaseSessions : funnel.paidOrders,
+        helper: percent(funnel.checkoutToPaidRate),
+        color: "#34d399",
+      },
+    ],
+    [funnel],
+  );
+
+  const customerMixDonut = useMemo(
+    () => [
+      { label: "Registered", value: customers.registeredCount, colorClassName: "#22c55e" },
+      { label: "Guest", value: customers.guestCount, colorClassName: "#f59e0b" },
+      {
+        label: "Repeat buyers",
+        value: customers.repeatRegisteredCount + customers.repeatGuestCount,
+        colorClassName: "#38bdf8",
+      },
+    ],
+    [customers],
+  );
+
+  const revenueMixDonut = useMemo(
+    () => [
+      { label: "New revenue", value: retention.newRevenueCents, colorClassName: "#22c55e" },
+      {
+        label: "Returning revenue",
+        value: retention.returningRevenueCents,
+        colorClassName: "#818cf8",
+      },
+    ],
+    [retention],
+  );
+
+  const abandonmentDonut = useMemo(() => {
+    const completed = funnel.purchaseSessions > 0 ? funnel.purchaseSessions : funnel.paidOrders;
+    return [
+      { label: "Completed", value: completed, colorClassName: "#34d399" },
+      {
+        label: "Checkout drop",
+        value: Math.max(funnel.beginCheckout - completed, 0),
+        colorClassName: "#f59e0b",
+      },
+      {
+        label: "Cart drop",
+        value: Math.max(funnel.addToCart - funnel.beginCheckout, 0),
+        colorClassName: "#f87171",
+      },
+    ];
+  }, [funnel]);
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
@@ -410,22 +556,35 @@ export default function AdminAnalyticsClient() {
             label="30d revenue"
             value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
             detail={formatDelta(periodComparison.revenue.deltaRatio)}
+            detailToneClassName={getDeltaToneClassName(periodComparison.revenue.deltaRatio)}
           />
           <MetricCard
             label="Session CVR"
             value={percent(funnel.sessionToOrderRate)}
-            detail={formatDelta(funnel.sessionToOrderRate - 0)}
+            detail={formatDelta(funnelComparison.sessionToOrderRate.deltaRatio)}
+            detailToneClassName={getDeltaToneClassName(funnelComparison.sessionToOrderRate.deltaRatio)}
           />
           <MetricCard
             label="Checkout abandon"
             value={percent(funnel.checkoutAbandonmentRate)}
+            detail={formatDelta(funnelComparison.checkoutAbandonmentRate.deltaRatio)}
+            detailToneClassName={getDeltaToneClassName(
+              funnelComparison.checkoutAbandonmentRate.deltaRatio,
+              true,
+            )}
           />
           <MetricCard
             label="AOV"
             value={formatPrice(periodComparison.aov.current, periodComparison.currency)}
             detail={formatDelta(periodComparison.aov.deltaRatio)}
+            detailToneClassName={getDeltaToneClassName(periodComparison.aov.deltaRatio)}
           />
-          <MetricCard label="Low-stock variants" value={String(inventory.lowStockCount)} />
+          <MetricCard
+            label="Checkout starts"
+            value={String(funnel.beginCheckout)}
+            detail={formatDelta(funnelComparison.beginCheckout.deltaRatio)}
+            detailToneClassName={getDeltaToneClassName(funnelComparison.beginCheckout.deltaRatio)}
+          />
         </div>
       </section>
 
@@ -444,6 +603,46 @@ export default function AdminAnalyticsClient() {
         </div>
       ) : (
         <>
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <Panel
+              eyebrow="Trends"
+              title="Revenue and conversion pressure"
+              description="14-day view of sessions, checkouts and purchases, paired with paid revenue."
+            >
+              <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                <MultiSeriesTrendChart
+                  labels={funnelLabels}
+                  series={funnelSeries}
+                  valueFormatter={(value) => `${Math.round(value)} sessions`}
+                />
+                <div className="space-y-4">
+                  <SparklineChart data={revenueTrend} />
+                  <SparklineChart
+                    data={ordersTrend}
+                    strokeClassName="stroke-violet-300"
+                    fillClassName="fill-violet-400/10"
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            <Panel
+              eyebrow="Funnel"
+              title="Stage flow and abandonment"
+              description="Session-based funnel stages backed by first-party storefront events."
+            >
+              <FunnelChart stages={funnelStages} />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <CompactMetric label="Purchase sessions" value={String(funnel.purchaseSessions)} />
+                <CompactMetric label="Paid orders" value={String(funnel.paidOrders)} />
+                <CompactMetric label="Session CVR" value={percent(funnel.sessionToOrderRate)} />
+                <CompactMetric label="Checkout to paid" value={percent(funnel.checkoutToPaidRate)} />
+                <CompactMetric label="Cart abandon" value={percent(funnel.cartAbandonmentRate)} />
+                <CompactMetric label="Checkout abandon" value={percent(funnel.checkoutAbandonmentRate)} />
+              </div>
+            </Panel>
+          </div>
+
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <Panel
               eyebrow="Live"
@@ -489,57 +688,51 @@ export default function AdminAnalyticsClient() {
             </Panel>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
             <Panel
-              eyebrow="Revenue"
-              title="Revenue trend, last 14 days"
-              description={`Orders today: ${trends.orderVelocity.today} · last 7 days: ${trends.orderVelocity.last7Days} · last 30 days: ${trends.orderVelocity.last30Days}`}
+              eyebrow="Mix"
+              title="Customer mix"
+              description={`Repeat rate ${percent(customers.repeatRate)} · ${customers.newCustomerCount} new buyers in 30 days.`}
             >
-              <SparklineChart data={revenueTrend} />
+              <DonutChart
+                data={customerMixDonut}
+                totalLabel="Customers"
+                totalValue={String(customers.registeredCount + customers.guestCount)}
+              />
             </Panel>
 
             <Panel
-              eyebrow="Funnel"
-              title="Funnel and abandonment"
-              description="Session-based funnel stages backed by first-party event data."
+              eyebrow="Revenue"
+              title="New vs returning revenue"
+              description="Revenue quality split across newly acquired and repeat customers."
             >
-              <div className="grid gap-3 sm:grid-cols-2">
-                <CompactMetric label="Sessions" value={String(funnel.sessions)} />
-                <CompactMetric label="Product views" value={String(funnel.productViews)} />
-                <CompactMetric label="Add to cart" value={String(funnel.addToCart)} />
-                <CompactMetric label="Begin checkout" value={String(funnel.beginCheckout)} />
-                <CompactMetric label="Paid orders" value={String(funnel.paidOrders)} />
-                <CompactMetric label="Session CVR" value={percent(funnel.sessionToOrderRate)} />
-                <CompactMetric label="View to cart" value={percent(funnel.viewToCartRate)} />
-                <CompactMetric label="Cart to checkout" value={percent(funnel.cartToCheckoutRate)} />
-                <CompactMetric label="Checkout to paid" value={percent(funnel.checkoutToPaidRate)} />
-                <CompactMetric label="Cart abandon" value={percent(funnel.cartAbandonmentRate)} />
-                <CompactMetric
-                  label="Checkout abandon"
-                  value={percent(funnel.checkoutAbandonmentRate)}
-                />
-                <CompactMetric label="Canceled orders" value={String(funnel.canceledOrders)} />
-              </div>
+              <DonutChart
+                data={revenueMixDonut}
+                totalLabel="30d revenue"
+                totalValue={formatPrice(
+                  retention.newRevenueCents + retention.returningRevenueCents,
+                )}
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Abandonment"
+              title="Cart and checkout drop-off"
+              description="How many sessions fall out before becoming completed purchases."
+            >
+              <DonutChart
+                data={abandonmentDonut}
+                totalLabel="Intent"
+                totalValue={String(funnel.addToCart)}
+              />
             </Panel>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
             <Panel
-              eyebrow="Orders"
-              title="Daily order volume"
-              description="Recent order count trend."
-            >
-              <SparklineChart
-                data={ordersTrend}
-                strokeClassName="stroke-violet-300"
-                fillClassName="fill-violet-400/10"
-              />
-            </Panel>
-
-            <Panel
               eyebrow="Customers"
-              title="Customer mix"
-              description={`Repeat rate ${percent(customers.repeatRate)} · New revenue ${formatPrice(retention.newRevenueCents)} · Returning revenue ${formatPrice(retention.returningRevenueCents)}`}
+              title="Customer bars"
+              description="Registered, guest, repeat and high-value composition."
             >
               <HorizontalBarsChart
                 data={customerMixBars}
@@ -557,21 +750,66 @@ export default function AdminAnalyticsClient() {
                   label="Revenue"
                   value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
                   delta={formatDelta(periodComparison.revenue.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(periodComparison.revenue.deltaRatio)}
                 />
                 <DeltaRow
                   label="Paid orders"
                   value={String(periodComparison.paidOrders.current)}
                   delta={formatDelta(periodComparison.paidOrders.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(periodComparison.paidOrders.deltaRatio)}
                 />
                 <DeltaRow
                   label="AOV"
                   value={formatPrice(periodComparison.aov.current, periodComparison.currency)}
                   delta={formatDelta(periodComparison.aov.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(periodComparison.aov.deltaRatio)}
                 />
                 <DeltaRow
                   label="Refund rate"
                   value={percent(periodComparison.refundRate.current)}
                   delta={formatDelta(periodComparison.refundRate.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(
+                    periodComparison.refundRate.deltaRatio,
+                    true,
+                  )}
+                />
+              </div>
+            </Panel>
+
+            <Panel
+              eyebrow="Delta"
+              title="Funnel delta snapshot"
+              description="How key funnel steps moved versus the previous 30-day period."
+            >
+              <div className="space-y-3">
+                <DeltaRow
+                  label="Sessions"
+                  value={String(funnelComparison.sessions.current)}
+                  delta={formatDelta(funnelComparison.sessions.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(funnelComparison.sessions.deltaRatio)}
+                />
+                <DeltaRow
+                  label="Checkout starts"
+                  value={String(funnelComparison.beginCheckout.current)}
+                  delta={formatDelta(funnelComparison.beginCheckout.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(funnelComparison.beginCheckout.deltaRatio)}
+                />
+                <DeltaRow
+                  label="Purchase sessions"
+                  value={String(funnelComparison.purchaseSessions.current)}
+                  delta={formatDelta(funnelComparison.purchaseSessions.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(
+                    funnelComparison.purchaseSessions.deltaRatio,
+                  )}
+                />
+                <DeltaRow
+                  label="Cart abandon"
+                  value={percent(funnel.cartAbandonmentRate)}
+                  delta={formatDelta(funnelComparison.cartAbandonmentRate.deltaRatio)}
+                  deltaToneClassName={getDeltaToneClassName(
+                    funnelComparison.cartAbandonmentRate.deltaRatio,
+                    true,
+                  )}
                 />
               </div>
             </Panel>
@@ -769,10 +1007,12 @@ function MetricCard({
   label,
   value,
   detail,
+  detailToneClassName = "text-slate-500",
 }: {
   label: string;
   value: string;
   detail?: string;
+  detailToneClassName?: string;
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -780,7 +1020,7 @@ function MetricCard({
         {label}
       </p>
       <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+      {detail ? <p className={`mt-2 text-xs ${detailToneClassName}`}>{detail}</p> : null}
     </div>
   );
 }
@@ -800,10 +1040,12 @@ function DeltaRow({
   label,
   value,
   delta,
+  deltaToneClassName = "text-cyan-300",
 }: {
   label: string;
   value: string;
   delta: string;
+  deltaToneClassName?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
@@ -813,7 +1055,7 @@ function DeltaRow({
       </div>
       <div className="text-right">
         <div className="text-sm font-semibold text-white">{value}</div>
-        <div className="text-xs text-cyan-300">{delta}</div>
+        <div className={`text-xs ${deltaToneClassName}`}>{delta}</div>
       </div>
     </div>
   );

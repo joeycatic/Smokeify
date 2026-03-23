@@ -25,6 +25,34 @@ export type ProductPerformanceRow = {
   addToCartRate: number;
 };
 
+export type FunnelSnapshot = {
+  sessions: number;
+  productViews: number;
+  addToCart: number;
+  beginCheckout: number;
+  purchaseSessions: number;
+  paidOrders: number;
+  sessionToOrderRate: number;
+  viewToCartRate: number;
+  cartToCheckoutRate: number;
+  checkoutToPaidRate: number;
+  cartAbandonmentRate: number;
+  checkoutAbandonmentRate: number;
+};
+
+export type FunnelTrendPoint = {
+  label: string;
+  sessions: number;
+  productViews: number;
+  addToCart: number;
+  beginCheckout: number;
+  purchases: number;
+  paidOrders: number;
+  revenueCents: number;
+  sessionConversionRate: number;
+  checkoutRate: number;
+};
+
 const buildComparisonMetric = (current: number, previous: number): ComparisonMetric => ({
   current,
   previous,
@@ -43,6 +71,17 @@ export const getActiveWindowStart = () => {
   date.setMinutes(date.getMinutes() - ACTIVE_ANALYTICS_WINDOW_MINUTES);
   return date;
 };
+
+const formatTrafficSourceLabel = (
+  utmSource?: string | null,
+  utmMedium?: string | null,
+) => {
+  if (utmSource && utmMedium) return `${utmSource} / ${utmMedium}`;
+  if (utmSource) return utmSource;
+  return "Direct / unknown";
+};
+
+const getDateKey = (value: Date) => value.toISOString().slice(0, 10);
 
 export async function getActiveSessionSnapshot() {
   const activeSessions = await prisma.analyticsSession.findMany({
@@ -84,12 +123,7 @@ export async function getActiveSessionSnapshot() {
     }
     topPages.set(pageKey, pageEntry);
 
-    const label =
-      session.utmSource && session.utmMedium
-        ? `${session.utmSource} / ${session.utmMedium}`
-        : session.utmSource
-        ? session.utmSource
-        : "Direct / unknown";
+    const label = formatTrafficSourceLabel(session.utmSource, session.utmMedium);
     const sourceEntry = trafficSources.get(label) ?? { label, count: 0 };
     sourceEntry.count += 1;
     trafficSources.set(label, sourceEntry);
@@ -109,28 +143,39 @@ export async function getActiveSessionSnapshot() {
   };
 }
 
-export async function getFunnelSnapshot(days = 30) {
-  const since = getDateDaysAgo(days - 1);
-  const [sessionStarts, productViews, addToCart, beginCheckout, paidOrders] = await Promise.all([
+async function getFunnelSnapshotForRange(start: Date, end?: Date): Promise<FunnelSnapshot> {
+  const createdAtFilter = end ? { gte: start, lt: end } : { gte: start };
+  const [
+    sessionStarts,
+    productViews,
+    addToCart,
+    beginCheckout,
+    purchaseSessions,
+    paidOrders,
+  ] = await Promise.all([
     prisma.analyticsEvent.groupBy({
       by: ["sessionId"],
-      where: { createdAt: { gte: since }, eventName: "page_view" },
+      where: { createdAt: createdAtFilter, eventName: "page_view" },
     }),
     prisma.analyticsEvent.groupBy({
       by: ["sessionId"],
-      where: { createdAt: { gte: since }, eventName: "view_item" },
+      where: { createdAt: createdAtFilter, eventName: "view_item" },
     }),
     prisma.analyticsEvent.groupBy({
       by: ["sessionId"],
-      where: { createdAt: { gte: since }, eventName: "add_to_cart" },
+      where: { createdAt: createdAtFilter, eventName: "add_to_cart" },
     }),
     prisma.analyticsEvent.groupBy({
       by: ["sessionId"],
-      where: { createdAt: { gte: since }, eventName: "begin_checkout" },
+      where: { createdAt: createdAtFilter, eventName: "begin_checkout" },
+    }),
+    prisma.analyticsEvent.groupBy({
+      by: ["sessionId"],
+      where: { createdAt: createdAtFilter, eventName: "purchase" },
     }),
     prisma.order.count({
       where: {
-        createdAt: { gte: since },
+        createdAt: createdAtFilter,
         paymentStatus: { in: PAID_ORDER_STATUSES },
       },
     }),
@@ -140,23 +185,145 @@ export async function getFunnelSnapshot(days = 30) {
   const productViewCount = productViews.length;
   const addToCartCount = addToCart.length;
   const beginCheckoutCount = beginCheckout.length;
+  const purchaseSessionCount = purchaseSessions.length;
+  const effectiveCompletedCount = purchaseSessionCount > 0 ? purchaseSessionCount : paidOrders;
 
   return {
     sessions: sessionCount,
     productViews: productViewCount,
     addToCart: addToCartCount,
     beginCheckout: beginCheckoutCount,
+    purchaseSessions: purchaseSessionCount,
     paidOrders,
-    sessionToOrderRate: sessionCount > 0 ? paidOrders / sessionCount : 0,
+    sessionToOrderRate: sessionCount > 0 ? effectiveCompletedCount / sessionCount : 0,
     viewToCartRate: productViewCount > 0 ? addToCartCount / productViewCount : 0,
     cartToCheckoutRate: addToCartCount > 0 ? beginCheckoutCount / addToCartCount : 0,
-    checkoutToPaidRate: beginCheckoutCount > 0 ? paidOrders / beginCheckoutCount : 0,
+    checkoutToPaidRate:
+      beginCheckoutCount > 0 ? effectiveCompletedCount / beginCheckoutCount : 0,
     cartAbandonmentRate: addToCartCount > 0 ? 1 - beginCheckoutCount / addToCartCount : 0,
     checkoutAbandonmentRate:
       beginCheckoutCount > 0
-        ? Math.max(beginCheckoutCount - paidOrders, 0) / beginCheckoutCount
+        ? Math.max(beginCheckoutCount - effectiveCompletedCount, 0) / beginCheckoutCount
         : 0,
   };
+}
+
+export async function getFunnelSnapshot(days = 30) {
+  return getFunnelSnapshotForRange(getDateDaysAgo(days - 1));
+}
+
+export async function getFunnelComparison(days = 30) {
+  const currentStart = getDateDaysAgo(days - 1);
+  const previousStart = getDateDaysAgo(days * 2 - 1);
+  const [current, previous] = await Promise.all([
+    getFunnelSnapshotForRange(currentStart),
+    getFunnelSnapshotForRange(previousStart, currentStart),
+  ]);
+
+  return {
+    sessions: buildComparisonMetric(current.sessions, previous.sessions),
+    beginCheckout: buildComparisonMetric(current.beginCheckout, previous.beginCheckout),
+    paidOrders: buildComparisonMetric(current.paidOrders, previous.paidOrders),
+    purchaseSessions: buildComparisonMetric(
+      current.purchaseSessions > 0 ? current.purchaseSessions : current.paidOrders,
+      previous.purchaseSessions > 0 ? previous.purchaseSessions : previous.paidOrders,
+    ),
+    sessionToOrderRate: buildComparisonMetric(
+      current.sessionToOrderRate,
+      previous.sessionToOrderRate,
+    ),
+    checkoutAbandonmentRate: buildComparisonMetric(
+      current.checkoutAbandonmentRate,
+      previous.checkoutAbandonmentRate,
+    ),
+    cartAbandonmentRate: buildComparisonMetric(
+      current.cartAbandonmentRate,
+      previous.cartAbandonmentRate,
+    ),
+  };
+}
+
+export async function getFunnelTrend(days = 14): Promise<FunnelTrendPoint[]> {
+  const since = getDateDaysAgo(days - 1);
+  const [events, paidOrders] = await Promise.all([
+    prisma.analyticsEvent.findMany({
+      where: {
+        createdAt: { gte: since },
+        eventName: { in: ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"] },
+      },
+      select: {
+        createdAt: true,
+        eventName: true,
+        sessionId: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        createdAt: { gte: since },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
+      },
+      select: {
+        createdAt: true,
+        amountTotal: true,
+      },
+    }),
+  ]);
+
+  const buckets = Array.from({ length: days }, (_, index) => {
+    const date = new Date(since);
+    date.setDate(since.getDate() + index);
+    const label = new Intl.DateTimeFormat("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+    }).format(date);
+    return {
+      label,
+      key: getDateKey(date),
+      sessions: new Set<string>(),
+      productViews: new Set<string>(),
+      addToCart: new Set<string>(),
+      beginCheckout: new Set<string>(),
+      purchases: new Set<string>(),
+      paidOrders: 0,
+      revenueCents: 0,
+    };
+  });
+
+  const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+  for (const event of events) {
+    const bucket = bucketMap.get(getDateKey(event.createdAt));
+    if (!bucket) continue;
+    if (event.eventName === "page_view") bucket.sessions.add(event.sessionId);
+    if (event.eventName === "view_item") bucket.productViews.add(event.sessionId);
+    if (event.eventName === "add_to_cart") bucket.addToCart.add(event.sessionId);
+    if (event.eventName === "begin_checkout") bucket.beginCheckout.add(event.sessionId);
+    if (event.eventName === "purchase") bucket.purchases.add(event.sessionId);
+  }
+
+  for (const order of paidOrders) {
+    const bucket = bucketMap.get(getDateKey(order.createdAt));
+    if (!bucket) continue;
+    bucket.paidOrders += 1;
+    bucket.revenueCents += order.amountTotal;
+  }
+
+  return buckets.map((bucket) => {
+    const purchases = bucket.purchases.size > 0 ? bucket.purchases.size : bucket.paidOrders;
+    const sessions = bucket.sessions.size;
+    return {
+      label: bucket.label,
+      sessions,
+      productViews: bucket.productViews.size,
+      addToCart: bucket.addToCart.size,
+      beginCheckout: bucket.beginCheckout.size,
+      purchases,
+      paidOrders: bucket.paidOrders,
+      revenueCents: bucket.revenueCents,
+      sessionConversionRate: sessions > 0 ? purchases / sessions : 0,
+      checkoutRate: sessions > 0 ? bucket.beginCheckout.size / sessions : 0,
+    };
+  });
 }
 
 export async function getOrderComparisons(days = 30) {

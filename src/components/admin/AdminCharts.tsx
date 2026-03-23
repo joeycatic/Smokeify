@@ -30,6 +30,27 @@ type DonutChartProps = {
   className?: string;
 };
 
+type FunnelChartProps = {
+  stages: Array<{
+    label: string;
+    value: number;
+    helper?: string;
+    color: string;
+  }>;
+  className?: string;
+};
+
+type MultiSeriesTrendChartProps = {
+  labels: string[];
+  series: Array<{
+    label: string;
+    color: string;
+    values: number[];
+  }>;
+  className?: string;
+  valueFormatter?: (value: number) => string;
+};
+
 const DEFAULT_STROKE = "stroke-cyan-300";
 const DEFAULT_FILL = "fill-cyan-400/10";
 
@@ -218,6 +239,154 @@ export function DonutChart({
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function FunnelChart({ stages, className = "" }: FunnelChartProps) {
+  const visibleStages = stages.filter((stage) => stage.value >= 0);
+  const maxValue = Math.max(...visibleStages.map((stage) => stage.value), 1);
+
+  if (visibleStages.length === 0) {
+    return (
+      <div
+        className={`flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] text-sm text-slate-500 ${className}`}
+      >
+        No funnel data
+      </div>
+    );
+  }
+
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {visibleStages.map((stage, index) => {
+        const width = Math.max(18, Math.round((stage.value / maxValue) * 100));
+        return (
+          <div key={stage.label} className="space-y-2">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-100">{stage.label}</div>
+                {stage.helper ? (
+                  <div className="text-xs text-slate-500">{stage.helper}</div>
+                ) : null}
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold text-white">{stage.value}</div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                  Stage {index + 1}
+                </div>
+              </div>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${width}%`,
+                  background: `linear-gradient(90deg, ${stage.color}, ${stage.color}cc)`,
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function MultiSeriesTrendChart({
+  labels,
+  series,
+  className = "",
+  valueFormatter = (value) => String(Math.round(value)),
+}: MultiSeriesTrendChartProps) {
+  const validSeries = series.filter((entry) => entry.values.length > 0);
+  const maxValue = Math.max(
+    ...validSeries.flatMap((entry) => entry.values),
+    1,
+  );
+
+  if (labels.length === 0 || validSeries.length === 0) {
+    return (
+      <div
+        className={`flex h-56 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] text-sm text-slate-500 ${className}`}
+      >
+        No trend data
+      </div>
+    );
+  }
+
+  const width = 360;
+  const height = 180;
+  const paddingX = 10;
+  const paddingY = 14;
+  const step = labels.length === 1 ? 0 : (width - paddingX * 2) / (labels.length - 1);
+
+  const buildPath = (values: number[]) =>
+    values
+      .map((value, index) => {
+        const x = paddingX + step * index;
+        const y = height - paddingY - (Math.max(value, 0) / maxValue) * (height - paddingY * 2);
+        return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+      })
+      .join(" ");
+
+  return (
+    <div className={`admin-lift rounded-2xl border border-white/10 bg-white/[0.02] p-4 ${className}`}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full">
+        {[0.25, 0.5, 0.75].map((ratio) => {
+          const y = height - paddingY - ratio * (height - paddingY * 2);
+          return (
+            <line
+              key={ratio}
+              x1={paddingX}
+              x2={width - paddingX}
+              y1={y}
+              y2={y}
+              stroke="rgba(148, 163, 184, 0.18)"
+              strokeDasharray="4 4"
+            />
+          );
+        })}
+        {validSeries.map((entry) => (
+          <path
+            key={entry.label}
+            d={buildPath(entry.values)}
+            fill="none"
+            stroke={entry.color}
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+      <div className="grid grid-cols-7 gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-500">
+        {labels.slice(-7).map((label) => (
+          <span key={label} className="truncate text-center">
+            {label}
+          </span>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {validSeries.map((entry) => {
+          const latest = entry.values.at(-1) ?? 0;
+          return (
+            <div
+              key={entry.label}
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: entry.color }}
+                />
+                {entry.label}
+              </div>
+              <div className="mt-2 text-lg font-semibold text-white">
+                {valueFormatter(latest)}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
 import {
   PAID_ORDER_STATUSES,
+  getFunnelComparison,
   getActiveSessionSnapshot,
   getCustomerRevenueMix,
   getFunnelSnapshot,
+  getFunnelTrend,
   getOrderComparisons,
   getProductPerformance,
 } from "@/lib/adminInsights";
@@ -36,6 +38,8 @@ export async function GET() {
   const [
     activeSnapshot,
     funnelSnapshot,
+    funnelComparison,
+    funnelTrend,
     orderComparisons,
     customerRevenueMix,
     productPerformance,
@@ -61,6 +65,8 @@ export async function GET() {
   ] = await Promise.all([
     getActiveSessionSnapshot(),
     getFunnelSnapshot(30),
+    getFunnelComparison(30),
+    getFunnelTrend(14),
     getOrderComparisons(30),
     getCustomerRevenueMix(30),
     getProductPerformance(30),
@@ -326,6 +332,8 @@ export async function GET() {
       refundedOrders,
       canceledOrders,
     },
+    funnelComparison,
+    funnelTrend,
     periodComparison: {
       currency: orderComparisons.currency,
       revenue: orderComparisons.revenue,
