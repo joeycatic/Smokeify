@@ -8,9 +8,12 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 const ADMIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Verify the account email before requesting admin access.",
-  RATE_LIMIT: "Too many attempts. Try again in a few minutes.",
+  RATE_LIMIT: "Too many attempts. Admin login is temporarily rate-limited.",
   AccessDenied: "Admin access is restricted to admin accounts.",
   CredentialsSignin: "Invalid email or password.",
+  ADMIN_MFA_REQUIRED:
+    "This admin account requires an authenticator code after password verification.",
+  INVALID_TOTP: "The authenticator code is invalid or has expired.",
 };
 
 function getAdminErrorMessage(code?: string | null) {
@@ -26,7 +29,9 @@ export default function AdminSignInPage() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState(() => getAdminErrorMessage(searchParams.get("error")));
+  const [errorHint, setErrorHint] = useState("");
   const [loading, setLoading] = useState(false);
 
   const returnTo = useMemo(() => {
@@ -41,11 +46,13 @@ export default function AdminSignInPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setErrorHint("");
 
     try {
       const response = await signIn("credentials", {
         email,
         password,
+        totpCode,
         adminIntent: "1",
         redirect: false,
         callbackUrl: returnTo,
@@ -58,6 +65,15 @@ export default function AdminSignInPage() {
       }
 
       setError(getAdminErrorMessage(response?.error));
+      if (response?.error === "RATE_LIMIT") {
+        setErrorHint("Current admin limit: 4 attempts per identifier, 5 per IP, 3 per IP+identifier within 15 minutes.");
+      } else if (response?.error === "ADMIN_MFA_REQUIRED") {
+        setErrorHint("Enter the 6-digit code from your authenticator app to continue.");
+      } else if (response?.error === "INVALID_TOTP") {
+        setErrorHint("Codes rotate every 30 seconds. Wait for a fresh code and retry.");
+      } else if (response?.error === "CredentialsSignin") {
+        setErrorHint("Password re-entry is mandatory for admin access, even with an existing session.");
+      }
     } catch {
       setError("Admin sign-in failed. Try again.");
     } finally {
@@ -145,9 +161,34 @@ export default function AdminSignInPage() {
                   />
                 </label>
 
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Authenticator code
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={totpCode}
+                    onChange={(event) => setTotpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))}
+                    className="h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/40 focus:bg-black/40"
+                    placeholder="6-digit code if MFA is enabled"
+                  />
+                </label>
+
+                <div className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Password re-entry policy
+                  </span>
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                    Every admin entry requires fresh credentials. If MFA is enabled, the authenticator code is required as well.
+                  </p>
+                </div>
+
                 {error ? (
                   <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
+                    <p>{error}</p>
+                    {errorHint ? <p className="mt-2 text-xs text-red-200/80">{errorHint}</p> : null}
                   </div>
                 ) : null}
 

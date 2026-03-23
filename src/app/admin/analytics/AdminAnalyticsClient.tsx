@@ -176,6 +176,44 @@ type PeriodComparison = {
   refundRate: ComparisonMetric;
 };
 
+type FinanceSummary = {
+  currency: string;
+  paidOrderCount: number;
+  recognizedOrderCount: number;
+  refundedOrderCount: number;
+  grossRevenueCents: number;
+  refundedGrossCents: number;
+  netCollectedGrossCents: number;
+  outputVatCents: number;
+  refundedVatEstimateCents: number;
+  netOutputVatCents: number;
+  netRevenueCents: number;
+  shippingCollectedCents: number;
+  cogsCents: number;
+  paymentFeesCents: number;
+  variableCostCents: number;
+  contributionMarginCents: number;
+  contributionMarginRatio: number;
+  estimatedProfitCents: number;
+  ordersMissingTaxCount: number;
+  taxCoverageRate: number;
+};
+
+type VatSummary = {
+  monthLabel: string;
+  accountingModeLabel: string;
+  taxationModeLabel: string;
+  outputVatCents: number;
+  refundedVatEstimateCents: number;
+  inputVatCents: number;
+  estimatedLiabilityCents: number;
+  taxCoverageRate: number;
+  ordersMissingTaxCount: number;
+  status: "estimated" | "review_required" | "ready_for_handover";
+  blockers: string[];
+  notes: string[];
+};
+
 const formatPrice = (amount: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -192,12 +230,48 @@ const formatDelta = (value: number | null, percentMode = true) => {
   return `${sign}${Math.round(numeric)}${percentMode ? "%" : ""}`;
 };
 
+const formatVatStatus = (value: "estimated" | "review_required" | "ready_for_handover") => {
+  if (value === "ready_for_handover") return "Ready";
+  if (value === "review_required") return "Review";
+  return "Estimated";
+};
+
 const getDeltaToneClassName = (value: number | null, inverted = false) => {
   if (value === null || value === 0) return "text-slate-500";
   const positive = value > 0;
   const isGood = inverted ? !positive : positive;
   return isGood ? "text-emerald-300" : "text-rose-300";
 };
+
+const getRatioDelta = (current: number, previous: number) =>
+  previous > 0 ? (current - previous) / previous : current > 0 ? 1 : 0;
+
+const getToneSurfaceClassName = (tone: "slate" | "emerald" | "violet" | "amber") =>
+  tone === "emerald"
+    ? "from-emerald-500/16 via-emerald-400/6 to-transparent"
+    : tone === "violet"
+      ? "from-violet-500/16 via-violet-400/6 to-transparent"
+      : tone === "amber"
+        ? "from-amber-500/18 via-amber-400/8 to-transparent"
+        : "from-cyan-500/14 via-slate-400/6 to-transparent";
+
+const getToneGlowClassName = (tone: "slate" | "emerald" | "violet" | "amber") =>
+  tone === "emerald"
+    ? "bg-emerald-400/20"
+    : tone === "violet"
+      ? "bg-violet-400/20"
+      : tone === "amber"
+        ? "bg-amber-400/20"
+        : "bg-cyan-300/18";
+
+const getToneValueClassName = (tone: "slate" | "emerald" | "violet" | "amber") =>
+  tone === "emerald"
+    ? "text-emerald-50"
+    : tone === "violet"
+      ? "text-violet-50"
+      : tone === "amber"
+        ? "text-amber-50"
+        : "text-white";
 
 const initialLive: LiveSnapshot = {
   activeVisitorCount: 0,
@@ -284,6 +358,44 @@ const initialPeriodComparison: PeriodComparison = {
   refundRate: { current: 0, previous: 0, deltaRatio: 0 },
 };
 
+const initialFinanceSummary: FinanceSummary = {
+  currency: "EUR",
+  paidOrderCount: 0,
+  recognizedOrderCount: 0,
+  refundedOrderCount: 0,
+  grossRevenueCents: 0,
+  refundedGrossCents: 0,
+  netCollectedGrossCents: 0,
+  outputVatCents: 0,
+  refundedVatEstimateCents: 0,
+  netOutputVatCents: 0,
+  netRevenueCents: 0,
+  shippingCollectedCents: 0,
+  cogsCents: 0,
+  paymentFeesCents: 0,
+  variableCostCents: 0,
+  contributionMarginCents: 0,
+  contributionMarginRatio: 0,
+  estimatedProfitCents: 0,
+  ordersMissingTaxCount: 0,
+  taxCoverageRate: 1,
+};
+
+const initialVatSummary: VatSummary = {
+  monthLabel: "",
+  accountingModeLabel: "Cash-based VAT (Istversteuerung)",
+  taxationModeLabel: "Regular VAT with input tax deduction",
+  outputVatCents: 0,
+  refundedVatEstimateCents: 0,
+  inputVatCents: 0,
+  estimatedLiabilityCents: 0,
+  taxCoverageRate: 1,
+  ordersMissingTaxCount: 0,
+  status: "estimated",
+  blockers: [],
+  notes: [],
+};
+
 export default function AdminAnalyticsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -307,6 +419,11 @@ export default function AdminAnalyticsClient() {
   const [periodComparison, setPeriodComparison] = useState<PeriodComparison>(
     initialPeriodComparison,
   );
+  const [finance, setFinance] = useState<FinanceSummary>(initialFinanceSummary);
+  const [previousFinance, setPreviousFinance] = useState<FinanceSummary>(
+    initialFinanceSummary,
+  );
+  const [vat, setVat] = useState<VatSummary>(initialVatSummary);
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
@@ -335,6 +452,9 @@ export default function AdminAnalyticsClient() {
         paymentAnalysis?: PaymentInsight[];
         retention?: Retention;
         periodComparison?: PeriodComparison;
+        finance?: FinanceSummary;
+        previousFinance?: FinanceSummary;
+        vat?: VatSummary;
         aiQuality?: AiQuality;
       };
       setLive(data.live ?? initialLive);
@@ -352,6 +472,9 @@ export default function AdminAnalyticsClient() {
       setPaymentAnalysis(data.paymentAnalysis ?? []);
       setRetention(data.retention ?? initialRetention);
       setPeriodComparison(data.periodComparison ?? initialPeriodComparison);
+      setFinance(data.finance ?? initialFinanceSummary);
+      setPreviousFinance(data.previousFinance ?? initialFinanceSummary);
+      setVat(data.vat ?? initialVatSummary);
       setAiQuality(data.aiQuality ?? initialAiQuality);
     } catch {
       setError("Failed to load analytics.");
@@ -524,56 +647,178 @@ export default function AdminAnalyticsClient() {
     ];
   }, [funnel]);
 
+  const netRevenueDelta = useMemo(
+    () => getRatioDelta(finance.netRevenueCents, previousFinance.netRevenueCents),
+    [finance.netRevenueCents, previousFinance.netRevenueCents],
+  );
+  const contributionMarginDelta = useMemo(
+    () =>
+      getRatioDelta(
+        finance.contributionMarginCents,
+        previousFinance.contributionMarginCents,
+      ),
+    [finance.contributionMarginCents, previousFinance.contributionMarginCents],
+  );
+  const vatLiabilityDelta = useMemo(
+    () =>
+      getRatioDelta(
+        vat.estimatedLiabilityCents,
+        previousFinance.netOutputVatCents,
+      ),
+    [previousFinance.netOutputVatCents, vat.estimatedLiabilityCents],
+  );
+  const vatStatusToneClassName =
+    vat.status === "ready_for_handover"
+      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+      : vat.status === "review_required"
+        ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
+        : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+
+  const heroSignals = [
+    {
+      label: "Live pulse",
+      value: `${live.activeVisitorCount}`,
+      detail: live.topPages[0]?.path ?? "No active page yet",
+      tone: "slate" as const,
+    },
+    {
+      label: "Revenue quality",
+      value: formatPrice(finance.netRevenueCents, finance.currency),
+      detail: `${percent(finance.contributionMarginRatio)} contribution`,
+      tone: "emerald" as const,
+    },
+    {
+      label: "Tax state",
+      value: formatVatStatus(vat.status),
+      detail: formatPrice(vat.estimatedLiabilityCents, finance.currency),
+      tone: "amber" as const,
+    },
+  ];
+
   return (
     <div className="admin-legacy-page space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.2),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
-              Admin / Analytics
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
-              Live traffic, funnel health and revenue quality
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-300">
-              First-party commerce analytics for live sessions, checkout pressure,
-              customer quality, discounts and payment mix.
-            </p>
+      <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.2),_transparent_30%),radial-gradient(circle_at_78%_14%,_rgba(250,204,21,0.12),_transparent_18%),radial-gradient(circle_at_72%_76%,_rgba(129,140,248,0.18),_transparent_24%),linear-gradient(135deg,_rgba(6,11,20,0.98),_rgba(10,18,35,0.96)_46%,_rgba(12,17,31,0.96))]" />
+        <div className="pointer-events-none absolute -left-8 top-10 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-24 h-36 w-36 rounded-full bg-amber-400/10 blur-3xl" />
+        <div className="relative grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+          <div>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
+                  Admin / Analytics
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold leading-tight text-white md:text-[2.9rem]">
+                  Live traffic, finance visibility and revenue quality
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  First-party commerce analytics for live sessions, checkout pressure, net revenue,
+                  VAT exposure, customer quality, discounts and payment mix.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadAnalytics()}
+                className="inline-flex h-11 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/20 hover:bg-cyan-300/10"
+                disabled={loading}
+              >
+                {loading ? "Refreshing..." : "Refresh analytics"}
+              </button>
+            </div>
+
             <div className="mt-5 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 font-semibold text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.08)]">
                 {live.activeVisitorCount} live visitors
               </span>
-              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 font-semibold text-cyan-200">
+              <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 font-semibold text-violet-100">
                 {funnel.beginCheckout} checkout starts
               </span>
-              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-200">
-                {topProducts.length} revenue leaders
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-100">
+                {formatPrice(finance.contributionMarginCents, finance.currency)} contribution
               </span>
-              <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 font-semibold text-violet-200">
-                {trafficSources.length} source rows
+              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 font-semibold text-amber-100">
+                {formatPrice(vat.estimatedLiabilityCents, finance.currency)} VAT liability
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void loadAnalytics()}
-            className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
-            disabled={loading}
-          >
-            {loading ? "Refreshing..." : "Refresh analytics"}
-          </button>
+
+          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_42%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.12),transparent_40%)]" />
+            <div className="relative">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                    Signal Board
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Fast read across traffic, margin, and tax state.
+                  </p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-200">
+                  live
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {heroSignals.map((signal) => (
+                  <div
+                    key={signal.label}
+                    className="rounded-2xl border border-white/10 bg-[#0a101c]/90 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                          {signal.label}
+                        </div>
+                        <div className={`mt-2 text-xl font-semibold ${getToneValueClassName(signal.tone)}`}>
+                          {signal.value}
+                        </div>
+                      </div>
+                      <span
+                        className={`mt-1 h-2.5 w-2.5 rounded-full ${getToneGlowClassName(signal.tone)}`}
+                      />
+                    </div>
+                    <div className="mt-2 text-sm text-slate-400">{signal.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Live visitors" value={String(live.activeVisitorCount)} footnote="active now" />
           <MetricCard
-            label="30d revenue"
+            label="30d gross revenue"
             value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
             detail={formatDelta(periodComparison.revenue.deltaRatio)}
             detailBadgeClassName="orders-kpi-badge-emerald"
             footnote="vs previous 30d"
             tone="emerald"
+          />
+          <MetricCard
+            label="Net revenue"
+            value={formatPrice(finance.netRevenueCents, finance.currency)}
+            detail={formatDelta(netRevenueDelta)}
+            detailBadgeClassName="orders-kpi-badge-emerald"
+            footnote="gross less VAT and refunds"
+            tone="emerald"
+          />
+          <MetricCard
+            label="Contribution"
+            value={formatPrice(finance.contributionMarginCents, finance.currency)}
+            detail={formatDelta(contributionMarginDelta)}
+            detailBadgeClassName="orders-kpi-badge-violet"
+            footnote={`${percent(finance.contributionMarginRatio)} after COGS and fees`}
+            tone="violet"
+          />
+          <MetricCard
+            label="VAT liability"
+            value={formatPrice(vat.estimatedLiabilityCents, finance.currency)}
+            detail={formatDelta(vatLiabilityDelta)}
+            detailBadgeClassName="orders-kpi-badge-amber"
+            footnote={vat.status === "ready_for_handover" ? "handover ready" : "estimated"}
+            tone="amber"
           />
           <MetricCard
             label="Session CVR"
@@ -600,11 +845,11 @@ export default function AdminAnalyticsClient() {
             tone="violet"
           />
           <MetricCard
-            label="Checkout starts"
-            value={String(funnel.beginCheckout)}
-            detail={formatDelta(funnelComparison.beginCheckout.deltaRatio)}
+            label="Tax coverage"
+            value={percent(vat.taxCoverageRate)}
+            detail={vat.ordersMissingTaxCount > 0 ? `${vat.ordersMissingTaxCount} missing` : "Complete"}
             detailBadgeClassName="orders-kpi-badge-slate"
-            footnote="last 30-day window"
+            footnote="paid orders with VAT data"
           />
         </div>
       </section>
@@ -630,19 +875,49 @@ export default function AdminAnalyticsClient() {
               title="Revenue and conversion pressure"
               description="14-day view of sessions, checkouts and purchases, paired with paid revenue."
             >
-              <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="space-y-4">
                 <MultiSeriesTrendChart
                   labels={funnelLabels}
                   series={funnelSeries}
                   valueFormatter={(value) => `${Math.round(value)} sessions`}
                 />
-                <div className="space-y-4">
-                  <SparklineChart data={revenueTrend} />
-                  <SparklineChart
-                    data={ordersTrend}
-                    strokeClassName="stroke-violet-300"
-                    fillClassName="fill-violet-400/10"
-                  />
+                <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+                  <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                          Paid Revenue
+                        </div>
+                        <div className="mt-1 text-sm text-slate-400">
+                          14-day paid revenue pacing
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                        {formatPrice(periodComparison.revenue.current, periodComparison.currency)}
+                      </span>
+                    </div>
+                    <SparklineChart data={revenueTrend} />
+                  </div>
+                  <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                          Paid Orders
+                        </div>
+                        <div className="mt-1 text-sm text-slate-400">
+                          Confirmed order volume trend
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-2.5 py-1 text-[11px] font-semibold text-violet-200">
+                        {periodComparison.paidOrders.current} orders
+                      </span>
+                    </div>
+                    <SparklineChart
+                      data={ordersTrend}
+                      strokeClassName="stroke-violet-300"
+                      fillClassName="fill-violet-400/10"
+                    />
+                  </div>
                 </div>
               </div>
             </Panel>
@@ -838,6 +1113,148 @@ export default function AdminAnalyticsClient() {
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <Panel
+              eyebrow="Finance"
+              title="Net revenue and contribution"
+              description="Gross-to-net view based on paid orders, refunds, item cost snapshots and captured payment fees."
+            >
+              <div className="space-y-3">
+                <DeltaRow
+                  label="Gross revenue"
+                  value={formatPrice(finance.grossRevenueCents, finance.currency)}
+                  delta={formatDelta(
+                    getRatioDelta(finance.grossRevenueCents, previousFinance.grossRevenueCents),
+                  )}
+                  deltaToneClassName={getDeltaToneClassName(
+                    getRatioDelta(finance.grossRevenueCents, previousFinance.grossRevenueCents),
+                  )}
+                />
+                <DeltaRow
+                  label="Refunded gross"
+                  value={formatPrice(finance.refundedGrossCents, finance.currency)}
+                  delta={formatDelta(
+                    getRatioDelta(finance.refundedGrossCents, previousFinance.refundedGrossCents),
+                  )}
+                  deltaToneClassName={getDeltaToneClassName(
+                    getRatioDelta(finance.refundedGrossCents, previousFinance.refundedGrossCents),
+                    true,
+                  )}
+                />
+                <DeltaRow
+                  label="Net revenue"
+                  value={formatPrice(finance.netRevenueCents, finance.currency)}
+                  delta={formatDelta(netRevenueDelta)}
+                  deltaToneClassName={getDeltaToneClassName(netRevenueDelta)}
+                />
+                <DeltaRow
+                  label="COGS"
+                  value={formatPrice(finance.cogsCents, finance.currency)}
+                  delta={formatDelta(getRatioDelta(finance.cogsCents, previousFinance.cogsCents))}
+                  deltaToneClassName={getDeltaToneClassName(
+                    getRatioDelta(finance.cogsCents, previousFinance.cogsCents),
+                    true,
+                  )}
+                />
+                <DeltaRow
+                  label="Payment fees"
+                  value={formatPrice(finance.paymentFeesCents, finance.currency)}
+                  delta={formatDelta(
+                    getRatioDelta(finance.paymentFeesCents, previousFinance.paymentFeesCents),
+                  )}
+                  deltaToneClassName={getDeltaToneClassName(
+                    getRatioDelta(finance.paymentFeesCents, previousFinance.paymentFeesCents),
+                    true,
+                  )}
+                />
+                <DeltaRow
+                  label="Contribution margin"
+                  value={formatPrice(finance.contributionMarginCents, finance.currency)}
+                  delta={formatDelta(contributionMarginDelta)}
+                  deltaToneClassName={getDeltaToneClassName(contributionMarginDelta)}
+                />
+              </div>
+            </Panel>
+
+            <Panel
+              eyebrow="VAT"
+              title="VAT monitoring"
+              description="Cash-based VAT estimate from paid orders with deductible input VAT sourced from recorded admin expenses."
+            >
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${vatStatusToneClassName}`}>
+                  {vat.status === "ready_for_handover"
+                    ? "Ready for handover"
+                    : vat.status === "review_required"
+                      ? "Review required"
+                      : "Estimated"}
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                  {vat.accountingModeLabel}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                  label="Output VAT"
+                  value={formatPrice(vat.outputVatCents, finance.currency)}
+                  footnote={vat.monthLabel || "current period"}
+                />
+                <MetricCard
+                  label="Input VAT"
+                  value={formatPrice(vat.inputVatCents, finance.currency)}
+                  footnote={vat.inputVatCents > 0 ? "deductible expense source captured" : "no deductible expense VAT in current window"}
+                />
+                <MetricCard
+                  label="VAT liability"
+                  value={formatPrice(vat.estimatedLiabilityCents, finance.currency)}
+                  footnote="estimated Zahllast"
+                  tone="amber"
+                />
+                <MetricCard
+                  label="Sales tax coverage"
+                  value={percent(vat.taxCoverageRate)}
+                  footnote={`${vat.ordersMissingTaxCount} order(s) missing VAT data`}
+                />
+              </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    Blockers
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {vat.blockers.length === 0 ? (
+                      <EmptyState copy="No VAT blockers in the current window." />
+                    ) : (
+                      vat.blockers.map((item) => (
+                        <div
+                          key={item}
+                          className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+                        >
+                          {item}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    Notes
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {vat.notes.map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Panel
               eyebrow="Products"
               title="Revenue leaders"
               description="Products with the strongest combined revenue and conversion signal."
@@ -1011,15 +1428,16 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-      <div className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+    <section className="group relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.04),transparent_38%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.08),transparent_28%)] opacity-80 transition group-hover:opacity-100" />
+      <div className="relative mb-4">
+        <p className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
           {eyebrow}
         </p>
         <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-slate-400">{description}</p>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">{description}</p>
       </div>
-      {children}
+      <div className="relative">{children}</div>
     </section>
   );
 }
@@ -1045,33 +1463,48 @@ function MetricCard({
       : tone === "violet"
         ? "orders-kpi-card-violet"
         : tone === "amber"
-          ? "orders-kpi-card-amber"
-          : "orders-kpi-card-slate";
+        ? "orders-kpi-card-amber"
+        : "orders-kpi-card-slate";
+  const toneSurfaceClassName = getToneSurfaceClassName(tone);
+  const toneGlowClassName = getToneGlowClassName(tone);
+  const toneValueClassName = getToneValueClassName(tone);
   return (
-    <div className={`orders-kpi-card rounded-[22px] border border-white/10 bg-white/[0.04] p-5 ${toneClassName}`}>
-      <div className="flex items-start justify-between gap-3">
-        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div
+      className={`orders-kpi-card group relative overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_38px_rgba(0,0,0,0.18)] ${toneClassName}`}
+    >
+      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneSurfaceClassName}`} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+      <div className={`pointer-events-none absolute -right-6 top-4 h-16 w-16 rounded-full blur-2xl ${toneGlowClassName}`} />
+      <div className="relative flex items-start justify-between gap-3">
+        <p className="inline-flex rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
           {label}
         </p>
         {detail ? (
-          <span className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${detailBadgeClassName}`}>
+          <span className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] shadow-[0_10px_24px_rgba(0,0,0,0.18)] ${detailBadgeClassName}`}>
             {detail}
           </span>
         ) : null}
       </div>
-      <p className="mt-6 text-[clamp(2rem,2.2vw,2.7rem)] font-semibold leading-none tracking-tight text-white">{value}</p>
-      {footnote ? <p className="mt-4 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{footnote}</p> : null}
+      <p className={`relative mt-7 text-[clamp(2rem,2.2vw,2.7rem)] font-semibold leading-none tracking-tight ${toneValueClassName}`}>
+        {value}
+      </p>
+      {footnote ? (
+        <div className="relative mt-5 border-t border-white/10 pt-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+          {footnote}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+    <div className="orders-summary-tile relative overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.04] p-3">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05),transparent_45%)]" />
+      <p className="relative text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
+      <p className="relative mt-2 text-xl font-semibold text-white">{value}</p>
     </div>
   );
 }
@@ -1088,7 +1521,9 @@ function DeltaRow({
   deltaToneClassName?: string;
 }) {
   return (
-    <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile relative overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] px-4 py-3">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.03),transparent_35%)]" />
+      <div className="relative flex items-center justify-between gap-3">
       <div>
         <div className="text-sm font-semibold text-slate-100">{label}</div>
         <div className="text-xs text-slate-500">vs previous 30-day period</div>
@@ -1096,6 +1531,7 @@ function DeltaRow({
         <div className="text-right">
         <div className="text-sm font-semibold text-white">{value}</div>
         <div className={`text-xs ${deltaToneClassName}`}>{delta}</div>
+      </div>
       </div>
     </div>
   );
@@ -1121,9 +1557,10 @@ function ProductList({
       {rows.map((row) => (
         <div
           key={row.productId}
-          className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+          className="orders-summary-tile relative overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] px-4 py-3"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.03),transparent_38%)]" />
+          <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-slate-100">
                 {row.productTitle}
@@ -1142,7 +1579,7 @@ function ProductList({
 
 function EmptyState({ copy }: { copy: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+    <div className="rounded-[22px] border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
       {copy}
     </div>
   );

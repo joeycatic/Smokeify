@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import { buildFinanceRollup, buildOrderFinanceBreakdown, buildVatSummary } from "@/lib/adminFinance";
 import {
   type AdminChartPoint,
   DonutChart,
@@ -21,6 +22,11 @@ type OrderItem = {
   quantity: number;
   unitAmount: number;
   totalAmount: number;
+  baseCostAmount: number;
+  paymentFeeAmount: number;
+  adjustedCostAmount: number;
+  taxAmount: number;
+  taxRateBasisPoints?: number | null;
   currency: string;
   imageUrl?: string | null;
   options?: Array<{ name: string; value: string }>;
@@ -245,7 +251,10 @@ const getPaymentBadgeClass = (paymentStatus: string) => {
   return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700`;
 };
 
-export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
+export default function AdminOrdersClient({
+  orders,
+  webhookFailures,
+}: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
@@ -414,6 +423,27 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const averageOrderValueCents = useMemo(
     () => (paidCount > 0 ? Math.round(paidRevenueCents / paidCount) : 0),
     [paidCount, paidRevenueCents]
+  );
+  const financeSummary = useMemo(
+    () =>
+      buildFinanceRollup(
+        filteredOrders.map((order) => ({
+          ...order,
+          createdAt: new Date(order.createdAt),
+        })),
+        dashboardCurrency,
+      ),
+    [dashboardCurrency, filteredOrders],
+  );
+  const vatSummary = useMemo(
+    () =>
+      buildVatSummary(
+        filteredOrders.map((order) => ({
+          ...order,
+          createdAt: new Date(order.createdAt),
+        })),
+      ),
+    [filteredOrders],
   );
   const readyToFulfillCount = useMemo(
     () =>
@@ -890,22 +920,22 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                 </span>
               </div>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Monitor inflow, payment quality, fulfillment pressure and refund exposure
-                in one place. Existing actions stay intact, but the top layer now reads
-                like an operations console instead of a plain order list.
+                Monitor inflow, payment quality, fulfillment pressure, refund exposure
+                and VAT impact in one place. Existing actions stay intact, but the top
+                layer now reads like an operations console instead of a plain order list.
               </p>
               <div className="mt-5 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
                   {sorted.length} visible orders
                 </span>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-200">
-                  {readyToFulfillCount} ready to fulfill
+                  {formatPrice(financeSummary.netRevenueCents, dashboardCurrency)} net revenue
                 </span>
                 <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 font-semibold text-violet-200">
-                  {paidCount} payment confirmed
+                  {formatPrice(financeSummary.contributionMarginCents, dashboardCurrency)} contribution
                 </span>
                 <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 font-semibold text-amber-200">
-                  {refundingCount} refunded
+                  {formatPrice(vatSummary.estimatedLiabilityCents, dashboardCurrency)} VAT liability
                 </span>
               </div>
             </div>
@@ -964,20 +994,28 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               footnote={`${relevantOrders.length} active queue`}
             />
             <SummaryCard
-              label="Paid revenue"
-              value={formatPrice(paidRevenueCents, dashboardCurrency)}
-              detail={`${paidCount} paid orders`}
+              label="Net revenue"
+              value={formatPrice(financeSummary.netRevenueCents, dashboardCurrency)}
+              detail={`${financeSummary.paidOrderCount} paid orders`}
               change={periodComparison.revenueDeltaLabel}
               tone="emerald"
               footnote={`${formatPrice(averageOrderValueCents, dashboardCurrency)} avg basket`}
             />
             <SummaryCard
-              label="Average order value"
-              value={formatPrice(averageOrderValueCents, dashboardCurrency)}
-              detail="Confirmed-payment basket size"
-              change={periodComparison.paidDeltaLabel}
+              label="Contribution margin"
+              value={formatPrice(financeSummary.contributionMarginCents, dashboardCurrency)}
+              detail={`${Math.round(financeSummary.contributionMarginRatio * 100)}% net margin`}
+              change={formatPrice(financeSummary.paymentFeesCents, dashboardCurrency)}
               tone="violet"
-              footnote={`${paidCount} orders in paid cohort`}
+              footnote={`${formatPrice(financeSummary.cogsCents, dashboardCurrency)} COGS tracked`}
+            />
+            <SummaryCard
+              label="VAT liability"
+              value={formatPrice(vatSummary.estimatedLiabilityCents, dashboardCurrency)}
+              detail={`${Math.round(vatSummary.taxCoverageRate * 100)}% sales tax coverage`}
+              change={vatSummary.status === "ready_for_handover" ? "Ready" : "Estimated"}
+              tone="amber"
+              footnote={`${vatSummary.ordersMissingTaxCount} orders missing VAT`}
             />
             <SummaryCard
               label="Action queue"
@@ -1258,6 +1296,10 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             order.paymentStatus
           );
           const shippingLines = buildShippingLines(order);
+          const finance = buildOrderFinanceBreakdown({
+            ...order,
+            createdAt: new Date(order.createdAt),
+          });
 
           return (
             <div
@@ -1340,18 +1382,18 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       </div>
                       <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Tracking
+                          Net revenue
                         </div>
                         <div className="mt-2 text-base font-semibold text-stone-900">
-                          {tracking.number?.trim() ? "Ready" : "Missing"}
+                          {formatPrice(finance.netRevenueCents, order.currency)}
                         </div>
                       </div>
                       <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Updated
+                          Contribution
                         </div>
                         <div className="mt-2 text-base font-semibold text-stone-900">
-                          {new Date(order.updatedAt).toLocaleDateString("de-DE")}
+                          {formatPrice(finance.contributionMarginCents, order.currency)}
                         </div>
                       </div>
                     </div>
@@ -1425,6 +1467,85 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         order.currency
                       )}`}
                     />
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
+                        <span>Financial breakdown</span>
+                        <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] text-cyan-700">
+                          {finance.recognized ? "Recognized" : "Pending payment"}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1 text-sm text-stone-700">
+                        <div className="flex items-center justify-between">
+                          <span>Gross order</span>
+                          <span>{formatPrice(finance.grossOrderCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Refunded gross</span>
+                          <span>{formatPrice(finance.refundedGrossCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Output VAT</span>
+                          <span>{formatPrice(finance.netOutputVatCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Net revenue</span>
+                          <span>{formatPrice(finance.netRevenueCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>COGS</span>
+                          <span>{formatPrice(finance.cogsCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Payment fees</span>
+                          <span>{formatPrice(finance.paymentFeesCents, order.currency)}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between rounded-lg bg-stone-50 px-2 py-1 font-semibold">
+                          <span>Contribution margin</span>
+                          <span>{formatPrice(finance.contributionMarginCents, order.currency)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-xs text-stone-500">
+                        Refund VAT is estimated proportionally from refunded gross.
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
+                        <span>VAT snapshot</span>
+                        <span className="rounded-full border border-black/10 bg-stone-50 px-2 py-0.5 text-[10px] text-stone-700">
+                          Istversteuerung
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <OrderHealthCard
+                          label="VAT due"
+                          value={formatPrice(finance.netOutputVatCents, order.currency)}
+                          detail="recognized on paid orders"
+                        />
+                        <OrderHealthCard
+                          label="Tax coverage"
+                          value={finance.outputVatCents > 0 ? "Complete" : "Missing"}
+                          detail={
+                            finance.outputVatCents > 0
+                              ? "order tax captured"
+                              : "missing order VAT amount"
+                          }
+                        />
+                        <OrderHealthCard
+                          label="Shipping charged"
+                          value={formatPrice(finance.shippingCollectedCents, order.currency)}
+                          detail="customer-facing shipping line"
+                        />
+                        <OrderHealthCard
+                          label="Margin rate"
+                          value={`${Math.round(finance.contributionMarginRatio * 100)}%`}
+                          detail="net revenue after costs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr]">
@@ -1728,6 +1849,13 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         const selection = refundSelection[order.id] ?? {};
                         const selectedQty = selection[item.id] ?? 0;
                         const isSelected = selectedQty > 0;
+                        const itemContribution =
+                          item.totalAmount -
+                          Math.max(item.baseCostAmount, 0) -
+                          Math.max(
+                            item.paymentFeeAmount,
+                            item.adjustedCostAmount - item.baseCostAmount,
+                          );
                         const itemImage = item.imageUrl ? (
                           <Image
                             src={item.imageUrl}
@@ -1789,7 +1917,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                   </div>
                                 )}
                                 <div className="text-xs text-stone-500">
-                                  Qty {item.quantity}
+                                  Qty {item.quantity} · Cost {formatPrice(item.baseCostAmount, item.currency)} · Margin {formatPrice(itemContribution, item.currency)}
                                 </div>
                               </div>
                             </div>

@@ -2,24 +2,29 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArchiveBoxIcon,
   ArrowTopRightOnSquareIcon,
   Bars3Icon,
+  BellAlertIcon,
+  BanknotesIcon,
+  CalculatorIcon,
   ChartBarSquareIcon,
   ClipboardDocumentListIcon,
   CreditCardIcon,
   CubeIcon,
+  DocumentTextIcon,
   FolderIcon,
   HomeIcon,
-  MagnifyingGlassIcon,
+  PresentationChartLineIcon,
   SwatchIcon,
   TagIcon,
   TruckIcon,
   UsersIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import AdminCommandBar from "@/components/admin/AdminCommandBar";
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -38,6 +43,35 @@ type NavGroup = {
   items: NavItem[];
 };
 
+function FlagBadge({ country }: { country: "de" | "gb" }) {
+  if (country === "de") {
+    return (
+      <span
+        aria-hidden="true"
+        className="h-4 w-6 rounded-[4px] border border-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+        style={{
+          background:
+            "linear-gradient(to bottom, #111827 0 33.333%, #dc2626 33.333% 66.666%, #facc15 66.666% 100%)",
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className="relative h-4 w-6 overflow-hidden rounded-[4px] border border-white/15 bg-[#012169] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+    >
+      <span className="absolute inset-0 bg-[linear-gradient(32deg,transparent_43%,white_43%,white_57%,transparent_57%),linear-gradient(148deg,transparent_43%,white_43%,white_57%,transparent_57%),linear-gradient(-32deg,transparent_43%,white_43%,white_57%,transparent_57%),linear-gradient(-148deg,transparent_43%,white_43%,white_57%,transparent_57%)]" />
+      <span className="absolute inset-0 bg-[linear-gradient(32deg,transparent_47%,#c8102e_47%,#c8102e_53%,transparent_53%),linear-gradient(148deg,transparent_47%,#c8102e_47%,#c8102e_53%,transparent_53%),linear-gradient(-32deg,transparent_47%,#c8102e_47%,#c8102e_53%,transparent_53%),linear-gradient(-148deg,transparent_47%,#c8102e_47%,#c8102e_53%,transparent_53%)] opacity-90" />
+      <span className="absolute left-1/2 top-0 h-full w-[28%] -translate-x-1/2 bg-white" />
+      <span className="absolute left-0 top-1/2 h-[28%] w-full -translate-y-1/2 bg-white" />
+      <span className="absolute left-1/2 top-0 h-full w-[16%] -translate-x-1/2 bg-[#c8102e]" />
+      <span className="absolute left-0 top-1/2 h-[16%] w-full -translate-y-1/2 bg-[#c8102e]" />
+    </span>
+  );
+}
+
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
@@ -45,6 +79,20 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true },
       { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon },
       { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon },
+    ],
+  },
+  {
+    label: "Control Layer",
+    items: [
+      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon },
+      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon },
+      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon },
+      {
+        href: "/admin/profitability",
+        label: "Profitability",
+        icon: PresentationChartLineIcon,
+      },
+      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon },
     ],
   },
   {
@@ -100,7 +148,10 @@ function isActive(pathname: string, item: NavItem) {
 
 export default function AdminShell({ children, userEmail }: AdminShellProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const currentLanguage = searchParams?.get("lang") === "de" ? "de" : "en";
+  const showLanguageToggle = pathname === "/admin";
 
   const currentTitle = useMemo(() => {
     const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
@@ -115,6 +166,13 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
 
     return "Admin";
   }, [pathname]);
+
+  const languageHref = (nextLanguage: "de" | "en") => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("lang", nextLanguage);
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  };
 
   return (
     <div className="admin-shell min-h-screen bg-[#05070a] text-slate-100">
@@ -226,9 +284,40 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                 </div>
               </div>
 
-              <div className="hidden min-w-[18rem] items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400 lg:flex">
-                <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
-                <span>Command bar placeholder</span>
+              <div className="flex items-center gap-2">
+                <AdminCommandBar
+                  key={pathname}
+                  groups={NAV_GROUPS}
+                  pathname={pathname}
+                  currentLanguage={currentLanguage}
+                />
+
+                {showLanguageToggle ? (
+                  <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                    <Link
+                      href={languageHref("de")}
+                      aria-label="Switch admin overview language to German"
+                      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                        currentLanguage === "de"
+                          ? "bg-cyan-300/90 text-slate-950"
+                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                      }`}
+                    >
+                      <FlagBadge country="de" />
+                    </Link>
+                    <Link
+                      href={languageHref("en")}
+                      aria-label="Switch admin overview language to British English"
+                      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                        currentLanguage === "en"
+                          ? "bg-cyan-300/90 text-slate-950"
+                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                      }`}
+                    >
+                      <FlagBadge country="gb" />
+                    </Link>
+                  </div>
+                ) : null}
               </div>
             </div>
           </header>

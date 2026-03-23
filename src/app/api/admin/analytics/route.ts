@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { buildExpenseSummary } from "@/lib/adminExpenses";
+import { buildFinanceRollup, buildVatSummary } from "@/lib/adminFinance";
+import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
 import {
   PAID_ORDER_STATUSES,
   getFunnelComparison,
@@ -34,6 +37,41 @@ export async function GET() {
   const now = new Date();
   const last14DaysStart = getDateDaysAgo(13);
   const last30DaysStart = getDateDaysAgo(29);
+  const last60DaysStart = getDateDaysAgo(59);
+
+  const expensePromise = prisma.expense
+    .findMany({
+      where: { documentDate: { gte: last60DaysStart } },
+      select: {
+        supplierId: true,
+        title: true,
+        category: true,
+        notes: true,
+        currency: true,
+        grossAmount: true,
+        netAmount: true,
+        vatAmount: true,
+        vatRateBasisPoints: true,
+        isDeductible: true,
+        documentDate: true,
+        paidAt: true,
+        documentStatus: true,
+      },
+      orderBy: { documentDate: "asc" },
+    })
+    .then((records) => ({
+      records,
+      migrationRequired: false,
+    }))
+    .catch((error) => {
+      if (isMissingExpenseTableError(error)) {
+        return {
+          records: [],
+          migrationRequired: true,
+        };
+      }
+      throw error;
+    });
 
   const [
     activeSnapshot,
@@ -56,6 +94,8 @@ export async function GET() {
     lowConfidenceAnalyses,
     topIssueLabels,
     recentOrders,
+    financeOrders,
+    expenseResult,
     registeredCustomers,
     guestPaidCustomers,
     sourceSessions,
@@ -115,6 +155,33 @@ export async function GET() {
       },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: last60DaysStart } },
+      select: {
+        createdAt: true,
+        currency: true,
+        paymentStatus: true,
+        status: true,
+        amountSubtotal: true,
+        amountTax: true,
+        amountShipping: true,
+        amountDiscount: true,
+        amountTotal: true,
+        amountRefunded: true,
+        items: {
+          select: {
+            quantity: true,
+            totalAmount: true,
+            baseCostAmount: true,
+            paymentFeeAmount: true,
+            adjustedCostAmount: true,
+            taxAmount: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    expensePromise,
     prisma.user.findMany({
       where: { role: "USER" },
       select: {
@@ -173,6 +240,7 @@ export async function GET() {
       _sum: { amountTotal: true, amountRefunded: true },
     }),
   ]);
+  const expenseRecords = expenseResult.records;
 
   const stockouts = variants
     .map((variant) => {
@@ -322,6 +390,31 @@ export async function GET() {
 
   const totalCustomerCount = registeredCustomers.length + guestCustomerCount;
   const totalRepeatCustomers = repeatRegisteredCustomers + repeatGuestCustomers;
+  const currentFinanceOrders = financeOrders.filter(
+    (order) => order.createdAt >= last30DaysStart,
+  );
+  const previousFinanceOrders = financeOrders.filter(
+    (order) => order.createdAt < last30DaysStart,
+  );
+  const currentExpenses = expenseRecords.filter(
+    (expense) => expense.documentDate >= last30DaysStart,
+  );
+  const finance = buildFinanceRollup(
+    currentFinanceOrders,
+    orderComparisons.currency,
+  );
+  const previousFinance = buildFinanceRollup(
+    previousFinanceOrders,
+    orderComparisons.currency,
+  );
+  const expenseSummary = buildExpenseSummary(currentExpenses, orderComparisons.currency);
+  const vat = buildVatSummary(currentFinanceOrders, now, {
+    inputVatCents: expenseSummary.deductibleInputVatCents,
+    expenseCount: expenseSummary.expenseCount,
+    missingExpenseVatCount: expenseSummary.missingVatCount,
+    missingExpenseDocumentCount: expenseSummary.missingDocumentCount,
+    missingExpenseSupplierCount: expenseSummary.missingSupplierCount,
+  });
 
   return NextResponse.json({
     live: activeSnapshot,
@@ -347,6 +440,10 @@ export async function GET() {
       newRevenueCents: customerRevenueMix.newRevenueCents,
       returningRevenueCents: customerRevenueMix.returningRevenueCents,
     },
+    finance,
+    previousFinance,
+    vat,
+    expenseMigrationRequired: expenseResult.migrationRequired,
     topProducts,
     underperformingProducts,
     stockouts,
