@@ -2090,20 +2090,20 @@ function SummaryCard({
 }) {
   const toneClasses =
     tone === "emerald"
-      ? "border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70"
+      ? "orders-kpi-card-emerald border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70"
       : tone === "violet"
-        ? "border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-indigo-50"
+        ? "orders-kpi-card-violet border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-indigo-50"
         : tone === "amber"
-          ? "border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50"
-          : "border-black/10 bg-gradient-to-br from-white via-white to-slate-50";
+          ? "orders-kpi-card-amber border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50"
+          : "orders-kpi-card-slate border-black/10 bg-gradient-to-br from-white via-white to-slate-50";
   const accentClasses =
     tone === "emerald"
-      ? "text-emerald-700 bg-emerald-100/80 border-emerald-200"
+      ? "orders-kpi-badge-emerald border-emerald-200 bg-emerald-100/80 text-emerald-700"
       : tone === "violet"
-        ? "text-violet-700 bg-violet-100/80 border-violet-200"
+        ? "orders-kpi-badge-violet border-violet-200 bg-violet-100/80 text-violet-700"
         : tone === "amber"
-          ? "text-amber-700 bg-amber-100/80 border-amber-200"
-          : "text-slate-700 bg-slate-100 border-slate-200";
+          ? "orders-kpi-badge-amber border-amber-200 bg-amber-100/80 text-amber-700"
+          : "orders-kpi-badge-slate border-slate-200 bg-slate-100 text-slate-700";
   return (
     <div className={`orders-kpi-card rounded-[22px] border p-5 shadow-sm ${toneClasses}`}>
       <div className="flex items-start justify-between gap-3">
