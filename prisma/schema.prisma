@@ -57,6 +57,22 @@ enum PlantHealthStatus {
   CRITICAL
 }
 
+enum ExpenseCategory {
+  INVENTORY
+  SHIPPING
+  MARKETING
+  SOFTWARE
+  OPERATIONS
+  TAXES
+  OTHER
+}
+
+enum ExpenseDocumentStatus {
+  MISSING
+  RECEIVED
+  VERIFIED
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -240,6 +256,34 @@ model Supplier {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   products    Product[]
+  expenses    Expense[]
+}
+
+model Expense {
+  id                 String                @id @default(cuid())
+  supplierId         String?
+  title              String
+  category           ExpenseCategory       @default(OTHER)
+  notes              String?
+  currency           String                @default("EUR")
+  grossAmount        Int
+  netAmount          Int
+  vatAmount          Int                   @default(0)
+  vatRateBasisPoints Int?
+  isDeductible       Boolean               @default(true)
+  documentDate       DateTime
+  paidAt             DateTime?
+  documentStatus     ExpenseDocumentStatus @default(RECEIVED)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId])
+  @@index([documentDate])
+  @@index([paidAt])
+  @@index([category, documentDate])
+  @@index([documentStatus, documentDate])
 }
 
 
