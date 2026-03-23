@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowTopRightOnSquareIcon,
+  DocumentDuplicateIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import {
   AdminButton,
   AdminEmptyState,
@@ -21,7 +25,9 @@ import {
   STATUS_OPTIONS,
   formatDate,
   getInventoryTone,
+  getProductRowTone,
   getSortLabel,
+  getStatusDotTone,
   getStatusTone,
 } from "./catalogShared";
 
@@ -81,8 +87,8 @@ export function CatalogToolbar({
   return (
     <AdminPanel
       eyebrow="Workspace"
-      title="Search, filter, and preserve views"
-      description="Keep the product table visible while swapping supplier, category, collection, and sort combinations."
+      title="Find products fast"
+      description="Use a quieter control rail for search, filters, and saved views without taking attention away from the product list."
       className="sticky top-20 z-20 backdrop-blur"
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -95,13 +101,13 @@ export function CatalogToolbar({
         </div>
       }
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_repeat(4,minmax(0,1fr))]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_repeat(4,minmax(0,1fr))]">
         <AdminField label="Search">
           <AdminInput
             type="search"
             value={searchTerm}
             onChange={(event) => onSearchTermChange(event.target.value)}
-            placeholder="Search products by title or handle"
+            placeholder="Search title or handle"
           />
         </AdminField>
         <AdminField label="Supplier">
@@ -167,8 +173,8 @@ export function CatalogToolbar({
         </AdminField>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="rounded-2xl border border-white/10 bg-[#0c1118] p-4">
           <div className="flex flex-wrap items-center gap-2">
             {activeFilterLabels.length ? (
               activeFilterLabels.map((label) => (
@@ -216,7 +222,7 @@ export function CatalogToolbar({
             )}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#0c1118] p-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <AdminField label="Save current view" optional="Stored in this browser">
               <AdminInput
@@ -288,8 +294,8 @@ export function CatalogTablePanel({
   return (
     <AdminPanel
       eyebrow="Products"
-      title="Product table"
-      description="Open product detail pages, duplicate entries, or delete rows from the current page."
+      title="Product index"
+      description="A cleaner, more readable list with stronger color cues for state, stock, and action priority."
       actions={
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <span>
@@ -302,15 +308,15 @@ export function CatalogTablePanel({
         </div>
       }
     >
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
+      <div className="mb-5 grid gap-3 xl:grid-cols-4">
         <MetricBar
-          label="Active"
+          label="Active products"
           value={statusCounts.active}
           total={products.length}
           colorClass="bg-cyan-400"
         />
         <MetricBar
-          label="Draft"
+          label="Draft products"
           value={statusCounts.draft}
           total={products.length}
           colorClass="bg-amber-400"
@@ -320,6 +326,12 @@ export function CatalogTablePanel({
           value={inventoryCounts.outOfStock + inventoryCounts.low}
           total={products.length}
           colorClass="bg-red-400"
+        />
+        <MetricBar
+          label="Archived"
+          value={statusCounts.archived}
+          total={products.length}
+          colorClass="bg-violet-400"
         />
       </div>
 
@@ -367,11 +379,11 @@ export function CatalogTablePanel({
             {products.map((product) => (
               <tr
                 key={product.id}
-                className={`border-t border-white/6 transition ${
+                className={`relative border-t border-white/6 transition before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:content-[''] ${
                   selectedIds.includes(product.id)
                     ? "bg-cyan-400/[0.07]"
-                    : "bg-transparent hover:bg-white/[0.03]"
-                }`}
+                    : "bg-transparent"
+                } ${getProductRowTone(product)}`}
               >
                 <td className="px-4 py-4">
                   <input
@@ -382,22 +394,30 @@ export function CatalogTablePanel({
                   />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="min-w-[220px]">
+                  <div className="min-w-[260px]">
                     <Link
                       href={`/admin/catalog/${product.id}`}
-                      className="font-semibold text-slate-100 transition hover:text-cyan-200"
+                      className="inline-flex items-center gap-2 font-semibold text-slate-100 transition hover:text-cyan-200"
                     >
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${getStatusDotTone(product.status)}`}
+                        aria-hidden="true"
+                      />
                       {product.title}
                     </Link>
-                    <div className="mt-1 text-xs text-slate-500">{product.handle}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <span>/{product.handle}</span>
+                      <span className="text-slate-700">•</span>
+                      <span>{product._count.variants} variants</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                       {product.supplierName ? (
-                        <span className="rounded-full border border-white/10 px-2 py-1">
+                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
                           {product.supplierName}
                         </span>
                       ) : null}
                       {product.sellerName ? (
-                        <span className="rounded-full border border-white/10 px-2 py-1">
+                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
                           Seller: {product.sellerName}
                         </span>
                       ) : null}
@@ -413,9 +433,17 @@ export function CatalogTablePanel({
                     {product.status}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-slate-300">{product._count.variants}</td>
                 <td className="px-4 py-4 text-slate-300">
-                  {product.mainCategory?.name ?? "Unassigned"}
+                  <span className="font-semibold text-slate-100">
+                    {product._count.variants}
+                  </span>
+                </td>
+                <td className="px-4 py-4 text-slate-300">
+                  <div className="flex min-w-[150px] flex-wrap gap-2">
+                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-300">
+                      {product.mainCategory?.name ?? "Unassigned"}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-4 py-4">
                   <span
@@ -431,6 +459,13 @@ export function CatalogTablePanel({
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-end gap-2">
+                    <Link
+                      href={`/admin/catalog/${product.id}`}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                      Open
+                    </Link>
                     <AdminIconButton
                       type="button"
                       onClick={() => onDuplicate(product.id)}
@@ -754,7 +789,7 @@ function MetricBar({
   colorClass: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span>{label}</span>
         <span>{value}</span>

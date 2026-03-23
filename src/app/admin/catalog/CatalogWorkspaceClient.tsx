@@ -822,8 +822,8 @@ export default function CatalogWorkspaceClient({
     <div className="space-y-6 pb-36">
       <AdminPageIntro
         eyebrow="Admin / Catalog"
-        title="Commerce catalog workspace"
-        description="Manage products, saved views, and taxonomy from a single dark operational surface. Product search, bulk changes, and category or collection maintenance stay intact, but the table remains the center of the workflow."
+        title="Commerce catalog"
+        description="A quieter, more product-first catalog view with restrained color cues for state and stock, faster scanning, and clearer access to each product editor."
         actions={
           <>
             <Link
@@ -852,7 +852,7 @@ export default function CatalogWorkspaceClient({
           </>
         }
         metrics={
-          <div className="grid gap-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.6fr)]">
+          <div className="grid gap-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.45fr)]">
             <AdminMetricCard
               label="Products"
               value={String(totalCount)}
@@ -873,19 +873,19 @@ export default function CatalogWorkspaceClient({
               value={String(supplierCoverage)}
               detail={`${suppliers.length} suppliers available for routing`}
             />
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Catalog Signal
+                    Catalog Focus
                   </p>
                   <p className="mt-2 text-sm text-slate-300">
-                    Status mix and stock pressure across the current page.
+                    The list favors clarity first: status color, stock color, and direct open actions.
                   </p>
                 </div>
                 <div className="text-right text-xs text-slate-500">
                   <div>{statusCounts.active} active</div>
-                  <div>{statusCounts.draft} draft</div>
+                  <div>{inventoryCounts.outOfStock} out</div>
                 </div>
               </div>
               <div className="mt-4 space-y-4">
