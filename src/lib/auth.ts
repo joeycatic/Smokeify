@@ -41,6 +41,32 @@ function extractAdminTotpCode(credentials: Record<string, unknown> | undefined) 
   return "";
 }
 
+async function findUserForLogin(identifier: string) {
+  const identifierLower = identifier.toLowerCase();
+  const candidates = Array.from(new Set([identifier, identifierLower]));
+
+  return prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { in: candidates } },
+        { name: { in: candidates } },
+      ],
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      passwordHash: true,
+      emailVerified: true,
+      role: true,
+      authVersion: true,
+      adminTotpSecretEncrypted: true,
+      adminTotpEnabledAt: true,
+    },
+  });
+}
+
 providers.push(
   CredentialsProvider({
     name: "Credentials",
@@ -80,26 +106,7 @@ providers.push(
         }
       }
 
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: { equals: identifierLower, mode: "insensitive" } },
-            { name: { equals: identifier, mode: "insensitive" } },
-          ],
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          image: true,
-          passwordHash: true,
-          emailVerified: true,
-          role: true,
-          authVersion: true,
-          adminTotpSecretEncrypted: true,
-          adminTotpEnabledAt: true,
-        },
-      });
+      const user = await findUserForLogin(identifier);
 
       if (adminIntent) {
         if (!password) {
@@ -242,9 +249,10 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
+      const emailCandidates = Array.from(new Set([user.email, user.email.toLowerCase()]));
       await prisma.user.updateMany({
         where: {
-          email: { equals: user.email, mode: "insensitive" },
+          email: { in: emailCandidates },
           emailVerified: null,
         },
         data: { emailVerified: new Date() },
