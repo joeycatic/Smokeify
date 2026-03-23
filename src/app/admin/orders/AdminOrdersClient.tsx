@@ -220,26 +220,29 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   };
 };
 
+const ORDER_BADGE_BASE =
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-medium leading-none whitespace-nowrap";
+
 const getOrderStatusBadgeClass = (status: string) => {
   const normalizedStatus = normalizeStatus(status);
   if (normalizedStatus === "fulfilled") {
-    return "orders-status-chip orders-status-chip-success border-emerald-200 bg-emerald-50 text-emerald-800";
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-success border-emerald-200 bg-emerald-50 text-emerald-800`;
   }
   if (["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)) {
-    return "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700";
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700`;
   }
-  return "orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800";
+  return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`;
 };
 
 const getPaymentBadgeClass = (paymentStatus: string) => {
   const normalizedPayment = normalizeStatus(paymentStatus);
   if (PAID_PAYMENT_STATUSES.has(normalizedPayment)) {
-    return "orders-status-chip orders-status-chip-paid border-amber-200 bg-amber-50 text-amber-800";
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-paid border-amber-200 bg-amber-50 text-amber-800`;
   }
   if (["failed", "canceled", "cancelled"].includes(normalizedPayment)) {
-    return "orders-status-chip orders-status-chip-danger border-rose-200 bg-rose-50 text-rose-700";
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-danger border-rose-200 bg-rose-50 text-rose-700`;
   }
-  return "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700";
+  return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700`;
 };
 
 export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
@@ -1305,12 +1308,14 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       Payment: {order.paymentStatus}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-1 ${fulfillmentBadge.className}`}
+                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
                     >
                       {fulfillmentBadge.label}
                     </span>
                     {isShippingEmailSent(order) && (
-                      <span className="orders-status-chip orders-status-chip-info rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-800">
+                      <span
+                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
+                      >
                         Shipping email: sent
                       </span>
                     )}
@@ -1379,12 +1384,14 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       Payment: {order.paymentStatus}
                     </span>
                     <span
-                      className={`rounded-full px-2 py-1 ${fulfillmentBadge.className}`}
+                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
                     >
                       {fulfillmentBadge.label}
                     </span>
                     {isShippingEmailSent(order) && (
-                      <span className="orders-status-chip orders-status-chip-info rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
+                      <span
+                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
+                      >
                         Shipping email: sent
                       </span>
                     )}
