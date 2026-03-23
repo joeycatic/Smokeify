@@ -9,6 +9,7 @@ import {
   decryptSensitiveValue,
   generateVerificationCode,
   hashToken,
+  normalizeTotpCode,
   verifyTotpCode,
 } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
@@ -22,6 +23,24 @@ import {
 const providers: NextAuthOptions["providers"] = [];
 const VERIFY_LOGIN_COOKIE = "smokeify_verify_login";
 const FALLBACK_PASSWORD_HASH = bcrypt.hashSync("smokeify-admin-fallback", 10);
+
+function extractAdminTotpCode(credentials: Record<string, unknown> | undefined) {
+  const candidates = [
+    credentials?.totpCode,
+    credentials?.authenticatorCode,
+    credentials?.otp,
+    credentials?.code,
+    credentials?.token,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return normalizeTotpCode(candidate);
+    }
+  }
+
+  return "";
+}
 
 providers.push(
   CredentialsProvider({
@@ -37,7 +56,7 @@ providers.push(
       const identifierLower = identifier.toLowerCase();
       const password = credentials?.password ?? "";
       const adminIntent = credentials?.adminIntent === "1";
-      const totpCode = credentials?.totpCode?.trim() ?? "";
+      const totpCode = extractAdminTotpCode(credentials);
       if (!identifier) return null;
 
       const ip = getClientIp(req?.headers ?? new Headers());
@@ -121,7 +140,7 @@ providers.push(
           }
 
           const secret = decryptSensitiveValue(user.adminTotpSecretEncrypted as string);
-          if (!verifyTotpCode(secret, totpCode)) {
+          if (!verifyTotpCode(secret, totpCode, Date.now(), 2)) {
             throw new Error("INVALID_TOTP");
           }
         }

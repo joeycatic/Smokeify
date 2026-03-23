@@ -65,6 +65,20 @@ export function normalizeTotpCode(value: string) {
   return value.replace(/\s+/g, "").replace(/[^0-9]/g, "").slice(0, TOTP_DIGITS);
 }
 
+export function resolveTotpWindowSteps(windowSteps?: number) {
+  if (typeof windowSteps === "number" && Number.isInteger(windowSteps) && windowSteps >= 0) {
+    return windowSteps;
+  }
+
+  const configured = process.env.ADMIN_TOTP_WINDOW_STEPS?.trim();
+  if (!configured) {
+    return TOTP_WINDOW_STEPS;
+  }
+
+  const parsed = Number.parseInt(configured, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : TOTP_WINDOW_STEPS;
+}
+
 export function buildTotpOtpAuthUrl({
   issuer,
   accountName,
@@ -127,14 +141,19 @@ function generateTotpCodeForCounter(secret: string, counter: number) {
   return String(binary % 10 ** TOTP_DIGITS).padStart(TOTP_DIGITS, "0");
 }
 
-export function verifyTotpCode(secret: string, code: string, now = Date.now()) {
+export function verifyTotpCode(
+  secret: string,
+  code: string,
+  now = Date.now(),
+  windowSteps = resolveTotpWindowSteps(),
+) {
   const normalizedCode = normalizeTotpCode(code);
   if (normalizedCode.length !== TOTP_DIGITS) {
     return false;
   }
 
   const counter = Math.floor(now / 1000 / TOTP_PERIOD_SECONDS);
-  for (let offset = -TOTP_WINDOW_STEPS; offset <= TOTP_WINDOW_STEPS; offset += 1) {
+  for (let offset = -windowSteps; offset <= windowSteps; offset += 1) {
     if (generateTotpCodeForCounter(secret, counter + offset) === normalizedCode) {
       return true;
     }
