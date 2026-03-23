@@ -359,6 +359,83 @@ export default async function AdminPage({
       return left.conversionRate - right.conversionRate;
     })
     .slice(0, 5);
+  const primaryStockRisk = lowStockVariants[0] ?? null;
+  const actionAlerts = [
+    failedWebhookCount > 0
+      ? {
+          title: "Stripe webhook failures need review",
+          subtitle: `${failedWebhookCount} failed events can block payment and fulfillment sync.`,
+          badge: "Critical",
+          badgeClassName: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+          href: "/admin/orders",
+          hrefLabel: "Open orders",
+        }
+      : null,
+    funnelSnapshot.beginCheckout >= 10 && funnelSnapshot.checkoutAbandonmentRate >= 0.6
+      ? {
+          title: "Checkout abandonment is elevated",
+          subtitle: `${Math.round(funnelSnapshot.checkoutAbandonmentRate * 100)}% of started checkouts are not converting.`,
+          badge: "Revenue risk",
+          badgeClassName: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+          href: "/admin/analytics",
+          hrefLabel: "Inspect funnel",
+        }
+      : null,
+    typeof orderComparisons.revenue.deltaRatio === "number" && orderComparisons.revenue.deltaRatio <= -0.15
+      ? {
+          title: "Revenue pace is below the previous period",
+          subtitle: `${formatDelta(orderComparisons.revenue.deltaRatio)} vs prior 30-day window.`,
+          badge: "Trend drop",
+          badgeClassName: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+          href: "/admin/analytics",
+          hrefLabel: "Open analytics",
+        }
+      : null,
+    primaryStockRisk &&
+    (primaryStockRisk.available === 0 ||
+      (typeof primaryStockRisk.coverDays === "number" && primaryStockRisk.coverDays < 7))
+      ? {
+          title: `${primaryStockRisk.productTitle} needs replenishment`,
+          subtitle:
+            primaryStockRisk.available === 0
+              ? `${primaryStockRisk.title} is already out of stock.`
+              : `${Math.round(primaryStockRisk.coverDays ?? 0)} days of stock cover left on ${primaryStockRisk.title}.`,
+          badge: "Stock risk",
+          badgeClassName: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+          href: "/admin/catalog",
+          hrefLabel: "Open catalog",
+        }
+      : null,
+    pendingReturnCount > 0
+      ? {
+          title: "Pending return decisions are waiting",
+          subtitle: `${pendingReturnCount} requests still need resolution or refund routing.`,
+          badge: "Support",
+          badgeClassName: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+          href: "/admin/returns",
+          hrefLabel: "Open returns",
+        }
+      : null,
+    weakProducts[0]
+      ? {
+          title: `${weakProducts[0].productTitle} is attracting attention but under-converting`,
+          subtitle: `${weakProducts[0].views} views, ${Math.round(
+            weakProducts[0].conversionRate * 100,
+          )}% CVR and ${weakProducts[0].addToCart} add-to-cart events in the last 30 days.`,
+          badge: "Merch",
+          badgeClassName: "border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200",
+          href: "/admin/catalog",
+          hrefLabel: "Review product",
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    title: string;
+    subtitle: string;
+    badge: string;
+    badgeClassName: string;
+    href: string;
+    hrefLabel: string;
+  }>;
 
   const quickLinks = [
     { href: "/admin/catalog", label: "Catalog", description: "Products, variants and merch data." },
@@ -435,7 +512,10 @@ export default async function AdminPage({
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr_0.85fr]">
+        <Panel eyebrow="Actions" title="Action center" description="Priority tasks generated from live revenue, funnel, stock and support pressure.">
+          <ActionAlertList items={actionAlerts} />
+        </Panel>
         <Panel eyebrow="Alerts" title="Operational pressure" description="Failure and queue counts that usually need admin action first.">
           <HorizontalBarsChart data={alertBars} colorClassName="bg-cyan-400" />
         </Panel>
@@ -622,6 +702,42 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
               {new Date(entry.createdAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ActionAlertList({
+  items,
+}: {
+  items: Array<{
+    title: string;
+    subtitle: string;
+    badge: string;
+    badgeClassName: string;
+    href: string;
+    hrefLabel: string;
+  }>;
+}) {
+  if (items.length === 0) {
+    return <EmptyPanel copy="No urgent actions generated from the current live signals." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div key={`${item.title}-${item.href}`} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-100">{item.title}</p>
+              <p className="mt-1 text-xs text-slate-500">{item.subtitle}</p>
+            </div>
+            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${item.badgeClassName}`}>{item.badge}</span>
+          </div>
+          <Link href={item.href} className="mt-3 inline-flex text-xs font-semibold text-cyan-200 transition hover:text-cyan-100">
+            {item.hrefLabel}
+          </Link>
         </div>
       ))}
     </div>
