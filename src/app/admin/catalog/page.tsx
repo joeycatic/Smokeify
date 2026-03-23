@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import type { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
+import { getProductPerformance, getStockCoverageMap } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
 import AdminCatalogClient from "./AdminCatalogClient";
 
@@ -136,7 +137,20 @@ export default async function AdminCatalogPage({
     }
   }
 
-  const [products, categories, collections, suppliers] = await Promise.all([
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+  const [
+    products,
+    categories,
+    collections,
+    suppliers,
+    performance30d,
+    performance7d,
+    returnItems,
+    stockCoverageMap,
+  ] = await Promise.all([
     prisma.product.findMany({
       where,
       orderBy,
@@ -167,6 +181,7 @@ export default async function AdminCatalogPage({
         },
         variants: {
           select: {
+            id: true,
             inventory: { select: { quantityOnHand: true, reserved: true } },
           },
         },
@@ -178,7 +193,30 @@ export default async function AdminCatalogPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true, leadTimeDays: true },
     }),
+    getProductPerformance(30),
+    getProductPerformance(7),
+    prisma.returnItem.findMany({
+      where: {
+        request: {
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      },
+      select: {
+        quantity: true,
+        orderItem: { select: { productId: true } },
+      },
+    }),
+    getStockCoverageMap(30),
   ]);
+
+  const performance30dMap = new Map(performance30d.map((row) => [row.productId, row]));
+  const performance7dMap = new Map(performance7d.map((row) => [row.productId, row]));
+  const returnedUnitsByProductId = new Map<string, number>();
+  for (const item of returnItems) {
+    const productId = item.orderItem.productId;
+    if (!productId) continue;
+    returnedUnitsByProductId.set(productId, (returnedUnitsByProductId.get(productId) ?? 0) + item.quantity);
+  }
 
   return (
     <div className="mx-auto max-w-screen-2xl px-2 py-2 text-slate-100">
@@ -197,8 +235,32 @@ export default async function AdminCatalogPage({
             const reserved = inventory?.reserved ?? 0;
             return sum + Math.max(0, onHand - reserved);
           }, 0);
+          const aggregateDailyVelocity = variants.reduce((sum, variant) => {
+            const coverage = stockCoverageMap.get(variant.id);
+            return sum + (coverage?.dailyVelocity ?? 0);
+          }, 0);
+          const stockCoverDays =
+            aggregateDailyVelocity > 0 ? availableInventory / aggregateDailyVelocity : null;
           const fallbackCategory =
             product.categories.find((entry) => entry.category.parentId === null)?.category ?? null;
+          const insight30d = performance30dMap.get(product.id);
+          const insight7d = performance7dMap.get(product.id);
+          const trendBase =
+            (insight30d?.views ?? 0) + (insight30d?.purchases ?? 0) * 5 + (insight30d?.revenueCents ?? 0) / 5_000;
+          const recentTrendBase =
+            (insight7d?.views ?? 0) + (insight7d?.purchases ?? 0) * 5 + (insight7d?.revenueCents ?? 0) / 5_000;
+          const trendDeltaRatio =
+            trendBase > 0 ? recentTrendBase / Math.max(trendBase / 30 * 7, 1) - 1 : recentTrendBase > 0 ? 1 : 0;
+          const trendDirection =
+            trendDeltaRatio >= 0.35
+              ? "trending"
+              : trendDeltaRatio <= -0.25 && (insight30d?.views ?? 0) >= 20
+                ? "cooling"
+                : "steady";
+          const returnedUnits30d = returnedUnitsByProductId.get(product.id) ?? 0;
+          const purchases30d = insight30d?.purchases ?? 0;
+          const revenue30dCents = insight30d?.revenueCents ?? 0;
+          const margin30dCents = insight30d?.marginCents ?? 0;
 
           return {
             ...rest,
@@ -213,6 +275,22 @@ export default async function AdminCatalogPage({
             categoryIds: product.categories.map((entry) => entry.categoryId),
             collectionIds: productCollections.map((entry) => entry.collectionId),
             mainCategory: product.mainCategory ?? fallbackCategory ?? null,
+            insights: {
+              views30d: insight30d?.views ?? 0,
+              addToCart30d: insight30d?.addToCart ?? 0,
+              beginCheckout30d: insight30d?.beginCheckout ?? 0,
+              purchases30d,
+              revenue30dCents,
+              margin30dCents,
+              marginRate30d: revenue30dCents > 0 ? margin30dCents / revenue30dCents : 0,
+              conversionRate30d: insight30d?.conversionRate ?? 0,
+              addToCartRate30d: insight30d?.addToCartRate ?? 0,
+              returnedUnits30d,
+              returnRate30d: purchases30d > 0 ? returnedUnits30d / purchases30d : 0,
+              stockCoverDays,
+              trendDirection,
+              trendDeltaRatio,
+            },
           };
         })}
         initialQuery={rawQuery}

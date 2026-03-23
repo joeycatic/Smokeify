@@ -378,6 +378,25 @@ export default function CatalogWorkspaceClient({
       ).size,
     [products],
   );
+  const performanceSummary = useMemo(() => {
+    const revenue30dCents = products.reduce(
+      (sum, product) => sum + (product.insights?.revenue30dCents ?? 0),
+      0,
+    );
+    const trendingCount = products.filter(
+      (product) => product.insights?.trendDirection === "trending",
+    ).length;
+    const weakConversionCount = products.filter((product) => {
+      const views = product.insights?.views30d ?? 0;
+      const conversion = product.insights?.conversionRate30d ?? 0;
+      return views >= 20 && conversion < 0.02;
+    }).length;
+    const lowCoverCount = products.filter((product) => {
+      const coverDays = product.insights?.stockCoverDays;
+      return typeof coverDays === "number" && coverDays > 0 && coverDays < 14;
+    }).length;
+    return { revenue30dCents, trendingCount, weakConversionCount, lowCoverCount };
+  }, [products]);
 
   const selectedCategory =
     categories.find((category) => category.id === selectedCategoryId) ?? null;
@@ -859,33 +878,37 @@ export default function CatalogWorkspaceClient({
               detail={`${products.length} loaded on this page`}
             />
             <AdminMetricCard
-              label="Selected"
-              value={String(selectedIds.length)}
-              detail="Rows staged for bulk updates"
+              label="30d Revenue"
+              value={new Intl.NumberFormat("de-DE", {
+                style: "currency",
+                currency: "EUR",
+              }).format(performanceSummary.revenue30dCents / 100)}
+              detail="Revenue represented by the visible catalog slice"
             />
             <AdminMetricCard
-              label="Out Of Stock"
-              value={String(inventoryCounts.outOfStock)}
-              detail={`${inventoryCounts.low} additional low-stock products`}
+              label="Trending"
+              value={String(performanceSummary.trendingCount)}
+              detail="Products with accelerating 7-day demand"
             />
             <AdminMetricCard
-              label="Supplier Coverage"
-              value={String(supplierCoverage)}
-              detail={`${suppliers.length} suppliers available for routing`}
+              label="Weak CVR"
+              value={String(performanceSummary.weakConversionCount)}
+              detail="High-view products converting below 2%"
             />
             <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Catalog Focus
+                    Merchandising Focus
                   </p>
                   <p className="mt-2 text-sm text-slate-300">
-                    The list favors clarity first: status color, stock color, and direct open actions.
+                    This view now combines product maintenance with demand, conversion, margin, and
+                    stock pressure signals on the same row.
                   </p>
                 </div>
                 <div className="text-right text-xs text-slate-500">
-                  <div>{statusCounts.active} active</div>
-                  <div>{inventoryCounts.outOfStock} out</div>
+                  <div>{supplierCoverage} suppliers live</div>
+                  <div>{performanceSummary.lowCoverCount} low-cover products</div>
                 </div>
               </div>
               <div className="mt-4 space-y-4">

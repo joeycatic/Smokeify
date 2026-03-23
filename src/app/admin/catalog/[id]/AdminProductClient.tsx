@@ -106,12 +106,33 @@ type CrossSellProduct = {
   imageUrl: string | null;
 };
 
+type ProductInsights = {
+  views30d: number;
+  addToCart30d: number;
+  beginCheckout30d: number;
+  purchases30d: number;
+  revenue30dCents: number;
+  margin30dCents: number;
+  marginRate30d: number;
+  conversionRate30d: number;
+  addToCartRate30d: number;
+  checkoutToPaidRate30d: number;
+  returnedUnits30d: number;
+  returnRate30d: number;
+  stockCoverDays: number | null;
+  trendDirection: "trending" | "steady" | "cooling";
+  trendDeltaRatio: number;
+  topTrafficSources: Array<{ label: string; count: number }>;
+  topReturnReasons: Array<{ reason: string; count: number }>;
+};
+
 type Props = {
   product: ProductDetail;
   categories: CategoryRow[];
   collections: CategoryRow[];
   suppliers: SupplierRow[];
   crossSells: CrossSellItem[];
+  insights: ProductInsights;
 };
 
 type ProductDetailsState = {
@@ -147,6 +168,19 @@ const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"
 
 const toEuro = (cents: number | null) =>
   cents === null ? "" : (cents / 100).toFixed(2);
+
+const formatCurrency = (cents: number) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
+
+const formatPercent = (value: number, digits = 1) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
 
 const parseEuro = (value: string) => {
   const normalized = value.replace(",", ".");
@@ -264,6 +298,7 @@ const serializeIdSnapshot = (values: Iterable<string>) =>
   JSON.stringify(Array.from(values).sort());
 
 const PRODUCT_EDITOR_SECTIONS = [
+  { id: "performance", label: "Performance" },
   { id: "overview", label: "Overview" },
   { id: "seo", label: "SEO" },
   { id: "content", label: "Content" },
@@ -279,6 +314,7 @@ export default function AdminProductClient({
   collections,
   suppliers,
   crossSells: initialCrossSells,
+  insights,
 }: Props) {
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
@@ -486,6 +522,18 @@ export default function AdminProductClient({
     [variants]
   );
   const mediaCoverageRatio = `${images.length} image${images.length === 1 ? "" : "s"}`;
+  const trendLabel =
+    insights.trendDirection === "trending"
+      ? "Trending"
+      : insights.trendDirection === "cooling"
+        ? "Cooling"
+        : "Steady";
+  const trendTone =
+    insights.trendDirection === "trending"
+      ? "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200"
+      : insights.trendDirection === "cooling"
+        ? "border-amber-400/20 bg-amber-400/[0.08] text-amber-200"
+        : "border-white/10 bg-white/[0.06] text-slate-200";
 
   useEffect(() => {
     if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
@@ -1423,7 +1471,7 @@ export default function AdminProductClient({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <div className="admin-product-stat admin-lift rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
               Availability
@@ -1440,22 +1488,52 @@ export default function AdminProductClient({
               {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
-              Taxonomy
-            </div>
-            <div className="mt-3 text-3xl font-semibold text-white">{selectedCategoryCount}</div>
-            <div className="mt-1 text-sm text-amber-100/75">
-              {selectedCollectionCount} collections, {selectedChildCount} child categories
-            </div>
-          </div>
           <div className="admin-product-stat admin-lift rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+              30d Revenue
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatCurrency(insights.revenue30dCents)}
+            </div>
+            <div className="mt-1 text-sm text-emerald-100/75">
+              Margin {formatPercent(insights.marginRate30d)}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
+              Conversion
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.conversionRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-amber-100/75">
+              {insights.views30d} views / {insights.purchases30d} purchases
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-rose-400/20 bg-rose-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200">
+              Returns
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.returnRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-rose-100/75">
+              {insights.returnedUnits30d} returned units in the last 30 days
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
               Coverage
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">{mediaCoverageRatio}</div>
-            <div className="mt-1 text-sm text-emerald-100/75">
-              Supplier: {selectedSupplierName}
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {typeof insights.stockCoverDays === "number"
+                ? `${Math.round(insights.stockCoverDays)}d`
+                : mediaCoverageRatio}
+            </div>
+            <div className="mt-1 text-sm text-slate-300/75">
+              {typeof insights.stockCoverDays === "number"
+                ? `${trendLabel} demand · Supplier ${selectedSupplierName}`
+                : `Supplier: ${selectedSupplierName}`}
             </div>
           </div>
         </div>
@@ -1502,6 +1580,115 @@ export default function AdminProductClient({
           ))}
         </div>
       </div>
+
+      <section
+        id="performance"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">
+              P
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                Performance
+              </p>
+              <p className="text-xs text-slate-400">
+                Views, conversion, margin, return pressure, and traffic quality.
+              </p>
+            </div>
+          </div>
+          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${trendTone}`}>
+            {trendLabel} · {formatPercent(insights.trendDeltaRatio, 0)} vs 30d pace
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <InsightCard
+            label="Views"
+            value={String(insights.views30d)}
+            detail={`${insights.addToCart30d} add to cart`}
+          />
+          <InsightCard
+            label="Checkouts"
+            value={String(insights.beginCheckout30d)}
+            detail={`${insights.purchases30d} paid units`}
+          />
+          <InsightCard
+            label="CVR"
+            value={formatPercent(insights.conversionRate30d)}
+            detail={`Checkout to paid ${formatPercent(insights.checkoutToPaidRate30d)}`}
+          />
+          <InsightCard
+            label="Revenue"
+            value={formatCurrency(insights.revenue30dCents)}
+            detail={`Margin ${formatCurrency(insights.margin30dCents)}`}
+          />
+          <InsightCard
+            label="Returns"
+            value={formatPercent(insights.returnRate30d)}
+            detail={`${insights.returnedUnits30d} returned units`}
+          />
+          <InsightCard
+            label="Stock cover"
+            value={
+              typeof insights.stockCoverDays === "number"
+                ? `${Math.round(insights.stockCoverDays)}d`
+                : "—"
+            }
+            detail="Based on the last 30 days sales velocity"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Top traffic sources
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topTrafficSources.length === 0 ? (
+                <p className="text-sm text-slate-500">No source data captured for this product yet.</p>
+              ) : (
+                insights.topTrafficSources.map((source) => (
+                  <div
+                    key={source.label}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{source.label}</span>
+                    <span className="shrink-0 text-sm font-semibold text-cyan-200">
+                      {source.count} views
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Return reasons
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topReturnReasons.length === 0 ? (
+                <p className="text-sm text-slate-500">No return reasons recorded in the last 30 days.</p>
+              ) : (
+                insights.topReturnReasons.map((reason) => (
+                  <div
+                    key={reason.reason}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{reason.reason}</span>
+                    <span className="shrink-0 text-sm font-semibold text-rose-200">
+                      {reason.count}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section
         id="overview"
@@ -3628,6 +3815,26 @@ export default function AdminProductClient({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InsightCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-sm text-slate-400">{detail}</p>
     </div>
   );
 }

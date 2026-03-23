@@ -17,6 +17,24 @@ export type ProductRow = {
   _count: { variants: number; images: number };
   outOfStock: boolean;
   mainCategory?: { id: string; name: string; handle: string } | null;
+  insights?: ProductInsightSnapshot;
+};
+
+export type ProductInsightSnapshot = {
+  views30d: number;
+  addToCart30d: number;
+  beginCheckout30d: number;
+  purchases30d: number;
+  revenue30dCents: number;
+  margin30dCents: number;
+  marginRate30d: number;
+  conversionRate30d: number;
+  addToCartRate30d: number;
+  returnedUnits30d: number;
+  returnRate30d: number;
+  stockCoverDays: number | null;
+  trendDirection: "trending" | "steady" | "cooling";
+  trendDeltaRatio: number;
 };
 
 export type CategoryRow = {
@@ -88,6 +106,13 @@ export const formatDate = (value: string) =>
     timeStyle: "short",
   }).format(new Date(value));
 
+export const formatPercent = (value: number, digits = 0) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+
 export const sortRowsByName = (rows: CategoryRow[]) =>
   [...rows].sort((left, right) => left.name.localeCompare(right.name, "de"));
 
@@ -149,4 +174,15 @@ export const getProductRowTone = (product: ProductRow) => {
     return "before:bg-amber-400/70 hover:bg-amber-400/[0.04]";
   }
   return "before:bg-cyan-400/70 hover:bg-cyan-400/[0.04]";
+};
+
+export const getTrendTone = (direction: ProductInsightSnapshot["trendDirection"]) => {
+  switch (direction) {
+    case "trending":
+      return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+    case "cooling":
+      return "border-amber-400/20 bg-amber-400/10 text-amber-200";
+    default:
+      return "border-white/10 bg-white/[0.04] text-slate-300";
+  }
 };

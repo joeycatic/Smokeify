@@ -26,11 +26,13 @@ import {
   SupplierRow,
   STATUS_OPTIONS,
   formatDate,
+  formatPercent,
   getInventoryTone,
   getProductRowTone,
   getSortLabel,
   getStatusDotTone,
   getStatusTone,
+  getTrendTone,
 } from "./catalogShared";
 
 type ToolbarProps = {
@@ -357,30 +359,26 @@ export function CatalogTablePanel({
                   aria-label="Select all products on this page"
                 />
               </th>
-              {(["title", "status", "variants", "category", "updatedAt"] as SortKey[]).map(
-                (column) => (
-                  <th key={column} className="px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={() => onSort(column)}
-                      className={`inline-flex items-center gap-2 transition ${
-                        sortKey === column
-                          ? "text-cyan-200"
-                          : "text-slate-500 hover:text-slate-300"
-                      }`}
-                    >
-                      <span>{getSortLabel(column)}</span>
-                      <span className="text-[10px]">
-                        {sortKey === column
-                          ? sortDirection === "asc"
-                            ? "↑"
-                            : "↓"
-                          : "↕"}
-                      </span>
-                    </button>
-                  </th>
-                ),
-              )}
+              {(["title", "status", "category", "updatedAt"] as const).map((column) => (
+                <th key={column} className="px-4 py-4">
+                  <button
+                    type="button"
+                    onClick={() => onSort(column)}
+                    className={`inline-flex items-center gap-2 transition ${
+                      sortKey === column
+                        ? "text-cyan-200"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    <span>{getSortLabel(column)}</span>
+                    <span className="text-[10px]">
+                      {sortKey === column ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </th>
+              ))}
+              <th className="px-4 py-4">Performance</th>
+              <th className="px-4 py-4">Margin</th>
               <th className="px-4 py-4">Availability</th>
               <th className="px-4 py-4 text-right">Actions</th>
             </tr>
@@ -437,6 +435,35 @@ export function CatalogTablePanel({
                         <span className="text-slate-700">•</span>
                         <span>{product._count.variants} variants</span>
                       </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                        {product.insights ? (
+                          <span
+                            className={`rounded-full border px-2.5 py-1 font-semibold ${getTrendTone(
+                              product.insights.trendDirection,
+                            )}`}
+                          >
+                            {product.insights.trendDirection === "trending"
+                              ? "Trending"
+                              : product.insights.trendDirection === "cooling"
+                                ? "Cooling"
+                                : "Steady"}
+                          </span>
+                        ) : null}
+                        {product.insights &&
+                        product.insights.views30d >= 20 &&
+                        product.insights.conversionRate30d < 0.02 ? (
+                          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 font-semibold text-amber-200">
+                            Weak CVR
+                          </span>
+                        ) : null}
+                        {product.insights &&
+                        product.insights.returnRate30d >= 0.15 &&
+                        product.insights.purchases30d >= 5 ? (
+                          <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-1 font-semibold text-rose-200">
+                            Return pressure
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                         {product.supplierName ? (
                           <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
@@ -462,25 +489,88 @@ export function CatalogTablePanel({
                   </span>
                 </td>
                 <td className="px-4 py-4 text-slate-300">
-                  <span className="font-semibold text-slate-100">
-                    {product._count.variants}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-slate-300">
-                  <div className="flex min-w-[150px] flex-wrap gap-2">
+                  <div className="flex min-w-[150px] flex-col gap-2">
                     <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-300">
                       {product.mainCategory?.name ?? "Unassigned"}
                     </span>
+                    <span className="text-xs text-slate-500">
+                      {product._count.variants} variants
+                    </span>
                   </div>
                 </td>
+                <td className="px-4 py-4 text-slate-300">
+                  {product.insights ? (
+                    <div className="min-w-[180px] space-y-1.5">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-slate-500">Views / orders</span>
+                        <span className="font-medium text-slate-100">
+                          {product.insights.views30d} / {product.insights.purchases30d}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-slate-500">CVR</span>
+                        <span className="font-medium text-slate-100">
+                          {formatPercent(product.insights.conversionRate30d, 1)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-slate-500">Add to cart</span>
+                        <span className="font-medium text-slate-100">
+                          {formatPercent(product.insights.addToCartRate30d, 1)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">No product demand data yet</span>
+                  )}
+                </td>
+                <td className="px-4 py-4 text-slate-300">
+                  {product.insights ? (
+                    <div className="min-w-[160px] space-y-1.5">
+                      <div className="text-sm font-semibold text-slate-100">
+                        {new Intl.NumberFormat("de-DE", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(product.insights.revenue30dCents / 100)}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Margin{" "}
+                        <span className="font-medium text-slate-300">
+                          {formatPercent(product.insights.marginRate30d, 1)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Returns{" "}
+                        <span className="font-medium text-slate-300">
+                          {formatPercent(product.insights.returnRate30d, 1)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">No sales data yet</span>
+                  )}
+                </td>
                 <td className="px-4 py-4">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getInventoryTone(
-                      product,
-                    )}`}
-                  >
-                    {product.availableInventory} available
-                  </span>
+                  <div className="min-w-[150px] space-y-2">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getInventoryTone(
+                        product,
+                      )}`}
+                    >
+                      {product.availableInventory} available
+                    </span>
+                    <div className="text-xs text-slate-500">
+                      {typeof product.insights?.stockCoverDays === "number"
+                        ? `${Math.round(product.insights.stockCoverDays)} days cover`
+                        : "No velocity baseline yet"}
+                    </div>
+                    {typeof product.insights?.stockCoverDays === "number" &&
+                    product.insights.stockCoverDays < 14 ? (
+                      <div className="text-[11px] font-semibold text-amber-200">
+                        Replenish soon
+                      </div>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-4 py-4 text-xs text-slate-400">
                   {formatDate(product.updatedAt)}
@@ -527,7 +617,7 @@ export function CatalogTablePanel({
             ))}
             {products.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12">
+                <td colSpan={9} className="px-4 py-12">
                   <AdminEmptyState
                     title={searchTerm.trim() ? "No matching products" : "No products yet"}
                     description={
