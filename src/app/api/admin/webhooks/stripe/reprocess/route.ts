@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logAdminAction } from "@/lib/adminAuditLog";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
@@ -201,6 +202,18 @@ export async function POST(request: Request) {
         where: { eventId },
         data: { status: "failed" },
       });
+      await logAdminAction({
+        actor: { id: session.user.id, email: session.user.email ?? null },
+        action: "stripe.webhook.reprocess",
+        targetType: "webhook_event",
+        targetId: eventId,
+        summary: `Rejected manual webhook reprocess for ${event.type}`,
+        metadata: {
+          eventId,
+          status: "rejected",
+          eventType: event.type,
+        },
+      });
       return NextResponse.json(
         { error: `Unsupported event type for manual reprocess: ${event.type}` },
         { status: 400 }
@@ -211,6 +224,19 @@ export async function POST(request: Request) {
       where: { eventId },
       data: { status: "failed" },
     });
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "stripe.webhook.reprocess",
+      targetType: "webhook_event",
+      targetId: eventId,
+      summary: `Manual webhook reprocess failed for ${event.type}`,
+      metadata: {
+        eventId,
+        status: "failed",
+        eventType: event.type,
+        error: error instanceof Error ? error.message : "unknown",
+      },
+    });
     const message =
       error instanceof Error ? error.message : "Reprocess failed unexpectedly.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -219,6 +245,19 @@ export async function POST(request: Request) {
   await prisma.processedWebhookEvent.update({
     where: { eventId },
     data: { status: "processed", processedAt: new Date() },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "stripe.webhook.reprocess",
+    targetType: "webhook_event",
+    targetId: eventId,
+    summary: `Reprocessed Stripe webhook ${event.type}`,
+    metadata: {
+      eventId,
+      status: "processed",
+      eventType: event.type,
+    },
   });
 
   return NextResponse.json({ ok: true });

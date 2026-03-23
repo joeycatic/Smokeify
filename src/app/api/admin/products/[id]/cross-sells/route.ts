@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logAdminAction } from "@/lib/adminAuditLog";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
@@ -104,6 +105,18 @@ export async function PUT(
       })),
     }),
   ]);
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.cross_sells.update",
+    targetType: "product",
+    targetId: id,
+    summary: `Updated cross-sells for product ${id}`,
+    metadata: {
+      crossSellIds: filtered,
+      count: filtered.length,
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

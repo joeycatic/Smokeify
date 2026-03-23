@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
 
 export async function PATCH(
   request: Request,
@@ -26,8 +26,8 @@ export async function PATCH(
       { status: 429 }
     );
   }
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -41,24 +41,20 @@ export async function PATCH(
     expectedUpdatedAt?: string;
   };
 
-  const updates: {
-    status?: string;
-    paymentStatus?: string;
-    trackingCarrier?: string | null;
-    trackingNumber?: string | null;
-    trackingUrl?: string | null;
-  } = {};
-
-  if (body.status) updates.status = body.status.trim();
-  if (body.paymentStatus) updates.paymentStatus = body.paymentStatus.trim();
-  if (typeof body.trackingCarrier !== "undefined") {
-    updates.trackingCarrier = body.trackingCarrier?.trim() || null;
-  }
-  if (typeof body.trackingNumber !== "undefined") {
-    updates.trackingNumber = body.trackingNumber?.trim() || null;
-  }
-  if (typeof body.trackingUrl !== "undefined") {
-    updates.trackingUrl = body.trackingUrl?.trim() || null;
+  let updates: ReturnType<typeof buildAdminOrderPatch>["updates"];
+  let changedFields: string[];
+  try {
+    const patch = buildAdminOrderPatch(body);
+    updates = patch.updates;
+    changedFields = patch.changedFields;
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Invalid order update payload.",
+      },
+      { status: 400 },
+    );
   }
 
   if (!Object.keys(updates).length) {
@@ -98,7 +94,7 @@ export async function PATCH(
     action: "order.update",
     targetType: "order",
     targetId: id,
-    summary: `Updated order fields: ${Object.keys(updates).join(", ")}`,
+    summary: `Updated order fields: ${changedFields.join(", ")}`,
     metadata: { updates },
   });
   if (typeof updates.status === "string" && updates.status !== existing.status) {
@@ -114,23 +110,6 @@ export async function PATCH(
       },
     });
   }
-  if (
-    typeof updates.paymentStatus === "string" &&
-    updates.paymentStatus !== existing.paymentStatus
-  ) {
-    await logOrderTimelineEvent({
-      actor: { id: session.user.id, email: session.user.email ?? null },
-      orderId: id,
-      action: "order.lifecycle.payment_status_changed",
-      summary: `Payment status changed: ${existing.paymentStatus} -> ${updates.paymentStatus}`,
-      metadata: {
-        previousPaymentStatus: existing.paymentStatus,
-        nextPaymentStatus: updates.paymentStatus,
-        source: "admin.orders.patch",
-      },
-    });
-  }
-
   return NextResponse.json({ order: updated });
 }
 
@@ -153,8 +132,8 @@ export async function DELETE(
       { status: 429 }
     );
   }
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

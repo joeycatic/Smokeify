@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
@@ -9,6 +8,7 @@ import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function POST(
   request: Request,
@@ -29,8 +29,8 @@ export async function POST(
       { status: 429 }
     );
   }
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -106,6 +106,19 @@ export async function POST(
   await prisma.order.update({
     where: { id },
     data: sentAtUpdate,
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "order.email.send",
+    targetType: "order",
+    targetId: id,
+    summary: `Sent ${type} email for order #${order.orderNumber}`,
+    metadata: {
+      emailType: type,
+      recipient,
+      orderNumber: order.orderNumber,
+    },
   });
 
   return NextResponse.json({ ok: true });

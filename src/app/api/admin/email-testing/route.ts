@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { logAdminAction } from "@/lib/adminAuditLog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
@@ -118,6 +119,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const logEmailTestingAction = async (
+    type: EmailType,
+    recipient: string,
+    metadata?: Record<string, unknown>,
+  ) => {
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "email.test.send",
+      targetType: "email",
+      targetId: recipient,
+      summary: `Sent ${type} test email to ${recipient}`,
+      metadata: { emailType: type, recipient, ...metadata },
+    });
+  };
+
   const body = (await request.json().catch(() => ({}))) as {
     type?: EmailType;
     to?: string;
@@ -207,6 +223,7 @@ export async function POST(request: Request) {
 </div>`;
 
     try { await sendEmail({ to: recipient, subject, html, text: message }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient, { subject });
     return NextResponse.json({ ok: true });
   }
 
@@ -267,6 +284,7 @@ export async function POST(request: Request) {
   </table>
 </div>`;
     try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient);
     return NextResponse.json({ ok: true });
   }
 
@@ -333,6 +351,7 @@ export async function POST(request: Request) {
   </table>
 </div>`;
     try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient, { productTitle, variantTitle });
     return NextResponse.json({ ok: true });
   }
 
@@ -399,6 +418,7 @@ export async function POST(request: Request) {
   </table>
 </div>`;
     try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient, { sessionId });
     return NextResponse.json({ ok: true });
   }
 
@@ -454,5 +474,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  await logEmailTestingAction(type, recipient, {
+    orderId: order.id,
+    itemCount: order.items.length,
+  });
   return NextResponse.json({ ok: true });
 }
