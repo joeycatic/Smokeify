@@ -14,7 +14,6 @@ import {
 } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
 import {
-  ADMIN_LOGIN_RATE_LIMIT,
   checkRateLimit,
   getClientIp,
   LOGIN_RATE_LIMIT,
@@ -59,34 +58,24 @@ providers.push(
       const totpCode = extractAdminTotpCode(credentials);
       if (!identifier) return null;
 
-      const ip = getClientIp(req?.headers ?? new Headers());
-      const rateLimit = adminIntent ? ADMIN_LOGIN_RATE_LIMIT : LOGIN_RATE_LIMIT;
-      const rateLimitPrefix = adminIntent ? "admin-login" : "login";
-      const ipLimit = await checkRateLimit({
-        key: `${rateLimitPrefix}:ip:${ip}`,
-        limit: rateLimit.ipLimit,
-        windowMs: rateLimit.windowMs,
-      });
-      if (!ipLimit.allowed) {
-        throw new Error("RATE_LIMIT");
-      }
-
-      const loginLimit = await checkRateLimit({
-        key: `${rateLimitPrefix}:identifier:${identifierLower}`,
-        limit: rateLimit.identifierLimit,
-        windowMs: rateLimit.windowMs,
-      });
-      if (!loginLimit.allowed) {
-        throw new Error("RATE_LIMIT");
-      }
-
-      if (adminIntent) {
-        const comboLimit = await checkRateLimit({
-          key: `${rateLimitPrefix}:pair:${ip}:${identifierLower}`,
-          limit: ADMIN_LOGIN_RATE_LIMIT.pairLimit,
-          windowMs: ADMIN_LOGIN_RATE_LIMIT.windowMs,
+      if (!adminIntent) {
+        const ip = getClientIp(req?.headers ?? new Headers());
+        const rateLimitPrefix = "login";
+        const ipLimit = await checkRateLimit({
+          key: `${rateLimitPrefix}:ip:${ip}`,
+          limit: LOGIN_RATE_LIMIT.ipLimit,
+          windowMs: LOGIN_RATE_LIMIT.windowMs,
         });
-        if (!comboLimit.allowed) {
+        if (!ipLimit.allowed) {
+          throw new Error("RATE_LIMIT");
+        }
+
+        const loginLimit = await checkRateLimit({
+          key: `${rateLimitPrefix}:identifier:${identifierLower}`,
+          limit: LOGIN_RATE_LIMIT.identifierLimit,
+          windowMs: LOGIN_RATE_LIMIT.windowMs,
+        });
+        if (!loginLimit.allowed) {
           throw new Error("RATE_LIMIT");
         }
       }
