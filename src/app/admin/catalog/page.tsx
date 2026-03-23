@@ -144,6 +144,11 @@ export default async function AdminCatalogPage({
       skip: (currentPage - 1) * PAGE_SIZE,
       include: {
         _count: { select: { variants: true, images: true } },
+        images: {
+          take: 1,
+          orderBy: { position: "asc" },
+          select: { url: true, altText: true },
+        },
         mainCategory: { select: { id: true, name: true, handle: true } },
         supplierRef: { select: { id: true, name: true } },
         categories: {
@@ -179,7 +184,13 @@ export default async function AdminCatalogPage({
     <div className="mx-auto max-w-screen-2xl px-2 py-2 text-slate-100">
       <AdminCatalogClient
         initialProducts={products.map((product) => {
-          const { variants, supplierRef, collections: productCollections, ...rest } = product;
+          const {
+            variants,
+            supplierRef,
+            collections: productCollections,
+            images,
+            ...rest
+          } = product;
           const availableInventory = variants.reduce((sum, variant) => {
             const inventory = variant.inventory;
             const onHand = inventory?.quantityOnHand ?? 0;
@@ -195,6 +206,8 @@ export default async function AdminCatalogPage({
             updatedAt: product.updatedAt.toISOString(),
             outOfStock: availableInventory <= 0,
             availableInventory,
+            imageUrl: images[0]?.url ?? null,
+            imageAlt: images[0]?.altText ?? product.title,
             supplierId: supplierRef?.id ?? null,
             supplierName: supplierRef?.name ?? null,
             categoryIds: product.categories.map((entry) => entry.categoryId),

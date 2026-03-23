@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowTopRightOnSquareIcon,
   DocumentDuplicateIcon,
@@ -85,12 +87,16 @@ export function CatalogToolbar({
   activeFilterLabels,
 }: ToolbarProps) {
   return (
-    <AdminPanel
-      eyebrow="Workspace"
-      title="Find products fast"
-      description="Use a quieter control rail for search, filters, and saved views without taking attention away from the product list."
-      className="sticky top-20 z-20 backdrop-blur"
-      actions={
+    <div className="space-y-4 rounded-[24px] border border-white/10 bg-[#0b1016] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Find products
+          </p>
+          <p className="mt-2 text-sm text-slate-300">
+            Search, filter, and save views without leaving the index.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <AdminButton type="button" tone="secondary" onClick={onResetView}>
             Reset view
@@ -99,8 +105,8 @@ export function CatalogToolbar({
             Taxonomy
           </AdminButton>
         </div>
-      }
-    >
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_repeat(4,minmax(0,1fr))]">
         <AdminField label="Search">
           <AdminInput
@@ -246,7 +252,7 @@ export function CatalogToolbar({
           </div>
         </div>
       </div>
-    </AdminPanel>
+    </div>
   );
 }
 
@@ -258,6 +264,7 @@ type TableProps = {
   selectedIds: string[];
   sortKey: SortKey;
   sortDirection: "asc" | "desc";
+  controls?: ReactNode;
   statusCounts: { active: number; draft: number; archived: number };
   inventoryCounts: { outOfStock: number; low: number; healthy: number };
   onToggleSelected: (id: string) => void;
@@ -279,6 +286,7 @@ export function CatalogTablePanel({
   selectedIds,
   sortKey,
   sortDirection,
+  controls,
   statusCounts,
   inventoryCounts,
   onToggleSelected,
@@ -308,6 +316,8 @@ export function CatalogTablePanel({
         </div>
       }
     >
+      {controls ? <div className="mb-5">{controls}</div> : null}
+
       <div className="mb-5 grid gap-3 xl:grid-cols-4">
         <MetricBar
           label="Active products"
@@ -394,33 +404,51 @@ export function CatalogTablePanel({
                   />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="min-w-[260px]">
-                    <Link
-                      href={`/admin/catalog/${product.id}`}
-                      className="inline-flex items-center gap-2 font-semibold text-slate-100 transition hover:text-cyan-200"
-                    >
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${getStatusDotTone(product.status)}`}
-                        aria-hidden="true"
-                      />
-                      {product.title}
-                    </Link>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <span>/{product.handle}</span>
-                      <span className="text-slate-700">•</span>
-                      <span>{product._count.variants} variants</span>
+                  <div className="flex min-w-[320px] items-start gap-4">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1016]">
+                      {product.imageUrl ? (
+                        <Image
+                          src={product.imageUrl}
+                          alt={product.imageAlt || product.title}
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                          No image
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                      {product.supplierName ? (
-                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
-                          {product.supplierName}
-                        </span>
-                      ) : null}
-                      {product.sellerName ? (
-                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
-                          Seller: {product.sellerName}
-                        </span>
-                      ) : null}
+
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/admin/catalog/${product.id}`}
+                        className="inline-flex items-center gap-2 font-semibold text-slate-100 transition hover:text-cyan-200"
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${getStatusDotTone(product.status)}`}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{product.title}</span>
+                      </Link>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>/{product.handle}</span>
+                        <span className="text-slate-700">•</span>
+                        <span>{product._count.variants} variants</span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                        {product.supplierName ? (
+                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
+                            {product.supplierName}
+                          </span>
+                        ) : null}
+                        {product.sellerName ? (
+                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
+                            Seller: {product.sellerName}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </td>

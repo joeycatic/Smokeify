@@ -2,6 +2,8 @@ export type ProductRow = {
   id: string;
   title: string;
   handle: string;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   createdAt?: string;
   updatedAt: string;

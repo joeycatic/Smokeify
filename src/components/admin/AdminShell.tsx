@@ -168,7 +168,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
             </div>
           </div>
 
-          <nav className="mt-6 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1">
+          <nav className="mt-6 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
                 <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">

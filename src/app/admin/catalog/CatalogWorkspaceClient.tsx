@@ -916,35 +916,6 @@ export default function CatalogWorkspaceClient({
 
       <CatalogErrorNotice error={error} />
 
-      <CatalogToolbar
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        supplierFilter={supplierFilter}
-        onSupplierFilterChange={setSupplierFilter}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
-        collectionFilter={collectionFilter}
-        onCollectionFilterChange={setCollectionFilter}
-        sortKey={sortKey}
-        sortDirection={sortDirection}
-        onSortKeyChange={handleSort}
-        onSortDirectionToggle={() =>
-          setSortDirection((previous) => (previous === "asc" ? "desc" : "asc"))
-        }
-        suppliers={suppliers}
-        categories={categories}
-        collections={collections}
-        presetName={presetName}
-        onPresetNameChange={setPresetName}
-        onSavePreset={saveCurrentViewPreset}
-        filterPresets={filterPresets}
-        onApplyPreset={applyFilterPreset}
-        onRemovePreset={removeFilterPreset}
-        onResetView={resetCatalogView}
-        onOpenCategoryDrawer={() => setManagementDrawer("category")}
-        activeFilterLabels={activeFilterLabels}
-      />
-
       <CatalogTablePanel
         products={products}
         totalCount={totalCount}
@@ -953,6 +924,36 @@ export default function CatalogWorkspaceClient({
         selectedIds={selectedIds}
         sortKey={sortKey}
         sortDirection={sortDirection}
+        controls={
+          <CatalogToolbar
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            supplierFilter={supplierFilter}
+            onSupplierFilterChange={setSupplierFilter}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
+            collectionFilter={collectionFilter}
+            onCollectionFilterChange={setCollectionFilter}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortKeyChange={handleSort}
+            onSortDirectionToggle={() =>
+              setSortDirection((previous) => (previous === "asc" ? "desc" : "asc"))
+            }
+            suppliers={suppliers}
+            categories={categories}
+            collections={collections}
+            presetName={presetName}
+            onPresetNameChange={setPresetName}
+            onSavePreset={saveCurrentViewPreset}
+            filterPresets={filterPresets}
+            onApplyPreset={applyFilterPreset}
+            onRemovePreset={removeFilterPreset}
+            onResetView={resetCatalogView}
+            onOpenCategoryDrawer={() => setManagementDrawer("category")}
+            activeFilterLabels={activeFilterLabels}
+          />
+        }
         statusCounts={statusCounts}
         inventoryCounts={inventoryCounts}
         onToggleSelected={(id) =>
