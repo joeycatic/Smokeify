@@ -8,7 +8,7 @@ import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useCart } from "@/components/CartProvider";
-import { canUseAnalytics } from "@/lib/analytics";
+import { canUseAnalytics, trackFirstPartyAnalyticsEvent } from "@/lib/analytics";
 
 type OrderItem = {
   id: string;
@@ -19,6 +19,8 @@ type OrderItem = {
   currency: string;
   imageUrl?: string | null;
   manufacturer?: string | null;
+  productId?: string | null;
+  variantId?: string | null;
   options?: Array<{ name: string; value: string }>;
 };
 
@@ -70,6 +72,19 @@ const formatOptions = (options?: Array<{ name: string; value: string }>) => {
     .join(" · ");
 };
 
+const PURCHASE_TRACK_STORAGE_PREFIX = "smokeify_purchase_tracked:";
+
+const buildAnalyticsItems = (order: OrderSummary) =>
+  order.items.map((item) => ({
+    product_id: item.productId ?? undefined,
+    item_id: item.variantId ?? item.id,
+    item_name: formatItemName(item),
+    item_brand: item.manufacturer ?? undefined,
+    item_variant: item.options ? formatOptions(item.options) : undefined,
+    price: item.unitAmount / 100,
+    quantity: item.quantity,
+  }));
+
 const pushDataLayerPurchase = (order: OrderSummary) => {
   if (typeof window === "undefined") return;
   if (!canUseAnalytics()) return;
@@ -87,14 +102,7 @@ const pushDataLayerPurchase = (order: OrderSummary) => {
       tax: order.amountTax / 100,
       shipping: order.amountShipping / 100,
       discount: order.amountDiscount > 0 ? order.amountDiscount / 100 : undefined,
-      items: order.items.map((item) => ({
-        item_id: item.id,
-        item_name: formatItemName(item),
-        item_brand: item.manufacturer ?? undefined,
-        item_variant: item.options ? formatOptions(item.options) : undefined,
-        price: item.unitAmount / 100,
-        quantity: item.quantity,
-      })),
+      items: buildAnalyticsItems(order),
     },
   });
 };
@@ -206,8 +214,27 @@ export default function OrderSuccessPage() {
     if (!order || purchaseTracked.current) return;
     if (loadStatus !== "ok") return;
     if (order.provisional) return;
+    if (!canUseAnalytics()) return;
+    if (typeof window !== "undefined") {
+      const storageKey = `${PURCHASE_TRACK_STORAGE_PREFIX}${order.id}`;
+      if (window.localStorage.getItem(storageKey) === "1") {
+        purchaseTracked.current = true;
+        return;
+      }
+      window.localStorage.setItem(storageKey, "1");
+    }
     purchaseTracked.current = true;
     pushDataLayerPurchase(order);
+    trackFirstPartyAnalyticsEvent("purchase", {
+      transaction_id: order.id,
+      order_id: order.id,
+      currency: order.currency,
+      value: order.amountTotal / 100,
+      tax: order.amountTax / 100,
+      shipping: order.amountShipping / 100,
+      discount: order.amountDiscount > 0 ? order.amountDiscount / 100 : undefined,
+      items: buildAnalyticsItems(order),
+    });
   }, [loadStatus, order]);
 
   return (

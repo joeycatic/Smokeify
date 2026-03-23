@@ -6,11 +6,15 @@ declare module "next-auth" {
     user: DefaultSession["user"] & {
       id: string;
       role: "USER" | "ADMIN" | "STAFF";
+      adminVerifiedAt?: number;
+      adminTotpEnabled?: boolean;
     };
   }
 
   interface User {
     role: "USER" | "ADMIN" | "STAFF";
+    adminVerifiedAt?: number;
+    adminTotpEnabled?: boolean;
   }
 }
 
@@ -19,6 +23,8 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: "USER" | "ADMIN" | "STAFF";
     authVersion?: number;
+    adminVerifiedAt?: number;
+    adminTotpEnabled?: boolean;
     invalidated?: boolean;
   }
 }

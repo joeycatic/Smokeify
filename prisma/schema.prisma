@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -17,6 +18,12 @@ enum VerificationPurpose {
   SIGNUP
   NEW_DEVICE
   PASSWORD_RESET
+}
+
+enum ReturnResolutionType {
+  REFUND
+  STORE_CREDIT
+  EXCHANGE
 }
 
 enum ProductStatus {
@@ -50,6 +57,22 @@ enum PlantHealthStatus {
   CRITICAL
 }
 
+enum ExpenseCategory {
+  INVENTORY
+  SHIPPING
+  MARKETING
+  SOFTWARE
+  OPERATIONS
+  TAXES
+  OTHER
+}
+
+enum ExpenseDocumentStatus {
+  MISSING
+  RECEIVED
+  VERIFIED
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -66,6 +89,9 @@ model User {
   image          String?
   passwordHash   String?
   authVersion    Int            @default(0)
+  adminTotpSecretEncrypted String?
+  adminTotpPendingSecretEncrypted String?
+  adminTotpEnabledAt DateTime?
   role           UserRole       @default(USER)
   customerGroup  CustomerGroup  @default(NORMAL)
   notes          String?
@@ -83,13 +109,17 @@ model User {
   backInStockRequests BackInStockRequest[]
   newsletterSubscriber NewsletterSubscriber?
   loyaltyPointsBalance Int      @default(0)
+  storeCreditBalance Int      @default(0)
   newsletterOfferClaimedAt DateTime?
   newsletterOfferClaimedEmail String?
   cartItems       UserCartItem[]
   loyaltyTransactions LoyaltyPointTransaction[]
+  storeCreditTransactions StoreCreditTransaction[]
   reviewIncentives ReviewIncentive[]
   plantAnalyses  PlantAnalysisRun[]
   plantAnalysisFeedback PlantAnalysisFeedback[]
+  analyticsSessions AnalyticsSession[]
+  analyticsEvents AnalyticsEvent[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -226,6 +256,34 @@ model Supplier {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   products    Product[]
+  expenses    Expense[]
+}
+
+model Expense {
+  id                 String                @id @default(cuid())
+  supplierId         String?
+  title              String
+  category           ExpenseCategory       @default(OTHER)
+  notes              String?
+  currency           String                @default("EUR")
+  grossAmount        Int
+  netAmount          Int
+  vatAmount          Int                   @default(0)
+  vatRateBasisPoints Int?
+  isDeductible       Boolean               @default(true)
+  documentDate       DateTime
+  paidAt             DateTime?
+  documentStatus     ExpenseDocumentStatus @default(RECEIVED)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId])
+  @@index([documentDate])
+  @@index([paidAt])
+  @@index([category, documentDate])
+  @@index([documentStatus, documentDate])
 }
 
 
@@ -453,6 +511,7 @@ model Order {
   returnRequests ReturnRequest[]
   inventoryAdjustments InventoryAdjustment[]
   loyaltyPointTransaction LoyaltyPointTransaction?
+  storeCreditTransactions StoreCreditTransaction[]
 
   @@index([status])
   @@index([createdAt])
@@ -511,17 +570,41 @@ model ReturnRequest {
   orderId     String
   userId      String
   status      ReturnStatus @default(PENDING)
+  requestedResolution ReturnResolutionType @default(REFUND)
+  exchangePreference String?
   reason      String
   adminNote   String?
+  storeCreditAmount Int    @default(0)
+  storeCreditIssuedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   items ReturnItem[]
+  storeCreditTransactions StoreCreditTransaction[]
 
   @@index([orderId])
   @@index([userId])
+}
+
+model StoreCreditTransaction {
+  id              String   @id @default(cuid())
+  userId          String
+  returnRequestId String?
+  orderId         String?
+  amountDelta     Int
+  reason          String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  returnRequest ReturnRequest? @relation(fields: [returnRequestId], references: [id], onDelete: SetNull)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([returnRequestId])
+  @@index([orderId])
 }
 
 model OrderItem {
@@ -617,6 +700,62 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+}
+
+model AnalyticsSession {
+  id            String   @id
+  userId        String?
+  firstPath     String?
+  lastPath      String?
+  firstPageType String?
+  lastPageType  String?
+  firstReferrer String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  deviceType    String?
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  events AnalyticsEvent[]
+
+  @@index([lastSeenAt])
+  @@index([userId, lastSeenAt])
+  @@index([utmSource, lastSeenAt])
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String?
+  eventName   String
+  pagePath    String?
+  pageType    String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  productId   String?
+  variantId   String?
+  orderId     String?
+  currency    String?
+  valueCents  Int?
+  quantity    Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventName, createdAt])
+  @@index([pageType, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([productId, eventName, createdAt])
+  @@index([variantId, eventName, createdAt])
+  @@index([orderId])
 }
 
 model ProductCrossSell {

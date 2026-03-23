@@ -108,6 +108,7 @@ const normalizeError = (error: unknown, fallback: string) => {
 const toItemPayload = (line: Cart["lines"][number], quantity: number) => {
   const unitPrice = Number(line.merchandise.price.amount);
   return {
+    product_id: line.merchandise.product.id,
     item_id: line.merchandise.id,
     item_name: line.merchandise.product.title,
     item_variant: line.merchandise.title,

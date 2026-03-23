@@ -99,6 +99,8 @@ export async function PATCH(
     description?: string | null;
     technicalDetails?: string | null;
     shortDescription?: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
     manufacturer?: string | null;
     productGroup?: string | null;
     supplierId?: string | null;
@@ -118,6 +120,7 @@ export async function PATCH(
     shippingClass?: string | null;
     tags?: string[];
     status?: string;
+    expectedUpdatedAt?: string | null;
   };
 
   const updates: {
@@ -126,6 +129,8 @@ export async function PATCH(
     description?: string | null;
     technicalDetails?: string | null;
     shortDescription?: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
     manufacturer?: string | null;
     productGroup?: string | null;
     supplier?: string | null;
@@ -147,6 +152,29 @@ export async function PATCH(
     tags?: string[];
     status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   } = {};
+
+  const existingProduct = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, updatedAt: true },
+  });
+
+  if (!existingProduct) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  if (
+    body.expectedUpdatedAt &&
+    existingProduct.updatedAt.toISOString() !== body.expectedUpdatedAt
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This product was updated by another admin. Reload the latest version before saving.",
+        currentUpdatedAt: existingProduct.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
+  }
 
   if (typeof body.title === "string") {
     const title = body.title.trim();
@@ -189,6 +217,14 @@ export async function PATCH(
 
   if (typeof body.shortDescription !== "undefined") {
     updates.shortDescription = sanitizePlainText(body.shortDescription);
+  }
+
+  if (typeof body.seoTitle !== "undefined") {
+    updates.seoTitle = sanitizePlainText(body.seoTitle);
+  }
+
+  if (typeof body.seoDescription !== "undefined") {
+    updates.seoDescription = sanitizePlainText(body.seoDescription);
   }
 
   if (typeof body.manufacturer !== "undefined") {

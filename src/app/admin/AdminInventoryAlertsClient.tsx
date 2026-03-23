@@ -13,6 +13,7 @@ type InventoryRow = {
   onHand: number;
   reserved: number;
   threshold: number;
+  coverDays?: number | null;
   updatedAt: string;
 };
 
@@ -83,72 +84,96 @@ export default function AdminInventoryAlertsClient({
   };
 
   return (
-    <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="admin-reveal space-y-5 rounded-[28px] border border-white/10 bg-[#090d12]/90 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: "#2f3e36" }}>
-            Inventory alerts
-          </h2>
-          <p className="text-sm text-stone-600">
-            Variants at or below their low-stock threshold.
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Inventory
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-white">Low-stock alerts</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Variants at or below threshold, with direct jump links into product editing.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-800">
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1">
-            {totalCount} low stock
-          </span>
-          <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
-            {outOfStockCount} out
-          </span>
+        <div className="grid min-w-[16rem] gap-2 sm:grid-cols-2">
+          <StatChip label="Low stock" value={String(totalCount)} tone="amber" />
+          <StatChip label="Out of stock" value={String(outOfStockCount)} tone="red" />
+          <StatChip label="Visible rows" value={String(variants.length)} tone="neutral" />
+          <StatChip label="Page size" value={String(pageSize)} tone="neutral" />
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search inventory..."
-          className="h-10 w-full max-w-xs rounded-md border border-black/15 bg-white px-3 text-sm outline-none focus:border-black/30"
-        />
-        <div className="text-xs text-stone-500">
-          Showing{" "}
-          <span className="font-semibold text-stone-700">{variants.length}</span>{" "}
-          of{" "}
-          <span className="font-semibold text-stone-700">{totalCount}</span>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex min-w-[16rem] flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" aria-hidden="true">
+            <path
+              d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search product or variant"
+            className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+          />
+        </label>
+        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-400">
+          Page {currentPage} / {totalPages}
         </div>
       </div>
+
       {variants.length === 0 ? (
-        <p className="mt-4 text-sm text-stone-500">
-          No low-stock variants found.
-        </p>
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-slate-500">
+          No low-stock variants for this query.
+        </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-amber-200/70 bg-white">
-          <div className="grid grid-cols-1 gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-800 sm:grid-cols-[2fr_1fr_1fr_1fr]">
+        <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
+          <div className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             <div>Variant</div>
             <div>Available</div>
             <div>Threshold</div>
+            <div>Cover</div>
             <div>Updated</div>
           </div>
-          <div className="divide-y divide-black/10">
+          <div className="divide-y divide-white/5">
             {variants.map((variant) => (
               <div
                 key={variant.id}
-                className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-stone-700 sm:grid-cols-[2fr_1fr_1fr_1fr]"
+                className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
               >
                 <div>
                   <Link
                     href={`/admin/catalog/${variant.productId}`}
-                    className="font-semibold text-stone-800 hover:text-stone-900"
+                    className="font-semibold text-slate-100 underline-offset-4 hover:text-cyan-300 hover:underline"
                   >
                     {variant.productTitle}
                   </Link>
-                  <div className="text-xs text-stone-500">{variant.title}</div>
+                  <div className="text-xs text-slate-500">{variant.title}</div>
                 </div>
-                <div className="font-semibold text-amber-800">
-                  {variant.available}
+                <div>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                      variant.available === 0
+                        ? "border-red-400/20 bg-red-400/10 text-red-200"
+                        : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                    }`}
+                  >
+                    {variant.available}
+                  </span>
                 </div>
-                <div>{variant.threshold}</div>
-                <div className="text-xs text-stone-500">
+                <div className="text-slate-400">{variant.threshold}</div>
+                <div className="text-slate-400">
+                  {typeof variant.coverDays === "number"
+                    ? `${Math.round(variant.coverDays)}d`
+                    : "No sales"}
+                </div>
+                <div className="text-slate-500">
                   {new Date(variant.updatedAt).toLocaleDateString("de-DE")}
                 </div>
               </div>
@@ -156,60 +181,84 @@ export default function AdminInventoryAlertsClient({
           </div>
         </div>
       )}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
         <div>
-          Page{" "}
-          <span className="font-semibold text-stone-700">{currentPage}</span> of{" "}
-          <span className="font-semibold text-stone-700">{totalPages}</span>
+          Showing <span className="font-semibold text-slate-100">{variants.length}</span> of{" "}
+          <span className="font-semibold text-slate-100">{totalCount}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Link
-            href={buildPageHref(Math.max(1, currentPage - 1))}
-            aria-disabled={currentPage <= 1}
-            scroll={false}
-            className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${
-              currentPage <= 1
-                ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-300"
-                : "border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-300 hover:bg-amber-100"
-            }`}
-            tabIndex={currentPage <= 1 ? -1 : 0}
-            onClick={(event) => {
-              if (currentPage <= 1) {
-                event.preventDefault();
-              }
-            }}
-          >
+        <div className="flex items-center gap-2">
+          <PagerLink href={buildPageHref(Math.max(1, currentPage - 1))} disabled={currentPage <= 1}>
             Prev
-          </Link>
-          <span className="flex h-9 min-w-[5rem] items-center justify-center gap-0.5 text-center text-stone-500">
-            <span>Page</span>
-            <span className="font-semibold text-stone-700">{currentPage}</span>
-            <span>of</span>
-            <span className="font-semibold text-stone-700">{totalPages}</span>
+          </PagerLink>
+          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2">
+            {currentPage} / {totalPages}
           </span>
-          <Link
+          <PagerLink
             href={buildPageHref(Math.min(totalPages, currentPage + 1))}
-            aria-disabled={currentPage >= totalPages}
-            scroll={false}
-            className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${
-              currentPage >= totalPages
-                ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-300"
-                : "border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-300 hover:bg-amber-100"
-            }`}
-            tabIndex={currentPage >= totalPages ? -1 : 0}
-            onClick={(event) => {
-              if (currentPage >= totalPages) {
-                event.preventDefault();
-              }
-            }}
+            disabled={currentPage >= totalPages}
           >
             Next
-          </Link>
+          </PagerLink>
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-stone-400">
-        Page size: {pageSize}
-      </p>
+    </section>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "amber" | "red" | "neutral";
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
+      : tone === "red"
+      ? "border-red-400/20 bg-red-400/10 text-red-200"
+      : "border-white/10 bg-white/[0.03] text-slate-200";
+
+  return (
+    <div className={`rounded-2xl border px-3 py-2 ${toneClass}`}>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
+  );
+}
+
+function PagerLink({
+  href,
+  disabled,
+  children,
+}: {
+  href: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-disabled={disabled}
+      scroll={false}
+      tabIndex={disabled ? -1 : 0}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault();
+        }
+      }}
+      className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 font-semibold transition ${
+        disabled
+          ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600"
+          : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+      }`}
+    >
+      {children}
+    </Link>
   );
 }

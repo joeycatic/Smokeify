@@ -9,6 +9,13 @@ export const LOGIN_RATE_LIMIT = {
   windowMs: 10 * 60 * 1000,
 } as const;
 
+export const ADMIN_LOGIN_RATE_LIMIT = {
+  identifierLimit: 4,
+  ipLimit: 5,
+  pairLimit: 3,
+  windowMs: 15 * 60 * 1000,
+} as const;
+
 type RateLimitResult = {
   allowed: boolean;
   remaining: number;

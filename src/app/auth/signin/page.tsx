@@ -14,6 +14,9 @@ const LOGIN_ERROR_MESSAGES: Record<string, string> = {
     "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
   CredentialsSignin: "Email oder Passwort ist falsch.",
   AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+  ADMIN_MFA_REQUIRED:
+    "Für diesen Login wird zusätzlich ein Admin-Sicherheitscode benötigt.",
+  INVALID_TOTP: "Der Sicherheitscode ist ungültig oder abgelaufen.",
   OAuthSignin: "Google Login konnte nicht gestartet werden.",
   OAuthCallback: "Google Login Rueckgabe ist fehlgeschlagen.",
   OAuthCreateAccount: "Google Konto konnte nicht angelegt werden.",
@@ -36,6 +39,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [errorHint, setErrorHint] = useState("");
   const [loginStatus, setLoginStatus] = useState<"idle" | "ok" | "error">(
     "idle"
   );
@@ -46,11 +50,16 @@ export default function SignInPage() {
 
   useEffect(() => {
     const paramsError = searchParams.get("error");
+    setErrorHint("");
     if (paramsError) {
       if (paramsError === "NEW_DEVICE") {
         setError("Neues Geraet erkannt. Code wurde per Email gesendet.");
+        setErrorHint("Prüfe dein Postfach und bestätige das neue Gerät.");
       } else {
         setError(getLoginErrorMessage(paramsError));
+        if (paramsError === "RATE_LIMIT") {
+          setErrorHint("Nach Ablauf des Sperrfensters kannst du es erneut versuchen.");
+        }
       }
     }
     const verified = searchParams.get("verified");
@@ -93,6 +102,7 @@ export default function SignInPage() {
                 event.preventDefault();
                 setError("");
                 setNotice("");
+                setErrorHint("");
                 setLoginStatus("idle");
                 setLoading(true);
                 let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
@@ -135,6 +145,9 @@ export default function SignInPage() {
                           setError(
                             "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen."
                           );
+                          setErrorHint(
+                            "Dein Login ist vorübergehend gesperrt, um Missbrauch zu verhindern."
+                          );
                           setLoginStatus("error");
                           return;
                         }
@@ -143,6 +156,13 @@ export default function SignInPage() {
                       // Ignore rate-limit status failures and fall back to generic error.
                     }
                     setError(getLoginErrorMessage(res.error));
+                    if (res.error === "EMAIL_NOT_VERIFIED") {
+                      setErrorHint("Nutze den Verifizierungslink aus der letzten E-Mail oder fordere einen neuen Code an.");
+                    } else if (res.error === "CredentialsSignin") {
+                      setErrorHint("Prüfe Email/Benutzername und Passwort und versuche es erneut.");
+                    } else if (res.error === "ADMIN_MFA_REQUIRED") {
+                      setErrorHint("Nutze den Admin-Login, falls du Zugang zum Adminbereich brauchst.");
+                    }
                     setLoginStatus("error");
                     return;
                   }
@@ -200,7 +220,12 @@ export default function SignInPage() {
                   Erfolgreich angemeldet.
                 </p>
               )}
-              {error && <p className="text-xs text-red-600">{error}</p>}
+              {error && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <p>{error}</p>
+                  {errorHint ? <p className="mt-1 text-red-600/90">{errorHint}</p> : null}
+                </div>
+              )}
               <button
                 type="button"
                 disabled={oauthLoading || loading}

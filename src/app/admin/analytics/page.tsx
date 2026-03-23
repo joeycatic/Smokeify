@@ -1,19 +1,13 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import PageLayout from "@/components/PageLayout";
+import { requireAdmin } from "@/lib/adminCatalog";
 import AdminAnalyticsClient from "./AdminAnalyticsClient";
 
 export default async function AdminAnalyticsPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  if (!(await requireAdmin())) notFound();
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminAnalyticsClient />
-      </div>
-    </PageLayout>
+    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
+      <AdminAnalyticsClient />
+    </div>
   );
 }

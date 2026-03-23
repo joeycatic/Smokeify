@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { hasAdminAccess } from "@/lib/adminAccess";
 
 const MAINTENANCE_FLAG = "1";
+
+function buildAdminLoginUrl(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  url.pathname = "/auth/admin";
+  url.search = `returnTo=${encodeURIComponent(returnTo)}`;
+  return url;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const maintenanceActive = process.env.MAINTENANCE_MODE === MAINTENANCE_FLAG;
+  const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isAdminApi = pathname.startsWith("/api/admin");
+  const isAdminAuthPage = pathname === "/auth/admin";
   const allowlist = [
     "/admin",
     "/api",
@@ -18,19 +30,51 @@ export async function middleware(request: NextRequest) {
   ];
   const isStaticAsset = /\.[a-zA-Z0-9]+$/.test(pathname);
 
-  if (pathname.startsWith("/maintenance")) {
+  if (isAdminPage || isAdminApi || isAdminAuthPage || pathname.startsWith("/maintenance")) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
     const role = token?.role as string | undefined;
-    const isAdmin = role === "ADMIN";
-    if (!isAdmin) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return NextResponse.redirect(url);
+    const hasVerifiedAdminAccess = hasAdminAccess({
+      role,
+      adminVerifiedAt: token?.adminVerifiedAt,
+      invalidated: token?.invalidated,
+    });
+
+    if (isAdminAuthPage) {
+      if (hasVerifiedAdminAccess) {
+        const requestedTarget = request.nextUrl.searchParams.get("returnTo");
+        const target =
+          requestedTarget && requestedTarget.startsWith("/") ? requestedTarget : "/admin";
+        return NextResponse.redirect(new URL(target, request.url));
+      }
+      return NextResponse.next();
     }
-    return NextResponse.next();
+
+    if (isAdminPage) {
+      if (!hasVerifiedAdminAccess) {
+        return NextResponse.redirect(buildAdminLoginUrl(request));
+      }
+      return NextResponse.next();
+    }
+
+    if (isAdminApi) {
+      if (!hasVerifiedAdminAccess) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.next();
+    }
+
+    if (pathname.startsWith("/maintenance")) {
+      const isAdmin = role === "ADMIN";
+      if (!isAdmin) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        return NextResponse.redirect(url);
+      }
+      return NextResponse.next();
+    }
   }
 
   if (!maintenanceActive) {

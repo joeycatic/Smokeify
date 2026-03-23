@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import { buildFinanceRollup, buildOrderFinanceBreakdown, buildVatSummary } from "@/lib/adminFinance";
+import {
+  type AdminChartPoint,
+  DonutChart,
+  HorizontalBarsChart,
+  MultiSeriesTrendChart,
+  SparklineChart,
+} from "@/components/admin/AdminCharts";
 
 type OrderItem = {
   id: string;
@@ -14,6 +22,11 @@ type OrderItem = {
   quantity: number;
   unitAmount: number;
   totalAmount: number;
+  baseCostAmount: number;
+  paymentFeeAmount: number;
+  adjustedCostAmount: number;
+  taxAmount: number;
+  taxRateBasisPoints?: number | null;
   currency: string;
   imageUrl?: string | null;
   options?: Array<{ name: string; value: string }>;
@@ -25,6 +38,7 @@ type OrderRow = {
   updatedAt: string;
   status: string;
   paymentStatus: string;
+  paymentMethod: string | null;
   currency: string;
   amountSubtotal: number;
   amountTax: number;
@@ -73,7 +87,28 @@ const formatPrice = (amount: number, currency: string) =>
 
 const normalizeStatus = (value: string) => value.trim().toLowerCase();
 const NON_RELEVANT_ORDER_STATUSES = new Set(["fulfilled", "refunded"]);
+const PAID_PAYMENT_STATUSES = new Set([
+  "paid",
+  "succeeded",
+  "refunded",
+  "partially_refunded",
+]);
+const CLOSED_ORDER_STATUSES = new Set(["fulfilled", "refunded", "canceled", "cancelled", "failed"]);
 const getOrderEmail = (order: OrderRow) => order.user?.email ?? order.customerEmail;
+const formatDayLabel = (value: Date) =>
+  new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(value);
+const formatDelta = (current: number, previous: number) => {
+  if (previous <= 0) {
+    if (current <= 0) return "0% vs prev 7d";
+    return "+100% vs prev 7d";
+  }
+  const delta = ((current - previous) / previous) * 100;
+  const rounded = Math.round(delta * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}% vs prev 7d`;
+};
 const formatOrderItemName = (name: string, manufacturer?: string | null) => {
   const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
   if (!defaultSuffix.test(name)) return name;
@@ -124,6 +159,39 @@ const buildTimeline = (order: OrderRow) =>
     at: string;
   }>;
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const calculateSelectedRefundAmount = (
+  order: OrderRow,
+  selection: Record<string, number> | undefined
+) =>
+  order.items.reduce((sum, item) => {
+    const selectedQty = selection?.[item.id] ?? 0;
+    if (selectedQty <= 0) return sum;
+    const unitAmount = item.quantity > 0 ? item.totalAmount / item.quantity : 0;
+    return sum + Math.round(unitAmount * clamp(selectedQty, 0, item.quantity));
+  }, 0);
+
+const getRefundPreviewAmount = (
+  order: OrderRow,
+  mode: "full" | "items",
+  selection: Record<string, number> | undefined,
+  includeShipping: boolean
+) => {
+  const remainingOrderAmount = Math.max(order.amountTotal - order.amountRefunded, 0);
+  if (mode === "full") {
+    const fullAmount = includeShipping
+      ? order.amountTotal
+      : Math.max(order.amountTotal - order.amountShipping, 0);
+    return clamp(fullAmount - order.amountRefunded, 0, remainingOrderAmount);
+  }
+
+  const selectedAmount = calculateSelectedRefundAmount(order, selection);
+  const withShipping = selectedAmount + (includeShipping ? order.amountShipping : 0);
+  return clamp(withShipping, 0, remainingOrderAmount);
+};
+
 const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(status);
   const normalizedPayment = normalizeStatus(paymentStatus);
@@ -131,7 +199,8 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   if (normalizedStatus === "fulfilled") {
     return {
       label: "Fulfillment: fulfilled",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      className:
+        "orders-status-chip orders-status-chip-fulfillment border-emerald-200 bg-emerald-50 text-emerald-800",
     };
   }
   if (
@@ -139,22 +208,53 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   ) {
     return {
       label: "Fulfillment: closed",
-      className: "border-stone-200 bg-stone-100 text-stone-700",
+      className:
+        "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700",
     };
   }
   if (normalizedPayment === "paid" || normalizedPayment === "succeeded") {
     return {
       label: "Fulfillment: ready",
-      className: "border-sky-200 bg-sky-50 text-sky-800",
+      className:
+        "orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800",
     };
   }
   return {
     label: "Fulfillment: not ready",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
+    className:
+      "orders-status-chip orders-status-chip-warning border-amber-200 bg-amber-50 text-amber-800",
   };
 };
 
-export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
+const ORDER_BADGE_BASE =
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-medium leading-none whitespace-nowrap";
+
+const getOrderStatusBadgeClass = (status: string) => {
+  const normalizedStatus = normalizeStatus(status);
+  if (normalizedStatus === "fulfilled") {
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-success border-emerald-200 bg-emerald-50 text-emerald-800`;
+  }
+  if (["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)) {
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700`;
+  }
+  return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`;
+};
+
+const getPaymentBadgeClass = (paymentStatus: string) => {
+  const normalizedPayment = normalizeStatus(paymentStatus);
+  if (PAID_PAYMENT_STATUSES.has(normalizedPayment)) {
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-paid border-amber-200 bg-amber-50 text-amber-800`;
+  }
+  if (["failed", "canceled", "cancelled"].includes(normalizedPayment)) {
+    return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-danger border-rose-200 bg-rose-50 text-rose-700`;
+  }
+  return `${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700`;
+};
+
+export default function AdminOrdersClient({
+  orders,
+  webhookFailures,
+}: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
@@ -209,6 +309,9 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [reprocessingEventId, setReprocessingEventId] = useState<string | null>(
     null
   );
+  const [orderUpdatedAtById, setOrderUpdatedAtById] = useState<
+    Record<string, string>
+  >(() => Object.fromEntries(orders.map((order) => [order.id, order.updatedAt])));
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
@@ -245,17 +348,6 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       currency: firstMatch?.currency ?? "EUR",
     };
   }, [visibleOrders, normalizedQuery]);
-  const fulfilledCount = useMemo(
-    () =>
-      filteredOrders.reduce((count, order) => {
-        const normalizedStatus = normalizeStatus(order.status);
-        return normalizedStatus === "fulfilled" ||
-          normalizedStatus === "refunded"
-          ? count + 1
-          : count;
-      }, 0),
-    [filteredOrders]
-  );
   const relevantOrders = useMemo(
     () =>
       sorted.filter(
@@ -274,6 +366,244 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     () => [...relevantOrders, ...archivedOrders],
     [relevantOrders, archivedOrders]
   );
+  const paidCount = useMemo(
+    () =>
+      filteredOrders.reduce((count, order) => {
+        const payment = normalizeStatus(order.paymentStatus);
+        return payment === "paid" || payment === "succeeded" ? count + 1 : count;
+      }, 0),
+    [filteredOrders]
+  );
+  const refundingCount = useMemo(
+    () => filteredOrders.filter((order) => order.amountRefunded > 0).length,
+    [filteredOrders]
+  );
+  const openActionCount = useMemo(
+    () =>
+      filteredOrders.filter((order) => {
+        const status = normalizeStatus(order.status);
+        return status !== "fulfilled" && status !== "refunded";
+      }).length,
+    [filteredOrders]
+  );
+  const statusMix = useMemo(
+    () => [
+      {
+        label: "Open",
+        value: openActionCount,
+        colorClassName: "#22d3ee",
+      },
+      {
+        label: "Paid",
+        value: paidCount,
+        colorClassName: "#818cf8",
+      },
+      {
+        label: "Refunded",
+        value: refundingCount,
+        colorClassName: "#f59e0b",
+      },
+      {
+        label: "Archived",
+        value: archivedOrders.length,
+        colorClassName: "#475569",
+      },
+    ],
+    [archivedOrders.length, openActionCount, paidCount, refundingCount]
+  );
+  const dashboardCurrency = sorted[0]?.currency ?? "EUR";
+  const paidRevenueCents = useMemo(
+    () =>
+      filteredOrders.reduce((sum, order) => {
+        const payment = normalizeStatus(order.paymentStatus);
+        return PAID_PAYMENT_STATUSES.has(payment) ? sum + order.amountTotal : sum;
+      }, 0),
+    [filteredOrders]
+  );
+  const averageOrderValueCents = useMemo(
+    () => (paidCount > 0 ? Math.round(paidRevenueCents / paidCount) : 0),
+    [paidCount, paidRevenueCents]
+  );
+  const financeSummary = useMemo(
+    () =>
+      buildFinanceRollup(
+        filteredOrders.map((order) => ({
+          ...order,
+          createdAt: new Date(order.createdAt),
+        })),
+        dashboardCurrency,
+      ),
+    [dashboardCurrency, filteredOrders],
+  );
+  const vatSummary = useMemo(
+    () =>
+      buildVatSummary(
+        filteredOrders.map((order) => ({
+          ...order,
+          createdAt: new Date(order.createdAt),
+        })),
+      ),
+    [filteredOrders],
+  );
+  const readyToFulfillCount = useMemo(
+    () =>
+      filteredOrders.filter((order) => {
+        const payment = normalizeStatus(order.paymentStatus);
+        const status = normalizeStatus(order.status);
+        return PAID_PAYMENT_STATUSES.has(payment) && !CLOSED_ORDER_STATUSES.has(status);
+      }).length,
+    [filteredOrders]
+  );
+  const trackingMissingCount = useMemo(
+    () =>
+      filteredOrders.filter((order) => {
+        const status = normalizeStatus(order.status);
+        return (
+          (status === "fulfilled" || status === "shipped") &&
+          !order.trackingNumber?.trim()
+        );
+      }).length,
+    [filteredOrders]
+  );
+  const confirmationPendingCount = useMemo(
+    () =>
+      filteredOrders.filter(
+        (order) =>
+          !(
+            confirmationEmailSent[order.id] || Boolean(order.confirmationEmailSentAt)
+          )
+      ).length,
+    [confirmationEmailSent, filteredOrders]
+  );
+  const shippingPendingCount = useMemo(
+    () =>
+      filteredOrders.filter((order) => {
+        const status = normalizeStatus(order.status);
+        return (
+          (status === "fulfilled" || status === "shipped") &&
+          !(shippingEmailSent[order.id] || Boolean(order.shippingEmailSentAt))
+        );
+      }).length,
+    [filteredOrders, shippingEmailSent]
+  );
+  const paymentMethodBars = useMemo<AdminChartPoint[]>(() => {
+    const byMethod = new Map<string, number>();
+    for (const order of filteredOrders) {
+      const label = order.paymentMethod?.trim() || "unknown";
+      byMethod.set(label, (byMethod.get(label) ?? 0) + 1);
+    }
+    return Array.from(byMethod.entries())
+      .map(([label, count]) => ({ label, value: count }))
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 6);
+  }, [filteredOrders]);
+  const queueBars = useMemo<AdminChartPoint[]>(
+    () => [
+      { label: "Open actions", value: openActionCount, secondaryValue: readyToFulfillCount },
+      { label: "Tracking missing", value: trackingMissingCount },
+      { label: "Confirmation pending", value: confirmationPendingCount },
+      { label: "Shipping pending", value: shippingPendingCount },
+      { label: "Webhook failures", value: webhookFailureRows.length },
+    ],
+    [
+      confirmationPendingCount,
+      openActionCount,
+      readyToFulfillCount,
+      shippingPendingCount,
+      trackingMissingCount,
+      webhookFailureRows.length,
+    ]
+  );
+  const orderTrend = useMemo(() => {
+    const days = 14;
+    const start = new Date();
+    start.setDate(start.getDate() - (days - 1));
+    start.setHours(0, 0, 0, 0);
+    const buckets = Array.from({ length: days }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return {
+        key: date.toISOString().slice(0, 10),
+        label: formatDayLabel(date),
+        created: 0,
+        paid: 0,
+        fulfilled: 0,
+        revenueCents: 0,
+      };
+    });
+    const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+    for (const order of filteredOrders) {
+      const key = new Date(order.createdAt).toISOString().slice(0, 10);
+      const bucket = bucketMap.get(key);
+      if (!bucket) continue;
+      bucket.created += 1;
+      if (PAID_PAYMENT_STATUSES.has(normalizeStatus(order.paymentStatus))) {
+        bucket.paid += 1;
+        bucket.revenueCents += order.amountTotal;
+      }
+      if (normalizeStatus(order.status) === "fulfilled") {
+        bucket.fulfilled += 1;
+      }
+    }
+    return buckets;
+  }, [filteredOrders]);
+  const trendLabels = useMemo(() => orderTrend.map((point) => point.label), [orderTrend]);
+  const trendSeries = useMemo(
+    () => [
+      { label: "Created", color: "#38bdf8", values: orderTrend.map((point) => point.created) },
+      { label: "Paid", color: "#818cf8", values: orderTrend.map((point) => point.paid) },
+      { label: "Fulfilled", color: "#34d399", values: orderTrend.map((point) => point.fulfilled) },
+    ],
+    [orderTrend]
+  );
+  const revenueTrend = useMemo<AdminChartPoint[]>(
+    () =>
+      orderTrend.map((point) => ({
+        label: point.label,
+        value: point.revenueCents,
+      })),
+    [orderTrend]
+  );
+  const periodComparison = useMemo(() => {
+    const recent = orderTrend.slice(-7);
+    const previous = orderTrend.slice(0, Math.max(orderTrend.length - 7, 0));
+    const recentOrders = recent.reduce((sum, point) => sum + point.created, 0);
+    const previousOrders = previous.reduce((sum, point) => sum + point.created, 0);
+    const recentRevenue = recent.reduce((sum, point) => sum + point.revenueCents, 0);
+    const previousRevenue = previous.reduce((sum, point) => sum + point.revenueCents, 0);
+    const recentPaid = recent.reduce((sum, point) => sum + point.paid, 0);
+    const previousPaid = previous.reduce((sum, point) => sum + point.paid, 0);
+
+    return {
+      recentOrders,
+      previousOrders,
+      recentRevenue,
+      previousRevenue,
+      recentPaid,
+      previousPaid,
+      orderDeltaLabel: formatDelta(recentOrders, previousOrders),
+      revenueDeltaLabel: formatDelta(recentRevenue, previousRevenue),
+      paidDeltaLabel: formatDelta(recentPaid, previousPaid),
+    };
+  }, [orderTrend]);
+  const refundPreview = useMemo(() => {
+    if (!confirmRefund) return null;
+    const order = visibleOrders.find((entry) => entry.id === confirmRefund.orderId);
+    if (!order) return null;
+    return {
+      order,
+      amount: getRefundPreviewAmount(
+        order,
+        confirmRefund.mode,
+        refundSelection[order.id],
+        refundIncludeShipping
+      ),
+      selectedItems:
+        confirmRefund.mode === "items"
+          ? Object.values(refundSelection[order.id] ?? {}).filter((qty) => qty > 0).length
+          : order.items.length,
+    };
+  }, [confirmRefund, refundIncludeShipping, refundSelection, visibleOrders]);
 
   const isConfirmationEmailSent = (order: OrderRow) =>
     confirmationEmailSent[order.id] || Boolean(order.confirmationEmailSentAt);
@@ -299,11 +629,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           trackingCarrier: tracking?.carrier || undefined,
           trackingNumber: tracking?.number || undefined,
           trackingUrl: tracking?.url || undefined,
+          expectedUpdatedAt: orderUpdatedAtById[orderId],
         }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
+      } else {
+        const data = (await res.json()) as { order?: { updatedAt?: string } };
+        if (data.order?.updatedAt) {
+          setOrderUpdatedAtById((prev) => ({
+            ...prev,
+            [orderId]: data.order?.updatedAt ?? prev[orderId],
+          }));
+        }
       }
     } catch {
       setError("Update failed");
@@ -326,12 +665,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           trackingCarrier: tracking.carrier || undefined,
           trackingNumber: tracking.number || undefined,
           trackingUrl: tracking.url || undefined,
+          expectedUpdatedAt: orderUpdatedAtById[orderId],
         }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
         return false;
+      }
+      const data = (await res.json()) as { order?: { updatedAt?: string } };
+      if (data.order?.updatedAt) {
+        setOrderUpdatedAtById((prev) => ({
+          ...prev,
+          [orderId]: data.order?.updatedAt ?? prev[orderId],
+        }));
       }
       return true;
     } catch {
@@ -555,47 +902,241 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / ORDERS
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">Orders</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {sorted.length} orders
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {fulfilledCount} fulfilled
-              </span>
+    <div className="admin-legacy-page space-y-6">
+      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#060b14] text-white shadow-[0_30px_80px_rgba(5,10,20,0.45)]">
+        <div className="relative border-b border-white/10 px-6 py-6 lg:px-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.24),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
+          <div className="relative flex flex-wrap items-start justify-between gap-6">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold tracking-[0.34em] text-cyan-200/65">
+                ADMIN / ORDERS
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-4">
+                <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
+                  Orders command center
+                </h1>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+                  Live ops view
+                </span>
+              </div>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                Monitor inflow, payment quality, fulfillment pressure, refund exposure
+                and VAT impact in one place. Existing actions stay intact, but the top
+                layer now reads like an operations console instead of a plain order list.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
+                  {sorted.length} visible orders
+                </span>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-200">
+                  {formatPrice(financeSummary.netRevenueCents, dashboardCurrency)} net revenue
+                </span>
+                <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 font-semibold text-violet-200">
+                  {formatPrice(financeSummary.contributionMarginCents, dashboardCurrency)} contribution
+                </span>
+                <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 font-semibold text-amber-200">
+                  {formatPrice(vatSummary.estimatedLiabilityCents, dashboardCurrency)} VAT liability
+                </span>
+              </div>
+            </div>
+            <div className="relative flex w-full max-w-md flex-col gap-3">
+              <div className="flex justify-end">
+                <AdminThemeToggle />
+              </div>
+              <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-inner shadow-black/30">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  Search scope
+                </div>
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search by email or order ID"
+                  className="mt-3 h-11 w-full rounded-xl border border-white/10 bg-[#050912] px-4 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300/60"
+                />
+              </label>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                      Revenue pulse
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {formatPrice(paidRevenueCents, dashboardCurrency)}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-emerald-300">
+                      {periodComparison.revenueDeltaLabel}
+                    </div>
+                  </div>
+                  <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+                    paid revenue
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <SparklineChart
+                    data={revenueTrend}
+                    className="border-none bg-transparent p-0"
+                    strokeClassName="stroke-emerald-300"
+                    fillClassName="fill-emerald-400/10"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by email or order ID"
-              className="h-10 w-64 rounded-md border border-white/20 bg-white/10 px-3 text-xs text-white placeholder:text-white/70 outline-none focus:border-white/60"
+        </div>
+
+        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-2 lg:px-8">
+          <div className="grid auto-rows-fr gap-4 md:grid-cols-2">
+            <SummaryCard
+              label="Visible orders"
+              value={String(sorted.length)}
+              detail="Current query scope"
+              change={periodComparison.orderDeltaLabel}
+              footnote={`${relevantOrders.length} active queue`}
             />
+            <SummaryCard
+              label="Net revenue"
+              value={formatPrice(financeSummary.netRevenueCents, dashboardCurrency)}
+              detail={`${financeSummary.paidOrderCount} paid orders`}
+              change={periodComparison.revenueDeltaLabel}
+              tone="emerald"
+              footnote={`${formatPrice(averageOrderValueCents, dashboardCurrency)} avg basket`}
+            />
+            <SummaryCard
+              label="Contribution margin"
+              value={formatPrice(financeSummary.contributionMarginCents, dashboardCurrency)}
+              detail={`${Math.round(financeSummary.contributionMarginRatio * 100)}% net margin`}
+              change={formatPrice(financeSummary.paymentFeesCents, dashboardCurrency)}
+              tone="violet"
+              footnote={`${formatPrice(financeSummary.cogsCents, dashboardCurrency)} COGS tracked`}
+            />
+            <SummaryCard
+              label="VAT liability"
+              value={formatPrice(vatSummary.estimatedLiabilityCents, dashboardCurrency)}
+              detail={`${Math.round(vatSummary.taxCoverageRate * 100)}% sales tax coverage`}
+              change={vatSummary.status === "ready_for_handover" ? "Ready" : "Estimated"}
+              tone="amber"
+              footnote={`${vatSummary.ordersMissingTaxCount} orders missing VAT`}
+            />
+            <SummaryCard
+              label="Action queue"
+              value={String(openActionCount)}
+              detail={`${trackingMissingCount} tracking gaps`}
+              change={`${confirmationPendingCount} emails pending`}
+              tone="amber"
+              footnote={`${readyToFulfillCount} ready to fulfill`}
+            />
+          </div>
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 h-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-300/75">
+                  Status mix
+                </p>
+                <h2 className="mt-2 text-sm font-semibold text-white">
+                  Query distribution
+                </h2>
+              </div>
+              <div className="h-1 w-12 rounded-full bg-emerald-300/70" />
+            </div>
+            <div className="mt-4">
+              <DonutChart
+                data={statusMix}
+                totalLabel="Orders"
+                totalValue={String(sorted.length)}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-[24px] border border-black/10 bg-gradient-to-br from-[#07111d] via-[#0b1627] to-[#101b2d] p-5 text-white shadow-[0_24px_60px_rgba(10,16,30,0.2)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/70">
+                Throughput trend
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-white">
+                Orders, paid and fulfilled over the last 14 days
+              </h2>
+              <p className="mt-2 text-sm text-slate-300">
+                See whether intake is outrunning payments or fulfillment and catch queue buildup early.
+              </p>
+            </div>
+            <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+              {periodComparison.orderDeltaLabel}
+            </div>
+          </div>
+          <div className="mt-5">
+            <MultiSeriesTrendChart
+              labels={trendLabels}
+              series={trendSeries}
+              className="border-none bg-transparent p-0"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-stone-500">
+                  Queue pressure
+                </p>
+                <h2 className="mt-2 text-base font-semibold text-stone-900">
+                  Fulfillment and communication backlog
+                </h2>
+              </div>
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">
+                {openActionCount} open
+              </span>
+            </div>
+            <div className="mt-4">
+              <HorizontalBarsChart
+                data={queueBars}
+                colorClassName="bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-400"
+                valueFormatter={(value) => String(value)}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-stone-500">
+                  Payment mix
+                </p>
+                <h2 className="mt-2 text-base font-semibold text-stone-900">
+                  Method usage inside current query
+                </h2>
+              </div>
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">
+                {periodComparison.paidDeltaLabel}
+              </span>
+            </div>
+            <div className="mt-4">
+              <HorizontalBarsChart
+                data={paymentMethodBars}
+                colorClassName="bg-gradient-to-r from-violet-400 via-indigo-400 to-fuchsia-400"
+                valueFormatter={(value) => `${value} orders`}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {customerSummary && (
-        <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 text-sm text-sky-900 shadow-sm">
+        <div className="rounded-[22px] border border-sky-200/80 bg-gradient-to-r from-sky-50 via-cyan-50 to-white p-4 text-sm text-sky-900 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-700/70">
                 Customer snapshot
               </div>
-              <div className="mt-2 text-sm font-semibold">
+              <div className="mt-2 text-base font-semibold">
                 {customerSummary.email}
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
               <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-sky-700">
                 {customerSummary.orders} orders
               </span>
@@ -607,23 +1148,23 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
           {error}
         </div>
       )}
       {notice && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
           {notice}
         </div>
       )}
       {webhookFailureRows.length > 0 && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-800 shadow-sm">
+        <div className="rounded-[24px] border border-rose-200 bg-gradient-to-r from-rose-50 via-white to-rose-50 p-5 text-sm text-rose-800 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-700/70">
                 Stripe webhook failures
               </div>
-              <div className="mt-2 text-sm font-semibold">
+              <div className="mt-2 text-base font-semibold">
                 {webhookFailureRows.length} failed event
                 {webhookFailureRows.length === 1 ? "" : "s"}
               </div>
@@ -632,11 +1173,11 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               Replays are safe; Stripe will retry automatically.
             </div>
           </div>
-          <div className="mt-3 space-y-2 text-xs text-rose-800">
+          <div className="mt-4 space-y-2 text-xs text-rose-800">
             {webhookFailureRows.map((event) => (
               <div
                 key={event.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-white/70 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-200 bg-white/80 px-4 py-3"
               >
                 <div className="font-semibold">{event.type}</div>
                 <div className="text-rose-700">{event.eventId}</div>
@@ -674,7 +1215,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                       setReprocessingEventId(null);
                     }
                   }}
-                  className="h-8 rounded-md border border-rose-300 bg-rose-100 px-3 text-[11px] font-semibold text-rose-800 hover:bg-rose-200 disabled:opacity-60"
+                  className="h-9 rounded-xl border border-rose-300 bg-rose-100 px-3 text-[11px] font-semibold text-rose-800 hover:bg-rose-200 disabled:opacity-60"
                 >
                   {reprocessingEventId === event.eventId
                     ? "Reprocessing..."
@@ -687,32 +1228,50 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
       )}
 
       <div className="space-y-4">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           <button
             type="button"
             onClick={() => setShowRelevantOrders((prev) => !prev)}
-            className="flex w-full items-center justify-between text-left"
+            className="orders-queue-card orders-queue-card-active rounded-[22px] border border-cyan-200/80 bg-gradient-to-r from-cyan-50 via-white to-emerald-50 p-4 text-left shadow-sm transition hover:border-cyan-300"
           >
-            <span className="text-sm font-semibold text-emerald-900">
-              Non-fulfilled ({relevantOrders.length})
-            </span>
-            <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-800">
-              {showRelevantOrders ? "Collapse" : "Expand"}
-            </span>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-700/70">
+                  Action queue
+                </div>
+                <div className="mt-2 text-lg font-semibold text-stone-900">
+                  Non-fulfilled ({relevantOrders.length})
+                </div>
+                <div className="mt-1 text-sm text-stone-600">
+                  Ready to ship, awaiting updates or still in payment resolution.
+                </div>
+              </div>
+              <span className="orders-queue-pill rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-800">
+                {showRelevantOrders ? "Collapse" : "Expand"}
+              </span>
+            </div>
           </button>
-        </div>
-        <div className="rounded-xl border border-stone-300 bg-stone-100/80 p-3">
           <button
             type="button"
             onClick={() => setShowArchivedOrders((prev) => !prev)}
-            className="flex w-full items-center justify-between text-left"
+            className="orders-queue-card orders-queue-card-archived rounded-[22px] border border-stone-200 bg-gradient-to-r from-stone-100 via-white to-stone-50 p-4 text-left shadow-sm transition hover:border-stone-300"
           >
-            <span className="text-sm font-semibold text-stone-800">
-              Fulfilled / Refunded ({archivedOrders.length})
-            </span>
-            <span className="rounded-full border border-stone-400 bg-white px-2 py-0.5 text-xs font-semibold text-stone-700">
-              {showArchivedOrders ? "Collapse" : "Expand"}
-            </span>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+                  Archive stream
+                </div>
+                <div className="mt-2 text-lg font-semibold text-stone-900">
+                  Fulfilled / Refunded ({archivedOrders.length})
+                </div>
+                <div className="mt-1 text-sm text-stone-600">
+                  Closed orders that remain searchable without crowding the active queue.
+                </div>
+              </div>
+              <span className="orders-queue-pill orders-queue-pill-muted rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700">
+                {showArchivedOrders ? "Collapse" : "Expand"}
+              </span>
+            </div>
           </button>
         </div>
         {categorizedOrders.map((order) => {
@@ -737,22 +1296,26 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             order.paymentStatus
           );
           const shippingLines = buildShippingLines(order);
+          const finance = buildOrderFinanceBreakdown({
+            ...order,
+            createdAt: new Date(order.createdAt),
+          });
 
           return (
             <div
               key={order.id}
-              className={`rounded-2xl border p-5 shadow-sm ${
+              className={`orders-order-surface rounded-[24px] border p-5 shadow-sm transition ${
                 isArchived
-                  ? "border-stone-300 bg-stone-100/90 text-stone-500 ring-1 ring-inset ring-stone-300/70"
-                  : "border-black/10 bg-white"
+                  ? "orders-order-surface-archived border-stone-300 bg-gradient-to-br from-stone-100 via-white to-stone-100/80 text-stone-500 ring-1 ring-inset ring-stone-300/70"
+                  : "border-black/10 bg-gradient-to-br from-white via-white to-cyan-50/40"
               }`}
             >
               {isArchived && (
-                <div className="mb-3 flex items-center justify-between rounded-lg border border-stone-300 bg-stone-200/80 px-3 py-2">
+                <div className="orders-archive-banner mb-4 flex items-center justify-between rounded-2xl border border-stone-300 bg-stone-200/80 px-4 py-3">
                   <span className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-700">
                     {archivedLabel}
                   </span>
-                  <span className="rounded-full border border-stone-400 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">
+                  <span className="orders-archive-badge rounded-full border border-stone-400 bg-stone-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-700">
                     Archived
                   </span>
                 </div>
@@ -760,43 +1323,95 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}
-                className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
+                className="grid w-full gap-5 text-left xl:grid-cols-[minmax(0,1fr)_220px]"
               >
-                <div>
-                  <div className="text-sm font-semibold text-stone-900">
-                    Order {order.id.slice(0, 8).toUpperCase()}
+                <div className="min-w-0 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
+                      Order {order.id.slice(0, 8).toUpperCase()}
+                    </span>
+                    <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
+                      {new Date(order.createdAt).toLocaleDateString("de-DE")}
+                    </span>
+                    {order.paymentMethod ? (
+                      <span className="orders-meta-chip orders-meta-chip-payment rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-700">
+                        {order.paymentMethod}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="text-xs text-stone-500">
-                    {new Date(order.createdAt).toLocaleDateString("de-DE")} ·{" "}
+                  <div className="mt-3 text-sm font-semibold text-stone-900">
                     {getOrderEmail(order) ?? "No email"}
                   </div>
-                  {!isOpen && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
-                        Status: {order.status}
-                      </span>
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-                        Payment: {order.paymentStatus}
-                      </span>
+                  <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">
+                    <span className={getOrderStatusBadgeClass(order.status)}>
+                      Status: {order.status}
+                    </span>
+                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
+                      Payment: {order.paymentStatus}
+                    </span>
+                    <span
+                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
+                    >
+                      {fulfillmentBadge.label}
+                    </span>
+                    {isShippingEmailSent(order) && (
                       <span
-                        className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
+                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
                       >
-                        {fulfillmentBadge.label}
+                        Shipping email: sent
                       </span>
-                      {isShippingEmailSent(order) && (
-                        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
-                          Shipping email: sent
-                        </span>
-                      )}
+                    )}
+                  </div>
+                  {!isOpen && (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Items
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {order.items.length}
+                        </div>
+                      </div>
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Refunded
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {formatPrice(order.amountRefunded, order.currency)}
+                        </div>
+                      </div>
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Net revenue
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {formatPrice(finance.netRevenueCents, order.currency)}
+                        </div>
+                      </div>
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Contribution
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {formatPrice(finance.contributionMarginCents, order.currency)}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-emerald-900">
+                <div className="orders-total-panel flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    Total value
+                  </div>
+                  <div className="mt-2 text-xl font-semibold text-white">
                     {formatPrice(order.amountTotal, order.currency)}
                   </div>
-                  <div className="text-xs text-stone-500">
-                    {order.items.length} items
+                  <div className="mt-1 text-xs text-slate-400">
+                    {order.items.length} items · updated{" "}
+                    {new Date(order.updatedAt).toLocaleDateString("de-DE")}
+                  </div>
+                  <div className="mt-4 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                    {isOpen ? "Collapse details" : "Expand details"}
                   </div>
                 </div>
               </button>
@@ -804,22 +1419,133 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               {isOpen && (
                 <div className="mt-4 space-y-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
+                    <span className={getOrderStatusBadgeClass(order.status)}>
                       Status: {order.status}
                     </span>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
                       Payment: {order.paymentStatus}
                     </span>
                     <span
-                      className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
+                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
                     >
                       {fulfillmentBadge.label}
                     </span>
                     {isShippingEmailSent(order) && (
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
+                      <span
+                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
+                      >
                         Shipping email: sent
                       </span>
                     )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <OrderHealthCard
+                      label="Payment"
+                      value={order.paymentStatus}
+                      detail={order.stripePaymentIntent ? "Stripe linked" : "No PI linked"}
+                    />
+                    <OrderHealthCard
+                      label="Fulfillment"
+                      value={fulfillmentBadge.label.replace("Fulfillment: ", "")}
+                      detail={tracking.number ? "Tracking added" : "Tracking missing"}
+                    />
+                    <OrderHealthCard
+                      label="Communication"
+                      value={`${[
+                        isConfirmationEmailSent(order),
+                        isShippingEmailSent(order),
+                        isRefundEmailSent(order),
+                      ].filter(Boolean).length}/3`}
+                      detail="Confirmation, shipping, refund"
+                    />
+                    <OrderHealthCard
+                      label="Refund exposure"
+                      value={formatPrice(order.amountRefunded, order.currency)}
+                      detail={`Remaining ${formatPrice(
+                        Math.max(order.amountTotal - order.amountRefunded, 0),
+                        order.currency
+                      )}`}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
+                        <span>Financial breakdown</span>
+                        <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] text-cyan-700">
+                          {finance.recognized ? "Recognized" : "Pending payment"}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1 text-sm text-stone-700">
+                        <div className="flex items-center justify-between">
+                          <span>Gross order</span>
+                          <span>{formatPrice(finance.grossOrderCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Refunded gross</span>
+                          <span>{formatPrice(finance.refundedGrossCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Output VAT</span>
+                          <span>{formatPrice(finance.netOutputVatCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Net revenue</span>
+                          <span>{formatPrice(finance.netRevenueCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>COGS</span>
+                          <span>{formatPrice(finance.cogsCents, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Payment fees</span>
+                          <span>{formatPrice(finance.paymentFeesCents, order.currency)}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between rounded-lg bg-stone-50 px-2 py-1 font-semibold">
+                          <span>Contribution margin</span>
+                          <span>{formatPrice(finance.contributionMarginCents, order.currency)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-xs text-stone-500">
+                        Refund VAT is estimated proportionally from refunded gross.
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
+                        <span>VAT snapshot</span>
+                        <span className="rounded-full border border-black/10 bg-stone-50 px-2 py-0.5 text-[10px] text-stone-700">
+                          Istversteuerung
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <OrderHealthCard
+                          label="VAT due"
+                          value={formatPrice(finance.netOutputVatCents, order.currency)}
+                          detail="recognized on paid orders"
+                        />
+                        <OrderHealthCard
+                          label="Tax coverage"
+                          value={finance.outputVatCents > 0 ? "Complete" : "Missing"}
+                          detail={
+                            finance.outputVatCents > 0
+                              ? "order tax captured"
+                              : "missing order VAT amount"
+                          }
+                        />
+                        <OrderHealthCard
+                          label="Shipping charged"
+                          value={formatPrice(finance.shippingCollectedCents, order.currency)}
+                          detail="customer-facing shipping line"
+                        />
+                        <OrderHealthCard
+                          label="Margin rate"
+                          value={`${Math.round(finance.contributionMarginRatio * 100)}%`}
+                          detail="net revenue after costs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr]">
@@ -1123,6 +1849,13 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         const selection = refundSelection[order.id] ?? {};
                         const selectedQty = selection[item.id] ?? 0;
                         const isSelected = selectedQty > 0;
+                        const itemContribution =
+                          item.totalAmount -
+                          Math.max(item.baseCostAmount, 0) -
+                          Math.max(
+                            item.paymentFeeAmount,
+                            item.adjustedCostAmount - item.baseCostAmount,
+                          );
                         const itemImage = item.imageUrl ? (
                           <Image
                             src={item.imageUrl}
@@ -1184,7 +1917,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                                   </div>
                                 )}
                                 <div className="text-xs text-stone-500">
-                                  Qty {item.quantity}
+                                  Qty {item.quantity} · Cost {formatPrice(item.baseCostAmount, item.currency)} · Margin {formatPrice(itemContribution, item.currency)}
                                 </div>
                               </div>
                             </div>
@@ -1338,6 +2071,21 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             <p className="mt-2 text-sm text-stone-600">
               Diese Rueckerstattung kann nicht rueckgaengig gemacht werden.
             </p>
+            {refundPreview && (
+              <div className="mt-4 rounded-xl border border-black/10 bg-stone-50 px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Preview
+                </div>
+                <div className="mt-2 text-lg font-semibold text-stone-900">
+                  {formatPrice(refundPreview.amount, refundPreview.order.currency)}
+                </div>
+                <div className="mt-1 text-xs text-stone-500">
+                  {confirmRefund?.mode === "items"
+                    ? `${refundPreview.selectedItems} item line(s) selected`
+                    : "Full-order refund preview"}
+                </div>
+              </div>
+            )}
             <label className="mt-4 flex items-center gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
@@ -1453,3 +2201,84 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   );
 }
 
+function SummaryCard({
+  label,
+  value,
+  detail,
+  change,
+  footnote,
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  change?: string;
+  footnote?: string;
+  tone?: "slate" | "emerald" | "violet" | "amber";
+}) {
+  const toneClasses =
+    tone === "emerald"
+      ? "orders-kpi-card-emerald border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70"
+      : tone === "violet"
+        ? "orders-kpi-card-violet border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-indigo-50"
+        : tone === "amber"
+          ? "orders-kpi-card-amber border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50"
+          : "orders-kpi-card-slate border-black/10 bg-gradient-to-br from-white via-white to-slate-50";
+  const accentClasses =
+    tone === "emerald"
+      ? "orders-kpi-badge-emerald border-emerald-200 bg-emerald-100/80 text-emerald-700"
+      : tone === "violet"
+        ? "orders-kpi-badge-violet border-violet-200 bg-violet-100/80 text-violet-700"
+        : tone === "amber"
+          ? "orders-kpi-badge-amber border-amber-200 bg-amber-100/80 text-amber-700"
+          : "orders-kpi-badge-slate border-slate-200 bg-slate-100 text-slate-700";
+  return (
+    <div className={`orders-kpi-card rounded-[22px] border p-5 shadow-sm ${toneClasses}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+          {label}
+        </p>
+        {change ? (
+          <span
+            className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${accentClasses}`}
+          >
+            {change}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-6">
+        <p className="max-w-full text-[clamp(2.1rem,2.8vw,3rem)] font-semibold leading-none tracking-tight text-stone-900">
+          {value}
+        </p>
+      </div>
+      <div className="mt-5 space-y-2">
+        <p className="max-w-[26ch] text-sm leading-5 text-stone-600">{detail}</p>
+        {footnote ? (
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+            {footnote}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function OrderHealthCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-[#07111d] p-4 text-white shadow-[0_16px_32px_rgba(8,17,29,0.16)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-3 text-sm font-semibold text-white">{value}</p>
+      <p className="mt-2 text-xs text-slate-400">{detail}</p>
+    </div>
+  );
+}

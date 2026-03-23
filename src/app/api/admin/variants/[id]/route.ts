@@ -44,7 +44,31 @@ export async function PATCH(
     lowStockThreshold?: number;
     options?: { name: string; value: string; imagePosition?: number | null }[];
     inventory?: { quantityOnHand?: number; reserved?: number };
+    expectedUpdatedAt?: string | null;
   };
+
+  const existingVariant = await prisma.variant.findUnique({
+    where: { id },
+    select: { id: true, updatedAt: true },
+  });
+
+  if (!existingVariant) {
+    return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  }
+
+  if (
+    body.expectedUpdatedAt &&
+    existingVariant.updatedAt.toISOString() !== body.expectedUpdatedAt
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This variant was updated by another admin. Reload the latest product data before saving.",
+        currentUpdatedAt: existingVariant.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
+  }
 
   const updates: {
     title?: string;

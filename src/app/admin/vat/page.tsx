@@ -1,0 +1,279 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import {
+  AdminCompactMetric,
+  AdminEmptyState,
+  AdminMetricCard,
+  AdminPanel,
+} from "@/components/admin/AdminInsightPrimitives";
+import { authOptions } from "@/lib/auth";
+import { getVatPageData } from "@/lib/adminAddonData";
+
+const formatMoney = (amountCents: number, currency = "EUR") =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amountCents / 100);
+
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+const formatVatStatus = (value: "estimated" | "review_required" | "ready_for_handover") => {
+  if (value === "ready_for_handover") return "Ready for handover";
+  if (value === "review_required") return "Review required";
+  return "Estimated";
+};
+
+export default async function AdminVatPage() {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "ADMIN") notFound();
+
+  const { current, monthly, deadline, expenseMigrationRequired } = await getVatPageData(6);
+  const currency = "EUR";
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+
+  return (
+    <div className="space-y-6">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#11110a] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.32)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.2),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.15),_transparent_28%),linear-gradient(135deg,_rgba(18,16,8,0.98),_rgba(26,21,10,0.94))]" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-200/70">
+              Control Layer / VAT
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">
+              Cash-based VAT tracking for monthly review and handover
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm text-slate-300">
+              Management-grade VAT visibility for regular VAT taxation with input tax deduction
+              and monthly reporting. This page supports review and completeness, not filing.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            <Link
+              href="/admin/finance"
+              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+            >
+              Finance overview
+            </Link>
+            <Link
+              href="/admin/orders"
+              className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-amber-200 transition hover:border-amber-300/30 hover:bg-amber-400/15"
+            >
+              Review orders
+            </Link>
+            <Link
+              href="/admin/expenses"
+              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+            >
+              Expense capture
+            </Link>
+            {expenseMigrationRequired ? (
+              <span className="rounded-full border border-red-400/20 bg-red-500/10 px-3 py-2 text-red-200">
+                Export unavailable
+              </span>
+            ) : (
+              <a
+                href={`/api/admin/expenses/export?month=${currentMonthKey}`}
+                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+              >
+                Export CSV
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {expenseMigrationRequired ? (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Expense storage is not available in the current database yet. Output VAT is still shown,
+          but input VAT and export handover remain unavailable until the pending Prisma migration is
+          applied.
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <AdminMetricCard
+          label="Output VAT"
+          value={formatMoney(current?.outputVatCents ?? 0, currency)}
+          detail={current ? current.monthLabel : "current month"}
+          detailBadgeClassName="orders-kpi-badge-amber"
+          footnote="recognized from paid orders only"
+          tone="amber"
+        />
+        <AdminMetricCard
+          label="Input VAT"
+          value={formatMoney(current?.inputVatCents ?? 0, currency)}
+          detail={current?.status === "review_required" ? "incomplete" : "tracked"}
+          detailBadgeClassName="orders-kpi-badge-slate"
+          footnote={
+            (current?.expenseCount ?? 0) > 0
+              ? `${current?.expenseCount ?? 0} expense records in period`
+              : "no expense source captured"
+          }
+        />
+        <AdminMetricCard
+          label="VAT Liability"
+          value={formatMoney(current?.estimatedLiabilityCents ?? 0, currency)}
+          detail={formatVatStatus(current?.status ?? "estimated")}
+          detailBadgeClassName="orders-kpi-badge-amber"
+          footnote="management estimate only"
+          tone="amber"
+        />
+        <AdminMetricCard
+          label="Tax Coverage"
+          value={formatPercent(current?.taxCoverageRate ?? 0)}
+          detail={`${current?.ordersMissingTaxCount ?? 0} missing`}
+          detailBadgeClassName="orders-kpi-badge-violet"
+          footnote="orders with captured VAT amounts"
+          tone="violet"
+        />
+        <AdminMetricCard
+          label="Deadline"
+          value={`${deadline.daysUntilDue} days`}
+          detail={deadline.statusLabel}
+          detailBadgeClassName="orders-kpi-badge-amber"
+          footnote={deadline.dueDate.toLocaleDateString("de-DE")}
+          tone="amber"
+        />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <AdminPanel
+          eyebrow="Monthly Tracking"
+          title="VAT by reporting month"
+          description="Rolling six-month monitor for output VAT, estimated liability and data quality."
+        >
+          {monthly.length === 0 ? (
+            <AdminEmptyState copy="No VAT periods are available yet." />
+          ) : (
+            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
+              <div className="grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div>Month</div>
+                <div>Output</div>
+                <div>Input</div>
+                <div>Liability</div>
+                <div>Coverage</div>
+                <div>Status</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {monthly.map((row) => (
+                  <div
+                    key={row.monthKey}
+                    className="grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-300"
+                  >
+                    <div className="font-semibold text-white">{row.monthLabel}</div>
+                    <div>{formatMoney(row.outputVatCents, currency)}</div>
+                    <div>{formatMoney(row.inputVatCents, currency)}</div>
+                    <div className="font-semibold text-amber-300">
+                      {formatMoney(row.estimatedLiabilityCents, currency)}
+                    </div>
+                    <div>{formatPercent(row.taxCoverageRate)}</div>
+                    <div>{formatVatStatus(row.status)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </AdminPanel>
+
+        <AdminPanel
+          eyebrow="Completeness"
+          title="Current month blockers"
+          description="This is the review surface for what the admin can automate today versus what still requires bookkeeping or manual finance judgment."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <AdminCompactMetric
+              label="Orders missing VAT"
+              value={String(current?.ordersMissingTaxCount ?? 0)}
+            />
+            <AdminCompactMetric
+              label="Refunded VAT estimate"
+              value={formatMoney(current?.refundedVatEstimateCents ?? 0, currency)}
+            />
+            <AdminCompactMetric
+              label="Missing expense docs"
+              value={String(current?.missingExpenseDocumentCount ?? 0)}
+            />
+            <AdminCompactMetric
+              label="Missing expense VAT"
+              value={String(current?.missingExpenseVatCount ?? 0)}
+            />
+          </div>
+          <div className="mt-4 space-y-3">
+            {current?.blockers.length ? (
+              current.blockers.map((blocker) => (
+                <div
+                  key={blocker}
+                  className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+                >
+                  {blocker}
+                </div>
+              ))
+            ) : (
+              <AdminEmptyState copy="No blockers are currently flagged for the active month." />
+            )}
+          </div>
+        </AdminPanel>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <AdminPanel
+          eyebrow="Expense Input"
+          title="What now feeds input VAT"
+          description="The VAT layer now uses recorded deductible expenses and document dates as its input-tax source."
+        >
+          <div className="space-y-3 text-sm text-slate-300">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Deductible expenses with VAT amounts contribute to input VAT.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Missing documents, missing VAT amounts, and missing supplier links are now surfaced as blockers.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Export uses the current month expense records as a bookkeeping handover file.
+            </div>
+          </div>
+        </AdminPanel>
+        <AdminPanel
+          eyebrow="Safe To Automate"
+          title="What this layer should do automatically"
+          description="These cases are low-risk because they are sourced from confirmed commerce events or structured admin data."
+        >
+          <div className="space-y-3 text-sm text-slate-300">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Output VAT from paid orders using the payment-confirmed timestamp.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Refund VAT adjustments derived proportionally from refund amounts.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Month-by-month tracking, deadline reminders and completeness status.
+            </div>
+          </div>
+        </AdminPanel>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <AdminPanel
+          eyebrow="Informational Only"
+          title="What stays outside this add-on"
+          description="These areas must remain review-only until the system has formal accounting-grade source data and policy handling."
+        >
+          <div className="space-y-3 text-sm text-slate-300">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Final deductibility decisions for expenses and mixed-use edge cases.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Official filing submission, corrections across periods and accounting exports with legal authority.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              Reverse-charge, import VAT and cross-border special cases not modeled in the current admin.
+            </div>
+          </div>
+        </AdminPanel>
+      </section>
+    </div>
+  );
+}

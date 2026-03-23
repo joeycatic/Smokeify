@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminField,
+  AdminInput,
+  AdminMetricCard,
+  AdminNotice,
+  AdminPageIntro,
+  AdminPanel,
+  AdminSelect,
+} from "@/components/admin/AdminWorkspace";
 
 type DiscountCoupon = {
   id: string | null;
@@ -40,12 +50,13 @@ const formatPercent = (percent: number | null) => {
 };
 
 const formatDate = (epochSeconds: number | null) => {
-  if (!epochSeconds) return "-";
+  if (!epochSeconds) return "No expiry";
   return new Date(epochSeconds * 1000).toLocaleDateString("de-DE");
 };
 
 export default function AdminDiscountsClient() {
   const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -80,6 +91,10 @@ export default function AdminDiscountsClient() {
     void loadDiscounts();
   }, []);
 
+  useEffect(() => {
+    setNowTs(Date.now());
+  }, [discounts]);
+
   const sorted = useMemo(
     () =>
       [...discounts].sort((a, b) => {
@@ -90,6 +105,28 @@ export default function AdminDiscountsClient() {
   );
   const activeCount = useMemo(
     () => discounts.filter((discount) => discount.active).length,
+    [discounts]
+  );
+  const activeDiscounts = useMemo(
+    () => sorted.filter((discount) => discount.active),
+    [sorted]
+  );
+  const inactiveDiscounts = useMemo(
+    () => sorted.filter((discount) => !discount.active),
+    [sorted]
+  );
+  const expiringSoon = useMemo(
+    () =>
+      discounts.filter((discount) => {
+        if (!discount.expiresAt) return false;
+        const diff = discount.expiresAt * 1000 - Date.now();
+        return diff > 0 && diff < 1000 * 60 * 60 * 24 * 14;
+      }).length,
+    [discounts]
+  );
+  const mostRedeemed = useMemo(
+    () =>
+      [...discounts].sort((a, b) => b.timesRedeemed - a.timesRedeemed)[0] ?? null,
     [discounts]
   );
 
@@ -197,9 +234,7 @@ export default function AdminDiscountsClient() {
       }
       const data = (await res.json()) as { discount?: Discount };
       if (data.discount) {
-        setDiscounts((prev) =>
-          prev.map((item) => (item.id === id ? data.discount! : item))
-        );
+        setDiscounts((prev) => prev.map((item) => (item.id === id ? data.discount! : item)));
       } else {
         await loadDiscounts();
       }
@@ -210,258 +245,261 @@ export default function AdminDiscountsClient() {
   };
 
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / DISCOUNTS
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">Discounts</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {discounts.length} codes
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {activeCount} active
-              </span>
-            </div>
+    <div className="space-y-6">
+      <AdminPageIntro
+        eyebrow="Admin / Discounts"
+        title="Promotion code console"
+        description="Create and manage Stripe promotion codes from a compact dark operations surface instead of the old stacked form page."
+        actions={
+          <AdminButton tone="secondary" onClick={() => void loadDiscounts()} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
+          </AdminButton>
+        }
+        metrics={
+          <div className="grid gap-3 md:grid-cols-4">
+            <AdminMetricCard label="Codes" value={String(discounts.length)} detail="Total promotion codes" />
+            <AdminMetricCard label="Active" value={String(activeCount)} detail="Currently redeemable" />
+            <AdminMetricCard label="Expiring soon" value={String(expiringSoon)} detail="Within 14 days" />
+            <AdminMetricCard
+              label="Most redeemed"
+              value={mostRedeemed ? String(mostRedeemed.timesRedeemed) : "0"}
+              detail={mostRedeemed ? mostRedeemed.code : "No redemption data"}
+            />
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <button
-              type="button"
-              onClick={loadDiscounts}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Refresh"}
-            </button>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-              01
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                Promotion codes
-              </p>
-              <p className="text-xs text-stone-500">
-                Create one-off Stripe promotion codes.
-              </p>
-            </div>
-          </div>
-        </div>
-        {error && (
-          <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-            {notice}
-          </p>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
-            Code
-            <input
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="WELCOME10"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Discount type
-            <select
-              value={mode}
-              onChange={(event) =>
-                setMode(event.target.value as "percent" | "amount")
-              }
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            >
-              <option value="percent">Percent off</option>
-              <option value="amount">Amount off</option>
-            </select>
-          </label>
-          {mode === "percent" ? (
-            <label className="text-xs font-semibold text-stone-600">
-              Percent off
-              <input
-                value={percentOff}
-                onChange={(event) => setPercentOff(event.target.value)}
-                placeholder="10"
-                inputMode="decimal"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-              />
-            </label>
-          ) : (
-            <label className="text-xs font-semibold text-stone-600">
-              Amount off
-              <input
-                value={amountOff}
-                onChange={(event) => setAmountOff(event.target.value)}
-                placeholder="5.00"
-                inputMode="decimal"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-              />
-            </label>
-          )}
-          {mode === "amount" && (
-            <label className="text-xs font-semibold text-stone-600">
-              Currency
-              <input
-                value={currency}
-                onChange={(event) => setCurrency(event.target.value)}
-                placeholder="EUR"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-              />
-            </label>
-          )}
-          <label className="text-xs font-semibold text-stone-600">
-            Max redemptions
-            <input
-              value={maxRedemptions}
-              onChange={(event) => setMaxRedemptions(event.target.value)}
-              placeholder="100"
-              inputMode="numeric"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Expiration date
-            <input
-              type="date"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={createDiscount}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
-          >
-            Create discount
-          </button>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="h-10 rounded-md border border-black/10 px-4 text-xs font-semibold text-stone-700"
-          >
-            Reset
-          </button>
-        </div>
-      </section>
+      {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
+      {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-              02
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Active codes
-              </p>
-              <p className="text-xs text-stone-500">
-                Review usage, expiry, and status.
-              </p>
-            </div>
-          </div>
-          <div className="text-xs text-stone-500">
-            {sorted.length ? `${sorted.length} total` : "No codes"}
-          </div>
-        </div>
-        {sorted.length === 0 ? (
-          <div className="rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-6 text-sm text-stone-500">
-            No promotion codes found.
-          </div>
-        ) : (
-          <div className="divide-y divide-black/10 rounded-2xl border border-amber-200/70 bg-white/90">
-            {sorted.map((discount) => (
-              <div
-                key={discount.id}
-                className="grid gap-3 px-4 py-4 text-sm text-stone-700 sm:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto]"
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <AdminPanel
+          eyebrow="Create"
+          title="New promotion code"
+          description="Build a one-off percent or amount-based Stripe code with redemption and expiry limits."
+          className="admin-reveal-delay-1"
+        >
+          <div className="grid gap-4">
+            <AdminField label="Code">
+              <AdminInput
+                value={code}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                placeholder="WELCOME10"
+              />
+            </AdminField>
+
+            <AdminField label="Discount type">
+              <AdminSelect
+                value={mode}
+                onChange={(event) => setMode(event.target.value as "percent" | "amount")}
               >
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">
-                    Code
-                  </div>
-                  <div className="font-semibold text-stone-900">
-                    {discount.code}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    {discount.active ? "Active" : "Inactive"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">
-                    Value
-                  </div>
-                  <div className="font-semibold text-stone-900">
-                    {discount.coupon.percentOff !== null
-                      ? formatPercent(discount.coupon.percentOff)
-                      : formatAmount(
-                          discount.coupon.amountOff,
-                          discount.coupon.currency
-                        )}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    {discount.coupon.duration ?? "once"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">
-                    Redeemed
-                  </div>
-                  <div className="font-semibold text-stone-900">
-                    {discount.timesRedeemed}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    Max {discount.maxRedemptions ?? "-"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">
-                    Expires
-                  </div>
-                  <div className="font-semibold text-stone-900">
-                    {formatDate(discount.expiresAt)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">
-                    Created
-                  </div>
-                  <div className="font-semibold text-stone-900">
-                    {discount.createdAt
-                      ? new Date(discount.createdAt).toLocaleDateString("de-DE")
-                      : "-"}
-                  </div>
-                </div>
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={() => updateDiscount(discount.id, !discount.active)}
-                    className="h-9 rounded-md border border-amber-200 px-3 text-xs font-semibold text-amber-800 hover:border-amber-300"
-                  >
-                    {discount.active ? "Deactivate" : "Activate"}
-                  </button>
-                </div>
-              </div>
-            ))}
+                <option value="percent">Percent off</option>
+                <option value="amount">Fixed amount</option>
+              </AdminSelect>
+            </AdminField>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {mode === "percent" ? (
+                <AdminField label="Percent off">
+                  <AdminInput
+                    value={percentOff}
+                    onChange={(event) => setPercentOff(event.target.value)}
+                    placeholder="10"
+                    inputMode="decimal"
+                  />
+                </AdminField>
+              ) : (
+                <>
+                  <AdminField label="Amount off">
+                    <AdminInput
+                      value={amountOff}
+                      onChange={(event) => setAmountOff(event.target.value)}
+                      placeholder="5.00"
+                      inputMode="decimal"
+                    />
+                  </AdminField>
+                  <AdminField label="Currency">
+                    <AdminInput
+                      value={currency}
+                      onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+                      placeholder="EUR"
+                    />
+                  </AdminField>
+                </>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminField label="Max redemptions" optional="optional">
+                <AdminInput
+                  value={maxRedemptions}
+                  onChange={(event) => setMaxRedemptions(event.target.value)}
+                  placeholder="100"
+                  inputMode="numeric"
+                />
+              </AdminField>
+              <AdminField label="Expires at" optional="optional">
+                <AdminInput
+                  type="date"
+                  value={expiresAt}
+                  onChange={(event) => setExpiresAt(event.target.value)}
+                />
+              </AdminField>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <AdminButton onClick={() => void createDiscount()}>Create code</AdminButton>
+              <AdminButton tone="secondary" onClick={resetForm}>
+                Reset
+              </AdminButton>
+            </div>
           </div>
-        )}
-      </section>
+        </AdminPanel>
+
+        <AdminPanel
+          eyebrow="Status"
+          title="Code list"
+          description="Review active and inactive codes separately with clearer value, usage, and expiry signals."
+          className="admin-reveal-delay-2"
+        >
+          {sorted.length === 0 ? (
+            <AdminEmptyState
+              title="No promotion codes"
+              description="Create the first code to start managing discount campaigns here."
+            />
+          ) : (
+            <div className="space-y-4">
+              <DiscountSection
+                title="Active codes"
+                badge={`${activeDiscounts.length}`}
+                badgeTone="text-emerald-200 border-emerald-400/20 bg-emerald-400/10"
+                discounts={activeDiscounts}
+                nowTs={nowTs}
+                onToggle={updateDiscount}
+              />
+              <DiscountSection
+                title="Inactive codes"
+                badge={`${inactiveDiscounts.length}`}
+                badgeTone="text-slate-300 border-white/10 bg-white/[0.04]"
+                discounts={inactiveDiscounts}
+                nowTs={nowTs}
+                onToggle={updateDiscount}
+              />
+            </div>
+          )}
+        </AdminPanel>
+      </div>
+    </div>
+  );
+}
+
+function DiscountSection({
+  title,
+  badge,
+  badgeTone,
+  discounts,
+  nowTs,
+  onToggle,
+}: {
+  title: string;
+  badge: string;
+  badgeTone: string;
+  discounts: Discount[];
+  nowTs: number;
+  onToggle: (id: string, active: boolean) => Promise<void>;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
+      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          {title}
+        </div>
+        <span
+          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${badgeTone}`}
+        >
+          {badge}
+        </span>
+      </div>
+      {discounts.length === 0 ? (
+        <div className="px-4 py-6 text-sm text-slate-500">No codes in this state.</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div>Code</div>
+            <div>Value</div>
+            <div>Usage</div>
+            <div>Expires</div>
+            <div>State</div>
+          </div>
+          <div className="divide-y divide-white/5">
+            {discounts.map((discount) => {
+              const expiringSoonForRow =
+                Boolean(discount.expiresAt) &&
+                (discount.expiresAt as number) * 1000 - nowTs <
+                  1000 * 60 * 60 * 24 * 14;
+              return (
+                <div
+                  key={discount.id}
+                  className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                >
+                  <div>
+                    <div className="font-semibold text-white">{discount.code}</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                          discount.active
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                            : "border-white/10 bg-white/[0.04] text-slate-400"
+                        }`}
+                      >
+                        {discount.active ? "Active" : "Inactive"}
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {discount.coupon.percentOff !== null ? "Percent" : "Amount"}
+                      </span>
+                      {expiringSoonForRow ? (
+                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                          Expiring soon
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">
+                      {discount.coupon.percentOff !== null
+                        ? formatPercent(discount.coupon.percentOff)
+                        : formatAmount(discount.coupon.amountOff, discount.coupon.currency)}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {discount.coupon.duration ?? "once"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">{discount.timesRedeemed}</div>
+                    <div className="text-xs text-slate-500">
+                      Max {discount.maxRedemptions ?? "unlimited"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">{formatDate(discount.expiresAt)}</div>
+                    <div className="text-xs text-slate-500">
+                      {expiringSoonForRow ? "Within 14 days" : "Healthy"}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <AdminButton
+                      tone={discount.active ? "secondary" : "primary"}
+                      onClick={() => void onToggle(discount.id, !discount.active)}
+                    >
+                      {discount.active ? "Deactivate" : "Activate"}
+                    </AdminButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

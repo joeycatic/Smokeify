@@ -257,6 +257,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
       inventory: { select: { quantityOnHand: true, reserved: true } },
       product: {
         select: {
+          id: true,
           title: true,
           handle: true,
           manufacturer: true,
@@ -297,6 +298,7 @@ const buildCart = async (items: CartItem[]): Promise<Cart> => {
         id: variant.id,
         title: variant.title,
         product: {
+          id: variant.product.id,
           title: variant.product.title,
           handle: variant.product.handle,
           manufacturer: variant.product.manufacturer ?? null,

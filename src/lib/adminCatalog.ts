@@ -1,12 +1,19 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasAdminAccess } from "@/lib/adminAccess";
 
 export const PRODUCT_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
 export async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (
+    !session?.user?.id ||
+    !hasAdminAccess({
+      role: session.user.role,
+      adminVerifiedAt: session.user.adminVerifiedAt,
+    })
+  ) {
     return null;
   }
   return session;
@@ -14,7 +21,13 @@ export async function requireAdmin() {
 
 export async function requireAdminOnly() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (
+    !session?.user?.id ||
+    !hasAdminAccess({
+      role: session.user.role,
+      adminVerifiedAt: session.user.adminVerifiedAt,
+    })
+  ) {
     return null;
   }
   return session;

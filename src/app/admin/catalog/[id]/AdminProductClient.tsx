@@ -34,6 +34,7 @@ type VariantItem = {
   lowStockThreshold: number;
   compareAtCents: number | null;
   position: number;
+  updatedAt: string;
   options: VariantOption[];
   inventory: { quantityOnHand: number; reserved: number } | null;
 };
@@ -59,6 +60,8 @@ type ProductDetail = {
   description: string | null;
   technicalDetails: string | null;
   shortDescription: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   manufacturer: string | null;
   productGroup: string | null;
   supplier: string | null;
@@ -103,18 +106,81 @@ type CrossSellProduct = {
   imageUrl: string | null;
 };
 
+type ProductInsights = {
+  views30d: number;
+  addToCart30d: number;
+  beginCheckout30d: number;
+  purchases30d: number;
+  revenue30dCents: number;
+  margin30dCents: number;
+  marginRate30d: number;
+  conversionRate30d: number;
+  addToCartRate30d: number;
+  checkoutToPaidRate30d: number;
+  returnedUnits30d: number;
+  returnRate30d: number;
+  stockCoverDays: number | null;
+  trendDirection: "trending" | "steady" | "cooling";
+  trendDeltaRatio: number;
+  topTrafficSources: Array<{ label: string; count: number }>;
+  topReturnReasons: Array<{ reason: string; count: number }>;
+};
+
 type Props = {
   product: ProductDetail;
   categories: CategoryRow[];
   collections: CategoryRow[];
   suppliers: SupplierRow[];
   crossSells: CrossSellItem[];
+  insights: ProductInsights;
+};
+
+type ProductDetailsState = {
+  title: string;
+  handle: string;
+  description: string;
+  technicalDetails: string;
+  shortDescription: string;
+  seoTitle: string;
+  seoDescription: string;
+  manufacturer: string;
+  productGroup: string;
+  supplierId: string;
+  sellerName: string;
+  sellerUrl: string;
+  leadTimeDays: number | "";
+  weightGrams: number | "";
+  lengthMm: number | "";
+  widthMm: number | "";
+  heightMm: number | "";
+  growboxPlantCountMin: number | "";
+  growboxPlantCountMax: number | "";
+  growboxSize: string;
+  growboxConnectionDiameterMm: number[];
+  lightSize: string;
+  airSystemDiameterMm: number | "";
+  shippingClass: string;
+  tags: string;
+  status: ProductDetail["status"];
 };
 
 const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
 
 const toEuro = (cents: number | null) =>
   cents === null ? "" : (cents / 100).toFixed(2);
+
+const formatCurrency = (cents: number) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
+
+const formatPercent = (value: number, digits = 1) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
 
 const parseEuro = (value: string) => {
   const normalized = value.replace(",", ".");
@@ -193,12 +259,62 @@ const findOptionRowIssues = (options: OptionInput[]) => {
     : null;
 };
 
+const buildInitialDetails = (
+  product: ProductDetail,
+  resolvedSupplierId: string
+): ProductDetailsState => ({
+  title: product.title,
+  handle: product.handle,
+  description: product.description ?? "",
+  technicalDetails: product.technicalDetails ?? "",
+  shortDescription: product.shortDescription ?? "",
+  seoTitle: product.seoTitle ?? "",
+  seoDescription: product.seoDescription ?? "",
+  manufacturer: product.manufacturer ?? "",
+  productGroup: product.productGroup ?? "",
+  supplierId: resolvedSupplierId,
+  sellerName: product.sellerName ?? "",
+  sellerUrl: product.sellerUrl ?? "",
+  leadTimeDays: product.leadTimeDays ?? "",
+  weightGrams: product.weightGrams ?? "",
+  lengthMm: product.lengthMm ?? "",
+  widthMm: product.widthMm ?? "",
+  heightMm: product.heightMm ?? "",
+  growboxPlantCountMin: product.growboxPlantCountMin ?? "",
+  growboxPlantCountMax: product.growboxPlantCountMax ?? "",
+  growboxSize: product.growboxSize ?? "",
+  growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
+  lightSize: product.lightSize ?? "",
+  airSystemDiameterMm: product.airSystemDiameterMm ?? "",
+  shippingClass: product.shippingClass ?? "",
+  tags: (product.tags ?? []).join(", "),
+  status: product.status,
+});
+
+const serializeDetailsSnapshot = (details: ProductDetailsState) =>
+  JSON.stringify(details);
+
+const serializeIdSnapshot = (values: Iterable<string>) =>
+  JSON.stringify(Array.from(values).sort());
+
+const PRODUCT_EDITOR_SECTIONS = [
+  { id: "performance", label: "Performance" },
+  { id: "overview", label: "Overview" },
+  { id: "seo", label: "SEO" },
+  { id: "content", label: "Content" },
+  { id: "associations", label: "Associations" },
+  { id: "media", label: "Media" },
+  { id: "variants", label: "Variants" },
+  { id: "cross-sells", label: "Cross-sells" },
+] as const;
+
 export default function AdminProductClient({
   product,
   categories,
   collections,
   suppliers,
   crossSells: initialCrossSells,
+  insights,
 }: Props) {
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
@@ -210,37 +326,23 @@ export default function AdminProductClient({
     }
     return "";
   })();
-  const [details, setDetails] = useState({
-    title: product.title,
-    handle: product.handle,
-    description: product.description ?? "",
-    technicalDetails: product.technicalDetails ?? "",
-    shortDescription: product.shortDescription ?? "",
-    manufacturer: product.manufacturer ?? "",
-    productGroup: product.productGroup ?? "",
-    supplierId: resolvedSupplierId,
-    sellerUrl: product.sellerUrl ?? "",
-    leadTimeDays: product.leadTimeDays ?? "",
-    weightGrams: product.weightGrams ?? "",
-    lengthMm: product.lengthMm ?? "",
-    widthMm: product.widthMm ?? "",
-    heightMm: product.heightMm ?? "",
-    growboxPlantCountMin: product.growboxPlantCountMin ?? "",
-    growboxPlantCountMax: product.growboxPlantCountMax ?? "",
-    growboxSize: product.growboxSize ?? "",
-    growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
-    lightSize: product.lightSize ?? "",
-    airSystemDiameterMm: product.airSystemDiameterMm ?? "",
-    shippingClass: product.shippingClass ?? "",
-    tags: (product.tags ?? []).join(", "),
-    status: product.status,
-  });
+  const initialDetails = useMemo(
+    () => buildInitialDetails(product, resolvedSupplierId),
+    [product, resolvedSupplierId]
+  );
+  const [details, setDetails] = useState<ProductDetailsState>(initialDetails);
+  const [productUpdatedAt, setProductUpdatedAt] = useState(product.updatedAt);
   const [images, setImages] = useState<ImageItem[]>(product.images);
   const [uploading, setUploading] = useState(false);
   const [uploadDragActive, setUploadDragActive] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
+  const [variantUpdatedAtById, setVariantUpdatedAtById] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(product.variants.map((variant) => [variant.id, variant.updatedAt]))
+  );
   const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
   const [reorderingVariants, setReorderingVariants] = useState(false);
   const [draggingOption, setDraggingOption] = useState<{
@@ -282,6 +384,7 @@ export default function AdminProductClient({
   const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [staleConflictMessage, setStaleConflictMessage] = useState("");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
   const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
   const [confirmVariantText, setConfirmVariantText] = useState("");
@@ -306,6 +409,18 @@ export default function AdminProductClient({
   const [fbtSearching, setFbtSearching] = useState(false);
   const [fbtSaving, setFbtSaving] = useState(false);
   const [fbtMessage, setFbtMessage] = useState("");
+  const [savedDetailsSnapshot, setSavedDetailsSnapshot] = useState(() =>
+    serializeDetailsSnapshot(initialDetails)
+  );
+  const [savedCategorySnapshot, setSavedCategorySnapshot] = useState(() =>
+    serializeIdSnapshot(product.categories.map((item) => item.category.id))
+  );
+  const [savedCollectionSnapshot, setSavedCollectionSnapshot] = useState(() =>
+    serializeIdSnapshot(product.collections.map((item) => item.collection.id))
+  );
+  const [savedCrossSellSnapshot, setSavedCrossSellSnapshot] = useState(() =>
+    serializeIdSnapshot(initialCrossSells.map((row) => row.crossSell.id))
+  );
 
   const parentCategories = useMemo(
     () => categories.filter((item) => !item.parentId),
@@ -375,6 +490,50 @@ export default function AdminProductClient({
     categoryIds.has(item.id)
   ).length;
   const selectedCollectionCount = collectionIds.size;
+  const selectedSupplierName = useMemo(
+    () =>
+      suppliers.find((supplier) => supplier.id === details.supplierId)?.name ??
+      product.supplier ??
+      "No supplier",
+    [details.supplierId, product.supplier, suppliers]
+  );
+  const totalAvailableInventory = useMemo(
+    () =>
+      variants.reduce(
+        (sum, variant) =>
+          sum +
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ),
+        0
+      ),
+    [variants]
+  );
+  const lowStockVariantCount = useMemo(
+    () =>
+      variants.filter(
+        (variant) =>
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ) <= variant.lowStockThreshold && variant.lowStockThreshold > 0
+      ).length,
+    [variants]
+  );
+  const mediaCoverageRatio = `${images.length} image${images.length === 1 ? "" : "s"}`;
+  const trendLabel =
+    insights.trendDirection === "trending"
+      ? "Trending"
+      : insights.trendDirection === "cooling"
+        ? "Cooling"
+        : "Steady";
+  const trendTone =
+    insights.trendDirection === "trending"
+      ? "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200"
+      : insights.trendDirection === "cooling"
+        ? "border-amber-400/20 bg-amber-400/[0.08] text-amber-200"
+        : "border-white/10 bg-white/[0.06] text-slate-200";
 
   useEffect(() => {
     if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
@@ -465,6 +624,17 @@ export default function AdminProductClient({
     }));
   }, [mergedPolicyViolations]);
 
+  const detailsDirty =
+    serializeDetailsSnapshot(details) !== savedDetailsSnapshot;
+  const categoriesDirty =
+    serializeIdSnapshot(categoryIds) !== savedCategorySnapshot;
+  const collectionsDirty =
+    serializeIdSnapshot(collectionIds) !== savedCollectionSnapshot;
+  const crossSellsDirty =
+    serializeIdSnapshot(fbtItems.map((item) => item.id)) !== savedCrossSellSnapshot;
+  const hasUnsavedChanges =
+    detailsDirty || categoriesDirty || collectionsDirty || crossSellsDirty;
+
   useEffect(() => {
     setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
   }, [
@@ -475,6 +645,16 @@ export default function AdminProductClient({
     details.productGroup,
     details.tags,
   ]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -505,6 +685,7 @@ export default function AdminProductClient({
     setMessage("");
     setError("");
     setHandleError("");
+    setStaleConflictMessage("");
     setServerPolicyViolations([]);
     if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
       setError("Seller URL must be a valid http(s) link");
@@ -523,8 +704,11 @@ export default function AdminProductClient({
         description: details.description,
         technicalDetails: details.technicalDetails,
         shortDescription: details.shortDescription,
+        seoTitle: details.seoTitle,
+        seoDescription: details.seoDescription,
         manufacturer: details.manufacturer,
         productGroup: details.productGroup,
+        sellerName: details.sellerName,
         sellerUrl: details.sellerUrl,
         tags,
         leadTimeDays: toNumberOrNull(details.leadTimeDays),
@@ -540,6 +724,7 @@ export default function AdminProductClient({
         airSystemDiameterMm: toNumberOrNull(details.airSystemDiameterMm),
         shippingClass: details.shippingClass,
         status: details.status,
+        expectedUpdatedAt: productUpdatedAt,
       };
       if (details.supplierId || product.supplierId) {
         payload.supplierId = details.supplierId || null;
@@ -553,9 +738,15 @@ export default function AdminProductClient({
         const data = (await res.json()) as {
           error?: string;
           violations?: MerchantPolicyViolation[];
+          currentUpdatedAt?: string;
         };
         const errorMessage = data.error ?? "Update failed";
         setError(errorMessage);
+        if (res.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Another admin saved this product on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload before applying more changes.`
+          );
+        }
         if (Array.isArray(data.violations)) {
           setServerPolicyViolations(data.violations);
         }
@@ -564,6 +755,13 @@ export default function AdminProductClient({
         }
         return;
       }
+      const data = (await res.json()) as {
+        product?: { updatedAt?: string };
+      };
+      if (data.product?.updatedAt) {
+        setProductUpdatedAt(data.product.updatedAt);
+      }
+      setSavedDetailsSnapshot(serializeDetailsSnapshot(details));
       setMessage("Product updated");
     } catch {
       setError("Update failed");
@@ -573,6 +771,7 @@ export default function AdminProductClient({
   const saveCategories = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/categories`, {
         method: "PUT",
@@ -584,6 +783,7 @@ export default function AdminProductClient({
         setError(data.error ?? "Update failed");
         return;
       }
+      setSavedCategorySnapshot(serializeIdSnapshot(categoryIds));
       setMessage("Categories updated");
     } catch {
       setError("Update failed");
@@ -593,6 +793,7 @@ export default function AdminProductClient({
   const saveCollections = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/collections`, {
         method: "PUT",
@@ -604,6 +805,7 @@ export default function AdminProductClient({
         setError(data.error ?? "Update failed");
         return;
       }
+      setSavedCollectionSnapshot(serializeIdSnapshot(collectionIds));
       setMessage("Collections updated");
     } catch {
       setError("Update failed");
@@ -612,6 +814,7 @@ export default function AdminProductClient({
 
   const saveCrossSells = async () => {
     setFbtMessage("");
+    setStaleConflictMessage("");
     setFbtSaving(true);
     try {
       const res = await fetch(`/api/admin/products/${product.id}/cross-sells`, {
@@ -623,6 +826,7 @@ export default function AdminProductClient({
         const data = (await res.json()) as { error?: string };
         setFbtMessage(data.error ?? "Save failed");
       } else {
+        setSavedCrossSellSnapshot(serializeIdSnapshot(fbtItems.map((item) => item.id)));
         setFbtMessage("Saved");
       }
     } catch {
@@ -822,6 +1026,7 @@ export default function AdminProductClient({
   const updateVariant = async (variant: VariantItem) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     const rowIssue = findOptionRowIssues(variant.options);
     if (rowIssue) {
       setError(rowIssue);
@@ -844,18 +1049,36 @@ export default function AdminProductClient({
           quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
           reserved: variant.inventory?.reserved ?? 0,
         },
+        expectedUpdatedAt: variantUpdatedAtById[variant.id],
       }),
     });
     if (!res.ok) {
       let message = "Update failed";
       try {
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as {
+          error?: string;
+          currentUpdatedAt?: string;
+        };
         if (data?.error) message = data.error;
+        if (res.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
+          );
+        }
       } catch {
         // Keep default message when response isn't JSON.
       }
       setError(message);
       return;
+    }
+    const data = (await res.json()) as {
+      variant?: { id: string; updatedAt?: string };
+    };
+    if (data.variant?.updatedAt) {
+      setVariantUpdatedAtById((prev) => ({
+        ...prev,
+        [variant.id]: data.variant?.updatedAt ?? prev[variant.id],
+      }));
     }
     setMessage("Variant updated");
   };
@@ -863,6 +1086,7 @@ export default function AdminProductClient({
   const saveAllVariants = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     setSavingAllVariants(true);
     try {
       for (const variant of variants) {
@@ -892,6 +1116,7 @@ export default function AdminProductClient({
                   quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
                   reserved: variant.inventory?.reserved ?? 0,
                 },
+                expectedUpdatedAt: variantUpdatedAtById[variant.id],
               }),
             });
           }
@@ -901,13 +1126,35 @@ export default function AdminProductClient({
       if (failed) {
         let errorMessage = "Save failed";
         try {
-          const data = (await failed.json()) as { error?: string };
+          const data = (await failed.json()) as {
+            error?: string;
+            currentUpdatedAt?: string;
+          };
           if (data?.error) errorMessage = data.error;
+          if (failed.status === 409 && data.currentUpdatedAt) {
+            setStaleConflictMessage(
+              `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
+            );
+          }
         } catch {
           // Keep default message when response isn't JSON.
         }
         setError(errorMessage);
         return;
+      }
+      const payloads = (await Promise.all(
+        responses.map((response) =>
+          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
+        )
+      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
+      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
+        if (item.variant?.id && item.variant.updatedAt) {
+          acc[item.variant.id] = item.variant.updatedAt;
+        }
+        return acc;
+      }, {});
+      if (Object.keys(nextVersions).length > 0) {
+        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
       }
       setMessage("Variants updated");
     } finally {
@@ -918,17 +1165,49 @@ export default function AdminProductClient({
   const saveVariantOrder = async (items: VariantItem[]) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     setReorderingVariants(true);
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         items.map((variant) =>
           fetch(`/api/admin/variants/${variant.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: variant.position }),
+            body: JSON.stringify({
+              position: variant.position,
+              expectedUpdatedAt: variantUpdatedAtById[variant.id],
+            }),
           })
         )
       );
+      const failed = responses.find((response) => !response.ok);
+      if (failed) {
+        const data = (await failed.json().catch(() => ({}))) as {
+          error?: string;
+          currentUpdatedAt?: string;
+        };
+        if (failed.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Variant order changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before reordering again.`
+          );
+        }
+        setError(data.error ?? "Reorder failed");
+        return;
+      }
+      const payloads = (await Promise.all(
+        responses.map((response) =>
+          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
+        )
+      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
+      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
+        if (item.variant?.id && item.variant.updatedAt) {
+          acc[item.variant.id] = item.variant.updatedAt;
+        }
+        return acc;
+      }, {});
+      if (Object.keys(nextVersions).length > 0) {
+        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
+      }
       setMessage("Variant order updated");
     } catch {
       setError("Reorder failed");
@@ -978,6 +1257,7 @@ export default function AdminProductClient({
   const deleteVariant = async (id: string, adminPassword: string) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     const res = await fetch(`/api/admin/variants/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -989,6 +1269,11 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => prev.filter((item) => item.id !== id));
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setMessage("Variant deleted");
   };
 
@@ -1036,6 +1321,12 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => [...prev, variant]);
+    if (variant.updatedAt) {
+      setVariantUpdatedAtById((prev) => ({
+        ...prev,
+        [variant.id]: variant.updatedAt,
+      }));
+    }
     setNewVariant({
       title: "",
       sku: "",
@@ -1093,6 +1384,18 @@ export default function AdminProductClient({
   }, [variants]);
 
   useEffect(() => {
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      variants.forEach((variant) => {
+        if (!(variant.id in next) && variant.updatedAt) {
+          next[variant.id] = variant.updatedAt;
+        }
+      });
+      return next;
+    });
+  }, [variants]);
+
+  useEffect(() => {
     setNewVariant((prev) => ({
       ...prev,
       options:
@@ -1124,39 +1427,121 @@ export default function AdminProductClient({
     );
   }, [details.supplierId, suppliers]);
 
+  const scrollToSection = (sectionId: (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"]) => {
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
+    <div className="admin-legacy-page admin-product-redesign space-y-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-5 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] md:p-8">
+      <div className="admin-product-hero admin-reveal rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
+            <p className="text-xs font-semibold tracking-[0.3em] text-cyan-200/80">
               CATALOG / PRODUCT
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{product.title}</h1>
+            <h1 className="mt-2 text-3xl font-semibold">{details.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {product.status}
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
+                {details.status}
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                Updated {new Date(product.updatedAt).toLocaleDateString("de-DE")}
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">
+                Updated {new Date(productUpdatedAt).toLocaleDateString("de-DE")}
               </span>
+              {hasUnsavedChanges ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 font-semibold text-amber-200">
+                  Unsaved changes
+                </span>
+              ) : (
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-semibold text-emerald-200">
+                  Synced
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <AdminThemeToggle />
             <Link
               href="/admin/catalog"
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
             >
               Back to catalog
             </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="admin-product-stat admin-lift rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+              Availability
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{totalAvailableInventory}</div>
+            <div className="mt-1 text-sm text-cyan-100/75">Units available across all variants</div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-violet-400/20 bg-violet-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
+              Variants
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{variants.length}</div>
+            <div className="mt-1 text-sm text-violet-100/75">
+              {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+              30d Revenue
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatCurrency(insights.revenue30dCents)}
+            </div>
+            <div className="mt-1 text-sm text-emerald-100/75">
+              Margin {formatPercent(insights.marginRate30d)}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
+              Conversion
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.conversionRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-amber-100/75">
+              {insights.views30d} views / {insights.purchases30d} purchases
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-rose-400/20 bg-rose-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200">
+              Returns
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.returnRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-rose-100/75">
+              {insights.returnedUnits30d} returned units in the last 30 days
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
+              Coverage
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {typeof insights.stockCoverDays === "number"
+                ? `${Math.round(insights.stockCoverDays)}d`
+                : mediaCoverageRatio}
+            </div>
+            <div className="mt-1 text-sm text-slate-300/75">
+              {typeof insights.stockCoverDays === "number"
+                ? `${trendLabel} demand · Supplier ${selectedSupplierName}`
+                : `Supplier: ${selectedSupplierName}`}
+            </div>
           </div>
         </div>
       </div>
 
       {(message || error) && (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          className={`admin-product-alert rounded-xl border px-4 py-3 text-sm shadow-sm ${
             error
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-green-200 bg-green-50 text-green-700"
@@ -1166,13 +1551,155 @@ export default function AdminProductClient({
         </div>
       )}
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
+      {staleConflictMessage ? (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{staleConflictMessage}</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-full border border-amber-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
+            >
+              Reload latest product
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-20 z-20 rounded-[24px] border border-white/10 bg-[#05070a]/88 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur">
+        <div className="flex flex-wrap items-center gap-2">
+          {PRODUCT_EDITOR_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section
+        id="performance"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">01</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">
+              P
+            </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Details</p>
-              <p className="text-xs text-stone-500">Core product information.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                Performance
+              </p>
+              <p className="text-xs text-slate-400">
+                Views, conversion, margin, return pressure, and traffic quality.
+              </p>
+            </div>
+          </div>
+          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${trendTone}`}>
+            {trendLabel} · {formatPercent(insights.trendDeltaRatio, 0)} vs 30d pace
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <InsightCard
+            label="Views"
+            value={String(insights.views30d)}
+            detail={`${insights.addToCart30d} add to cart`}
+          />
+          <InsightCard
+            label="Checkouts"
+            value={String(insights.beginCheckout30d)}
+            detail={`${insights.purchases30d} paid units`}
+          />
+          <InsightCard
+            label="CVR"
+            value={formatPercent(insights.conversionRate30d)}
+            detail={`Checkout to paid ${formatPercent(insights.checkoutToPaidRate30d)}`}
+          />
+          <InsightCard
+            label="Revenue"
+            value={formatCurrency(insights.revenue30dCents)}
+            detail={`Margin ${formatCurrency(insights.margin30dCents)}`}
+          />
+          <InsightCard
+            label="Returns"
+            value={formatPercent(insights.returnRate30d)}
+            detail={`${insights.returnedUnits30d} returned units`}
+          />
+          <InsightCard
+            label="Stock cover"
+            value={
+              typeof insights.stockCoverDays === "number"
+                ? `${Math.round(insights.stockCoverDays)}d`
+                : "—"
+            }
+            detail="Based on the last 30 days sales velocity"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Top traffic sources
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topTrafficSources.length === 0 ? (
+                <p className="text-sm text-slate-500">No source data captured for this product yet.</p>
+              ) : (
+                insights.topTrafficSources.map((source) => (
+                  <div
+                    key={source.label}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{source.label}</span>
+                    <span className="shrink-0 text-sm font-semibold text-cyan-200">
+                      {source.count} views
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Return reasons
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topReturnReasons.length === 0 ? (
+                <p className="text-sm text-slate-500">No return reasons recorded in the last 30 days.</p>
+              ) : (
+                insights.topReturnReasons.map((reason) => (
+                  <div
+                    key={reason.reason}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{reason.reason}</span>
+                    <span className="shrink-0 text-sm font-semibold text-rose-200">
+                      {reason.count}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="overview"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">01</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Details</p>
+              <p className="text-xs text-slate-400">Core product information.</p>
             </div>
           </div>
         </div>
@@ -1399,6 +1926,17 @@ export default function AdminProductClient({
             </span>
           </label>
           <label className="text-xs font-semibold text-stone-600">
+            Seller name
+            <input
+              value={details.sellerName}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
+              }
+              placeholder="e.g. Smokeify Marketplace"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
             Seller link
             <input
               type="url"
@@ -1549,7 +2087,41 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
-        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+        <div
+          id="seo"
+          className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
+        >
+          <label className="text-xs font-semibold text-stone-600">
+            SEO title
+            <input
+              value={details.seoTitle}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, seoTitle: event.target.value }))
+              }
+              placeholder="Search result title"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            SEO description
+            <textarea
+              value={details.seoDescription}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  seoDescription: event.target.value,
+                }))
+              }
+              rows={3}
+              placeholder="Search result description"
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <div
+          id="content"
+          className="scroll-mt-32 mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3"
+        >
           <button
             type="button"
             onClick={() => setDescriptionsOpen((prev) => !prev)}
@@ -1678,7 +2250,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+      <section
+        id="associations"
+        className="scroll-mt-32 rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-900">02</span>
           <div>
@@ -1936,7 +2511,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
+      <section
+        id="media"
+        className="scroll-mt-32 rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">03</span>
           <div>
@@ -2172,7 +2750,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]">
+      <section
+        id="variants"
+        className="scroll-mt-32 rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">04</span>
           <div>
@@ -2735,7 +3316,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm">
+      <section
+        id="cross-sells"
+        className="scroll-mt-32 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
@@ -2872,6 +3456,83 @@ export default function AdminProductClient({
         </div>
       </section>
 
+      <div className="sticky bottom-4 z-30">
+        <div className="rounded-[24px] border border-white/10 bg-[#05070a]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
+                {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
+              </span>
+              {detailsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Details
+                </span>
+              ) : null}
+              {categoriesDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Categories
+                </span>
+              ) : null}
+              {collectionsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Collections
+                </span>
+              ) : null}
+              {crossSellsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Cross-sells
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {detailsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveDetails}
+                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#05070a]"
+                >
+                  Save details
+                </button>
+              ) : null}
+              {categoriesDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCategories}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save categories
+                </button>
+              ) : null}
+              {collectionsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCollections}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save collections
+                </button>
+              ) : null}
+              {crossSellsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCrossSells}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save cross-sells
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200"
+              >
+                Reload latest
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {addVariantOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
@@ -2880,7 +3541,7 @@ export default function AdminProductClient({
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
+          <div className="admin-product-modal relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-stone-900">
@@ -3072,7 +3733,7 @@ export default function AdminProductClient({
 
       {confirmVariantId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+          <div className="admin-product-modal w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Variante löschen
             </h3>
@@ -3154,6 +3815,26 @@ export default function AdminProductClient({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InsightCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-sm text-slate-400">{detail}</p>
     </div>
   );
 }
