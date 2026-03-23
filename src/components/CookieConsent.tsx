@@ -131,7 +131,7 @@ export default function CookieConsent() {
       <button
         type="button"
         onClick={clearConsent}
-        className="fixed bottom-4 left-4 z-40 flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-medium text-stone-400 shadow-sm transition hover:border-stone-300 hover:text-stone-600"
+        className="fixed right-4 bottom-4 z-40 flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-medium text-stone-400 shadow-sm transition hover:border-stone-300 hover:text-stone-600"
         aria-label="Cookie-Einstellungen ändern"
       >
         <svg
@@ -158,9 +158,9 @@ export default function CookieConsent() {
       role="dialog"
       aria-modal="false"
       aria-label="Cookie-Einstellungen"
-      className="fixed bottom-0 left-0 right-0 z-50 w-full border-t border-stone-200 bg-white shadow-[0_-4px_24px_rgba(15,23,42,0.08)]"
+      className="fixed right-4 bottom-4 left-4 z-50 rounded-2xl border border-stone-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] sm:left-auto sm:w-[min(32rem,calc(100vw-2rem))]"
     >
-      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+      <div className="px-4 py-5 sm:px-6">
         {showDetails ? (
           /* ── Settings panel ── */
           <div>
@@ -247,7 +247,7 @@ export default function CookieConsent() {
           </div>
         ) : (
           /* ── Main banner ── */
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-4">
             <div className="flex-1 space-y-1 text-sm text-stone-600">
               <p className="font-semibold text-stone-900">
                 Wir verwenden Cookies
@@ -265,7 +265,7 @@ export default function CookieConsent() {
               </p>
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => dispatchConsent("declined")}

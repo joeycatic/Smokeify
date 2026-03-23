@@ -130,7 +130,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 w-[18rem] shrink-0 border-r border-white/10 bg-[#0a0d12]/95 p-4 backdrop-blur md:sticky md:translate-x-0 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex max-h-screen w-[18rem] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-4 backdrop-blur md:sticky md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
@@ -168,7 +168,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
             </div>
           </div>
 
-          <nav className="mt-6 space-y-6">
+          <nav className="mt-6 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
                 <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
