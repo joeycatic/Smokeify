@@ -925,8 +925,8 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-4 px-6 py-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid items-start gap-4 px-6 py-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.95fr)] lg:px-8">
+          <div className="grid auto-rows-min gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             <SummaryCard
               label="Visible orders"
               value={String(sorted.length)}
@@ -955,7 +955,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               tone="amber"
             />
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 xl:sticky xl:top-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-300/75">
@@ -2049,18 +2049,34 @@ function SummaryCard({
         : tone === "amber"
           ? "border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50"
           : "border-black/10 bg-gradient-to-br from-white via-white to-slate-50";
+  const accentClasses =
+    tone === "emerald"
+      ? "text-emerald-700 bg-emerald-100/80 border-emerald-200"
+      : tone === "violet"
+        ? "text-violet-700 bg-violet-100/80 border-violet-200"
+        : tone === "amber"
+          ? "text-amber-700 bg-amber-100/80 border-amber-200"
+          : "text-slate-700 bg-slate-100 border-slate-200";
   return (
     <div className={`rounded-[22px] border p-4 shadow-sm ${toneClasses}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-        {label}
-      </p>
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-900">{value}</p>
-      <p className="mt-2 text-xs text-stone-500">{detail}</p>
-      {change ? (
-        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-600">
-          {change}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+          {label}
         </p>
-      ) : null}
+        {change ? (
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${accentClasses}`}
+          >
+            {change}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <p className="max-w-full text-[clamp(1.9rem,2.4vw,2.5rem)] font-semibold leading-none tracking-tight text-stone-900">
+          {value}
+        </p>
+      </div>
+      <p className="mt-3 max-w-[24ch] text-sm leading-5 text-stone-600">{detail}</p>
     </div>
   );
 }

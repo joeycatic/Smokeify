@@ -51,7 +51,7 @@ export default async function AdminOrdersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
       <AdminOrdersClient
         webhookFailures={webhookFailures.map((event) => ({
           id: event.id,
