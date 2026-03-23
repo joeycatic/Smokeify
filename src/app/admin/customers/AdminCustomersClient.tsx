@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { HorizontalBarsChart, type AdminChartPoint } from "@/components/admin/AdminCharts";
 
 type Segment =
@@ -44,6 +44,18 @@ type GuestCustomer = BaseCustomer & {
 };
 
 type Customer = RegisteredCustomer | GuestCustomer;
+
+type CustomerSummary = {
+  totalCustomers: number;
+  totalNetRevenueCents: number;
+  vipCustomers: number;
+  churnRiskCustomers: number;
+  discountDrivenCustomers: number;
+  averageClvCents: number;
+  segmentBars: AdminChartPoint[];
+  topCustomers: Customer[];
+  atRiskCustomers: Customer[];
+};
 
 const SEGMENT_META: Record<
   Segment,
@@ -112,179 +124,88 @@ const getDaysSince = (iso: string | null) => {
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 };
 
-const getLastActivity = (customer: Customer) => customer.lastOrderAt ?? null;
-
-const getSegmentScore = (customer: Customer) => {
-  let score = 0;
-  if (customer.segments.includes("vip")) score += 4;
-  if (customer.segments.includes("high_value")) score += 3;
-  if (customer.segments.includes("churn_risk")) score += 2;
-  if (customer.segments.includes("return_risk")) score += 2;
-  if (customer.segments.includes("discount_driven")) score += 1;
-  return score;
+const EMPTY_SUMMARY: CustomerSummary = {
+  totalCustomers: 0,
+  totalNetRevenueCents: 0,
+  vipCustomers: 0,
+  churnRiskCustomers: 0,
+  discountDrivenCustomers: 0,
+  averageClvCents: 0,
+  segmentBars: [],
+  topCustomers: [],
+  atRiskCustomers: [],
 };
 
 export default function AdminCustomersClient() {
-  const [registeredCustomers, setRegisteredCustomers] = useState<RegisteredCustomer[]>([]);
-  const [guestCustomers, setGuestCustomers] = useState<GuestCustomer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [tab, setTab] = useState<"all" | "registered" | "guest">("all");
   const [segmentFilter, setSegmentFilter] = useState<Segment | "all">("all");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState<CustomerSummary>(EMPTY_SUMMARY);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
-  const loadCustomers = async () => {
+  const loadCustomers = useEffectEvent(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/customers", { method: "GET" });
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      if (deferredQuery.trim()) params.set("q", deferredQuery.trim());
+      if (tab !== "all") params.set("tab", tab);
+      if (segmentFilter !== "all") params.set("segment", segmentFilter);
+      const res = await fetch(`/api/admin/customers?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Failed to load customers.");
         return;
       }
       const data = (await res.json()) as {
-        registeredCustomers?: RegisteredCustomer[];
-        guestCustomers?: GuestCustomer[];
+        customers?: Customer[];
+        currentPage?: number;
+        totalCount?: number;
+        totalPages?: number;
+        summary?: CustomerSummary;
       };
-      setRegisteredCustomers(data.registeredCustomers ?? []);
-      setGuestCustomers(data.guestCustomers ?? []);
+      setCustomers(data.customers ?? []);
+      setPage(data.currentPage ?? page);
+      setTotalCount(data.totalCount ?? 0);
+      setTotalPages(data.totalPages ?? 1);
+      setSummary(data.summary ?? EMPTY_SUMMARY);
     } catch {
       setError("Failed to load customers.");
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   useEffect(() => {
     void loadCustomers();
-  }, []);
-
-  const allCustomers = useMemo<Customer[]>(
-    () => [...registeredCustomers, ...guestCustomers],
-    [guestCustomers, registeredCustomers],
-  );
-
-  const filtered = useMemo(() => {
-    let list: Customer[] =
-      tab === "registered"
-        ? registeredCustomers
-        : tab === "guest"
-          ? guestCustomers
-          : allCustomers;
-
-    if (segmentFilter !== "all") {
-      list = list.filter((customer) => customer.segments.includes(segmentFilter));
-    }
-
-    if (query.trim()) {
-      const normalized = query.trim().toLowerCase();
-      list = list.filter((customer) => {
-        const haystack = [
-          customer.email,
-          customer.name ?? "",
-          customer.type === "registered" ? customer.customerGroup ?? "" : "",
-          ...customer.segments.map((segment) => SEGMENT_META[segment].label),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(normalized);
-      });
-    }
-
-    return [...list].sort((left, right) => {
-      const dateDiff =
-        new Date(getLastActivity(right) ?? 0).getTime() -
-        new Date(getLastActivity(left) ?? 0).getTime();
-      if (dateDiff !== 0) return dateDiff;
-      if (right.netRevenueCents !== left.netRevenueCents) {
-        return right.netRevenueCents - left.netRevenueCents;
-      }
-      return getSegmentScore(right) - getSegmentScore(left);
-    });
-  }, [allCustomers, guestCustomers, query, registeredCustomers, segmentFilter, tab]);
+  }, [deferredQuery, page, refreshNonce, segmentFilter, tab]);
 
   useEffect(() => {
-    if (!filtered.length) {
+    if (!customers.length) {
       setSelectedKey(null);
       return;
     }
-    if (selectedKey && filtered.some((customer) => getCustomerKey(customer) === selectedKey)) {
+    if (selectedKey && customers.some((customer) => getCustomerKey(customer) === selectedKey)) {
       return;
     }
-    setSelectedKey(getCustomerKey(filtered[0]));
-  }, [filtered, selectedKey]);
+    setSelectedKey(getCustomerKey(customers[0]));
+  }, [customers, selectedKey]);
 
   const selectedCustomer = useMemo(
-    () => filtered.find((customer) => getCustomerKey(customer) === selectedKey) ?? filtered[0] ?? null,
-    [filtered, selectedKey],
-  );
-
-  const totalNetRevenueCents = useMemo(
-    () => allCustomers.reduce((sum, customer) => sum + customer.netRevenueCents, 0),
-    [allCustomers],
-  );
-
-  const vipCustomers = useMemo(
-    () => allCustomers.filter((customer) => customer.segments.includes("vip")).length,
-    [allCustomers],
-  );
-
-  const churnRiskCustomers = useMemo(
-    () => allCustomers.filter((customer) => customer.segments.includes("churn_risk")).length,
-    [allCustomers],
-  );
-
-  const discountDrivenCustomers = useMemo(
-    () =>
-      allCustomers.filter((customer) => customer.segments.includes("discount_driven")).length,
-    [allCustomers],
-  );
-
-  const averageClvCents = useMemo(() => {
-    if (allCustomers.length === 0) return 0;
-    return Math.round(totalNetRevenueCents / allCustomers.length);
-  }, [allCustomers.length, totalNetRevenueCents]);
-
-  const segmentBars = useMemo<AdminChartPoint[]>(
-    () =>
-      [
-        { label: "VIP", value: vipCustomers },
-        { label: "Churn risk", value: churnRiskCustomers },
-        { label: "Discount driven", value: discountDrivenCustomers },
-        {
-          label: "Return risk",
-          value: allCustomers.filter((customer) => customer.segments.includes("return_risk"))
-            .length,
-        },
-        {
-          label: "New",
-          value: allCustomers.filter((customer) => customer.segments.includes("new")).length,
-        },
-      ].filter((entry) => entry.value > 0),
-    [allCustomers, churnRiskCustomers, discountDrivenCustomers, vipCustomers],
-  );
-
-  const topCustomers = useMemo(
-    () => [...allCustomers].sort((a, b) => b.netRevenueCents - a.netRevenueCents).slice(0, 6),
-    [allCustomers],
-  );
-
-  const atRiskCustomers = useMemo(
-    () =>
-      [...allCustomers]
-        .filter(
-          (customer) =>
-            customer.segments.includes("churn_risk") || customer.segments.includes("return_risk"),
-        )
-        .sort((a, b) => {
-          const riskDiff = getSegmentScore(b) - getSegmentScore(a);
-          if (riskDiff !== 0) return riskDiff;
-          return b.netRevenueCents - a.netRevenueCents;
-        })
-        .slice(0, 6),
-    [allCustomers],
+    () => customers.find((customer) => getCustomerKey(customer) === selectedKey) ?? customers[0] ?? null,
+    [customers, selectedKey],
   );
 
   const actionSummary = useMemo(() => {
@@ -320,7 +241,7 @@ export default function AdminCustomersClient() {
           </div>
           <button
             type="button"
-            onClick={loadCustomers}
+            onClick={() => setRefreshNonce((prev) => prev + 1)}
             className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
             disabled={loading}
           >
@@ -329,11 +250,11 @@ export default function AdminCustomersClient() {
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Customers" value={String(allCustomers.length)} />
-          <MetricCard label="Net revenue" value={formatEur(totalNetRevenueCents)} />
-          <MetricCard label="VIP / high touch" value={String(vipCustomers)} />
-          <MetricCard label="Churn risk" value={String(churnRiskCustomers)} />
-          <MetricCard label="Avg. CLV" value={formatEur(averageClvCents)} />
+          <MetricCard label="Customers" value={String(summary.totalCustomers)} />
+          <MetricCard label="Net revenue" value={formatEur(summary.totalNetRevenueCents)} />
+          <MetricCard label="VIP / high touch" value={String(summary.vipCustomers)} />
+          <MetricCard label="Churn risk" value={String(summary.churnRiskCustomers)} />
+          <MetricCard label="Avg. CLV" value={formatEur(summary.averageClvCents)} />
         </div>
       </section>
 
@@ -349,10 +270,10 @@ export default function AdminCustomersClient() {
           title="Revenue quality mix"
           description="Who is valuable, risky, discount-heavy, or newly acquired."
         >
-          {segmentBars.length === 0 ? (
+          {summary.segmentBars.length === 0 ? (
             <EmptyPanelCopy message="No segment data available yet." />
           ) : (
-            <HorizontalBarsChart data={segmentBars} colorClassName="bg-cyan-400" />
+            <HorizontalBarsChart data={summary.segmentBars} colorClassName="bg-cyan-400" />
           )}
         </Panel>
 
@@ -361,7 +282,14 @@ export default function AdminCustomersClient() {
           title="Top customer value"
           description="Highest net revenue accounts and guests across the whole CRM."
         >
-          <CustomerSummaryList customers={topCustomers} onSelect={setSelectedKey} />
+          <CustomerSummaryList
+            customers={summary.topCustomers}
+            onSelect={(customer) => {
+              setQuery(customer.email);
+              setPage(1);
+              setSelectedKey(getCustomerKey(customer));
+            }}
+          />
         </Panel>
 
         <Panel
@@ -369,7 +297,14 @@ export default function AdminCustomersClient() {
           title="Customers needing attention"
           description="Focus repeat buyers at churn risk, margin-heavy accounts, and return-risk cases."
         >
-          <CustomerSummaryList customers={atRiskCustomers} onSelect={setSelectedKey} />
+          <CustomerSummaryList
+            customers={summary.atRiskCustomers}
+            onSelect={(customer) => {
+              setQuery(customer.email);
+              setPage(1);
+              setSelectedKey(getCustomerKey(customer));
+            }}
+          />
         </Panel>
       </div>
 
@@ -385,7 +320,10 @@ export default function AdminCustomersClient() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setTab(value)}
+                  onClick={() => {
+                    setTab(value);
+                    setPage(1);
+                  }}
                   className={`px-4 py-2 transition ${
                     tab === value
                       ? "bg-white text-[#05070a]"
@@ -401,14 +339,20 @@ export default function AdminCustomersClient() {
               <SegmentFilterChip
                 active={segmentFilter === "all"}
                 label="All segments"
-                onClick={() => setSegmentFilter("all")}
+                onClick={() => {
+                  setSegmentFilter("all");
+                  setPage(1);
+                }}
               />
               {(Object.keys(SEGMENT_META) as Segment[]).map((segment) => (
                 <SegmentFilterChip
                   key={segment}
                   active={segmentFilter === segment}
                   label={SEGMENT_META[segment].label}
-                  onClick={() => setSegmentFilter(segment)}
+                  onClick={() => {
+                    setSegmentFilter(segment);
+                    setPage(1);
+                  }}
                 />
               ))}
             </div>
@@ -416,11 +360,14 @@ export default function AdminCustomersClient() {
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
               placeholder="Search by email, name, segment, group..."
               className="h-10 min-w-[240px] flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
             />
-            <span className="text-xs text-slate-500">{filtered.length} results</span>
+            <span className="text-xs text-slate-500">{totalCount} results</span>
           </div>
 
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
@@ -433,13 +380,13 @@ export default function AdminCustomersClient() {
               <div className="text-right">AOV</div>
             </div>
 
-            {filtered.length === 0 ? (
+            {customers.length === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-slate-500">
                 {loading ? "Loading..." : "No customers found."}
               </div>
             ) : (
               <div className="divide-y divide-white/5">
-                {filtered.map((customer, index) => {
+                {customers.map((customer, index) => {
                   const key = getCustomerKey(customer);
                   const isSelected = key === getCustomerKey(selectedCustomer);
                   return (
@@ -465,7 +412,7 @@ export default function AdminCustomersClient() {
                       <div className="min-w-0">
                         <div className="truncate font-medium text-slate-100">{customer.email}</div>
                         <div className="truncate text-xs text-slate-500">
-                          {customer.name ?? "Unknown"} · last active {formatDate(getLastActivity(customer))}
+                          {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
                         </div>
                       </div>
                       <div className="flex min-w-0 flex-wrap gap-1">
@@ -489,6 +436,32 @@ export default function AdminCustomersClient() {
               </div>
             )}
           </div>
+
+          {totalPages > 1 ? (
+            <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-400">
+              <span>
+                Page {page} / {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                  className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page >= totalPages}
+                  className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </Panel>
 
         <Panel
@@ -588,7 +561,10 @@ export default function AdminCustomersClient() {
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => setQuery(selectedCustomer.email)}
+                    onClick={() => {
+                      setQuery(selectedCustomer.email);
+                      setPage(1);
+                    }}
                     className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
                   >
                     Filter CRM by this email
@@ -596,7 +572,10 @@ export default function AdminCustomersClient() {
                   {selectedCustomer.segments[0] ? (
                     <button
                       type="button"
-                      onClick={() => setSegmentFilter(selectedCustomer.segments[0])}
+                      onClick={() => {
+                        setSegmentFilter(selectedCustomer.segments[0]);
+                        setPage(1);
+                      }}
                       className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
                     >
                       Open {SEGMENT_META[selectedCustomer.segments[0]].label} segment
@@ -747,7 +726,7 @@ function CustomerSummaryList({
   onSelect,
 }: {
   customers: Customer[];
-  onSelect: (key: string) => void;
+  onSelect: (customer: Customer) => void;
 }) {
   if (customers.length === 0) {
     return <EmptyPanelCopy message="No customer data yet." />;
@@ -759,7 +738,7 @@ function CustomerSummaryList({
         <button
           key={`${getCustomerKey(customer)}-${index}`}
           type="button"
-          onClick={() => onSelect(getCustomerKey(customer))}
+          onClick={() => onSelect(customer)}
           className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:bg-white/[0.05]"
         >
           <div className="min-w-0">

@@ -4,6 +4,37 @@ import { prisma } from "@/lib/prisma";
 import { PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 
 type Segment = "new" | "repeat" | "high_value" | "churn_risk" | "discount_driven" | "return_risk" | "vip";
+type CustomerTab = "all" | "registered" | "guest";
+type BaseCustomer = {
+  email: string;
+  name: string | null;
+  orderCount: number;
+  totalSpentCents: number;
+  refundedCents: number;
+  netRevenueCents: number;
+  aovCents: number;
+  firstOrderAt: string | null;
+  lastOrderAt: string | null;
+  discountOrderCount: number;
+  returnCount: number;
+  segments: Segment[];
+};
+type RegisteredCustomer = BaseCustomer & {
+  type: "registered";
+  id: string;
+  joinedAt: string;
+  newsletterOptIn: boolean;
+  loyaltyPointsBalance: number;
+  storeCreditBalance: number;
+  customerGroup: string | null;
+  notes: string | null;
+};
+type GuestCustomer = BaseCustomer & {
+  type: "guest";
+};
+type Customer = RegisteredCustomer | GuestCustomer;
+
+const PAGE_SIZE = 40;
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -39,11 +70,53 @@ const buildSegments = ({
   return Array.from(segments);
 };
 
-export async function GET() {
+const getSegmentScore = (customer: Customer) => {
+  let score = 0;
+  if (customer.segments.includes("vip")) score += 4;
+  if (customer.segments.includes("high_value")) score += 3;
+  if (customer.segments.includes("churn_risk")) score += 2;
+  if (customer.segments.includes("return_risk")) score += 2;
+  if (customer.segments.includes("discount_driven")) score += 1;
+  return score;
+};
+
+const sortCustomers = (customers: Customer[]) =>
+  [...customers].sort((left, right) => {
+    const dateDiff =
+      new Date(right.lastOrderAt ?? 0).getTime() -
+      new Date(left.lastOrderAt ?? 0).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    if (right.netRevenueCents !== left.netRevenueCents) {
+      return right.netRevenueCents - left.netRevenueCents;
+    }
+    return getSegmentScore(right) - getSegmentScore(left);
+  });
+
+export async function GET(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const rawQuery = searchParams.get("q")?.trim() ?? "";
+  const tabParam = searchParams.get("tab");
+  const segmentParam = searchParams.get("segment");
+  const pageParam = Number(searchParams.get("page") ?? "1");
+  const tab: CustomerTab =
+    tabParam === "registered" || tabParam === "guest" ? tabParam : "all";
+  const segmentFilter: Segment | "all" =
+    segmentParam === "new" ||
+    segmentParam === "repeat" ||
+    segmentParam === "high_value" ||
+    segmentParam === "churn_risk" ||
+    segmentParam === "discount_driven" ||
+    segmentParam === "return_risk" ||
+    segmentParam === "vip"
+      ? segmentParam
+      : "all";
+  const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const normalizedQuery = rawQuery.toLowerCase();
 
   const users = await prisma.user.findMany({
     where: { role: "USER" },
@@ -125,7 +198,8 @@ export async function GET() {
     guestMap.set(key, entry);
   }
 
-  const registeredCustomers = users.map((user) => {
+  const registeredCustomers = users.flatMap((user) => {
+    if (!user.email) return [];
     const sortedOrders = [...user.orders].sort(
       (left, right) => left.createdAt.getTime() - right.createdAt.getTime(),
     );
@@ -138,7 +212,7 @@ export async function GET() {
     const discountOrderCount = sortedOrders.filter((order) => Boolean(order.discountCode)).length;
     const returnCount = user.returnRequests.length;
 
-    return {
+    return [{
       type: "registered" as const,
       id: user.id,
       email: user.email,
@@ -167,7 +241,7 @@ export async function GET() {
         returnCount,
         customerGroup: user.customerGroup,
       }),
-    };
+    }];
   });
 
   const guestCustomers = Array.from(guestMap.values()).map((guest) => {
@@ -206,5 +280,108 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ registeredCustomers, guestCustomers });
+  const allCustomers = sortCustomers([...registeredCustomers, ...guestCustomers]);
+  let filteredCustomers: Customer[] =
+    tab === "registered"
+      ? registeredCustomers
+      : tab === "guest"
+        ? guestCustomers
+        : allCustomers;
+
+  if (segmentFilter !== "all") {
+    filteredCustomers = filteredCustomers.filter((customer) =>
+      customer.segments.includes(segmentFilter),
+    );
+  }
+
+  if (normalizedQuery) {
+    filteredCustomers = filteredCustomers.filter((customer) => {
+      const haystack = [
+        customer.email,
+        customer.name ?? "",
+        customer.type === "registered" ? customer.customerGroup ?? "" : "",
+        ...customer.segments,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }
+
+  const sortedFilteredCustomers = sortCustomers(filteredCustomers);
+  const totalCount = sortedFilteredCustomers.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const customers = sortedFilteredCustomers.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const totalNetRevenueCents = sortedFilteredCustomers.reduce(
+    (sum, customer) => sum + customer.netRevenueCents,
+    0,
+  );
+  const vipCustomers = sortedFilteredCustomers.filter((customer) =>
+    customer.segments.includes("vip"),
+  ).length;
+  const churnRiskCustomers = sortedFilteredCustomers.filter((customer) =>
+    customer.segments.includes("churn_risk"),
+  ).length;
+  const discountDrivenCustomers = sortedFilteredCustomers.filter((customer) =>
+    customer.segments.includes("discount_driven"),
+  ).length;
+  const averageClvCents =
+    totalCount > 0 ? Math.round(totalNetRevenueCents / totalCount) : 0;
+
+  const segmentBars = [
+    { label: "VIP", value: vipCustomers },
+    { label: "Churn risk", value: churnRiskCustomers },
+    { label: "Discount driven", value: discountDrivenCustomers },
+    {
+      label: "Return risk",
+      value: sortedFilteredCustomers.filter((customer) =>
+        customer.segments.includes("return_risk"),
+      ).length,
+    },
+    {
+      label: "New",
+      value: sortedFilteredCustomers.filter((customer) => customer.segments.includes("new"))
+        .length,
+    },
+  ].filter((entry) => entry.value > 0);
+
+  const topCustomers = [...sortedFilteredCustomers]
+    .sort((left, right) => right.netRevenueCents - left.netRevenueCents)
+    .slice(0, 6);
+  const atRiskCustomers = [...sortedFilteredCustomers]
+    .filter(
+      (customer) =>
+        customer.segments.includes("churn_risk") ||
+        customer.segments.includes("return_risk"),
+    )
+    .sort((left, right) => {
+      const riskDiff = getSegmentScore(right) - getSegmentScore(left);
+      if (riskDiff !== 0) return riskDiff;
+      return right.netRevenueCents - left.netRevenueCents;
+    })
+    .slice(0, 6);
+
+  return NextResponse.json({
+    customers,
+    currentPage,
+    pageSize: PAGE_SIZE,
+    totalCount,
+    totalPages,
+    summary: {
+      totalCustomers: totalCount,
+      totalNetRevenueCents,
+      vipCustomers,
+      churnRiskCustomers,
+      discountDrivenCustomers,
+      averageClvCents,
+      segmentBars,
+      topCustomers,
+      atRiskCustomers,
+    },
+  });
 }
