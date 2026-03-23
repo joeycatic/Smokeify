@@ -5,12 +5,23 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { generateVerificationCode, hashToken } from "@/lib/security";
+import {
+  decryptSensitiveValue,
+  generateVerificationCode,
+  hashToken,
+  verifyTotpCode,
+} from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
-import { checkRateLimit, getClientIp, LOGIN_RATE_LIMIT } from "@/lib/rateLimit";
+import {
+  ADMIN_LOGIN_RATE_LIMIT,
+  checkRateLimit,
+  getClientIp,
+  LOGIN_RATE_LIMIT,
+} from "@/lib/rateLimit";
 
 const providers: NextAuthOptions["providers"] = [];
 const VERIFY_LOGIN_COOKIE = "smokeify_verify_login";
+const FALLBACK_PASSWORD_HASH = bcrypt.hashSync("smokeify-admin-fallback", 10);
 
 providers.push(
   CredentialsProvider({
@@ -18,30 +29,47 @@ providers.push(
     credentials: {
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
+      adminIntent: { label: "Admin Intent", type: "text" },
+      totpCode: { label: "TOTP Code", type: "text" },
     },
     async authorize(credentials, req) {
       const identifier = credentials?.email?.trim() ?? "";
       const identifierLower = identifier.toLowerCase();
       const password = credentials?.password ?? "";
+      const adminIntent = credentials?.adminIntent === "1";
+      const totpCode = credentials?.totpCode?.trim() ?? "";
       if (!identifier) return null;
 
       const ip = getClientIp(req?.headers ?? new Headers());
+      const rateLimit = adminIntent ? ADMIN_LOGIN_RATE_LIMIT : LOGIN_RATE_LIMIT;
+      const rateLimitPrefix = adminIntent ? "admin-login" : "login";
       const ipLimit = await checkRateLimit({
-        key: `login:ip:${ip}`,
-        limit: LOGIN_RATE_LIMIT.ipLimit,
-        windowMs: LOGIN_RATE_LIMIT.windowMs,
+        key: `${rateLimitPrefix}:ip:${ip}`,
+        limit: rateLimit.ipLimit,
+        windowMs: rateLimit.windowMs,
       });
       if (!ipLimit.allowed) {
         throw new Error("RATE_LIMIT");
       }
 
       const loginLimit = await checkRateLimit({
-        key: `login:identifier:${identifierLower}`,
-        limit: LOGIN_RATE_LIMIT.identifierLimit,
-        windowMs: LOGIN_RATE_LIMIT.windowMs,
+        key: `${rateLimitPrefix}:identifier:${identifierLower}`,
+        limit: rateLimit.identifierLimit,
+        windowMs: rateLimit.windowMs,
       });
       if (!loginLimit.allowed) {
         throw new Error("RATE_LIMIT");
+      }
+
+      if (adminIntent) {
+        const comboLimit = await checkRateLimit({
+          key: `${rateLimitPrefix}:pair:${ip}:${identifierLower}`,
+          limit: ADMIN_LOGIN_RATE_LIMIT.pairLimit,
+          windowMs: ADMIN_LOGIN_RATE_LIMIT.windowMs,
+        });
+        if (!comboLimit.allowed) {
+          throw new Error("RATE_LIMIT");
+        }
       }
 
       const user = await prisma.user.findFirst({
@@ -60,8 +88,51 @@ providers.push(
           emailVerified: true,
           role: true,
           authVersion: true,
+          adminTotpSecretEncrypted: true,
+          adminTotpEnabledAt: true,
         },
       });
+
+      if (adminIntent) {
+        if (!password) {
+          return null;
+        }
+
+        const passwordHash = user?.passwordHash ?? FALLBACK_PASSWORD_HASH;
+        const valid = await bcrypt.compare(password, passwordHash);
+        if (!user || !user.email || !valid) {
+          return null;
+        }
+
+        if (!user.emailVerified) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
+
+        if (user.role !== "ADMIN") {
+          throw new Error("AccessDenied");
+        }
+
+        const adminTotpEnabled = Boolean(
+          user.adminTotpEnabledAt && user.adminTotpSecretEncrypted
+        );
+        if (adminTotpEnabled) {
+          if (!totpCode) {
+            throw new Error("ADMIN_MFA_REQUIRED");
+          }
+
+          const secret = decryptSensitiveValue(user.adminTotpSecretEncrypted as string);
+          if (!verifyTotpCode(secret, totpCode)) {
+            throw new Error("INVALID_TOTP");
+          }
+        }
+
+        return {
+          ...user,
+          adminVerifiedAt: Date.now(),
+          adminTotpEnabled,
+        };
+      }
+
       if (!user || !user.email) return null;
 
       const cookieStore = await cookies();
@@ -177,18 +248,32 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: String(user.id) },
-          select: { role: true, authVersion: true },
+          select: {
+            role: true,
+            authVersion: true,
+            adminTotpEnabledAt: true,
+            adminTotpSecretEncrypted: true,
+          },
         });
         if (!dbUser) {
           token.invalidated = true;
           delete token.id;
           delete token.role;
           delete token.authVersion;
+          delete token.adminVerifiedAt;
           return token;
         }
         token.id = user.id;
         token.role = dbUser.role;
         token.authVersion = dbUser.authVersion;
+        token.adminTotpEnabled = Boolean(
+          dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
+        );
+        if (dbUser.role === "ADMIN" && typeof user.adminVerifiedAt === "number") {
+          token.adminVerifiedAt = user.adminVerifiedAt;
+        } else {
+          delete token.adminVerifiedAt;
+        }
         token.invalidated = false;
         return token;
       }
@@ -196,13 +281,19 @@ export const authOptions: NextAuthOptions = {
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: String(token.id) },
-          select: { role: true, authVersion: true },
+          select: {
+            role: true,
+            authVersion: true,
+            adminTotpEnabledAt: true,
+            adminTotpSecretEncrypted: true,
+          },
         });
         if (!dbUser) {
           token.invalidated = true;
           delete token.id;
           delete token.role;
           delete token.authVersion;
+          delete token.adminVerifiedAt;
           return token;
         }
         if (
@@ -213,10 +304,17 @@ export const authOptions: NextAuthOptions = {
           delete token.id;
           delete token.role;
           delete token.authVersion;
+          delete token.adminVerifiedAt;
           return token;
         }
         token.role = dbUser.role;
         token.authVersion = dbUser.authVersion;
+        token.adminTotpEnabled = Boolean(
+          dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
+        );
+        if (dbUser.role !== "ADMIN") {
+          delete token.adminVerifiedAt;
+        }
         token.invalidated = false;
       }
 
@@ -229,6 +327,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = String(token.id ?? "");
         session.user.role = (token.role as "USER" | "ADMIN" | "STAFF") ?? "USER";
+        if (typeof token.adminVerifiedAt === "number") {
+          session.user.adminVerifiedAt = token.adminVerifiedAt;
+        }
+        session.user.adminTotpEnabled = token.adminTotpEnabled === true;
       }
       return session;
     },

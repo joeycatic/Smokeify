@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
-import { buildUnsubscribeUrl } from "@/lib/newsletterToken";
 import { getAppOrigin } from "@/lib/appOrigin";
 
 const sendEmail = async (opts: {
@@ -115,8 +113,8 @@ export async function POST(request: Request) {
       { status: 429 }
     );
   }
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -141,8 +139,6 @@ export async function POST(request: Request) {
 
   const appOrigin = getAppOrigin(request);
   const shopUrl = `${appOrigin}/products`;
-  // Only compute unsubscribe URL for marketing email types that need it
-  const getUnsubscribeUrl = () => buildUnsubscribeUrl(appOrigin, recipient);
 
   if (type === "newsletter") {
     const subject = toSafeString(body.newsletter?.subject);
