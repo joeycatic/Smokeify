@@ -176,7 +176,7 @@ export default async function AdminCatalogPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+    <div className="mx-auto max-w-screen-2xl px-2 py-2 text-slate-100">
       <AdminCatalogClient
         initialProducts={products.map((product) => {
           const { variants, supplierRef, collections: productCollections, ...rest } = product;
