@@ -923,6 +923,163 @@ body {
   background-color: rgba(15, 20, 28, 0.88) !important;
 }
 
+.admin-theme.admin-dark .admin-product-redesign {
+  color: #dbe7f3;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(120deg, rgba(34, 211, 238, 0.06), transparent 38%),
+    linear-gradient(300deg, rgba(245, 158, 11, 0.06), transparent 32%);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-stat {
+  backdrop-filter: blur(14px);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-section {
+  backdrop-filter: blur(14px);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-alert {
+  backdrop-filter: blur(10px);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .bg-white,
+.admin-theme.admin-dark .admin-product-redesign .bg-white\/90,
+.admin-theme.admin-dark .admin-product-redesign .bg-white\/80,
+.admin-theme.admin-dark .admin-product-redesign .bg-white\/70 {
+  background-color: rgba(8, 12, 18, 0.94) !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .bg-stone-50,
+.admin-theme.admin-dark .admin-product-redesign .bg-stone-100,
+.admin-theme.admin-dark .admin-product-redesign .bg-emerald-50,
+.admin-theme.admin-dark .admin-product-redesign .bg-amber-50,
+.admin-theme.admin-dark .admin-product-redesign .bg-amber-50\/60,
+.admin-theme.admin-dark .admin-product-redesign .bg-emerald-50\/60,
+.admin-theme.admin-dark .admin-product-redesign .bg-indigo-50\/60,
+.admin-theme.admin-dark .admin-product-redesign .bg-sky-50\/60,
+.admin-theme.admin-dark .admin-product-redesign .bg-violet-50\/60,
+.admin-theme.admin-dark .admin-product-redesign .bg-red-50,
+.admin-theme.admin-dark .admin-product-redesign .bg-green-50 {
+  background-color: rgba(11, 17, 24, 0.92) !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .border-black\/10,
+.admin-theme.admin-dark .admin-product-redesign .border-black\/15,
+.admin-theme.admin-dark .admin-product-redesign .border-black\/20,
+.admin-theme.admin-dark .admin-product-redesign .border-stone-200,
+.admin-theme.admin-dark .admin-product-redesign .border-emerald-200,
+.admin-theme.admin-dark .admin-product-redesign .border-emerald-200\/70,
+.admin-theme.admin-dark .admin-product-redesign .border-indigo-200\/70,
+.admin-theme.admin-dark .admin-product-redesign .border-sky-200\/70,
+.admin-theme.admin-dark .admin-product-redesign .border-violet-200\/70,
+.admin-theme.admin-dark .admin-product-redesign .border-red-200,
+.admin-theme.admin-dark .admin-product-redesign .border-green-200 {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .text-stone-900,
+.admin-theme.admin-dark .admin-product-redesign .text-stone-800,
+.admin-theme.admin-dark .admin-product-redesign .text-stone-700 {
+  color: #f8fafc !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .text-stone-600,
+.admin-theme.admin-dark .admin-product-redesign .text-stone-500,
+.admin-theme.admin-dark .admin-product-redesign .text-stone-400 {
+  color: #94a3b8 !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .text-emerald-700,
+.admin-theme.admin-dark .admin-product-redesign .text-emerald-600,
+.admin-theme.admin-dark .admin-product-redesign .text-sky-700,
+.admin-theme.admin-dark .admin-product-redesign .text-indigo-700,
+.admin-theme.admin-dark .admin-product-redesign .text-violet-700 {
+  color: #7dd3fc !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .text-red-700,
+.admin-theme.admin-dark .admin-product-redesign .text-red-600 {
+  color: #fca5a5 !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .text-green-700,
+.admin-theme.admin-dark .admin-product-redesign .text-green-600 {
+  color: #86efac !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign input,
+.admin-theme.admin-dark .admin-product-redesign select,
+.admin-theme.admin-dark .admin-product-redesign textarea {
+  background-color: rgba(6, 10, 16, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign input::placeholder,
+.admin-theme.admin-dark .admin-product-redesign textarea::placeholder {
+  color: #64748b !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign input:focus,
+.admin-theme.admin-dark .admin-product-redesign select:focus,
+.admin-theme.admin-dark .admin-product-redesign textarea:focus {
+  border-color: rgba(34, 211, 238, 0.36) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12) !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign a {
+  color: #c5eaff;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-modal {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(8, 12, 18, 0.98), rgba(6, 10, 16, 0.98)) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, 0.5);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-modal .text-red-600 {
+  color: #fca5a5 !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-modal .bg-red-600 {
+  background-color: #dc2626 !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .admin-product-modal .hover\:bg-red-700:hover {
+  background-color: #b91c1c !important;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .rich-text-editor,
+.admin-theme.admin-dark .admin-product-redesign .ProseMirror {
+  color: #e2e8f0;
+  background-color: transparent;
+}
+
+.admin-theme.admin-dark .admin-product-redesign .shadow-sm,
+.admin-theme.admin-dark .admin-product-redesign .shadow-lg,
+.admin-theme.admin-dark .admin-product-redesign .shadow-xl {
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+}
+
+.admin-theme.admin-dark .admin-product-redesign .hover\:bg-stone-50:hover {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
 .admin-theme.admin-dark .admin-legacy-page [class*="from-[#14532d]"],
 .admin-theme.admin-dark .admin-legacy-page [class*="via-[#2f3e36]"],
 .admin-theme.admin-dark .admin-legacy-page [class*="to-[#0f766e]"] {

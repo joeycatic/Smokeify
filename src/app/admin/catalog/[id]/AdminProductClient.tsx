@@ -454,6 +454,38 @@ export default function AdminProductClient({
     categoryIds.has(item.id)
   ).length;
   const selectedCollectionCount = collectionIds.size;
+  const selectedSupplierName = useMemo(
+    () =>
+      suppliers.find((supplier) => supplier.id === details.supplierId)?.name ??
+      product.supplier ??
+      "No supplier",
+    [details.supplierId, product.supplier, suppliers]
+  );
+  const totalAvailableInventory = useMemo(
+    () =>
+      variants.reduce(
+        (sum, variant) =>
+          sum +
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ),
+        0
+      ),
+    [variants]
+  );
+  const lowStockVariantCount = useMemo(
+    () =>
+      variants.filter(
+        (variant) =>
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ) <= variant.lowStockThreshold && variant.lowStockThreshold > 0
+      ).length,
+    [variants]
+  );
+  const mediaCoverageRatio = `${images.length} image${images.length === 1 ? "" : "s"}`;
 
   useEffect(() => {
     if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
@@ -1354,19 +1386,19 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className="admin-legacy-page space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
+    <div className="admin-legacy-page admin-product-redesign space-y-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-5 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] md:p-8">
+      <div className="admin-product-hero admin-reveal rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
+            <p className="text-xs font-semibold tracking-[0.3em] text-cyan-200/80">
               CATALOG / PRODUCT
             </p>
             <h1 className="mt-2 text-3xl font-semibold">{details.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
                 {details.status}
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">
                 Updated {new Date(productUpdatedAt).toLocaleDateString("de-DE")}
               </span>
               {hasUnsavedChanges ? (
@@ -1384,17 +1416,54 @@ export default function AdminProductClient({
             <AdminThemeToggle />
             <Link
               href="/admin/catalog"
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
             >
               Back to catalog
             </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="admin-product-stat admin-lift rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+              Availability
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{totalAvailableInventory}</div>
+            <div className="mt-1 text-sm text-cyan-100/75">Units available across all variants</div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-violet-400/20 bg-violet-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
+              Variants
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{variants.length}</div>
+            <div className="mt-1 text-sm text-violet-100/75">
+              {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
+              Taxonomy
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{selectedCategoryCount}</div>
+            <div className="mt-1 text-sm text-amber-100/75">
+              {selectedCollectionCount} collections, {selectedChildCount} child categories
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+              Coverage
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{mediaCoverageRatio}</div>
+            <div className="mt-1 text-sm text-emerald-100/75">
+              Supplier: {selectedSupplierName}
+            </div>
           </div>
         </div>
       </div>
 
       {(message || error) && (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          className={`admin-product-alert rounded-xl border px-4 py-3 text-sm shadow-sm ${
             error
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-green-200 bg-green-50 text-green-700"
@@ -1436,14 +1505,14 @@ export default function AdminProductClient({
 
       <section
         id="overview"
-        className="scroll-mt-32 rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">01</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">01</span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Details</p>
-              <p className="text-xs text-stone-500">Core product information.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Details</p>
+              <p className="text-xs text-slate-400">Core product information.</p>
             </div>
           </div>
         </div>
@@ -3285,7 +3354,7 @@ export default function AdminProductClient({
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
+          <div className="admin-product-modal relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-stone-900">
@@ -3477,7 +3546,7 @@ export default function AdminProductClient({
 
       {confirmVariantId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+          <div className="admin-product-modal w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Variante löschen
             </h3>
