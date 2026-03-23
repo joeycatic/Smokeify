@@ -358,7 +358,12 @@ export default function AdminCollectionsClient() {
                       <div className="mt-3 space-y-2 text-sm text-slate-300">
                         <div>Created: {new Date(selectedCollection.createdAt).toLocaleDateString("de-DE")}</div>
                         <div>Updated: {new Date(selectedCollection.updatedAt).toLocaleDateString("de-DE")}</div>
-                        <div>ID: {selectedCollection.id}</div>
+                        <div className="space-y-1">
+                          <div>ID:</div>
+                          <div className="break-all rounded-xl border border-white/10 bg-[#050912] px-3 py-2 font-mono text-xs text-slate-300">
+                            {selectedCollection.id}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="md:col-span-2">
