@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import { requireAdmin } from "@/lib/adminCatalog";
 
 export default async function AdminAuditPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  if (!(await requireAdmin())) notFound();
 
   const logs = await prisma.adminAuditLog.findMany({
     orderBy: { createdAt: "desc" },

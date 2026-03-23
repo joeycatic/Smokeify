@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminCatalog";
 import AdminUserEditClient from "./AdminUserEditClient";
 
 export default async function AdminUserPage({
@@ -9,9 +8,8 @@ export default async function AdminUserPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  const session = await requireAdmin();
+  if (!session) notFound();
 
   const { id } = await params;
 

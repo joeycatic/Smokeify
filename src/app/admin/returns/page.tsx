@@ -1,13 +1,10 @@
-import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminReturnsClient from "./AdminReturnsClient";
 
 export default async function AdminReturnsPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  if (!(await requireAdmin())) notFound();
 
   const requests = await prisma.returnRequest.findMany({
     orderBy: { createdAt: "desc" },

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminUsersClient from "../AdminUsersClient";
 
@@ -14,8 +13,7 @@ export default async function AdminUsersPage({
     q?: string | string[];
   }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)

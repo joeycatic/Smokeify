@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
 import type { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { getProductPerformance, getStockCoverageMap } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
 import AdminCatalogClient from "./AdminCatalogClient";
@@ -24,8 +23,7 @@ export default async function AdminCatalogPage({
     collection?: string | string[];
   }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)

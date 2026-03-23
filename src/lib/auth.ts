@@ -16,6 +16,7 @@ import { sendVerificationCodeEmail } from "@/lib/email";
 import {
   checkRateLimit,
   getClientIp,
+  ADMIN_LOGIN_RATE_LIMIT,
   LOGIN_RATE_LIMIT,
 } from "@/lib/rateLimit";
 
@@ -67,6 +68,53 @@ async function findUserForLogin(identifier: string) {
   });
 }
 
+async function enforceCredentialRateLimit({
+  headers,
+  identifier,
+  prefix,
+  config,
+}: {
+  headers: Headers | Record<string, string | string[] | undefined> | undefined;
+  identifier: string;
+  prefix: string;
+  config: {
+    identifierLimit: number;
+    ipLimit: number;
+    windowMs: number;
+    pairLimit?: number;
+  };
+}) {
+  const ip = getClientIp(headers);
+  const ipLimit = await checkRateLimit({
+    key: `${prefix}:ip:${ip}`,
+    limit: config.ipLimit,
+    windowMs: config.windowMs,
+  });
+  if (!ipLimit.allowed) {
+    throw new Error("RATE_LIMIT");
+  }
+
+  const identifierLimit = await checkRateLimit({
+    key: `${prefix}:identifier:${identifier}`,
+    limit: config.identifierLimit,
+    windowMs: config.windowMs,
+  });
+  if (!identifierLimit.allowed) {
+    throw new Error("RATE_LIMIT");
+  }
+
+  if (typeof config.pairLimit === "number") {
+    const pairLimit = await checkRateLimit({
+      key: `${prefix}:pair:${identifier}:${ip}`,
+      limit: config.pairLimit,
+      windowMs: config.windowMs,
+    });
+    if (!pairLimit.allowed) {
+      throw new Error("RATE_LIMIT");
+    }
+  }
+}
+
 providers.push(
   CredentialsProvider({
     name: "Credentials",
@@ -84,27 +132,12 @@ providers.push(
       const totpCode = extractAdminTotpCode(credentials);
       if (!identifier) return null;
 
-      if (!adminIntent) {
-        const ip = getClientIp(req?.headers ?? new Headers());
-        const rateLimitPrefix = "login";
-        const ipLimit = await checkRateLimit({
-          key: `${rateLimitPrefix}:ip:${ip}`,
-          limit: LOGIN_RATE_LIMIT.ipLimit,
-          windowMs: LOGIN_RATE_LIMIT.windowMs,
-        });
-        if (!ipLimit.allowed) {
-          throw new Error("RATE_LIMIT");
-        }
-
-        const loginLimit = await checkRateLimit({
-          key: `${rateLimitPrefix}:identifier:${identifierLower}`,
-          limit: LOGIN_RATE_LIMIT.identifierLimit,
-          windowMs: LOGIN_RATE_LIMIT.windowMs,
-        });
-        if (!loginLimit.allowed) {
-          throw new Error("RATE_LIMIT");
-        }
-      }
+      await enforceCredentialRateLimit({
+        headers: req?.headers ?? new Headers(),
+        identifier: identifierLower,
+        prefix: adminIntent ? "admin-login" : "login",
+        config: adminIntent ? ADMIN_LOGIN_RATE_LIMIT : LOGIN_RATE_LIMIT,
+      });
 
       const user = await findUserForLogin(identifier);
 
