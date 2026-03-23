@@ -34,6 +34,7 @@ type VariantItem = {
   lowStockThreshold: number;
   compareAtCents: number | null;
   position: number;
+  updatedAt: string;
   options: VariantOption[];
   inventory: { quantityOnHand: number; reserved: number } | null;
 };
@@ -59,6 +60,8 @@ type ProductDetail = {
   description: string | null;
   technicalDetails: string | null;
   shortDescription: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   manufacturer: string | null;
   productGroup: string | null;
   supplier: string | null;
@@ -109,6 +112,35 @@ type Props = {
   collections: CategoryRow[];
   suppliers: SupplierRow[];
   crossSells: CrossSellItem[];
+};
+
+type ProductDetailsState = {
+  title: string;
+  handle: string;
+  description: string;
+  technicalDetails: string;
+  shortDescription: string;
+  seoTitle: string;
+  seoDescription: string;
+  manufacturer: string;
+  productGroup: string;
+  supplierId: string;
+  sellerName: string;
+  sellerUrl: string;
+  leadTimeDays: number | "";
+  weightGrams: number | "";
+  lengthMm: number | "";
+  widthMm: number | "";
+  heightMm: number | "";
+  growboxPlantCountMin: number | "";
+  growboxPlantCountMax: number | "";
+  growboxSize: string;
+  growboxConnectionDiameterMm: number[];
+  lightSize: string;
+  airSystemDiameterMm: number | "";
+  shippingClass: string;
+  tags: string;
+  status: ProductDetail["status"];
 };
 
 const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
@@ -193,6 +225,54 @@ const findOptionRowIssues = (options: OptionInput[]) => {
     : null;
 };
 
+const buildInitialDetails = (
+  product: ProductDetail,
+  resolvedSupplierId: string
+): ProductDetailsState => ({
+  title: product.title,
+  handle: product.handle,
+  description: product.description ?? "",
+  technicalDetails: product.technicalDetails ?? "",
+  shortDescription: product.shortDescription ?? "",
+  seoTitle: product.seoTitle ?? "",
+  seoDescription: product.seoDescription ?? "",
+  manufacturer: product.manufacturer ?? "",
+  productGroup: product.productGroup ?? "",
+  supplierId: resolvedSupplierId,
+  sellerName: product.sellerName ?? "",
+  sellerUrl: product.sellerUrl ?? "",
+  leadTimeDays: product.leadTimeDays ?? "",
+  weightGrams: product.weightGrams ?? "",
+  lengthMm: product.lengthMm ?? "",
+  widthMm: product.widthMm ?? "",
+  heightMm: product.heightMm ?? "",
+  growboxPlantCountMin: product.growboxPlantCountMin ?? "",
+  growboxPlantCountMax: product.growboxPlantCountMax ?? "",
+  growboxSize: product.growboxSize ?? "",
+  growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
+  lightSize: product.lightSize ?? "",
+  airSystemDiameterMm: product.airSystemDiameterMm ?? "",
+  shippingClass: product.shippingClass ?? "",
+  tags: (product.tags ?? []).join(", "),
+  status: product.status,
+});
+
+const serializeDetailsSnapshot = (details: ProductDetailsState) =>
+  JSON.stringify(details);
+
+const serializeIdSnapshot = (values: Iterable<string>) =>
+  JSON.stringify(Array.from(values).sort());
+
+const PRODUCT_EDITOR_SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "seo", label: "SEO" },
+  { id: "content", label: "Content" },
+  { id: "associations", label: "Associations" },
+  { id: "media", label: "Media" },
+  { id: "variants", label: "Variants" },
+  { id: "cross-sells", label: "Cross-sells" },
+] as const;
+
 export default function AdminProductClient({
   product,
   categories,
@@ -210,37 +290,23 @@ export default function AdminProductClient({
     }
     return "";
   })();
-  const [details, setDetails] = useState({
-    title: product.title,
-    handle: product.handle,
-    description: product.description ?? "",
-    technicalDetails: product.technicalDetails ?? "",
-    shortDescription: product.shortDescription ?? "",
-    manufacturer: product.manufacturer ?? "",
-    productGroup: product.productGroup ?? "",
-    supplierId: resolvedSupplierId,
-    sellerUrl: product.sellerUrl ?? "",
-    leadTimeDays: product.leadTimeDays ?? "",
-    weightGrams: product.weightGrams ?? "",
-    lengthMm: product.lengthMm ?? "",
-    widthMm: product.widthMm ?? "",
-    heightMm: product.heightMm ?? "",
-    growboxPlantCountMin: product.growboxPlantCountMin ?? "",
-    growboxPlantCountMax: product.growboxPlantCountMax ?? "",
-    growboxSize: product.growboxSize ?? "",
-    growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
-    lightSize: product.lightSize ?? "",
-    airSystemDiameterMm: product.airSystemDiameterMm ?? "",
-    shippingClass: product.shippingClass ?? "",
-    tags: (product.tags ?? []).join(", "),
-    status: product.status,
-  });
+  const initialDetails = useMemo(
+    () => buildInitialDetails(product, resolvedSupplierId),
+    [product, resolvedSupplierId]
+  );
+  const [details, setDetails] = useState<ProductDetailsState>(initialDetails);
+  const [productUpdatedAt, setProductUpdatedAt] = useState(product.updatedAt);
   const [images, setImages] = useState<ImageItem[]>(product.images);
   const [uploading, setUploading] = useState(false);
   const [uploadDragActive, setUploadDragActive] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
+  const [variantUpdatedAtById, setVariantUpdatedAtById] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(product.variants.map((variant) => [variant.id, variant.updatedAt]))
+  );
   const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
   const [reorderingVariants, setReorderingVariants] = useState(false);
   const [draggingOption, setDraggingOption] = useState<{
@@ -282,6 +348,7 @@ export default function AdminProductClient({
   const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [staleConflictMessage, setStaleConflictMessage] = useState("");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
   const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
   const [confirmVariantText, setConfirmVariantText] = useState("");
@@ -306,6 +373,18 @@ export default function AdminProductClient({
   const [fbtSearching, setFbtSearching] = useState(false);
   const [fbtSaving, setFbtSaving] = useState(false);
   const [fbtMessage, setFbtMessage] = useState("");
+  const [savedDetailsSnapshot, setSavedDetailsSnapshot] = useState(() =>
+    serializeDetailsSnapshot(initialDetails)
+  );
+  const [savedCategorySnapshot, setSavedCategorySnapshot] = useState(() =>
+    serializeIdSnapshot(product.categories.map((item) => item.category.id))
+  );
+  const [savedCollectionSnapshot, setSavedCollectionSnapshot] = useState(() =>
+    serializeIdSnapshot(product.collections.map((item) => item.collection.id))
+  );
+  const [savedCrossSellSnapshot, setSavedCrossSellSnapshot] = useState(() =>
+    serializeIdSnapshot(initialCrossSells.map((row) => row.crossSell.id))
+  );
 
   const parentCategories = useMemo(
     () => categories.filter((item) => !item.parentId),
@@ -465,6 +544,17 @@ export default function AdminProductClient({
     }));
   }, [mergedPolicyViolations]);
 
+  const detailsDirty =
+    serializeDetailsSnapshot(details) !== savedDetailsSnapshot;
+  const categoriesDirty =
+    serializeIdSnapshot(categoryIds) !== savedCategorySnapshot;
+  const collectionsDirty =
+    serializeIdSnapshot(collectionIds) !== savedCollectionSnapshot;
+  const crossSellsDirty =
+    serializeIdSnapshot(fbtItems.map((item) => item.id)) !== savedCrossSellSnapshot;
+  const hasUnsavedChanges =
+    detailsDirty || categoriesDirty || collectionsDirty || crossSellsDirty;
+
   useEffect(() => {
     setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
   }, [
@@ -475,6 +565,16 @@ export default function AdminProductClient({
     details.productGroup,
     details.tags,
   ]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -505,6 +605,7 @@ export default function AdminProductClient({
     setMessage("");
     setError("");
     setHandleError("");
+    setStaleConflictMessage("");
     setServerPolicyViolations([]);
     if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
       setError("Seller URL must be a valid http(s) link");
@@ -523,8 +624,11 @@ export default function AdminProductClient({
         description: details.description,
         technicalDetails: details.technicalDetails,
         shortDescription: details.shortDescription,
+        seoTitle: details.seoTitle,
+        seoDescription: details.seoDescription,
         manufacturer: details.manufacturer,
         productGroup: details.productGroup,
+        sellerName: details.sellerName,
         sellerUrl: details.sellerUrl,
         tags,
         leadTimeDays: toNumberOrNull(details.leadTimeDays),
@@ -540,6 +644,7 @@ export default function AdminProductClient({
         airSystemDiameterMm: toNumberOrNull(details.airSystemDiameterMm),
         shippingClass: details.shippingClass,
         status: details.status,
+        expectedUpdatedAt: productUpdatedAt,
       };
       if (details.supplierId || product.supplierId) {
         payload.supplierId = details.supplierId || null;
@@ -553,9 +658,15 @@ export default function AdminProductClient({
         const data = (await res.json()) as {
           error?: string;
           violations?: MerchantPolicyViolation[];
+          currentUpdatedAt?: string;
         };
         const errorMessage = data.error ?? "Update failed";
         setError(errorMessage);
+        if (res.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Another admin saved this product on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload before applying more changes.`
+          );
+        }
         if (Array.isArray(data.violations)) {
           setServerPolicyViolations(data.violations);
         }
@@ -564,6 +675,13 @@ export default function AdminProductClient({
         }
         return;
       }
+      const data = (await res.json()) as {
+        product?: { updatedAt?: string };
+      };
+      if (data.product?.updatedAt) {
+        setProductUpdatedAt(data.product.updatedAt);
+      }
+      setSavedDetailsSnapshot(serializeDetailsSnapshot(details));
       setMessage("Product updated");
     } catch {
       setError("Update failed");
@@ -573,6 +691,7 @@ export default function AdminProductClient({
   const saveCategories = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/categories`, {
         method: "PUT",
@@ -584,6 +703,7 @@ export default function AdminProductClient({
         setError(data.error ?? "Update failed");
         return;
       }
+      setSavedCategorySnapshot(serializeIdSnapshot(categoryIds));
       setMessage("Categories updated");
     } catch {
       setError("Update failed");
@@ -593,6 +713,7 @@ export default function AdminProductClient({
   const saveCollections = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/collections`, {
         method: "PUT",
@@ -604,6 +725,7 @@ export default function AdminProductClient({
         setError(data.error ?? "Update failed");
         return;
       }
+      setSavedCollectionSnapshot(serializeIdSnapshot(collectionIds));
       setMessage("Collections updated");
     } catch {
       setError("Update failed");
@@ -612,6 +734,7 @@ export default function AdminProductClient({
 
   const saveCrossSells = async () => {
     setFbtMessage("");
+    setStaleConflictMessage("");
     setFbtSaving(true);
     try {
       const res = await fetch(`/api/admin/products/${product.id}/cross-sells`, {
@@ -623,6 +746,7 @@ export default function AdminProductClient({
         const data = (await res.json()) as { error?: string };
         setFbtMessage(data.error ?? "Save failed");
       } else {
+        setSavedCrossSellSnapshot(serializeIdSnapshot(fbtItems.map((item) => item.id)));
         setFbtMessage("Saved");
       }
     } catch {
@@ -822,6 +946,7 @@ export default function AdminProductClient({
   const updateVariant = async (variant: VariantItem) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     const rowIssue = findOptionRowIssues(variant.options);
     if (rowIssue) {
       setError(rowIssue);
@@ -844,18 +969,36 @@ export default function AdminProductClient({
           quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
           reserved: variant.inventory?.reserved ?? 0,
         },
+        expectedUpdatedAt: variantUpdatedAtById[variant.id],
       }),
     });
     if (!res.ok) {
       let message = "Update failed";
       try {
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as {
+          error?: string;
+          currentUpdatedAt?: string;
+        };
         if (data?.error) message = data.error;
+        if (res.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
+          );
+        }
       } catch {
         // Keep default message when response isn't JSON.
       }
       setError(message);
       return;
+    }
+    const data = (await res.json()) as {
+      variant?: { id: string; updatedAt?: string };
+    };
+    if (data.variant?.updatedAt) {
+      setVariantUpdatedAtById((prev) => ({
+        ...prev,
+        [variant.id]: data.variant?.updatedAt ?? prev[variant.id],
+      }));
     }
     setMessage("Variant updated");
   };
@@ -863,6 +1006,7 @@ export default function AdminProductClient({
   const saveAllVariants = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     setSavingAllVariants(true);
     try {
       for (const variant of variants) {
@@ -892,6 +1036,7 @@ export default function AdminProductClient({
                   quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
                   reserved: variant.inventory?.reserved ?? 0,
                 },
+                expectedUpdatedAt: variantUpdatedAtById[variant.id],
               }),
             });
           }
@@ -901,13 +1046,35 @@ export default function AdminProductClient({
       if (failed) {
         let errorMessage = "Save failed";
         try {
-          const data = (await failed.json()) as { error?: string };
+          const data = (await failed.json()) as {
+            error?: string;
+            currentUpdatedAt?: string;
+          };
           if (data?.error) errorMessage = data.error;
+          if (failed.status === 409 && data.currentUpdatedAt) {
+            setStaleConflictMessage(
+              `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
+            );
+          }
         } catch {
           // Keep default message when response isn't JSON.
         }
         setError(errorMessage);
         return;
+      }
+      const payloads = (await Promise.all(
+        responses.map((response) =>
+          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
+        )
+      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
+      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
+        if (item.variant?.id && item.variant.updatedAt) {
+          acc[item.variant.id] = item.variant.updatedAt;
+        }
+        return acc;
+      }, {});
+      if (Object.keys(nextVersions).length > 0) {
+        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
       }
       setMessage("Variants updated");
     } finally {
@@ -918,17 +1085,49 @@ export default function AdminProductClient({
   const saveVariantOrder = async (items: VariantItem[]) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     setReorderingVariants(true);
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         items.map((variant) =>
           fetch(`/api/admin/variants/${variant.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: variant.position }),
+            body: JSON.stringify({
+              position: variant.position,
+              expectedUpdatedAt: variantUpdatedAtById[variant.id],
+            }),
           })
         )
       );
+      const failed = responses.find((response) => !response.ok);
+      if (failed) {
+        const data = (await failed.json().catch(() => ({}))) as {
+          error?: string;
+          currentUpdatedAt?: string;
+        };
+        if (failed.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Variant order changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before reordering again.`
+          );
+        }
+        setError(data.error ?? "Reorder failed");
+        return;
+      }
+      const payloads = (await Promise.all(
+        responses.map((response) =>
+          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
+        )
+      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
+      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
+        if (item.variant?.id && item.variant.updatedAt) {
+          acc[item.variant.id] = item.variant.updatedAt;
+        }
+        return acc;
+      }, {});
+      if (Object.keys(nextVersions).length > 0) {
+        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
+      }
       setMessage("Variant order updated");
     } catch {
       setError("Reorder failed");
@@ -978,6 +1177,7 @@ export default function AdminProductClient({
   const deleteVariant = async (id: string, adminPassword: string) => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     const res = await fetch(`/api/admin/variants/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -989,6 +1189,11 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => prev.filter((item) => item.id !== id));
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setMessage("Variant deleted");
   };
 
@@ -1036,6 +1241,12 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => [...prev, variant]);
+    if (variant.updatedAt) {
+      setVariantUpdatedAtById((prev) => ({
+        ...prev,
+        [variant.id]: variant.updatedAt,
+      }));
+    }
     setNewVariant({
       title: "",
       sku: "",
@@ -1093,6 +1304,18 @@ export default function AdminProductClient({
   }, [variants]);
 
   useEffect(() => {
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      variants.forEach((variant) => {
+        if (!(variant.id in next) && variant.updatedAt) {
+          next[variant.id] = variant.updatedAt;
+        }
+      });
+      return next;
+    });
+  }, [variants]);
+
+  useEffect(() => {
     setNewVariant((prev) => ({
       ...prev,
       options:
@@ -1124,6 +1347,12 @@ export default function AdminProductClient({
     );
   }, [details.supplierId, suppliers]);
 
+  const scrollToSection = (sectionId: (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"]) => {
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="admin-legacy-page space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
       <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
@@ -1132,14 +1361,23 @@ export default function AdminProductClient({
             <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
               CATALOG / PRODUCT
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{product.title}</h1>
+            <h1 className="mt-2 text-3xl font-semibold">{details.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
               <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {product.status}
+                {details.status}
               </span>
               <span className="rounded-full bg-white/10 px-3 py-1">
-                Updated {new Date(product.updatedAt).toLocaleDateString("de-DE")}
+                Updated {new Date(productUpdatedAt).toLocaleDateString("de-DE")}
               </span>
+              {hasUnsavedChanges ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 font-semibold text-amber-200">
+                  Unsaved changes
+                </span>
+              ) : (
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-semibold text-emerald-200">
+                  Synced
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -1166,7 +1404,40 @@ export default function AdminProductClient({
         </div>
       )}
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
+      {staleConflictMessage ? (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{staleConflictMessage}</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-full border border-amber-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
+            >
+              Reload latest product
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-20 z-20 rounded-[24px] border border-white/10 bg-[#05070a]/88 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur">
+        <div className="flex flex-wrap items-center gap-2">
+          {PRODUCT_EDITOR_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section
+        id="overview"
+        className="scroll-mt-32 rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]"
+      >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">01</span>
@@ -1399,6 +1670,17 @@ export default function AdminProductClient({
             </span>
           </label>
           <label className="text-xs font-semibold text-stone-600">
+            Seller name
+            <input
+              value={details.sellerName}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
+              }
+              placeholder="e.g. Smokeify Marketplace"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
             Seller link
             <input
               type="url"
@@ -1549,7 +1831,41 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
-        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+        <div
+          id="seo"
+          className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
+        >
+          <label className="text-xs font-semibold text-stone-600">
+            SEO title
+            <input
+              value={details.seoTitle}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, seoTitle: event.target.value }))
+              }
+              placeholder="Search result title"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            SEO description
+            <textarea
+              value={details.seoDescription}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  seoDescription: event.target.value,
+                }))
+              }
+              rows={3}
+              placeholder="Search result description"
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <div
+          id="content"
+          className="scroll-mt-32 mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3"
+        >
           <button
             type="button"
             onClick={() => setDescriptionsOpen((prev) => !prev)}
@@ -1678,7 +1994,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+      <section
+        id="associations"
+        className="scroll-mt-32 rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-900">02</span>
           <div>
@@ -1936,7 +2255,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
+      <section
+        id="media"
+        className="scroll-mt-32 rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">03</span>
           <div>
@@ -2172,7 +2494,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]">
+      <section
+        id="variants"
+        className="scroll-mt-32 rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]"
+      >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">04</span>
           <div>
@@ -2735,7 +3060,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm">
+      <section
+        id="cross-sells"
+        className="scroll-mt-32 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
@@ -2871,6 +3199,83 @@ export default function AdminProductClient({
           ) : null}
         </div>
       </section>
+
+      <div className="sticky bottom-4 z-30">
+        <div className="rounded-[24px] border border-white/10 bg-[#05070a]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
+                {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
+              </span>
+              {detailsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Details
+                </span>
+              ) : null}
+              {categoriesDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Categories
+                </span>
+              ) : null}
+              {collectionsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Collections
+                </span>
+              ) : null}
+              {crossSellsDirty ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
+                  Cross-sells
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {detailsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveDetails}
+                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#05070a]"
+                >
+                  Save details
+                </button>
+              ) : null}
+              {categoriesDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCategories}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save categories
+                </button>
+              ) : null}
+              {collectionsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCollections}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save collections
+                </button>
+              ) : null}
+              {crossSellsDirty ? (
+                <button
+                  type="button"
+                  onClick={saveCrossSells}
+                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
+                >
+                  Save cross-sells
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200"
+              >
+                Reload latest
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {addVariantOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

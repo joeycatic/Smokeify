@@ -190,6 +190,30 @@ export default async function AdminPage({
     })
     .slice(0, 25);
 
+  const [
+    pendingReturnCount,
+    pendingReturnRequests,
+    failedWebhookCount,
+    failedWebhookEvents,
+  ] = await Promise.all([
+    prisma.returnRequest.count({ where: { status: "PENDING" } }),
+    prisma.returnRequest.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: {
+        order: { select: { orderNumber: true, amountTotal: true, currency: true } },
+        user: { select: { email: true, name: true } },
+      },
+    }),
+    prisma.processedWebhookEvent.count({ where: { status: "failed" } }),
+    prisma.processedWebhookEvent.findMany({
+      where: { status: "failed" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+  ]);
+
   const quickLinks = [
     {
       href: "/admin/catalog",
@@ -247,8 +271,8 @@ export default async function AdminPage({
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Users" value={String(totalUsers)} detail={`${totalUserPages} pages`} />
           <StatCard label="Low stock" value={String(lowStockCount)} detail={`${outOfStockCount} fully out`} />
-          <StatCard label="Back in stock requests" value={String(backInStockRows.length)} detail="Top pending products" />
-          <StatCard label="Quick actions" value={String(quickLinks.length)} detail="Primary admin areas" />
+          <StatCard label="Pending returns" value={String(pendingReturnCount)} detail="Awaiting admin decision" />
+          <StatCard label="Failed webhooks" value={String(failedWebhookCount)} detail="Requires manual review" />
         </div>
       </section>
 
@@ -266,6 +290,82 @@ export default async function AdminPage({
             <p className="mt-2 text-sm text-slate-400">{item.description}</p>
           </Link>
         ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <Panel
+          eyebrow="Alerts"
+          title="Failed Stripe webhooks"
+          description="Most recent webhook failures that may need reprocessing from the orders screen."
+        >
+          <div className="space-y-3">
+            {failedWebhookEvents.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+                No failed webhook events.
+              </div>
+            ) : (
+              failedWebhookEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-100">
+                        {event.type}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{event.eventId}</p>
+                    </div>
+                    <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                      Failed
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Alerts"
+          title="Pending return requests"
+          description="Latest unresolved return requests that still need an admin decision."
+        >
+          <div className="space-y-3">
+            {pendingReturnRequests.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+                No pending returns.
+              </div>
+            ) : (
+              pendingReturnRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-100">
+                        Order #{request.order.orderNumber}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">
+                        {request.user.email ?? request.user.name ?? "Unknown customer"}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                      {new Intl.NumberFormat("de-DE", {
+                        style: "currency",
+                        currency: request.order.currency,
+                      }).format(request.order.amountTotal / 100)}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs text-slate-400">
+                    {request.reason}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
       </section>
 
       <Panel

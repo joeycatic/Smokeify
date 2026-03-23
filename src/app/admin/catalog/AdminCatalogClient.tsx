@@ -49,6 +49,14 @@ type Props = {
 
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
 type SortKey = "title" | "status" | "variants" | "category" | "updatedAt";
+type FilterPreset = {
+  name: string;
+  query: string;
+  sortKey: SortKey;
+  sortDirection: "asc" | "desc";
+};
+
+const FILTER_PRESET_STORAGE_KEY = "smokeify-admin-catalog-filter-presets-v1";
 
 const slugifyHandle = (value: string) =>
   value
@@ -126,10 +134,58 @@ export default function AdminCatalogClient({
   const [collapsedCategoryIds, setCollapsedCategoryIds] = useState(
     () => new Set<string>(),
   );
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
+  const [presetName, setPresetName] = useState("");
   const lastInitialQueryRef = useRef(initialQuery);
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(FILTER_PRESET_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      const hydrated = parsed
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const candidate = item as Partial<FilterPreset>;
+          const sortKey = candidate.sortKey;
+          const sortDirection = candidate.sortDirection;
+          if (
+            typeof candidate.name !== "string" ||
+            typeof candidate.query !== "string" ||
+            (sortKey !== "title" &&
+              sortKey !== "status" &&
+              sortKey !== "variants" &&
+              sortKey !== "category" &&
+              sortKey !== "updatedAt") ||
+            (sortDirection !== "asc" && sortDirection !== "desc")
+          ) {
+            return null;
+          }
+          return {
+            name: candidate.name,
+            query: candidate.query,
+            sortKey,
+            sortDirection,
+          } satisfies FilterPreset;
+        })
+        .filter((item): item is FilterPreset => item !== null)
+        .slice(0, 8);
+      setFilterPresets(hydrated);
+    } catch {
+      window.localStorage.removeItem(FILTER_PRESET_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      FILTER_PRESET_STORAGE_KEY,
+      JSON.stringify(filterPresets),
+    );
+  }, [filterPresets]);
 
   useEffect(() => {
     setProducts(initialProducts);
@@ -229,6 +285,77 @@ export default function AdminCatalogClient({
     }
     setSortKey(key);
     setSortDirection("asc");
+  };
+
+  const applyFilterPreset = (preset: FilterPreset) => {
+    setSearchTerm(preset.query);
+    setSortKey(preset.sortKey);
+    setSortDirection(preset.sortDirection);
+
+    const params = new URLSearchParams(searchParamsString);
+    if (preset.query) {
+      params.set("q", preset.query);
+    } else {
+      params.delete("q");
+    }
+    params.set("sort", preset.sortKey);
+    params.set("dir", preset.sortDirection);
+    params.delete("page");
+
+    const queryString = params.toString();
+    router.replace(
+      queryString ? `/admin/catalog?${queryString}` : "/admin/catalog",
+      { scroll: false },
+    );
+  };
+
+  const resetCatalogView = () => {
+    setSearchTerm("");
+    setSortKey("updatedAt");
+    setSortDirection("desc");
+
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("q");
+    params.delete("page");
+    params.set("sort", "updatedAt");
+    params.set("dir", "desc");
+
+    const queryString = params.toString();
+    router.replace(
+      queryString ? `/admin/catalog?${queryString}` : "/admin/catalog",
+      { scroll: false },
+    );
+  };
+
+  const saveCurrentViewPreset = () => {
+    const normalizedName = presetName.trim();
+    if (!normalizedName) {
+      setError("Enter a preset name before saving the current catalog view.");
+      return;
+    }
+
+    setError("");
+    setFilterPresets((prev) =>
+      [
+        {
+          name: normalizedName,
+          query: searchTerm.trim(),
+          sortKey,
+          sortDirection,
+        },
+        ...prev.filter(
+          (item) =>
+            item.name.localeCompare(normalizedName, undefined, {
+              sensitivity: "accent",
+            }) !== 0,
+        ),
+      ].slice(0, 8),
+    );
+    setPresetName("");
+  };
+
+  const removeFilterPreset = (name: string) => {
+    setFilterPresets((prev) => prev.filter((item) => item.name !== name));
   };
 
   const renderSortArrow = (key: SortKey) => {
@@ -673,44 +800,116 @@ export default function AdminCatalogClient({
           </p>
         )}
         <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-white/90 p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="admin-catalog-search flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4 text-stone-400"
-                aria-hidden="true"
-              >
-                <path
-                  d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="admin-catalog-search flex w-full max-w-md items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-stone-400"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by product name"
+                  className="w-full bg-transparent text-sm text-stone-700 outline-none"
                 />
-              </svg>
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by product name"
-                className="w-full bg-transparent text-sm text-stone-700 outline-none"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setCreateError("");
-                setCreateTitle("");
-                setCreateHandle("");
-                setHandleTouched(false);
-                setCreateOpen(true);
-              }}
-              disabled={saving}
-              className="admin-catalog-create h-11 rounded-md bg-[#2f3e36] px-6 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Create product"}
-            </button>
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={resetCatalogView}
+                  className="h-11 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50"
+                >
+                  Reset view
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateError("");
+                    setCreateTitle("");
+                    setCreateHandle("");
+                    setHandleTouched(false);
+                    setCreateOpen(true);
+                  }}
+                  disabled={saving}
+                  className="admin-catalog-create h-11 rounded-md bg-[#2f3e36] px-6 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : "Create product"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-black/10 bg-stone-50/80 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+                    Saved views
+                  </p>
+                  <p className="mt-2 text-xs text-stone-500">
+                    Reapply your catalog search and sort combinations without
+                    rebuilding the view each time.
+                  </p>
+                </div>
+                <div className="flex w-full max-w-md flex-wrap items-center gap-2">
+                  <input
+                    value={presetName}
+                    onChange={(event) => setPresetName(event.target.value)}
+                    placeholder="Preset name"
+                    className="h-10 min-w-[200px] flex-1 rounded-md border border-black/10 bg-white px-3 text-sm text-stone-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveCurrentViewPreset}
+                    className="h-10 rounded-md bg-[#1f2b25] px-4 text-xs font-semibold text-white hover:bg-[#1a241f]"
+                  >
+                    Save current view
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {filterPresets.length === 0 ? (
+                  <span className="rounded-full border border-dashed border-black/10 px-3 py-2 text-xs text-stone-500">
+                    No saved views yet.
+                  </span>
+                ) : (
+                  filterPresets.map((preset) => (
+                    <div
+                      key={preset.name}
+                      className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-2 py-1 shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => applyFilterPreset(preset)}
+                        className="rounded-full px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-100"
+                      >
+                        {preset.name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeFilterPreset(preset.name)}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 transition hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Delete preset ${preset.name}`}
+                        title="Delete preset"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="admin-catalog-table mt-6 max-h-[420px] overflow-x-auto overflow-y-auto rounded-2xl border border-black/10 bg-white px-4 pb-2">

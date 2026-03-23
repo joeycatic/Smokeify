@@ -209,6 +209,9 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   const [reprocessingEventId, setReprocessingEventId] = useState<string | null>(
     null
   );
+  const [orderUpdatedAtById, setOrderUpdatedAtById] = useState<
+    Record<string, string>
+  >(() => Object.fromEntries(orders.map((order) => [order.id, order.updatedAt])));
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
@@ -299,11 +302,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           trackingCarrier: tracking?.carrier || undefined,
           trackingNumber: tracking?.number || undefined,
           trackingUrl: tracking?.url || undefined,
+          expectedUpdatedAt: orderUpdatedAtById[orderId],
         }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
+      } else {
+        const data = (await res.json()) as { order?: { updatedAt?: string } };
+        if (data.order?.updatedAt) {
+          setOrderUpdatedAtById((prev) => ({
+            ...prev,
+            [orderId]: data.order?.updatedAt ?? prev[orderId],
+          }));
+        }
       }
     } catch {
       setError("Update failed");
@@ -326,12 +338,20 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           trackingCarrier: tracking.carrier || undefined,
           trackingNumber: tracking.number || undefined,
           trackingUrl: tracking.url || undefined,
+          expectedUpdatedAt: orderUpdatedAtById[orderId],
         }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
         return false;
+      }
+      const data = (await res.json()) as { order?: { updatedAt?: string } };
+      if (data.order?.updatedAt) {
+        setOrderUpdatedAtById((prev) => ({
+          ...prev,
+          [orderId]: data.order?.updatedAt ?? prev[orderId],
+        }));
       }
       return true;
     } catch {

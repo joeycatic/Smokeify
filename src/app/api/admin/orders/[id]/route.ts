@@ -38,6 +38,7 @@ export async function PATCH(
     trackingCarrier?: string;
     trackingNumber?: string;
     trackingUrl?: string;
+    expectedUpdatedAt?: string;
   };
 
   const updates: {
@@ -70,6 +71,20 @@ export async function PATCH(
   });
   if (!existing) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  if (
+    body.expectedUpdatedAt &&
+    existing.updatedAt.toISOString() !== body.expectedUpdatedAt
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This order was updated by another admin. Refresh the latest order before saving again.",
+        currentUpdatedAt: existing.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
   }
 
   const updated = await prisma.order.update({

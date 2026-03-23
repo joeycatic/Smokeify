@@ -67,6 +67,10 @@ export default async function AdminProductPage({
           ...product,
           createdAt: product.createdAt.toISOString(),
           updatedAt: product.updatedAt.toISOString(),
+          variants: product.variants.map((variant) => ({
+            ...variant,
+            updatedAt: variant.updatedAt.toISOString(),
+          })),
         }}
         categories={categories}
         collections={collections}
