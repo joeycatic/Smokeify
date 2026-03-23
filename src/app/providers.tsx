@@ -2,6 +2,7 @@
 
 import CookieConsent from "@/components/CookieConsent";
 import GTMTag from "@/components/GTMTag";
+import AnalyticsSessionTracker from "@/components/AnalyticsSessionTracker";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
 
 export default function Providers({
@@ -14,6 +15,7 @@ export default function Providers({
       {children}
       <WebVitalsReporter />
       <GTMTag />
+      <AnalyticsSessionTracker />
       <CookieConsent />
     </>
   );

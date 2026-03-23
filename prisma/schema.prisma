@@ -101,6 +101,8 @@ model User {
   reviewIncentives ReviewIncentive[]
   plantAnalyses  PlantAnalysisRun[]
   plantAnalysisFeedback PlantAnalysisFeedback[]
+  analyticsSessions AnalyticsSession[]
+  analyticsEvents AnalyticsEvent[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -653,6 +655,62 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+}
+
+model AnalyticsSession {
+  id            String   @id
+  userId        String?
+  firstPath     String?
+  lastPath      String?
+  firstPageType String?
+  lastPageType  String?
+  firstReferrer String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  deviceType    String?
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  events AnalyticsEvent[]
+
+  @@index([lastSeenAt])
+  @@index([userId, lastSeenAt])
+  @@index([utmSource, lastSeenAt])
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String?
+  eventName   String
+  pagePath    String?
+  pageType    String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  productId   String?
+  variantId   String?
+  orderId     String?
+  currency    String?
+  valueCents  Int?
+  quantity    Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventName, createdAt])
+  @@index([pageType, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([productId, eventName, createdAt])
+  @@index([variantId, eventName, createdAt])
+  @@index([orderId])
 }
 
 model ProductCrossSell {
