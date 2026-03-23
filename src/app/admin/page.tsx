@@ -447,31 +447,46 @@ export default async function AdminPage({
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="admin-reveal overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">Admin / Dashboard</p>
+    <div className="admin-legacy-page space-y-6">
+      <section className="admin-reveal relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.2),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">Admin / Dashboard</p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
               Live operations, conversion pressure and action queues
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-400">
+            <p className="mt-3 max-w-3xl text-sm text-slate-300">
               Core control room for live traffic, revenue movement, abandonment, stock risk and the next operational action.
             </p>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
+                {liveSnapshot.activeVisitorCount} live visitors
+              </span>
+              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 font-semibold text-cyan-200">
+                {funnelSnapshot.beginCheckout} checkout starts
+              </span>
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-200">
+                {lowStockCount} stock risks
+              </span>
+              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 font-semibold text-amber-200">
+                {pendingReturnCount} pending returns
+              </span>
+            </div>
           </div>
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">
             ADMIN only
           </div>
         </div>
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-          <MetricCard label="Live visitors" value={String(liveSnapshot.activeVisitorCount)} />
-          <MetricCard label="30d revenue" value={formatMoney(orderComparisons.revenue.current, dashboardCurrency)} detail={formatDelta(orderComparisons.revenue.deltaRatio)} />
-          <MetricCard label="Paid orders" value={String(orderComparisons.paidOrders.current)} detail={formatDelta(orderComparisons.paidOrders.deltaRatio)} />
-          <MetricCard label="AOV" value={formatMoney(orderComparisons.aov.current, dashboardCurrency)} detail={formatDelta(orderComparisons.aov.deltaRatio)} />
-          <MetricCard label="Session CVR" value={`${Math.round(funnelSnapshot.sessionToOrderRate * 100)}%`} />
-          <MetricCard label="Checkout abandon" value={`${Math.round(funnelSnapshot.checkoutAbandonmentRate * 100)}%`} />
-          <MetricCard label="Low stock" value={String(lowStockCount)} />
-          <MetricCard label="Pending returns" value={String(pendingReturnCount)} />
+        <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+          <MetricCard label="Live visitors" value={String(liveSnapshot.activeVisitorCount)} footnote="active now" />
+          <MetricCard label="30d revenue" value={formatMoney(orderComparisons.revenue.current, dashboardCurrency)} detail={formatDelta(orderComparisons.revenue.deltaRatio)} detailBadgeClassName="orders-kpi-badge-emerald" footnote="vs previous 30d" tone="emerald" />
+          <MetricCard label="Paid orders" value={String(orderComparisons.paidOrders.current)} detail={formatDelta(orderComparisons.paidOrders.deltaRatio)} detailBadgeClassName="orders-kpi-badge-violet" footnote="confirmed orders" tone="violet" />
+          <MetricCard label="AOV" value={formatMoney(orderComparisons.aov.current, dashboardCurrency)} detail={formatDelta(orderComparisons.aov.deltaRatio)} detailBadgeClassName="orders-kpi-badge-violet" footnote="average order value" tone="violet" />
+          <MetricCard label="Session CVR" value={`${Math.round(funnelSnapshot.sessionToOrderRate * 100)}%`} footnote="session to paid" />
+          <MetricCard label="Checkout abandon" value={`${Math.round(funnelSnapshot.checkoutAbandonmentRate * 100)}%`} footnote="checkout fallout" tone="amber" />
+          <MetricCard label="Low stock" value={String(lowStockCount)} footnote={`${outOfStockCount} out of stock`} tone="amber" />
+          <MetricCard label="Pending returns" value={String(pendingReturnCount)} footnote="awaiting action" />
         </div>
       </section>
 
@@ -625,19 +640,48 @@ function Panel({ eyebrow, title, description, children }: { eyebrow: string; tit
   );
 }
 
-function MetricCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function MetricCard({
+  label,
+  value,
+  detail,
+  footnote,
+  detailBadgeClassName = "orders-kpi-badge-slate",
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  footnote?: string;
+  detailBadgeClassName?: string;
+  tone?: "slate" | "emerald" | "violet" | "amber";
+}) {
+  const toneClassName =
+    tone === "emerald"
+      ? "orders-kpi-card-emerald"
+      : tone === "violet"
+        ? "orders-kpi-card-violet"
+        : tone === "amber"
+          ? "orders-kpi-card-amber"
+          : "orders-kpi-card-slate";
   return (
-    <div className="admin-lift rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+    <div className={`orders-kpi-card admin-lift rounded-[22px] border border-white/10 bg-white/[0.04] p-5 ${toneClassName}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+        {detail ? (
+          <span className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${detailBadgeClassName}`}>
+            {detail}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-6 text-[clamp(2rem,2.2vw,2.7rem)] font-semibold leading-none tracking-tight text-white">{value}</p>
+      {footnote ? <p className="mt-4 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{footnote}</p> : null}
     </div>
   );
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</div>
       <div className="mt-2 text-lg font-semibold text-white">{value}</div>
     </div>
@@ -646,7 +690,7 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
 
 function DeltaRow({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-100">{label}</div>
@@ -673,7 +717,7 @@ function ProductList({
   return (
     <div className="space-y-3">
       {rows.map((row) => (
-        <div key={row.productId} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div key={row.productId} className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-slate-100">{row.productTitle}</div>
@@ -692,7 +736,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
     <div className="space-y-3">
       {items.map((entry) => (
-        <div key={entry.id} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div key={entry.id} className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-100">{entry.title}</p>
@@ -727,7 +771,7 @@ function ActionAlertList({
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <div key={`${item.title}-${item.href}`} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div key={`${item.title}-${item.href}`} className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-100">{item.title}</p>
@@ -745,7 +789,7 @@ function ActionAlertList({
 }
 
 function EmptyPanel({ copy }: { copy: string }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">{copy}</div>;
+  return <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">{copy}</div>;
 }
 
 function AlertRow({
@@ -760,7 +804,7 @@ function AlertRow({
   badgeClassName: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-100">{title}</p>

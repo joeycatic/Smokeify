@@ -525,20 +525,35 @@ export default function AdminAnalyticsClient() {
   }, [funnel]);
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+    <div className="admin-legacy-page space-y-6">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.2),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
               Admin / Analytics
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
               Live traffic, funnel health and revenue quality
             </h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-400">
+            <p className="mt-3 max-w-2xl text-sm text-slate-300">
               First-party commerce analytics for live sessions, checkout pressure,
               customer quality, discounts and payment mix.
             </p>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
+                {live.activeVisitorCount} live visitors
+              </span>
+              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 font-semibold text-cyan-200">
+                {funnel.beginCheckout} checkout starts
+              </span>
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-semibold text-emerald-200">
+                {topProducts.length} revenue leaders
+              </span>
+              <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 font-semibold text-violet-200">
+                {trafficSources.length} source rows
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -550,40 +565,46 @@ export default function AdminAnalyticsClient() {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <MetricCard label="Live visitors" value={String(live.activeVisitorCount)} />
+        <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <MetricCard label="Live visitors" value={String(live.activeVisitorCount)} footnote="active now" />
           <MetricCard
             label="30d revenue"
             value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
             detail={formatDelta(periodComparison.revenue.deltaRatio)}
-            detailToneClassName={getDeltaToneClassName(periodComparison.revenue.deltaRatio)}
+            detailBadgeClassName="orders-kpi-badge-emerald"
+            footnote="vs previous 30d"
+            tone="emerald"
           />
           <MetricCard
             label="Session CVR"
             value={percent(funnel.sessionToOrderRate)}
             detail={formatDelta(funnelComparison.sessionToOrderRate.deltaRatio)}
-            detailToneClassName={getDeltaToneClassName(funnelComparison.sessionToOrderRate.deltaRatio)}
+            detailBadgeClassName="orders-kpi-badge-violet"
+            footnote="session to paid"
+            tone="violet"
           />
           <MetricCard
             label="Checkout abandon"
             value={percent(funnel.checkoutAbandonmentRate)}
             detail={formatDelta(funnelComparison.checkoutAbandonmentRate.deltaRatio)}
-            detailToneClassName={getDeltaToneClassName(
-              funnelComparison.checkoutAbandonmentRate.deltaRatio,
-              true,
-            )}
+            detailBadgeClassName="orders-kpi-badge-amber"
+            footnote="drop-off after checkout start"
+            tone="amber"
           />
           <MetricCard
             label="AOV"
             value={formatPrice(periodComparison.aov.current, periodComparison.currency)}
             detail={formatDelta(periodComparison.aov.deltaRatio)}
-            detailToneClassName={getDeltaToneClassName(periodComparison.aov.deltaRatio)}
+            detailBadgeClassName="orders-kpi-badge-violet"
+            footnote="average order value"
+            tone="violet"
           />
           <MetricCard
             label="Checkout starts"
             value={String(funnel.beginCheckout)}
             detail={formatDelta(funnelComparison.beginCheckout.deltaRatio)}
-            detailToneClassName={getDeltaToneClassName(funnelComparison.beginCheckout.deltaRatio)}
+            detailBadgeClassName="orders-kpi-badge-slate"
+            footnote="last 30-day window"
           />
         </div>
       </section>
@@ -1007,27 +1028,46 @@ function MetricCard({
   label,
   value,
   detail,
-  detailToneClassName = "text-slate-500",
+  footnote,
+  detailBadgeClassName = "orders-kpi-badge-slate",
+  tone = "slate",
 }: {
   label: string;
   value: string;
   detail?: string;
-  detailToneClassName?: string;
+  footnote?: string;
+  detailBadgeClassName?: string;
+  tone?: "slate" | "emerald" | "violet" | "amber";
 }) {
+  const toneClassName =
+    tone === "emerald"
+      ? "orders-kpi-card-emerald"
+      : tone === "violet"
+        ? "orders-kpi-card-violet"
+        : tone === "amber"
+          ? "orders-kpi-card-amber"
+          : "orders-kpi-card-slate";
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      {detail ? <p className={`mt-2 text-xs ${detailToneClassName}`}>{detail}</p> : null}
+    <div className={`orders-kpi-card rounded-[22px] border border-white/10 bg-white/[0.04] p-5 ${toneClassName}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          {label}
+        </p>
+        {detail ? (
+          <span className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${detailBadgeClassName}`}>
+            {detail}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-6 text-[clamp(2rem,2.2vw,2.7rem)] font-semibold leading-none tracking-tight text-white">{value}</p>
+      {footnote ? <p className="mt-4 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{footnote}</p> : null}
     </div>
   );
 }
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.04] p-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
@@ -1048,12 +1088,12 @@ function DeltaRow({
   deltaToneClassName?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
       <div>
         <div className="text-sm font-semibold text-slate-100">{label}</div>
         <div className="text-xs text-slate-500">vs previous 30-day period</div>
       </div>
-      <div className="text-right">
+        <div className="text-right">
         <div className="text-sm font-semibold text-white">{value}</div>
         <div className={`text-xs ${deltaToneClassName}`}>{delta}</div>
       </div>
@@ -1081,7 +1121,7 @@ function ProductList({
       {rows.map((row) => (
         <div
           key={row.productId}
-          className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+          className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
