@@ -18,7 +18,7 @@ export default async function AdminReturnsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
       <AdminReturnsClient
         requests={requests.map((req) => ({
           ...req,
