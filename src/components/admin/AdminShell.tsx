@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "CRM",
     items: [
       { href: "/admin/customers", label: "Customers", icon: UsersIcon },
+      { href: "/admin/users", label: "Users", icon: UsersIcon },
       { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon },
     ],
   },

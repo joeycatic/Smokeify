@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
+import type { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import AdminCatalogClient from "./AdminCatalogClient";
 
 const PAGE_SIZE = 25;
@@ -18,11 +18,13 @@ export default async function AdminCatalogPage({
     q?: string | string[];
     sort?: string | string[];
     dir?: string | string[];
+    supplier?: string | string[];
+    category?: string | string[];
+    collection?: string | string[];
   }>;
 }) {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  if (session?.user?.role !== "ADMIN") notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)
@@ -34,26 +36,56 @@ export default async function AdminCatalogPage({
   const rawDir = Array.isArray(resolvedSearchParams?.dir)
     ? resolvedSearchParams?.dir[0] ?? ""
     : resolvedSearchParams?.dir ?? "";
+  const rawSupplier = Array.isArray(resolvedSearchParams?.supplier)
+    ? resolvedSearchParams?.supplier[0] ?? ""
+    : resolvedSearchParams?.supplier ?? "";
+  const rawCategory = Array.isArray(resolvedSearchParams?.category)
+    ? resolvedSearchParams?.category[0] ?? ""
+    : resolvedSearchParams?.category ?? "";
+  const rawCollection = Array.isArray(resolvedSearchParams?.collection)
+    ? resolvedSearchParams?.collection[0] ?? ""
+    : resolvedSearchParams?.collection ?? "";
   const pageParamValue = Array.isArray(resolvedSearchParams?.page)
     ? resolvedSearchParams?.page[0] ?? "1"
     : resolvedSearchParams?.page ?? "1";
+
   const pageParam = Number(pageParamValue);
   const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-  const where = rawQuery
-    ? {
-        OR: [
-          { title: { contains: rawQuery, mode: "insensitive" as const } },
-          { handle: { contains: rawQuery, mode: "insensitive" as const } },
-        ],
-      }
-    : undefined;
-
-  const sortKey = ["title", "status", "variants", "category", "updatedAt"].includes(
-    rawSort
-  )
+  const sortKey = ["title", "status", "variants", "category", "updatedAt"].includes(rawSort)
     ? (rawSort as "title" | "status" | "variants" | "category" | "updatedAt")
     : "updatedAt";
   const sortDirection = rawDir === "asc" ? "asc" : "desc";
+
+  const where: Prisma.ProductWhereInput = {
+    ...(rawQuery
+      ? {
+          OR: [
+            { title: { contains: rawQuery, mode: "insensitive" } },
+            { handle: { contains: rawQuery, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+    ...(rawSupplier ? { supplierId: rawSupplier } : {}),
+    ...(rawCategory
+      ? {
+          categories: {
+            some: {
+              categoryId: rawCategory,
+            },
+          },
+        }
+      : {}),
+    ...(rawCollection
+      ? {
+          collections: {
+            some: {
+              collectionId: rawCollection,
+            },
+          },
+        }
+      : {}),
+  };
+
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = (() => {
     switch (sortKey) {
       case "title":
@@ -89,10 +121,7 @@ export default async function AdminCatalogPage({
         const parentEntry = product.categories.find(
           (entry) => entry.category.parentId === null
         );
-        return {
-          id: product.id,
-          categoryId: parentEntry?.categoryId ?? null,
-        };
+        return { id: product.id, categoryId: parentEntry?.categoryId ?? null };
       })
       .filter((entry) => entry.categoryId);
     if (updates.length > 0) {
@@ -116,10 +145,19 @@ export default async function AdminCatalogPage({
       include: {
         _count: { select: { variants: true, images: true } },
         mainCategory: { select: { id: true, name: true, handle: true } },
+        supplierRef: { select: { id: true, name: true } },
         categories: {
           orderBy: { position: "asc" },
           select: {
+            categoryId: true,
             category: { select: { id: true, name: true, handle: true, parentId: true } },
+          },
+        },
+        collections: {
+          orderBy: { position: "asc" },
+          select: {
+            collectionId: true,
+            collection: { select: { id: true, name: true, handle: true } },
           },
         },
         variants: {
@@ -141,21 +179,26 @@ export default async function AdminCatalogPage({
     <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
       <AdminCatalogClient
         initialProducts={products.map((product) => {
-          const { variants, ...rest } = product;
-          const available = variants.reduce((sum, variant) => {
+          const { variants, supplierRef, collections: productCollections, ...rest } = product;
+          const availableInventory = variants.reduce((sum, variant) => {
             const inventory = variant.inventory;
             const onHand = inventory?.quantityOnHand ?? 0;
             const reserved = inventory?.reserved ?? 0;
             return sum + Math.max(0, onHand - reserved);
           }, 0);
           const fallbackCategory =
-            product.categories.find((entry) => entry.category.parentId === null)
-              ?.category ?? null;
+            product.categories.find((entry) => entry.category.parentId === null)?.category ?? null;
+
           return {
             ...rest,
             createdAt: product.createdAt.toISOString(),
             updatedAt: product.updatedAt.toISOString(),
-            outOfStock: available <= 0,
+            outOfStock: availableInventory <= 0,
+            availableInventory,
+            supplierId: supplierRef?.id ?? null,
+            supplierName: supplierRef?.name ?? null,
+            categoryIds: product.categories.map((entry) => entry.categoryId),
+            collectionIds: productCollections.map((entry) => entry.collectionId),
             mainCategory: product.mainCategory ?? fallbackCategory ?? null,
           };
         })}
@@ -169,6 +212,11 @@ export default async function AdminCatalogPage({
         initialCategories={categories}
         initialCollections={collections}
         initialSuppliers={suppliers}
+        initialFilters={{
+          supplierId: rawSupplier,
+          categoryId: rawCategory,
+          collectionId: rawCollection,
+        }}
       />
     </div>
   );

@@ -11,9 +11,15 @@ type ProductRow = {
   title: string;
   handle: string;
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  createdAt?: string;
   updatedAt: string;
   sellerName?: string | null;
   sellerUrl?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  availableInventory: number;
+  categoryIds: string[];
+  collectionIds: string[];
   _count: { variants: number; images: number };
   outOfStock: boolean;
   mainCategory?: { id: string; name: string; handle: string } | null;
@@ -33,6 +39,12 @@ type SupplierRow = {
   leadTimeDays: number | null;
 };
 
+type QuickFilters = {
+  supplierId: string;
+  categoryId: string;
+  collectionId: string;
+};
+
 type Props = {
   initialProducts: ProductRow[];
   initialQuery: string;
@@ -45,6 +57,7 @@ type Props = {
   initialCategories: CategoryRow[];
   initialCollections: CategoryRow[];
   initialSuppliers: SupplierRow[];
+  initialFilters: QuickFilters;
 };
 
 const STATUS_OPTIONS: ProductRow["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
@@ -54,6 +67,9 @@ type FilterPreset = {
   query: string;
   sortKey: SortKey;
   sortDirection: "asc" | "desc";
+  supplierId: string;
+  categoryId: string;
+  collectionId: string;
 };
 
 const FILTER_PRESET_STORAGE_KEY = "smokeify-admin-catalog-filter-presets-v1";
@@ -77,6 +93,7 @@ export default function AdminCatalogClient({
   initialCategories,
   initialCollections,
   initialSuppliers,
+  initialFilters,
 }: Props) {
   const [products, setProducts] = useState<ProductRow[]>(initialProducts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
@@ -136,6 +153,9 @@ export default function AdminCatalogClient({
   );
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [presetName, setPresetName] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState(initialFilters.supplierId);
+  const [categoryFilter, setCategoryFilter] = useState(initialFilters.categoryId);
+  const [collectionFilter, setCollectionFilter] = useState(initialFilters.collectionId);
   const lastInitialQueryRef = useRef(initialQuery);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -156,6 +176,9 @@ export default function AdminCatalogClient({
           if (
             typeof candidate.name !== "string" ||
             typeof candidate.query !== "string" ||
+            typeof candidate.supplierId !== "string" ||
+            typeof candidate.categoryId !== "string" ||
+            typeof candidate.collectionId !== "string" ||
             (sortKey !== "title" &&
               sortKey !== "status" &&
               sortKey !== "variants" &&
@@ -170,6 +193,9 @@ export default function AdminCatalogClient({
             query: candidate.query,
             sortKey,
             sortDirection,
+            supplierId: candidate.supplierId,
+            categoryId: candidate.categoryId,
+            collectionId: candidate.collectionId,
           } satisfies FilterPreset;
         })
         .filter((item): item is FilterPreset => item !== null)
@@ -210,6 +236,16 @@ export default function AdminCatalogClient({
     }
     lastInitialQueryRef.current = normalized;
   }, [initialQuery, searchTerm]);
+
+  useEffect(() => {
+    setSupplierFilter(initialFilters.supplierId);
+    setCategoryFilter(initialFilters.categoryId);
+    setCollectionFilter(initialFilters.collectionId);
+  }, [
+    initialFilters.categoryId,
+    initialFilters.collectionId,
+    initialFilters.supplierId,
+  ]);
 
   const groupedCategories = useMemo(() => {
     const parents = categories.filter((item) => !item.parentId);
@@ -278,6 +314,50 @@ export default function AdminCatalogClient({
     );
   }, [router, searchParamsString, sortDirection, sortKey]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsString);
+    const currentSupplier = params.get("supplier") ?? "";
+    const currentCategory = params.get("category") ?? "";
+    const currentCollection = params.get("collection") ?? "";
+    if (
+      currentSupplier === supplierFilter &&
+      currentCategory === categoryFilter &&
+      currentCollection === collectionFilter
+    ) {
+      return;
+    }
+
+    if (supplierFilter) {
+      params.set("supplier", supplierFilter);
+    } else {
+      params.delete("supplier");
+    }
+
+    if (categoryFilter) {
+      params.set("category", categoryFilter);
+    } else {
+      params.delete("category");
+    }
+
+    if (collectionFilter) {
+      params.set("collection", collectionFilter);
+    } else {
+      params.delete("collection");
+    }
+
+    params.set("page", "1");
+    const queryString = params.toString();
+    router.replace(queryString ? `/admin/catalog?${queryString}` : "/admin/catalog", {
+      scroll: false,
+    });
+  }, [
+    categoryFilter,
+    collectionFilter,
+    router,
+    searchParamsString,
+    supplierFilter,
+  ]);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -291,6 +371,9 @@ export default function AdminCatalogClient({
     setSearchTerm(preset.query);
     setSortKey(preset.sortKey);
     setSortDirection(preset.sortDirection);
+    setSupplierFilter(preset.supplierId);
+    setCategoryFilter(preset.categoryId);
+    setCollectionFilter(preset.collectionId);
 
     const params = new URLSearchParams(searchParamsString);
     if (preset.query) {
@@ -300,6 +383,21 @@ export default function AdminCatalogClient({
     }
     params.set("sort", preset.sortKey);
     params.set("dir", preset.sortDirection);
+    if (preset.supplierId) {
+      params.set("supplier", preset.supplierId);
+    } else {
+      params.delete("supplier");
+    }
+    if (preset.categoryId) {
+      params.set("category", preset.categoryId);
+    } else {
+      params.delete("category");
+    }
+    if (preset.collectionId) {
+      params.set("collection", preset.collectionId);
+    } else {
+      params.delete("collection");
+    }
     params.delete("page");
 
     const queryString = params.toString();
@@ -313,10 +411,16 @@ export default function AdminCatalogClient({
     setSearchTerm("");
     setSortKey("updatedAt");
     setSortDirection("desc");
+    setSupplierFilter("");
+    setCategoryFilter("");
+    setCollectionFilter("");
 
     const params = new URLSearchParams(searchParamsString);
     params.delete("q");
     params.delete("page");
+    params.delete("supplier");
+    params.delete("category");
+    params.delete("collection");
     params.set("sort", "updatedAt");
     params.set("dir", "desc");
 
@@ -342,6 +446,9 @@ export default function AdminCatalogClient({
           query: searchTerm.trim(),
           sortKey,
           sortDirection,
+          supplierId: supplierFilter,
+          categoryId: categoryFilter,
+          collectionId: collectionFilter,
         },
         ...prev.filter(
           (item) =>
@@ -850,6 +957,92 @@ export default function AdminCatalogClient({
               </div>
             </div>
 
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+              <label className="rounded-2xl border border-black/10 bg-stone-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Supplier
+                <select
+                  value={supplierFilter}
+                  onChange={(event) => setSupplierFilter(event.target.value)}
+                  className="mt-2 h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-medium text-stone-800"
+                >
+                  <option value="">All suppliers</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="rounded-2xl border border-black/10 bg-stone-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Category
+                <select
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  className="mt-2 h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-medium text-stone-800"
+                >
+                  <option value="">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="rounded-2xl border border-black/10 bg-stone-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Collection
+                <select
+                  value={collectionFilter}
+                  onChange={(event) => setCollectionFilter(event.target.value)}
+                  className="mt-2 h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-medium text-stone-800"
+                >
+                  <option value="">All collections</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {(supplierFilter || categoryFilter || collectionFilter) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {supplierFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setSupplierFilter("")}
+                    className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm"
+                  >
+                    Supplier:{" "}
+                    {suppliers.find((supplier) => supplier.id === supplierFilter)?.name ?? "Active"}
+                    {" "}×
+                  </button>
+                )}
+                {categoryFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("")}
+                    className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm"
+                  >
+                    Category:{" "}
+                    {categories.find((category) => category.id === categoryFilter)?.name ?? "Active"}
+                    {" "}×
+                  </button>
+                )}
+                {collectionFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setCollectionFilter("")}
+                    className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm"
+                  >
+                    Collection:{" "}
+                    {collections.find((collection) => collection.id === collectionFilter)?.name ?? "Active"}
+                    {" "}×
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="rounded-2xl border border-black/10 bg-stone-50/80 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -969,6 +1162,9 @@ export default function AdminCatalogClient({
                   </button>
                 </th>
                 <th className="bg-white py-4">
+                  Availability
+                </th>
+                <th className="bg-white py-4">
                   <button
                     type="button"
                     onClick={() => handleSort("category")}
@@ -1026,9 +1222,27 @@ export default function AdminCatalogClient({
                     <div className="text-xs text-stone-500">
                       {product.handle}
                     </div>
+                    {product.supplierName ? (
+                      <div className="mt-1 text-[11px] text-stone-400">
+                        Supplier: {product.supplierName}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="py-3 pr-3">{product.status}</td>
                   <td className="py-3 pr-3">{product._count.variants}</td>
+                  <td className="py-3 pr-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        product.outOfStock
+                          ? "border border-red-200 bg-red-50 text-red-700"
+                          : product.availableInventory <= Math.max(2, product._count.variants)
+                          ? "border border-amber-200 bg-amber-50 text-amber-700"
+                          : "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                      }`}
+                    >
+                      {product.availableInventory} available
+                    </span>
+                  </td>
                   <td className="py-3 pr-3">
                     {product.mainCategory?.name ?? "—"}
                   </td>
@@ -1080,7 +1294,7 @@ export default function AdminCatalogClient({
               ))}
               {visibleProducts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-stone-500">
+                  <td colSpan={8} className="py-6 text-center text-stone-500">
                     {searchTerm.trim()
                       ? "No matching products."
                       : "No products yet."}

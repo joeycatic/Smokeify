@@ -19,6 +19,17 @@ type BarsChartProps = {
   colorClassName?: string;
 };
 
+type DonutChartProps = {
+  data: Array<{
+    label: string;
+    value: number;
+    colorClassName: string;
+  }>;
+  totalLabel?: string;
+  totalValue?: string;
+  className?: string;
+};
+
 const DEFAULT_STROKE = "stroke-cyan-300";
 const DEFAULT_FILL = "fill-cyan-400/10";
 
@@ -58,7 +69,9 @@ export function SparklineChart({
   const areaPath = `${linePath} L ${coordinates.at(-1)?.x ?? width - padding} ${height - padding} L ${coordinates[0]?.x ?? padding} ${height - padding} Z`;
 
   return (
-    <div className={`rounded-2xl border border-white/10 bg-white/[0.02] p-3 ${className}`}>
+    <div
+      className={`admin-lift rounded-2xl border border-white/10 bg-white/[0.02] p-3 ${className}`}
+    >
       <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full">
         <path d={areaPath} className={fillClassName} />
         <path
@@ -114,7 +127,7 @@ export function HorizontalBarsChart({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
             <div
-              className={`h-full rounded-full ${colorClassName}`}
+              className={`admin-bar-fill h-full rounded-full ${colorClassName}`}
               style={{
                 width: `${Math.max(8, Math.round((item.value / maxValue) * 100))}%`,
               }}
@@ -125,6 +138,87 @@ export function HorizontalBarsChart({
           ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+export function DonutChart({
+  data,
+  totalLabel = "Total",
+  totalValue,
+  className = "",
+}: DonutChartProps) {
+  const normalized = data.filter((segment) => segment.value > 0);
+  const total = normalized.reduce((sum, segment) => sum + segment.value, 0);
+
+  if (total <= 0) {
+    return (
+      <div
+        className={`flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] text-sm text-slate-500 ${className}`}
+      >
+        No ratio data
+      </div>
+    );
+  }
+
+  const gradientStops = normalized
+    .reduce<{ cursor: number; stops: string[] }>(
+      (acc, segment) => {
+        const start = (acc.cursor / total) * 100;
+        const nextCursor = acc.cursor + segment.value;
+        const end = (nextCursor / total) * 100;
+        acc.stops.push(
+          `${segment.colorClassName} ${start.toFixed(2)}% ${end.toFixed(2)}%`
+        );
+        return { cursor: nextCursor, stops: acc.stops };
+      },
+      { cursor: 0, stops: [] }
+    )
+    .stops.join(", ");
+
+  const conicGradient = `conic-gradient(${gradientStops})`;
+
+  return (
+    <div
+      className={`admin-lift flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/[0.02] p-4 ${className}`}
+    >
+      <div className="flex items-center justify-center">
+        <div
+          className="relative flex h-40 w-40 items-center justify-center rounded-full"
+          style={{ backgroundImage: conicGradient }}
+        >
+          <div className="absolute inset-[18%] rounded-full border border-white/10 bg-[#090d12]" />
+          <div className="relative z-10 text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              {totalLabel}
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-white">
+              {totalValue ?? String(total)}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {normalized.map((segment) => (
+          <div
+            key={segment.label}
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+          >
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: segment.colorClassName }}
+                />
+                <span className="text-slate-200">{segment.label}</span>
+              </div>
+              <span className="font-medium text-slate-400">
+                {segment.value}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

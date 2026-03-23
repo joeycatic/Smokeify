@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import { DonutChart } from "@/components/admin/AdminCharts";
 
 type OrderItem = {
   id: string;
@@ -123,6 +124,39 @@ const buildTimeline = (order: OrderRow) =>
     label: string;
     at: string;
   }>;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const calculateSelectedRefundAmount = (
+  order: OrderRow,
+  selection: Record<string, number> | undefined
+) =>
+  order.items.reduce((sum, item) => {
+    const selectedQty = selection?.[item.id] ?? 0;
+    if (selectedQty <= 0) return sum;
+    const unitAmount = item.quantity > 0 ? item.totalAmount / item.quantity : 0;
+    return sum + Math.round(unitAmount * clamp(selectedQty, 0, item.quantity));
+  }, 0);
+
+const getRefundPreviewAmount = (
+  order: OrderRow,
+  mode: "full" | "items",
+  selection: Record<string, number> | undefined,
+  includeShipping: boolean
+) => {
+  const remainingOrderAmount = Math.max(order.amountTotal - order.amountRefunded, 0);
+  if (mode === "full") {
+    const fullAmount = includeShipping
+      ? order.amountTotal
+      : Math.max(order.amountTotal - order.amountShipping, 0);
+    return clamp(fullAmount - order.amountRefunded, 0, remainingOrderAmount);
+  }
+
+  const selectedAmount = calculateSelectedRefundAmount(order, selection);
+  const withShipping = selectedAmount + (includeShipping ? order.amountShipping : 0);
+  return clamp(withShipping, 0, remainingOrderAmount);
+};
 
 const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(status);
@@ -277,6 +311,69 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
     () => [...relevantOrders, ...archivedOrders],
     [relevantOrders, archivedOrders]
   );
+  const paidCount = useMemo(
+    () =>
+      filteredOrders.reduce((count, order) => {
+        const payment = normalizeStatus(order.paymentStatus);
+        return payment === "paid" || payment === "succeeded" ? count + 1 : count;
+      }, 0),
+    [filteredOrders]
+  );
+  const refundingCount = useMemo(
+    () => filteredOrders.filter((order) => order.amountRefunded > 0).length,
+    [filteredOrders]
+  );
+  const openActionCount = useMemo(
+    () =>
+      filteredOrders.filter((order) => {
+        const status = normalizeStatus(order.status);
+        return status !== "fulfilled" && status !== "refunded";
+      }).length,
+    [filteredOrders]
+  );
+  const statusMix = useMemo(
+    () => [
+      {
+        label: "Open",
+        value: openActionCount,
+        colorClassName: "#22d3ee",
+      },
+      {
+        label: "Paid",
+        value: paidCount,
+        colorClassName: "#818cf8",
+      },
+      {
+        label: "Refunded",
+        value: refundingCount,
+        colorClassName: "#f59e0b",
+      },
+      {
+        label: "Archived",
+        value: archivedOrders.length,
+        colorClassName: "#475569",
+      },
+    ],
+    [archivedOrders.length, openActionCount, paidCount, refundingCount]
+  );
+  const refundPreview = useMemo(() => {
+    if (!confirmRefund) return null;
+    const order = visibleOrders.find((entry) => entry.id === confirmRefund.orderId);
+    if (!order) return null;
+    return {
+      order,
+      amount: getRefundPreviewAmount(
+        order,
+        confirmRefund.mode,
+        refundSelection[order.id],
+        refundIncludeShipping
+      ),
+      selectedItems:
+        confirmRefund.mode === "items"
+          ? Object.values(refundSelection[order.id] ?? {}).filter((qty) => qty > 0).length
+          : order.items.length,
+    };
+  }, [confirmRefund, refundIncludeShipping, refundSelection, visibleOrders]);
 
   const isConfirmationEmailSent = (order: OrderRow) =>
     confirmationEmailSent[order.id] || Boolean(order.confirmationEmailSentAt);
@@ -604,6 +701,35 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
         </div>
       </div>
 
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard label="Visible orders" value={String(sorted.length)} detail="Current query scope" />
+          <SummaryCard label="Open actions" value={String(openActionCount)} detail="Non-fulfilled / non-refunded" />
+          <SummaryCard label="Paid" value={String(paidCount)} detail="Payment confirmed" />
+          <SummaryCard label="Refunded" value={String(refundingCount)} detail="Any refunded amount" />
+        </div>
+        <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-white via-stone-50 to-emerald-50/60 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-700/70">
+                Status mix
+              </p>
+              <h2 className="mt-2 text-sm font-semibold text-stone-900">
+                Query distribution
+              </h2>
+            </div>
+            <div className="h-1 w-12 rounded-full bg-emerald-400/70" />
+          </div>
+          <div className="mt-4">
+            <DonutChart
+              data={statusMix}
+              totalLabel="Orders"
+              totalValue={String(sorted.length)}
+            />
+          </div>
+        </div>
+      </div>
+
       {customerSummary && (
         <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 text-sm text-sky-900 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -840,6 +966,36 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                         Shipping email: sent
                       </span>
                     )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <OrderHealthCard
+                      label="Payment"
+                      value={order.paymentStatus}
+                      detail={order.stripePaymentIntent ? "Stripe linked" : "No PI linked"}
+                    />
+                    <OrderHealthCard
+                      label="Fulfillment"
+                      value={fulfillmentBadge.label.replace("Fulfillment: ", "")}
+                      detail={tracking.number ? "Tracking added" : "Tracking missing"}
+                    />
+                    <OrderHealthCard
+                      label="Communication"
+                      value={`${[
+                        isConfirmationEmailSent(order),
+                        isShippingEmailSent(order),
+                        isRefundEmailSent(order),
+                      ].filter(Boolean).length}/3`}
+                      detail="Confirmation, shipping, refund"
+                    />
+                    <OrderHealthCard
+                      label="Refund exposure"
+                      value={formatPrice(order.amountRefunded, order.currency)}
+                      detail={`Remaining ${formatPrice(
+                        Math.max(order.amountTotal - order.amountRefunded, 0),
+                        order.currency
+                      )}`}
+                    />
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr]">
@@ -1358,6 +1514,21 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
             <p className="mt-2 text-sm text-stone-600">
               Diese Rueckerstattung kann nicht rueckgaengig gemacht werden.
             </p>
+            {refundPreview && (
+              <div className="mt-4 rounded-xl border border-black/10 bg-stone-50 px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Preview
+                </div>
+                <div className="mt-2 text-lg font-semibold text-stone-900">
+                  {formatPrice(refundPreview.amount, refundPreview.order.currency)}
+                </div>
+                <div className="mt-1 text-xs text-stone-500">
+                  {confirmRefund?.mode === "items"
+                    ? `${refundPreview.selectedItems} item line(s) selected`
+                    : "Full-order refund preview"}
+                </div>
+              </div>
+            )}
             <label className="mt-4 flex items-center gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
@@ -1473,3 +1644,42 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
   );
 }
 
+function SummaryCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-stone-900">{value}</p>
+      <p className="mt-2 text-xs text-stone-500">{detail}</p>
+    </div>
+  );
+}
+
+function OrderHealthCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-stone-900">{value}</p>
+      <p className="mt-2 text-xs text-stone-500">{detail}</p>
+    </div>
+  );
+}
