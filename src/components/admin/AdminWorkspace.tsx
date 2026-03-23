@@ -1,0 +1,293 @@
+"use client";
+
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
+
+export function AdminPageIntro({
+  eyebrow,
+  title,
+  description,
+  actions,
+  metrics,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actions?: ReactNode;
+  metrics?: ReactNode;
+}) {
+  return (
+    <section className="admin-reveal overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+            {eyebrow}
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold text-white">{title}</h1>
+          <p className="mt-3 max-w-3xl text-sm text-slate-400">{description}</p>
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+      </div>
+      {metrics ? <div className="mt-6">{metrics}</div> : null}
+    </section>
+  );
+}
+
+export function AdminPanel({
+  eyebrow,
+  title,
+  description,
+  actions,
+  className = "",
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={`admin-reveal rounded-[28px] border border-white/10 bg-[#090d12]/90 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ${className}`}
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          {eyebrow ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function AdminMetricCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="admin-lift rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+    </div>
+  );
+}
+
+export function AdminNotice({
+  tone,
+  children,
+}: {
+  tone: "success" | "error" | "info";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+      : tone === "error"
+      ? "border-red-400/20 bg-red-400/10 text-red-200"
+      : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  return <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClass}`}>{children}</div>;
+}
+
+export function AdminField({
+  label,
+  optional,
+  children,
+}: {
+  label: string;
+  optional?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      {label}
+      {optional ? <span className="ml-2 font-normal normal-case text-slate-400">{optional}</span> : null}
+      <div className="mt-2">{children}</div>
+    </label>
+  );
+}
+
+export function AdminInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+        props.className ?? ""
+      }`}
+    />
+  );
+}
+
+export function AdminSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+        props.className ?? ""
+      }`}
+    />
+  );
+}
+
+export function AdminTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={`w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+        props.className ?? ""
+      }`}
+    />
+  );
+}
+
+export function AdminButton({
+  tone = "primary",
+  children,
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: "primary" | "secondary" | "danger";
+}) {
+  const toneClass =
+    tone === "primary"
+      ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+      : tone === "danger"
+      ? "border border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/15"
+      : "border border-white/10 bg-white/[0.03] text-slate-200 hover:border-white/15 hover:bg-white/[0.05]";
+
+  return (
+    <button
+      {...props}
+      className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClass} ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function AdminIconButton({
+  children,
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function AdminDialog({
+  open,
+  title,
+  description,
+  children,
+  onClose,
+  footer,
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  onClose: () => void;
+  footer?: ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/60"
+        onClick={onClose}
+        aria-label="Close dialog"
+      />
+      <div className="relative w-full max-w-lg rounded-[28px] border border-white/10 bg-[#090d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
+        <div className="mt-5">{children}</div>
+        {footer ? <div className="mt-5 flex justify-end gap-2">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function AdminDrawer({
+  open,
+  title,
+  description,
+  onClose,
+  children,
+  widthClassName = "w-full max-w-xl",
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  onClose: () => void;
+  children: ReactNode;
+  widthClassName?: string;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/55"
+        onClick={onClose}
+        aria-label="Close drawer"
+      />
+      <div
+        className={`filter-drawer-in relative h-full ${widthClassName} overflow-y-auto border-l border-white/10 bg-[#090d12] p-6 shadow-[-30px_0_80px_rgba(0,0,0,0.45)]`}
+      >
+        <div className="mb-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Workspace Panel
+          </p>
+          <h3 className="mt-2 text-xl font-semibold text-white">{title}</h3>
+          {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function AdminEmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center">
+      <div className="text-sm font-semibold text-slate-200">{title}</div>
+      <div className="mt-2 text-sm text-slate-500">{description}</div>
+    </div>
+  );
+}

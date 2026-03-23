@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import {
+  AdminButton,
+  AdminDialog,
+  AdminEmptyState,
+  AdminField,
+  AdminInput,
+  AdminMetricCard,
+  AdminNotice,
+  AdminPageIntro,
+  AdminPanel,
+  AdminSelect,
+  AdminTextarea,
+} from "@/components/admin/AdminWorkspace";
 
 type Category = {
   id: string;
@@ -13,24 +25,24 @@ type Category = {
   updatedAt: string;
 };
 
+const emptyForm = {
+  name: "",
+  handle: "",
+  description: "",
+  parentId: "",
+};
+
 export default function AdminCategoriesClient() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deletePasswordError, setDeletePasswordError] = useState("");
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    handle: "",
-    description: "",
-    parentId: "",
-  });
+  const [newCategory, setNewCategory] = useState(emptyForm);
 
   const loadCategories = async () => {
     setLoading(true);
@@ -43,7 +55,11 @@ export default function AdminCategoriesClient() {
         return;
       }
       const data = (await res.json()) as { categories?: Category[] };
-      setCategories(data.categories ?? []);
+      const rows = (data.categories ?? []).sort((a, b) => a.name.localeCompare(b.name));
+      setCategories(rows);
+      setSelectedId((prev) =>
+        prev && rows.some((row) => row.id === prev) ? prev : rows[0]?.id ?? null
+      );
     } catch {
       setError("Failed to load categories.");
     } finally {
@@ -55,20 +71,34 @@ export default function AdminCategoriesClient() {
     void loadCategories();
   }, []);
 
-  const totalCategories = useMemo(() => categories.length, [categories]);
-
-  const parentOptions = useMemo(
-    () => categories.filter((c) => !c.parentId),
+  const topLevel = useMemo(
+    () => categories.filter((category) => !category.parentId),
     [categories]
   );
+  const childMap = useMemo(() => {
+    const map = new Map<string, Category[]>();
+    categories
+      .filter((category) => category.parentId)
+      .forEach((category) => {
+        const key = category.parentId as string;
+        const next = map.get(key) ?? [];
+        next.push(category);
+        next.sort((a, b) => a.name.localeCompare(b.name));
+        map.set(key, next);
+      });
+    return map;
+  }, [categories]);
+  const selectedCategory = categories.find((category) => category.id === selectedId) ?? null;
+  const childCount = useMemo(
+    () => topLevel.reduce((sum, category) => sum + (childMap.get(category.id)?.length ?? 0), 0),
+    [childMap, topLevel]
+  );
 
-  const getCategoryName = (id: string | null) => {
-    if (!id) return null;
-    return categories.find((c) => c.id === id)?.name ?? null;
-  };
-
-  const resetForm = () => {
-    setNewCategory({ name: "", handle: "", description: "", parentId: "" });
+  const updateSelected = (patch: Partial<Category>) => {
+    if (!selectedCategory) return;
+    setCategories((prev) =>
+      prev.map((row) => (row.id === selectedCategory.id ? { ...row, ...patch } : row))
+    );
   };
 
   const createCategory = async () => {
@@ -79,6 +109,7 @@ export default function AdminCategoriesClient() {
       setError("Name is required.");
       return;
     }
+
     try {
       const res = await fetch("/api/admin/categories", {
         method: "POST",
@@ -97,37 +128,38 @@ export default function AdminCategoriesClient() {
       }
       const data = (await res.json()) as { category?: Category };
       if (data.category) {
-        setCategories((prev) =>
-          [...prev, data.category!].sort((a, b) => a.name.localeCompare(b.name))
-        );
+        const next = [...categories, data.category].sort((a, b) => a.name.localeCompare(b.name));
+        setCategories(next);
+        setSelectedId(data.category.id);
       } else {
         await loadCategories();
       }
-      resetForm();
+      setNewCategory(emptyForm);
       setNotice("Category created.");
     } catch {
       setError("Failed to create category.");
     }
   };
 
-  const updateCategory = async (category: Category) => {
+  const saveSelected = async () => {
+    if (!selectedCategory) return;
     setError("");
     setNotice("");
-    const name = category.name.trim();
-    if (!name) {
+    if (!selectedCategory.name.trim()) {
       setError("Name is required.");
       return;
     }
-    setSavingId(category.id);
+
+    setSavingId(selectedCategory.id);
     try {
-      const res = await fetch(`/api/admin/categories/${category.id}`, {
+      const res = await fetch(`/api/admin/categories/${selectedCategory.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          handle: category.handle.trim() || undefined,
-          description: category.description?.trim() || null,
-          parentId: category.parentId || null,
+          name: selectedCategory.name.trim(),
+          handle: selectedCategory.handle.trim() || undefined,
+          description: selectedCategory.description?.trim() || null,
+          parentId: selectedCategory.parentId || null,
         }),
       });
       if (!res.ok) {
@@ -137,11 +169,10 @@ export default function AdminCategoriesClient() {
       }
       const data = (await res.json()) as { category?: Category };
       if (data.category) {
-        setCategories((prev) =>
-          prev
-            .map((item) => (item.id === category.id ? data.category! : item))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        );
+        const next = categories
+          .map((row) => (row.id === data.category?.id ? data.category : row))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCategories(next);
       } else {
         await loadCategories();
       }
@@ -154,9 +185,9 @@ export default function AdminCategoriesClient() {
   };
 
   const deleteCategory = async (id: string, adminPassword: string) => {
+    setSavingId(id);
     setError("");
     setNotice("");
-    setSavingId(id);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, {
         method: "DELETE",
@@ -168,7 +199,9 @@ export default function AdminCategoriesClient() {
         setError(data.error ?? "Failed to delete category.");
         return;
       }
-      setCategories((prev) => prev.filter((item) => item.id !== id));
+      const next = categories.filter((row) => row.id !== id);
+      setCategories(next);
+      setSelectedId(next[0]?.id ?? null);
       setNotice("Category deleted.");
     } catch {
       setError("Failed to delete category.");
@@ -178,357 +211,298 @@ export default function AdminCategoriesClient() {
   };
 
   return (
-    <div className="admin-legacy-page space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / CATEGORIES
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">Categories</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {totalCategories} categories
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {parentOptions.length} top-level
-              </span>
-            </div>
+    <div className="space-y-6">
+      <AdminPageIntro
+        eyebrow="Admin / Categories"
+        title="Taxonomy management"
+        description="Manage the category hierarchy with a dedicated dark workspace instead of the old stacked form layout."
+        actions={
+          <AdminButton tone="secondary" onClick={() => void loadCategories()} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
+          </AdminButton>
+        }
+        metrics={
+          <div className="grid gap-3 md:grid-cols-3">
+            <AdminMetricCard label="Categories" value={String(categories.length)} detail="All nodes" />
+            <AdminMetricCard label="Top level" value={String(topLevel.length)} detail="Root entries" />
+            <AdminMetricCard label="Children" value={String(childCount)} detail="Nested categories" />
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <button
-              type="button"
-              onClick={loadCategories}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Refresh"}
-            </button>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
-      {(error || notice) && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
-            error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
-          }`}
+      {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
+      {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
+
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <AdminPanel
+          eyebrow="Create"
+          title="Add category"
+          description="Create a new root or child category without leaving the taxonomy workspace."
+          className="admin-reveal-delay-1"
         >
-          {error || notice}
-        </div>
-      )}
-
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-            01
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              New category
-            </p>
-            <p className="text-xs text-stone-500">
-              Organise products into a browsable hierarchy.
-            </p>
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
-            Name
-            <input
-              value={newCategory.name}
-              onChange={(e) =>
-                setNewCategory((prev) => ({ ...prev, name: e.target.value }))
-              }
-              placeholder="e.g. Vaporizer"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Handle{" "}
-            <span className="font-normal text-stone-400">(optional)</span>
-            <input
-              value={newCategory.handle}
-              onChange={(e) =>
-                setNewCategory((prev) => ({ ...prev, handle: e.target.value }))
-              }
-              placeholder="vaporizer"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Parent category{" "}
-            <span className="font-normal text-stone-400">(optional)</span>
-            <select
-              value={newCategory.parentId}
-              onChange={(e) =>
-                setNewCategory((prev) => ({
-                  ...prev,
-                  parentId: e.target.value,
-                }))
-              }
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            >
-              <option value="">— None (top-level) —</option>
-              {parentOptions.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-stone-600">
-            Description{" "}
-            <span className="font-normal text-stone-400">(optional)</span>
-            <input
-              value={newCategory.description}
-              onChange={(e) =>
-                setNewCategory((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="A short description..."
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={createCategory}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
-          >
-            Create category
-          </button>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="h-10 rounded-md border border-black/10 px-4 text-xs font-semibold text-stone-700"
-          >
-            Reset
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-              02
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-                Category list
-              </p>
-              <p className="text-xs text-stone-500">
-                Edit or remove existing categories.
-              </p>
+          <div className="grid gap-4">
+            <AdminField label="Name">
+              <AdminInput
+                value={newCategory.name}
+                onChange={(event) =>
+                  setNewCategory((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="e.g. Vaporizers"
+              />
+            </AdminField>
+            <AdminField label="Handle" optional="optional">
+              <AdminInput
+                value={newCategory.handle}
+                onChange={(event) =>
+                  setNewCategory((prev) => ({ ...prev, handle: event.target.value }))
+                }
+                placeholder="vaporizers"
+              />
+            </AdminField>
+            <AdminField label="Parent" optional="optional">
+              <AdminSelect
+                value={newCategory.parentId}
+                onChange={(event) =>
+                  setNewCategory((prev) => ({ ...prev, parentId: event.target.value }))
+                }
+              >
+                <option value="">No parent (top level)</option>
+                {topLevel.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </AdminSelect>
+            </AdminField>
+            <AdminField label="Description" optional="optional">
+              <AdminTextarea
+                rows={4}
+                value={newCategory.description}
+                onChange={(event) =>
+                  setNewCategory((prev) => ({ ...prev, description: event.target.value }))
+                }
+                placeholder="Short internal context or merchandising note"
+              />
+            </AdminField>
+            <div className="flex flex-wrap gap-2">
+              <AdminButton onClick={() => void createCategory()}>Create category</AdminButton>
+              <AdminButton tone="secondary" onClick={() => setNewCategory(emptyForm)}>
+                Reset
+              </AdminButton>
             </div>
           </div>
-          <div className="text-xs text-stone-500">
-            {categories.length
-              ? `${categories.length} total`
-              : "No categories yet"}
-          </div>
-        </div>
-        {categories.length === 0 ? (
-          <div className="rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-6 text-sm text-stone-500">
-            No categories added yet.
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="rounded-xl border border-amber-200/70 bg-white p-4"
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold text-stone-600">
-                    Name
-                    <input
-                      value={category.name}
-                      onChange={(e) =>
-                        setCategories((prev) =>
-                          prev.map((row) =>
-                            row.id === category.id
-                              ? { ...row, name: e.target.value }
-                              : row
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Handle
-                    <input
-                      value={category.handle}
-                      onChange={(e) =>
-                        setCategories((prev) =>
-                          prev.map((row) =>
-                            row.id === category.id
-                              ? { ...row, handle: e.target.value }
-                              : row
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 font-mono text-xs"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Parent category
-                    <select
-                      value={category.parentId ?? ""}
-                      onChange={(e) =>
-                        setCategories((prev) =>
-                          prev.map((row) =>
-                            row.id === category.id
-                              ? { ...row, parentId: e.target.value || null }
-                              : row
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                    >
-                      <option value="">— None (top-level) —</option>
-                      {categories
-                        .filter((c) => c.id !== category.id && !c.parentId)
-                        .map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <label className="text-xs font-semibold text-stone-600">
-                    Description
-                    <input
-                      value={category.description ?? ""}
-                      onChange={(e) =>
-                        setCategories((prev) =>
-                          prev.map((row) =>
-                            row.id === category.id
-                              ? { ...row, description: e.target.value }
-                              : row
-                          )
-                        )
-                      }
-                      className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                    />
-                  </label>
+        </AdminPanel>
+
+        <AdminPanel
+          eyebrow="Hierarchy"
+          title="Category tree and detail editor"
+          description="Select a node from the hierarchy, then edit its structure and metadata in the right-hand editor."
+          className="admin-reveal-delay-2"
+        >
+          {categories.length === 0 ? (
+            <AdminEmptyState
+              title="No categories yet"
+              description="Create the first taxonomy node to start building the catalog structure."
+            />
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+              <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-3">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Tree
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-xs text-stone-400">
-                    {category.parentId ? (
-                      <span>
-                        Under{" "}
-                        <span className="font-medium text-stone-600">
-                          {getCategoryName(category.parentId) ??
-                            category.parentId}
-                        </span>
-                      </span>
-                    ) : (
-                      <span>Top-level</span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateCategory(category)}
-                      disabled={savingId === category.id}
-                      className="h-9 rounded-md border border-amber-200 px-4 text-xs font-semibold text-amber-700 hover:border-amber-300 disabled:opacity-50"
-                    >
-                      {savingId === category.id ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeletePassword("");
-                        setDeletePasswordError("");
-                        setDeleteTarget({
-                          id: category.id,
-                          name: category.name,
-                        });
-                      }}
-                      disabled={savingId === category.id}
-                      className="h-9 rounded-md border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-700 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                <div className="space-y-2">
+                  {topLevel.map((category) => {
+                    const children = childMap.get(category.id) ?? [];
+                    const activeRoot = selectedId === category.id;
+                    return (
+                      <div key={category.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(category.id)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
+                            activeRoot
+                              ? "bg-cyan-400/10 text-cyan-200"
+                              : "text-slate-200 hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          <span className="font-semibold">{category.name}</span>
+                          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                            Root
+                          </span>
+                        </button>
+                        {children.length > 0 ? (
+                          <div className="mt-2 space-y-1 pl-3">
+                            {children.map((child) => (
+                              <button
+                                key={child.id}
+                                type="button"
+                                onClick={() => setSelectedId(child.id)}
+                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                  selectedId === child.id
+                                    ? "bg-violet-400/10 text-violet-200"
+                                    : "text-slate-300 hover:bg-white/[0.04]"
+                                }`}
+                              >
+                                <span>{child.name}</span>
+                                <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                                  Child
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
 
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDeleteTarget(null)}
-            aria-label="Close dialog"
-          />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-stone-900">
-              Kategorie löschen?
-            </h3>
-            <p className="mt-2 text-sm text-stone-600">
-              Die Kategorie wird dauerhaft gelöscht. Diese Aktion kann nicht
-              rückgängig gemacht werden.
-            </p>
-            <p className="mt-2 text-xs text-stone-500">{deleteTarget.name}</p>
-            <input
-              type="password"
-              value={deletePassword}
-              onChange={(e) => {
-                setDeletePassword(e.target.value);
-                if (deletePasswordError) setDeletePasswordError("");
-              }}
-              className="mt-4 h-10 w-full rounded-md border border-black/10 px-3 text-sm outline-none focus:border-black/30"
-              placeholder="Admin-Passwort"
-            />
-            {deletePasswordError && (
-              <p className="mt-2 text-xs text-red-600">{deletePasswordError}</p>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const adminPassword = deletePassword.trim();
-                  if (!adminPassword) {
-                    setDeletePasswordError("Bitte Admin-Passwort eingeben.");
-                    return;
-                  }
-                  const target = deleteTarget;
-                  setDeleteTarget(null);
-                  setDeletePassword("");
-                  setDeletePasswordError("");
-                  if (target) {
-                    await deleteCategory(target.id, adminPassword);
-                  }
-                }}
-                className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
-              >
-                Löschen
-              </button>
+              {selectedCategory ? (
+                <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-5">
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        Selected node
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-white">
+                        {selectedCategory.name}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-400">
+                        {selectedCategory.parentId ? "Child category" : "Top-level category"}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <AdminButton
+                        tone="secondary"
+                        onClick={() => setDeleteTarget({ id: selectedCategory.id, name: selectedCategory.name })}
+                        disabled={savingId === selectedCategory.id}
+                      >
+                        Delete
+                      </AdminButton>
+                      <AdminButton
+                        onClick={() => void saveSelected()}
+                        disabled={savingId === selectedCategory.id}
+                      >
+                        {savingId === selectedCategory.id ? "Saving..." : "Save changes"}
+                      </AdminButton>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <AdminField label="Name">
+                      <AdminInput
+                        value={selectedCategory.name}
+                        onChange={(event) => updateSelected({ name: event.target.value })}
+                      />
+                    </AdminField>
+                    <AdminField label="Handle">
+                      <AdminInput
+                        value={selectedCategory.handle}
+                        onChange={(event) => updateSelected({ handle: event.target.value })}
+                      />
+                    </AdminField>
+                    <AdminField label="Parent" optional="optional">
+                      <AdminSelect
+                        value={selectedCategory.parentId ?? ""}
+                        onChange={(event) =>
+                          updateSelected({ parentId: event.target.value || null })
+                        }
+                      >
+                        <option value="">No parent (top level)</option>
+                        {topLevel
+                          .filter((category) => category.id !== selectedCategory.id)
+                          .map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                      </AdminSelect>
+                    </AdminField>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Metadata
+                      </div>
+                      <div className="mt-3 space-y-2 text-sm text-slate-300">
+                        <div>Created: {new Date(selectedCategory.createdAt).toLocaleDateString("de-DE")}</div>
+                        <div>Updated: {new Date(selectedCategory.updatedAt).toLocaleDateString("de-DE")}</div>
+                        <div>Children: {childMap.get(selectedCategory.id)?.length ?? 0}</div>
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <AdminField label="Description" optional="optional">
+                        <AdminTextarea
+                          rows={5}
+                          value={selectedCategory.description ?? ""}
+                          onChange={(event) =>
+                            updateSelected({ description: event.target.value })
+                          }
+                          placeholder="Internal note or shopper-facing summary"
+                        />
+                      </AdminField>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <AdminEmptyState
+                  title="No category selected"
+                  description="Select a category from the tree to edit it."
+                />
+              )}
             </div>
+          )}
+        </AdminPanel>
+      </div>
+
+      <AdminDialog
+        open={Boolean(deleteTarget)}
+        title="Delete category?"
+        description="This permanently removes the category. Enter your admin password to confirm."
+        onClose={() => setDeleteTarget(null)}
+        footer={
+          <>
+            <AdminButton tone="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </AdminButton>
+            <AdminButton
+              tone="danger"
+              onClick={async () => {
+                const adminPassword = deletePassword.trim();
+                if (!adminPassword) {
+                  setDeletePasswordError("Enter your admin password.");
+                  return;
+                }
+                const target = deleteTarget;
+                setDeleteTarget(null);
+                setDeletePassword("");
+                setDeletePasswordError("");
+                if (target) {
+                  await deleteCategory(target.id, adminPassword);
+                }
+              }}
+            >
+              Delete category
+            </AdminButton>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+            {deleteTarget?.name}
           </div>
+          <AdminInput
+            type="password"
+            value={deletePassword}
+            onChange={(event) => {
+              setDeletePassword(event.target.value);
+              if (deletePasswordError) setDeletePasswordError("");
+            }}
+            placeholder="Admin password"
+          />
+          {deletePasswordError ? (
+            <div className="text-xs text-red-300">{deletePasswordError}</div>
+          ) : null}
         </div>
-      )}
+      </AdminDialog>
     </div>
   );
 }

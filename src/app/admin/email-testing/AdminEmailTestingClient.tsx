@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminField,
+  AdminInput,
+  AdminMetricCard,
+  AdminNotice,
+  AdminPageIntro,
+  AdminPanel,
+  AdminTextarea,
+} from "@/components/admin/AdminWorkspace";
 
 type EmailType =
   | "confirmation"
@@ -19,6 +29,18 @@ type ItemRow = {
   name: string;
   quantity: string;
   total: string;
+};
+
+const EMAIL_TYPE_LABELS: Record<EmailType, { title: string; subtitle: string }> = {
+  confirmation: { title: "Order confirmation", subtitle: "Mock order confirmation payload" },
+  shipping: { title: "Shipping", subtitle: "Tracking mail with carrier data" },
+  refund: { title: "Refund", subtitle: "Refund amount and item payload" },
+  return_confirmation: { title: "Return confirmation", subtitle: "Return request confirmation mail" },
+  cancellation: { title: "Cancellation", subtitle: "Canceled order notification" },
+  newsletter: { title: "Newsletter", subtitle: "Custom subject/body send test" },
+  newsletter_confirmation: { title: "Newsletter opt-in", subtitle: "Subscription confirmation mail" },
+  back_in_stock: { title: "Back in stock", subtitle: "Product reavailability alert" },
+  checkout_recovery: { title: "Checkout recovery", subtitle: "Recovery mail with mock session id" },
 };
 
 const makeItem = (): ItemRow => ({
@@ -52,18 +74,14 @@ export default function AdminEmailTestingClient() {
   const [trackingNumber, setTrackingNumber] = useState("00340434161000000000");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [items, setItems] = useState<ItemRow[]>([makeItem()]);
-  const [newsletterSubject, setNewsletterSubject] = useState(
-    "Neu bei Smokeify"
-  );
+  const [newsletterSubject, setNewsletterSubject] = useState("Neu bei Smokeify");
   const [newsletterBody, setNewsletterBody] = useState(
     "Hallo,\n\nhier ist ein Test-Newsletter von Smokeify.\n\nViele Grüße,\nSmokeify-Team"
   );
   const [productTitle, setProductTitle] = useState("Beispiel-Shisha");
   const [variantTitle, setVariantTitle] = useState("Schwarz / Medium");
   const [sessionId, setSessionId] = useState("cs_test_XXXXXXXXXXXXXXXX");
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
-    "idle"
-  );
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [message, setMessage] = useState("");
 
   const isNewsletter = type === "newsletter";
@@ -78,25 +96,98 @@ export default function AdminEmailTestingClient() {
     type === "refund" ||
     type === "return_confirmation" ||
     type === "cancellation";
-  const canUseOrderInputs = isOrderEmail;
 
   const orderItemsValid = useMemo(() => {
-    if (!canUseOrderInputs) return true;
+    if (!isOrderEmail) return true;
     return items.some((item) => item.name.trim());
-  }, [canUseOrderInputs, items]);
+  }, [isOrderEmail, items]);
 
-  const handleAddItem = () => {
-    setItems((prev) => [...prev, makeItem()]);
-  };
+  const payloadPreview = useMemo(() => {
+    if (isNewsletter) {
+      return {
+        type,
+        to: recipient.trim(),
+        subject: newsletterSubject.trim(),
+        body: newsletterBody.trim(),
+      };
+    }
+    if (isNewsletterConfirmation) {
+      return { type, to: recipient.trim() };
+    }
+    if (isBackInStock) {
+      return {
+        type,
+        to: recipient.trim(),
+        productTitle: productTitle.trim(),
+        variantTitle: variantTitle.trim(),
+      };
+    }
+    if (isCheckoutRecovery) {
+      return {
+        type,
+        to: recipient.trim(),
+        sessionId: sessionId.trim(),
+      };
+    }
+    return {
+      type,
+      to: recipient.trim(),
+      order: {
+        id: orderId.trim() || "TEST-ORDER-0001",
+        currency: currency.trim().toUpperCase() || "EUR",
+        amountSubtotal: toCents(amountSubtotal),
+        amountTax: toCents(amountTax),
+        amountShipping: toCents(amountShipping),
+        amountDiscount: toCents(amountDiscount),
+        amountTotal: toCents(amountTotal),
+        amountRefunded: toCents(amountRefunded),
+        discountCode: discountCode.trim() || null,
+        trackingCarrier: trackingCarrier.trim() || null,
+        trackingNumber: trackingNumber.trim() || null,
+        trackingUrl: trackingUrl.trim() || null,
+        items: items
+          .filter((item) => item.name.trim())
+          .map((item) => ({
+            name: item.name.trim(),
+            quantity: Math.max(1, Number(item.quantity) || 1),
+            totalAmount: toCents(item.total),
+            currency: currency.trim().toUpperCase() || "EUR",
+          })),
+      },
+    };
+  }, [
+    amountDiscount,
+    amountRefunded,
+    amountShipping,
+    amountSubtotal,
+    amountTax,
+    amountTotal,
+    currency,
+    discountCode,
+    isBackInStock,
+    isCheckoutRecovery,
+    isNewsletter,
+    isNewsletterConfirmation,
+    items,
+    newsletterBody,
+    newsletterSubject,
+    orderId,
+    productTitle,
+    recipient,
+    sessionId,
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl,
+    type,
+    variantTitle,
+  ]);
 
+  const handleAddItem = () => setItems((prev) => [...prev, makeItem()]);
   const handleRemoveItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
-
   const handleItemChange = (id: string, field: keyof ItemRow, value: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
   const resetStatus = () => {
@@ -108,397 +199,313 @@ export default function AdminEmailTestingClient() {
     resetStatus();
     if (!recipient.trim()) {
       setStatus("error");
-      setMessage("Bitte eine Empfänger-E-Mail angeben.");
+      setMessage("Enter a recipient email.");
       return;
     }
     if (isNewsletter) {
       if (!newsletterSubject.trim() || !newsletterBody.trim()) {
         setStatus("error");
-        setMessage("Bitte Betreff und Inhalt für den Newsletter angeben.");
+        setMessage("Enter a newsletter subject and body.");
         return;
       }
-    } else if (isNewsletterConfirmation || isBackInStock || isCheckoutRecovery) {
-      // no extra validation required
-    } else if (!orderItemsValid) {
+    } else if (!isNewsletterConfirmation && !isBackInStock && !isCheckoutRecovery && !orderItemsValid) {
       setStatus("error");
-      setMessage("Bitte mindestens einen Artikel mit Namen angeben.");
+      setMessage("Add at least one item with a name.");
       return;
     }
-
-    const payload = isNewsletter
-      ? {
-          type,
-          to: recipient.trim(),
-          newsletter: {
-            subject: newsletterSubject.trim(),
-            body: newsletterBody.trim(),
-          },
-        }
-      : isNewsletterConfirmation
-        ? { type, to: recipient.trim() }
-        : isBackInStock
-          ? {
-              type,
-              to: recipient.trim(),
-              productTitle: productTitle.trim(),
-              variantTitle: variantTitle.trim(),
-            }
-          : isCheckoutRecovery
-            ? {
-                type,
-                to: recipient.trim(),
-                sessionId: sessionId.trim(),
-              }
-            : {
-                type,
-                to: recipient.trim(),
-                order: {
-                  id: orderId.trim() || "TEST-ORDER-0001",
-                  currency: currency.trim().toUpperCase() || "EUR",
-                  amountSubtotal: toCents(amountSubtotal),
-                  amountTax: toCents(amountTax),
-                  amountShipping: toCents(amountShipping),
-                  amountDiscount: toCents(amountDiscount),
-                  amountTotal: toCents(amountTotal),
-                  amountRefunded: toCents(amountRefunded),
-                  discountCode: discountCode.trim() || null,
-                  trackingCarrier: trackingCarrier.trim() || null,
-                  trackingNumber: trackingNumber.trim() || null,
-                  trackingUrl: trackingUrl.trim() || null,
-                  items: items
-                    .filter((item) => item.name.trim())
-                    .map((item) => ({
-                      name: item.name.trim(),
-                      quantity: Math.max(1, Number(item.quantity) || 1),
-                      totalAmount: toCents(item.total),
-                      currency: currency.trim().toUpperCase() || "EUR",
-                    })),
-                },
-              };
 
     setStatus("loading");
     try {
       const res = await fetch("/api/admin/email-testing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payloadPreview),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setStatus("error");
-        setMessage(data.error ?? "Senden fehlgeschlagen.");
+        setMessage(data.error ?? "Send failed.");
         return;
       }
       setStatus("ok");
-      setMessage("Test-E-Mail wurde gesendet.");
+      setMessage("Test email sent.");
     } catch {
       setStatus("error");
-      setMessage("Senden fehlgeschlagen.");
+      setMessage("Send failed.");
     }
   };
 
   return (
-    <div className="admin-legacy-page rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600/80">
-            Admin
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold" style={{ color: "#2f3e36" }}>
-            Email testing
-          </h1>
-          <p className="mt-2 text-sm text-stone-600">
-            Sende Test-E-Mails mit Mock-Daten an eine Empfänger-Adresse.
-          </p>
-        </div>
-        <AdminThemeToggle />
-      </div>
+    <div className="space-y-6">
+      <AdminPageIntro
+        eyebrow="Admin / Email Testing"
+        title="Email QA workbench"
+        description="Test transactional, newsletter, and recovery emails from a dedicated dark lab surface with mock payload controls and a live payload summary."
+        metrics={
+          <div className="grid gap-3 md:grid-cols-4">
+            <AdminMetricCard label="Templates" value="9" detail="Supported testable flows" />
+            <AdminMetricCard label="Selected type" value={EMAIL_TYPE_LABELS[type].title} detail="Active configuration" />
+            <AdminMetricCard label="Items" value={String(items.length)} detail="Mock line items" />
+            <AdminMetricCard label="Recipient" value={recipient.trim() || "Unset"} detail="Current target" />
+          </div>
+        }
+      />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
-          <div className="grid gap-4">
-            <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Empfänger
-              <input
+      {status === "ok" ? <AdminNotice tone="success">{message}</AdminNotice> : null}
+      {status === "error" ? <AdminNotice tone="error">{message}</AdminNotice> : null}
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <AdminPanel
+          eyebrow="Configure"
+          title="Email type and payload"
+          description="Pick an email type, then configure only the payload fields relevant to that template."
+          className="admin-reveal-delay-1"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(Object.entries(EMAIL_TYPE_LABELS) as Array<[EmailType, { title: string; subtitle: string }]>).map(
+              ([key, value]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setType(key)}
+                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                    type === key
+                      ? "border-cyan-400/20 bg-cyan-400/10"
+                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="font-semibold text-white">{value.title}</div>
+                  <div className="mt-1 text-xs text-slate-500">{value.subtitle}</div>
+                </button>
+              )
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-4">
+            <AdminField label="Recipient">
+              <AdminInput
                 value={recipient}
                 onChange={(event) => setRecipient(event.target.value)}
                 placeholder="test@example.com"
-                className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
               />
-            </label>
-
-            <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Email-Typ
-              <select
-                value={type}
-                onChange={(event) => setType(event.target.value as EmailType)}
-                className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-              >
-                <option value="confirmation">Order confirmation</option>
-                <option value="shipping">Shipping tracking</option>
-                <option value="refund">Refund</option>
-                <option value="return_confirmation">Return confirmation</option>
-                <option value="cancellation">Cancellation</option>
-                <option value="newsletter">Newsletter blast</option>
-                <option value="newsletter_confirmation">Newsletter confirmation</option>
-                <option value="back_in_stock">Back in stock</option>
-                <option value="checkout_recovery">Checkout recovery</option>
-              </select>
-            </label>
+            </AdminField>
 
             {isNewsletter ? (
               <>
-                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Newsletter-Betreff
-                  <input
+                <AdminField label="Subject">
+                  <AdminInput
                     value={newsletterSubject}
                     onChange={(event) => setNewsletterSubject(event.target.value)}
-                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                   />
-                </label>
-                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Newsletter-Inhalt
-                  <textarea
+                </AdminField>
+                <AdminField label="Body">
+                  <AdminTextarea
+                    rows={8}
                     value={newsletterBody}
                     onChange={(event) => setNewsletterBody(event.target.value)}
-                    rows={6}
-                    className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                   />
-                </label>
+                </AdminField>
               </>
             ) : isNewsletterConfirmation ? (
-              <p className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-stone-500">
-                Sendet die Anmelde-Bestätigungsmail an die angegebene Empfänger-Adresse.
-              </p>
+              <AdminNotice tone="info">
+                This sends the newsletter double opt-in confirmation to the selected recipient.
+              </AdminNotice>
             ) : isBackInStock ? (
-              <>
-                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Produktname
-                  <input
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminField label="Product title">
+                  <AdminInput
                     value={productTitle}
                     onChange={(event) => setProductTitle(event.target.value)}
-                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                   />
-                </label>
-                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Variante (optional)
-                  <input
+                </AdminField>
+                <AdminField label="Variant title" optional="optional">
+                  <AdminInput
                     value={variantTitle}
                     onChange={(event) => setVariantTitle(event.target.value)}
-                    placeholder="z.B. Schwarz / Medium"
-                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                   />
-                </label>
-              </>
+                </AdminField>
+              </div>
             ) : isCheckoutRecovery ? (
-              <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Session-ID (Mock)
-                <input
+              <AdminField label="Mock session id">
+                <AdminInput
                   value={sessionId}
                   onChange={(event) => setSessionId(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                 />
-              </label>
+              </AdminField>
             ) : (
               <>
-                <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  Order-ID (Mock)
-                  <input
-                    value={orderId}
-                    onChange={(event) => setOrderId(event.target.value)}
-                    className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-                  />
-                </label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Währung
-                    <input
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AdminField label="Mock order id">
+                    <AdminInput
+                      value={orderId}
+                      onChange={(event) => setOrderId(event.target.value)}
+                    />
+                  </AdminField>
+                  <AdminField label="Currency">
+                    <AdminInput
                       value={currency}
-                      onChange={(event) => setCurrency(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
+                      onChange={(event) => setCurrency(event.target.value.toUpperCase())}
                     />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Rabattcode
-                    <input
-                      value={discountCode}
-                      onChange={(event) => setDiscountCode(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-                    />
-                  </label>
+                  </AdminField>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Zwischensumme (EUR)
-                    <input
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AdminField label="Subtotal">
+                    <AdminInput
                       value={amountSubtotal}
                       onChange={(event) => setAmountSubtotal(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                     />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Steuer (EUR)
-                    <input
+                  </AdminField>
+                  <AdminField label="Tax">
+                    <AdminInput
                       value={amountTax}
                       onChange={(event) => setAmountTax(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                     />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Versand (EUR)
-                    <input
+                  </AdminField>
+                  <AdminField label="Shipping">
+                    <AdminInput
                       value={amountShipping}
                       onChange={(event) => setAmountShipping(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                     />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Rabatt (EUR)
-                    <input
+                  </AdminField>
+                  <AdminField label="Discount">
+                    <AdminInput
                       value={amountDiscount}
                       onChange={(event) => setAmountDiscount(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                     />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Gesamt (EUR)
-                    <input
+                  </AdminField>
+                  <AdminField label="Total">
+                    <AdminInput
                       value={amountTotal}
                       onChange={(event) => setAmountTotal(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                     />
-                  </label>
+                  </AdminField>
                   {isRefund ? (
-                    <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                      Erstattet (EUR)
-                      <input
+                    <AdminField label="Refunded">
+                      <AdminInput
                         value={amountRefunded}
                         onChange={(event) => setAmountRefunded(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                       />
-                    </label>
+                    </AdminField>
                   ) : null}
                 </div>
 
-                {isShipping ? (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                      Carrier
-                      <input
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AdminField label="Discount code" optional="optional">
+                    <AdminInput
+                      value={discountCode}
+                      onChange={(event) => setDiscountCode(event.target.value)}
+                    />
+                  </AdminField>
+                  {isShipping ? (
+                    <AdminField label="Carrier">
+                      <AdminInput
                         value={trackingCarrier}
                         onChange={(event) => setTrackingCarrier(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                       />
-                    </label>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                      Tracking-Nr.
-                      <input
+                    </AdminField>
+                  ) : null}
+                  {isShipping ? (
+                    <AdminField label="Tracking number">
+                      <AdminInput
                         value={trackingNumber}
                         onChange={(event) => setTrackingNumber(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                       />
-                    </label>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                      Tracking-URL
-                      <input
+                    </AdminField>
+                  ) : null}
+                  {isShipping ? (
+                    <AdminField label="Tracking URL" optional="optional">
+                      <AdminInput
                         value={trackingUrl}
                         onChange={(event) => setTrackingUrl(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
                       />
-                    </label>
-                  </div>
-                ) : null}
+                    </AdminField>
+                  ) : null}
+                </div>
               </>
             )}
           </div>
-        </div>
+        </AdminPanel>
 
-        {isOrderEmail ? (
-          <div className="rounded-2xl border border-emerald-100 bg-white p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-                Artikel (Mock)
-              </h2>
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
-              >
-                + Artikel
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                      Item {index + 1}
-                    </p>
-                    {items.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                      >
-                        Entfernen
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-                    <input
-                      value={item.name}
-                      onChange={(event) =>
-                        handleItemChange(item.id, "name", event.target.value)
-                      }
-                      placeholder="Produktname"
-                      className="h-10 rounded-lg border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-                    />
-                    <input
-                      value={item.quantity}
-                      onChange={(event) =>
-                        handleItemChange(item.id, "quantity", event.target.value)
-                      }
-                      placeholder="Menge"
-                      className="h-10 rounded-lg border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-                    />
-                    <input
-                      value={item.total}
-                      onChange={(event) =>
-                        handleItemChange(item.id, "total", event.target.value)
-                      }
-                      placeholder="Summe (EUR)"
-                      className="h-10 rounded-lg border border-emerald-200 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={status === "loading"}
-          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500"
-        >
-          {status === "loading" ? "Sende..." : "Test-E-Mail senden"}
-        </button>
-        {status !== "idle" ? (
-          <span
-            className={`text-sm font-semibold ${
-              status === "ok" ? "text-emerald-700" : "text-rose-600"
-            }`}
+        <div className="space-y-6">
+          <AdminPanel
+            eyebrow="Preview"
+            title="Payload summary"
+            description="Live preview of the payload that will be sent to the email testing API."
+            className="admin-reveal-delay-2"
           >
-            {message}
-          </span>
-        ) : null}
+            <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4">
+              <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-slate-300">
+                {JSON.stringify(payloadPreview, null, 2)}
+              </pre>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <AdminButton onClick={() => void submit()} disabled={status === "loading"}>
+                {status === "loading" ? "Sending..." : "Send test email"}
+              </AdminButton>
+              <AdminButton tone="secondary" onClick={resetStatus}>
+                Reset status
+              </AdminButton>
+            </div>
+          </AdminPanel>
+
+          {isOrderEmail ? (
+            <AdminPanel
+              eyebrow="Mock Items"
+              title="Line item builder"
+              description="Build a compact mock order item list for transactional email tests."
+            >
+              <div className="mb-4 flex justify-end">
+                <AdminButton tone="secondary" onClick={handleAddItem}>
+                  Add item
+                </AdminButton>
+              </div>
+              {items.length === 0 ? (
+                <AdminEmptyState
+                  title="No items"
+                  description="Add an item to build the mock order payload."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-[#070a0f] p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                          Item {index + 1}
+                        </div>
+                        {items.length > 1 ? (
+                          <AdminButton tone="danger" onClick={() => handleRemoveItem(item.id)}>
+                            Remove
+                          </AdminButton>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
+                        <AdminInput
+                          value={item.name}
+                          onChange={(event) => handleItemChange(item.id, "name", event.target.value)}
+                          placeholder="Product name"
+                        />
+                        <AdminInput
+                          value={item.quantity}
+                          onChange={(event) => handleItemChange(item.id, "quantity", event.target.value)}
+                          placeholder="Qty"
+                        />
+                        <AdminInput
+                          value={item.total}
+                          onChange={(event) => handleItemChange(item.id, "total", event.target.value)}
+                          placeholder="Total"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AdminPanel>
+          ) : null}
+        </div>
       </div>
     </div>
   );

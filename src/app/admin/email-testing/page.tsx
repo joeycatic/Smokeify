@@ -9,7 +9,7 @@ export default async function AdminEmailTestingPage() {
   if (!isAdmin) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+    <div className="mx-auto max-w-screen-xl px-2 py-2 text-slate-100">
       <AdminEmailTestingClient />
     </div>
   );
