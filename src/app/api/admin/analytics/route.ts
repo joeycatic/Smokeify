@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
-
-const PAID_STATUSES = ["paid", "refunded", "partially_refunded"];
+import {
+  PAID_ORDER_STATUSES,
+  getActiveSessionSnapshot,
+  getCustomerRevenueMix,
+  getFunnelSnapshot,
+  getOrderComparisons,
+  getProductPerformance,
+} from "@/lib/adminInsights";
 
 const formatDayLabel = (date: Date) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",
     month: "2-digit",
   }).format(date);
+
+const getDateDaysAgo = (daysAgo: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
 export async function GET() {
   const session = await requireAdmin();
@@ -17,22 +30,20 @@ export async function GET() {
   }
 
   const now = new Date();
-  const last14DaysStart = new Date(now);
-  last14DaysStart.setDate(now.getDate() - 13);
-  last14DaysStart.setHours(0, 0, 0, 0);
-
-  const last30DaysStart = new Date(now);
-  last30DaysStart.setDate(now.getDate() - 29);
-  last30DaysStart.setHours(0, 0, 0, 0);
+  const last14DaysStart = getDateDaysAgo(13);
+  const last30DaysStart = getDateDaysAgo(29);
 
   const [
+    activeSnapshot,
+    funnelSnapshot,
+    orderComparisons,
+    customerRevenueMix,
+    productPerformance,
     totalOrders,
-    paidOrders,
     fulfilledOrders,
     refundedOrders,
     canceledOrders,
     totalRevenue,
-    topItems,
     variants,
     totalAnalyses,
     fallbackAnalyses,
@@ -43,21 +54,23 @@ export async function GET() {
     recentOrders,
     registeredCustomers,
     guestPaidCustomers,
+    sourceSessions,
+    sourceCheckouts,
+    discountGroups,
+    paymentGroups,
   ] = await Promise.all([
+    getActiveSessionSnapshot(),
+    getFunnelSnapshot(30),
+    getOrderComparisons(30),
+    getCustomerRevenueMix(30),
+    getProductPerformance(30),
     prisma.order.count(),
-    prisma.order.count({ where: { paymentStatus: { in: PAID_STATUSES } } }),
     prisma.order.count({ where: { status: "fulfilled" } }),
     prisma.order.count({ where: { paymentStatus: "refunded" } }),
     prisma.order.count({ where: { status: "canceled" } }),
     prisma.order.aggregate({
-      where: { paymentStatus: { in: PAID_STATUSES } },
+      where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
       _sum: { amountTotal: true },
-    }),
-    prisma.orderItem.groupBy({
-      by: ["productId", "name"],
-      _sum: { quantity: true, totalAmount: true },
-      orderBy: { _sum: { totalAmount: "desc" } },
-      take: 10,
     }),
     prisma.variant.findMany({
       include: {
@@ -88,7 +101,11 @@ export async function GET() {
         createdAt: true,
         amountTotal: true,
         paymentStatus: true,
+        paymentMethod: true,
         userId: true,
+        amountDiscount: true,
+        discountCode: true,
+        amountRefunded: true,
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -97,7 +114,7 @@ export async function GET() {
       select: {
         id: true,
         orders: {
-          where: { paymentStatus: { in: PAID_STATUSES } },
+          where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
           select: { amountTotal: true },
         },
       },
@@ -106,32 +123,50 @@ export async function GET() {
       by: ["customerEmail"],
       where: {
         userId: null,
-        paymentStatus: { in: PAID_STATUSES },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
         customerEmail: { not: null },
       },
       _sum: { amountTotal: true },
       _count: { id: true },
     }),
+    prisma.analyticsEvent.groupBy({
+      by: ["utmSource", "utmMedium"],
+      where: {
+        createdAt: { gte: last30DaysStart },
+        eventName: "page_view",
+      },
+      _count: { _all: true },
+    }),
+    prisma.analyticsEvent.groupBy({
+      by: ["utmSource", "utmMedium"],
+      where: {
+        createdAt: { gte: last30DaysStart },
+        eventName: "begin_checkout",
+      },
+      _count: { _all: true },
+    }),
+    prisma.order.groupBy({
+      by: ["discountCode"],
+      where: {
+        createdAt: { gte: last30DaysStart },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
+        discountCode: { not: null },
+      },
+      _count: { id: true },
+      _sum: { amountTotal: true, amountDiscount: true },
+      orderBy: { _sum: { amountTotal: "desc" } },
+      take: 8,
+    }),
+    prisma.order.groupBy({
+      by: ["paymentMethod"],
+      where: {
+        createdAt: { gte: last30DaysStart },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
+      },
+      _count: { id: true },
+      _sum: { amountTotal: true, amountRefunded: true },
+    }),
   ]);
-
-  const productIds = Array.from(
-    new Set(topItems.map((item) => item.productId).filter(Boolean) as string[])
-  );
-  const products = productIds.length
-    ? await prisma.product.findMany({
-        where: { id: { in: productIds } },
-        select: { id: true, title: true },
-      })
-    : [];
-  const productMap = new Map(products.map((product) => [product.id, product.title]));
-
-  const topProducts = topItems.map((item) => ({
-    productId: item.productId,
-    productTitle: item.productId ? productMap.get(item.productId) ?? null : null,
-    name: item.name,
-    units: item._sum.quantity ?? 0,
-    revenueCents: item._sum.totalAmount ?? 0,
-  }));
 
   const stockouts = variants
     .map((variant) => {
@@ -178,11 +213,13 @@ export async function GET() {
   };
 
   const paidRevenueLast30Days = recentOrders.reduce((sum, order) => {
+    const paymentStatus = order.paymentStatus.trim().toLowerCase();
+    const isPaid = PAID_ORDER_STATUSES.includes(paymentStatus);
     const orderKey = order.createdAt.toISOString().slice(0, 10);
     const target = dailyIndex.get(orderKey);
     if (target) {
       target.orders += 1;
-      if (PAID_STATUSES.includes(order.paymentStatus)) {
+      if (isPaid) {
         target.revenueCents += order.amountTotal;
       }
     }
@@ -194,7 +231,7 @@ export async function GET() {
     if (diffDays < 7) orderVelocity.last7Days += 1;
     if (diffDays < 30) orderVelocity.last30Days += 1;
 
-    if (!PAID_STATUSES.includes(order.paymentStatus)) return sum;
+    if (!isPaid) return sum;
     return sum + order.amountTotal;
   }, 0);
 
@@ -209,19 +246,101 @@ export async function GET() {
     (customer) => customer._count.id >= 2
   ).length;
 
+  const topProducts = [...productPerformance]
+    .sort((left, right) => right.revenueCents - left.revenueCents)
+    .slice(0, 8);
+
+  const underperformingProducts = [...productPerformance]
+    .filter((item) => item.views >= 5)
+    .sort((left, right) => {
+      if (right.views !== left.views) return right.views - left.views;
+      return left.conversionRate - right.conversionRate;
+    })
+    .slice(0, 8);
+
+  const trafficSourceMap = new Map<
+    string,
+    { label: string; sessions: number; beginCheckout: number }
+  >();
+  for (const group of sourceSessions) {
+    const label =
+      group.utmSource && group.utmMedium
+        ? `${group.utmSource} / ${group.utmMedium}`
+        : group.utmSource
+        ? group.utmSource
+        : "Direct / unknown";
+    const entry = trafficSourceMap.get(label) ?? {
+      label,
+      sessions: 0,
+      beginCheckout: 0,
+    };
+    entry.sessions += group._count._all;
+    trafficSourceMap.set(label, entry);
+  }
+  for (const group of sourceCheckouts) {
+    const label =
+      group.utmSource && group.utmMedium
+        ? `${group.utmSource} / ${group.utmMedium}`
+        : group.utmSource
+        ? group.utmSource
+        : "Direct / unknown";
+    const entry = trafficSourceMap.get(label) ?? {
+      label,
+      sessions: 0,
+      beginCheckout: 0,
+    };
+    entry.beginCheckout += group._count._all;
+    trafficSourceMap.set(label, entry);
+  }
+  const trafficSources = Array.from(trafficSourceMap.values())
+    .sort((left, right) => right.sessions - left.sessions)
+    .slice(0, 8);
+
+  const paymentAnalysis = paymentGroups
+    .map((group) => ({
+      method: group.paymentMethod ?? "unknown",
+      orders: group._count.id,
+      revenueCents: group._sum.amountTotal ?? 0,
+      refundedCents: group._sum.amountRefunded ?? 0,
+    }))
+    .sort((left, right) => right.revenueCents - left.revenueCents);
+
+  const discountAnalysis = discountGroups
+    .filter((group): group is typeof group & { discountCode: string } => Boolean(group.discountCode))
+    .map((group) => ({
+      code: group.discountCode,
+      orders: group._count.id,
+      revenueCents: group._sum.amountTotal ?? 0,
+      discountCents: group._sum.amountDiscount ?? 0,
+    }));
+
+  const totalCustomerCount = registeredCustomers.length + guestCustomerCount;
+  const totalRepeatCustomers = repeatRegisteredCustomers + repeatGuestCustomers;
+
   return NextResponse.json({
+    live: activeSnapshot,
     funnel: {
+      ...funnelSnapshot,
       totalOrders,
-      paidOrders,
       fulfilledOrders,
       refundedOrders,
       canceledOrders,
     },
+    periodComparison: {
+      currency: orderComparisons.currency,
+      revenue: orderComparisons.revenue,
+      paidOrders: orderComparisons.paidOrders,
+      aov: orderComparisons.aov,
+      refundRate: orderComparisons.refundRate,
+    },
     revenue: {
       totalCents: totalRevenue._sum.amountTotal ?? 0,
       last30DaysCents: paidRevenueLast30Days,
+      newRevenueCents: customerRevenueMix.newRevenueCents,
+      returningRevenueCents: customerRevenueMix.returningRevenueCents,
     },
     topProducts,
+    underperformingProducts,
     stockouts,
     inventory: {
       stockoutCount: stockouts.length,
@@ -242,6 +361,18 @@ export async function GET() {
       repeatRegisteredCount: repeatRegisteredCustomers,
       repeatGuestCount: repeatGuestCustomers,
       highValueRegisteredCount: highValueRegisteredCustomers,
+      newCustomerCount: customerRevenueMix.newCustomerCount,
+      returningCustomerCount: customerRevenueMix.returningCustomerCount,
+      repeatRate: totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
+    },
+    trafficSources,
+    discountAnalysis,
+    paymentAnalysis,
+    retention: {
+      repeatCustomerRate:
+        totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
+      newRevenueCents: customerRevenueMix.newRevenueCents,
+      returningRevenueCents: customerRevenueMix.returningRevenueCents,
     },
     aiQuality: {
       totalAnalyses,

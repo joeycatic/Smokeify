@@ -13,6 +13,7 @@ type InventoryRow = {
   onHand: number;
   reserved: number;
   threshold: number;
+  coverDays?: number | null;
   updatedAt: string;
 };
 
@@ -133,17 +134,18 @@ export default function AdminInventoryAlertsClient({
         </div>
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
-          <div className="grid grid-cols-[1.8fr_100px_100px_120px] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             <div>Variant</div>
             <div>Available</div>
             <div>Threshold</div>
+            <div>Cover</div>
             <div>Updated</div>
           </div>
           <div className="divide-y divide-white/5">
             {variants.map((variant) => (
               <div
                 key={variant.id}
-                className="grid grid-cols-[1.8fr_100px_100px_120px] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
               >
                 <div>
                   <Link
@@ -166,6 +168,11 @@ export default function AdminInventoryAlertsClient({
                   </span>
                 </div>
                 <div className="text-slate-400">{variant.threshold}</div>
+                <div className="text-slate-400">
+                  {typeof variant.coverDays === "number"
+                    ? `${Math.round(variant.coverDays)}d`
+                    : "No sales"}
+                </div>
                 <div className="text-slate-500">
                   {new Date(variant.updatedAt).toLocaleDateString("de-DE")}
                 </div>

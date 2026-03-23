@@ -8,20 +8,54 @@ import {
   SparklineChart,
 } from "@/components/admin/AdminCharts";
 
+type ComparisonMetric = {
+  current: number;
+  previous: number;
+  deltaRatio: number | null;
+};
+
+type LiveSnapshot = {
+  activeVisitorCount: number;
+  topPages: Array<{
+    path: string;
+    pageType: string;
+    count: number;
+  }>;
+  trafficSources: Array<{
+    label: string;
+    count: number;
+  }>;
+};
+
 type Funnel = {
-  totalOrders: number;
+  sessions: number;
+  productViews: number;
+  addToCart: number;
+  beginCheckout: number;
   paidOrders: number;
+  sessionToOrderRate: number;
+  viewToCartRate: number;
+  cartToCheckoutRate: number;
+  checkoutToPaidRate: number;
+  cartAbandonmentRate: number;
+  checkoutAbandonmentRate: number;
+  totalOrders: number;
   fulfilledOrders: number;
   refundedOrders: number;
   canceledOrders: number;
 };
 
-type TopProduct = {
-  productId: string | null;
-  productTitle: string | null;
-  name: string;
-  units: number;
+type ProductPerformance = {
+  productId: string;
+  productTitle: string;
+  views: number;
+  addToCart: number;
+  beginCheckout: number;
+  purchases: number;
   revenueCents: number;
+  marginCents: number;
+  conversionRate: number;
+  addToCartRate: number;
 };
 
 type Stockout = {
@@ -38,6 +72,8 @@ type Stockout = {
 type Revenue = {
   totalCents: number;
   last30DaysCents: number;
+  newRevenueCents: number;
+  returningRevenueCents: number;
 };
 
 type InventorySummary = {
@@ -65,6 +101,9 @@ type CustomerSummary = {
   repeatRegisteredCount: number;
   repeatGuestCount: number;
   highValueRegisteredCount: number;
+  newCustomerCount: number;
+  returningCustomerCount: number;
+  repeatRate: number;
 };
 
 type AiQuality = {
@@ -76,18 +115,75 @@ type AiQuality = {
   topIssueLabels: Array<{ label: string; count: number }>;
 };
 
-const formatPrice = (amount: number) =>
+type TrafficSource = {
+  label: string;
+  sessions: number;
+  beginCheckout: number;
+};
+
+type DiscountInsight = {
+  code: string;
+  orders: number;
+  revenueCents: number;
+  discountCents: number;
+};
+
+type PaymentInsight = {
+  method: string;
+  orders: number;
+  revenueCents: number;
+  refundedCents: number;
+};
+
+type Retention = {
+  repeatCustomerRate: number;
+  newRevenueCents: number;
+  returningRevenueCents: number;
+};
+
+type PeriodComparison = {
+  currency: string;
+  revenue: ComparisonMetric;
+  paidOrders: ComparisonMetric;
+  aov: ComparisonMetric;
+  refundRate: ComparisonMetric;
+};
+
+const formatPrice = (amount: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
+const formatDelta = (value: number | null, percentMode = true) => {
+  if (value === null) return "No baseline";
+  const numeric = percentMode ? value * 100 : value;
+  const sign = numeric > 0 ? "+" : "";
+  return `${sign}${Math.round(numeric)}${percentMode ? "%" : ""}`;
+};
+
+const initialLive: LiveSnapshot = {
+  activeVisitorCount: 0,
+  topPages: [],
+  trafficSources: [],
+};
+
 const initialFunnel: Funnel = {
-  totalOrders: 0,
+  sessions: 0,
+  productViews: 0,
+  addToCart: 0,
+  beginCheckout: 0,
   paidOrders: 0,
+  sessionToOrderRate: 0,
+  viewToCartRate: 0,
+  cartToCheckoutRate: 0,
+  checkoutToPaidRate: 0,
+  cartAbandonmentRate: 0,
+  checkoutAbandonmentRate: 0,
+  totalOrders: 0,
   fulfilledOrders: 0,
   refundedOrders: 0,
   canceledOrders: 0,
@@ -96,6 +192,8 @@ const initialFunnel: Funnel = {
 const initialRevenue: Revenue = {
   totalCents: 0,
   last30DaysCents: 0,
+  newRevenueCents: 0,
+  returningRevenueCents: 0,
 };
 
 const initialInventory: InventorySummary = {
@@ -119,6 +217,9 @@ const initialCustomers: CustomerSummary = {
   repeatRegisteredCount: 0,
   repeatGuestCount: 0,
   highValueRegisteredCount: 0,
+  newCustomerCount: 0,
+  returningCustomerCount: 0,
+  repeatRate: 0,
 };
 
 const initialAiQuality: AiQuality = {
@@ -130,17 +231,40 @@ const initialAiQuality: AiQuality = {
   topIssueLabels: [],
 };
 
+const initialRetention: Retention = {
+  repeatCustomerRate: 0,
+  newRevenueCents: 0,
+  returningRevenueCents: 0,
+};
+
+const initialPeriodComparison: PeriodComparison = {
+  currency: "EUR",
+  revenue: { current: 0, previous: 0, deltaRatio: 0 },
+  paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
+  aov: { current: 0, previous: 0, deltaRatio: 0 },
+  refundRate: { current: 0, previous: 0, deltaRatio: 0 },
+};
+
 export default function AdminAnalyticsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [live, setLive] = useState<LiveSnapshot>(initialLive);
   const [funnel, setFunnel] = useState<Funnel>(initialFunnel);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topProducts, setTopProducts] = useState<ProductPerformance[]>([]);
+  const [underperformingProducts, setUnderperformingProducts] = useState<ProductPerformance[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
   const [revenue, setRevenue] = useState<Revenue>(initialRevenue);
   const [inventory, setInventory] = useState<InventorySummary>(initialInventory);
   const [trends, setTrends] = useState<Trends>(emptyTrends);
   const [customers, setCustomers] = useState<CustomerSummary>(initialCustomers);
   const [aiQuality, setAiQuality] = useState<AiQuality>(initialAiQuality);
+  const [trafficSources, setTrafficSources] = useState<TrafficSource[]>([]);
+  const [discountAnalysis, setDiscountAnalysis] = useState<DiscountInsight[]>([]);
+  const [paymentAnalysis, setPaymentAnalysis] = useState<PaymentInsight[]>([]);
+  const [retention, setRetention] = useState<Retention>(initialRetention);
+  const [periodComparison, setPeriodComparison] = useState<PeriodComparison>(
+    initialPeriodComparison,
+  );
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
@@ -153,22 +277,36 @@ export default function AdminAnalyticsClient() {
         return;
       }
       const data = (await res.json()) as {
+        live?: LiveSnapshot;
         funnel?: Funnel;
         revenue?: Revenue;
-        topProducts?: TopProduct[];
+        topProducts?: ProductPerformance[];
+        underperformingProducts?: ProductPerformance[];
         stockouts?: Stockout[];
         inventory?: InventorySummary;
         trends?: Trends;
         customers?: CustomerSummary;
+        trafficSources?: TrafficSource[];
+        discountAnalysis?: DiscountInsight[];
+        paymentAnalysis?: PaymentInsight[];
+        retention?: Retention;
+        periodComparison?: PeriodComparison;
         aiQuality?: AiQuality;
       };
+      setLive(data.live ?? initialLive);
       setFunnel(data.funnel ?? initialFunnel);
       setRevenue(data.revenue ?? initialRevenue);
       setTopProducts(data.topProducts ?? []);
+      setUnderperformingProducts(data.underperformingProducts ?? []);
       setStockouts(data.stockouts ?? []);
       setInventory(data.inventory ?? initialInventory);
       setTrends(data.trends ?? emptyTrends);
       setCustomers(data.customers ?? initialCustomers);
+      setTrafficSources(data.trafficSources ?? []);
+      setDiscountAnalysis(data.discountAnalysis ?? []);
+      setPaymentAnalysis(data.paymentAnalysis ?? []);
+      setRetention(data.retention ?? initialRetention);
+      setPeriodComparison(data.periodComparison ?? initialPeriodComparison);
       setAiQuality(data.aiQuality ?? initialAiQuality);
     } catch {
       setError("Failed to load analytics.");
@@ -187,7 +325,7 @@ export default function AdminAnalyticsClient() {
         label: point.label,
         value: point.revenueCents,
       })),
-    [trends.daily]
+    [trends.daily],
   );
 
   const ordersTrend = useMemo<AdminChartPoint[]>(
@@ -196,17 +334,29 @@ export default function AdminAnalyticsClient() {
         label: point.label,
         value: point.orders,
       })),
-    [trends.daily]
+    [trends.daily],
   );
 
-  const topProductBars = useMemo<AdminChartPoint[]>(
+  const sourceBars = useMemo<AdminChartPoint[]>(
     () =>
-      topProducts.slice(0, 6).map((item) => ({
-        label: item.productTitle ?? item.name,
-        value: item.revenueCents,
-        secondaryValue: item.units,
+      trafficSources.map((source) => ({
+        label: source.label,
+        value: source.sessions,
+        secondaryValue: source.beginCheckout,
       })),
-    [topProducts]
+    [trafficSources],
+  );
+
+  const customerMixBars = useMemo<AdminChartPoint[]>(
+    () => [
+      { label: "Registered", value: customers.registeredCount },
+      { label: "Guest", value: customers.guestCount },
+      { label: "Repeat buyers", value: customers.repeatRegisteredCount + customers.repeatGuestCount },
+      { label: "High value", value: customers.highValueRegisteredCount },
+      { label: "New 30d", value: customers.newCustomerCount },
+      { label: "Returning 30d", value: customers.returningCustomerCount },
+    ],
+    [customers],
   );
 
   const issueBars = useMemo<AdminChartPoint[]>(
@@ -215,18 +365,17 @@ export default function AdminAnalyticsClient() {
         label: item.label,
         value: item.count,
       })),
-    [aiQuality.topIssueLabels]
+    [aiQuality.topIssueLabels],
   );
 
-  const customerMixBars = useMemo<AdminChartPoint[]>(
-    () => [
-      { label: "Registered", value: customers.registeredCount },
-      { label: "Guest", value: customers.guestCount },
-      { label: "Repeat (reg)", value: customers.repeatRegisteredCount },
-      { label: "Repeat (guest)", value: customers.repeatGuestCount },
-      { label: "High value", value: customers.highValueRegisteredCount },
-    ],
-    [customers]
+  const paymentBars = useMemo<AdminChartPoint[]>(
+    () =>
+      paymentAnalysis.map((item) => ({
+        label: item.method,
+        value: item.revenueCents,
+        secondaryValue: item.orders,
+      })),
+    [paymentAnalysis],
   );
 
   return (
@@ -238,11 +387,11 @@ export default function AdminAnalyticsClient() {
               Admin / Analytics
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
-              Revenue, conversion, inventory and CRM
+              Live traffic, funnel health and revenue quality
             </h1>
             <p className="mt-3 max-w-2xl text-sm text-slate-400">
-              Operational readout for commerce, stock pressure, customer mix, and
-              analyzer quality.
+              First-party commerce analytics for live sessions, checkout pressure,
+              customer quality, discounts and payment mix.
             </p>
           </div>
           <button
@@ -255,19 +404,28 @@ export default function AdminAnalyticsClient() {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Lifetime revenue" value={formatPrice(revenue.totalCents)} />
-          <MetricCard label="30d revenue" value={formatPrice(revenue.last30DaysCents)} />
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <MetricCard label="Live visitors" value={String(live.activeVisitorCount)} />
           <MetricCard
-            label="Paid conversion"
-            value={
-              funnel.totalOrders > 0
-                ? `${Math.round((funnel.paidOrders / funnel.totalOrders) * 100)}%`
-                : "0%"
-            }
+            label="30d revenue"
+            value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
+            detail={formatDelta(periodComparison.revenue.deltaRatio)}
+          />
+          <MetricCard
+            label="Session CVR"
+            value={percent(funnel.sessionToOrderRate)}
+            detail={formatDelta(funnel.sessionToOrderRate - 0)}
+          />
+          <MetricCard
+            label="Checkout abandon"
+            value={percent(funnel.checkoutAbandonmentRate)}
+          />
+          <MetricCard
+            label="AOV"
+            value={formatPrice(periodComparison.aov.current, periodComparison.currency)}
+            detail={formatDelta(periodComparison.aov.deltaRatio)}
           />
           <MetricCard label="Low-stock variants" value={String(inventory.lowStockCount)} />
-          <MetricCard label="Stockouts" value={String(inventory.stockoutCount)} />
         </div>
       </section>
 
@@ -286,10 +444,55 @@ export default function AdminAnalyticsClient() {
         </div>
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <Panel
-              eyebrow="Trend"
-              title="Revenue, last 14 days"
+              eyebrow="Live"
+              title="Active pages right now"
+              description="Rolling 5-minute session heartbeat across the storefront."
+            >
+              <div className="space-y-3">
+                {live.topPages.length === 0 ? (
+                  <EmptyState copy="No active storefront sessions in the current window." />
+                ) : (
+                  live.topPages.map((page) => (
+                    <div
+                      key={`${page.pageType}:${page.path}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-100">
+                          {page.path}
+                        </div>
+                        <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                          {page.pageType}
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                        {page.count} active
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Panel>
+
+            <Panel
+              eyebrow="Acquisition"
+              title="Traffic sources"
+              description="30-day first-party session volume and checkout starts."
+            >
+              <HorizontalBarsChart
+                data={sourceBars}
+                valueFormatter={(value) => `${value} sessions`}
+                colorClassName="bg-cyan-400"
+              />
+            </Panel>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
+            <Panel
+              eyebrow="Revenue"
+              title="Revenue trend, last 14 days"
               description={`Orders today: ${trends.orderVelocity.today} · last 7 days: ${trends.orderVelocity.last7Days} · last 30 days: ${trends.orderVelocity.last30Days}`}
             >
               <SparklineChart data={revenueTrend} />
@@ -297,29 +500,30 @@ export default function AdminAnalyticsClient() {
 
             <Panel
               eyebrow="Funnel"
-              title="Conversion health"
-              description="Raw order lifecycle counts."
+              title="Funnel and abandonment"
+              description="Session-based funnel stages backed by first-party event data."
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard label="Orders" value={String(funnel.totalOrders)} compact />
-                <MetricCard label="Paid" value={String(funnel.paidOrders)} compact />
-                <MetricCard
-                  label="Fulfilled"
-                  value={String(funnel.fulfilledOrders)}
-                  compact
+                <CompactMetric label="Sessions" value={String(funnel.sessions)} />
+                <CompactMetric label="Product views" value={String(funnel.productViews)} />
+                <CompactMetric label="Add to cart" value={String(funnel.addToCart)} />
+                <CompactMetric label="Begin checkout" value={String(funnel.beginCheckout)} />
+                <CompactMetric label="Paid orders" value={String(funnel.paidOrders)} />
+                <CompactMetric label="Session CVR" value={percent(funnel.sessionToOrderRate)} />
+                <CompactMetric label="View to cart" value={percent(funnel.viewToCartRate)} />
+                <CompactMetric label="Cart to checkout" value={percent(funnel.cartToCheckoutRate)} />
+                <CompactMetric label="Checkout to paid" value={percent(funnel.checkoutToPaidRate)} />
+                <CompactMetric label="Cart abandon" value={percent(funnel.cartAbandonmentRate)} />
+                <CompactMetric
+                  label="Checkout abandon"
+                  value={percent(funnel.checkoutAbandonmentRate)}
                 />
-                <MetricCard label="Refunded" value={String(funnel.refundedOrders)} compact />
-                <MetricCard label="Canceled" value={String(funnel.canceledOrders)} compact />
-                <MetricCard
-                  label="Tracked variants"
-                  value={String(inventory.trackedVariants)}
-                  compact
-                />
+                <CompactMetric label="Canceled orders" value={String(funnel.canceledOrders)} />
               </div>
             </Panel>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.15fr_1.15fr_0.8fr]">
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
             <Panel
               eyebrow="Orders"
               title="Daily order volume"
@@ -333,30 +537,126 @@ export default function AdminAnalyticsClient() {
             </Panel>
 
             <Panel
-              eyebrow="Top products"
-              title="Revenue leaders"
-              description="Highest revenue products from order snapshots."
+              eyebrow="Customers"
+              title="Customer mix"
+              description={`Repeat rate ${percent(customers.repeatRate)} · New revenue ${formatPrice(retention.newRevenueCents)} · Returning revenue ${formatPrice(retention.returningRevenueCents)}`}
             >
               <HorizontalBarsChart
-                data={topProductBars}
-                valueFormatter={(value) => formatPrice(value)}
+                data={customerMixBars}
                 colorClassName="bg-emerald-400"
               />
             </Panel>
 
             <Panel
-              eyebrow="Customers"
-              title="Customer mix"
-              description="Registered, guest and repeat segments."
+              eyebrow="Comparison"
+              title="Period deltas"
+              description="Current 30-day period versus the previous 30 days."
             >
-              <HorizontalBarsChart
-                data={customerMixBars}
-                colorClassName="bg-cyan-400"
-              />
+              <div className="space-y-3">
+                <DeltaRow
+                  label="Revenue"
+                  value={formatPrice(periodComparison.revenue.current, periodComparison.currency)}
+                  delta={formatDelta(periodComparison.revenue.deltaRatio)}
+                />
+                <DeltaRow
+                  label="Paid orders"
+                  value={String(periodComparison.paidOrders.current)}
+                  delta={formatDelta(periodComparison.paidOrders.deltaRatio)}
+                />
+                <DeltaRow
+                  label="AOV"
+                  value={formatPrice(periodComparison.aov.current, periodComparison.currency)}
+                  delta={formatDelta(periodComparison.aov.deltaRatio)}
+                />
+                <DeltaRow
+                  label="Refund rate"
+                  value={percent(periodComparison.refundRate.current)}
+                  delta={formatDelta(periodComparison.refundRate.deltaRatio)}
+                />
+              </div>
             </Panel>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Panel
+              eyebrow="Products"
+              title="Revenue leaders"
+              description="Products with the strongest combined revenue and conversion signal."
+            >
+              <ProductList
+                rows={topProducts}
+                valueFormatter={(row) => formatPrice(row.revenueCents)}
+                detailFormatter={(row) =>
+                  `${row.views} views · ${percent(row.conversionRate)} CVR · ${formatPrice(
+                    row.marginCents,
+                  )} margin`
+                }
+                emptyCopy="No product performance data yet."
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Products"
+              title="High views, weak conversion"
+              description="Products getting attention but not converting well."
+            >
+              <ProductList
+                rows={underperformingProducts}
+                valueFormatter={(row) => `${row.views} views`}
+                detailFormatter={(row) =>
+                  `${percent(row.conversionRate)} CVR · ${row.addToCart} carts · ${row.purchases} units`
+                }
+                emptyCopy="No weak-conversion products in the current window."
+              />
+            </Panel>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
+            <Panel
+              eyebrow="Payments"
+              title="Payment method mix"
+              description="Paid revenue and refund exposure by payment type."
+            >
+              <HorizontalBarsChart
+                data={paymentBars}
+                valueFormatter={(value) => formatPrice(value)}
+                colorClassName="bg-violet-400"
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Discounts"
+              title="Discount code impact"
+              description="Revenue generated and discount volume over the last 30 days."
+            >
+              <div className="space-y-3">
+                {discountAnalysis.length === 0 ? (
+                  <EmptyState copy="No discount-backed paid orders in the current window." />
+                ) : (
+                  discountAnalysis.map((item) => (
+                    <div
+                      key={item.code}
+                      className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-100">
+                            {item.code}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {item.orders} orders · {formatPrice(item.discountCents)} discount
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold text-cyan-300">
+                          {formatPrice(item.revenueCents)}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Panel>
+
             <Panel
               eyebrow="Inventory"
               title="Stock pressure"
@@ -364,9 +664,7 @@ export default function AdminAnalyticsClient() {
             >
               <div className="space-y-3">
                 {stockouts.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-400">
-                    No stockouts right now.
-                  </div>
+                  <EmptyState copy="No stockouts right now." />
                 ) : (
                   stockouts.slice(0, 6).map((item) => (
                     <div
@@ -392,6 +690,33 @@ export default function AdminAnalyticsClient() {
                 )}
               </div>
             </Panel>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <Panel
+              eyebrow="Retention"
+              title="Revenue quality"
+              description="How much current revenue is coming from newly acquired versus returning customers."
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                  label="Repeat rate"
+                  value={percent(retention.repeatCustomerRate)}
+                />
+                <MetricCard
+                  label="New revenue"
+                  value={formatPrice(retention.newRevenueCents)}
+                />
+                <MetricCard
+                  label="Returning revenue"
+                  value={formatPrice(retention.returningRevenueCents)}
+                />
+                <MetricCard
+                  label="Lifetime revenue"
+                  value={formatPrice(revenue.totalCents)}
+                />
+              </div>
+            </Panel>
 
             <Panel
               eyebrow="Analyzer"
@@ -399,12 +724,11 @@ export default function AdminAnalyticsClient() {
               description={`Fallback ${percent(aiQuality.fallbackRate)} · Low confidence ${percent(aiQuality.lowConfidenceRate)} · Correct feedback ${percent(aiQuality.feedbackCorrectRate)}`}
             >
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                <MetricCard label="Analyses" value={String(aiQuality.totalAnalyses)} compact />
-                <MetricCard label="Feedback" value={String(aiQuality.feedbackTotal)} compact />
-                <MetricCard
+                <CompactMetric label="Analyses" value={String(aiQuality.totalAnalyses)} />
+                <CompactMetric label="Feedback" value={String(aiQuality.feedbackTotal)} />
+                <CompactMetric
                   label="Correct rate"
                   value={percent(aiQuality.feedbackCorrectRate)}
-                  compact
                 />
               </div>
               <HorizontalBarsChart data={issueBars} colorClassName="bg-amber-400" />
@@ -444,24 +768,100 @@ function Panel({
 function MetricCard({
   label,
   value,
-  compact = false,
+  detail,
 }: {
   label: string;
   value: string;
-  compact?: boolean;
+  detail?: string;
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-white/10 bg-white/[0.04] ${
-        compact ? "p-3" : "p-4"
-      }`}
-    >
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
-      <p className={`mt-2 font-semibold text-white ${compact ? "text-xl" : "text-2xl"}`}>
-        {value}
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+    </div>
+  );
+}
+
+function CompactMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
       </p>
+      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function DeltaRow({
+  label,
+  value,
+  delta,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+      <div>
+        <div className="text-sm font-semibold text-slate-100">{label}</div>
+        <div className="text-xs text-slate-500">vs previous 30-day period</div>
+      </div>
+      <div className="text-right">
+        <div className="text-sm font-semibold text-white">{value}</div>
+        <div className="text-xs text-cyan-300">{delta}</div>
+      </div>
+    </div>
+  );
+}
+
+function ProductList({
+  rows,
+  valueFormatter,
+  detailFormatter,
+  emptyCopy,
+}: {
+  rows: ProductPerformance[];
+  valueFormatter: (row: ProductPerformance) => string;
+  detailFormatter: (row: ProductPerformance) => string;
+  emptyCopy: string;
+}) {
+  if (rows.length === 0) {
+    return <EmptyState copy={emptyCopy} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div
+          key={row.productId}
+          className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-slate-100">
+                {row.productTitle}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">{detailFormatter(row)}</div>
+            </div>
+            <div className="shrink-0 text-sm font-semibold text-cyan-300">
+              {valueFormatter(row)}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ copy }: { copy: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+      {copy}
     </div>
   );
 }
