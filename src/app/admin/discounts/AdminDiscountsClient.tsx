@@ -56,6 +56,7 @@ const formatDate = (epochSeconds: number | null) => {
 
 export default function AdminDiscountsClient() {
   const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -90,6 +91,10 @@ export default function AdminDiscountsClient() {
     void loadDiscounts();
   }, []);
 
+  useEffect(() => {
+    setNowTs(Date.now());
+  }, [discounts]);
+
   const sorted = useMemo(
     () =>
       [...discounts].sort((a, b) => {
@@ -101,6 +106,14 @@ export default function AdminDiscountsClient() {
   const activeCount = useMemo(
     () => discounts.filter((discount) => discount.active).length,
     [discounts]
+  );
+  const activeDiscounts = useMemo(
+    () => sorted.filter((discount) => discount.active),
+    [sorted]
+  );
+  const inactiveDiscounts = useMemo(
+    () => sorted.filter((discount) => !discount.active),
+    [sorted]
   );
   const expiringSoon = useMemo(
     () =>
@@ -346,7 +359,7 @@ export default function AdminDiscountsClient() {
         <AdminPanel
           eyebrow="Status"
           title="Code list"
-          description="Review value, usage, expiry pressure, and active state in one dense admin table."
+          description="Review active and inactive codes separately with clearer value, usage, and expiry signals."
           className="admin-reveal-delay-2"
         >
           {sorted.length === 0 ? (
@@ -355,79 +368,138 @@ export default function AdminDiscountsClient() {
               description="Create the first code to start managing discount campaigns here."
             />
           ) : (
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
-              <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                <div>Code</div>
-                <div>Value</div>
-                <div>Usage</div>
-                <div>Expires</div>
-                <div>State</div>
-              </div>
-              <div className="divide-y divide-white/5">
-                {sorted.map((discount) => {
-                  const expiringSoonForRow =
-                    Boolean(discount.expiresAt) &&
-                    (discount.expiresAt as number) * 1000 - Date.now() < 1000 * 60 * 60 * 24 * 14;
-                  return (
-                    <div
-                      key={discount.id}
-                      className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
-                    >
-                      <div>
-                        <div className="font-semibold text-white">{discount.code}</div>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                              discount.active
-                                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                                : "border-white/10 bg-white/[0.04] text-slate-400"
-                            }`}
-                          >
-                            {discount.active ? "Active" : "Inactive"}
-                          </span>
-                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            {discount.coupon.percentOff !== null ? "Percent" : "Amount"}
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">
-                          {discount.coupon.percentOff !== null
-                            ? formatPercent(discount.coupon.percentOff)
-                            : formatAmount(discount.coupon.amountOff, discount.coupon.currency)}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {discount.coupon.duration ?? "once"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{discount.timesRedeemed}</div>
-                        <div className="text-xs text-slate-500">
-                          Max {discount.maxRedemptions ?? "unlimited"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{formatDate(discount.expiresAt)}</div>
-                        <div className="text-xs text-slate-500">
-                          {expiringSoonForRow ? "Expiring soon" : "Healthy"}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-end">
-                        <AdminButton
-                          tone={discount.active ? "secondary" : "primary"}
-                          onClick={() => void updateDiscount(discount.id, !discount.active)}
-                        >
-                          {discount.active ? "Deactivate" : "Activate"}
-                        </AdminButton>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="space-y-4">
+              <DiscountSection
+                title="Active codes"
+                badge={`${activeDiscounts.length}`}
+                badgeTone="text-emerald-200 border-emerald-400/20 bg-emerald-400/10"
+                discounts={activeDiscounts}
+                nowTs={nowTs}
+                onToggle={updateDiscount}
+              />
+              <DiscountSection
+                title="Inactive codes"
+                badge={`${inactiveDiscounts.length}`}
+                badgeTone="text-slate-300 border-white/10 bg-white/[0.04]"
+                discounts={inactiveDiscounts}
+                nowTs={nowTs}
+                onToggle={updateDiscount}
+              />
             </div>
           )}
         </AdminPanel>
       </div>
+    </div>
+  );
+}
+
+function DiscountSection({
+  title,
+  badge,
+  badgeTone,
+  discounts,
+  nowTs,
+  onToggle,
+}: {
+  title: string;
+  badge: string;
+  badgeTone: string;
+  discounts: Discount[];
+  nowTs: number;
+  onToggle: (id: string, active: boolean) => Promise<void>;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
+      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          {title}
+        </div>
+        <span
+          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${badgeTone}`}
+        >
+          {badge}
+        </span>
+      </div>
+      {discounts.length === 0 ? (
+        <div className="px-4 py-6 text-sm text-slate-500">No codes in this state.</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div>Code</div>
+            <div>Value</div>
+            <div>Usage</div>
+            <div>Expires</div>
+            <div>State</div>
+          </div>
+          <div className="divide-y divide-white/5">
+            {discounts.map((discount) => {
+              const expiringSoonForRow =
+                Boolean(discount.expiresAt) &&
+                (discount.expiresAt as number) * 1000 - nowTs <
+                  1000 * 60 * 60 * 24 * 14;
+              return (
+                <div
+                  key={discount.id}
+                  className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                >
+                  <div>
+                    <div className="font-semibold text-white">{discount.code}</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                          discount.active
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                            : "border-white/10 bg-white/[0.04] text-slate-400"
+                        }`}
+                      >
+                        {discount.active ? "Active" : "Inactive"}
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {discount.coupon.percentOff !== null ? "Percent" : "Amount"}
+                      </span>
+                      {expiringSoonForRow ? (
+                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                          Expiring soon
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">
+                      {discount.coupon.percentOff !== null
+                        ? formatPercent(discount.coupon.percentOff)
+                        : formatAmount(discount.coupon.amountOff, discount.coupon.currency)}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {discount.coupon.duration ?? "once"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">{discount.timesRedeemed}</div>
+                    <div className="text-xs text-slate-500">
+                      Max {discount.maxRedemptions ?? "unlimited"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">{formatDate(discount.expiresAt)}</div>
+                    <div className="text-xs text-slate-500">
+                      {expiringSoonForRow ? "Within 14 days" : "Healthy"}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <AdminButton
+                      tone={discount.active ? "secondary" : "primary"}
+                      onClick={() => void onToggle(discount.id, !discount.active)}
+                    >
+                      {discount.active ? "Deactivate" : "Activate"}
+                    </AdminButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

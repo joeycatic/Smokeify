@@ -102,6 +102,46 @@ export default function AdminEmailTestingClient() {
     return items.some((item) => item.name.trim());
   }, [isOrderEmail, items]);
 
+  const validationItems = useMemo(
+    () => [
+      {
+        label: "Recipient",
+        valid: Boolean(recipient.trim()),
+        detail: recipient.trim() ? recipient.trim() : "Missing recipient email",
+      },
+      {
+        label: "Template inputs",
+        valid: isNewsletter
+          ? Boolean(newsletterSubject.trim() && newsletterBody.trim())
+          : true,
+        detail: isNewsletter
+          ? newsletterSubject.trim() && newsletterBody.trim()
+            ? "Subject and body set"
+            : "Newsletter subject or body missing"
+          : "Template-specific fields look valid",
+      },
+      {
+        label: "Order items",
+        valid: orderItemsValid,
+        detail: isOrderEmail
+          ? orderItemsValid
+            ? `${items.filter((item) => item.name.trim()).length} item(s) ready`
+            : "Add at least one named item"
+          : "Not required for this email type",
+      },
+    ],
+    [
+      isNewsletter,
+      items,
+      newsletterBody,
+      newsletterSubject,
+      orderItemsValid,
+      recipient,
+      isOrderEmail,
+    ]
+  );
+  const validationPassed = validationItems.every((item) => item.valid);
+
   const payloadPreview = useMemo(() => {
     if (isNewsletter) {
       return {
@@ -250,9 +290,6 @@ export default function AdminEmailTestingClient() {
           </div>
         }
       />
-
-      {status === "ok" ? <AdminNotice tone="success">{message}</AdminNotice> : null}
-      {status === "error" ? <AdminNotice tone="error">{message}</AdminNotice> : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <AdminPanel
@@ -439,8 +476,74 @@ export default function AdminEmailTestingClient() {
                 {JSON.stringify(payloadPreview, null, 2)}
               </pre>
             </div>
+          </AdminPanel>
+
+          <AdminPanel
+            eyebrow="Validation"
+            title="Validation and send state"
+            description="Check whether the current payload is complete before sending and review the latest send result separately from the form."
+          >
+            <div className="space-y-3">
+              {validationItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-white">{item.label}</div>
+                    <div className="mt-1 text-xs text-slate-500">{item.detail}</div>
+                  </div>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                      item.valid
+                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                    }`}
+                  >
+                    {item.valid ? "Ready" : "Needs input"}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Send result
+                  </div>
+                  <div className="mt-2 text-sm text-slate-300">
+                    {status === "idle"
+                      ? "No send attempted yet."
+                      : status === "loading"
+                      ? "Sending test email..."
+                      : message}
+                  </div>
+                </div>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                    status === "ok"
+                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                      : status === "error"
+                      ? "border-red-400/20 bg-red-400/10 text-red-200"
+                      : status === "loading"
+                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                      : "border-white/10 bg-white/[0.04] text-slate-400"
+                  }`}
+                >
+                  {status === "idle" ? "Idle" : status}
+                </span>
+              </div>
+            </div>
+
+            {status === "ok" ? <div className="mt-4"><AdminNotice tone="success">{message}</AdminNotice></div> : null}
+            {status === "error" ? <div className="mt-4"><AdminNotice tone="error">{message}</AdminNotice></div> : null}
+
             <div className="mt-4 flex flex-wrap gap-2">
-              <AdminButton onClick={() => void submit()} disabled={status === "loading"}>
+              <AdminButton
+                onClick={() => void submit()}
+                disabled={status === "loading" || !validationPassed}
+              >
                 {status === "loading" ? "Sending..." : "Send test email"}
               </AdminButton>
               <AdminButton tone="secondary" onClick={resetStatus}>
