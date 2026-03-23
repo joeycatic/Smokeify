@@ -193,7 +193,8 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   if (normalizedStatus === "fulfilled") {
     return {
       label: "Fulfillment: fulfilled",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      className:
+        "orders-status-chip orders-status-chip-fulfillment border-emerald-200 bg-emerald-50 text-emerald-800",
     };
   }
   if (
@@ -201,19 +202,44 @@ const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   ) {
     return {
       label: "Fulfillment: closed",
-      className: "border-stone-200 bg-stone-100 text-stone-700",
+      className:
+        "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700",
     };
   }
   if (normalizedPayment === "paid" || normalizedPayment === "succeeded") {
     return {
       label: "Fulfillment: ready",
-      className: "border-sky-200 bg-sky-50 text-sky-800",
+      className:
+        "orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800",
     };
   }
   return {
     label: "Fulfillment: not ready",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
+    className:
+      "orders-status-chip orders-status-chip-warning border-amber-200 bg-amber-50 text-amber-800",
   };
+};
+
+const getOrderStatusBadgeClass = (status: string) => {
+  const normalizedStatus = normalizeStatus(status);
+  if (normalizedStatus === "fulfilled") {
+    return "orders-status-chip orders-status-chip-success border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+  if (["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)) {
+    return "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700";
+  }
+  return "orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800";
+};
+
+const getPaymentBadgeClass = (paymentStatus: string) => {
+  const normalizedPayment = normalizeStatus(paymentStatus);
+  if (PAID_PAYMENT_STATUSES.has(normalizedPayment)) {
+    return "orders-status-chip orders-status-chip-paid border-amber-200 bg-amber-50 text-amber-800";
+  }
+  if (["failed", "canceled", "cancelled"].includes(normalizedPayment)) {
+    return "orders-status-chip orders-status-chip-danger border-rose-200 bg-rose-50 text-rose-700";
+  }
+  return "orders-status-chip orders-status-chip-neutral border-stone-200 bg-stone-100 text-stone-700";
 };
 
 export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
@@ -1161,7 +1187,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           <button
             type="button"
             onClick={() => setShowRelevantOrders((prev) => !prev)}
-            className="rounded-[22px] border border-cyan-200/80 bg-gradient-to-r from-cyan-50 via-white to-emerald-50 p-4 text-left shadow-sm transition hover:border-cyan-300"
+            className="orders-queue-card orders-queue-card-active rounded-[22px] border border-cyan-200/80 bg-gradient-to-r from-cyan-50 via-white to-emerald-50 p-4 text-left shadow-sm transition hover:border-cyan-300"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -1175,7 +1201,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                   Ready to ship, awaiting updates or still in payment resolution.
                 </div>
               </div>
-              <span className="rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-800">
+              <span className="orders-queue-pill rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-800">
                 {showRelevantOrders ? "Collapse" : "Expand"}
               </span>
             </div>
@@ -1183,7 +1209,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           <button
             type="button"
             onClick={() => setShowArchivedOrders((prev) => !prev)}
-            className="rounded-[22px] border border-stone-200 bg-gradient-to-r from-stone-100 via-white to-stone-50 p-4 text-left shadow-sm transition hover:border-stone-300"
+            className="orders-queue-card orders-queue-card-archived rounded-[22px] border border-stone-200 bg-gradient-to-r from-stone-100 via-white to-stone-50 p-4 text-left shadow-sm transition hover:border-stone-300"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -1197,7 +1223,7 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                   Closed orders that remain searchable without crowding the active queue.
                 </div>
               </div>
-              <span className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700">
+              <span className="orders-queue-pill orders-queue-pill-muted rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-stone-700">
                 {showArchivedOrders ? "Collapse" : "Expand"}
               </span>
             </div>
@@ -1229,18 +1255,18 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
           return (
             <div
               key={order.id}
-              className={`rounded-[24px] border p-5 shadow-sm transition ${
+              className={`orders-order-surface rounded-[24px] border p-5 shadow-sm transition ${
                 isArchived
-                  ? "border-stone-300 bg-gradient-to-br from-stone-100 via-white to-stone-100/80 text-stone-500 ring-1 ring-inset ring-stone-300/70"
+                  ? "orders-order-surface-archived border-stone-300 bg-gradient-to-br from-stone-100 via-white to-stone-100/80 text-stone-500 ring-1 ring-inset ring-stone-300/70"
                   : "border-black/10 bg-gradient-to-br from-white via-white to-cyan-50/40"
               }`}
             >
               {isArchived && (
-                <div className="mb-4 flex items-center justify-between rounded-2xl border border-stone-300 bg-stone-200/80 px-4 py-3">
+                <div className="orders-archive-banner mb-4 flex items-center justify-between rounded-2xl border border-stone-300 bg-stone-200/80 px-4 py-3">
                   <span className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-700">
                     {archivedLabel}
                   </span>
-                  <span className="rounded-full border border-stone-400 bg-stone-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-700">
+                  <span className="orders-archive-badge rounded-full border border-stone-400 bg-stone-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-700">
                     Archived
                   </span>
                 </div>
@@ -1252,14 +1278,14 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
+                    <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
                       Order {order.id.slice(0, 8).toUpperCase()}
                     </span>
-                    <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
+                    <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
                       {new Date(order.createdAt).toLocaleDateString("de-DE")}
                     </span>
                     {order.paymentMethod ? (
-                      <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-700">
+                      <span className="orders-meta-chip orders-meta-chip-payment rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-700">
                         {order.paymentMethod}
                       </span>
                     ) : null}
@@ -1268,19 +1294,19 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
                     {getOrderEmail(order) ?? "No email"}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                    <span className={getOrderStatusBadgeClass(order.status)}>
                       Status: {order.status}
                     </span>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
+                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
                       Payment: {order.paymentStatus}
                     </span>
                     <span
-                      className={`rounded-full border px-2.5 py-1 ${fulfillmentBadge.className}`}
+                      className={`rounded-full px-2.5 py-1 ${fulfillmentBadge.className}`}
                     >
                       {fulfillmentBadge.label}
                     </span>
                     {isShippingEmailSent(order) && (
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-800">
+                      <span className="orders-status-chip orders-status-chip-info rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-800">
                         Shipping email: sent
                       </span>
                     )}
@@ -1334,19 +1360,19 @@ export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
               {isOpen && (
                 <div className="mt-4 space-y-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
+                    <span className={getOrderStatusBadgeClass(order.status)}>
                       Status: {order.status}
                     </span>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
                       Payment: {order.paymentStatus}
                     </span>
                     <span
-                      className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
+                      className={`rounded-full px-2 py-1 ${fulfillmentBadge.className}`}
                     >
                       {fulfillmentBadge.label}
                     </span>
                     {isShippingEmailSent(order) && (
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
+                      <span className="orders-status-chip orders-status-chip-info rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
                         Shipping email: sent
                       </span>
                     )}
