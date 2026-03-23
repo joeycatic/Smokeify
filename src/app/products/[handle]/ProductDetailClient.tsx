@@ -57,6 +57,7 @@ const buildItemPayload = (
 ) => {
   if (!variant) return null;
   return {
+    product_id: product.id,
     item_id: variant.id,
     item_name: product.title,
     item_brand: product.manufacturer ?? undefined,
@@ -147,7 +148,7 @@ export default function ProductDetailClient({
           },
           ...items,
         ];
-  }, [currentHandle, product.id, product.title, productGroupItems]);
+  }, [currentHandle, product.growboxSize, product.id, product.title, productGroupItems]);
 
   const selectedVariant = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
@@ -464,6 +465,7 @@ export default function ProductDetailClient({
     product.manufacturer,
     product.title,
     selectedVariant?.id,
+    selectedVariant?.price,
     variants,
   ]);
 
@@ -792,7 +794,7 @@ export default function ProductDetailClient({
                   "Wir benachrichtigen dich, sobald der Artikel verfugbar ist.",
                 );
                 setNotifyEmail("");
-              } catch (error) {
+              } catch {
                 setNotifyStatus("error");
                 setNotifyMessage(
                   "Speichern fehlgeschlagen. Bitte erneut versuchen.",

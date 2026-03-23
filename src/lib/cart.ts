@@ -5,6 +5,7 @@ export type CartLine = {
     id: string;
     title: string;
     product: {
+      id: string;
       title: string;
       handle: string;
       manufacturer?: string | null;

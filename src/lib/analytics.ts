@@ -11,6 +11,9 @@ type AnalyticsSessionState = {
   id: string;
   startedAt: number;
   lastSeenAt: number;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
 };
 
 type AnalyticsEventPayload = {
@@ -37,6 +40,13 @@ const readCookieValue = (key: string): string | null => {
   return match?.[1] ?? null;
 };
 
+const trimTrackingValue = (value: string | null, maxLength: number) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+};
+
 const readStatus = (key: string): string | null => {
   if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(key);
@@ -53,11 +63,34 @@ export const canUseAnalytics = (): boolean => {
   return consent === "accepted";
 };
 
+const mergeAttribution = (
+  session: Pick<AnalyticsSessionState, "utmSource" | "utmMedium" | "utmCampaign"> | null,
+) => {
+  const currentParams = readUtmParams();
+  return {
+    utmSource: session?.utmSource ?? currentParams.utmSource,
+    utmMedium: session?.utmMedium ?? currentParams.utmMedium,
+    utmCampaign: session?.utmCampaign ?? currentParams.utmCampaign,
+  };
+};
+
 const createAnalyticsSessionId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   return `smokeify-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const readUtmParams = () => {
+  if (typeof window === "undefined") {
+    return { utmSource: null, utmMedium: null, utmCampaign: null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utmSource: trimTrackingValue(params.get("utm_source"), 120),
+    utmMedium: trimTrackingValue(params.get("utm_medium"), 120),
+    utmCampaign: trimTrackingValue(params.get("utm_campaign"), 160),
+  };
 };
 
 const readAnalyticsSession = (): AnalyticsSessionState | null => {
@@ -77,6 +110,18 @@ const readAnalyticsSession = (): AnalyticsSessionState | null => {
       id: parsed.id,
       startedAt: parsed.startedAt,
       lastSeenAt: parsed.lastSeenAt,
+      utmSource: trimTrackingValue(
+        typeof parsed.utmSource === "string" ? parsed.utmSource : null,
+        120,
+      ),
+      utmMedium: trimTrackingValue(
+        typeof parsed.utmMedium === "string" ? parsed.utmMedium : null,
+        120,
+      ),
+      utmCampaign: trimTrackingValue(
+        typeof parsed.utmCampaign === "string" ? parsed.utmCampaign : null,
+        160,
+      ),
     };
   } catch {
     return null;
@@ -92,38 +137,31 @@ const persistAnalyticsSession = (value: AnalyticsSessionState) => {
   }
 };
 
-export const getAnalyticsSessionId = () => {
+export const getAnalyticsSession = () => {
   const now = Date.now();
   const current = readAnalyticsSession();
   if (current && now - current.lastSeenAt <= ANALYTICS_IDLE_TIMEOUT_MS) {
     const next = {
       ...current,
       lastSeenAt: now,
+      ...mergeAttribution(current),
     };
     persistAnalyticsSession(next);
-    return next.id;
+    return next;
   }
 
+  const attribution = mergeAttribution(null);
   const freshSession = {
     id: createAnalyticsSessionId(),
     startedAt: now,
     lastSeenAt: now,
+    ...attribution,
   };
   persistAnalyticsSession(freshSession);
-  return freshSession.id;
+  return freshSession;
 };
 
-const readUtmParams = () => {
-  if (typeof window === "undefined") {
-    return { utmSource: null, utmMedium: null, utmCampaign: null };
-  }
-  const params = new URLSearchParams(window.location.search);
-  return {
-    utmSource: params.get("utm_source"),
-    utmMedium: params.get("utm_medium"),
-    utmCampaign: params.get("utm_campaign"),
-  };
-};
+export const getAnalyticsSessionId = () => getAnalyticsSession().id;
 
 const normalizeValueCents = (value: unknown) => {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -168,10 +206,10 @@ const buildPayload = (
 ): AnalyticsEventPayload | null => {
   if (typeof window === "undefined") return null;
 
-  const sessionId = getAnalyticsSessionId();
+  const session = getAnalyticsSession();
+  const sessionId = session.id;
   const pagePath = overrides?.pagePath ?? window.location.pathname;
   const pageType = overrides?.pageType ?? deriveAnalyticsPageType(pagePath);
-  const { utmSource, utmMedium, utmCampaign } = readUtmParams();
   const ids = extractPrimaryItemIds(params?.items);
 
   return {
@@ -180,9 +218,9 @@ const buildPayload = (
     pagePath,
     pageType,
     referrer: document.referrer || null,
-    utmSource,
-    utmMedium,
-    utmCampaign,
+    utmSource: overrides?.utmSource ?? session.utmSource,
+    utmMedium: overrides?.utmMedium ?? session.utmMedium,
+    utmCampaign: overrides?.utmCampaign ?? session.utmCampaign,
     currency: typeof params?.currency === "string" ? params.currency : undefined,
     valueCents:
       typeof overrides?.valueCents === "number"
@@ -196,6 +234,8 @@ const buildPayload = (
         ? overrides.orderId
         : typeof params?.order_id === "string"
         ? params.order_id
+        : typeof params?.transaction_id === "string"
+        ? params.transaction_id
         : undefined,
     metadata: params,
   };
@@ -232,6 +272,18 @@ export const trackAnalyticsEvent = (
   if (Array.isArray(dataLayer)) {
     dataLayer.push({ event: eventName, ...(params ?? {}) });
   }
+  const payload = buildPayload(eventName, params);
+  if (payload) {
+    postAnalyticsPayload(payload);
+  }
+};
+
+export const trackFirstPartyAnalyticsEvent = (
+  eventName: string,
+  params?: Record<string, unknown>
+) => {
+  if (typeof window === "undefined") return;
+  if (!canUseAnalytics()) return;
   const payload = buildPayload(eventName, params);
   if (payload) {
     postAnalyticsPayload(payload);

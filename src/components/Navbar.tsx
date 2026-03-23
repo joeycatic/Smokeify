@@ -62,6 +62,7 @@ function formatPrice(amount: string, currencyCode: string) {
 
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
   cart.lines.map((line) => ({
+    product_id: line.merchandise.product.id,
     item_id: line.merchandise.id,
     item_name: line.merchandise.product.title,
     item_variant: line.merchandise.title,
