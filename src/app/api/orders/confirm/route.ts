@@ -6,6 +6,10 @@ import { verifyGuestCheckoutAccess } from "@/lib/checkoutAccess";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import {
+  calculateVatComponentsFromGross,
+  canApplyDefaultVatFallback,
+} from "@/lib/vat";
 
 export const runtime = "nodejs";
 
@@ -252,7 +256,15 @@ export async function POST(request: Request) {
           ? new Date(checkoutSession.created * 1000).toISOString()
           : new Date().toISOString(),
         amountSubtotal: checkoutSession.amount_subtotal ?? 0,
-        amountTax: checkoutSession.total_details?.amount_tax ?? 0,
+        amountTax:
+          checkoutSession.total_details?.amount_tax && checkoutSession.total_details.amount_tax > 0
+            ? checkoutSession.total_details.amount_tax
+            : canApplyDefaultVatFallback(
+                  (checkoutSession.currency ?? "eur").toUpperCase(),
+                  checkoutSession.shipping_details?.address?.country ?? null,
+                )
+              ? calculateVatComponentsFromGross(checkoutSession.amount_total ?? 0).vatAmount
+              : 0,
         amountShipping: checkoutSession.total_details?.amount_shipping ?? 0,
         amountDiscount: checkoutSession.total_details?.amount_discount ?? 0,
         amountTotal: checkoutSession.amount_total ?? 0,

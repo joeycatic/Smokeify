@@ -20,6 +20,11 @@ import {
   buildLoyaltyReleasedReason,
   getLoyaltyPointsPerEuro,
 } from "@/lib/loyalty";
+import {
+  DEFAULT_VAT_RATE_BASIS_POINTS,
+  calculateVatComponentsFromGross,
+  canApplyDefaultVatFallback,
+} from "@/lib/vat";
 
 export const runtime = "nodejs";
 
@@ -536,8 +541,23 @@ export const createOrderFromSession = async (
     })
   );
 
+  const shouldApplyVatFallback =
+    canApplyDefaultVatFallback(currency, address?.country ?? null) &&
+    taxAmount <= 0 &&
+    orderItemDrafts.every((item) => (item.taxAmount ?? 0) <= 0);
+  const resolvedTaxAmount = shouldApplyVatFallback
+    ? calculateVatComponentsFromGross(total).vatAmount
+    : taxAmount;
+  const orderItemDraftsWithResolvedTax = shouldApplyVatFallback
+    ? orderItemDrafts.map((item) => ({
+        ...item,
+        taxAmount: calculateVatComponentsFromGross(item.totalAmount).vatAmount,
+        taxRateBasisPoints: DEFAULT_VAT_RATE_BASIS_POINTS,
+      }))
+    : orderItemDrafts;
+
   const orderItemsWithFees = applyPaymentFeesToCosts(
-    orderItemDrafts.map((item) => ({
+    orderItemDraftsWithResolvedTax.map((item) => ({
       quantity: item.quantity,
       unitAmount: item.unitAmount,
       totalAmount: item.totalAmount,
@@ -547,7 +567,7 @@ export const createOrderFromSession = async (
     paymentFeeConfig
   );
 
-  const orderItemCreates = orderItemDrafts.map((item, index) => {
+  const orderItemCreates = orderItemDraftsWithResolvedTax.map((item, index) => {
     const snapshot = orderItemsWithFees[index];
     return {
       ...item,
@@ -569,7 +589,7 @@ export const createOrderFromSession = async (
       paymentStatus: checkoutSession.payment_status ?? "unpaid",
       currency,
       amountSubtotal: subtotal,
-      amountTax: taxAmount,
+      amountTax: resolvedTaxAmount,
       amountShipping: shippingAmount,
       amountDiscount: discountTotal,
       amountTotal: total,

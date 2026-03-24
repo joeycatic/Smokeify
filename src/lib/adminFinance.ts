@@ -1,3 +1,8 @@
+import {
+  calculateVatComponentsFromGross,
+  canApplyDefaultVatFallback,
+} from "@/lib/vat";
+
 export const RECOGNIZED_PAYMENT_STATUSES = [
   "paid",
   "succeeded",
@@ -24,6 +29,7 @@ export type AdminFinanceOrderItemInput = {
 export type AdminFinanceOrderInput = {
   createdAt: Date;
   currency: string;
+  shippingCountry?: string | null;
   paymentStatus: string;
   status: string;
   amountSubtotal: number;
@@ -120,9 +126,16 @@ export const buildOrderFinanceBreakdown = (
 ): AdminOrderFinanceBreakdown => {
   const recognized = isRecognizedPaidOrder(order);
   const grossOrderCents = Math.max(order.amountTotal, 0);
+  const shouldEstimateTaxFromGross =
+    canApplyDefaultVatFallback(order.currency, order.shippingCountry) &&
+    grossOrderCents > 0 &&
+    Math.max(order.amountTax, 0) <= 0 &&
+    order.items.every((item) => Math.max(item.taxAmount, 0) <= 0);
   const refundedGrossCents = clamp(order.amountRefunded, 0, grossOrderCents);
   const refundRatio = getRefundRatio(grossOrderCents, refundedGrossCents);
-  const outputVatCents = Math.max(order.amountTax, 0);
+  const outputVatCents = shouldEstimateTaxFromGross
+    ? calculateVatComponentsFromGross(grossOrderCents).vatAmount
+    : Math.max(order.amountTax, 0);
   const refundedVatEstimateCents = Math.round(outputVatCents * refundRatio);
   const netOutputVatCents = Math.max(outputVatCents - refundedVatEstimateCents, 0);
   const netCollectedGrossCents = Math.max(grossOrderCents - refundedGrossCents, 0);
@@ -139,7 +152,13 @@ export const buildOrderFinanceBreakdown = (
     return sum + Math.max(adjustedDelta, 0);
   }, 0);
   const taxedItemCount = order.items.reduce(
-    (sum, item) => sum + (item.taxAmount > 0 ? 1 : 0),
+    (sum, item) =>
+      sum +
+      ((shouldEstimateTaxFromGross
+        ? calculateVatComponentsFromGross(Math.max(item.totalAmount, 0)).vatAmount
+        : Math.max(item.taxAmount, 0)) > 0
+        ? 1
+        : 0),
     0,
   );
 

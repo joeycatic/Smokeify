@@ -52,6 +52,7 @@ export async function getFinanceOrdersSince(since: Date) {
       id: true,
       createdAt: true,
       currency: true,
+      shippingCountry: true,
       paymentStatus: true,
       status: true,
       amountSubtotal: true,
@@ -294,7 +295,12 @@ export async function getVatPageData(months = 6) {
     };
   });
 
-  const current = monthly.at(-1) ?? null;
+  const current =
+    [...monthly]
+      .reverse()
+      .find((row) => row.recognizedOrderCount > 0 || row.expenseCount > 0) ??
+    monthly.at(-1) ??
+    null;
 
   return {
     current,
