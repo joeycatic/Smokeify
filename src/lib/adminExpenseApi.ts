@@ -1,7 +1,9 @@
 import {
+  DEFAULT_VAT_RATE_BASIS_POINTS,
   type ExpenseCategory,
   type ExpenseDocumentStatus,
   type RecurringExpenseInterval,
+  calculateVatComponentsFromGross,
   isExpenseCategory,
   isExpenseDocumentStatus,
   isRecurringExpenseInterval,
@@ -82,34 +84,22 @@ export function parseExpensePayload(body: unknown): ParseResult {
   }
 
   const grossAmount = parseInteger(input.grossAmount);
-  const netAmount = parseInteger(input.netAmount);
-  const vatAmount = parseInteger(input.vatAmount);
-  if (
-    grossAmount === null ||
-    netAmount === null ||
-    vatAmount === null ||
-    grossAmount < 0 ||
-    netAmount < 0 ||
-    vatAmount < 0
-  ) {
-    return { ok: false, error: "Gross, net and VAT amounts must be non-negative cents." };
-  }
-
-  if (grossAmount !== netAmount + vatAmount) {
-    return { ok: false, error: "Gross amount must equal net amount plus VAT amount." };
+  if (grossAmount === null || grossAmount < 0) {
+    return { ok: false, error: "Gross amount must be a non-negative cent value." };
   }
 
   const vatRateBasisPoints =
-    input.vatRateBasisPoints === null || typeof input.vatRateBasisPoints === "undefined"
-      ? null
+    input.vatRateBasisPoints === null ||
+    typeof input.vatRateBasisPoints === "undefined" ||
+    input.vatRateBasisPoints === ""
+      ? DEFAULT_VAT_RATE_BASIS_POINTS
       : parseInteger(input.vatRateBasisPoints);
-  if (
-    typeof input.vatRateBasisPoints !== "undefined" &&
-    input.vatRateBasisPoints !== null &&
-    (vatRateBasisPoints === null || vatRateBasisPoints < 0)
-  ) {
-    return { ok: false, error: "VAT rate must be a non-negative integer." };
+  if (vatRateBasisPoints === null || vatRateBasisPoints < 0) {
+    return { ok: false, error: "VAT rate is invalid." };
   }
+
+  const { netAmount, vatAmount, vatRateBasisPoints: resolvedVatRateBasisPoints } =
+    calculateVatComponentsFromGross(grossAmount, vatRateBasisPoints);
 
   if (typeof input.isDeductible !== "boolean") {
     return { ok: false, error: "Deductible flag is required." };
@@ -149,7 +139,7 @@ export function parseExpensePayload(body: unknown): ParseResult {
       grossAmount,
       netAmount,
       vatAmount,
-      vatRateBasisPoints,
+      vatRateBasisPoints: resolvedVatRateBasisPoints,
       isDeductible: input.isDeductible,
       documentDate,
       paidAt,
@@ -171,34 +161,22 @@ export function parseRecurringExpensePayload(body: unknown): RecurringParseResul
   }
 
   const grossAmount = parseInteger(input.grossAmount);
-  const netAmount = parseInteger(input.netAmount);
-  const vatAmount = parseInteger(input.vatAmount);
-  if (
-    grossAmount === null ||
-    netAmount === null ||
-    vatAmount === null ||
-    grossAmount < 0 ||
-    netAmount < 0 ||
-    vatAmount < 0
-  ) {
-    return { ok: false, error: "Gross, net and VAT amounts must be non-negative cents." };
-  }
-
-  if (grossAmount !== netAmount + vatAmount) {
-    return { ok: false, error: "Gross amount must equal net amount plus VAT amount." };
+  if (grossAmount === null || grossAmount < 0) {
+    return { ok: false, error: "Gross amount must be a non-negative cent value." };
   }
 
   const vatRateBasisPoints =
-    input.vatRateBasisPoints === null || typeof input.vatRateBasisPoints === "undefined"
-      ? null
+    input.vatRateBasisPoints === null ||
+    typeof input.vatRateBasisPoints === "undefined" ||
+    input.vatRateBasisPoints === ""
+      ? DEFAULT_VAT_RATE_BASIS_POINTS
       : parseInteger(input.vatRateBasisPoints);
-  if (
-    typeof input.vatRateBasisPoints !== "undefined" &&
-    input.vatRateBasisPoints !== null &&
-    (vatRateBasisPoints === null || vatRateBasisPoints < 0)
-  ) {
-    return { ok: false, error: "VAT rate must be a non-negative integer." };
+  if (vatRateBasisPoints === null || vatRateBasisPoints < 0) {
+    return { ok: false, error: "VAT rate is invalid." };
   }
+
+  const { netAmount, vatAmount, vatRateBasisPoints: resolvedVatRateBasisPoints } =
+    calculateVatComponentsFromGross(grossAmount, vatRateBasisPoints);
 
   if (typeof input.isDeductible !== "boolean") {
     return { ok: false, error: "Deductible flag is required." };
@@ -237,7 +215,7 @@ export function parseRecurringExpensePayload(body: unknown): RecurringParseResul
       grossAmount,
       netAmount,
       vatAmount,
-      vatRateBasisPoints,
+      vatRateBasisPoints: resolvedVatRateBasisPoints,
       isDeductible: input.isDeductible,
       interval,
       nextDueDate,

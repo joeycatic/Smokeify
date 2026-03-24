@@ -1,3 +1,9 @@
+export {
+  DEFAULT_VAT_RATE_BASIS_POINTS,
+  calculateVatComponentsFromGross,
+  calculateVatComponentsFromNet,
+} from "@/lib/vat";
+
 export const EXPENSE_CATEGORIES = [
   "INVENTORY",
   "SHIPPING",
