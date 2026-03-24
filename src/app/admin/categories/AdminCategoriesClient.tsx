@@ -15,6 +15,8 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
 import {
+  getStorefrontAssignmentValue,
+  parseStorefrontAssignmentValue,
   STOREFRONT_ASSIGNMENT_OPTIONS,
   type StorefrontCode,
 } from "@/lib/storefronts";
@@ -115,6 +117,54 @@ export default function AdminCategoriesClient() {
     );
   };
 
+  const persistCategory = async (
+    category: Category,
+    successMessage = "Category updated."
+  ) => {
+    if (!category.name.trim()) {
+      setError("Name is required.");
+      return false;
+    }
+
+    setSavingId(category.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`/api/admin/categories/${category.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: category.name.trim(),
+          handle: category.handle.trim() || undefined,
+          description: category.description?.trim() || null,
+          parentId: category.parentId || null,
+          storefronts: category.storefronts,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error ?? "Failed to update category.");
+        return false;
+      }
+      const data = (await res.json()) as { category?: Category };
+      if (data.category) {
+        const next = categories
+          .map((row) => (row.id === data.category?.id ? data.category : row))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCategories(next);
+      } else {
+        await loadCategories();
+      }
+      setNotice(successMessage);
+      return true;
+    } catch {
+      setError("Failed to update category.");
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const createCategory = async () => {
     setError("");
     setNotice("");
@@ -133,7 +183,7 @@ export default function AdminCategoriesClient() {
           handle: newCategory.handle.trim() || undefined,
           description: newCategory.description.trim() || null,
           parentId: newCategory.parentId || null,
-          storefronts: newCategory.storefronts.split(","),
+          storefronts: parseStorefrontAssignmentValue(newCategory.storefronts),
         }),
       });
       if (!res.ok) {
@@ -158,45 +208,20 @@ export default function AdminCategoriesClient() {
 
   const saveSelected = async () => {
     if (!selectedCategory) return;
-    setError("");
-    setNotice("");
-    if (!selectedCategory.name.trim()) {
-      setError("Name is required.");
-      return;
-    }
+    await persistCategory(selectedCategory);
+  };
 
-    setSavingId(selectedCategory.id);
-    try {
-      const res = await fetch(`/api/admin/categories/${selectedCategory.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: selectedCategory.name.trim(),
-          handle: selectedCategory.handle.trim() || undefined,
-          description: selectedCategory.description?.trim() || null,
-          parentId: selectedCategory.parentId || null,
-          storefronts: selectedCategory.storefronts,
-        }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Failed to update category.");
-        return;
-      }
-      const data = (await res.json()) as { category?: Category };
-      if (data.category) {
-        const next = categories
-          .map((row) => (row.id === data.category?.id ? data.category : row))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setCategories(next);
-      } else {
-        await loadCategories();
-      }
-      setNotice("Category updated.");
-    } catch {
-      setError("Failed to update category.");
-    } finally {
-      setSavingId(null);
+  const updateRootStorefronts = async (category: Category, assignmentValue: string) => {
+    const storefronts = parseStorefrontAssignmentValue(assignmentValue);
+    const nextCategory = { ...category, storefronts };
+
+    setCategories((prev) =>
+      prev.map((row) => (row.id === category.id ? nextCategory : row))
+    );
+
+    const ok = await persistCategory(nextCategory, "Storefront visibility updated.");
+    if (!ok) {
+      await loadCategories();
     }
   };
 
@@ -384,6 +409,34 @@ export default function AdminCategoriesClient() {
                           </span>
                         </div>
                       </button>
+                      <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Storefront visibility
+                            </div>
+                            <AdminSelect
+                              value={getStorefrontAssignmentValue(category.storefronts)}
+                              onChange={(event) =>
+                                void updateRootStorefronts(category, event.target.value)
+                              }
+                              disabled={savingId === category.id}
+                              className="h-10 rounded-xl text-xs"
+                            >
+                              {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                                <option key={`${category.id}-${option.value}`} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </AdminSelect>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {savingId === category.id
+                              ? "Saving visibility..."
+                              : "Applies to this top-level category."}
+                          </div>
+                        </div>
+                      </div>
                       {children.length > 0 ? (
                         <div className="mt-3 space-y-2 border-l border-violet-400/20 pl-4">
                           {children.map((child) => (
@@ -508,13 +561,10 @@ export default function AdminCategoriesClient() {
                 </AdminField>
                 <AdminField label="Storefront visibility">
                   <AdminSelect
-                    value={selectedCategory.storefronts.join(",")}
+                    value={getStorefrontAssignmentValue(selectedCategory.storefronts)}
                     onChange={(event) =>
                       updateSelected({
-                        storefronts: event.target.value
-                          .split(",")
-                          .map((value) => value.trim())
-                          .filter(Boolean) as StorefrontCode[],
+                        storefronts: parseStorefrontAssignmentValue(event.target.value),
                       })
                     }
                   >
