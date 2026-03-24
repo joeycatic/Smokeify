@@ -512,6 +512,16 @@ body {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
 }
 
+.admin-select {
+  color-scheme: dark;
+}
+
+.admin-select option,
+.admin-select optgroup {
+  background-color: #090d12;
+  color: #f8fafc;
+}
+
 .admin-bar-fill {
   transform-origin: left center;
   animation: admin-bar-grow 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -792,6 +802,19 @@ body {
   border-color: rgba(148, 163, 184, 0.16) !important;
   color: #f8fafc !important;
   box-shadow: none !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page select,
+.admin-theme.admin-dark .admin-product-redesign select {
+  color-scheme: dark;
+}
+
+.admin-theme.admin-dark .admin-legacy-page select option,
+.admin-theme.admin-dark .admin-legacy-page select optgroup,
+.admin-theme.admin-dark .admin-product-redesign select option,
+.admin-theme.admin-dark .admin-product-redesign select optgroup {
+  background-color: #090d12 !important;
+  color: #f8fafc !important;
 }
 
 .admin-theme.admin-dark .admin-legacy-page input::placeholder,

@@ -143,7 +143,7 @@ export function AdminSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+      className={`admin-select h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30 focus:bg-white/[0.05] ${
         props.className ?? ""
       }`}
     />
