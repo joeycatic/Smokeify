@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import bcrypt from "bcryptjs";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 export async function PATCH(
   request: NextRequest,
@@ -36,6 +37,7 @@ export async function PATCH(
     handle?: string;
     description?: string | null;
     parentId?: string | null;
+    storefronts?: string[];
   };
 
   const updates: {
@@ -43,6 +45,7 @@ export async function PATCH(
     handle?: string;
     description?: string | null;
     parentId?: string | null;
+    storefronts?: ("MAIN" | "GROW")[];
   } = {};
 
   if (typeof body.name === "string") {
@@ -100,6 +103,10 @@ export async function PATCH(
       }
     }
     updates.parentId = parentId;
+  }
+
+  if (typeof body.storefronts !== "undefined") {
+    updates.storefronts = storefrontsToPrisma(parseStorefronts(body.storefronts));
   }
 
   const category = await prisma.category.update({

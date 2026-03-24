@@ -25,19 +25,24 @@ import {
   SortKey,
   SupplierRow,
   STATUS_OPTIONS,
+  formatStorefrontLabel,
   formatDate,
   formatPercent,
   getInventoryTone,
   getProductRowTone,
   getSortLabel,
+  getStorefrontBadgeTone,
   getStatusDotTone,
   getStatusTone,
   getTrendTone,
 } from "./catalogShared";
+import { STOREFRONT_LABELS, STOREFRONT_OPTION_ROWS } from "@/lib/storefronts";
 
 type ToolbarProps = {
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
+  storefrontFilter: string;
+  onStorefrontFilterChange: (value: string) => void;
   supplierFilter: string;
   onSupplierFilterChange: (value: string) => void;
   categoryFilter: string;
@@ -65,6 +70,8 @@ type ToolbarProps = {
 export function CatalogToolbar({
   searchTerm,
   onSearchTermChange,
+  storefrontFilter,
+  onStorefrontFilterChange,
   supplierFilter,
   onSupplierFilterChange,
   categoryFilter,
@@ -109,7 +116,7 @@ export function CatalogToolbar({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_repeat(4,minmax(0,1fr))]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_repeat(5,minmax(0,1fr))]">
         <AdminField label="Search">
           <AdminInput
             type="search"
@@ -117,6 +124,19 @@ export function CatalogToolbar({
             onChange={(event) => onSearchTermChange(event.target.value)}
             placeholder="Search title or handle"
           />
+        </AdminField>
+        <AdminField label="Storefront">
+          <AdminSelect
+            value={storefrontFilter}
+            onChange={(event) => onStorefrontFilterChange(event.target.value)}
+          >
+            <option value="">All storefronts</option>
+            {STOREFRONT_OPTION_ROWS.map((storefront) => (
+              <option key={storefront.value} value={storefront.value}>
+                {STOREFRONT_LABELS[storefront.value]}
+              </option>
+            ))}
+          </AdminSelect>
         </AdminField>
         <AdminField label="Supplier">
           <AdminSelect
@@ -465,6 +485,16 @@ export function CatalogTablePanel({
                         ) : null}
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                        {product.storefronts.map((storefront) => (
+                          <span
+                            key={`${product.id}-${storefront}`}
+                            className={`rounded-full border px-2 py-1 font-semibold ${getStorefrontBadgeTone(
+                              storefront,
+                            )}`}
+                          >
+                            {formatStorefrontLabel(storefront)}
+                          </span>
+                        ))}
                         {product.supplierName ? (
                           <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
                             {product.supplierName}
@@ -679,6 +709,8 @@ type BulkTrayProps = {
   onBulkLowStockChange: (value: string) => void;
   bulkSupplierId: string;
   onBulkSupplierIdChange: (value: string) => void;
+  bulkStorefronts: string;
+  onBulkStorefrontsChange: (value: string) => void;
   suppliers: SupplierRow[];
   bulkCategoryAction: "add" | "remove";
   onBulkCategoryActionChange: (value: "add" | "remove") => void;
@@ -714,6 +746,8 @@ export function CatalogBulkTray({
   onBulkLowStockChange,
   bulkSupplierId,
   onBulkSupplierIdChange,
+  bulkStorefronts,
+  onBulkStorefrontsChange,
   suppliers,
   bulkCategoryAction,
   onBulkCategoryActionChange,
@@ -827,6 +861,17 @@ export function CatalogBulkTray({
                       {supplier.name}
                     </option>
                   ))}
+                </AdminSelect>
+              </AdminField>
+              <AdminField label="Storefront visibility">
+                <AdminSelect
+                  value={bulkStorefronts}
+                  onChange={(event) => onBulkStorefrontsChange(event.target.value)}
+                >
+                  <option value="">No change</option>
+                  <option value="MAIN">Smokeify only</option>
+                  <option value="GROW">GrowVault only</option>
+                  <option value="MAIN,GROW">Smokeify + GrowVault</option>
                 </AdminSelect>
               </AdminField>
               <AdminField label="Category change">

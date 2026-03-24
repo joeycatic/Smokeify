@@ -73,6 +73,11 @@ enum ExpenseDocumentStatus {
   VERIFIED
 }
 
+enum Storefront {
+  MAIN
+  GROW
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -317,6 +322,7 @@ model Product {
   mainCategoryId String?
   shippingClass String?
   tags        String[]       @default([])
+  storefronts Storefront[]   @default([MAIN])
   status      ProductStatus  @default(DRAFT)
   bestsellerScore Float?     // computed weekly by script
   conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
@@ -423,6 +429,7 @@ model Category {
   handle      String   @unique
   description String?
   parentId    String?
+  storefronts Storefront[] @default([MAIN])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

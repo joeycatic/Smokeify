@@ -83,6 +83,7 @@ const getRecommendedProducts = async (
     ? await prisma.product.findMany({
         where: {
           status: "ACTIVE",
+          storefronts: { has: "MAIN" },
           id: { not: currentProductId },
           categories: { some: { categoryId: { in: categoryIds } } },
         },
@@ -102,6 +103,7 @@ const getRecommendedProducts = async (
       ? await prisma.product.findMany({
           where: {
             status: "ACTIVE",
+            storefronts: { has: "MAIN" },
             id: { notIn: [currentProductId, ...Array.from(selectedIds)] },
           },
           orderBy: { updatedAt: "desc" },
@@ -210,7 +212,11 @@ export default async function ProductDetailPage({
       );
       const groupProducts = product.productGroup
         ? await prisma.product.findMany({
-            where: { productGroup: product.productGroup, status: "ACTIVE" },
+            where: {
+              productGroup: product.productGroup,
+              status: "ACTIVE",
+              storefronts: { has: "MAIN" },
+            },
             select: { id: true, title: true, handle: true, growboxSize: true },
             orderBy: { title: "asc" },
           })
@@ -225,7 +231,7 @@ export default async function ProductDetailPage({
         ? await prisma.productCrossSell.findMany({
             where: {
               productId: product.id,
-              crossSell: { is: { status: "ACTIVE" } },
+              crossSell: { is: { status: "ACTIVE", storefronts: { has: "MAIN" } } },
             },
             orderBy: { sortOrder: "asc" },
             take: 3,

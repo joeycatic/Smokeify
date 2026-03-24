@@ -4,6 +4,8 @@ import type { Product } from "@/data/types";
 import { getProductsByIds } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 
+const MAIN_STOREFRONT_SQL = Prisma.sql`ARRAY['MAIN']::"Storefront"[]`;
+
 export type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
 
 export type ProductsQueryParams = {
@@ -40,6 +42,7 @@ type CategoryMeta = {
 const getCachedCategoryMeta = unstable_cache(
   async (): Promise<CategoryMeta> => {
     const categories = await prisma.category.findMany({
+      where: { storefronts: { has: "MAIN" } },
       select: {
         id: true,
         name: true,
@@ -101,6 +104,8 @@ const buildCategoryWhereSql = (categories: string[]) => {
         JOIN "Category" c ON c.id = pc."categoryId"
         LEFT JOIN "Category" cp ON cp.id = c."parentId"
         WHERE pc."productId" = p.id
+          AND c.storefronts @> ${MAIN_STOREFRONT_SQL}
+          AND (cp.id IS NULL OR cp.storefronts @> ${MAIN_STOREFRONT_SQL})
           AND (c.handle IN (${Prisma.join(categories)}) OR cp.handle IN (${Prisma.join(categories)}))
       )
       OR EXISTS (
@@ -108,6 +113,8 @@ const buildCategoryWhereSql = (categories: string[]) => {
         FROM "Category" mc
         LEFT JOIN "Category" mcp ON mcp.id = mc."parentId"
         WHERE mc.id = p."mainCategoryId"
+          AND mc.storefronts @> ${MAIN_STOREFRONT_SQL}
+          AND (mcp.id IS NULL OR mcp.storefronts @> ${MAIN_STOREFRONT_SQL})
           AND (mc.handle IN (${Prisma.join(categories)}) OR mcp.handle IN (${Prisma.join(categories)}))
       )
     )
@@ -149,6 +156,8 @@ const buildSearchWhereSql = (searchQuery: string) => {
         JOIN "Category" c ON c.id = pc."categoryId"
         LEFT JOIN "Category" cp ON cp.id = c."parentId"
         WHERE pc."productId" = p.id
+          AND c.storefronts @> ${MAIN_STOREFRONT_SQL}
+          AND (cp.id IS NULL OR cp.storefronts @> ${MAIN_STOREFRONT_SQL})
           AND (
             c.name ILIKE ${pattern} ESCAPE '\\'
             OR c.handle ILIKE ${pattern} ESCAPE '\\'
@@ -190,6 +199,7 @@ const getPriceBoundsCached = unstable_cache(
         FROM "Product" p
         JOIN "Variant" v ON v."productId" = p.id
         WHERE p.status = 'ACTIVE'
+          AND p.storefronts @> ${MAIN_STOREFRONT_SQL}
         GROUP BY p.id
       ) price_bounds
     `;
@@ -287,6 +297,7 @@ export async function queryProducts(
         WHERE v."productId" = p.id
       ) price_bounds ON true
       WHERE p.status = 'ACTIVE'
+        AND p.storefronts @> ${MAIN_STOREFRONT_SQL}
         AND price_bounds.min_price_cents IS NOT NULL
         AND price_bounds.min_price_cents >= ${minPriceCents}
         AND price_bounds.min_price_cents <= ${maxPriceCents}
@@ -333,6 +344,7 @@ export async function queryProducts(
       SELECT DISTINCT p.manufacturer
       FROM "Product" p
       WHERE p.status = 'ACTIVE'
+        AND p.storefronts @> ${MAIN_STOREFRONT_SQL}
         AND COALESCE(TRIM(p.manufacturer), '') <> ''
         ${buildCategoryWhereSql(mergedCategories)}
       ORDER BY p.manufacturer ASC

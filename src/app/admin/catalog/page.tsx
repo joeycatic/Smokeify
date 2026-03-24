@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { getProductPerformance, getStockCoverageMap } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
+import { parseStorefront } from "@/lib/storefronts";
 import AdminCatalogClient from "./AdminCatalogClient";
 
 const PAGE_SIZE = 25;
@@ -18,6 +19,7 @@ export default async function AdminCatalogPage({
     q?: string | string[];
     sort?: string | string[];
     dir?: string | string[];
+    storefront?: string | string[];
     supplier?: string | string[];
     category?: string | string[];
     collection?: string | string[];
@@ -35,6 +37,9 @@ export default async function AdminCatalogPage({
   const rawDir = Array.isArray(resolvedSearchParams?.dir)
     ? resolvedSearchParams?.dir[0] ?? ""
     : resolvedSearchParams?.dir ?? "";
+  const rawStorefront = Array.isArray(resolvedSearchParams?.storefront)
+    ? resolvedSearchParams?.storefront[0] ?? ""
+    : resolvedSearchParams?.storefront ?? "";
   const rawSupplier = Array.isArray(resolvedSearchParams?.supplier)
     ? resolvedSearchParams?.supplier[0] ?? ""
     : resolvedSearchParams?.supplier ?? "";
@@ -54,6 +59,7 @@ export default async function AdminCatalogPage({
     ? (rawSort as "title" | "status" | "variants" | "category" | "updatedAt")
     : "updatedAt";
   const sortDirection = rawDir === "asc" ? "asc" : "desc";
+  const storefrontFilter = parseStorefront(rawStorefront);
 
   const where: Prisma.ProductWhereInput = {
     ...(rawQuery
@@ -64,6 +70,7 @@ export default async function AdminCatalogPage({
           ],
         }
       : {}),
+    ...(storefrontFilter ? { storefronts: { has: storefrontFilter } } : {}),
     ...(rawSupplier ? { supplierId: rawSupplier } : {}),
     ...(rawCategory
       ? {
@@ -270,6 +277,7 @@ export default async function AdminCatalogPage({
             imageAlt: images[0]?.altText ?? product.title,
             supplierId: supplierRef?.id ?? null,
             supplierName: supplierRef?.name ?? null,
+            storefronts: product.storefronts,
             categoryIds: product.categories.map((entry) => entry.categoryId),
             collectionIds: productCollections.map((entry) => entry.collectionId),
             mainCategory: product.mainCategory ?? fallbackCategory ?? null,
@@ -302,6 +310,7 @@ export default async function AdminCatalogPage({
         initialCollections={collections}
         initialSuppliers={suppliers}
         initialFilters={{
+          storefront: storefrontFilter ?? "",
           supplierId: rawSupplier,
           categoryId: rawCategory,
           collectionId: rawCollection,

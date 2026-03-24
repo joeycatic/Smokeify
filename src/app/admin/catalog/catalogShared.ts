@@ -1,3 +1,8 @@
+import {
+  STOREFRONT_LABELS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
+
 export type ProductRow = {
   id: string;
   title: string;
@@ -11,6 +16,7 @@ export type ProductRow = {
   sellerUrl?: string | null;
   supplierId?: string | null;
   supplierName?: string | null;
+  storefronts: StorefrontCode[];
   availableInventory: number;
   categoryIds: string[];
   collectionIds: string[];
@@ -43,6 +49,7 @@ export type CategoryRow = {
   handle: string;
   description: string | null;
   parentId?: string | null;
+  storefronts?: StorefrontCode[];
 };
 
 export type SupplierRow = {
@@ -52,6 +59,7 @@ export type SupplierRow = {
 };
 
 export type QuickFilters = {
+  storefront: string;
   supplierId: string;
   categoryId: string;
   collectionId: string;
@@ -64,6 +72,7 @@ export type FilterPreset = {
   query: string;
   sortKey: SortKey;
   sortDirection: "asc" | "desc";
+  storefront: string;
   supplierId: string;
   categoryId: string;
   collectionId: string;
@@ -186,3 +195,15 @@ export const getTrendTone = (direction: ProductInsightSnapshot["trendDirection"]
       return "border-white/10 bg-white/[0.04] text-slate-300";
   }
 };
+
+export const getStorefrontBadgeTone = (storefront: StorefrontCode) => {
+  switch (storefront) {
+    case "GROW":
+      return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+    default:
+      return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  }
+};
+
+export const formatStorefrontLabel = (storefront: StorefrontCode) =>
+  STOREFRONT_LABELS[storefront];

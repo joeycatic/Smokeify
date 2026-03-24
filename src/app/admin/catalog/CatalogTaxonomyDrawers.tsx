@@ -10,7 +10,16 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
-import { CategoryRow } from "./catalogShared";
+import {
+  CategoryRow,
+  formatStorefrontLabel,
+  getStorefrontBadgeTone,
+} from "./catalogShared";
+import {
+  STOREFRONT_ASSIGNMENT_OPTIONS,
+  getStorefrontAssignmentValue,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 type CategoryDrawerProps = {
   open: boolean;
@@ -25,6 +34,7 @@ type CategoryDrawerProps = {
     handle: string;
     description: string;
     parentId: string;
+    storefronts: string;
   };
   onClose: () => void;
   onSelectCategory: (id: string) => void;
@@ -34,6 +44,7 @@ type CategoryDrawerProps = {
       handle: string;
       description: string;
       parentId: string;
+      storefronts: string;
     }>,
   ) => void;
   onCreateCategory: () => void;
@@ -113,6 +124,20 @@ export function CategoryManagementDrawer({
                   placeholder="How this category should be used"
                 />
               </AdminField>
+              <AdminField label="Storefront visibility">
+                <AdminSelect
+                  value={newCategory.storefronts}
+                  onChange={(event) =>
+                    onNewCategoryChange({ storefronts: event.target.value })
+                  }
+                >
+                  {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AdminSelect>
+              </AdminField>
               <AdminButton type="button" className="w-full" onClick={onCreateCategory}>
                 Create category
               </AdminButton>
@@ -138,6 +163,7 @@ export function CategoryManagementDrawer({
                       label={parent.name}
                       subtitle={`/${parent.handle}`}
                       badge="Top"
+                      storefronts={parent.storefronts}
                       selected={selectedCategoryId === parent.id}
                       onClick={() => onSelectCategory(parent.id)}
                     />
@@ -147,6 +173,7 @@ export function CategoryManagementDrawer({
                           label={child.name}
                           subtitle={`/${child.handle}`}
                           badge="Child"
+                          storefronts={child.storefronts}
                           selected={selectedCategoryId === child.id}
                           onClick={() => onSelectCategory(child.id)}
                         />
@@ -223,7 +250,38 @@ export function CategoryManagementDrawer({
                   <div className="mt-2 text-sm text-slate-200">
                     {selectedCategory.parentId ? "Child category" : "Top-level category"}
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(selectedCategory.storefronts ?? []).map((storefront) => (
+                      <span
+                        key={`${selectedCategory.id}-${storefront}`}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStorefrontBadgeTone(
+                          storefront,
+                        )}`}
+                      >
+                        {formatStorefrontLabel(storefront)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
+                <AdminField label="Storefront visibility">
+                  <AdminSelect
+                    value={getStorefrontAssignmentValue(selectedCategory.storefronts ?? ["MAIN"])}
+                    onChange={(event) =>
+                      onUpdateCategory(selectedCategory.id, {
+                        storefronts: event.target.value
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter(Boolean) as StorefrontCode[],
+                      })
+                    }
+                  >
+                    {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </AdminField>
                 <div className="md:col-span-2">
                   <AdminField label="Description">
                     <AdminTextarea
@@ -490,12 +548,14 @@ function EntityButton({
   label,
   subtitle,
   badge,
+  storefronts = [],
   selected,
   onClick,
 }: {
   label: string;
   subtitle: string;
   badge: string;
+  storefronts?: CategoryRow["storefronts"];
   selected: boolean;
   onClick: () => void;
 }) {
@@ -512,6 +572,18 @@ function EntityButton({
       <div>
         <div className="text-sm font-semibold text-slate-100">{label}</div>
         <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {storefronts.map((storefront) => (
+            <span
+              key={`${label}-${storefront}`}
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStorefrontBadgeTone(
+                storefront,
+              )}`}
+            >
+              {formatStorefrontLabel(storefront)}
+            </span>
+          ))}
+        </div>
       </div>
       <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
         {badge}

@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 import type { Product } from "@/data/types";
+import { buildStorefrontProductWhere, storefrontsInclude } from "@/lib/storefronts";
 
 const CURRENCY_CODE = "EUR";
 
@@ -13,6 +14,45 @@ const getAvailability = (quantityOnHand: number | null, reserved: number | null)
   const held = reserved ?? 0;
   return Math.max(0, onHand - held);
 };
+
+const MAIN_STOREFRONT = "MAIN" as const;
+
+const mapVisibleCategories = (
+  categories: Array<{
+    category: {
+      id: string;
+      name: string;
+      handle: string;
+      parentId: string | null;
+      storefronts?: string[];
+      parent?: {
+        id: string;
+        name: string;
+        handle: string;
+        storefronts?: string[];
+      } | null;
+    };
+  }>,
+) =>
+  categories
+    .filter((entry) =>
+      storefrontsInclude(entry.category.storefronts ?? [], MAIN_STOREFRONT),
+    )
+    .map((entry) => ({
+      id: entry.category.id,
+      handle: entry.category.handle,
+      title: entry.category.name,
+      parentId: entry.category.parentId ?? null,
+      parent:
+        entry.category.parent &&
+        storefrontsInclude(entry.category.parent.storefronts ?? [], MAIN_STOREFRONT)
+          ? {
+              id: entry.category.parent.id,
+              handle: entry.category.parent.handle,
+              title: entry.category.parent.name,
+            }
+          : null,
+    }));
 
 const mapProduct = (product: {
   id: string;
@@ -39,7 +79,13 @@ const mapProduct = (product: {
       name: string;
       handle: string;
       parentId: string | null;
-      parent?: { id: string; name: string; handle: string } | null;
+      storefronts?: string[];
+      parent?: {
+        id: string;
+        name: string;
+        handle: string;
+        storefronts?: string[];
+      } | null;
     };
   }>;
   collections: Array<{ collection: { id: string; name: string; handle: string } }>;
@@ -110,19 +156,7 @@ const mapProduct = (product: {
       url: image.url,
       altText: image.altText,
     })),
-    categories: product.categories.map((entry) => ({
-      id: entry.category.id,
-      handle: entry.category.handle,
-      title: entry.category.name,
-      parentId: entry.category.parentId ?? null,
-      parent: entry.category.parent
-        ? {
-            id: entry.category.parent.id,
-            handle: entry.category.parent.handle,
-            title: entry.category.parent.name,
-          }
-        : null,
-    })),
+    categories: mapVisibleCategories(product.categories),
     collections: product.collections.map((entry) => ({
       id: entry.collection.id,
       handle: entry.collection.handle,
@@ -149,7 +183,7 @@ const mapProduct = (product: {
 const getProductsCached = unstable_cache(
   async (limit: number): Promise<Product[]> => {
     const products = await prisma.product.findMany({
-      where: { status: "ACTIVE" },
+      where: buildStorefrontProductWhere(MAIN_STOREFRONT),
       orderBy: [
         { bestsellerScore: { sort: "desc", nulls: "last" } },
         { updatedAt: "desc" },
@@ -211,7 +245,13 @@ const fetchAllActiveProducts = async (): Promise<Product[]> => {
           name: string;
           handle: string;
           parentId: string | null;
-          parent?: { id: string; name: string; handle: string } | null;
+          storefronts?: string[];
+          parent?: {
+            id: string;
+            name: string;
+            handle: string;
+            storefronts?: string[];
+          } | null;
         };
       }>;
       collections: Array<{ collection: { id: string; name: string; handle: string } }>;
@@ -219,7 +259,7 @@ const fetchAllActiveProducts = async (): Promise<Product[]> => {
       bestsellerScore?: number | null;
       createdAt?: Date | null;
     }> = await prisma.product.findMany({
-      where: { status: "ACTIVE" },
+      where: buildStorefrontProductWhere(MAIN_STOREFRONT),
       orderBy: { id: "asc" },
       take: batchSize,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
@@ -229,7 +269,15 @@ const fetchAllActiveProducts = async (): Promise<Product[]> => {
           orderBy: { position: "asc" },
           include: { inventory: true },
         },
-        categories: { include: { category: { include: { parent: true } } } },
+        categories: {
+          include: {
+            category: {
+              include: {
+                parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+              },
+            },
+          },
+        },
         collections: { include: { collection: true } },
         reviews: {
           where: { status: "APPROVED" },
@@ -266,7 +314,7 @@ const getProductHandlesCached = unstable_cache(
     while (true) {
       const products: Array<{ id: string; handle: string }> =
         await prisma.product.findMany({
-        where: { status: "ACTIVE" },
+        where: buildStorefrontProductWhere(MAIN_STOREFRONT),
         orderBy: { id: "asc" },
         take: batchSize,
         ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
@@ -308,11 +356,19 @@ async function _fetchProductByHandle(handle: string) {
         orderBy: { position: "asc" },
         include: { inventory: true, options: true },
       },
-      categories: { include: { category: { include: { parent: true } } } },
+        categories: {
+          include: {
+            category: {
+              include: {
+                parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+              },
+            },
+          },
+        },
     },
   });
 
-  if (!product) return null;
+  if (!product || !storefrontsInclude(product.storefronts, MAIN_STOREFRONT)) return null;
 
   const images = product.images.map((image) => ({
     url: image.url,
@@ -379,19 +435,7 @@ async function _fetchProductByHandle(handle: string) {
     manufacturer: product.manufacturer,
     growboxSize: product.growboxSize ?? null,
     productGroup: product.productGroup ?? null,
-    categories: product.categories.map((entry) => ({
-      id: entry.category.id,
-      handle: entry.category.handle,
-      title: entry.category.name,
-      parentId: entry.category.parentId ?? null,
-      parent: entry.category.parent
-        ? {
-            id: entry.category.parent.id,
-            handle: entry.category.parent.handle,
-            title: entry.category.parent.name,
-          }
-        : null,
-    })),
+    categories: mapVisibleCategories(product.categories),
     images,
     variants,
     options,
@@ -400,14 +444,22 @@ async function _fetchProductByHandle(handle: string) {
 
 const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
   const products = await prisma.product.findMany({
-    where: { id: { in: ids }, status: "ACTIVE" },
+    where: buildStorefrontProductWhere(MAIN_STOREFRONT, { id: { in: ids } }),
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: { include: { parent: true } } } },
+      categories: {
+        include: {
+          category: {
+            include: {
+              parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+            },
+          },
+        },
+      },
       collections: { include: { collection: true } },
       reviews: {
         where: { status: "APPROVED" },
@@ -440,14 +492,26 @@ export async function getProductsByIdsAllowInactive(
 ): Promise<Product[]> {
   if (!ids.length) return [];
   const products = await prisma.product.findMany({
-    where: { id: { in: ids } },
+    where: buildStorefrontProductWhere(
+      MAIN_STOREFRONT,
+      { id: { in: ids } },
+      { allowInactive: true },
+    ),
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: { include: { parent: true } } } },
+      categories: {
+        include: {
+          category: {
+            include: {
+              parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+            },
+          },
+        },
+      },
       collections: { include: { collection: true } },
       reviews: {
         where: { status: "APPROVED" },

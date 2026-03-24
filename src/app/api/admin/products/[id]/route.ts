@@ -10,6 +10,7 @@ import {
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
 import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -106,6 +107,7 @@ export async function PATCH(
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
+    storefronts?: string[];
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -137,6 +139,7 @@ export async function PATCH(
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
+    storefronts?: ("MAIN" | "GROW")[];
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -268,6 +271,10 @@ export async function PATCH(
       );
     }
     updates.sellerUrl = sellerUrlResult.value;
+  }
+
+  if (typeof body.storefronts !== "undefined") {
+    updates.storefronts = storefrontsToPrisma(parseStorefronts(body.storefronts));
   }
 
   if (typeof body.leadTimeDays !== "undefined") {

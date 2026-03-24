@@ -10,6 +10,11 @@ import {
   collectMerchantPolicyViolations,
   type MerchantPolicyViolation,
 } from "@/lib/merchantTextPolicy";
+import {
+  STOREFRONT_ASSIGNMENT_OPTIONS,
+  STOREFRONT_LABELS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 type ImageItem = {
   id: string;
@@ -45,6 +50,7 @@ type CategoryRow = {
   handle: string;
   description: string | null;
   parentId?: string | null;
+  storefronts?: StorefrontCode[];
 };
 
 type SupplierRow = {
@@ -81,6 +87,7 @@ type ProductDetail = {
   airSystemDiameterMm: number | null;
   shippingClass: string | null;
   tags: string[];
+  storefronts: StorefrontCode[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
@@ -161,6 +168,7 @@ type ProductDetailsState = {
   airSystemDiameterMm: number | "";
   shippingClass: string;
   tags: string;
+  storefronts: StorefrontCode[];
   status: ProductDetail["status"];
 };
 
@@ -288,6 +296,7 @@ const buildInitialDetails = (
   airSystemDiameterMm: product.airSystemDiameterMm ?? "",
   shippingClass: product.shippingClass ?? "",
   tags: (product.tags ?? []).join(", "),
+  storefronts: product.storefronts ?? ["MAIN"],
   status: product.status,
 });
 
@@ -711,6 +720,7 @@ export default function AdminProductClient({
         sellerName: details.sellerName,
         sellerUrl: details.sellerUrl,
         tags,
+        storefronts: details.storefronts,
         leadTimeDays: toNumberOrNull(details.leadTimeDays),
         weightGrams: toNumberOrNull(details.weightGrams),
         lengthMm: toNumberOrNull(details.lengthMm),
@@ -1700,6 +1710,20 @@ export default function AdminProductClient({
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Details</p>
               <p className="text-xs text-slate-400">Core product information.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {details.storefronts.map((storefront) => (
+                  <span
+                    key={`hero-${storefront}`}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                      storefront === "GROW"
+                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                    }`}
+                  >
+                    {STOREFRONT_LABELS[storefront]}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1769,6 +1793,28 @@ export default function AdminProductClient({
               placeholder="e.g. 3"
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Storefront visibility
+            <select
+              value={details.storefronts.join(",")}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  storefronts: event.target.value
+                    .split(",")
+                    .map((value) => value.trim())
+                    .filter(Boolean) as StorefrontCode[],
+                }))
+              }
+              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+            >
+              {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         {showZelteFields && (
@@ -2223,6 +2269,18 @@ export default function AdminProductClient({
               </ul>
             </div>
           )}
+          {details.storefronts.map((storefront) => (
+            <span
+              key={`footer-${storefront}`}
+              className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold ${
+                storefront === "GROW"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-cyan-200 bg-cyan-50 text-cyan-700"
+              }`}
+            >
+              {STOREFRONT_LABELS[storefront]}
+            </span>
+          ))}
           <select
             value={details.status}
             onChange={(event) =>

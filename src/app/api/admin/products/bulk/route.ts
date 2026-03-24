@@ -6,6 +6,7 @@ import { sanitizePlainText } from "@/lib/sanitizeHtml";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 type BulkPayload = {
   productIds?: string[];
@@ -26,6 +27,7 @@ type BulkPayload = {
     categoryId: string;
   };
   supplierId?: string | null;
+  storefronts?: string[];
 };
 
 export async function POST(request: Request) {
@@ -161,6 +163,15 @@ export async function POST(request: Request) {
         })
       );
     }
+  }
+
+  if (typeof body.storefronts !== "undefined") {
+    operations.push(
+      prisma.product.updateMany({
+        where: { id: { in: productIds } },
+        data: { storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts)) },
+      })
+    );
   }
 
   if (body.tags?.add || body.tags?.remove) {

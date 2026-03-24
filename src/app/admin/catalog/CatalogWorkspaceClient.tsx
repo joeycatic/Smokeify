@@ -33,6 +33,11 @@ import {
   slugifyHandle,
   sortRowsByName,
 } from "./catalogShared";
+import {
+  STOREFRONT_ASSIGNMENT_OPTIONS,
+  STOREFRONT_LABELS,
+  parseStorefrontAssignmentValue,
+} from "@/lib/storefronts";
 
 export default function CatalogWorkspaceClient({
   initialProducts,
@@ -98,9 +103,11 @@ export default function CatalogWorkspaceClient({
   >("add");
   const [bulkCategoryId, setBulkCategoryId] = useState("");
   const [bulkSupplierId, setBulkSupplierId] = useState("");
+  const [bulkStorefronts, setBulkStorefronts] = useState("");
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [presetName, setPresetName] = useState("");
+  const [storefrontFilter, setStorefrontFilter] = useState(initialFilters.storefront);
   const [supplierFilter, setSupplierFilter] = useState(initialFilters.supplierId);
   const [categoryFilter, setCategoryFilter] = useState(initialFilters.categoryId);
   const [collectionFilter, setCollectionFilter] = useState(
@@ -120,12 +127,14 @@ export default function CatalogWorkspaceClient({
     handle: "",
     description: "",
     parentId: "",
+    storefronts: "MAIN",
   });
   const [newCollection, setNewCollection] = useState({
     name: "",
     handle: "",
     description: "",
   });
+  const [createStorefronts, setCreateStorefronts] = useState("MAIN");
   const lastInitialQueryRef = useRef(initialQuery);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -144,6 +153,7 @@ export default function CatalogWorkspaceClient({
           if (
             typeof candidate.name !== "string" ||
             typeof candidate.query !== "string" ||
+            typeof candidate.storefront !== "string" ||
             typeof candidate.supplierId !== "string" ||
             typeof candidate.categoryId !== "string" ||
             typeof candidate.collectionId !== "string" ||
@@ -162,6 +172,7 @@ export default function CatalogWorkspaceClient({
             query: candidate.query,
             sortKey: candidate.sortKey,
             sortDirection: candidate.sortDirection,
+            storefront: candidate.storefront,
             supplierId: candidate.supplierId,
             categoryId: candidate.categoryId,
             collectionId: candidate.collectionId,
@@ -204,12 +215,14 @@ export default function CatalogWorkspaceClient({
   }, [initialQuery, searchTerm]);
 
   useEffect(() => {
+    setStorefrontFilter(initialFilters.storefront);
     setSupplierFilter(initialFilters.supplierId);
     setCategoryFilter(initialFilters.categoryId);
     setCollectionFilter(initialFilters.collectionId);
   }, [
     initialFilters.categoryId,
     initialFilters.collectionId,
+    initialFilters.storefront,
     initialFilters.supplierId,
   ]);
 
@@ -304,10 +317,12 @@ export default function CatalogWorkspaceClient({
 
   useEffect(() => {
     const params = new URLSearchParams(searchParamsString);
+    const currentStorefront = params.get("storefront") ?? "";
     const currentSupplier = params.get("supplier") ?? "";
     const currentCategory = params.get("category") ?? "";
     const currentCollection = params.get("collection") ?? "";
     if (
+      currentStorefront === storefrontFilter &&
       currentSupplier === supplierFilter &&
       currentCategory === categoryFilter &&
       currentCollection === collectionFilter
@@ -315,6 +330,8 @@ export default function CatalogWorkspaceClient({
       return;
     }
 
+    if (storefrontFilter) params.set("storefront", storefrontFilter);
+    else params.delete("storefront");
     if (supplierFilter) params.set("supplier", supplierFilter);
     else params.delete("supplier");
     if (categoryFilter) params.set("category", categoryFilter);
@@ -333,6 +350,7 @@ export default function CatalogWorkspaceClient({
     collectionFilter,
     router,
     searchParamsString,
+    storefrontFilter,
     supplierFilter,
   ]);
 
@@ -408,6 +426,11 @@ export default function CatalogWorkspaceClient({
     : [];
 
   const activeFilterLabels = [
+    storefrontFilter
+      ? `Storefront: ${
+          STOREFRONT_LABELS[storefrontFilter as keyof typeof STOREFRONT_LABELS]
+        }`
+      : null,
     supplierFilter
       ? `Supplier: ${
           suppliers.find((supplier) => supplier.id === supplierFilter)?.name ??
@@ -441,6 +464,7 @@ export default function CatalogWorkspaceClient({
     setSearchTerm(preset.query);
     setSortKey(preset.sortKey);
     setSortDirection(preset.sortDirection);
+    setStorefrontFilter(preset.storefront);
     setSupplierFilter(preset.supplierId);
     setCategoryFilter(preset.categoryId);
     setCollectionFilter(preset.collectionId);
@@ -450,6 +474,8 @@ export default function CatalogWorkspaceClient({
     else params.delete("q");
     params.set("sort", preset.sortKey);
     params.set("dir", preset.sortDirection);
+    if (preset.storefront) params.set("storefront", preset.storefront);
+    else params.delete("storefront");
     if (preset.supplierId) params.set("supplier", preset.supplierId);
     else params.delete("supplier");
     if (preset.categoryId) params.set("category", preset.categoryId);
@@ -469,6 +495,7 @@ export default function CatalogWorkspaceClient({
     setSearchTerm("");
     setSortKey("updatedAt");
     setSortDirection("desc");
+    setStorefrontFilter("");
     setSupplierFilter("");
     setCategoryFilter("");
     setCollectionFilter("");
@@ -476,6 +503,7 @@ export default function CatalogWorkspaceClient({
     const params = new URLSearchParams(searchParamsString);
     params.delete("q");
     params.delete("page");
+    params.delete("storefront");
     params.delete("supplier");
     params.delete("category");
     params.delete("collection");
@@ -503,6 +531,7 @@ export default function CatalogWorkspaceClient({
           query: searchTerm.trim(),
           sortKey,
           sortDirection,
+          storefront: storefrontFilter,
           supplierId: supplierFilter,
           categoryId: categoryFilter,
           collectionId: collectionFilter,
@@ -553,6 +582,7 @@ export default function CatalogWorkspaceClient({
           title,
           handle: normalizedHandle || undefined,
           status: "DRAFT",
+          storefronts: parseStorefrontAssignmentValue(createStorefronts),
           supplierId: createSupplierId || null,
           leadTimeDays,
         }),
@@ -574,6 +604,7 @@ export default function CatalogWorkspaceClient({
       );
       setTotalCount((previous) => previous + 1);
       setCreateOpen(false);
+      setCreateStorefronts("MAIN");
     } catch {
       setCreateError("Create failed");
     } finally {
@@ -667,6 +698,7 @@ export default function CatalogWorkspaceClient({
       category?: { action: "add" | "remove"; categoryId: string };
       supplierId?: string | null;
       productGroup?: string | null;
+      storefronts?: ("MAIN" | "GROW")[];
     } = { productIds: selectedIds };
 
     if (bulkStatus) payload.status = bulkStatus;
@@ -706,6 +738,9 @@ export default function CatalogWorkspaceClient({
       payload.supplierId =
         bulkSupplierId === "__clear__" ? null : bulkSupplierId;
     }
+    if (bulkStorefronts) {
+      payload.storefronts = parseStorefrontAssignmentValue(bulkStorefronts);
+    }
     if (bulkProductGroupClear) payload.productGroup = null;
     else if (bulkProductGroup.trim()) payload.productGroup = bulkProductGroup.trim();
 
@@ -729,6 +764,7 @@ export default function CatalogWorkspaceClient({
       setBulkTagRemove("");
       setBulkCategoryId("");
       setBulkSupplierId("");
+      setBulkStorefronts("");
       setBulkProductGroup("");
       setBulkProductGroupClear(false);
     } catch {
@@ -754,6 +790,7 @@ export default function CatalogWorkspaceClient({
             handle: item.handle,
             description: item.description,
             parentId: item.parentId ?? null,
+            storefronts: item.storefronts,
           }
         : {
             name: item.name,
@@ -806,6 +843,7 @@ export default function CatalogWorkspaceClient({
       handle: string;
       description?: string;
       parentId?: string | null;
+      storefronts?: string;
     },
     type: "category" | "collection",
   ) => {
@@ -814,7 +852,12 @@ export default function CatalogWorkspaceClient({
       type === "category" ? "/api/admin/categories" : "/api/admin/collections";
     const body =
       type === "category"
-        ? payload
+        ? {
+            ...payload,
+            storefronts: payload.storefronts
+              ? parseStorefrontAssignmentValue(payload.storefronts)
+              : undefined,
+          }
         : {
             name: payload.name,
             handle: payload.handle,
@@ -951,6 +994,8 @@ export default function CatalogWorkspaceClient({
           <CatalogToolbar
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
+            storefrontFilter={storefrontFilter}
+            onStorefrontFilterChange={setStorefrontFilter}
             supplierFilter={supplierFilter}
             onSupplierFilterChange={setSupplierFilter}
             categoryFilter={categoryFilter}
@@ -1026,6 +1071,8 @@ export default function CatalogWorkspaceClient({
         bulkSupplierId={bulkSupplierId}
         onBulkSupplierIdChange={setBulkSupplierId}
         suppliers={suppliers}
+        bulkStorefronts={bulkStorefronts}
+        onBulkStorefrontsChange={setBulkStorefronts}
         bulkCategoryAction={bulkCategoryAction}
         onBulkCategoryActionChange={setBulkCategoryAction}
         bulkCategoryId={bulkCategoryId}
@@ -1063,7 +1110,13 @@ export default function CatalogWorkspaceClient({
           if (!created) return;
           setCategories((previous) => sortRowsByName([...previous, created]));
           setSelectedCategoryId(created.id);
-          setNewCategory({ name: "", handle: "", description: "", parentId: "" });
+          setNewCategory({
+            name: "",
+            handle: "",
+            description: "",
+            parentId: "",
+            storefronts: "MAIN",
+          });
         }}
         onUpdateCategory={(id, value) =>
           setCategories((previous) =>
@@ -1171,7 +1224,19 @@ export default function CatalogWorkspaceClient({
               placeholder="auto-generated-from-title"
             />
           </AdminField>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            <AdminField label="Storefront visibility">
+              <AdminSelect
+                value={createStorefronts}
+                onChange={(event) => setCreateStorefronts(event.target.value)}
+              >
+                {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </AdminSelect>
+            </AdminField>
             <AdminField label="Supplier">
               <AdminSelect
                 value={createSupplierId}
