@@ -9,6 +9,7 @@ import {
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
 import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -47,6 +48,7 @@ export async function GET() {
       productGroup: true,
       shippingClass: true,
       tags: true,
+      storefronts: true,
       status: true,
       leadTimeDays: true,
       weightGrams: true,
@@ -102,6 +104,7 @@ export async function POST(request: Request) {
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
+    storefronts?: string[];
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -196,6 +199,7 @@ export async function POST(request: Request) {
   const sanitizedTags = Array.isArray(body.tags)
     ? body.tags.map((tag) => tag.trim()).filter(Boolean)
     : [];
+  const storefronts = parseStorefronts(body.storefronts, ["MAIN"]);
 
   const violations = collectMerchantPolicyViolations({
     title,
@@ -238,6 +242,7 @@ export async function POST(request: Request) {
       heightMm: typeof body.heightMm === "number" ? body.heightMm : null,
       shippingClass: body.shippingClass?.trim() || null,
       tags: sanitizedTags,
+      storefronts: storefrontsToPrisma(storefronts),
       status: parseStatus(body.status),
       variants: {
         create: {

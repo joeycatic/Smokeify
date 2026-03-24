@@ -4,6 +4,7 @@ import { requireAdmin, slugify } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     handle?: string;
     description?: string | null;
     parentId?: string | null;
+    storefronts?: string[];
   };
 
   const name = body.name?.trim();
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
       handle,
       description: body.description?.trim() || null,
       parentId: parentId || null,
+      storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts, ["MAIN"])),
     },
   });
 

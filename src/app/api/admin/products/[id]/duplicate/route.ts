@@ -87,6 +87,7 @@ export async function POST(
       airSystemDiameterMm: product.airSystemDiameterMm,
       shippingClass: product.shippingClass,
       tags: product.tags,
+      storefronts: product.storefronts,
       status: "DRAFT",
       mainCategoryId: product.mainCategoryId,
       images: {

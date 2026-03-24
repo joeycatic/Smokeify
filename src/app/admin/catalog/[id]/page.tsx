@@ -220,6 +220,8 @@ export default async function AdminProductPage({
       <AdminProductClient
         product={{
           ...product,
+          storefronts:
+            (product as { storefronts?: ("MAIN" | "GROW")[] }).storefronts ?? ["MAIN"],
           createdAt: product.createdAt.toISOString(),
           updatedAt: product.updatedAt.toISOString(),
           variants: product.variants.map((variant) => ({

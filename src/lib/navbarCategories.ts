@@ -60,15 +60,21 @@ const getNavbarCategoriesCached = unstable_cache(
   async (): Promise<NavbarCategory[]> => {
     const [categories, productCategoryLinks, mainCategoryLinks] = await Promise.all([
       prisma.category.findMany({
+        where: { storefronts: { has: "MAIN" } },
         select: { id: true, name: true, handle: true, parentId: true },
         orderBy: { name: "asc" },
       }),
       prisma.productCategory.findMany({
+        where: { product: { storefronts: { has: "MAIN" }, status: "ACTIVE" } },
         select: { productId: true, categoryId: true },
       }),
       prisma.product.findMany({
         select: { id: true, mainCategoryId: true },
-        where: { mainCategoryId: { not: null } },
+        where: {
+          mainCategoryId: { not: null },
+          storefronts: { has: "MAIN" },
+          status: "ACTIVE",
+        },
       }),
     ]);
     const categoryById = new Map(categories.map((category) => [category.id, category]));

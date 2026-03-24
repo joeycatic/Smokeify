@@ -14,6 +14,14 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import {
+  STOREFRONT_ASSIGNMENT_OPTIONS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
+import {
+  formatStorefrontLabel,
+  getStorefrontBadgeTone,
+} from "../catalog/catalogShared";
 
 type Category = {
   id: string;
@@ -21,6 +29,7 @@ type Category = {
   handle: string;
   description: string | null;
   parentId: string | null;
+  storefronts: StorefrontCode[];
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +39,7 @@ const emptyForm = {
   handle: "",
   description: "",
   parentId: "",
+  storefronts: "MAIN",
 };
 
 export default function AdminCategoriesClient() {
@@ -123,6 +133,7 @@ export default function AdminCategoriesClient() {
           handle: newCategory.handle.trim() || undefined,
           description: newCategory.description.trim() || null,
           parentId: newCategory.parentId || null,
+          storefronts: newCategory.storefronts.split(","),
         }),
       });
       if (!res.ok) {
@@ -164,6 +175,7 @@ export default function AdminCategoriesClient() {
           handle: selectedCategory.handle.trim() || undefined,
           description: selectedCategory.description?.trim() || null,
           parentId: selectedCategory.parentId || null,
+          storefronts: selectedCategory.storefronts,
         }),
       });
       if (!res.ok) {
@@ -289,6 +301,20 @@ export default function AdminCategoriesClient() {
                   placeholder="Short internal context or merchandising note"
                 />
               </AdminField>
+              <AdminField label="Storefront visibility">
+                <AdminSelect
+                  value={newCategory.storefronts}
+                  onChange={(event) =>
+                    setNewCategory((prev) => ({ ...prev, storefronts: event.target.value }))
+                  }
+                >
+                  {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AdminSelect>
+              </AdminField>
               <div className="flex flex-wrap gap-2">
                 <AdminButton onClick={() => void createCategory()}>Create category</AdminButton>
                 <AdminButton tone="secondary" onClick={() => setNewCategory(emptyForm)}>
@@ -335,6 +361,18 @@ export default function AdminCategoriesClient() {
                             <div className="mt-1 text-xs text-slate-500">
                               /{category.handle}
                             </div>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {category.storefronts.map((storefront) => (
+                                <span
+                                  key={`${category.id}-${storefront}`}
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStorefrontBadgeTone(
+                                    storefront,
+                                  )}`}
+                                >
+                                  {formatStorefrontLabel(storefront)}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -365,6 +403,18 @@ export default function AdminCategoriesClient() {
                                   <div>{child.name}</div>
                                   <div className="mt-1 text-xs text-slate-500">
                                     /{child.handle}
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {child.storefronts.map((storefront) => (
+                                      <span
+                                        key={`${child.id}-${storefront}`}
+                                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStorefrontBadgeTone(
+                                          storefront,
+                                        )}`}
+                                      >
+                                        {formatStorefrontLabel(storefront)}
+                                      </span>
+                                    ))}
                                   </div>
                                 </div>
                               </div>
@@ -456,6 +506,25 @@ export default function AdminCategoriesClient() {
                       ))}
                   </AdminSelect>
                 </AdminField>
+                <AdminField label="Storefront visibility">
+                  <AdminSelect
+                    value={selectedCategory.storefronts.join(",")}
+                    onChange={(event) =>
+                      updateSelected({
+                        storefronts: event.target.value
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter(Boolean) as StorefrontCode[],
+                      })
+                    }
+                  >
+                    {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </AdminField>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Metadata
@@ -464,6 +533,18 @@ export default function AdminCategoriesClient() {
                     <div>Created: {new Date(selectedCategory.createdAt).toLocaleDateString("de-DE")}</div>
                     <div>Updated: {new Date(selectedCategory.updatedAt).toLocaleDateString("de-DE")}</div>
                     <div>Children: {selectedChildren.length}</div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedCategory.storefronts.map((storefront) => (
+                      <span
+                        key={`${selectedCategory.id}-meta-${storefront}`}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStorefrontBadgeTone(
+                          storefront,
+                        )}`}
+                      >
+                        {formatStorefrontLabel(storefront)}
+                      </span>
+                    ))}
                   </div>
                 </div>
                 <div className="md:col-span-2">
