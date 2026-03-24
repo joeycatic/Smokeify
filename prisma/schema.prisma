@@ -73,6 +73,12 @@ enum ExpenseDocumentStatus {
   VERIFIED
 }
 
+enum RecurringExpenseInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 enum Storefront {
   MAIN
   GROW
@@ -262,6 +268,7 @@ model Supplier {
   updatedAt   DateTime @updatedAt
   products    Product[]
   expenses    Expense[]
+  recurringExpenses RecurringExpense[]
 }
 
 model Expense {
@@ -289,6 +296,32 @@ model Expense {
   @@index([paidAt])
   @@index([category, documentDate])
   @@index([documentStatus, documentDate])
+}
+
+model RecurringExpense {
+  id                 String                   @id @default(cuid())
+  supplierId         String?
+  title              String
+  category           ExpenseCategory          @default(OTHER)
+  notes              String?
+  currency           String                   @default("EUR")
+  grossAmount        Int
+  netAmount          Int
+  vatAmount          Int                      @default(0)
+  vatRateBasisPoints Int?
+  isDeductible       Boolean                  @default(true)
+  interval           RecurringExpenseInterval @default(MONTHLY)
+  nextDueDate        DateTime
+  isActive           Boolean                  @default(true)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId])
+  @@index([nextDueDate])
+  @@index([isActive, nextDueDate])
+  @@index([category, isActive])
 }
 
 

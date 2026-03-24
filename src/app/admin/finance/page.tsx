@@ -20,6 +20,12 @@ const formatMoney = (amountCents: number, currency = "EUR") =>
   }).format(amountCents / 100);
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+const formatDate = (value: Date) =>
+  new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(value);
 
 const formatDelta = (current: number, previous: number) => {
   if (previous <= 0) return current > 0 ? "+100%" : "0%";
@@ -27,9 +33,20 @@ const formatDelta = (current: number, previous: number) => {
   return `${delta > 0 ? "+" : ""}${delta}%`;
 };
 
-export default async function AdminFinancePage() {
+const FINANCE_RANGE_OPTIONS = [30, 90, 365] as const;
+
+export default async function AdminFinancePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ days?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") notFound();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const requestedDays = Number(resolvedSearchParams?.days ?? "30");
+  const days = FINANCE_RANGE_OPTIONS.includes(requestedDays as 30 | 90 | 365)
+    ? requestedDays
+    : 30;
 
   const {
     currentFinance,
@@ -40,7 +57,10 @@ export default async function AdminFinancePage() {
     trend,
     expenseByCategory,
     expenseMigrationRequired,
-  } = await getFinancePageData(30);
+    currentStart,
+    currentEnd,
+    latestRecognizedOrderAt,
+  } = await getFinancePageData(days);
   const currency = currentFinance.currency;
 
   return (
@@ -61,6 +81,22 @@ export default async function AdminFinancePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            {FINANCE_RANGE_OPTIONS.map((range) => {
+              const active = range === days;
+              return (
+                <Link
+                  key={range}
+                  href={`/admin/finance?days=${range}`}
+                  className={`rounded-full border px-3 py-2 transition ${
+                    active
+                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                      : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {range} days
+                </Link>
+              );
+            })}
             <Link
               href="/admin/orders"
               className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
@@ -82,6 +118,16 @@ export default async function AdminFinancePage() {
           </div>
         </div>
       </section>
+
+      {currentFinance.paidOrderCount === 0 ? (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          No recognized paid orders were found between {formatDate(currentStart)} and{" "}
+          {formatDate(currentEnd)}.
+          {latestRecognizedOrderAt
+            ? ` Latest recognized paid order: ${formatDate(latestRecognizedOrderAt)}.`
+            : " No recognized paid orders exist yet in the database."}
+        </div>
+      ) : null}
 
       {expenseMigrationRequired ? (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
@@ -134,7 +180,7 @@ export default async function AdminFinancePage() {
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminPanel
           eyebrow="Period Comparison"
-          title="Current 30-day finance rollup"
+          title={`Current ${days}-day finance rollup`}
           description="Paid-order rollup using order snapshots, refunds, captured VAT and item cost fields already present in the custom commerce system."
         >
           <div className="space-y-3">
@@ -256,7 +302,7 @@ export default async function AdminFinancePage() {
 
         <AdminPanel
           eyebrow="Expense Mix"
-          title="Current 30-day categories"
+          title={`Current ${days}-day categories`}
           description="This is the first operating-cost layer on top of the commerce data. Category-level allocation can expand from here."
         >
           {expenseByCategory.length === 0 ? (

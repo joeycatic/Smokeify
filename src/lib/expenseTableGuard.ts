@@ -4,7 +4,7 @@ type PrismaLikeError = {
 };
 
 export const EXPENSE_STORAGE_UNAVAILABLE_MESSAGE =
-  "Expense storage is not available until the Expense migration is applied.";
+  "Expense storage is not available until the expense migrations are applied.";
 
 export function isMissingExpenseTableError(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -14,5 +14,8 @@ export function isMissingExpenseTableError(error: unknown) {
     prismaError.meta && typeof prismaError.meta === "object" && "table" in prismaError.meta
       ? (prismaError.meta as { table?: unknown }).table
       : null;
-  return typeof table === "string" && table.includes("Expense");
+  return (
+    typeof table === "string" &&
+    (table.includes("Expense") || table.includes("RecurringExpense"))
+  );
 }

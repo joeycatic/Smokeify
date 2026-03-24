@@ -16,6 +16,7 @@ export default async function AdminExpensesPage() {
       <AdminExpensesClient
         initialSuppliers={data.suppliers}
         initialSummary={data.summary}
+        initialRecurringSummary={data.recurringSummary}
         initialCurrentMonthSummary={data.currentMonthSummary}
         initialExpenseByCategory={data.expenseByCategory}
         initialMigrationRequired={data.expenseMigrationRequired}
@@ -40,6 +41,25 @@ export default async function AdminExpensesPage() {
           documentDate: expense.documentDate.toISOString(),
           paidAt: expense.paidAt ? expense.paidAt.toISOString() : null,
           documentStatus: expense.documentStatus,
+          createdAt: expense.createdAt.toISOString(),
+          updatedAt: expense.updatedAt.toISOString(),
+        }))}
+        initialRecurringExpenses={data.recurringExpenses.map((expense) => ({
+          id: expense.id,
+          supplierId: expense.supplierId,
+          supplierName: expense.supplier?.name ?? null,
+          title: expense.title,
+          category: expense.category,
+          notes: expense.notes,
+          currency: expense.currency,
+          grossAmount: expense.grossAmount,
+          netAmount: expense.netAmount,
+          vatAmount: expense.vatAmount,
+          vatRateBasisPoints: expense.vatRateBasisPoints,
+          isDeductible: expense.isDeductible,
+          interval: expense.interval,
+          nextDueDate: expense.nextDueDate.toISOString(),
+          isActive: expense.isActive,
           createdAt: expense.createdAt.toISOString(),
           updatedAt: expense.updatedAt.toISOString(),
         }))}

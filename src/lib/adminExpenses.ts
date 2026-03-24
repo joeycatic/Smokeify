@@ -9,9 +9,11 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 
 export const EXPENSE_DOCUMENT_STATUSES = ["MISSING", "RECEIVED", "VERIFIED"] as const;
+export const RECURRING_EXPENSE_INTERVALS = ["MONTHLY", "QUARTERLY", "YEARLY"] as const;
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export type ExpenseDocumentStatus = (typeof EXPENSE_DOCUMENT_STATUSES)[number];
+export type RecurringExpenseInterval = (typeof RECURRING_EXPENSE_INTERVALS)[number];
 
 export type AdminExpenseInput = {
   id?: string;
@@ -51,12 +53,43 @@ export type VatDeadlineInfo = {
   statusLabel: "Due soon" | "Upcoming" | "Overdue";
 };
 
+export type AdminRecurringExpenseInput = {
+  id?: string;
+  supplierId: string | null;
+  title: string;
+  category: ExpenseCategory;
+  notes: string | null;
+  currency: string;
+  grossAmount: number;
+  netAmount: number;
+  vatAmount: number;
+  vatRateBasisPoints: number | null;
+  isDeductible: boolean;
+  interval: RecurringExpenseInterval;
+  nextDueDate: Date;
+  isActive: boolean;
+};
+
+export type AdminRecurringExpenseSummary = {
+  currency: string;
+  activeCount: number;
+  inactiveCount: number;
+  dueThisMonthCount: number;
+  dueNext30DaysCount: number;
+  projectedMonthlyGrossCents: number;
+  projectedMonthlyVatCents: number;
+};
+
 export function isExpenseCategory(value: string): value is ExpenseCategory {
   return (EXPENSE_CATEGORIES as readonly string[]).includes(value);
 }
 
 export function isExpenseDocumentStatus(value: string): value is ExpenseDocumentStatus {
   return (EXPENSE_DOCUMENT_STATUSES as readonly string[]).includes(value);
+}
+
+export function isRecurringExpenseInterval(value: string): value is RecurringExpenseInterval {
+  return (RECURRING_EXPENSE_INTERVALS as readonly string[]).includes(value);
 }
 
 export function formatExpenseCategoryLabel(category: ExpenseCategory) {
@@ -89,6 +122,28 @@ export function formatExpenseDocumentStatusLabel(status: ExpenseDocumentStatus) 
     default:
       return status;
   }
+}
+
+export function formatRecurringExpenseIntervalLabel(interval: RecurringExpenseInterval) {
+  switch (interval) {
+    case "MONTHLY":
+      return "Monthly";
+    case "QUARTERLY":
+      return "Quarterly";
+    case "YEARLY":
+      return "Yearly";
+    default:
+      return interval;
+  }
+}
+
+export function getRecurringExpenseMonthlyAmountCents(
+  amountCents: number,
+  interval: RecurringExpenseInterval,
+) {
+  if (interval === "QUARTERLY") return Math.round(amountCents / 3);
+  if (interval === "YEARLY") return Math.round(amountCents / 12);
+  return amountCents;
 }
 
 export function buildExpenseSummary(
@@ -130,6 +185,52 @@ export function buildExpenseSummary(
       missingVatCount: 0,
       verifiedCount: 0,
       readyCount: 0,
+    },
+  );
+}
+
+export function buildRecurringExpenseSummary(
+  expenses: AdminRecurringExpenseInput[],
+  currency = expenses[0]?.currency ?? "EUR",
+  now = new Date(),
+): AdminRecurringExpenseSummary {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const next30Days = new Date(now);
+  next30Days.setDate(next30Days.getDate() + 30);
+
+  return expenses.reduce<AdminRecurringExpenseSummary>(
+    (summary, expense) => {
+      if (expense.isActive) {
+        summary.activeCount += 1;
+        summary.projectedMonthlyGrossCents += getRecurringExpenseMonthlyAmountCents(
+          expense.grossAmount,
+          expense.interval,
+        );
+        summary.projectedMonthlyVatCents += getRecurringExpenseMonthlyAmountCents(
+          expense.vatAmount,
+          expense.interval,
+        );
+
+        if (expense.nextDueDate >= monthStart && expense.nextDueDate < nextMonthStart) {
+          summary.dueThisMonthCount += 1;
+        }
+        if (expense.nextDueDate >= now && expense.nextDueDate <= next30Days) {
+          summary.dueNext30DaysCount += 1;
+        }
+      } else {
+        summary.inactiveCount += 1;
+      }
+      return summary;
+    },
+    {
+      currency,
+      activeCount: 0,
+      inactiveCount: 0,
+      dueThisMonthCount: 0,
+      dueNext30DaysCount: 0,
+      projectedMonthlyGrossCents: 0,
+      projectedMonthlyVatCents: 0,
     },
   );
 }

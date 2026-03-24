@@ -1,54 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
-import { getExpensesPageData } from "@/lib/adminAddonData";
-import { parseExpensePayload, serializeExpenseRecord, serializeRecurringExpenseRecord } from "@/lib/adminExpenseApi";
+import {
+  parseRecurringExpensePayload,
+  serializeRecurringExpenseRecord,
+} from "@/lib/adminExpenseApi";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
 } from "@/lib/expenseTableGuard";
 
-export async function GET(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const url = new URL(request.url);
-  const daysParam = Number(url.searchParams.get("days") ?? "120");
-  const days = Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 365) : 120;
-  const data = await getExpensesPageData(days);
-
-  return NextResponse.json({
-    suppliers: data.suppliers,
-    summary: data.summary,
-    recurringSummary: data.recurringSummary,
-    currentMonthSummary: data.currentMonthSummary,
-    expenseByCategory: data.expenseByCategory,
-    migrationRequired: data.expenseMigrationRequired,
-    deadline: {
-      dueDate: data.deadline.dueDate.toISOString(),
-      daysUntilDue: data.deadline.daysUntilDue,
-      statusLabel: data.deadline.statusLabel,
-    },
-    expenses: data.expenses.map((expense) => serializeExpenseRecord(expense)),
-    recurringExpenses: data.recurringExpenses.map((expense) =>
-      serializeRecurringExpenseRecord(expense),
-    ),
-  });
-}
-
-export async function POST(request: Request) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
-    key: `admin-expenses:ip:${ip}`,
-    limit: 50,
+    key: `admin-recurring-expense-update:ip:${ip}`,
+    limit: 60,
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
@@ -63,7 +38,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = parseExpensePayload(await request.json());
+  const { id } = await context.params;
+  const parsed = parseRecurringExpensePayload(await request.json());
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
@@ -79,7 +55,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const expense = await prisma.expense.create({
+    const expense = await prisma.recurringExpense.update({
+      where: { id },
       data: parsed.data,
       include: {
         supplier: {
@@ -93,19 +70,21 @@ export async function POST(request: Request) {
 
     await logAdminAction({
       actor: { id: session.user.id, email: session.user.email ?? null },
-      action: "expense.create",
-      targetType: "expense",
+      action: "recurring-expense.update",
+      targetType: "recurring-expense",
       targetId: expense.id,
-      summary: `Created expense ${expense.title}`,
+      summary: `Updated recurring expense ${expense.title}`,
       metadata: {
         category: expense.category,
         grossAmount: expense.grossAmount,
-        vatAmount: expense.vatAmount,
+        interval: expense.interval,
+        nextDueDate: expense.nextDueDate.toISOString(),
+        isActive: expense.isActive,
         supplierId: expense.supplierId,
       },
     });
 
-    return NextResponse.json({ expense: serializeExpenseRecord(expense) });
+    return NextResponse.json({ expense: serializeRecurringExpenseRecord(expense) });
   } catch (error) {
     if (isMissingExpenseTableError(error)) {
       return NextResponse.json(

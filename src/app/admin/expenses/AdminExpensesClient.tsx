@@ -5,10 +5,14 @@ import { useMemo, useState } from "react";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_DOCUMENT_STATUSES,
+  RECURRING_EXPENSE_INTERVALS,
   formatExpenseCategoryLabel,
   formatExpenseDocumentStatusLabel,
+  formatRecurringExpenseIntervalLabel,
+  getRecurringExpenseMonthlyAmountCents,
   type ExpenseCategory,
   type ExpenseDocumentStatus,
+  type RecurringExpenseInterval,
 } from "@/lib/adminExpenses";
 
 type SupplierOption = {
@@ -29,6 +33,16 @@ type ExpenseSummary = {
   missingVatCount: number;
   verifiedCount: number;
   readyCount: number;
+};
+
+type RecurringExpenseSummary = {
+  currency: string;
+  activeCount: number;
+  inactiveCount: number;
+  dueThisMonthCount: number;
+  dueNext30DaysCount: number;
+  projectedMonthlyGrossCents: number;
+  projectedMonthlyVatCents: number;
 };
 
 type ExpenseCategorySummary = {
@@ -64,6 +78,26 @@ type ExpenseRecord = {
   updatedAt: string;
 };
 
+type RecurringExpenseRecord = {
+  id: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  title: string;
+  category: ExpenseCategory;
+  notes: string | null;
+  currency: string;
+  grossAmount: number;
+  netAmount: number;
+  vatAmount: number;
+  vatRateBasisPoints: number | null;
+  isDeductible: boolean;
+  interval: RecurringExpenseInterval;
+  nextDueDate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type ExpenseFormState = {
   supplierId: string;
   title: string;
@@ -77,6 +111,21 @@ type ExpenseFormState = {
   documentDate: string;
   paidAt: string;
   documentStatus: ExpenseDocumentStatus;
+};
+
+type RecurringExpenseFormState = {
+  supplierId: string;
+  title: string;
+  category: ExpenseCategory;
+  notes: string;
+  grossAmount: string;
+  netAmount: string;
+  vatAmount: string;
+  vatRateBasisPoints: string;
+  isDeductible: boolean;
+  interval: RecurringExpenseInterval;
+  nextDueDate: string;
+  isActive: boolean;
 };
 
 const formatMoney = (amountCents: number, currency = "EUR") =>
@@ -111,6 +160,21 @@ const emptyForm = (): ExpenseFormState => ({
   documentDate: new Date().toISOString().slice(0, 10),
   paidAt: "",
   documentStatus: "RECEIVED",
+});
+
+const emptyRecurringForm = (): RecurringExpenseFormState => ({
+  supplierId: "",
+  title: "",
+  category: "OPERATIONS",
+  notes: "",
+  grossAmount: "",
+  netAmount: "",
+  vatAmount: "",
+  vatRateBasisPoints: "1900",
+  isDeductible: true,
+  interval: "MONTHLY",
+  nextDueDate: new Date().toISOString().slice(0, 10),
+  isActive: true,
 });
 
 const buildPayload = (form: ExpenseFormState) => {
@@ -159,6 +223,52 @@ const buildPayload = (form: ExpenseFormState) => {
   };
 };
 
+const buildRecurringPayload = (form: RecurringExpenseFormState) => {
+  const grossAmount = parseMoneyInputToCents(form.grossAmount);
+  const netAmount = parseMoneyInputToCents(form.netAmount);
+  const vatAmount = parseMoneyInputToCents(form.vatAmount);
+  if (grossAmount === null || netAmount === null || vatAmount === null) {
+    return { ok: false as const, error: "Gross, net and VAT amounts must be valid amounts." };
+  }
+  if (grossAmount !== netAmount + vatAmount) {
+    return { ok: false as const, error: "Gross amount must equal net amount plus VAT amount." };
+  }
+  const vatRateBasisPoints = form.vatRateBasisPoints.trim()
+    ? Number(form.vatRateBasisPoints.trim())
+    : null;
+  if (
+    form.vatRateBasisPoints.trim() &&
+    (!Number.isFinite(vatRateBasisPoints) || vatRateBasisPoints === null || vatRateBasisPoints < 0)
+  ) {
+    return { ok: false as const, error: "VAT rate must be a non-negative number." };
+  }
+  if (!form.title.trim()) {
+    return { ok: false as const, error: "Title is required." };
+  }
+  if (!form.nextDueDate) {
+    return { ok: false as const, error: "Next due date is required." };
+  }
+
+  return {
+    ok: true as const,
+    data: {
+      supplierId: form.supplierId || null,
+      title: form.title.trim(),
+      category: form.category,
+      notes: form.notes.trim() || null,
+      currency: "EUR",
+      grossAmount,
+      netAmount,
+      vatAmount,
+      vatRateBasisPoints,
+      isDeductible: form.isDeductible,
+      interval: form.interval,
+      nextDueDate: form.nextDueDate,
+      isActive: form.isActive,
+    },
+  };
+};
+
 const toEditableForm = (expense: ExpenseRecord): ExpenseFormState => ({
   supplierId: expense.supplierId ?? "",
   title: expense.title,
@@ -174,10 +284,29 @@ const toEditableForm = (expense: ExpenseRecord): ExpenseFormState => ({
   documentStatus: expense.documentStatus,
 });
 
+const toEditableRecurringForm = (
+  expense: RecurringExpenseRecord,
+): RecurringExpenseFormState => ({
+  supplierId: expense.supplierId ?? "",
+  title: expense.title,
+  category: expense.category,
+  notes: expense.notes ?? "",
+  grossAmount: toMoneyInput(expense.grossAmount),
+  netAmount: toMoneyInput(expense.netAmount),
+  vatAmount: toMoneyInput(expense.vatAmount),
+  vatRateBasisPoints: expense.vatRateBasisPoints ? String(expense.vatRateBasisPoints) : "",
+  isDeductible: expense.isDeductible,
+  interval: expense.interval,
+  nextDueDate: toDateInput(expense.nextDueDate),
+  isActive: expense.isActive,
+});
+
 type AdminExpensesClientProps = {
   initialSuppliers: SupplierOption[];
   initialExpenses: ExpenseRecord[];
+  initialRecurringExpenses: RecurringExpenseRecord[];
   initialSummary: ExpenseSummary;
+  initialRecurringSummary: RecurringExpenseSummary;
   initialCurrentMonthSummary: ExpenseSummary;
   initialExpenseByCategory: ExpenseCategorySummary[];
   initialDeadline: VatDeadline;
@@ -190,7 +319,9 @@ const inputClass =
 export default function AdminExpensesClient({
   initialSuppliers,
   initialExpenses,
+  initialRecurringExpenses,
   initialSummary,
+  initialRecurringSummary,
   initialCurrentMonthSummary,
   initialExpenseByCategory,
   initialDeadline,
@@ -198,7 +329,9 @@ export default function AdminExpensesClient({
 }: AdminExpensesClientProps) {
   const [suppliers, setSuppliers] = useState(initialSuppliers);
   const [expenses, setExpenses] = useState(initialExpenses);
+  const [recurringExpenses, setRecurringExpenses] = useState(initialRecurringExpenses);
   const [summary, setSummary] = useState(initialSummary);
+  const [recurringSummary, setRecurringSummary] = useState(initialRecurringSummary);
   const [currentMonthSummary, setCurrentMonthSummary] = useState(initialCurrentMonthSummary);
   const [expenseByCategory, setExpenseByCategory] = useState(initialExpenseByCategory);
   const [deadline, setDeadline] = useState(initialDeadline);
@@ -209,6 +342,8 @@ export default function AdminExpensesClient({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [newExpense, setNewExpense] = useState<ExpenseFormState>(emptyForm);
+  const [newRecurringExpense, setNewRecurringExpense] =
+    useState<RecurringExpenseFormState>(emptyRecurringForm);
 
   const loadData = async () => {
     setLoading(true);
@@ -219,7 +354,9 @@ export default function AdminExpensesClient({
         error?: string;
         suppliers?: SupplierOption[];
         expenses?: ExpenseRecord[];
+        recurringExpenses?: RecurringExpenseRecord[];
         summary?: ExpenseSummary;
+        recurringSummary?: RecurringExpenseSummary;
         currentMonthSummary?: ExpenseSummary;
         expenseByCategory?: ExpenseCategorySummary[];
         deadline?: VatDeadline;
@@ -231,7 +368,9 @@ export default function AdminExpensesClient({
       }
       setSuppliers(data.suppliers ?? []);
       setExpenses(data.expenses ?? []);
+      setRecurringExpenses(data.recurringExpenses ?? []);
       setSummary(data.summary ?? initialSummary);
+      setRecurringSummary(data.recurringSummary ?? initialRecurringSummary);
       setCurrentMonthSummary(data.currentMonthSummary ?? initialCurrentMonthSummary);
       setExpenseByCategory(data.expenseByCategory ?? []);
       setDeadline(data.deadline ?? initialDeadline);
@@ -259,6 +398,23 @@ export default function AdminExpensesClient({
     );
   }, [expenses, query]);
 
+  const filteredRecurringExpenses = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return recurringExpenses;
+    return recurringExpenses.filter((expense) =>
+      [
+        expense.title,
+        expense.supplierName ?? "",
+        expense.category,
+        expense.notes ?? "",
+        expense.interval,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized),
+    );
+  }, [recurringExpenses, query]);
+
   const createExpense = async () => {
     setError("");
     setNotice("");
@@ -285,6 +441,35 @@ export default function AdminExpensesClient({
       await loadData();
     } catch {
       setError("Failed to create expense.");
+    }
+  };
+
+  const createRecurringExpense = async () => {
+    setError("");
+    setNotice("");
+    const payload = buildRecurringPayload(newRecurringExpense);
+    if (!payload.ok) {
+      setError(payload.error);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/expenses/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload.data),
+      });
+      const data = (await response.json()) as { error?: string; migrationRequired?: boolean };
+      if (!response.ok) {
+        if (data.migrationRequired) setMigrationRequired(true);
+        setError(data.error ?? "Failed to create recurring cost.");
+        return;
+      }
+      setNewRecurringExpense(emptyRecurringForm());
+      setNotice("Recurring cost created.");
+      await loadData();
+    } catch {
+      setError("Failed to create recurring cost.");
     }
   };
 
@@ -320,6 +505,38 @@ export default function AdminExpensesClient({
     }
   };
 
+  const updateRecurringExpense = async (expense: RecurringExpenseRecord) => {
+    setError("");
+    setNotice("");
+    setSavingId(expense.id);
+    const payload = buildRecurringPayload(toEditableRecurringForm(expense));
+    if (!payload.ok) {
+      setSavingId(null);
+      setError(payload.error);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/expenses/recurring/${expense.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload.data),
+      });
+      const data = (await response.json()) as { error?: string; migrationRequired?: boolean };
+      if (!response.ok) {
+        if (data.migrationRequired) setMigrationRequired(true);
+        setError(data.error ?? "Failed to update recurring cost.");
+        return;
+      }
+      setNotice("Recurring cost updated.");
+      await loadData();
+    } catch {
+      setError("Failed to update recurring cost.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const updateExpenseField = <K extends keyof ExpenseRecord>(
     id: string,
     key: K,
@@ -329,6 +546,16 @@ export default function AdminExpensesClient({
       current.map((expense) =>
         expense.id === id ? { ...expense, [key]: value } : expense,
       ),
+    );
+  };
+
+  const updateRecurringExpenseField = <K extends keyof RecurringExpenseRecord>(
+    id: string,
+    key: K,
+    value: RecurringExpenseRecord[K],
+  ) => {
+    setRecurringExpenses((current) =>
+      current.map((expense) => (expense.id === id ? { ...expense, [key]: value } : expense)),
     );
   };
 
@@ -380,11 +607,15 @@ export default function AdminExpensesClient({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <MetricCard label="Recorded expenses" value={String(summary.expenseCount)} />
           <MetricCard
             label="Current month gross"
             value={formatMoney(currentMonthSummary.totalGrossCents)}
+          />
+          <MetricCard
+            label="Recurring / month"
+            value={formatMoney(recurringSummary.projectedMonthlyGrossCents)}
           />
           <MetricCard
             label="Deductible input VAT"
@@ -608,6 +839,233 @@ export default function AdminExpensesClient({
             <button
               type="button"
               onClick={() => setNewExpense(emptyForm())}
+              className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+            >
+              Reset
+            </button>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel
+          eyebrow="Recurring"
+          title="Recurring cost planner"
+          description="Track monthly, quarterly, and yearly operating costs separately from booked expense records."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MiniMetric label="Active recurring costs" value={String(recurringSummary.activeCount)} />
+            <MiniMetric label="Due this month" value={String(recurringSummary.dueThisMonthCount)} />
+            <MiniMetric
+              label="Due in next 30 days"
+              value={String(recurringSummary.dueNext30DaysCount)}
+            />
+            <MiniMetric
+              label="Projected VAT / month"
+              value={formatMoney(recurringSummary.projectedMonthlyVatCents)}
+            />
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+              Recurring costs are planning records. They do not replace booked expense entries or
+              VAT evidence.
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+              Use next due dates to keep rent, software, and fixed overhead visible before the
+              invoice is booked.
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Create"
+          title="New recurring cost"
+          description="Add fixed overhead like rent, software, subscriptions, or other scheduled operating costs."
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Title">
+              <input
+                value={newRecurringExpense.title}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({ ...current, title: event.target.value }))
+                }
+                placeholder="Shop rent"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Supplier">
+              <select
+                value={newRecurringExpense.supplierId}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    supplierId: event.target.value,
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="">Unlinked / internal</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Category">
+              <select
+                value={newRecurringExpense.category}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    category: event.target.value as ExpenseCategory,
+                  }))
+                }
+                className={inputClass}
+              >
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {formatExpenseCategoryLabel(category)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Interval">
+              <select
+                value={newRecurringExpense.interval}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    interval: event.target.value as RecurringExpenseInterval,
+                  }))
+                }
+                className={inputClass}
+              >
+                {RECURRING_EXPENSE_INTERVALS.map((interval) => (
+                  <option key={interval} value={interval}>
+                    {formatRecurringExpenseIntervalLabel(interval)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Gross amount">
+              <input
+                value={newRecurringExpense.grossAmount}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    grossAmount: event.target.value,
+                  }))
+                }
+                placeholder="119.00"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Net amount">
+              <input
+                value={newRecurringExpense.netAmount}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    netAmount: event.target.value,
+                  }))
+                }
+                placeholder="100.00"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="VAT amount">
+              <input
+                value={newRecurringExpense.vatAmount}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    vatAmount: event.target.value,
+                  }))
+                }
+                placeholder="19.00"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="VAT rate (bps)">
+              <input
+                value={newRecurringExpense.vatRateBasisPoints}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    vatRateBasisPoints: event.target.value,
+                  }))
+                }
+                placeholder="1900"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Next due date">
+              <input
+                type="date"
+                value={newRecurringExpense.nextDueDate}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    nextDueDate: event.target.value,
+                  }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Status">
+              <select
+                value={newRecurringExpense.isActive ? "active" : "inactive"}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({
+                    ...current,
+                    isActive: event.target.value === "active",
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </Field>
+            <Field label="Notes" className="md:col-span-2">
+              <textarea
+                value={newRecurringExpense.notes}
+                onChange={(event) =>
+                  setNewRecurringExpense((current) => ({ ...current, notes: event.target.value }))
+                }
+                rows={3}
+                placeholder="Lease, tool subscription, insurance note..."
+                className={`${inputClass} min-h-[96px] py-3`}
+              />
+            </Field>
+          </div>
+          <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={newRecurringExpense.isDeductible}
+              onChange={(event) =>
+                setNewRecurringExpense((current) => ({
+                  ...current,
+                  isDeductible: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+            />
+            Deductible for input VAT
+          </label>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void createRecurringExpense()}
+              disabled={migrationRequired}
+              className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a]"
+            >
+              Create recurring cost
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewRecurringExpense(emptyRecurringForm())}
               className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
             >
               Reset
@@ -881,6 +1339,261 @@ export default function AdminExpensesClient({
           </div>
         </Panel>
       </div>
+
+      <Panel
+        eyebrow="Recurring Directory"
+        title="Recurring cost records"
+        description="Review and update the planned recurring cost base that sits alongside booked expenses."
+      >
+        <div className="mb-4 text-xs text-slate-500">
+          {filteredRecurringExpenses.length} recurring costs
+        </div>
+        <div className="space-y-4">
+          {filteredRecurringExpenses.length === 0 ? (
+            <EmptyState copy="No recurring costs found for the current filter." />
+          ) : (
+            filteredRecurringExpenses.map((expense) => (
+              <div
+                key={expense.id}
+                className="rounded-[24px] border border-white/10 bg-[#090d12] p-4"
+              >
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{expense.title}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                      <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
+                        {formatExpenseCategoryLabel(expense.category)}
+                      </span>
+                      <span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-300">
+                        {formatRecurringExpenseIntervalLabel(expense.interval)}
+                      </span>
+                      <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
+                        {formatMoney(expense.grossAmount)}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 ${
+                          expense.isActive
+                            ? "bg-emerald-400/10 text-emerald-300"
+                            : "bg-slate-400/10 text-slate-300"
+                        }`}
+                      >
+                        {expense.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Next due {new Date(expense.nextDueDate).toLocaleDateString("de-DE")}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Title">
+                    <input
+                      value={expense.title}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(expense.id, "title", event.target.value)
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Supplier">
+                    <select
+                      value={expense.supplierId ?? ""}
+                      onChange={(event) => {
+                        const supplier = suppliers.find((item) => item.id === event.target.value);
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "supplierId",
+                          event.target.value || null,
+                        );
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "supplierName",
+                          supplier?.name ?? null,
+                        );
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="">Unlinked / internal</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Category">
+                    <select
+                      value={expense.category}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "category",
+                          event.target.value as ExpenseCategory,
+                        )
+                      }
+                      className={inputClass}
+                    >
+                      {EXPENSE_CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {formatExpenseCategoryLabel(category)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Interval">
+                    <select
+                      value={expense.interval}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "interval",
+                          event.target.value as RecurringExpenseInterval,
+                        )
+                      }
+                      className={inputClass}
+                    >
+                      {RECURRING_EXPENSE_INTERVALS.map((interval) => (
+                        <option key={interval} value={interval}>
+                          {formatRecurringExpenseIntervalLabel(interval)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Gross amount">
+                    <input
+                      value={toMoneyInput(expense.grossAmount)}
+                      onChange={(event) => {
+                        const parsed = parseMoneyInputToCents(event.target.value);
+                        if (parsed !== null) {
+                          updateRecurringExpenseField(expense.id, "grossAmount", parsed);
+                        }
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Net amount">
+                    <input
+                      value={toMoneyInput(expense.netAmount)}
+                      onChange={(event) => {
+                        const parsed = parseMoneyInputToCents(event.target.value);
+                        if (parsed !== null) {
+                          updateRecurringExpenseField(expense.id, "netAmount", parsed);
+                        }
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="VAT amount">
+                    <input
+                      value={toMoneyInput(expense.vatAmount)}
+                      onChange={(event) => {
+                        const parsed = parseMoneyInputToCents(event.target.value);
+                        if (parsed !== null) {
+                          updateRecurringExpenseField(expense.id, "vatAmount", parsed);
+                        }
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="VAT rate (bps)">
+                    <input
+                      value={expense.vatRateBasisPoints ?? ""}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "vatRateBasisPoints",
+                          event.target.value ? Number(event.target.value) : null,
+                        )
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Next due date">
+                    <input
+                      type="date"
+                      value={toDateInput(expense.nextDueDate)}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "nextDueDate",
+                          new Date(`${event.target.value}T00:00:00.000Z`).toISOString(),
+                        )
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Status">
+                    <select
+                      value={expense.isActive ? "active" : "inactive"}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(
+                          expense.id,
+                          "isActive",
+                          event.target.value === "active",
+                        )
+                      }
+                      className={inputClass}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </Field>
+                  <Field label="Notes" className="md:col-span-2">
+                    <textarea
+                      value={expense.notes ?? ""}
+                      onChange={(event) =>
+                        updateRecurringExpenseField(expense.id, "notes", event.target.value)
+                      }
+                      rows={3}
+                      className={`${inputClass} min-h-[96px] py-3`}
+                    />
+                  </Field>
+                </div>
+
+                <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={expense.isDeductible}
+                    onChange={(event) =>
+                      updateRecurringExpenseField(
+                        expense.id,
+                        "isDeductible",
+                        event.target.checked,
+                      )
+                    }
+                    className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+                  />
+                  Deductible for input VAT
+                </label>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+                  Monthly run-rate:{" "}
+                  <span className="font-semibold text-white">
+                    {formatMoney(
+                      getRecurringExpenseMonthlyAmountCents(
+                        expense.grossAmount,
+                        expense.interval,
+                      ),
+                    )}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => void updateRecurringExpense(expense)}
+                    disabled={savingId === expense.id || migrationRequired}
+                    className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a] disabled:opacity-60"
+                  >
+                    {savingId === expense.id ? "Saving..." : "Save recurring cost"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Panel>
     </div>
   );
 }

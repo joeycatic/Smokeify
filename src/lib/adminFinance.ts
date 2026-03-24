@@ -1,3 +1,10 @@
+export const RECOGNIZED_PAYMENT_STATUSES = [
+  "paid",
+  "succeeded",
+  "refunded",
+  "partially_refunded",
+] as const;
+
 const PAID_PAYMENT_STATUSES = new Set([
   "paid",
   "succeeded",

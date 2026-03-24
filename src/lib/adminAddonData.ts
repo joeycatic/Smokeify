@@ -1,8 +1,16 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { buildExpenseSummary, getVatDeadlineInfo } from "@/lib/adminExpenses";
-import { buildFinanceRollup, buildVatSummary } from "@/lib/adminFinance";
+import {
+  buildExpenseSummary,
+  buildRecurringExpenseSummary,
+  getVatDeadlineInfo,
+} from "@/lib/adminExpenses";
+import {
+  buildFinanceRollup,
+  buildVatSummary,
+  RECOGNIZED_PAYMENT_STATUSES,
+} from "@/lib/adminFinance";
 import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
 import {
   getFunnelSnapshot,
@@ -95,6 +103,34 @@ async function queryExpensesSince(since: Date) {
   }
 }
 
+async function queryRecurringExpenses() {
+  try {
+    const recurringExpenses = await prisma.recurringExpense.findMany({
+      orderBy: [{ isActive: "desc" }, { nextDueDate: "asc" }, { createdAt: "desc" }],
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+    return {
+      recurringExpenses,
+      migrationRequired: false,
+    };
+  } catch (error) {
+    if (isMissingExpenseTableError(error)) {
+      return {
+        recurringExpenses: [],
+        migrationRequired: true,
+      };
+    }
+    throw error;
+  }
+}
+
 export async function getExpensesSince(since: Date) {
   const result = await queryExpensesSince(since);
   return result.expenses;
@@ -104,9 +140,19 @@ export async function getFinancePageData(days = 30) {
   const currentStart = getDateDaysAgo(days - 1);
   const previousStart = getDateDaysAgo(days * 2 - 1);
   const trendStart = getDateDaysAgo(13);
-  const [orders, expenseQuery] = await Promise.all([
+  const [orders, expenseQuery, latestRecognizedOrder] = await Promise.all([
     getFinanceOrdersSince(previousStart),
     queryExpensesSince(previousStart),
+    prisma.order.findFirst({
+      where: { paymentStatus: { in: [...RECOGNIZED_PAYMENT_STATUSES] } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        createdAt: true,
+        paymentStatus: true,
+        status: true,
+        amountTotal: true,
+      },
+    }),
   ]);
   const expenses = expenseQuery.expenses;
   const currency = orders[0]?.currency ?? expenses[0]?.currency ?? "EUR";
@@ -187,6 +233,9 @@ export async function getFinancePageData(days = 30) {
     trend: buckets,
     expenseByCategory,
     expenseMigrationRequired: expenseQuery.migrationRequired,
+    currentStart,
+    currentEnd: new Date(),
+    latestRecognizedOrderAt: latestRecognizedOrder?.createdAt ?? null,
   };
 }
 
@@ -257,16 +306,19 @@ export async function getVatPageData(months = 6) {
 
 export async function getExpensesPageData(days = 120) {
   const since = getDateDaysAgo(days - 1);
-  const [expenseQuery, suppliers] = await Promise.all([
+  const [expenseQuery, recurringExpenseQuery, suppliers] = await Promise.all([
     queryExpensesSince(since),
+    queryRecurringExpenses(),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
   ]);
   const expenses = expenseQuery.expenses;
+  const recurringExpenses = recurringExpenseQuery.recurringExpenses;
 
   const summary = buildExpenseSummary(expenses);
+  const recurringSummary = buildRecurringExpenseSummary(recurringExpenses);
   const currentMonthStart = new Date();
   currentMonthStart.setDate(1);
   currentMonthStart.setHours(0, 0, 0, 0);
@@ -298,12 +350,15 @@ export async function getExpensesPageData(days = 120) {
 
   return {
     expenses,
+    recurringExpenses,
     suppliers,
     summary,
+    recurringSummary,
     currentMonthSummary,
     expenseByCategory,
     deadline: getVatDeadlineInfo(),
-    expenseMigrationRequired: expenseQuery.migrationRequired,
+    expenseMigrationRequired:
+      expenseQuery.migrationRequired || recurringExpenseQuery.migrationRequired,
   };
 }
 
