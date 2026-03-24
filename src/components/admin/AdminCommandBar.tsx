@@ -30,8 +30,10 @@ type AdminCommandBarProps = {
 };
 
 function buildHref(href: string, currentLanguage: "de" | "en") {
-  if (href !== "/admin") return href;
-  return `/admin?lang=${currentLanguage}`;
+  const params = new URLSearchParams();
+  params.set("lang", currentLanguage);
+  const query = params.toString();
+  return query ? `${href}?${query}` : href;
 }
 
 function isCurrentPath(pathname: string, item: CommandNavItem) {

@@ -151,7 +151,6 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const currentLanguage = searchParams?.get("lang") === "de" ? "de" : "en";
-  const showLanguageToggle = pathname === "/admin";
 
   const currentTitle = useMemo(() => {
     const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
@@ -172,6 +171,13 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
     params.set("lang", nextLanguage);
     const query = params.toString();
     return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const navHref = (href: string) => {
+    const params = new URLSearchParams();
+    params.set("lang", currentLanguage);
+    const query = params.toString();
+    return query ? `${href}?${query}` : href;
   };
 
   return (
@@ -239,7 +245,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={navHref(item.href)}
                         onClick={() => setSidebarOpen(false)}
                         className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
                           active
@@ -292,32 +298,30 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                   currentLanguage={currentLanguage}
                 />
 
-                {showLanguageToggle ? (
-                  <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
-                    <Link
-                      href={languageHref("de")}
-                      aria-label="Switch admin overview language to German"
-                      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
-                        currentLanguage === "de"
-                          ? "bg-cyan-300/90 text-slate-950"
-                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                      }`}
-                    >
-                      <FlagBadge country="de" />
-                    </Link>
-                    <Link
-                      href={languageHref("en")}
-                      aria-label="Switch admin overview language to British English"
-                      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
-                        currentLanguage === "en"
-                          ? "bg-cyan-300/90 text-slate-950"
-                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                      }`}
-                    >
-                      <FlagBadge country="gb" />
-                    </Link>
-                  </div>
-                ) : null}
+                <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                  <Link
+                    href={languageHref("de")}
+                    aria-label="Switch admin page language to German"
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                      currentLanguage === "de"
+                        ? "bg-cyan-300/90 text-slate-950"
+                        : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                    }`}
+                  >
+                    <FlagBadge country="de" />
+                  </Link>
+                  <Link
+                    href={languageHref("en")}
+                    aria-label="Switch admin page language to British English"
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                      currentLanguage === "en"
+                        ? "bg-cyan-300/90 text-slate-950"
+                        : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                    }`}
+                  >
+                    <FlagBadge country="gb" />
+                  </Link>
+                </div>
               </div>
             </div>
           </header>
