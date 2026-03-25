@@ -19,6 +19,7 @@ import {
   FolderIcon,
   HomeIcon,
   PresentationChartLineIcon,
+  RectangleGroupIcon,
   SwatchIcon,
   TagIcon,
   TruckIcon,
@@ -128,6 +129,11 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
+      {
+        href: "/admin/recommendations",
+        label: "Recommendations",
+        icon: RectangleGroupIcon,
+      },
       {
         href: "/admin/scripts",
         label: "Scripts",

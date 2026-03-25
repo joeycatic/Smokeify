@@ -314,7 +314,7 @@ const PRODUCT_EDITOR_SECTIONS = [
   { id: "associations", label: "Associations" },
   { id: "media", label: "Media" },
   { id: "variants", label: "Variants" },
-  { id: "cross-sells", label: "Cross-sells" },
+  { id: "cross-sells", label: "Manual overrides" },
 ] as const;
 
 export default function AdminProductClient({
@@ -3381,10 +3381,10 @@ export default function AdminProductClient({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
-              Häufig zusammen gekauft
+              Manual recommendation overrides
             </h2>
             <p className="text-xs text-stone-500">
-              Bis zu 3 Produkte manuell zuordnen.
+              Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
             </p>
           </div>
           <button
@@ -3393,7 +3393,7 @@ export default function AdminProductClient({
             disabled={fbtSaving}
             className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
           >
-            {fbtSaving ? "Saving..." : "Save FBT"}
+            {fbtSaving ? "Saving..." : "Save overrides"}
           </button>
         </div>
 
@@ -3441,7 +3441,7 @@ export default function AdminProductClient({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-stone-500">Noch keine FBT-Produkte ausgewählt.</p>
+            <p className="text-xs text-stone-500">Noch keine manuellen Overrides ausgewählt.</p>
           )}
 
           <div className="rounded-lg border border-black/10 bg-stone-50 p-3">
@@ -3538,7 +3538,7 @@ export default function AdminProductClient({
               ) : null}
               {crossSellsDirty ? (
                 <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
-                  Cross-sells
+                  Manual overrides
                 </span>
               ) : null}
             </div>
@@ -3576,7 +3576,7 @@ export default function AdminProductClient({
                   onClick={saveCrossSells}
                   className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
                 >
-                  Save cross-sells
+                  Save overrides
                 </button>
               ) : null}
               <button
