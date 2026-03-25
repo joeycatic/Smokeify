@@ -11,6 +11,11 @@ import {
   buildVatSummary,
   RECOGNIZED_PAYMENT_STATUSES,
 } from "@/lib/adminFinance";
+import {
+  buildAlertDedupeKey,
+  getAdminAlertsQueueData,
+  syncAdminAlerts,
+} from "@/lib/adminAlerts";
 import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
 import {
   getFunnelSnapshot,
@@ -457,37 +462,44 @@ export async function getAlertsPageData() {
   const alerts = [
     failedWebhookCount > 0
       ? {
+          type: "webhook_failures",
           title: "Stripe webhook failures need review",
           detail: `${failedWebhookCount} failed events can block payment and order reconciliation.`,
           priority: "critical",
           actionLabel: "Open orders",
           href: "/admin/orders",
           category: "Payments",
+          dedupeKey: buildAlertDedupeKey(["payments", "webhook_failures"]),
         }
       : null,
     vatData.deadline.daysUntilDue <= 7 && financeData.vatSummary.status !== "ready_for_handover"
       ? {
+          type: "vat_deadline",
           title: "VAT deadline is approaching",
           detail: `${vatData.deadline.daysUntilDue} day(s) remain until the monthly VAT handover target date.`,
           priority: "high",
           actionLabel: "Open VAT",
           href: "/admin/vat",
           category: "VAT",
+          dedupeKey: buildAlertDedupeKey(["vat", "deadline"]),
         }
       : null,
     financeData.currentExpenseSummary.missingDocumentCount > 0 ||
     financeData.currentExpenseSummary.missingVatCount > 0
       ? {
+          type: "expense_incomplete",
           title: "Expense data is incomplete for input VAT",
           detail: `${financeData.currentExpenseSummary.missingDocumentCount} missing document record(s) and ${financeData.currentExpenseSummary.missingVatCount} missing VAT amount(s) need review.`,
           priority: "high",
           actionLabel: "Open expenses",
           href: "/admin/expenses",
           category: "Expenses",
+          dedupeKey: buildAlertDedupeKey(["expenses", "input_vat_incomplete"]),
         }
       : null,
     financeData.vatSummary.status !== "ready_for_handover"
       ? {
+          type: "vat_not_ready",
           title: "VAT monitoring is not handover-ready",
           detail:
             financeData.vatSummary.blockers[0] ??
@@ -496,41 +508,49 @@ export async function getAlertsPageData() {
           actionLabel: "Open VAT",
           href: "/admin/vat",
           category: "VAT",
+          dedupeKey: buildAlertDedupeKey(["vat", "handover_not_ready"]),
         }
       : null,
     typeof orderComparisons.revenue.deltaRatio === "number" &&
     orderComparisons.revenue.deltaRatio <= -0.15
       ? {
+          type: "revenue_pace_down",
           title: "Revenue pace is below the previous period",
           detail: "30-day gross revenue has dropped materially versus the prior window.",
           priority: "high",
           actionLabel: "Open finance",
           href: "/admin/finance",
           category: "Finance",
+          dedupeKey: buildAlertDedupeKey(["finance", "revenue_pace_down"]),
         }
       : null,
     funnelSnapshot.beginCheckout >= 10 && funnelSnapshot.checkoutAbandonmentRate >= 0.6
       ? {
+          type: "checkout_abandonment",
           title: "Checkout abandonment is elevated",
           detail: `${Math.round(funnelSnapshot.checkoutAbandonmentRate * 100)}% of started checkouts are not converting.`,
           priority: "high",
           actionLabel: "Open analytics",
           href: "/admin/analytics",
           category: "Conversion",
+          dedupeKey: buildAlertDedupeKey(["conversion", "checkout_abandonment"]),
         }
       : null,
     pendingReturnCount > 0
       ? {
+          type: "pending_returns",
           title: "Pending return decisions are waiting",
           detail: `${pendingReturnCount} return requests still need routing or resolution.`,
           priority: "medium",
           actionLabel: "Open returns",
           href: "/admin/returns",
           category: "Support",
+          dedupeKey: buildAlertDedupeKey(["support", "pending_returns"]),
         }
       : null,
     lowStockVariants[0]
       ? {
+          type: "low_stock",
           title: `${lowStockVariants[0].productTitle} needs replenishment`,
           detail:
             lowStockVariants[0].available <= 0
@@ -540,10 +560,17 @@ export async function getAlertsPageData() {
           actionLabel: "Open catalog",
           href: "/admin/catalog",
           category: "Inventory",
+          dedupeKey: buildAlertDedupeKey([
+            "inventory",
+            "low_stock",
+            lowStockVariants[0].productId,
+            lowStockVariants[0].variantTitle,
+          ]),
         }
       : null,
     weakProducts[0]
       ? {
+          type: "weak_margin_product",
           title: `${weakProducts[0].productTitle} is high-traffic but weak-margin`,
           detail: `${weakProducts[0].views} views, ${Math.round(
             weakProducts[0].conversionRate * 100,
@@ -554,19 +581,30 @@ export async function getAlertsPageData() {
           actionLabel: "Open profitability",
           href: "/admin/profitability",
           category: "Merchandising",
+          dedupeKey: buildAlertDedupeKey([
+            "merchandising",
+            "weak_margin",
+            weakProducts[0].productId,
+          ]),
         }
       : null,
   ].filter(Boolean) as Array<{
+    type: string;
     title: string;
     detail: string;
     priority: "critical" | "high" | "medium";
     actionLabel: string;
     href: string;
     category: string;
+    dedupeKey: string;
   }>;
 
+  await syncAdminAlerts(alerts);
+  const queueData = await getAdminAlertsQueueData();
+
   return {
-    alerts,
+    alerts: queueData.alerts,
+    assignees: queueData.assignees,
     currentStart,
   };
 }

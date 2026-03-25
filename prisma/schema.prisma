@@ -96,6 +96,19 @@ enum RecommendationRuleTargetType {
   PRODUCT_GROUP
 }
 
+enum AdminAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  SNOOZED
+}
+
+enum AdminAlertPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -133,6 +146,7 @@ model User {
   newsletterSubscriber NewsletterSubscriber?
   loyaltyPointsBalance Int      @default(0)
   storeCreditBalance Int      @default(0)
+  crmFlags       String[]       @default([])
   newsletterOfferClaimedAt DateTime?
   newsletterOfferClaimedEmail String?
   cartItems       UserCartItem[]
@@ -752,6 +766,68 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+}
+
+model AdminAlert {
+  id             String             @id @default(cuid())
+  type           String
+  category       String
+  priority       AdminAlertPriority
+  dedupeKey      String             @unique
+  title          String
+  detail         String
+  href           String
+  actionLabel    String?
+  status         AdminAlertStatus   @default(OPEN)
+  assigneeUserId String?
+  assigneeEmail  String?
+  firstSeenAt    DateTime
+  lastSeenAt     DateTime
+  repeatCount    Int                @default(1)
+  signalActive   Boolean            @default(true)
+  signalClearedAt DateTime?
+  snoozedUntil   DateTime?
+  resolvedAt     DateTime?
+  resolutionNote String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  events         AdminAlertEvent[]
+
+  @@index([status, priority, updatedAt])
+  @@index([signalActive, status])
+  @@index([category, priority])
+}
+
+model AdminAlertEvent {
+  id         String     @id @default(cuid())
+  alertId     String
+  actorId    String?
+  actorEmail String?
+  eventType  String
+  fromStatus AdminAlertStatus?
+  toStatus   AdminAlertStatus?
+  note       String?
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+  alert      AdminAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model AdminCustomerCohort {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  filters        Json
+  customerCount  Int      @default(0)
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model AnalyticsSession {
