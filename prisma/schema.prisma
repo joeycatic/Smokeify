@@ -84,6 +84,18 @@ enum Storefront {
   GROW
 }
 
+enum RecommendationRuleTriggerType {
+  CATEGORY
+  TAG
+  PRODUCT_GROUP
+}
+
+enum RecommendationRuleTargetType {
+  CATEGORY
+  TAG
+  PRODUCT_GROUP
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -810,6 +822,25 @@ model ProductCrossSell {
 
   @@unique([productId, crossSellId])
   @@index([productId, sortOrder])
+}
+
+model RecommendationRule {
+  id          String                       @id @default(cuid())
+  name        String
+  description String?
+  triggerType RecommendationRuleTriggerType
+  triggerValue String
+  targetType  RecommendationRuleTargetType
+  targetValue String
+  priority    Int                          @default(0)
+  maxProducts Int?
+  isActive    Boolean                      @default(true)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  @@index([isActive, triggerType])
+  @@index([triggerType, triggerValue, isActive])
+  @@index([targetType, targetValue, isActive])
 }
 
 model PlantAnalysisRun {
