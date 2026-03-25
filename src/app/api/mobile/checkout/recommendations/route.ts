@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getProductRecommendations } from "@/lib/recommendations";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const CURRENCY_CODE = "EUR";
@@ -66,17 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ productIds: [], products: [] });
   }
 
-  const cartProducts = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: {
-      id: true,
-      categories: { select: { categoryId: true } },
-    },
-  });
-  const cartProductIds = new Set(cartProducts.map((item) => item.id));
-  const cartCategoryIds = Array.from(
-    new Set(cartProducts.flatMap((item) => item.categories.map((category) => category.categoryId))),
-  );
+  const cartProductIds = new Set(productIds);
 
   const selected = new Map<
     string,
@@ -110,56 +101,37 @@ export async function POST(request: Request) {
     });
   };
 
-  const crossSells = await prisma.productCrossSell.findMany({
-    where: { productId: { in: productIds } },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    take: 80,
-    select: {
-      crossSell: {
-        select: {
-          id: true,
-          handle: true,
-          title: true,
-          status: true,
-          images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
-          variants: {
-            select: {
-              priceCents: true,
-              inventory: { select: { quantityOnHand: true, reserved: true } },
-            },
-            orderBy: { position: "asc" },
-          },
-        },
-      },
-    },
-  });
-  crossSells.forEach((row) => tryAdd(row.crossSell));
+  const recommendationResults = await Promise.all(
+    productIds.map((productId) =>
+      getProductRecommendations({
+        productId,
+        storefront: "MAIN",
+        limit: MAX_RESULTS,
+      }),
+    ),
+  );
 
-  if (selected.size < MAX_RESULTS && cartCategoryIds.length > 0) {
-    const categoryMatches = await prisma.product.findMany({
-      where: {
+  recommendationResults.forEach((result) => {
+    result?.recommendations.forEach((item) => {
+      tryAdd({
+        id: item.id,
+        handle: item.handle,
+        title: item.title,
         status: "ACTIVE",
-        id: { notIn: [...cartProductIds, ...selected.keys()] },
-        categories: { some: { categoryId: { in: cartCategoryIds } } },
-      },
-      orderBy: [{ bestsellerScore: "desc" }, { updatedAt: "desc" }],
-      take: 24,
-      select: {
-        id: true,
-        handle: true,
-        title: true,
-        images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
-        variants: {
-          select: {
-            priceCents: true,
-            inventory: { select: { quantityOnHand: true, reserved: true } },
-          },
-          orderBy: { position: "asc" },
-        },
-      },
+        images: item.imageUrl ? [{ url: item.imageUrl }] : [],
+        variants: item.price
+          ? [
+              {
+                priceCents: Math.round(Number(item.price.amount) * 100),
+                inventory: item.availableForSale
+                  ? { quantityOnHand: 1, reserved: 0 }
+                  : { quantityOnHand: 0, reserved: 0 },
+              },
+            ]
+          : [],
+      });
     });
-    categoryMatches.forEach((product) => tryAdd(product));
-  }
+  });
 
   if (selected.size < MAX_RESULTS) {
     const fallback = await prisma.product.findMany({

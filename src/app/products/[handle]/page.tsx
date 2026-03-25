@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductByHandle } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
+import { getProductRecommendations } from "@/lib/recommendations";
 import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import RecommendedProductsCarousel from "./RecommendedProductsCarousel";
@@ -48,8 +49,6 @@ const GOOGLE_FEED_FORCE_INCLUDE_HANDLES = new Set([
 const stripHtml = (value: string) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-const toAmount = (cents: number) => (cents / 100).toFixed(2);
-
 const isNoindexProduct = (product: {
   handle: string;
   categories: Array<{ handle: string; parent?: { handle: string } | null }>;
@@ -73,64 +72,6 @@ type RecommendedProduct = {
   imageUrl: string | null;
   imageAlt: string | null;
   price: { amount: string; currencyCode: string } | null;
-};
-
-const getRecommendedProducts = async (
-  currentProductId: string,
-  categoryIds: string[]
-): Promise<RecommendedProduct[]> => {
-  const primaryProducts = categoryIds.length
-    ? await prisma.product.findMany({
-        where: {
-          status: "ACTIVE",
-          storefronts: { has: "MAIN" },
-          id: { not: currentProductId },
-          categories: { some: { categoryId: { in: categoryIds } } },
-        },
-        orderBy: { updatedAt: "desc" },
-        take: 12,
-        include: {
-          images: { orderBy: { position: "asc" }, take: 1 },
-          variants: { orderBy: { position: "asc" }, select: { priceCents: true } },
-        },
-      })
-    : [];
-
-  const selectedIds = new Set(primaryProducts.map((entry) => entry.id));
-  const needed = Math.max(0, 12 - primaryProducts.length);
-  const fallbackProducts =
-    needed > 0
-      ? await prisma.product.findMany({
-          where: {
-            status: "ACTIVE",
-            storefronts: { has: "MAIN" },
-            id: { notIn: [currentProductId, ...Array.from(selectedIds)] },
-          },
-          orderBy: { updatedAt: "desc" },
-          take: needed,
-          include: {
-            images: { orderBy: { position: "asc" }, take: 1 },
-            variants: { orderBy: { position: "asc" }, select: { priceCents: true } },
-          },
-        })
-      : [];
-
-  return [...primaryProducts, ...fallbackProducts].slice(0, 12).map((entry) => {
-    const prices = entry.variants.map((variant) => variant.priceCents);
-    const minPrice = prices.length > 0 ? Math.min(...prices) : null;
-    const image = entry.images[0] ?? null;
-    return {
-      id: entry.id,
-      title: entry.title,
-      handle: entry.handle,
-      imageUrl: image?.url ?? null,
-      imageAlt: image?.altText ?? entry.title,
-      price:
-        minPrice !== null
-          ? { amount: toAmount(minPrice), currencyCode: "EUR" }
-          : null,
-    };
-  });
 };
 
 export async function generateMetadata({
@@ -206,10 +147,22 @@ export default async function ProductDetailPage({
     async () => {
       const product = await getProductByHandle(handle);
       if (!product) return null;
-      const recommendedProducts = await getRecommendedProducts(
-        product.id,
-        product.categories.map((category) => category.id)
-      );
+      const recommendationResult = await getProductRecommendations({
+        productId: product.id,
+        storefront: "MAIN",
+        limit: 15,
+      });
+      const recommendedProducts: RecommendedProduct[] =
+        recommendationResult?.recommendations
+          .slice(0, 15)
+          .map((item) => ({
+            id: item.id,
+            title: item.title,
+            handle: item.handle,
+            imageUrl: item.imageUrl,
+            imageAlt: item.imageAlt,
+            price: item.price,
+          })) ?? [];
       const groupProducts = product.productGroup
         ? await prisma.product.findMany({
             where: {
@@ -227,47 +180,12 @@ export default async function ProductDetailPage({
         _avg: { rating: true },
         _count: { rating: true },
       });
-      const fbtRows = prisma.productCrossSell
-        ? await prisma.productCrossSell.findMany({
-            where: {
-              productId: product.id,
-              crossSell: { is: { status: "ACTIVE", storefronts: { has: "MAIN" } } },
-            },
-            orderBy: { sortOrder: "asc" },
-            take: 3,
-            include: {
-              crossSell: {
-                include: {
-                  images: { orderBy: { position: "asc" }, take: 1 },
-                  variants: {
-                    where: {
-                      inventory: { is: { quantityOnHand: { gt: 0 } } },
-                    },
-                    orderBy: { position: "asc" },
-                    take: 1,
-                    select: {
-                      id: true,
-                      title: true,
-                      priceCents: true,
-                      inventory: {
-                        select: {
-                          quantityOnHand: true,
-                          reserved: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          })
-        : [];
 
       return {
-        fbtRows,
         groupProducts,
         product,
         recommendedProducts,
+        recommendationResult,
         reviewSummary,
       };
     },
@@ -277,27 +195,24 @@ export default async function ProductDetailPage({
   const recommendedProducts = productPageData.recommendedProducts;
   const groupProducts = productPageData.groupProducts;
   const reviewSummary = productPageData.reviewSummary;
-  const fbtRows = productPageData.fbtRows;
-  const fbtProducts: FBTProduct[] = fbtRows.map((row) => {
-    const variant = row.crossSell.variants[0] ?? null;
-    const availableQuantity = variant
-      ? Math.max(0, (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0))
-      : 0;
+  const recommendationResults = productPageData.recommendationResult?.recommendations ?? [];
+  const fbtProducts: FBTProduct[] = recommendationResults
+    .filter((item) => item.availableForSale && item.variantId)
+    .slice(0, 3)
+    .map((item) => {
     return {
-      id: row.crossSell.id,
-      title: row.crossSell.title,
-      handle: row.crossSell.handle,
-      variantId: variant?.id ?? null,
-      imageUrl: row.crossSell.images[0]?.url ?? null,
-      price: variant
-        ? {
-            amount: toAmount(variant.priceCents),
-            currencyCode: "EUR",
-          }
-        : null,
-      availableForSale: availableQuantity > 0,
+      id: item.id,
+      title: item.title,
+      handle: item.handle,
+      variantId: item.variantId,
+      imageUrl: item.imageUrl,
+      price: item.price,
+      availableForSale: item.availableForSale,
     };
   });
+  const recommendedCarouselItems = recommendedProducts.filter(
+    (item) => !fbtProducts.some((fbtItem) => fbtItem.id === item.id),
+  );
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
@@ -442,8 +357,8 @@ export default async function ProductDetailPage({
           items={fbtProducts}
         />
 
-        {recommendedProducts.length > 0 && (
-          <RecommendedProductsCarousel items={recommendedProducts} />
+        {recommendedCarouselItems.length > 0 && (
+          <RecommendedProductsCarousel items={recommendedCarouselItems} />
         )}
 
         <RecentlyViewedStrip
