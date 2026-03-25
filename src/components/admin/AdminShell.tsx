@@ -12,6 +12,7 @@ import {
   CalculatorIcon,
   ChartBarSquareIcon,
   ClipboardDocumentListIcon,
+  CommandLineIcon,
   CreditCardIcon,
   CubeIcon,
   DocumentTextIcon,
@@ -122,6 +123,16 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/customers", label: "Customers", icon: UsersIcon },
       { href: "/admin/users", label: "Users", icon: UsersIcon },
       { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      {
+        href: "/admin/scripts",
+        label: "Scripts",
+        icon: CommandLineIcon,
+      },
     ],
   },
   {
