@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
@@ -6,13 +5,33 @@ import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
+import { adminJson } from "@/lib/adminApi";
+import { loadAdminOrderDetail } from "@/lib/adminOrders";
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const session = await requireAdmin();
+  if (!session) {
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const detail = await loadAdminOrderDetail(id);
+  if (!detail) {
+    return adminJson({ error: "Order not found" }, { status: 404 });
+  }
+
+  return adminJson(detail);
+}
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
@@ -21,14 +40,14 @@ export async function PATCH(
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
       { status: 429 }
     );
   }
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await context.params;
@@ -48,7 +67,7 @@ export async function PATCH(
     updates = patch.updates;
     changedFields = patch.changedFields;
   } catch (error) {
-    return NextResponse.json(
+    return adminJson(
       {
         error:
           error instanceof Error ? error.message : "Invalid order update payload.",
@@ -58,7 +77,7 @@ export async function PATCH(
   }
 
   if (!Object.keys(updates).length) {
-    return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+    return adminJson({ error: "No updates provided" }, { status: 400 });
   }
 
   const existing = await prisma.order.findUnique({
@@ -66,14 +85,14 @@ export async function PATCH(
     include: { items: true },
   });
   if (!existing) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
   if (
     body.expectedUpdatedAt &&
     existing.updatedAt.toISOString() !== body.expectedUpdatedAt
   ) {
-    return NextResponse.json(
+    return adminJson(
       {
         error:
           "This order was updated by another admin. Refresh the latest order before saving again.",
@@ -110,7 +129,7 @@ export async function PATCH(
       },
     });
   }
-  return NextResponse.json({ order: updated });
+  return adminJson({ order: updated });
 }
 
 export async function DELETE(
@@ -118,7 +137,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
@@ -127,21 +146,21 @@ export async function DELETE(
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
       { status: 429 }
     );
   }
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => ({}))) as {
     confirmation?: string;
   };
   if (body.confirmation !== "DELETE") {
-    return NextResponse.json(
+    return adminJson(
       { error: 'Bestätigung fehlt. Bitte "DELETE" eingeben.' },
       { status: 400 }
     );
@@ -153,7 +172,7 @@ export async function DELETE(
     select: { id: true, orderNumber: true },
   });
   if (!existing) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
   await prisma.order.delete({ where: { id } });
@@ -167,5 +186,5 @@ export async function DELETE(
     metadata: { orderNumber: existing.orderNumber },
   });
 
-  return NextResponse.json({ ok: true });
+  return adminJson({ ok: true });
 }

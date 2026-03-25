@@ -74,6 +74,7 @@ type WebhookFailure = {
 };
 
 type Props = {
+  initialSearchQuery?: string;
   orders: OrderRow[];
   webhookFailures: WebhookFailure[];
 };
@@ -252,11 +253,12 @@ const getPaymentBadgeClass = (paymentStatus: string) => {
 };
 
 export default function AdminOrdersClient({
+  initialSearchQuery = "",
   orders,
   webhookFailures,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [trackingDrafts, setTrackingDrafts] = useState<
     Record<string, { carrier: string; number: string; url: string }>
@@ -1582,6 +1584,12 @@ export default function AdminOrdersClient({
                         </label>
                       </div>
                       <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <Link
+                          href={`/admin/orders/${order.id}`}
+                          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-black/10 bg-white px-4 text-xs font-semibold text-stone-700 hover:border-black/20"
+                        >
+                          Open detail workspace
+                        </Link>
                         <button
                           type="button"
                           onClick={() => updateOrder(order.id)}

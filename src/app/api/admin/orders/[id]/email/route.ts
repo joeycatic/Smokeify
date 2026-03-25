@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
@@ -9,13 +8,14 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { adminJson } from "@/lib/adminApi";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
@@ -24,14 +24,14 @@ export async function POST(
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
       { status: 429 }
     );
   }
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await context.params;
@@ -40,7 +40,7 @@ export async function POST(
   };
   const type = body.type;
   if (!type) {
-    return NextResponse.json({ error: "Missing email type" }, { status: 400 });
+    return adminJson({ error: "Missing email type" }, { status: 400 });
   }
 
   const order = await prisma.order.findUnique({
@@ -48,12 +48,12 @@ export async function POST(
     include: { items: true },
   });
   if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
   const recipient = order.customerEmail;
   if (!recipient) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Order has no customer email" },
       { status: 400 }
     );
@@ -121,5 +121,5 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({ ok: true });
+  return adminJson({ ok: true });
 }

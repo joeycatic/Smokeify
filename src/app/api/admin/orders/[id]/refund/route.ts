@@ -1,5 +1,4 @@
 import Stripe from "stripe";
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
@@ -11,6 +10,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import bcrypt from "bcryptjs";
 import { getAppOrigin } from "@/lib/appOrigin";
+import { adminJson } from "@/lib/adminApi";
 
 export const runtime = "nodejs";
 
@@ -25,7 +25,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
@@ -34,20 +34,20 @@ export async function POST(
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
       { status: 429 }
     );
   }
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await context.params;
   const stripe = getStripe();
   if (!stripe) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Stripe secret key not configured." },
       { status: 500 }
     );
@@ -66,20 +66,20 @@ export async function POST(
     select: { passwordHash: true },
   });
   if (!admin?.passwordHash) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Passwort erforderlich." },
       { status: 400 }
     );
   }
   if (!adminPassword) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Passwort erforderlich." },
       { status: 400 }
     );
   }
   const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
   if (!validPassword) {
-    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
+    return adminJson({ error: "Passwort ist falsch." }, { status: 401 });
   }
 
   const order = await prisma.order.findUnique({
@@ -87,16 +87,16 @@ export async function POST(
     include: { items: true },
   });
   if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return adminJson({ error: "Order not found" }, { status: 404 });
   }
   if (order.paymentStatus === "refunded") {
-    return NextResponse.json(
+    return adminJson(
       { error: "Order already refunded" },
       { status: 409 }
     );
   }
   if (!order.stripePaymentIntent) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Missing payment intent" },
       { status: 400 }
     );
@@ -128,7 +128,7 @@ export async function POST(
   }
 
   if (refundAmount <= 0) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Refund amount must be greater than zero" },
       { status: 400 }
     );
@@ -136,7 +136,7 @@ export async function POST(
 
   const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
   if (refundAmount > remaining) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Refund amount exceeds remaining balance" },
       { status: 400 }
     );
@@ -215,5 +215,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ order: updated });
+  return adminJson({ order: updated });
 }

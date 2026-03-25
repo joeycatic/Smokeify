@@ -1,46 +1,18 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { loadAdminOrders } from "@/lib/adminOrders";
 import { prisma } from "@/lib/prisma";
 import AdminOrdersClient from "./AdminOrdersClient";
 
-export default async function AdminOrdersPage() {
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ customer?: string }>;
+}) {
   if (!(await requireAdmin())) notFound();
+  const resolvedSearchParams = (await searchParams) ?? {};
 
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
-    },
-  });
-  const productIds = Array.from(
-    new Set(
-      orders.flatMap((order) =>
-        order.items
-          .map((item) => item.productId)
-          .filter((id): id is string => Boolean(id))
-      )
-    )
-  );
-  const products = await prisma.product.findMany({
-    where: productIds.length ? { id: { in: productIds } } : { id: "__none__" },
-    select: { id: true, manufacturer: true },
-  });
-  const manufacturerByProductId = new Map(
-    products.map((product) => [product.id, product.manufacturer ?? null])
-  );
-  const normalizeOptions = (value: unknown) => {
-    if (!Array.isArray(value)) return [];
-    return value
-      .map((entry) => {
-        const name = typeof entry?.name === "string" ? entry.name : "";
-        const val = typeof entry?.value === "string" ? entry.value : "";
-        return name && val ? { name, value: val } : null;
-      })
-      .filter(
-        (entry): entry is { name: string; value: string } => Boolean(entry)
-      );
-  };
+  const orders = await loadAdminOrders();
   const webhookFailures = await prisma.processedWebhookEvent.findMany({
     where: { status: "failed" },
     orderBy: { createdAt: "desc" },
@@ -50,6 +22,7 @@ export default async function AdminOrdersPage() {
   return (
     <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
       <AdminOrdersClient
+        initialSearchQuery={resolvedSearchParams.customer ?? ""}
         webhookFailures={webhookFailures.map((event) => ({
           id: event.id,
           eventId: event.eventId,
@@ -57,28 +30,7 @@ export default async function AdminOrdersPage() {
           status: event.status,
           createdAt: event.createdAt.toISOString(),
         }))}
-        orders={orders.map((order) => ({
-          ...order,
-          user: order.user ?? { email: null, name: null },
-          items: order.items.map((item) => ({
-            ...item,
-            manufacturer: item.productId
-              ? manufacturerByProductId.get(item.productId) ?? null
-              : null,
-            options: normalizeOptions(item.options),
-          })),
-          createdAt: order.createdAt.toISOString(),
-          updatedAt: order.updatedAt.toISOString(),
-          confirmationEmailSentAt: order.confirmationEmailSentAt
-            ? order.confirmationEmailSentAt.toISOString()
-            : null,
-          shippingEmailSentAt: order.shippingEmailSentAt
-            ? order.shippingEmailSentAt.toISOString()
-            : null,
-          refundEmailSentAt: order.refundEmailSentAt
-            ? order.refundEmailSentAt.toISOString()
-            : null,
-        }))}
+        orders={orders}
       />
     </div>
   );
