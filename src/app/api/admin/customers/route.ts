@@ -1,101 +1,27 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { PAID_ORDER_STATUSES } from "@/lib/adminInsights";
-
-type Segment = "new" | "repeat" | "high_value" | "churn_risk" | "discount_driven" | "return_risk" | "vip";
-type CustomerTab = "all" | "registered" | "guest";
-type BaseCustomer = {
-  email: string;
-  name: string | null;
-  orderCount: number;
-  totalSpentCents: number;
-  refundedCents: number;
-  netRevenueCents: number;
-  aovCents: number;
-  firstOrderAt: string | null;
-  lastOrderAt: string | null;
-  discountOrderCount: number;
-  returnCount: number;
-  segments: Segment[];
-};
-type RegisteredCustomer = BaseCustomer & {
-  type: "registered";
-  id: string;
-  joinedAt: string;
-  newsletterOptIn: boolean;
-  loyaltyPointsBalance: number;
-  storeCreditBalance: number;
-  customerGroup: string | null;
-  notes: string | null;
-};
-type GuestCustomer = BaseCustomer & {
-  type: "guest";
-};
-type Customer = RegisteredCustomer | GuestCustomer;
+import {
+  type Customer,
+  type CustomerCohort,
+  type CustomerSegment,
+  type CustomerSummary,
+  type CustomerTab,
+  CUSTOMER_SEGMENTS,
+  buildCustomerSegments,
+  getCustomerSegmentScore,
+  isClosedOrderStatus,
+  isOpenReturnStatus,
+  sortCustomers,
+} from "@/lib/adminCustomers";
+import { adminJson } from "@/lib/adminApi";
 
 const PAGE_SIZE = 40;
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-
-const buildSegments = ({
-  firstOrderAt,
-  lastOrderAt,
-  orderCount,
-  totalSpentCents,
-  discountOrderCount,
-  returnCount,
-  customerGroup,
-}: {
-  firstOrderAt: Date | null;
-  lastOrderAt: Date | null;
-  orderCount: number;
-  totalSpentCents: number;
-  discountOrderCount: number;
-  returnCount: number;
-  customerGroup?: string | null;
-}) => {
-  const now = Date.now();
-  const segments = new Set<Segment>();
-  if (orderCount >= 2) segments.add("repeat");
-  if (totalSpentCents >= 50_000) segments.add("high_value");
-  if (customerGroup === "VIP" || totalSpentCents >= 100_000) segments.add("vip");
-  if (firstOrderAt && now - firstOrderAt.getTime() <= THIRTY_DAYS_MS) segments.add("new");
-  if (lastOrderAt && orderCount >= 2 && now - lastOrderAt.getTime() >= NINETY_DAYS_MS) {
-    segments.add("churn_risk");
-  }
-  if (orderCount > 0 && discountOrderCount / orderCount >= 0.5) segments.add("discount_driven");
-  if (orderCount > 0 && returnCount / orderCount >= 0.25) segments.add("return_risk");
-  return Array.from(segments);
-};
-
-const getSegmentScore = (customer: Customer) => {
-  let score = 0;
-  if (customer.segments.includes("vip")) score += 4;
-  if (customer.segments.includes("high_value")) score += 3;
-  if (customer.segments.includes("churn_risk")) score += 2;
-  if (customer.segments.includes("return_risk")) score += 2;
-  if (customer.segments.includes("discount_driven")) score += 1;
-  return score;
-};
-
-const sortCustomers = (customers: Customer[]) =>
-  [...customers].sort((left, right) => {
-    const dateDiff =
-      new Date(right.lastOrderAt ?? 0).getTime() -
-      new Date(left.lastOrderAt ?? 0).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    if (right.netRevenueCents !== left.netRevenueCents) {
-      return right.netRevenueCents - left.netRevenueCents;
-    }
-    return getSegmentScore(right) - getSegmentScore(left);
-  });
 
 export async function GET(request: Request) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -105,63 +31,66 @@ export async function GET(request: Request) {
   const pageParam = Number(searchParams.get("page") ?? "1");
   const tab: CustomerTab =
     tabParam === "registered" || tabParam === "guest" ? tabParam : "all";
-  const segmentFilter: Segment | "all" =
-    segmentParam === "new" ||
-    segmentParam === "repeat" ||
-    segmentParam === "high_value" ||
-    segmentParam === "churn_risk" ||
-    segmentParam === "discount_driven" ||
-    segmentParam === "return_risk" ||
-    segmentParam === "vip"
-      ? segmentParam
-      : "all";
+  const segmentFilter: CustomerSegment | "all" = CUSTOMER_SEGMENTS.includes(
+    segmentParam as CustomerSegment,
+  )
+    ? (segmentParam as CustomerSegment)
+    : "all";
   const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const normalizedQuery = rawQuery.toLowerCase();
 
-  const users = await prisma.user.findMany({
-    where: { role: "USER" },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      createdAt: true,
-      customerGroup: true,
-      newsletterOptIn: true,
-      loyaltyPointsBalance: true,
-      storeCreditBalance: true,
-      notes: true,
-      orders: {
-        where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
-        select: {
-          amountTotal: true,
-          amountRefunded: true,
-          discountCode: true,
-          createdAt: true,
+  const [users, guestOrders, cohorts] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "USER" },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        customerGroup: true,
+        newsletterOptIn: true,
+        loyaltyPointsBalance: true,
+        storeCreditBalance: true,
+        notes: true,
+        crmFlags: true,
+        orders: {
+          where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
+          select: {
+            amountTotal: true,
+            amountRefunded: true,
+            discountCode: true,
+            createdAt: true,
+            status: true,
+          },
+        },
+        returnRequests: {
+          select: { id: true, createdAt: true, status: true },
         },
       },
-      returnRequests: {
-        select: { id: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.order.findMany({
+      where: {
+        userId: null,
+        customerEmail: { not: null },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const guestOrders = await prisma.order.findMany({
-    where: {
-      userId: null,
-      customerEmail: { not: null },
-      paymentStatus: { in: PAID_ORDER_STATUSES },
-    },
-    select: {
-      customerEmail: true,
-      shippingName: true,
-      amountTotal: true,
-      amountRefunded: true,
-      discountCode: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      select: {
+        customerEmail: true,
+        shippingName: true,
+        amountTotal: true,
+        amountRefunded: true,
+        discountCode: true,
+        createdAt: true,
+        status: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.adminCustomerCohort.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 12,
+    }),
+  ]);
 
   const guestMap = new Map<
     string,
@@ -173,6 +102,7 @@ export async function GET(request: Request) {
         amountRefunded: number;
         discountCode: string | null;
         createdAt: Date;
+        status: string;
       }>;
     }
   >();
@@ -191,6 +121,7 @@ export async function GET(request: Request) {
       amountRefunded: order.amountRefunded,
       discountCode: order.discountCode,
       createdAt: order.createdAt,
+      status: order.status,
     });
     if (!entry.name && order.shippingName) {
       entry.name = order.shippingName;
@@ -212,36 +143,42 @@ export async function GET(request: Request) {
     const discountOrderCount = sortedOrders.filter((order) => Boolean(order.discountCode)).length;
     const returnCount = user.returnRequests.length;
 
-    return [{
-      type: "registered" as const,
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      joinedAt: user.createdAt.toISOString(),
-      orderCount,
-      totalSpentCents,
-      refundedCents,
-      netRevenueCents,
-      aovCents: orderCount > 0 ? Math.round(totalSpentCents / orderCount) : 0,
-      firstOrderAt: firstOrderAt?.toISOString() ?? null,
-      lastOrderAt: lastOrderAt?.toISOString() ?? null,
-      discountOrderCount,
-      returnCount,
-      newsletterOptIn: user.newsletterOptIn,
-      loyaltyPointsBalance: user.loyaltyPointsBalance,
-      storeCreditBalance: user.storeCreditBalance,
-      customerGroup: user.customerGroup,
-      notes: user.notes,
-      segments: buildSegments({
-        firstOrderAt,
-        lastOrderAt,
+    return [
+      {
+        type: "registered" as const,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        joinedAt: user.createdAt.toISOString(),
         orderCount,
         totalSpentCents,
+        refundedCents,
+        netRevenueCents,
+        aovCents: orderCount > 0 ? Math.round(totalSpentCents / orderCount) : 0,
+        firstOrderAt: firstOrderAt?.toISOString() ?? null,
+        lastOrderAt: lastOrderAt?.toISOString() ?? null,
         discountOrderCount,
         returnCount,
+        openOrderCount: sortedOrders.filter((order) => !isClosedOrderStatus(order.status)).length,
+        openReturnCount: user.returnRequests.filter((request) => isOpenReturnStatus(request.status))
+          .length,
+        newsletterOptIn: user.newsletterOptIn,
+        loyaltyPointsBalance: user.loyaltyPointsBalance,
+        storeCreditBalance: user.storeCreditBalance,
         customerGroup: user.customerGroup,
-      }),
-    }];
+        notes: user.notes,
+        crmFlags: user.crmFlags,
+        segments: buildCustomerSegments({
+          firstOrderAt,
+          lastOrderAt,
+          orderCount,
+          totalSpentCents,
+          discountOrderCount,
+          returnCount,
+          customerGroup: user.customerGroup,
+        }),
+      },
+    ];
   });
 
   const guestCustomers = Array.from(guestMap.values()).map((guest) => {
@@ -269,7 +206,9 @@ export async function GET(request: Request) {
       lastOrderAt: lastOrderAt?.toISOString() ?? null,
       discountOrderCount,
       returnCount: 0,
-      segments: buildSegments({
+      openOrderCount: sortedOrders.filter((order) => !isClosedOrderStatus(order.status)).length,
+      openReturnCount: 0,
+      segments: buildCustomerSegments({
         firstOrderAt,
         lastOrderAt,
         orderCount,
@@ -300,6 +239,7 @@ export async function GET(request: Request) {
         customer.email,
         customer.name ?? "",
         customer.type === "registered" ? customer.customerGroup ?? "" : "",
+        customer.type === "registered" ? customer.crmFlags.join(" ") : "",
         ...customer.segments,
       ]
         .join(" ")
@@ -333,55 +273,64 @@ export async function GET(request: Request) {
   const averageClvCents =
     totalCount > 0 ? Math.round(totalNetRevenueCents / totalCount) : 0;
 
-  const segmentBars = [
-    { label: "VIP", value: vipCustomers },
-    { label: "Churn risk", value: churnRiskCustomers },
-    { label: "Discount driven", value: discountDrivenCustomers },
-    {
-      label: "Return risk",
-      value: sortedFilteredCustomers.filter((customer) =>
-        customer.segments.includes("return_risk"),
-      ).length,
-    },
-    {
-      label: "New",
-      value: sortedFilteredCustomers.filter((customer) => customer.segments.includes("new"))
-        .length,
-    },
-  ].filter((entry) => entry.value > 0);
+  const summary: CustomerSummary = {
+    totalCustomers: totalCount,
+    totalNetRevenueCents,
+    vipCustomers,
+    churnRiskCustomers,
+    discountDrivenCustomers,
+    averageClvCents,
+    segmentBars: [
+      { label: "VIP", value: vipCustomers },
+      { label: "Churn risk", value: churnRiskCustomers },
+      { label: "Discount driven", value: discountDrivenCustomers },
+      {
+        label: "Return risk",
+        value: sortedFilteredCustomers.filter((customer) =>
+          customer.segments.includes("return_risk"),
+        ).length,
+      },
+      {
+        label: "New",
+        value: sortedFilteredCustomers.filter((customer) => customer.segments.includes("new"))
+          .length,
+      },
+    ].filter((entry) => entry.value > 0),
+    topCustomers: [...sortedFilteredCustomers]
+      .sort((left, right) => right.netRevenueCents - left.netRevenueCents)
+      .slice(0, 6),
+    atRiskCustomers: [...sortedFilteredCustomers]
+      .filter(
+        (customer) =>
+          customer.segments.includes("churn_risk") ||
+          customer.segments.includes("return_risk"),
+      )
+      .sort((left, right) => {
+        const riskDiff = getCustomerSegmentScore(right) - getCustomerSegmentScore(left);
+        if (riskDiff !== 0) return riskDiff;
+        return right.netRevenueCents - left.netRevenueCents;
+      })
+      .slice(0, 6),
+  };
 
-  const topCustomers = [...sortedFilteredCustomers]
-    .sort((left, right) => right.netRevenueCents - left.netRevenueCents)
-    .slice(0, 6);
-  const atRiskCustomers = [...sortedFilteredCustomers]
-    .filter(
-      (customer) =>
-        customer.segments.includes("churn_risk") ||
-        customer.segments.includes("return_risk"),
-    )
-    .sort((left, right) => {
-      const riskDiff = getSegmentScore(right) - getSegmentScore(left);
-      if (riskDiff !== 0) return riskDiff;
-      return right.netRevenueCents - left.netRevenueCents;
-    })
-    .slice(0, 6);
+  const serializedCohorts: CustomerCohort[] = cohorts.map((cohort) => ({
+    id: cohort.id,
+    name: cohort.name,
+    description: cohort.description,
+    customerCount: cohort.customerCount,
+    filters: (cohort.filters as CustomerCohort["filters"]) ?? {},
+    createdByEmail: cohort.createdByEmail,
+    createdAt: cohort.createdAt.toISOString(),
+    updatedAt: cohort.updatedAt.toISOString(),
+  }));
 
-  return NextResponse.json({
+  return adminJson({
     customers,
     currentPage,
     pageSize: PAGE_SIZE,
     totalCount,
     totalPages,
-    summary: {
-      totalCustomers: totalCount,
-      totalNetRevenueCents,
-      vipCustomers,
-      churnRiskCustomers,
-      discountDrivenCustomers,
-      averageClvCents,
-      segmentBars,
-      topCustomers,
-      atRiskCustomers,
-    },
+    summary,
+    cohorts: serializedCohorts,
   });
 }

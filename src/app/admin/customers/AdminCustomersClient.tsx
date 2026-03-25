@@ -2,60 +2,14 @@
 
 import Link from "next/link";
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
-import { HorizontalBarsChart, type AdminChartPoint } from "@/components/admin/AdminCharts";
-
-type Segment =
-  | "new"
-  | "repeat"
-  | "high_value"
-  | "churn_risk"
-  | "discount_driven"
-  | "return_risk"
-  | "vip";
-
-type BaseCustomer = {
-  email: string;
-  name: string | null;
-  orderCount: number;
-  totalSpentCents: number;
-  refundedCents: number;
-  netRevenueCents: number;
-  aovCents: number;
-  firstOrderAt: string | null;
-  lastOrderAt: string | null;
-  discountOrderCount: number;
-  returnCount: number;
-  segments: Segment[];
-};
-
-type RegisteredCustomer = BaseCustomer & {
-  type: "registered";
-  id: string;
-  joinedAt: string;
-  newsletterOptIn: boolean;
-  loyaltyPointsBalance: number;
-  storeCreditBalance: number;
-  customerGroup: string | null;
-  notes: string | null;
-};
-
-type GuestCustomer = BaseCustomer & {
-  type: "guest";
-};
-
-type Customer = RegisteredCustomer | GuestCustomer;
-
-type CustomerSummary = {
-  totalCustomers: number;
-  totalNetRevenueCents: number;
-  vipCustomers: number;
-  churnRiskCustomers: number;
-  discountDrivenCustomers: number;
-  averageClvCents: number;
-  segmentBars: AdminChartPoint[];
-  topCustomers: Customer[];
-  atRiskCustomers: Customer[];
-};
+import { HorizontalBarsChart } from "@/components/admin/AdminCharts";
+import type {
+  Customer,
+  CustomerCohort,
+  CustomerSegment as Segment,
+  CustomerSummary,
+  RegisteredCustomer,
+} from "@/lib/adminCustomers";
 
 const SEGMENT_META: Record<
   Segment,
@@ -138,8 +92,10 @@ const EMPTY_SUMMARY: CustomerSummary = {
 
 export default function AdminCustomersClient() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [cohorts, setCohorts] = useState<CustomerCohort[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [tab, setTab] = useState<"all" | "registered" | "guest">("all");
@@ -150,6 +106,14 @@ export default function AdminCustomersClient() {
   const [totalPages, setTotalPages] = useState(1);
   const [summary, setSummary] = useState<CustomerSummary>(EMPTY_SUMMARY);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [customerMutationId, setCustomerMutationId] = useState<string | null>(null);
+  const [cohortName, setCohortName] = useState("");
+  const [cohortDescription, setCohortDescription] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [flagDraft, setFlagDraft] = useState("");
+  const [storeCreditAmount, setStoreCreditAmount] = useState("");
+  const [storeCreditReason, setStoreCreditReason] = useState("");
+  const [storeCreditPassword, setStoreCreditPassword] = useState("");
 
   const loadCustomers = useEffectEvent(async () => {
     setLoading(true);
@@ -171,12 +135,14 @@ export default function AdminCustomersClient() {
       }
       const data = (await res.json()) as {
         customers?: Customer[];
+        cohorts?: CustomerCohort[];
         currentPage?: number;
         totalCount?: number;
         totalPages?: number;
         summary?: CustomerSummary;
       };
       setCustomers(data.customers ?? []);
+      setCohorts(data.cohorts ?? []);
       setPage(data.currentPage ?? page);
       setTotalCount(data.totalCount ?? 0);
       setTotalPages(data.totalPages ?? 1);
@@ -208,6 +174,16 @@ export default function AdminCustomersClient() {
     [customers, selectedKey],
   );
 
+  useEffect(() => {
+    if (selectedCustomer?.type === "registered") {
+      setNoteDraft(selectedCustomer.notes ?? "");
+      setFlagDraft(selectedCustomer.crmFlags.join(", "));
+    } else {
+      setNoteDraft("");
+      setFlagDraft("");
+    }
+  }, [selectedCustomer]);
+
   const actionSummary = useMemo(() => {
     if (!selectedCustomer) return null;
     const lastOrderDays = getDaysSince(selectedCustomer.lastOrderAt);
@@ -222,6 +198,130 @@ export default function AdminCustomersClient() {
       lastOrderDays,
     };
   }, [selectedCustomer]);
+
+  const updateCustomerRow = (customerId: string, updater: (customer: RegisteredCustomer) => RegisteredCustomer) => {
+    setCustomers((current) =>
+      current.map((customer) => {
+        if (customer.type !== "registered" || customer.id !== customerId) return customer;
+        return updater(customer);
+      }),
+    );
+  };
+
+  const saveCustomerCrm = async () => {
+    if (!selectedCustomer || selectedCustomer.type !== "registered") return;
+    setError("");
+    setNotice("");
+    setCustomerMutationId(selectedCustomer.id);
+    try {
+      const response = await fetch(`/api/admin/customers/${selectedCustomer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: noteDraft,
+          crmFlags: flagDraft
+            .split(",")
+            .map((flag) => flag.trim())
+            .filter(Boolean),
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        customer?: { notes: string | null; crmFlags: string[] };
+      };
+      if (!response.ok || !data.customer) {
+        setError(data.error ?? "Failed to update CRM details.");
+        return;
+      }
+      updateCustomerRow(selectedCustomer.id, (customer) => ({
+        ...customer,
+        notes: data.customer?.notes ?? null,
+        crmFlags: data.customer?.crmFlags ?? [],
+      }));
+      setNotice("Customer CRM details updated.");
+    } catch {
+      setError("Failed to update CRM details.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
+
+  const issueStoreCredit = async () => {
+    if (!selectedCustomer || selectedCustomer.type !== "registered") return;
+    setError("");
+    setNotice("");
+    setCustomerMutationId(selectedCustomer.id);
+    try {
+      const amountCents = Math.round(Number(storeCreditAmount.replace(",", ".")) * 100);
+      const response = await fetch(`/api/admin/customers/${selectedCustomer.id}/store-credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountCents,
+          reason: storeCreditReason,
+          adminPassword: storeCreditPassword,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        storeCreditBalance?: number;
+      };
+      if (!response.ok || typeof data.storeCreditBalance !== "number") {
+        setError(data.error ?? "Failed to issue store credit.");
+        return;
+      }
+      updateCustomerRow(selectedCustomer.id, (customer) => ({
+        ...customer,
+        storeCreditBalance: data.storeCreditBalance!,
+      }));
+      setStoreCreditAmount("");
+      setStoreCreditReason("");
+      setStoreCreditPassword("");
+      setNotice("Store credit issued.");
+    } catch {
+      setError("Failed to issue store credit.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
+
+  const saveCohort = async () => {
+    setError("");
+    setNotice("");
+    setCustomerMutationId("cohort");
+    try {
+      const response = await fetch("/api/admin/customers/cohorts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cohortName,
+          description: cohortDescription,
+          customerCount: totalCount,
+          filters: {
+            q: deferredQuery.trim() || undefined,
+            tab,
+            segment: segmentFilter,
+          },
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        cohort?: CustomerCohort;
+      };
+      if (!response.ok || !data.cohort) {
+        setError(data.error ?? "Failed to save cohort.");
+        return;
+      }
+      setCohorts((current) => [data.cohort!, ...current].slice(0, 12));
+      setCohortName("");
+      setCohortDescription("");
+      setNotice("Reactivation cohort saved.");
+    } catch {
+      setError("Failed to save cohort.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -261,6 +361,11 @@ export default function AdminCustomersClient() {
       {error ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          {notice}
         </div>
       ) : null}
 
@@ -307,6 +412,64 @@ export default function AdminCustomersClient() {
           />
         </Panel>
       </div>
+
+      <Panel
+        eyebrow="Reactivation"
+        title="Saved CRM cohorts"
+        description="Persist current filters as reusable cohorts for churn-risk, VIP, and discount-led follow-up work."
+      >
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto]">
+          <input
+            type="text"
+            value={cohortName}
+            onChange={(event) => setCohortName(event.target.value)}
+            placeholder="Cohort name"
+            className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+          />
+          <input
+            type="text"
+            value={cohortDescription}
+            onChange={(event) => setCohortDescription(event.target.value)}
+            placeholder="Description (optional)"
+            className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+          />
+          <button
+            type="button"
+            onClick={saveCohort}
+            disabled={customerMutationId === "cohort"}
+            className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:text-cyan-300"
+          >
+            {customerMutationId === "cohort" ? "Saving..." : "Save current cohort"}
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+          {cohorts.length === 0 ? (
+            <EmptyPanelCopy message="No saved cohorts yet." />
+          ) : (
+            cohorts.map((cohort) => (
+              <button
+                key={cohort.id}
+                type="button"
+                onClick={() => {
+                  setQuery(cohort.filters.q ?? "");
+                  setTab(cohort.filters.tab ?? "all");
+                  setSegmentFilter(cohort.filters.segment ?? "all");
+                  setPage(1);
+                }}
+                className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 text-left transition hover:bg-white/[0.05]"
+              >
+                <div className="text-sm font-semibold text-slate-100">{cohort.name}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {cohort.customerCount} customers · updated {formatDate(cohort.updatedAt)}
+                </div>
+                {cohort.description ? (
+                  <p className="mt-2 text-sm text-slate-400">{cohort.description}</p>
+                ) : null}
+              </button>
+            ))
+          )}
+        </div>
+      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
         <Panel
@@ -518,6 +681,8 @@ export default function AdminCustomersClient() {
               <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
                 <InfoRow label="First order" value={formatDate(selectedCustomer.firstOrderAt)} />
                 <InfoRow label="Last order" value={formatDate(selectedCustomer.lastOrderAt)} />
+                <InfoRow label="Open orders" value={String(selectedCustomer.openOrderCount)} />
+                <InfoRow label="Open returns" value={String(selectedCustomer.openReturnCount)} />
                 <InfoRow
                   label="Discount usage"
                   value={`${selectedCustomer.discountOrderCount}/${selectedCustomer.orderCount} orders`}
@@ -541,6 +706,10 @@ export default function AdminCustomersClient() {
                     <InfoRow
                       label="Customer group"
                       value={selectedCustomer.customerGroup ?? "—"}
+                    />
+                    <InfoRow
+                      label="CRM flags"
+                      value={selectedCustomer.crmFlags.length ? selectedCustomer.crmFlags.join(", ") : "—"}
                     />
                   </>
                 ) : null}
@@ -581,6 +750,12 @@ export default function AdminCustomersClient() {
                       Open {SEGMENT_META[selectedCustomer.segments[0]].label} segment
                     </button>
                   ) : null}
+                  <Link
+                    href={`/admin/orders?customer=${encodeURIComponent(selectedCustomer.email)}`}
+                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15"
+                  >
+                    Open customer orders
+                  </Link>
                 </div>
               </div>
 
@@ -615,6 +790,94 @@ export default function AdminCustomersClient() {
                       operator surface.
                     </ActionNote>
                   ) : null}
+                </div>
+              ) : null}
+
+              {"crmFlags" in selectedCustomer && selectedCustomer.crmFlags.length ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    CRM flags
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedCustomer.crmFlags.map((flag) => (
+                      <span
+                        key={flag}
+                        className="rounded-full border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold text-fuchsia-100"
+                      >
+                        {flag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {selectedCustomer.type === "registered" ? (
+                <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    CRM actions
+                  </p>
+                  <textarea
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    rows={4}
+                    placeholder="Internal notes"
+                    className="w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                  />
+                  <input
+                    type="text"
+                    value={flagDraft}
+                    onChange={(event) => setFlagDraft(event.target.value)}
+                    placeholder="Flags, comma separated"
+                    className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveCustomerCrm}
+                    disabled={customerMutationId === selectedCustomer.id}
+                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:text-slate-500"
+                  >
+                    {customerMutationId === selectedCustomer.id ? "Saving..." : "Save notes and flags"}
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedCustomer.type === "registered" ? (
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Store credit workflow
+                  </p>
+                  <div className="grid gap-3">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={storeCreditAmount}
+                      onChange={(event) => setStoreCreditAmount(event.target.value)}
+                      placeholder="Amount in EUR"
+                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                    />
+                    <input
+                      type="text"
+                      value={storeCreditReason}
+                      onChange={(event) => setStoreCreditReason(event.target.value)}
+                      placeholder="Reason"
+                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                    />
+                    <input
+                      type="password"
+                      value={storeCreditPassword}
+                      onChange={(event) => setStoreCreditPassword(event.target.value)}
+                      placeholder="Admin password"
+                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={issueStoreCredit}
+                      disabled={customerMutationId === selectedCustomer.id}
+                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-emerald-300"
+                    >
+                      {customerMutationId === selectedCustomer.id ? "Issuing..." : "Issue store credit"}
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
