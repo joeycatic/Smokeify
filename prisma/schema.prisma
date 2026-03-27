@@ -109,6 +109,11 @@ enum AdminAlertPriority {
   MEDIUM
 }
 
+enum AdminReportDeliveryFrequency {
+  DAILY
+  WEEKLY
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -128,6 +133,8 @@ model User {
   adminTotpSecretEncrypted String?
   adminTotpPendingSecretEncrypted String?
   adminTotpEnabledAt DateTime?
+  adminAccessDisabledAt DateTime?
+  adminAccessDisableReason String?
   role           UserRole       @default(USER)
   customerGroup  CustomerGroup  @default(NORMAL)
   notes          String?
@@ -545,6 +552,9 @@ model Order {
   userId               String?
   stripeSessionId      String      @unique
   stripePaymentIntent  String?     @unique
+  sourceStorefront     Storefront?
+  sourceHost           String?
+  sourceOrigin         String?
   paymentMethod        String?
   status               String
   paymentStatus        String
@@ -574,7 +584,8 @@ model Order {
 
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   items     OrderItem[]
-  returnRequests ReturnRequest[]
+  returnRequests ReturnRequest[] @relation("ReturnRequestsOrder")
+  exchangeForReturnRequest ReturnRequest? @relation("ReturnExchangeOrder")
   inventoryAdjustments InventoryAdjustment[]
   loyaltyPointTransaction LoyaltyPointTransaction?
   storeCreditTransactions StoreCreditTransaction[]
@@ -583,6 +594,46 @@ model Order {
   @@index([createdAt])
   @@index([userId])
   @@index([userId, createdAt])
+  @@index([sourceStorefront, createdAt])
+}
+
+model LandingPageSection {
+  id         String     @id @default(cuid())
+  storefront Storefront @default(MAIN)
+  key        String
+  isManual   Boolean    @default(false)
+  productIds String[]   @default([])
+  draftIsManual Boolean @default(false)
+  draftProductIds String[] @default([])
+  scheduledPublishAt DateTime?
+  lastPublishedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([storefront, key])
+}
+
+model AdminSavedReport {
+  id              String      @id @default(cuid())
+  name            String
+  reportType      String      @default("overview")
+  days            Int         @default(30)
+  sourceStorefront Storefront?
+  paymentState    String      @default("all")
+  deliveryEnabled Boolean     @default(false)
+  deliveryEmail   String?
+  deliveryFrequency AdminReportDeliveryFrequency?
+  deliveryWeekday Int?
+  deliveryHour    Int?
+  lastDeliveredAt DateTime?
+  nextDeliveryAt  DateTime?
+  createdById     String?
+  createdByEmail  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model UserCartItem {
@@ -634,6 +685,7 @@ model ReviewIncentive {
 model ReturnRequest {
   id          String       @id @default(cuid())
   orderId     String
+  exchangeOrderId String?  @unique
   userId      String
   status      ReturnStatus @default(PENDING)
   requestedResolution ReturnResolutionType @default(REFUND)
@@ -642,10 +694,12 @@ model ReturnRequest {
   adminNote   String?
   storeCreditAmount Int    @default(0)
   storeCreditIssuedAt DateTime?
+  exchangeApprovedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation("ReturnRequestsOrder", fields: [orderId], references: [id], onDelete: Cascade)
+  exchangeOrder Order? @relation("ReturnExchangeOrder", fields: [exchangeOrderId], references: [id], onDelete: SetNull)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   items ReturnItem[]
   storeCreditTransactions StoreCreditTransaction[]

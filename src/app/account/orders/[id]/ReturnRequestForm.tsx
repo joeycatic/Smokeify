@@ -31,6 +31,10 @@ export default function ReturnRequestForm({
   items,
 }: Props) {
   const [reason, setReason] = useState("");
+  const [requestedResolution, setRequestedResolution] = useState<
+    "REFUND" | "STORE_CREDIT" | "EXCHANGE"
+  >("REFUND");
+  const [exchangePreference, setExchangePreference] = useState("");
   const [selection, setSelection] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
@@ -51,7 +55,13 @@ export default function ReturnRequestForm({
       const res = await fetch("/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, reason, items: selectedItems }),
+        body: JSON.stringify({
+          orderId,
+          reason,
+          items: selectedItems,
+          requestedResolution,
+          exchangePreference,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -151,6 +161,39 @@ export default function ReturnRequestForm({
         })}
       </div>
       <label className="block text-xs font-semibold text-stone-600">
+        Gewünschte Lösung
+        <p className="mt-2 text-sm text-emerald-200/60">
+          Wähle aus, ob du eine Rückerstattung, Shop-Guthaben oder einen Umtausch möchtest.
+        </p>
+        <select
+          value={requestedResolution}
+          onChange={(event) =>
+            setRequestedResolution(
+              event.target.value as "REFUND" | "STORE_CREDIT" | "EXCHANGE"
+            )
+          }
+          className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-[#0f1713] px-3 text-sm text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+        >
+          <option value="REFUND">Rückerstattung</option>
+          <option value="STORE_CREDIT">Shop-Guthaben</option>
+          <option value="EXCHANGE">Umtausch</option>
+        </select>
+      </label>
+      {requestedResolution === "EXCHANGE" ? (
+        <label className="block text-xs font-semibold text-stone-600">
+          Umtauschhinweis
+          <p className="mt-2 text-sm text-emerald-200/60">
+            Teile mit, welche Variante oder welchen Austausch du bevorzugst.
+          </p>
+          <input
+            value={exchangePreference}
+            onChange={(event) => setExchangePreference(event.target.value)}
+            className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-[#0f1713] px-3 text-sm text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+            placeholder="z. B. gleiche Sorte in anderer Größe"
+          />
+        </label>
+      ) : null}
+      <label className="block text-xs font-semibold text-stone-600">
         Grund
         <p className="mt-2 text-sm text-emerald-200/60">
           Warum möchtest du die Rückgabe beantragen?
@@ -172,7 +215,12 @@ export default function ReturnRequestForm({
       <button
         type="button"
         onClick={submit}
-        disabled={!reason.trim() || status === "loading" || selectedCount === 0}
+        disabled={
+          !reason.trim() ||
+          status === "loading" ||
+          selectedCount === 0 ||
+          (requestedResolution === "EXCHANGE" && !exchangePreference.trim())
+        }
         className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-emerald-900 px-5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
       >
         <span aria-hidden="true">🛒</span>

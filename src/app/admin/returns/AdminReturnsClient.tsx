@@ -1,20 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { DonutChart } from "@/components/admin/AdminCharts";
+import { calculateReturnRequestAmountCents } from "@/lib/adminReturns";
 
 type ReturnRequestRow = {
   id: string;
   orderId: string;
   userId: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedResolution: "REFUND" | "STORE_CREDIT" | "EXCHANGE";
+  exchangePreference: string | null;
   reason: string;
   adminNote: string | null;
+  storeCreditAmount: number;
+  exchangeApprovedAt: string | null;
   createdAt: string;
   updatedAt: string;
   user: { email: string | null; name: string | null };
   order: { id: string; amountTotal: number; currency: string; status: string };
+  exchangeOrder: { id: string; orderNumber: number; status: string } | null;
+  items: Array<{
+    id: string;
+    quantity: number;
+    orderItemId: string;
+    orderItemName: string;
+    unitAmount: number;
+  }>;
 };
 
 type Props = {
@@ -54,26 +68,41 @@ const getOrderBadgeClass = (status: string) => {
   return `${RETURN_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`;
 };
 
+const RESOLUTION_LABELS: Record<ReturnRequestRow["requestedResolution"], string> = {
+  REFUND: "Refund",
+  STORE_CREDIT: "Store credit",
+  EXCHANGE: "Exchange",
+};
+
 export default function AdminReturnsClient({ requests }: Props) {
+  const [requestRows, setRequestRows] = useState(requests);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [approvalTargetId, setApprovalTargetId] = useState<string | null>(null);
+  const [approvalPassword, setApprovalPassword] = useState("");
+  const [approvalError, setApprovalError] = useState("");
+
+  useEffect(() => {
+    setRequestRows(requests);
+  }, [requests]);
 
   const filteredRequests = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return requests;
-    return requests.filter((req) => {
+    if (!query) return requestRows;
+    return requestRows.filter((req) => {
       const email = req.user?.email?.toLowerCase() ?? "";
       return (
         req.order.id.toLowerCase().includes(query) ||
         req.id.toLowerCase().includes(query) ||
         email.includes(query) ||
-        req.reason.toLowerCase().includes(query)
+        req.reason.toLowerCase().includes(query) ||
+        req.requestedResolution.toLowerCase().includes(query)
       );
     });
-  }, [requests, searchQuery]);
+  }, [requestRows, searchQuery]);
 
   const pendingCount = useMemo(
     () => filteredRequests.filter((req) => req.status === "PENDING").length,
@@ -88,7 +117,18 @@ export default function AdminReturnsClient({ requests }: Props) {
     [filteredRequests]
   );
   const returnValueCents = useMemo(
-    () => filteredRequests.reduce((sum, req) => sum + req.order.amountTotal, 0),
+    () =>
+      filteredRequests.reduce(
+        (sum, req) =>
+          sum +
+          calculateReturnRequestAmountCents(
+            req.items.map((item) => ({
+              quantity: item.quantity,
+              unitAmount: item.unitAmount,
+            }))
+          ),
+        0
+      ),
     [filteredRequests]
   );
   const averageReturnValueCents = useMemo(
@@ -113,28 +153,57 @@ export default function AdminReturnsClient({ requests }: Props) {
     ],
     [approvedCount, pendingCount, rejectedCount]
   );
+  const approvalTarget =
+    approvalTargetId ? requestRows.find((req) => req.id === approvalTargetId) ?? null : null;
 
-  const updateStatus = async (id: string, status: "APPROVED" | "REJECTED") => {
+  const updateStatus = async (
+    requestId: string,
+    status: "APPROVED" | "REJECTED",
+    adminPassword?: string
+  ) => {
     setError("");
     setNotice("");
-    setSavingId(id);
+    setSavingId(requestId);
     try {
-      const res = await fetch(`/api/admin/returns/${id}`, {
+      const res = await fetch(`/api/admin/returns/${requestId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status,
-          adminNote: noteDrafts[id],
+          adminNote: noteDrafts[requestId],
+          adminPassword,
         }),
       });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Update failed");
-      } else {
-        setNotice("Return request updated.");
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        request?: Partial<ReturnRequestRow> & { id: string };
+      };
+      if (!res.ok || !data.request) {
+        if (status === "APPROVED") {
+          setApprovalError(data.error ?? "Update failed");
+        } else {
+          setError(data.error ?? "Update failed");
+        }
+        return;
       }
+
+      setRequestRows((current) =>
+        current.map((req) => (req.id === requestId ? { ...req, ...data.request } : req))
+      );
+      setNotice(
+        status === "APPROVED"
+          ? "Return request approved and resolution applied."
+          : "Return request rejected."
+      );
+      setApprovalTargetId(null);
+      setApprovalPassword("");
+      setApprovalError("");
     } catch {
-      setError("Update failed");
+      if (status === "APPROVED") {
+        setApprovalError("Update failed");
+      } else {
+        setError("Update failed");
+      }
     } finally {
       setSavingId(null);
     }
@@ -159,9 +228,8 @@ export default function AdminReturnsClient({ requests }: Props) {
                 </span>
               </div>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Review pending returns, track approval pressure and keep refund decisions
-                structured. The workflow stays simple, but the surface now matches the
-                rest of the redesigned admin.
+                Review itemized return requests, apply the requested resolution path, and keep
+                notes attached to the case instead of resolving everything as a generic status flip.
               </p>
               <div className="mt-5 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100">
@@ -189,7 +257,7 @@ export default function AdminReturnsClient({ requests }: Props) {
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by order, email or reason"
+                  placeholder="Search by order, email, reason or resolution"
                   className="mt-3 h-11 w-full rounded-xl border border-white/10 bg-[#050912] px-4 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-cyan-300/60"
                 />
               </label>
@@ -209,7 +277,7 @@ export default function AdminReturnsClient({ requests }: Props) {
             <SummaryCard
               label="Return value"
               value={formatPrice(returnValueCents, filteredRequests[0]?.order.currency ?? "EUR")}
-              detail="Potential refund exposure"
+              detail="Itemized exposure based on selected return quantities"
               change={`${approvedCount} approved`}
               footnote={`${rejectedCount} rejected`}
               tone="emerald"
@@ -220,7 +288,7 @@ export default function AdminReturnsClient({ requests }: Props) {
                 averageReturnValueCents,
                 filteredRequests[0]?.order.currency ?? "EUR"
               )}
-              detail="Average order value in return queue"
+              detail="Average value across visible return requests"
               change={`${filteredRequests.length} requests`}
               footnote="Per visible request"
               tone="violet"
@@ -235,7 +303,7 @@ export default function AdminReturnsClient({ requests }: Props) {
             />
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 h-full">
+          <div className="h-full rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-300/75">
@@ -258,16 +326,16 @@ export default function AdminReturnsClient({ requests }: Props) {
         </div>
       </div>
 
-      {error && (
+      {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
           {error}
         </div>
-      )}
-      {notice && (
+      ) : null}
+      {notice ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
           {notice}
         </div>
-      )}
+      ) : null}
 
       {filteredRequests.length === 0 ? (
         <div className="rounded-[24px] border border-black/10 bg-white p-8 text-sm text-stone-600 shadow-sm">
@@ -275,136 +343,292 @@ export default function AdminReturnsClient({ requests }: Props) {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredRequests.map((req) => (
-            <div
-              key={req.id}
-              className="orders-order-surface rounded-[24px] border border-black/10 bg-gradient-to-br from-white via-white to-cyan-50/40 p-5 shadow-sm transition"
-            >
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px]">
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
-                      Return {req.order.id.slice(0, 8).toUpperCase()}
-                    </span>
-                    <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
-                      {new Date(req.createdAt).toLocaleDateString("de-DE")}
-                    </span>
-                  </div>
+          {filteredRequests.map((req) => {
+            const requestValueCents = calculateReturnRequestAmountCents(
+              req.items.map((item) => ({
+                quantity: item.quantity,
+                unitAmount: item.unitAmount,
+              }))
+            );
 
-                  <div className="text-sm font-semibold text-stone-900">
-                    {req.user?.email ?? "No email"}
-                  </div>
+            return (
+              <div
+                key={req.id}
+                className="orders-order-surface rounded-[24px] border border-black/10 bg-gradient-to-br from-white via-white to-cyan-50/40 p-5 shadow-sm transition"
+              >
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px]">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
+                        Return {req.order.id.slice(0, 8).toUpperCase()}
+                      </span>
+                      <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
+                        {new Date(req.createdAt).toLocaleDateString("de-DE")}
+                      </span>
+                    </div>
 
-                  <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">
-                    <span className={getOrderBadgeClass(req.order.status)}>
-                      Order: {req.order.status}
-                    </span>
-                    <span className={getReturnBadgeClass(req.status)}>
-                      Return: {req.status}
-                    </span>
-                    <span className={`${RETURN_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}>
-                      Updated: {new Date(req.updatedAt).toLocaleDateString("de-DE")}
-                    </span>
-                  </div>
+                    <div className="text-sm font-semibold text-stone-900">
+                      {req.user?.email ?? "No email"}
+                    </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                        Reason
-                      </div>
-                      <div className="mt-2 line-clamp-2 text-sm font-medium text-stone-900">
-                        {req.reason}
-                      </div>
+                    <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">
+                      <span className={getOrderBadgeClass(req.order.status)}>
+                        Order: {req.order.status}
+                      </span>
+                      <span className={getReturnBadgeClass(req.status)}>
+                        Return: {req.status}
+                      </span>
+                      <span
+                        className={`${RETURN_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
+                      >
+                        Resolution: {RESOLUTION_LABELS[req.requestedResolution]}
+                      </span>
+                      <span
+                        className={`${RETURN_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
+                      >
+                        Updated: {new Date(req.updatedAt).toLocaleDateString("de-DE")}
+                      </span>
                     </div>
-                    <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                        Return value
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-stone-900">
-                        {formatPrice(req.order.amountTotal, req.order.currency)}
-                      </div>
-                    </div>
-                    <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                        Admin note
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-stone-900">
-                        {(noteDrafts[req.id] ?? req.adminNote ?? "").trim() ? "Present" : "Missing"}
-                      </div>
-                    </div>
-                    <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                        Resolution
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-stone-900">
-                        {req.status === "PENDING" ? "Needs review" : req.status}
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                      Customer reason
-                    </div>
-                    <div className="mt-3 text-sm leading-6 text-stone-700">
-                      {req.reason}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                    <label className="text-xs font-semibold text-stone-600">
-                      Admin note
-                      <input
-                        value={noteDrafts[req.id] ?? req.adminNote ?? ""}
-                        onChange={(event) =>
-                          setNoteDrafts((prev) => ({
-                            ...prev,
-                            [req.id]: event.target.value,
-                          }))
-                        }
-                        className="mt-2 h-11 w-full rounded-xl border border-black/15 bg-white px-3 text-sm"
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <Tile
+                        label="Request value"
+                        value={formatPrice(requestValueCents, req.order.currency)}
                       />
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(req.id, "APPROVED")}
-                        className="h-11 rounded-xl border border-emerald-200 px-4 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
-                        disabled={savingId === req.id}
-                      >
-                        {savingId === req.id ? "Saving..." : "Approve"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(req.id, "REJECTED")}
-                        className="h-11 rounded-xl border border-amber-200 px-4 text-xs font-semibold text-amber-800 hover:border-amber-300"
-                        disabled={savingId === req.id}
-                      >
-                        {savingId === req.id ? "Saving..." : "Reject"}
-                      </button>
+                      <Tile
+                        label="Order total"
+                        value={formatPrice(req.order.amountTotal, req.order.currency)}
+                      />
+                      <Tile
+                        label="Admin note"
+                        value={(noteDrafts[req.id] ?? req.adminNote ?? "").trim() ? "Present" : "Missing"}
+                      />
+                      <Tile
+                        label="Store credit"
+                        value={
+                          req.storeCreditAmount > 0
+                            ? formatPrice(req.storeCreditAmount, req.order.currency)
+                            : req.status === "APPROVED" &&
+                                req.requestedResolution === "STORE_CREDIT"
+                              ? formatPrice(requestValueCents, req.order.currency)
+                              : "None"
+                        }
+                      />
+                      <Tile
+                        label="Exchange order"
+                        value={
+                          req.exchangeOrder
+                            ? `#${req.exchangeOrder.orderNumber}`
+                            : req.requestedResolution === "EXCHANGE" && req.status === "APPROVED"
+                              ? "Creating"
+                              : "None"
+                        }
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                        Customer reason
+                      </div>
+                      <div className="mt-3 text-sm leading-6 text-stone-700">{req.reason}</div>
+                      {req.exchangePreference ? (
+                        <div className="mt-3 rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-3 text-sm text-cyan-900">
+                          Exchange preference: {req.exchangePreference}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                        Returned items
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
+                        {req.items.map((item) => (
+                          <span
+                            key={item.id}
+                            className="rounded-full border border-black/10 bg-stone-50 px-3 py-1"
+                          >
+                            {item.orderItemName} x{item.quantity}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {req.exchangeOrder ? (
+                      <div className="rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-4 text-sm text-cyan-950 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-700/75">
+                              Replacement order
+                            </div>
+                            <div className="mt-2 font-semibold">
+                              Exchange order #{req.exchangeOrder.orderNumber}
+                            </div>
+                            <div className="mt-1 text-xs text-cyan-900/75">
+                              Status: {req.exchangeOrder.status}
+                              {req.exchangeApprovedAt
+                                ? ` · approved ${new Date(req.exchangeApprovedAt).toLocaleString("de-DE")}`
+                                : ""}
+                            </div>
+                          </div>
+                          <Link
+                            href={`/admin/orders/${req.exchangeOrder.id}`}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-200 bg-white px-4 text-xs font-semibold text-cyan-900"
+                          >
+                            Open exchange order
+                          </Link>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <label className="text-xs font-semibold text-stone-600">
+                        Admin note
+                        <input
+                          value={noteDrafts[req.id] ?? req.adminNote ?? ""}
+                          onChange={(event) =>
+                            setNoteDrafts((prev) => ({
+                              ...prev,
+                              [req.id]: event.target.value,
+                            }))
+                          }
+                          className="mt-2 h-11 w-full rounded-xl border border-black/15 bg-white px-3 text-sm"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setApprovalTargetId(req.id);
+                            setApprovalPassword("");
+                            setApprovalError("");
+                          }}
+                          className="h-11 rounded-xl border border-emerald-200 px-4 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                          disabled={savingId === req.id || req.status !== "PENDING"}
+                        >
+                          {savingId === req.id ? "Saving..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void updateStatus(req.id, "REJECTED")}
+                          className="h-11 rounded-xl border border-amber-200 px-4 text-xs font-semibold text-amber-800 hover:border-amber-300"
+                          disabled={savingId === req.id || req.status !== "PENDING"}
+                        >
+                          {savingId === req.id ? "Saving..." : "Reject"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="orders-total-panel flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Request value
-                  </div>
-                  <div className="mt-2 text-xl font-semibold text-white">
-                    {formatPrice(req.order.amountTotal, req.order.currency)}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Order {req.order.id.slice(0, 8).toUpperCase()}
-                  </div>
-                  <div className="mt-4 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
-                    {req.status}
+                  <div className="orders-total-panel flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Resolution
+                    </div>
+                    <div className="mt-2 text-xl font-semibold text-white">
+                      {RESOLUTION_LABELS[req.requestedResolution]}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      Order {req.order.id.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div className="mt-4 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                      {req.status}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {approvalTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              setApprovalTargetId(null);
+              setApprovalPassword("");
+              setApprovalError("");
+            }}
+            aria-label="Close return approval dialog"
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-stone-900">Approve return request</h3>
+            <p className="mt-2 text-sm text-stone-600">
+              This will apply the requested resolution path for the selected returned items.
+            </p>
+            <div className="mt-4 space-y-3 rounded-2xl border border-black/10 bg-stone-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-stone-600">Requested resolution</span>
+                <span className="text-sm font-semibold text-stone-900">
+                  {RESOLUTION_LABELS[approvalTarget.requestedResolution]}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-stone-600">Return value</span>
+                <span className="text-sm font-semibold text-stone-900">
+                  {formatPrice(
+                    calculateReturnRequestAmountCents(
+                      approvalTarget.items.map((item) => ({
+                        quantity: item.quantity,
+                        unitAmount: item.unitAmount,
+                      }))
+                    ),
+                    approvalTarget.order.currency
+                  )}
+                </span>
+              </div>
+            </div>
+            <input
+              type="password"
+              value={approvalPassword}
+              onChange={(event) => {
+                setApprovalPassword(event.target.value);
+                if (approvalError) setApprovalError("");
+              }}
+              className="mt-4 h-11 w-full rounded-2xl border border-black/10 px-4 text-sm text-stone-900 outline-none"
+              placeholder="Admin password"
+            />
+            {approvalError ? (
+              <p className="mt-2 text-xs text-red-600">{approvalError}</p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setApprovalTargetId(null);
+                  setApprovalPassword("");
+                  setApprovalError("");
+                }}
+                className="h-10 rounded-xl border border-black/10 px-4 text-sm font-semibold text-stone-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void updateStatus(approvalTarget.id, "APPROVED", approvalPassword)
+                }
+                className="h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
+              >
+                Approve and apply
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Tile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+        {label}
+      </div>
+      <div className="mt-2 text-base font-semibold text-stone-900">{value}</div>
     </div>
   );
 }

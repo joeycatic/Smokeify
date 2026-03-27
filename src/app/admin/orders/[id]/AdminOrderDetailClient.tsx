@@ -19,6 +19,10 @@ const PAID_PAYMENT_STATUSES = new Set([
   "refunded",
   "partially_refunded",
 ]);
+const ORDER_SOURCE_LABELS: Record<string, string> = {
+  MAIN: "Smokeify",
+  GROW: "GrowVault",
+};
 
 const formatPrice = (amount: number, currency: string) =>
   new Intl.NumberFormat("de-DE", {
@@ -117,6 +121,15 @@ const buildShippingLines = (order: AdminOrderRecord) => {
     order.shippingCountry,
   ];
   return lines.filter((line) => Boolean(line?.trim())) as string[];
+};
+
+const getOrderSourceLabel = (
+  order: Pick<AdminOrderRecord, "sourceStorefront" | "sourceHost">,
+) => {
+  if (order.sourceStorefront && ORDER_SOURCE_LABELS[order.sourceStorefront]) {
+    return ORDER_SOURCE_LABELS[order.sourceStorefront];
+  }
+  return order.sourceHost?.trim() || "Unknown website";
 };
 
 export default function AdminOrderDetailClient({ detail }: Props) {
@@ -345,6 +358,9 @@ export default function AdminOrderDetailClient({ detail }: Props) {
               <h1 className="text-3xl font-semibold text-stone-900">
                 Order #{order.orderNumber}
               </h1>
+              <span className={`${ORDER_BADGE_BASE} border-emerald-200 bg-emerald-50 text-emerald-800`}>
+                {getOrderSourceLabel(order)}
+              </span>
               <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
               <span className={getPaymentBadgeClass(order.paymentStatus)}>
                 {order.paymentStatus}
@@ -352,8 +368,8 @@ export default function AdminOrderDetailClient({ detail }: Props) {
             </div>
             <p className="mt-3 text-sm text-stone-600">
               {order.user.name ?? order.shippingName ?? "Unknown customer"} ·{" "}
-              {order.user.email ?? order.customerEmail ?? "No email"} · created{" "}
-              {formatDateTime(order.createdAt)}
+              {order.user.email ?? order.customerEmail ?? "No email"} ·{" "}
+              {getOrderSourceLabel(order)} · created {formatDateTime(order.createdAt)}
             </p>
           </div>
           <div className="text-right">
@@ -581,11 +597,13 @@ export default function AdminOrderDetailClient({ detail }: Props) {
                 Shipping
               </p>
               <h2 className="mt-2 text-lg font-semibold text-stone-900">Customer and address</h2>
-              <div className="mt-4 space-y-2 text-sm text-stone-600">
-                <InfoRow label="Customer email" value={order.user.email ?? order.customerEmail ?? "—"} />
-                <InfoRow label="Payment method" value={order.paymentMethod ?? "—"} />
-                <InfoRow label="Discount code" value={order.discountCode ?? "—"} />
-              </div>
+                <div className="mt-4 space-y-2 text-sm text-stone-600">
+                  <InfoRow label="Customer email" value={order.user.email ?? order.customerEmail ?? "—"} />
+                  <InfoRow label="Website" value={getOrderSourceLabel(order)} />
+                  <InfoRow label="Source host" value={order.sourceHost ?? "—"} />
+                  <InfoRow label="Payment method" value={order.paymentMethod ?? "—"} />
+                  <InfoRow label="Discount code" value={order.discountCode ?? "—"} />
+                </div>
               <div className="mt-4 rounded-2xl border border-black/10 bg-stone-50 px-4 py-4 text-sm text-stone-700">
                 {shippingLines.length ? (
                   shippingLines.map((line) => <div key={line}>{line}</div>)

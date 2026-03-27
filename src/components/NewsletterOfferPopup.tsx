@@ -25,31 +25,27 @@ const HIDDEN_PATHS = new Set(["/cart"]);
 export default function NewsletterOfferPopup() {
   const pathname = usePathname();
   const { status: sessionStatus } = useSession();
-  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
     "idle",
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [offerEligibility, setOfferEligibility] = useState<
+  const [authenticatedOfferEligibility, setAuthenticatedOfferEligibility] = useState<
     "unknown" | "eligible" | "claimed"
   >("unknown");
   const discountLabel = useMemo(() => formatDiscountAmount(), []);
   const compactDiscountLabel = "5 €";
   const activeUntilLabel = useMemo(() => formatNewsletterOfferActiveUntil(), []);
+  const offerEligibility =
+    sessionStatus === "authenticated"
+      ? authenticatedOfferEligibility
+      : sessionStatus === "loading"
+        ? "unknown"
+        : "eligible";
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (sessionStatus === "loading") return;
-    if (sessionStatus !== "authenticated") {
-      setOfferEligibility("eligible");
-      return;
-    }
+    if (sessionStatus !== "authenticated") return;
 
     let cancelled = false;
     const loadStatus = async () => {
@@ -61,10 +57,12 @@ export default function NewsletterOfferPopup() {
           eligible?: boolean;
         } | null;
         if (cancelled) return;
-        setOfferEligibility(data?.eligible === false ? "claimed" : "eligible");
+        setAuthenticatedOfferEligibility(
+          data?.eligible === false ? "claimed" : "eligible",
+        );
       } catch {
         if (cancelled) return;
-        setOfferEligibility("eligible");
+        setAuthenticatedOfferEligibility("eligible");
       }
     };
 
@@ -72,10 +70,9 @@ export default function NewsletterOfferPopup() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, sessionStatus]);
+  }, [sessionStatus]);
 
   useEffect(() => {
-    if (!mounted) return;
     if (offerEligibility !== "eligible") return;
     if (!isNewsletterOfferActive()) return;
     if (!pathname) return;
@@ -96,9 +93,9 @@ export default function NewsletterOfferPopup() {
     }, 7000);
 
     return () => window.clearTimeout(timer);
-  }, [mounted, offerEligibility, pathname]);
+  }, [offerEligibility, pathname]);
 
-  if (!mounted || !open) return null;
+  if (!open) return null;
 
   const dismiss = () => {
     window.sessionStorage.setItem(
@@ -182,7 +179,7 @@ export default function NewsletterOfferPopup() {
                   NEWSLETTER_OFFER_SUCCESS_STORAGE_KEY,
                   new Date().toISOString(),
                 );
-                setOfferEligibility("claimed");
+                setAuthenticatedOfferEligibility("claimed");
                 setStatus("ok");
                 setMessage(
                   data?.message ??

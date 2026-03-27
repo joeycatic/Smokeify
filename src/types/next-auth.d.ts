@@ -8,6 +8,7 @@ declare module "next-auth" {
       role: "USER" | "ADMIN" | "STAFF";
       adminVerifiedAt?: number;
       adminTotpEnabled?: boolean;
+      adminAccessDisabledAt?: number;
     };
   }
 
@@ -15,6 +16,7 @@ declare module "next-auth" {
     role: "USER" | "ADMIN" | "STAFF";
     adminVerifiedAt?: number;
     adminTotpEnabled?: boolean;
+    adminAccessDisabledAt?: number;
   }
 }
 
@@ -25,6 +27,7 @@ declare module "next-auth/jwt" {
     authVersion?: number;
     adminVerifiedAt?: number;
     adminTotpEnabled?: boolean;
+    adminAccessDisabledAt?: number;
     invalidated?: boolean;
   }
 }

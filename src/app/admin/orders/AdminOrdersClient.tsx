@@ -36,6 +36,9 @@ type OrderRow = {
   id: string;
   createdAt: string;
   updatedAt: string;
+  sourceStorefront: string | null;
+  sourceHost: string | null;
+  sourceOrigin: string | null;
   status: string;
   paymentStatus: string;
   paymentMethod: string | null;
@@ -110,6 +113,10 @@ const formatDelta = (current: number, previous: number) => {
   const rounded = Math.round(delta * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded}% vs prev 7d`;
 };
+const ORDER_SOURCE_LABELS: Record<string, string> = {
+  MAIN: "Smokeify",
+  GROW: "GrowVault",
+};
 const formatOrderItemName = (name: string, manufacturer?: string | null) => {
   const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
   if (!defaultSuffix.test(name)) return name;
@@ -137,6 +144,21 @@ const buildShippingLines = (order: OrderRow) => {
     order.shippingCountry,
   ];
   return lines.filter((line) => Boolean(line?.trim())) as string[];
+};
+
+const getOrderSourceLabel = (order: Pick<OrderRow, "sourceStorefront" | "sourceHost">) => {
+  if (order.sourceStorefront && ORDER_SOURCE_LABELS[order.sourceStorefront]) {
+    return ORDER_SOURCE_LABELS[order.sourceStorefront];
+  }
+  return order.sourceHost?.trim() || "Unknown website";
+};
+
+const getOrderSourceDetail = (order: Pick<OrderRow, "sourceStorefront" | "sourceHost">) => {
+  const label = getOrderSourceLabel(order);
+  if (order.sourceHost && order.sourceHost !== label) {
+    return `${label} · ${order.sourceHost}`;
+  }
+  return label;
 };
 
 const formatTimelineDate = (value: string) =>
@@ -325,10 +347,12 @@ export default function AdminOrdersClient({
     return visibleOrders.filter((order) => {
       const email = getOrderEmail(order)?.toLowerCase() ?? "";
       const name = order.user?.name?.toLowerCase() ?? "";
+      const source = getOrderSourceDetail(order).toLowerCase();
       return (
         order.id.toLowerCase().includes(normalizedQuery) ||
         email.includes(normalizedQuery) ||
-        name.includes(normalizedQuery)
+        name.includes(normalizedQuery) ||
+        source.includes(normalizedQuery)
       );
     });
   }, [visibleOrders, normalizedQuery]);
@@ -496,6 +520,18 @@ export default function AdminOrdersClient({
     }
     return Array.from(byMethod.entries())
       .map(([label, count]) => ({ label, value: count }))
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 6);
+  }, [filteredOrders]);
+  const websiteSourceBars = useMemo<AdminChartPoint[]>(() => {
+    const bySource = new Map<string, number>();
+    for (const order of filteredOrders) {
+      const label = getOrderSourceLabel(order);
+      bySource.set(label, (bySource.get(label) ?? 0) + 1);
+    }
+
+    return Array.from(bySource.entries())
+      .map(([label, value]) => ({ label, value }))
       .sort((left, right) => right.value - left.value)
       .slice(0, 6);
   }, [filteredOrders]);
@@ -1121,6 +1157,29 @@ export default function AdminOrdersClient({
                 data={paymentMethodBars}
                 colorClassName="bg-gradient-to-r from-violet-400 via-indigo-400 to-fuchsia-400"
                 valueFormatter={(value) => `${value} orders`}
+                />
+              </div>
+            </div>
+
+          <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-stone-500">
+                  Website source
+                </p>
+                <h2 className="mt-2 text-base font-semibold text-stone-900">
+                  Which storefront the paid orders came from
+                </h2>
+              </div>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                {websiteSourceBars.length} source{websiteSourceBars.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="mt-4">
+              <HorizontalBarsChart
+                data={websiteSourceBars}
+                colorClassName="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"
+                valueFormatter={(value) => `${value} orders`}
               />
             </div>
           </div>
@@ -1335,6 +1394,9 @@ export default function AdminOrdersClient({
                     <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
                       {new Date(order.createdAt).toLocaleDateString("de-DE")}
                     </span>
+                    <span className="orders-meta-chip rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-800">
+                      {getOrderSourceLabel(order)}
+                    </span>
                     {order.paymentMethod ? (
                       <span className="orders-meta-chip orders-meta-chip-payment rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-700">
                         {order.paymentMethod}
@@ -1373,6 +1435,17 @@ export default function AdminOrdersClient({
                         <div className="mt-2 text-base font-semibold text-stone-900">
                           {order.items.length}
                         </div>
+                      </div>
+                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Website
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-stone-900">
+                          {getOrderSourceLabel(order)}
+                        </div>
+                        {order.sourceHost ? (
+                          <div className="mt-1 text-xs text-stone-500">{order.sourceHost}</div>
+                        ) : null}
                       </div>
                       <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
@@ -1446,6 +1519,11 @@ export default function AdminOrdersClient({
                       label="Payment"
                       value={order.paymentStatus}
                       detail={order.stripePaymentIntent ? "Stripe linked" : "No PI linked"}
+                    />
+                    <OrderHealthCard
+                      label="Website"
+                      value={getOrderSourceLabel(order)}
+                      detail={order.sourceHost ?? "No host captured"}
                     />
                     <OrderHealthCard
                       label="Fulfillment"

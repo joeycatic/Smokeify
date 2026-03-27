@@ -20,6 +20,7 @@ import {
   HomeIcon,
   PresentationChartLineIcon,
   RectangleGroupIcon,
+  RectangleStackIcon,
   SwatchIcon,
   TagIcon,
   TruckIcon,
@@ -87,6 +88,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Control Layer",
     items: [
       { href: "/admin/finance", label: "Finance", icon: BanknotesIcon },
+      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon },
       { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon },
       { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon },
       {
@@ -103,6 +105,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon },
       { href: "/admin/categories", label: "Categories", icon: SwatchIcon },
       { href: "/admin/collections", label: "Collections", icon: FolderIcon },
+      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon },
       { href: "/admin/discounts", label: "Discounts", icon: TagIcon },
     ],
   },

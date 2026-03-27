@@ -5,6 +5,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
+import { issueAdminStoreCredit } from "@/lib/adminStoreCredit";
 
 export async function POST(
   request: Request,
@@ -62,57 +63,37 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const customer = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      storeCreditBalance: true,
-    },
-  });
-  if (!customer || customer.role !== "USER") {
-    return adminJson({ error: "Customer not found." }, { status: 404 });
+  let result;
+  try {
+    result = await issueAdminStoreCredit({
+      userId: id,
+      amountCents,
+      reason: `admin_issue:${reason}`,
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      metadata: { note: reason },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Customer not found.") {
+      return adminJson({ error: "Customer not found." }, { status: 404 });
+    }
+    throw error;
   }
-
-  const nextBalance = customer.storeCreditBalance + amountCents;
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: customer.id },
-      data: { storeCreditBalance: nextBalance },
-    }),
-    prisma.storeCreditTransaction.create({
-      data: {
-        userId: customer.id,
-        amountDelta: amountCents,
-        reason: `admin_issue:${reason}`,
-        metadata: {
-          source: "admin.crm",
-          issuedById: session.user.id,
-          issuedByEmail: session.user.email ?? null,
-          previousBalance: customer.storeCreditBalance,
-          nextBalance,
-          note: reason,
-        },
-      },
-    }),
-  ]);
 
   await logAdminAction({
     actor: { id: session.user.id, email: session.user.email ?? null },
     action: "customer.store_credit.issue",
     targetType: "user",
-    targetId: customer.id,
-    summary: `Issued ${amountCents} store credit to ${customer.email ?? customer.id}`,
+    targetId: result.customer.id,
+    summary: `Issued ${amountCents} store credit to ${result.customer.email ?? result.customer.id}`,
     metadata: {
       amountCents,
       reason,
-      previousBalance: customer.storeCreditBalance,
-      nextBalance,
+      previousBalance: result.previousBalance,
+      nextBalance: result.nextBalance,
     },
   });
 
   return adminJson({
-    storeCreditBalance: nextBalance,
+    storeCreditBalance: result.nextBalance,
   });
 }

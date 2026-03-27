@@ -7,6 +7,7 @@ import {
   type AdminChartPoint,
 } from "@/components/admin/AdminCharts";
 import {
+  AdminTimeRangeTabs,
   AdminCompactMetric,
   AdminEmptyState,
   AdminMetricCard,
@@ -23,6 +24,11 @@ import {
   getProductPerformance,
   getStockCoverageMap,
 } from "@/lib/adminInsights";
+import {
+  buildAdminTimeBuckets,
+  getAdminTimeWindowStart,
+  parseAdminTimeRangeDays,
+} from "@/lib/adminTimeRange";
 import { prisma } from "@/lib/prisma";
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
@@ -58,7 +64,7 @@ const ADMIN_PAGE_COPY = {
       vatBadge: (status: string) => `USt ${status}`,
     },
     metrics: {
-      grossRevenue: { label: "Bruttoumsatz", footnote: "Top-Line der letzten 30 Tage" },
+      grossRevenue: { label: "Bruttoumsatz", footnote: "Top-Line im gewählten Zeitraum" },
       paidOrders: { label: "Bezahlte Bestellungen", footnote: "bestätigte Bestellungen" },
       sessionCvr: { label: "Session-CVR", footnote: "Session zu bezahlter Bestellung" },
       lowStock: { label: "Niedriger Bestand", footnote: "kritische Varianten / ausverkauft" },
@@ -68,11 +74,11 @@ const ADMIN_PAGE_COPY = {
         eyebrow: "Leistung",
         title: "Tempo bezahlter Umsätze",
         description:
-          "Letzte 14 Tage, basierend nur auf bezahlten Bestellungen. Das ist eine schnelle Richtungsprüfung, keine Reporting-Oberfläche.",
+          "Umsatztrend bezahlter Bestellungen für den gewählten Zeitraum. Das ist eine schnelle Richtungsprüfung, keine Reporting-Oberfläche.",
       },
       orders: {
         eyebrow: "Bestellungen",
-        title: "30-Tage-Verteilung",
+        title: "Bestellstatus-Verteilung",
         description:
           "Kompakter Blick auf bezahlte, ausstehende und stornierte Bestellzustände.",
       },
@@ -130,7 +136,7 @@ const ADMIN_PAGE_COPY = {
       },
       orders: {
         title: "Bestellungen",
-        detail: (delta: string) => `${delta} vs. vorherige 30 Tage`,
+        detail: (delta: string) => `${delta} vs. vorheriges Zeitfenster`,
       },
       customers: {
         title: "Kunden",
@@ -197,7 +203,7 @@ const ADMIN_PAGE_COPY = {
       vatBadge: (status: string) => `VAT ${status}`,
     },
     metrics: {
-      grossRevenue: { label: "Gross Revenue", footnote: "30-day top-line" },
+      grossRevenue: { label: "Gross Revenue", footnote: "selected-window top-line" },
       paidOrders: { label: "Paid Orders", footnote: "confirmed orders" },
       sessionCvr: { label: "Session CVR", footnote: "session to paid order" },
       lowStock: { label: "Low Stock", footnote: "at-risk variants / out of stock" },
@@ -207,11 +213,11 @@ const ADMIN_PAGE_COPY = {
         eyebrow: "Performance",
         title: "Paid revenue pace",
         description:
-          "Last 14 days based on paid orders only. This is a quick direction check, not a reporting surface.",
+          "Paid-order revenue trend for the selected window. This is a quick direction check, not a reporting surface.",
       },
       orders: {
         eyebrow: "Orders",
-        title: "30-day outcome split",
+        title: "Order outcome split",
         description: "Compact view of paid, pending, and canceled order states.",
       },
       modules: {
@@ -266,7 +272,7 @@ const ADMIN_PAGE_COPY = {
       },
       orders: {
         title: "Orders",
-        detail: (delta: string) => `${delta} vs previous 30d`,
+        detail: (delta: string) => `${delta} vs previous window`,
       },
       customers: {
         title: "Customers",
@@ -349,16 +355,10 @@ export default async function AdminPage({
   if (session?.user?.role !== "ADMIN") notFound();
   const resolvedSearchParams = await searchParams;
   const language = resolveAdminLanguage(resolvedSearchParams?.lang);
+  const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
   const locale = ADMIN_LOCALE[language];
   const copy = ADMIN_PAGE_COPY[language];
-
-  const now = new Date();
-  const trendWindowStart = new Date(now);
-  trendWindowStart.setDate(trendWindowStart.getDate() - 13);
-  trendWindowStart.setHours(0, 0, 0, 0);
-  const salesWindowStart = new Date(now);
-  salesWindowStart.setDate(salesWindowStart.getDate() - 29);
-  salesWindowStart.setHours(0, 0, 0, 0);
+  const salesWindowStart = getAdminTimeWindowStart(days);
 
   const [
     failedWebhookCount,
@@ -397,13 +397,13 @@ export default async function AdminPage({
       },
     }),
     getActiveSessionSnapshot(),
-    getFunnelSnapshot(30),
-    getOrderComparisons(30),
-    getCustomerRevenueMix(30),
-    getProductPerformance(30),
+    getFunnelSnapshot(days),
+    getOrderComparisons(days),
+    getCustomerRevenueMix(days),
+    getProductPerformance(days),
     getActivityFeed(6),
-    getStockCoverageMap(30),
-    getFinancePageData(30),
+    getStockCoverageMap(days),
+    getFinancePageData(days),
     getVatPageData(6),
   ]);
 
@@ -440,22 +440,22 @@ export default async function AdminPage({
     PAID_PAYMENT_STATUSES.has(order.paymentStatus.trim().toLowerCase()),
   );
 
-  const trendDays = Array.from({ length: 14 }, (_, index) => {
-    const day = new Date(trendWindowStart);
-    day.setDate(trendWindowStart.getDate() + index);
-    const key = day.toISOString().slice(0, 10);
-    const label = day.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
-    return { key, label, value: 0 };
-  });
-  const trendMap = new Map(trendDays.map((day) => [day.key, day]));
+  const trendBuckets = buildAdminTimeBuckets(days, locale).map((bucket) => ({
+    label: bucket.label,
+    start: bucket.start,
+    endExclusive: bucket.endExclusive,
+    value: 0,
+  }));
   for (const order of paidOrders) {
-    const day = trendMap.get(order.createdAt.toISOString().slice(0, 10));
-    if (!day) continue;
-    day.value += order.amountTotal;
+    const bucket = trendBuckets.find(
+      (entry) => order.createdAt >= entry.start && order.createdAt < entry.endExclusive,
+    );
+    if (!bucket) continue;
+    bucket.value += order.amountTotal;
   }
-  const salesTrend: AdminChartPoint[] = trendDays.map((day) => ({
-    label: day.label,
-    value: day.value,
+  const salesTrend: AdminChartPoint[] = trendBuckets.map((bucket) => ({
+    label: bucket.label,
+    value: bucket.value,
   }));
 
   const statusMix = [
@@ -615,16 +615,25 @@ export default async function AdminPage({
               {copy.hero.description}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-slate-100">
-              {copy.hero.liveVisitors(liveSnapshot.activeVisitorCount)}
-            </span>
-            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200">
-              {copy.hero.keyActions(primaryAction.length)}
-            </span>
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-200">
-              {copy.hero.vatBadge(formatVatStatus(vatData.current?.status ?? "estimated", language))}
-            </span>
+          <div className="flex max-w-sm flex-col items-start gap-3">
+            <AdminTimeRangeTabs
+              pathname="/admin"
+              activeDays={days}
+              extraParams={{ lang: language }}
+            />
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-slate-100">
+                {copy.hero.liveVisitors(liveSnapshot.activeVisitorCount)}
+              </span>
+              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {copy.hero.keyActions(primaryAction.length)}
+              </span>
+              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-200">
+                {copy.hero.vatBadge(
+                  formatVatStatus(vatData.current?.status ?? "estimated", language),
+                )}
+              </span>
+            </div>
           </div>
         </div>
       </section>

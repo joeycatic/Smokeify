@@ -19,6 +19,7 @@ import {
   pointsToDiscountCents,
 } from "@/lib/loyalty";
 import { createGuestCheckoutAccess } from "@/lib/checkoutAccess";
+import { resolveOrderSourceFromRequest } from "@/lib/orderSource";
 
 export const runtime = "nodejs";
 
@@ -457,7 +458,17 @@ export async function POST(req: Request) {
     appliedDiscountCode = promotionCode.code ?? rawDiscountCode;
   }
 
+  const orderSource = resolveOrderSourceFromRequest(req);
   const metadata: Record<string, string> = { country };
+  if (orderSource.sourceStorefront) {
+    metadata.sourceStorefront = orderSource.sourceStorefront;
+  }
+  if (orderSource.sourceHost) {
+    metadata.sourceHost = orderSource.sourceHost;
+  }
+  if (orderSource.sourceOrigin) {
+    metadata.sourceOrigin = orderSource.sourceOrigin;
+  }
   if (appliedDiscountCode) {
     metadata.discountCode = appliedDiscountCode;
   }

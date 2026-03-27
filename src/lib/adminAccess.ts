@@ -24,13 +24,19 @@ export function isFreshAdminReauth(adminVerifiedAt: unknown) {
 export function hasAdminAccess({
   role,
   adminVerifiedAt,
+  adminAccessDisabledAt,
   invalidated,
 }: {
   role: unknown;
   adminVerifiedAt: unknown;
+  adminAccessDisabledAt?: unknown;
   invalidated?: unknown;
 }) {
   if (invalidated) {
+    return false;
+  }
+
+  if (typeof adminAccessDisabledAt === "number" && Number.isFinite(adminAccessDisabledAt)) {
     return false;
   }
 

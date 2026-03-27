@@ -23,6 +23,11 @@ import {
   getProductPerformance,
   getStockCoverageMap,
 } from "@/lib/adminInsights";
+import {
+  buildAdminTimeBuckets,
+  getAdminTimeWindowStart,
+  type AdminTimeRangeDays,
+} from "@/lib/adminTimeRange";
 
 const getDateDaysAgo = (daysAgo: number) => {
   const date = new Date();
@@ -142,10 +147,9 @@ export async function getExpensesSince(since: Date) {
   return result.expenses;
 }
 
-export async function getFinancePageData(days = 30) {
-  const currentStart = getDateDaysAgo(days - 1);
+export async function getFinancePageData(days: AdminTimeRangeDays = 30) {
+  const currentStart = getAdminTimeWindowStart(days);
   const previousStart = getDateDaysAgo(days * 2 - 1);
-  const trendStart = getDateDaysAgo(13);
   const [orders, expenseQuery, latestRecognizedOrder] = await Promise.all([
     getFinanceOrdersSince(previousStart),
     queryExpensesSince(previousStart),
@@ -176,29 +180,34 @@ export async function getFinancePageData(days = 30) {
     buildVatOptionsFromExpenses(currentExpenseSummary),
   );
 
-  const buckets = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(trendStart);
-    date.setDate(trendStart.getDate() + index);
-    return {
-      key: date.toISOString().slice(0, 10),
-      label: new Intl.DateTimeFormat("de-DE", {
-        day: "2-digit",
-        month: "2-digit",
-      }).format(date),
-      grossRevenueCents: 0,
-      netRevenueCents: 0,
-      contributionMarginCents: 0,
-    };
-  });
-  const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  const trendBuckets = buildAdminTimeBuckets(days, "de-DE").map((bucket) => ({
+    key: bucket.key,
+    label: bucket.label,
+    start: bucket.start,
+    endExclusive: bucket.endExclusive,
+    grossRevenueCents: 0,
+    netRevenueCents: 0,
+    contributionMarginCents: 0,
+  }));
+
   for (const order of currentOrders) {
-    const bucket = bucketMap.get(order.createdAt.toISOString().slice(0, 10));
+    const bucket = trendBuckets.find(
+      (entry) => order.createdAt >= entry.start && order.createdAt < entry.endExclusive,
+    );
     if (!bucket) continue;
     const breakdown = buildFinanceRollup([order], currency);
     bucket.grossRevenueCents += breakdown.grossRevenueCents;
     bucket.netRevenueCents += breakdown.netRevenueCents;
     bucket.contributionMarginCents += breakdown.contributionMarginCents;
   }
+
+  const trend = trendBuckets.map((bucket) => ({
+    key: bucket.key,
+    label: bucket.label,
+    grossRevenueCents: bucket.grossRevenueCents,
+    netRevenueCents: bucket.netRevenueCents,
+    contributionMarginCents: bucket.contributionMarginCents,
+  }));
 
   const expenseByCategory = Array.from(
     currentExpenses.reduce(
@@ -236,7 +245,7 @@ export async function getFinancePageData(days = 30) {
     currentExpenseSummary,
     previousExpenseSummary,
     vatSummary,
-    trend: buckets,
+    trend,
     expenseByCategory,
     expenseMigrationRequired: expenseQuery.migrationRequired,
     currentStart,

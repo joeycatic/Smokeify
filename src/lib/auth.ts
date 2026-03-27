@@ -64,8 +64,15 @@ async function findUserForLogin(identifier: string) {
       authVersion: true,
       adminTotpSecretEncrypted: true,
       adminTotpEnabledAt: true,
+      adminAccessDisabledAt: true,
     },
   });
+}
+
+function toAuthUser<T extends { adminAccessDisabledAt?: Date | null }>(user: T) {
+  const { adminAccessDisabledAt, ...safeUser } = user;
+  void adminAccessDisabledAt;
+  return safeUser;
 }
 
 async function enforceCredentialRateLimit({
@@ -160,6 +167,10 @@ providers.push(
           throw new Error("AccessDenied");
         }
 
+        if (user.adminAccessDisabledAt) {
+          throw new Error("AccessDenied");
+        }
+
         const adminTotpEnabled = Boolean(
           user.adminTotpEnabledAt && user.adminTotpSecretEncrypted
         );
@@ -175,7 +186,7 @@ providers.push(
         }
 
         return {
-          ...user,
+          ...toAuthUser(user),
           adminVerifiedAt: Date.now(),
           adminTotpEnabled,
         };
@@ -202,7 +213,7 @@ providers.push(
           await prisma.verificationCode.delete({
             where: { id: oneTimeLogin.id },
           });
-          return user;
+          return toAuthUser(user);
         }
       }
 
@@ -231,7 +242,7 @@ providers.push(
             where: { id: device.id },
             data: { lastSeenAt: new Date() },
           });
-          return user;
+          return toAuthUser(user);
         }
       }
 
@@ -302,6 +313,7 @@ export const authOptions: NextAuthOptions = {
             authVersion: true,
             adminTotpEnabledAt: true,
             adminTotpSecretEncrypted: true,
+            adminAccessDisabledAt: true,
           },
         });
         if (!dbUser) {
@@ -318,6 +330,7 @@ export const authOptions: NextAuthOptions = {
         token.adminTotpEnabled = Boolean(
           dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
         );
+        token.adminAccessDisabledAt = dbUser.adminAccessDisabledAt?.getTime();
         if (dbUser.role === "ADMIN" && typeof user.adminVerifiedAt === "number") {
           token.adminVerifiedAt = user.adminVerifiedAt;
         } else {
@@ -335,6 +348,7 @@ export const authOptions: NextAuthOptions = {
             authVersion: true,
             adminTotpEnabledAt: true,
             adminTotpSecretEncrypted: true,
+            adminAccessDisabledAt: true,
           },
         });
         if (!dbUser) {
@@ -361,6 +375,7 @@ export const authOptions: NextAuthOptions = {
         token.adminTotpEnabled = Boolean(
           dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
         );
+        token.adminAccessDisabledAt = dbUser.adminAccessDisabledAt?.getTime();
         if (dbUser.role !== "ADMIN") {
           delete token.adminVerifiedAt;
         }
@@ -380,6 +395,9 @@ export const authOptions: NextAuthOptions = {
           session.user.adminVerifiedAt = token.adminVerifiedAt;
         }
         session.user.adminTotpEnabled = token.adminTotpEnabled === true;
+        if (typeof token.adminAccessDisabledAt === "number") {
+          session.user.adminAccessDisabledAt = token.adminAccessDisabledAt;
+        }
       }
       return session;
     },

@@ -1,24 +1,13 @@
-import Stripe from "stripe";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
-import { logAdminAction } from "@/lib/adminAuditLog";
-import { logOrderTimelineEvent } from "@/lib/orderTimeline";
-import { sendResendEmail } from "@/lib/resend";
-import { buildOrderEmail } from "@/lib/orderEmail";
-import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import bcrypt from "bcryptjs";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { adminJson } from "@/lib/adminApi";
+import { refundAdminOrder } from "@/lib/adminRefunds";
 
 export const runtime = "nodejs";
-
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
-};
 
 export async function POST(
   request: Request,
@@ -45,13 +34,6 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const stripe = getStripe();
-  if (!stripe) {
-    return adminJson(
-      { error: "Stripe secret key not configured." },
-      { status: 500 }
-    );
-  }
 
   const body = (await request.json().catch(() => ({}))) as {
     items?: Array<{ id: string; quantity?: number }>;
@@ -142,78 +124,32 @@ export async function POST(
     );
   }
 
-  await stripe.refunds.create({
-    payment_intent: order.stripePaymentIntent,
-    amount: refundAmount,
-  });
-
-  const newRefunded = order.amountRefunded + refundAmount;
-  const fullyRefunded = newRefunded >= order.amountTotal;
-
-  const updated = await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      amountRefunded: newRefunded,
-      status: fullyRefunded ? "refunded" : order.status,
-      paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
-    },
-    include: { items: true },
-  });
-
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "order.refund",
-    targetType: "order",
-    targetId: order.id,
-    summary: `Refunded ${refundAmount} of ${order.amountTotal}${
-      shippingRefundAmount > 0 ? ` (incl. ${shippingRefundAmount} shipping)` : ""
-    }`,
-    metadata: {
+  try {
+    const result = await refundAdminOrder({
+      orderId: order.id,
+      refundAmount,
       includeShipping,
       shippingRefundAmount,
-      refundAmount,
-      totalAmount: order.amountTotal,
-      newRefunded,
-      fullyRefunded,
-    },
-  });
-  await logOrderTimelineEvent({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    orderId: order.id,
-    action: "order.lifecycle.refund_updated",
-    summary: `Refund updated: ${order.amountRefunded} -> ${newRefunded} (${fullyRefunded ? "full" : "partial"})`,
-    metadata: {
-      includeShipping,
-      shippingRefundAmount,
-      refundAmount,
-      previousAmountRefunded: order.amountRefunded,
-      nextAmountRefunded: newRefunded,
-      previousPaymentStatus: order.paymentStatus,
-      nextPaymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
-      previousStatus: order.status,
-      nextStatus: fullyRefunded ? "refunded" : order.status,
+      actor: { id: session.user.id, email: session.user.email ?? null },
       source: "admin.orders.refund",
-    },
-  });
+      origin: getAppOrigin(request),
+    });
 
-  if (updated.customerEmail) {
-    try {
-      const origin = getAppOrigin(request);
-      const guestOrderUrl = buildOrderViewUrl(origin, updated.id);
-      const orderUrl = updated.userId
-        ? `${origin}/account/orders/${updated.id}`
-        : guestOrderUrl ?? undefined;
-      const email = buildOrderEmail("refund", updated, orderUrl);
-      await sendResendEmail({
-        to: updated.customerEmail,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-    } catch {
-      // Ignore email errors for refund processing.
-    }
+    return adminJson({ order: result.updated });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Refund failed";
+    const status =
+      message === "Stripe secret key not configured."
+        ? 500
+        : message === "Order not found"
+          ? 404
+          : message === "Order already refunded"
+            ? 409
+            : message === "Missing payment intent" ||
+                message === "Refund amount must be greater than zero" ||
+                message === "Refund amount exceeds remaining balance"
+              ? 400
+              : 500;
+    return adminJson({ error: message }, { status });
   }
-
-  return adminJson({ order: updated });
 }

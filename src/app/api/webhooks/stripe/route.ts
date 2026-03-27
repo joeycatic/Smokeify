@@ -25,6 +25,7 @@ import {
   calculateVatComponentsFromGross,
   canApplyDefaultVatFallback,
 } from "@/lib/vat";
+import { formatOrderSourceLabel, resolveOrderSourceFromMetadata } from "@/lib/orderSource";
 
 export const runtime = "nodejs";
 
@@ -466,6 +467,7 @@ export const createOrderFromSession = async (
   const paymentMethod = await resolvePaymentMethod(stripe, checkoutSession);
   const paymentFeeConfig =
     PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
+  const orderSource = resolveOrderSourceFromMetadata(checkoutSession.metadata ?? {});
 
   const variantIds = Array.from(
     new Set(
@@ -584,6 +586,9 @@ export const createOrderFromSession = async (
         typeof checkoutSession.payment_intent === "string"
           ? checkoutSession.payment_intent
           : checkoutSession.payment_intent?.id,
+      sourceStorefront: orderSource.sourceStorefront ?? undefined,
+      sourceHost: orderSource.sourceHost ?? undefined,
+      sourceOrigin: orderSource.sourceOrigin ?? undefined,
       paymentMethod,
       status: checkoutSession.status ?? "open",
       paymentStatus: checkoutSession.payment_status ?? "unpaid",
@@ -720,6 +725,10 @@ export const createOrderFromSession = async (
   const orderNumber = created.orderNumber;
   const orderCurrency = created.currency;
   const customer = created.customerEmail ?? "unknown";
+  const orderSourceLabel = formatOrderSourceLabel(
+    created.sourceStorefront,
+    created.sourceHost,
+  );
   const itemsForEnrichment = created.items.map((item) => ({
     ...item,
     options: normalizeOptions(item.options),
@@ -753,6 +762,7 @@ export const createOrderFromSession = async (
       `Items: ${itemSummary || "unknown"}`,
       `Amount: ${formattedAmount}`,
       `Payment: ${paymentMethod}`,
+      `Website: ${orderSourceLabel}`,
       `Customer: ${customer}`,
       `Time: ${orderTime}`,
       "",

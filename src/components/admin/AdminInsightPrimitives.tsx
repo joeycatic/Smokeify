@@ -1,4 +1,10 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  ADMIN_TIME_RANGE_OPTIONS,
+  buildAdminSearchHref,
+  type AdminTimeRangeDays,
+} from "@/lib/adminTimeRange";
 
 export function AdminPanel({
   eyebrow,
@@ -116,6 +122,42 @@ export function AdminEmptyState({ copy }: { copy: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
       {copy}
+    </div>
+  );
+}
+
+export function AdminTimeRangeTabs({
+  pathname,
+  activeDays,
+  extraParams,
+  className = "",
+}: {
+  pathname: string;
+  activeDays: AdminTimeRangeDays;
+  extraParams?: Record<string, string | undefined>;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-wrap gap-2 text-xs font-semibold ${className}`}>
+      {ADMIN_TIME_RANGE_OPTIONS.map((option) => {
+        const active = option.value === activeDays;
+        return (
+          <Link
+            key={option.value}
+            href={buildAdminSearchHref(pathname, {
+              ...extraParams,
+              days: String(option.value),
+            })}
+            className={`rounded-full border px-3 py-2 transition ${
+              active
+                ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+            }`}
+          >
+            {option.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }

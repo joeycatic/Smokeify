@@ -30,6 +30,9 @@ export type AdminOrderRecord = {
   orderNumber: number;
   createdAt: string;
   updatedAt: string;
+  sourceStorefront: string | null;
+  sourceHost: string | null;
+  sourceOrigin: string | null;
   status: string;
   paymentStatus: string;
   paymentMethod: string | null;
@@ -122,7 +125,36 @@ function serializeAdminOrder(
   manufacturerByProductId: Map<string, string | null>,
 ): AdminOrderRecord {
   return {
-    ...order,
+    id: order.id,
+    orderNumber: order.orderNumber,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    sourceStorefront: order.sourceStorefront,
+    sourceHost: order.sourceHost,
+    sourceOrigin: order.sourceOrigin,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    currency: order.currency,
+    amountSubtotal: order.amountSubtotal,
+    amountTax: order.amountTax,
+    amountShipping: order.amountShipping,
+    amountDiscount: order.amountDiscount,
+    amountTotal: order.amountTotal,
+    amountRefunded: order.amountRefunded,
+    stripePaymentIntent: order.stripePaymentIntent,
+    trackingCarrier: order.trackingCarrier,
+    trackingNumber: order.trackingNumber,
+    trackingUrl: order.trackingUrl,
+    shippingName: order.shippingName,
+    shippingLine1: order.shippingLine1,
+    shippingLine2: order.shippingLine2,
+    shippingPostalCode: order.shippingPostalCode,
+    shippingCity: order.shippingCity,
+    shippingCountry: order.shippingCountry,
+    discountCode: order.discountCode,
+    customerEmail: order.customerEmail,
+    userId: order.userId,
     user: order.user ?? { email: null, name: null },
     items: order.items.map((item) => ({
       ...item,
@@ -131,8 +163,6 @@ function serializeAdminOrder(
         : null,
       options: normalizeOrderItemOptions(item.options),
     })),
-    createdAt: order.createdAt.toISOString(),
-    updatedAt: order.updatedAt.toISOString(),
     confirmationEmailSentAt: order.confirmationEmailSentAt?.toISOString() ?? null,
     shippingEmailSentAt: order.shippingEmailSentAt?.toISOString() ?? null,
     refundEmailSentAt: order.refundEmailSentAt?.toISOString() ?? null,

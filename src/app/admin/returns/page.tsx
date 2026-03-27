@@ -10,7 +10,25 @@ export default async function AdminReturnsPage() {
     orderBy: { createdAt: "desc" },
     include: {
       order: true,
+      exchangeOrder: {
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+        },
+      },
       user: { select: { email: true, name: true } },
+      items: {
+        include: {
+          orderItem: {
+            select: {
+              id: true,
+              name: true,
+              unitAmount: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -21,12 +39,30 @@ export default async function AdminReturnsPage() {
           ...req,
           createdAt: req.createdAt.toISOString(),
           updatedAt: req.updatedAt.toISOString(),
+          requestedResolution: req.requestedResolution,
+          exchangePreference: req.exchangePreference,
+          storeCreditAmount: req.storeCreditAmount,
+          exchangeApprovedAt: req.exchangeApprovedAt?.toISOString() ?? null,
+          exchangeOrder: req.exchangeOrder
+            ? {
+                id: req.exchangeOrder.id,
+                orderNumber: req.exchangeOrder.orderNumber,
+                status: req.exchangeOrder.status,
+              }
+            : null,
           order: {
             id: req.order.id,
             amountTotal: req.order.amountTotal,
             currency: req.order.currency,
             status: req.order.status,
           },
+          items: req.items.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+            orderItemId: item.orderItemId,
+            orderItemName: item.orderItem.name,
+            unitAmount: item.orderItem.unitAmount,
+          })),
         }))}
       />
     </div>

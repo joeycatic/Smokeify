@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     !hasAdminAccess({
       role: session.user.role,
       adminVerifiedAt: session.user.adminVerifiedAt,
+      adminAccessDisabledAt: session.user.adminAccessDisabledAt,
     })
   ) {
     redirect("/auth/admin?returnTo=/admin");

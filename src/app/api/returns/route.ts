@@ -30,6 +30,8 @@ export async function POST(request: Request) {
     orderId?: string;
     reason?: string;
     items?: Array<{ id: string; quantity?: number }>;
+    requestedResolution?: "REFUND" | "STORE_CREDIT" | "EXCHANGE";
+    exchangePreference?: string;
   };
 
   const orderId = body.orderId?.trim();
@@ -80,11 +82,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const requestedResolution =
+    body.requestedResolution === "STORE_CREDIT" || body.requestedResolution === "EXCHANGE"
+      ? body.requestedResolution
+      : "REFUND";
+  const exchangePreference =
+    requestedResolution === "EXCHANGE" && typeof body.exchangePreference === "string"
+      ? body.exchangePreference.trim() || null
+      : null;
+
   const created = await prisma.returnRequest.create({
     data: {
       orderId,
       userId: session.user.id,
       reason,
+      requestedResolution,
+      exchangePreference,
       items: { create: selected },
     },
   });

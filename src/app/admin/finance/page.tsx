@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import {
+  AdminTimeRangeTabs,
   AdminCompactMetric,
   AdminDeltaRow,
   AdminEmptyState,
@@ -11,6 +12,7 @@ import {
 import { authOptions } from "@/lib/auth";
 import { getFinancePageData } from "@/lib/adminAddonData";
 import { formatExpenseCategoryLabel, type ExpenseCategory } from "@/lib/adminExpenses";
+import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 
 const formatMoney = (amountCents: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
@@ -33,20 +35,16 @@ const formatDelta = (current: number, previous: number) => {
   return `${delta > 0 ? "+" : ""}${delta}%`;
 };
 
-const FINANCE_RANGE_OPTIONS = [30, 90, 365] as const;
-
 export default async function AdminFinancePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ days?: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") notFound();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const requestedDays = Number(resolvedSearchParams?.days ?? "30");
-  const days = FINANCE_RANGE_OPTIONS.includes(requestedDays as 30 | 90 | 365)
-    ? requestedDays
-    : 30;
+  const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
+  const selectedRange = getAdminTimeRangeOption(days);
 
   const {
     currentFinance,
@@ -62,6 +60,14 @@ export default async function AdminFinancePage({
     latestRecognizedOrderAt,
   } = await getFinancePageData(days);
   const currency = currentFinance.currency;
+  const trendTitle =
+    days === 30 ? "Rolling 3-day trend" : days === 90 ? "Weekly trend" : "Monthly trend";
+  const trendDescription =
+    days === 30
+      ? "Short-window monitoring in rolling 3-day buckets across the selected range."
+      : days === 90
+        ? "Weekly monitoring across the selected quarter-style range."
+        : "Monthly monitoring across the selected yearly range.";
 
   return (
     <div className="space-y-6">
@@ -80,41 +86,28 @@ export default async function AdminFinancePage({
               period-over-period control without changing the main admin workflows.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-semibold">
-            {FINANCE_RANGE_OPTIONS.map((range) => {
-              const active = range === days;
-              return (
-                <Link
-                  key={range}
-                  href={`/admin/finance?days=${range}`}
-                  className={`rounded-full border px-3 py-2 transition ${
-                    active
-                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-                      : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
-                  }`}
-                >
-                  {range} days
-                </Link>
-              );
-            })}
-            <Link
-              href="/admin/orders"
-              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
-            >
-              Order breakdowns
-            </Link>
-            <Link
-              href="/admin/vat"
-              className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
-            >
-              VAT monitor
-            </Link>
-            <Link
-              href="/admin/expenses"
-              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
-            >
-              Expense capture
-            </Link>
+          <div className="flex max-w-sm flex-col items-start gap-3">
+            <AdminTimeRangeTabs pathname="/admin/finance" activeDays={days} />
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              <Link
+                href="/admin/orders"
+                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+              >
+                Order breakdowns
+              </Link>
+              <Link
+                href="/admin/vat"
+                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
+              >
+                VAT monitor
+              </Link>
+              <Link
+                href="/admin/expenses"
+                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+              >
+                Expense capture
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -180,7 +173,7 @@ export default async function AdminFinancePage({
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminPanel
           eyebrow="Period Comparison"
-          title={`Current ${days}-day finance rollup`}
+          title={`Current ${selectedRange.adjectiveLabel} finance rollup`}
           description="Paid-order rollup using order snapshots, refunds, captured VAT and item cost fields already present in the custom commerce system."
         >
           <div className="space-y-3">
@@ -302,7 +295,7 @@ export default async function AdminFinancePage({
 
         <AdminPanel
           eyebrow="Expense Mix"
-          title={`Current ${days}-day categories`}
+          title={`Current ${selectedRange.adjectiveLabel} categories`}
           description="This is the first operating-cost layer on top of the commerce data. Category-level allocation can expand from here."
         >
           {expenseByCategory.length === 0 ? (
@@ -338,9 +331,9 @@ export default async function AdminFinancePage({
       </section>
 
       <AdminPanel
-        eyebrow="Daily Trend"
-        title="Last 14 days"
-        description="Short-window monitoring for gross revenue, net revenue and contribution margin. Use this for pacing, not for official reporting."
+        eyebrow="Trend"
+        title={trendTitle}
+        description={trendDescription}
       >
         {trend.length === 0 ? (
           <AdminEmptyState copy="No finance activity found for the selected trend window." />

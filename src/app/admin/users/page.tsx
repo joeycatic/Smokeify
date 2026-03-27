@@ -57,6 +57,12 @@ export default async function AdminUsersPage({
       email: true,
       name: true,
       role: true,
+      adminTotpEnabledAt: true,
+      adminTotpPendingSecretEncrypted: true,
+      adminAccessDisabledAt: true,
+      adminAccessDisableReason: true,
+      sessions: { select: { id: true } },
+      devices: { select: { id: true } },
       createdAt: true,
     },
   });
@@ -78,7 +84,16 @@ export default async function AdminUsersPage({
 
       <AdminUsersClient
         initialUsers={users.map((user) => ({
-          ...user,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          adminTotpEnabled: Boolean(user.adminTotpEnabledAt),
+          adminTotpPending: Boolean(user.adminTotpPendingSecretEncrypted),
+          adminAccessDisabledAt: user.adminAccessDisabledAt?.toISOString() ?? null,
+          adminAccessDisableReason: user.adminAccessDisableReason ?? null,
+          sessionCount: user.sessions.length,
+          deviceCount: user.devices.length,
           createdAt: user.createdAt.toISOString(),
         }))}
         initialQuery={normalizedQuery}

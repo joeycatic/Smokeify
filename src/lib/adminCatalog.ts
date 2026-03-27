@@ -12,6 +12,7 @@ export async function requireAdmin() {
     !hasAdminAccess({
       role: session.user.role,
       adminVerifiedAt: session.user.adminVerifiedAt,
+      adminAccessDisabledAt: session.user.adminAccessDisabledAt,
     })
   ) {
     return null;
@@ -26,6 +27,7 @@ export async function requireAdminOnly() {
     !hasAdminAccess({
       role: session.user.role,
       adminVerifiedAt: session.user.adminVerifiedAt,
+      adminAccessDisabledAt: session.user.adminAccessDisabledAt,
     })
   ) {
     return null;

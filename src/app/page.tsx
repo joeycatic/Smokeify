@@ -4,9 +4,9 @@ import CommerceShell from "@/components/CommerceShell";
 import Footer from "@/components/Footer";
 import DisplayProducts from "@/components/DisplayProducts";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-import { getProductsByIds, getProductsByIdsAllowInactive } from "@/lib/catalog";
+import { resolveLandingPageProductSections } from "@/lib/landingPageConfig";
 import { measureServerExecution } from "@/lib/perf";
-import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminCatalog";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -29,138 +29,26 @@ export const metadata: Metadata = {
   },
 };
 
-const HERO_PRODUCT_HANDLES = [
-  "diamondbox-sl-60",
-  "lux-helios-pro-300-watt-2-8",
-  "ac-infinity-controller-69-pro",
-] as const;
-
-export default async function StorePage() {
-  const nonHeadshopWhere = {
-    status: "ACTIVE" as const,
-    categories: {
-      none: {
-        OR: [
-          { category: { handle: "headshop" } },
-          { category: { parent: { is: { handle: "headshop" } } } },
-        ],
-      },
-    },
-  };
-
+export default async function StorePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const previewRequested =
+    (Array.isArray(resolvedSearchParams?.landingPreview)
+      ? resolvedSearchParams?.landingPreview[0]
+      : resolvedSearchParams?.landingPreview) === "draft";
+  const canPreviewDraft = previewRequested && Boolean(await requireAdmin());
   const { result: homepageData } = await measureServerExecution(
     "page.home",
-    async () => {
-      const [bestSellerRows, tentProductRows, heroBannerRows] = await Promise.all([
-        prisma.product.findMany({
-          where: nonHeadshopWhere,
-          orderBy: [
-            { bestsellerScore: { sort: "desc", nulls: "last" } },
-            { updatedAt: "desc" },
-          ],
-          select: { id: true },
-          take: 16,
-        }),
-        prisma.product.findMany({
-          where: {
-            AND: [
-              nonHeadshopWhere,
-              {
-                categories: {
-                  some: {
-                    OR: [
-                      { category: { handle: "zelte" } },
-                      { category: { parent: { is: { handle: "zelte" } } } },
-                    ],
-                  },
-                },
-              },
-            ],
-          },
-          select: { id: true },
-          take: 40,
-        }),
-        prisma.product.findMany({
-          where: {
-            ...nonHeadshopWhere,
-            handle: { in: [...HERO_PRODUCT_HANDLES] },
-          },
-          select: {
-            id: true,
-          },
-          take: HERO_PRODUCT_HANDLES.length,
-        }),
-      ]);
-
-      const productIds = Array.from(
-        new Set([
-          ...bestSellerRows.map((row) => row.id),
-          ...tentProductRows.map((row) => row.id),
-          ...heroBannerRows.map((row) => row.id),
-        ]),
-      );
-      const [hydratedProducts, hydratedHeroProducts] = await Promise.all([
-        productIds.length ? getProductsByIds(productIds) : Promise.resolve([]),
-        heroBannerRows.length
-          ? getProductsByIdsAllowInactive(heroBannerRows.map((row) => row.id))
-          : Promise.resolve([]),
-      ]);
-
-      return {
-        bestSellerRows,
-        tentProductRows,
-        hydratedHeroProducts,
-        hydratedProducts,
-        heroBannerRows,
-      };
-    },
+    async () => resolveLandingPageProductSections("MAIN", { previewDraft: canPreviewDraft }),
   );
   const {
-    bestSellerRows,
-    tentProductRows,
-    hydratedHeroProducts,
-    hydratedProducts,
-    heroBannerRows,
+    bestSellerProducts: bestSellersFilled,
+    tentProducts,
+    heroProducts,
   } = homepageData;
-  const productsById = new Map(hydratedProducts.map((product) => [product.id, product]));
-  const bestSellersFilled = bestSellerRows
-    .map((row) => productsById.get(row.id))
-    .filter(
-      (
-        product,
-      ): product is (typeof hydratedProducts)[number] => Boolean(product),
-    )
-    .filter((product) => product.availableForSale)
-    .slice(0, 8);
-  const tentProductsSource = tentProductRows
-    .map((row) => productsById.get(row.id))
-    .filter(
-      (
-        product,
-      ): product is (typeof hydratedProducts)[number] => Boolean(product),
-    );
-  const tentProducts = tentProductsSource
-    .filter((p) => p.availableForSale)
-    .filter((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0) <= 120)
-    .sort(
-      (a, b) =>
-        Number(
-          a.priceRange?.minVariantPrice?.amount ?? Number.POSITIVE_INFINITY,
-        ) -
-        Number(
-          b.priceRange?.minVariantPrice?.amount ?? Number.POSITIVE_INFINITY,
-        ),
-    )
-    .slice(0, 4);
-  const heroProducts = HERO_PRODUCT_HANDLES.map((handle) =>
-    hydratedHeroProducts.find((product) => product.handle === handle) ?? null,
-  )
-    .filter(
-      (
-        product,
-      ): product is (typeof hydratedProducts)[number] =>
-        Boolean(product && product.availableForSale),
-    );
 
   const brandCards = [
     {
@@ -206,6 +94,13 @@ export default async function StorePage() {
       <main className="bg-stone-50">
         <AnnouncementBar />
         <div className="mx-auto max-w-6xl">
+          {canPreviewDraft ? (
+            <div className="px-4 pt-4 text-sm sm:px-6">
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-cyan-900">
+                Homepage draft preview is active. Only admins can see this draft merchandising state.
+              </div>
+            </div>
+          ) : null}
           <div className="px-0 sm:px-6">
             <Suspense fallback={null}>
               <Navbar />
