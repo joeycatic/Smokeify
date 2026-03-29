@@ -306,6 +306,73 @@ const serializeDetailsSnapshot = (details: ProductDetailsState) =>
 const serializeIdSnapshot = (values: Iterable<string>) =>
   JSON.stringify(Array.from(values).sort());
 
+const cloneImageItems = (images: ImageItem[]) =>
+  images.map((image) => ({
+    id: image.id,
+    url: image.url,
+    altText: image.altText ?? null,
+    position: image.position,
+  }));
+
+const serializeImageSnapshot = (images: ImageItem[]) =>
+  JSON.stringify(cloneImageItems(images));
+
+const cloneVariantItems = (variants: VariantItem[]) =>
+  variants.map((variant) => ({
+    id: variant.id,
+    title: variant.title,
+    sku: variant.sku,
+    priceCents: variant.priceCents,
+    costCents: variant.costCents,
+    lowStockThreshold: variant.lowStockThreshold,
+    compareAtCents: variant.compareAtCents,
+    position: variant.position,
+    updatedAt: variant.updatedAt,
+    options: variant.options.map((option) => ({
+      id: option.id,
+      name: option.name,
+      value: option.value,
+      imagePosition: option.imagePosition ?? null,
+    })),
+    inventory: variant.inventory
+      ? {
+          quantityOnHand: variant.inventory.quantityOnHand,
+          reserved: variant.inventory.reserved,
+        }
+      : null,
+  }));
+
+const serializeVariantSnapshot = (
+  variants: VariantItem[],
+  priceDrafts: Record<string, string> = {},
+  costDrafts: Record<string, string> = {},
+  compareDrafts: Record<string, string> = {}
+) =>
+  JSON.stringify(
+    variants.map((variant) => ({
+      id: variant.id,
+      title: variant.title,
+      sku: variant.sku,
+      position: variant.position,
+      lowStockThreshold: variant.lowStockThreshold,
+      priceDraft: priceDrafts[variant.id] ?? toEuro(variant.priceCents),
+      costDraft: costDrafts[variant.id] ?? toEuro(variant.costCents),
+      compareDraft: compareDrafts[variant.id] ?? toEuro(variant.compareAtCents),
+      inventory: variant.inventory
+        ? {
+            quantityOnHand: variant.inventory.quantityOnHand,
+            reserved: variant.inventory.reserved,
+          }
+        : null,
+      options: variant.options.map((option) => ({
+        id: option.id,
+        name: option.name,
+        value: option.value,
+        imagePosition: option.imagePosition ?? null,
+      })),
+    }))
+  );
+
 const PRODUCT_EDITOR_SECTIONS = [
   { id: "performance", label: "Performance" },
   { id: "overview", label: "Overview" },
@@ -342,18 +409,22 @@ export default function AdminProductClient({
   const [details, setDetails] = useState<ProductDetailsState>(initialDetails);
   const [productUpdatedAt, setProductUpdatedAt] = useState(product.updatedAt);
   const [images, setImages] = useState<ImageItem[]>(product.images);
+  const [savedImages, setSavedImages] = useState<ImageItem[]>(() =>
+    cloneImageItems(product.images)
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadDragActive, setUploadDragActive] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
-  const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
+  const [savedVariants, setSavedVariants] = useState<VariantItem[]>(() =>
+    cloneVariantItems(product.variants)
+  );
   const [variantUpdatedAtById, setVariantUpdatedAtById] = useState<
     Record<string, string>
   >(() =>
     Object.fromEntries(product.variants.map((variant) => [variant.id, variant.updatedAt]))
   );
   const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
-  const [reorderingVariants, setReorderingVariants] = useState(false);
   const [draggingOption, setDraggingOption] = useState<{
     variantId: string;
     optionId: string;
@@ -379,7 +450,7 @@ export default function AdminProductClient({
     });
     return initial;
   });
-  const [savingAllVariants, setSavingAllVariants] = useState(false);
+  const [savingAllChanges, setSavingAllChanges] = useState(false);
   const [categoryIds, setCategoryIds] = useState(
     new Set(product.categories.map((item) => item.category.id))
   );
@@ -416,7 +487,7 @@ export default function AdminProductClient({
   const [fbtSearch, setFbtSearch] = useState("");
   const [fbtResults, setFbtResults] = useState<CrossSellProduct[]>([]);
   const [fbtSearching, setFbtSearching] = useState(false);
-  const [fbtSaving, setFbtSaving] = useState(false);
+  const [, setFbtSaving] = useState(false);
   const [fbtMessage, setFbtMessage] = useState("");
   const [savedDetailsSnapshot, setSavedDetailsSnapshot] = useState(() =>
     serializeDetailsSnapshot(initialDetails)
@@ -639,10 +710,28 @@ export default function AdminProductClient({
     serializeIdSnapshot(categoryIds) !== savedCategorySnapshot;
   const collectionsDirty =
     serializeIdSnapshot(collectionIds) !== savedCollectionSnapshot;
+  const imagesDirty =
+    serializeImageSnapshot(images) !== serializeImageSnapshot(savedImages);
+  const variantsDirty =
+    serializeVariantSnapshot(variants, priceDrafts, costDrafts, compareDrafts) !==
+    serializeVariantSnapshot(savedVariants);
   const crossSellsDirty =
     serializeIdSnapshot(fbtItems.map((item) => item.id)) !== savedCrossSellSnapshot;
   const hasUnsavedChanges =
-    detailsDirty || categoriesDirty || collectionsDirty || crossSellsDirty;
+    detailsDirty ||
+    categoriesDirty ||
+    collectionsDirty ||
+    imagesDirty ||
+    variantsDirty ||
+    crossSellsDirty;
+  const dirtySections = [
+    detailsDirty ? "Details" : null,
+    categoriesDirty ? "Categories" : null,
+    collectionsDirty ? "Collections" : null,
+    imagesDirty ? "Media" : null,
+    variantsDirty ? "Variants" : null,
+    crossSellsDirty ? "Manual overrides" : null,
+  ].filter(Boolean);
 
   useEffect(() => {
     setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
@@ -698,7 +787,7 @@ export default function AdminProductClient({
     setServerPolicyViolations([]);
     if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
       setError("Seller URL must be a valid http(s) link");
-      return;
+      return false;
     }
     try {
       const tags = details.tags
@@ -763,7 +852,7 @@ export default function AdminProductClient({
         if (errorMessage.toLowerCase().includes("handle")) {
           setHandleError(errorMessage);
         }
-        return;
+        return false;
       }
       const data = (await res.json()) as {
         product?: { updatedAt?: string };
@@ -772,9 +861,10 @@ export default function AdminProductClient({
         setProductUpdatedAt(data.product.updatedAt);
       }
       setSavedDetailsSnapshot(serializeDetailsSnapshot(details));
-      setMessage("Product updated");
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
 
@@ -791,12 +881,13 @@ export default function AdminProductClient({
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
-        return;
+        return false;
       }
       setSavedCategorySnapshot(serializeIdSnapshot(categoryIds));
-      setMessage("Categories updated");
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
 
@@ -813,12 +904,13 @@ export default function AdminProductClient({
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
-        return;
+        return false;
       }
       setSavedCollectionSnapshot(serializeIdSnapshot(collectionIds));
-      setMessage("Collections updated");
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
 
@@ -835,12 +927,15 @@ export default function AdminProductClient({
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setFbtMessage(data.error ?? "Save failed");
+        return false;
       } else {
         setSavedCrossSellSnapshot(serializeIdSnapshot(fbtItems.map((item) => item.id)));
         setFbtMessage("Saved");
+        return true;
       }
     } catch {
       setFbtMessage("Save failed");
+      return false;
     } finally {
       setFbtSaving(false);
     }
@@ -893,6 +988,7 @@ export default function AdminProductClient({
       return null;
     }
     setImages((prev) => [...prev, image]);
+    setSavedImages((prev) => [...prev, ...cloneImageItems([image])]);
     return image;
   };
 
@@ -958,48 +1054,6 @@ export default function AdminProductClient({
     }
   };
 
-  const updateImage = async (image: ImageItem) => {
-    setMessage("");
-    setError("");
-    const res = await fetch(`/api/admin/images/${image.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: image.url,
-        altText: image.altText,
-        position: Number(image.position) || 0,
-      }),
-    });
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setError(data.error ?? "Update failed");
-      return;
-    }
-    setMessage("Image updated");
-  };
-
-  const saveImageOrder = async (items: ImageItem[]) => {
-    setMessage("");
-    setError("");
-    setReordering(true);
-    try {
-      await Promise.all(
-        items.map((image) =>
-          fetch(`/api/admin/images/${image.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: image.position }),
-          })
-        )
-      );
-      setMessage("Image order updated");
-    } catch {
-      setError("Reorder failed");
-    } finally {
-      setReordering(false);
-    }
-  };
-
   const reorderImages = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
     setImages((prev) => {
@@ -1013,7 +1067,6 @@ export default function AdminProductClient({
         ...img,
         position: index,
       }));
-      void saveImageOrder(positioned);
       return positioned;
     });
   };
@@ -1030,85 +1083,122 @@ export default function AdminProductClient({
       return;
     }
     setImages((prev) => prev.filter((img) => img.id !== id));
+    setSavedImages((prev) => prev.filter((img) => img.id !== id));
     setMessage("Image deleted");
   };
 
-  const updateVariant = async (variant: VariantItem) => {
-    setMessage("");
-    setError("");
-    setStaleConflictMessage("");
-    const rowIssue = findOptionRowIssues(variant.options);
-    if (rowIssue) {
-      setError(rowIssue);
-      return;
-    }
-    const normalizedOptions = normalizeVariantOptions(variant.options);
-    const res = await fetch(`/api/admin/variants/${variant.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: variant.title,
-        sku: variant.sku,
-        priceCents: variant.priceCents,
-        costCents: variant.costCents,
-        compareAtCents: variant.compareAtCents,
-        position: variant.position,
-        lowStockThreshold: variant.lowStockThreshold,
-        options: normalizedOptions.options,
-        inventory: {
-          quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
-          reserved: variant.inventory?.reserved ?? 0,
-        },
-        expectedUpdatedAt: variantUpdatedAtById[variant.id],
-      }),
-    });
-    if (!res.ok) {
-      let message = "Update failed";
-      try {
-        const data = (await res.json()) as {
-          error?: string;
-          currentUpdatedAt?: string;
-        };
-        if (data?.error) message = data.error;
-        if (res.status === 409 && data.currentUpdatedAt) {
-          setStaleConflictMessage(
-            `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
-          );
-        }
-      } catch {
-        // Keep default message when response isn't JSON.
+  const normalizeVariantDrafts = () => {
+    const nextPriceDrafts = { ...priceDrafts };
+    const nextCostDrafts = { ...costDrafts };
+    const nextCompareDrafts = { ...compareDrafts };
+    let validationError = "";
+    const normalizedVariants = variants.map((variant) => {
+      const variantLabel = variant.title.trim() || variant.id;
+      const priceInput = (priceDrafts[variant.id] ?? toEuro(variant.priceCents)).trim();
+      if (!priceInput) {
+        validationError = `"${variantLabel}": Price required`;
+        return variant;
       }
-      setError(message);
-      return;
+      const parsedPrice = parseEuro(priceInput);
+      if (parsedPrice === null) {
+        validationError = `"${variantLabel}": Price is invalid`;
+        return variant;
+      }
+      const costInput = (costDrafts[variant.id] ?? toEuro(variant.costCents)).trim();
+      let parsedCost = 0;
+      if (costInput) {
+        const nextCost = parseEuro(costInput);
+        if (nextCost === null) {
+          validationError = `"${variantLabel}": Cost is invalid`;
+          return variant;
+        }
+        parsedCost = nextCost;
+      }
+      const compareInput = (
+        compareDrafts[variant.id] ?? toEuro(variant.compareAtCents)
+      ).trim();
+      let parsedCompare: number | null = null;
+      if (compareInput) {
+        const nextCompare = parseEuro(compareInput);
+        if (nextCompare === null) {
+          validationError = `"${variantLabel}": Compare at is invalid`;
+          return variant;
+        }
+        parsedCompare = nextCompare;
+      }
+      nextPriceDrafts[variant.id] = toEuro(parsedPrice);
+      nextCostDrafts[variant.id] = toEuro(parsedCost);
+      nextCompareDrafts[variant.id] = parsedCompare === null ? "" : toEuro(parsedCompare);
+      return {
+        ...variant,
+        priceCents: parsedPrice,
+        costCents: parsedCost,
+        compareAtCents: parsedCompare,
+      };
+    });
+
+    if (validationError) {
+      setError(validationError);
+      return null;
     }
-    const data = (await res.json()) as {
-      variant?: { id: string; updatedAt?: string };
-    };
-    if (data.variant?.updatedAt) {
-      setVariantUpdatedAtById((prev) => ({
-        ...prev,
-        [variant.id]: data.variant?.updatedAt ?? prev[variant.id],
-      }));
-    }
-    setMessage("Variant updated");
+
+    setVariants(normalizedVariants);
+    setPriceDrafts(nextPriceDrafts);
+    setCostDrafts(nextCostDrafts);
+    setCompareDrafts(nextCompareDrafts);
+    return normalizedVariants;
   };
 
-  const saveAllVariants = async () => {
+  const saveImages = async () => {
+    if (!imagesDirty) return true;
+    setMessage("");
+    setError("");
+    try {
+      const responses = await Promise.all(
+        images.map((image) =>
+          fetch(`/api/admin/images/${image.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: image.url,
+              altText: image.altText,
+              position: Number(image.position) || 0,
+            }),
+          })
+        )
+      );
+      const failed = responses.find((response) => !response.ok);
+      if (failed) {
+        const data = (await failed.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "Image update failed");
+        return false;
+      }
+      setSavedImages(cloneImageItems(images));
+      return true;
+    } catch {
+      setError("Image update failed");
+      return false;
+    }
+  };
+
+  const saveVariants = async () => {
+    if (!variantsDirty) return true;
     setMessage("");
     setError("");
     setStaleConflictMessage("");
-    setSavingAllVariants(true);
     try {
-      for (const variant of variants) {
+      const normalizedVariants = normalizeVariantDrafts();
+      if (!normalizedVariants) return false;
+      for (const variant of normalizedVariants) {
         const rowIssue = findOptionRowIssues(variant.options);
         if (rowIssue) {
           setError(`"${variant.title}": ${rowIssue}`);
-          return;
+          return false;
         }
       }
       const responses = await Promise.all(
-        variants.map((variant) =>
-          {
+        normalizedVariants.map((variant) =>
+          (() => {
             const normalized = normalizeVariantOptions(variant.options);
             return fetch(`/api/admin/variants/${variant.id}`, {
               method: "PATCH",
@@ -1129,7 +1219,7 @@ export default function AdminProductClient({
                 expectedUpdatedAt: variantUpdatedAtById[variant.id],
               }),
             });
-          }
+          })()
         )
       );
       const failed = responses.find((res) => !res.ok);
@@ -1150,7 +1240,7 @@ export default function AdminProductClient({
           // Keep default message when response isn't JSON.
         }
         setError(errorMessage);
-        return;
+        return false;
       }
       const payloads = (await Promise.all(
         responses.map((response) =>
@@ -1166,63 +1256,11 @@ export default function AdminProductClient({
       if (Object.keys(nextVersions).length > 0) {
         setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
       }
-      setMessage("Variants updated");
-    } finally {
-      setSavingAllVariants(false);
-    }
-  };
-
-  const saveVariantOrder = async (items: VariantItem[]) => {
-    setMessage("");
-    setError("");
-    setStaleConflictMessage("");
-    setReorderingVariants(true);
-    try {
-      const responses = await Promise.all(
-        items.map((variant) =>
-          fetch(`/api/admin/variants/${variant.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              position: variant.position,
-              expectedUpdatedAt: variantUpdatedAtById[variant.id],
-            }),
-          })
-        )
-      );
-      const failed = responses.find((response) => !response.ok);
-      if (failed) {
-        const data = (await failed.json().catch(() => ({}))) as {
-          error?: string;
-          currentUpdatedAt?: string;
-        };
-        if (failed.status === 409 && data.currentUpdatedAt) {
-          setStaleConflictMessage(
-            `Variant order changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before reordering again.`
-          );
-        }
-        setError(data.error ?? "Reorder failed");
-        return;
-      }
-      const payloads = (await Promise.all(
-        responses.map((response) =>
-          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
-        )
-      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
-      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
-        if (item.variant?.id && item.variant.updatedAt) {
-          acc[item.variant.id] = item.variant.updatedAt;
-        }
-        return acc;
-      }, {});
-      if (Object.keys(nextVersions).length > 0) {
-        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
-      }
-      setMessage("Variant order updated");
+      setSavedVariants(cloneVariantItems(normalizedVariants));
+      return true;
     } catch {
-      setError("Reorder failed");
-    } finally {
-      setReorderingVariants(false);
+      setError("Save failed");
+      return false;
     }
   };
 
@@ -1239,7 +1277,6 @@ export default function AdminProductClient({
         ...item,
         position: index,
       }));
-      void saveVariantOrder(positioned);
       return positioned;
     });
   };
@@ -1279,6 +1316,7 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => prev.filter((item) => item.id !== id));
+    setSavedVariants((prev) => prev.filter((item) => item.id !== id));
     setVariantUpdatedAtById((prev) => {
       const next = { ...prev };
       delete next[id];
@@ -1331,6 +1369,7 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => [...prev, variant]);
+    setSavedVariants((prev) => [...prev, ...cloneVariantItems([variant])]);
     if (variant.updatedAt) {
       setVariantUpdatedAtById((prev) => ({
         ...prev,
@@ -1348,6 +1387,25 @@ export default function AdminProductClient({
     });
     setAddVariantOpen(false);
     setMessage("Variant added");
+  };
+
+  const saveAllChanges = async () => {
+    if (!hasUnsavedChanges) return;
+    setSavingAllChanges(true);
+    setMessage("");
+    setError("");
+    setStaleConflictMessage("");
+    try {
+      if (detailsDirty && !(await saveDetails())) return;
+      if (categoriesDirty && !(await saveCategories())) return;
+      if (collectionsDirty && !(await saveCollections())) return;
+      if (imagesDirty && !(await saveImages())) return;
+      if (variantsDirty && !(await saveVariants())) return;
+      if (crossSellsDirty && !(await saveCrossSells())) return;
+      setMessage("All changes saved");
+    } finally {
+      setSavingAllChanges(false);
+    }
   };
 
   const variantRows = useMemo(
@@ -1444,7 +1502,7 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className="admin-legacy-page admin-product-redesign space-y-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-5 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] md:p-8">
+    <div className="admin-legacy-page admin-product-redesign space-y-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-5 pb-36 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] md:p-8 md:pb-40">
       <div className="admin-product-hero admin-reveal rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -2625,10 +2683,7 @@ export default function AdminProductClient({
               }}
             >
               <div className="mx-auto w-full max-w-5xl">
-                <div className="mb-2 flex items-center gap-2 text-xs text-stone-500">
-                  {reordering && <span>Saving order…</span>}
-                </div>
-                <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto_auto]">
+                <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto]">
                   <div className="flex h-20 items-center justify-center self-start">
                     <span
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-400 shadow-sm cursor-grab select-none"
@@ -2705,18 +2760,6 @@ export default function AdminProductClient({
                       className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
                     />
                   </label>
-                  <div className="flex flex-col gap-1 items-center">
-                    <span className="text-[11px] font-semibold text-transparent">
-                      Actions
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateImage(image)}
-                      className="h-10 rounded-md border border-black/15 px-3 text-xs font-semibold"
-                    >
-                      Save
-                    </button>
-                  </div>
                   <div className="flex flex-col gap-1 items-center">
                     <span className="text-[11px] font-semibold text-transparent">
                       Actions
@@ -2841,7 +2884,6 @@ export default function AdminProductClient({
                   >
                     ⠿
                   </span>
-                  {reorderingVariants && <span>Saving order…</span>}
                 </div>
                 <div className="space-y-3">
                   <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
@@ -3143,13 +3185,6 @@ export default function AdminProductClient({
                   </div>
                   <button
                     type="button"
-                    onClick={() => updateVariant(variant)}
-                    className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
-                  >
-                    Save changes
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => {
                       setConfirmVariantId(variant.id);
                       setConfirmVariantTitle(variant.title);
@@ -3362,16 +3397,6 @@ export default function AdminProductClient({
           )}
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={saveAllVariants}
-            disabled={savingAllVariants}
-            className="h-10 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60"
-          >
-            {savingAllVariants ? "Saving..." : "Save variants"}
-          </button>
-        </div>
       </section>
 
       <section
@@ -3387,14 +3412,6 @@ export default function AdminProductClient({
               Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={saveCrossSells}
-            disabled={fbtSaving}
-            className="h-9 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60"
-          >
-            {fbtSaving ? "Saving..." : "Save overrides"}
-          </button>
         </div>
 
         <div className="mt-4 space-y-3">
@@ -3514,71 +3531,31 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <div className="sticky bottom-4 z-30">
-        <div className="rounded-[24px] border border-white/10 bg-[#05070a]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-4 z-40 px-4">
+        <div className="mx-auto w-full max-w-6xl rounded-[24px] border border-white/10 bg-[#05070a]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               </span>
-              {detailsDirty ? (
-                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
-                  Details
+              {dirtySections.map((section) => (
+                <span
+                  key={section}
+                  className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200"
+                >
+                  {section}
                 </span>
-              ) : null}
-              {categoriesDirty ? (
-                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
-                  Categories
-                </span>
-              ) : null}
-              {collectionsDirty ? (
-                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
-                  Collections
-                </span>
-              ) : null}
-              {crossSellsDirty ? (
-                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200">
-                  Manual overrides
-                </span>
-              ) : null}
+              ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              {detailsDirty ? (
-                <button
-                  type="button"
-                  onClick={saveDetails}
-                  className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950"
-                >
-                  Save details
-                </button>
-              ) : null}
-              {categoriesDirty ? (
-                <button
-                  type="button"
-                  onClick={saveCategories}
-                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
-                >
-                  Save categories
-                </button>
-              ) : null}
-              {collectionsDirty ? (
-                <button
-                  type="button"
-                  onClick={saveCollections}
-                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
-                >
-                  Save collections
-                </button>
-              ) : null}
-              {crossSellsDirty ? (
-                <button
-                  type="button"
-                  onClick={saveCrossSells}
-                  className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200"
-                >
-                  Save overrides
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={saveAllChanges}
+                disabled={!hasUnsavedChanges || savingAllChanges}
+                className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+              >
+                {savingAllChanges ? "Saving..." : "Save all changes"}
+              </button>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
