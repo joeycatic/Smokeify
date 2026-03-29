@@ -1,4 +1,5 @@
 const DEFAULT_URL = "https://bloomtech.de/Biobizz_1";
+const DEFAULT_PRODUCT_URL = "https://bloomtech.de/BioBizz-Bio-Grow-250-ml";
 const DEFAULT_LIMIT = 50;
 const REQUEST_DELAY_MS = 500;
 const DEFAULT_EMAIL_FIELD = "email";
@@ -43,33 +44,127 @@ const stripTags = (html) => {
 const normalizeText = (value) =>
   decodeHtmlEntities(value).replace(/\s+/g, " ").trim();
 
-const isProductPage = (html, text) => {
-  if (/<meta[^>]*itemprop=["']price["']/i.test(html)) return true;
-  if (/class=["'][^"']*\bshortdesc\b/i.test(html)) return true;
-  if (/class=["'][^"']*\bproduct-attributes\b/i.test(html)) return true;
-  if (STATUS_REGEX.test(html)) return true;
-  return isLikelyProductPage(text);
+const countMatches = (value, regex) => {
+  const matches = value.match(regex);
+  return matches ? matches.length : 0;
+};
+
+const extractHrefFromTag = (tag) => {
+  const match = tag.match(/\bhref=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
+
+const hasShortDescriptionBlock = (html) =>
+  /class=["'][^"']*\bshortdesc\b/i.test(html);
+
+const hasProductAttributesBlock = (html) =>
+  /class=["'][^"']*\bproduct-attributes\b/i.test(html);
+
+const hasSortingControls = (html) => /Sortierung=/.test(html);
+
+const hasExactProductBuyForm = (html) => /id=["']buy_form["']/i.test(html);
+
+const hasListingBuyForms = (html) =>
+  countMatches(html, /id=["']buy_form_[^"']+["']/gi) >= 2;
+
+const extractEcommercePageType = (html) => {
+  const match = html.match(/ecomm_pagetype:\s*['"]([a-z]+)['"]/i);
+  return match ? match[1].toLowerCase() : null;
+};
+
+const detectBloomtechPageKind = (html, text) => {
+  const ecommercePageType = extractEcommercePageType(html);
+  if (ecommercePageType === "product") return "product";
+  if (ecommercePageType === "category") return "category";
+
+  if (
+    hasExactProductBuyForm(html) &&
+    (hasShortDescriptionBlock(html) || hasProductAttributesBlock(html))
+  ) {
+    return "product";
+  }
+
+  const listingSignals = [
+    hasSortingControls(html),
+    hasListingBuyForms(html),
+    countMatches(
+      html,
+      /<a\b(?=[^>]*href=["'][^"']+["'])(?=[^>]*class=["'][^"']*\bimg-w\b[^"']*["'])[^>]*>/gi
+    ) >= 2,
+    countMatches(
+      html,
+      /<a\b(?=[^>]*href=["'][^"']+["'])(?=[^>]*class=["'][^"']*\btitle\b[^"']*\bblock\b[^"']*\bh4\b[^"']*\bm0\b[^"']*["'])[^>]*>/gi
+    ) >= 2,
+  ].filter(Boolean).length;
+
+  if (listingSignals > 0) return "category";
+
+  if (
+    hasExactProductBuyForm(html) &&
+    /<meta[^>]*itemprop=["']price["']/i.test(html)
+  ) {
+    return "product";
+  }
+
+  if (isLikelyProductPage(text)) return "product";
+  return "unknown";
+};
+
+const normalizeBloomtechListingLink = (raw, baseUrl) => {
+  try {
+    const url = new URL(raw, baseUrl);
+    const hostname = url.hostname.toLowerCase();
+    if (hostname !== "bloomtech.de" && hostname !== "www.bloomtech.de") {
+      return null;
+    }
+    if (url.search || url.hash) return null;
+    if (url.pathname.endsWith("/favicon.ico") || url.pathname === "/favicon.ico") {
+      return null;
+    }
+    if (url.pathname.startsWith("/media/")) return null;
+    const lowerPath = url.pathname.toLowerCase();
+    if (
+      [
+        "/konto",
+        "/warenkorb",
+        "/blog",
+        "/kontakt",
+        "/datenschutz",
+        "/impressum",
+        "/agb",
+        "/widerruf",
+        "/zahlung",
+        "/versand",
+        "/service",
+        "/info",
+      ].some((prefix) => lowerPath.startsWith(prefix))
+    ) {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
 };
 
 const extractProductLinksFromCategory = (html, baseUrl) => {
   const links = new Set();
-  const linkRegex =
-    /<a[^>]*class=["'][^"']*\bimg-w\b[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
-  let linkMatch;
-  while ((linkMatch = linkRegex.exec(html))) {
-    const raw = linkMatch[1];
-    try {
-      const url = new URL(raw, baseUrl);
-      if (url.hostname !== "bloomtech.de") continue;
-      if (url.search || url.hash) continue;
-      if (url.pathname.endsWith("/favicon.ico") || url.pathname === "/favicon.ico") {
-        continue;
-      }
-      links.add(url.toString());
-    } catch {
-      // ignore bad URLs
+  const cardRegexes = [
+    /<a\b(?=[^>]*href=["'][^"']+["'])(?=[^>]*class=["'][^"']*\bimg-w\b[^"']*["'])[^>]*>/gi,
+    /<a\b(?=[^>]*href=["'][^"']+["'])(?=[^>]*class=["'][^"']*\btitle\b[^"']*\bblock\b[^"']*\bh4\b[^"']*\bm0\b[^"']*["'])[^>]*>/gi,
+  ];
+
+  for (const regex of cardRegexes) {
+    let linkMatch;
+    while ((linkMatch = regex.exec(html))) {
+      const raw = extractHrefFromTag(linkMatch[0]);
+      if (!raw) continue;
+      const normalized = normalizeBloomtechListingLink(raw, baseUrl);
+      if (!normalized) continue;
+      links.add(normalized);
     }
   }
+
   return Array.from(links);
 };
 
@@ -111,31 +206,6 @@ const extractProductLinksFromJsonLd = (html, baseUrl) => {
       });
     } catch {
       // ignore invalid JSON-LD
-    }
-  }
-  return Array.from(links);
-};
-
-const extractLinks = (html, baseUrl) => {
-  const links = new Set();
-  const regex = /href="([^"]+)"/gi;
-  let match;
-  while ((match = regex.exec(html))) {
-    const raw = match[1];
-    if (!raw || raw.startsWith("#") || raw.startsWith("mailto:")) continue;
-    try {
-      const url = new URL(raw, baseUrl);
-      if (url.hostname !== "bloomtech.de") continue;
-      if (url.search || url.hash) continue;
-      if (
-        url.pathname.endsWith("/favicon.ico") ||
-        url.pathname === "/favicon.ico"
-      ) {
-        continue;
-      }
-      links.add(url.toString());
-    } catch {
-      // ignore bad URLs
     }
   }
   return Array.from(links);
@@ -220,7 +290,10 @@ const extractDescription = (text) => {
     const idx = after.indexOf(marker);
     if (idx !== -1 && idx < endIndex) endIndex = idx;
   }
-  return after.slice(0, endIndex).trim();
+  return after
+    .slice(0, endIndex)
+    .replace(/^[:\-\s]+/, "")
+    .trim();
 };
 
 const extractPriceFromHtml = (html) => {
@@ -934,16 +1007,23 @@ const parseArgs = () => {
     if (index === -1) return null;
     return args[index + 1] ?? null;
   };
-  const url = getValue("--url") ?? DEFAULT_URL;
-  const limit = Number(getValue("--limit") ?? DEFAULT_LIMIT);
+  const requestedMode = getValue("--mode");
+  const mode = requestedMode === "product" ? "product" : "category";
+  const url =
+    getValue("--url") ?? (mode === "product" ? DEFAULT_PRODUCT_URL : DEFAULT_URL);
+  const parsedLimit = Number(getValue("--limit") ?? DEFAULT_LIMIT);
+  const limit =
+    Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.floor(parsedLimit)
+      : DEFAULT_LIMIT;
   const out =
     getValue("--out") ?? "scripts/bloomtech/supplier-preview.json";
   const dumpCategory = getValue("--dump-category");
   const dumpAccount = getValue("--dump-account");
   const dumpLogin = getValue("--dump-login");
   const dumpLoginResponse = getValue("--dump-login-response");
-  const includeSupplierImages = args.includes("--include-supplier-images");
   return {
+    mode,
     url,
     limit,
     out,
@@ -951,12 +1031,12 @@ const parseArgs = () => {
     dumpAccount,
     dumpLogin,
     dumpLoginResponse,
-    includeSupplierImages,
   };
 };
 
 const run = async () => {
   const {
+    mode,
     url,
     limit,
     out,
@@ -964,7 +1044,6 @@ const run = async () => {
     dumpAccount,
     dumpLogin,
     dumpLoginResponse,
-    includeSupplierImages,
   } = parseArgs();
   const envPath = " .env";
   const envFilePath = envPath.trim();
@@ -1007,16 +1086,48 @@ const run = async () => {
   if (dumpCategory) {
     await fs.promises.writeFile(dumpCategory, categoryHtml, "utf8");
   }
-  const allowedSlugs = buildAllowedSlugSetFromCategory(categoryHtml);
-  const jsonLdLinks = extractProductLinksFromJsonLd(categoryHtml, url);
-  const productLinks = extractProductLinksFromCategory(categoryHtml, url);
-  const mergedLinks = Array.from(new Set([...productLinks, ...jsonLdLinks]));
-  const links =
-    mergedLinks.length > 0 ? mergedLinks : extractLinks(categoryHtml, url);
-  const requireHeuristic = mergedLinks.length === 0;
-  console.log(
-    `[preview] links jsonLd=${jsonLdLinks.length} productBoxes=${productLinks.length} fallback=${links.length}`
-  );
+  const seedText = normalizeText(stripTags(categoryHtml));
+  const seedKind = detectBloomtechPageKind(categoryHtml, seedText);
+  let allowedSlugs = new Set();
+  let jsonLdLinks = [];
+  let productLinks = [];
+  let links = [];
+  let prefetchedPages = new Map();
+
+  if (mode === "product") {
+    if (seedKind !== "product") {
+      throw new Error(
+        "Provided URL is not a Bloomtech product page. Use the Bloomtech category scraper for listing URLs.",
+      );
+    }
+    links = [url];
+    prefetchedPages = new Map([[url, { html: categoryHtml, text: seedText }]]);
+    console.log(`[preview] source=product links=1 url=${url}`);
+  } else {
+    if (seedKind === "product") {
+      throw new Error(
+        "Provided URL is a Bloomtech product page. Use the Bloomtech product scraper for direct product links.",
+      );
+    }
+    allowedSlugs = buildAllowedSlugSetFromCategory(categoryHtml);
+    jsonLdLinks = extractProductLinksFromJsonLd(categoryHtml, url);
+    productLinks = extractProductLinksFromCategory(categoryHtml, url);
+    links = Array.from(new Set([...productLinks, ...jsonLdLinks]));
+    if (allowedSlugs.size > 0) {
+      links = links.filter((link) => {
+        const slug = new URL(link).pathname.replace(/^\/+/, "");
+        return allowedSlugs.has(slug);
+      });
+    }
+    if (links.length === 0) {
+      throw new Error(
+        "No Bloomtech product links were found on this listing page. Use a category or brand listing URL that shows product cards.",
+      );
+    }
+    console.log(
+      `[preview] source=category links=${links.length} jsonLd=${jsonLdLinks.length} productCards=${productLinks.length} url=${url}`,
+    );
+  }
 
   const previews = [];
   const handleCounts = new Map();
@@ -1025,12 +1136,14 @@ const run = async () => {
   for (const link of links) {
     if (previews.length >= limit) break;
     try {
-      if (link === url) continue;
-      const html = await fetchHtml(link, cookieJar);
-      const text = normalizeText(stripTags(html));
+      const prefetchedPage = prefetchedPages.get(link);
+      const html = prefetchedPage?.html ?? (await fetchHtml(link, cookieJar));
+      const text = prefetchedPage?.text ?? normalizeText(stripTags(html));
       checked += 1;
-      if (requireHeuristic && !isLikelyProductPage(text)) continue;
-      if (!isProductPage(html, text)) continue;
+      if (detectBloomtechPageKind(html, text) !== "product") {
+        console.warn(`[preview] Skipped ${link}: expected product page.`);
+        continue;
+      }
       if (allowedSlugs.size > 0) {
         const slug = new URL(link).pathname.replace(/^\/+/, "");
         if (!allowedSlugs.has(slug)) continue;
@@ -1072,9 +1185,7 @@ const run = async () => {
       }
       const stock = parseStockForUrl(link, html);
       const supplierWeight = extractSupplierWeightFromHtml(html);
-      const supplierImages = includeSupplierImages
-        ? extractSupplierImagesFromHtml(html, link)
-        : [];
+      const supplierImages = extractSupplierImagesFromHtml(html, link);
       const handleBase = buildHandleBase(cleanedTitle || title, manufacturer);
       const handleSlug = slugifyHandle(handleBase);
       const nextIndex = (handleCounts.get(handleSlug) ?? 0) + 1;
@@ -1092,9 +1203,11 @@ const run = async () => {
         price,
         stock,
         supplierWeight,
-        ...(includeSupplierImages ? { supplierImages } : {}),
+        supplierImages,
       });
-      await sleep(REQUEST_DELAY_MS);
+      if (previews.length < limit) {
+        await sleep(REQUEST_DELAY_MS);
+      }
     } catch (error) {
       console.warn(
         `[preview] Failed ${link}: ${error instanceof Error ? error.message : "unknown"}`,
@@ -1103,7 +1216,10 @@ const run = async () => {
   }
 
   const payload = {
+    sourceMode: mode,
+    sourceUrl: url,
     sourceCategory: url,
+    ...(mode === "product" ? { sourceProduct: url } : {}),
     checkedLinks: checked,
     previewCount: previews.length,
     items: previews,
@@ -1111,7 +1227,7 @@ const run = async () => {
 
   await fs.promises.writeFile(out, JSON.stringify(payload, null, 2), "utf8");
   console.log(
-    `Preview done. checked=${checked} items=${previews.length} output=${out}`,
+    `Preview done. mode=${mode} checked=${checked} items=${previews.length} output=${out}`,
   );
 };
 

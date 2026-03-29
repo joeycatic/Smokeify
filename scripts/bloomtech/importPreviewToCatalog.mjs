@@ -8,7 +8,7 @@ const DEFAULT_INPUT = "scripts/bloomtech/supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
 const DEFAULT_MARGIN_PERCENT = 20;
-const DEFAULT_ROUNDING_STRATEGY = "99";
+const DEFAULT_ROUNDING_STRATEGY = "nearest_99";
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
@@ -50,6 +50,21 @@ const ceilToNextWithEndings = (targetCents, endings) => {
     .sort((a, b) => a - b)[0] ?? normalized;
 };
 
+const roundToNearest99 = (targetCents, costCents) => {
+  const euros = Math.floor(targetCents / 100);
+  const candidates = [euros - 1, euros, euros + 1]
+    .filter((value) => value >= 0)
+    .map((value) => value * 100 + 99)
+    .filter((candidate) => candidate > costCents);
+
+  if (!candidates.length) return Math.ceil(targetCents);
+  return candidates.reduce((best, candidate) =>
+    Math.abs(candidate - targetCents) < Math.abs(best - targetCents)
+      ? candidate
+      : best
+  );
+};
+
 const parseMarginPercent = (rawValue) => {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
     return DEFAULT_MARGIN_PERCENT;
@@ -67,7 +82,9 @@ const parseMarginPercent = (rawValue) => {
 const parseRoundingStrategy = (rawValue) => {
   if (!rawValue) return DEFAULT_ROUNDING_STRATEGY;
   const normalized = String(rawValue).trim().toLowerCase();
-  if (normalized === "none" || normalized === "99") return normalized;
+  if (normalized === "none" || normalized === "99" || normalized === "nearest_99") {
+    return normalized;
+  }
   if (normalized === "49_or_99" || normalized === "45_or_99") return "99";
   throw new Error(`Invalid rounding strategy: ${rawValue}`);
 };
@@ -93,9 +110,12 @@ const buildSellPriceCents = (costCents, pricingConfig) => {
   if (marginMultiplier <= 0) {
     throw new Error("Invalid margin configuration produced divisor <= 0.");
   }
-  const targetSellCents = Math.ceil(costCents / marginMultiplier);
-  if (pricingConfig.rounding === "none") return targetSellCents;
-  return ceilToNextWithEndings(targetSellCents, [99]);
+  const targetSellCents = costCents / marginMultiplier;
+  if (pricingConfig.rounding === "none") return Math.ceil(targetSellCents);
+  if (pricingConfig.rounding === "99") {
+    return ceilToNextWithEndings(Math.ceil(targetSellCents), [99]);
+  }
+  return roundToNearest99(targetSellCents, costCents);
 };
 
 const formatCents = (cents) => (cents / 100).toFixed(2);
@@ -328,6 +348,7 @@ const run = async () => {
         supplierId: true,
         supplier: true,
         sellerName: true,
+        sellerUrl: true,
         variants: {
           orderBy: { position: "asc" },
           take: 1,
@@ -367,23 +388,43 @@ const run = async () => {
         skippedItems.push({ handle, title, reason: "existing_missing_variant" });
         continue;
       }
+      const supplierImageUrls = extractSupplierImageUrls(item);
       const sellPriceCents = costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
       if (!apply || !allowWrite) {
         const costLabel = costCents === null ? "missing" : formatCents(costCents);
         const priceLabel =
           costCents === null ? "0.00" : formatCents(sellPriceCents);
         console.log(
-          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency}`
+          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length}`
         );
         continue;
       }
-      await prisma.variant.update({
-        where: { id: primaryVariant.id },
-        data: {
-          costCents: costCents ?? 0,
-          priceCents: sellPriceCents,
-        },
-      });
+      await prisma.$transaction([
+        prisma.variant.update({
+          where: { id: primaryVariant.id },
+          data: {
+            costCents: costCents ?? 0,
+            priceCents: sellPriceCents,
+          },
+        }),
+        prisma.product.update({
+          where: { id: existingByHandle.id },
+          data: {
+            sellerUrl: sourceUrl || existingByHandle.sellerUrl,
+            images:
+              supplierImageUrls.length > 0
+                ? {
+                    deleteMany: {},
+                    create: supplierImageUrls.map((url, index) => ({
+                      url,
+                      altText: title,
+                      position: index,
+                    })),
+                  }
+                : undefined,
+          },
+        }),
+      ]);
       results.updated += 1;
       continue;
     }
