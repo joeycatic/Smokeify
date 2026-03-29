@@ -39,26 +39,125 @@ function compactOutput(value: string, maxLength = AUDIT_OUTPUT_LIMIT) {
   return value.slice(-maxLength);
 }
 
-function getScriptCommand(scriptId: string) {
+function normalizeScriptInputs(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {} as Record<string, string>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, rawValue]) =>
+      typeof rawValue === "string" ? [[key, rawValue]] : [],
+    ),
+  );
+}
+
+function normalizeHttpUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function buildScriptExecution(definition: NonNullable<ReturnType<typeof getAdminScriptDefinition>>, rawInputs: Record<string, string>) {
+  switch (definition.id) {
+    case "bloomtech:scrape-preview":
+    case "bloomtech:scrape-category-preview":
+    case "bloomtech:scrape-product-preview": {
+      const rawSourceUrl = rawInputs.sourceUrl?.trim() ?? "";
+      if (!rawSourceUrl) {
+        return {
+          scriptArgs: [] as string[],
+          normalizedInputs: {} as Record<string, string>,
+        };
+      }
+
+      const sourceUrl = normalizeHttpUrl(rawSourceUrl);
+      if (!sourceUrl) {
+        return {
+          error: "Bloomtech link must be a valid http or https URL.",
+        };
+      }
+
+      const hostname = new URL(sourceUrl).hostname.toLowerCase();
+      if (hostname !== "bloomtech.de" && hostname !== "www.bloomtech.de") {
+        return {
+          error: "Bloomtech link must point to bloomtech.de.",
+        };
+      }
+
+      return {
+        scriptArgs: ["--url", sourceUrl],
+        normalizedInputs: { sourceUrl },
+      };
+    }
+    case "bloomtech:import-preview":
+      return {
+        scriptArgs: ["--apply"],
+        envOverrides: {
+          BLOOMTECH_IMPORT_ALLOW_WRITE: "1",
+        } as Record<string, string>,
+        normalizedInputs: {} as Record<string, string>,
+      };
+    default:
+      return {
+        scriptArgs: [] as string[],
+        envOverrides: {} as Record<string, string>,
+        normalizedInputs: {} as Record<string, string>,
+      };
+  }
+}
+
+function buildInputMetadata(inputs: Record<string, string>) {
+  return Object.keys(inputs).length > 0 ? { inputs } : {};
+}
+
+function escapeWindowsCmdArg(value: string) {
+  return value
+    .replace(/\^/g, "^^")
+    .replace(/%/g, "%%")
+    .replace(/[&|<>()!]/g, "^$&");
+}
+
+function getScriptCommand(scriptId: string, scriptArgs: string[] = []) {
   if (process.platform === "win32") {
+    const commandLine = [
+      "npm",
+      "run",
+      scriptId,
+      ...(scriptArgs.length > 0 ? ["--", ...scriptArgs.map(escapeWindowsCmdArg)] : []),
+    ].join(" ");
+
     return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", `npm run ${scriptId}`],
+      command: process.env.ComSpec ?? "cmd.exe",
+      args: ["/d", "/s", "/c", commandLine],
     };
   }
 
   return {
     command: "npm",
-    args: ["run", scriptId],
+    args: ["run", scriptId, ...(scriptArgs.length > 0 ? ["--", ...scriptArgs] : [])],
   };
 }
 
 async function executeScript({
   scriptId,
   timeoutMs,
+  scriptArgs,
+  envOverrides,
 }: {
   scriptId: string;
   timeoutMs: number;
+  scriptArgs?: string[];
+  envOverrides?: Record<string, string>;
 }) {
   return new Promise<{
     ok: boolean;
@@ -67,10 +166,13 @@ async function executeScript({
     exitCode: number | null;
     timedOut: boolean;
   }>((resolve, reject) => {
-    const command = getScriptCommand(scriptId);
+    const command = getScriptCommand(scriptId, scriptArgs);
     const child = spawn(command.command, command.args, {
       cwd: process.cwd(),
-      env: process.env,
+      env: {
+        ...process.env,
+        ...envOverrides,
+      },
       shell: false,
       windowsHide: true,
     });
@@ -184,6 +286,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     scriptId?: string;
+    inputs?: Record<string, unknown>;
   };
   const scriptId = body.scriptId?.trim();
   if (!scriptId) {
@@ -193,6 +296,12 @@ export async function POST(request: Request) {
   const definition = getAdminScriptDefinition(scriptId);
   if (!definition) {
     return NextResponse.json({ error: "Script is not approved for admin execution." }, { status: 400 });
+  }
+
+  const requestedInputs = normalizeScriptInputs(body.inputs);
+  const execution = buildScriptExecution(definition, requestedInputs);
+  if ("error" in execution) {
+    return NextResponse.json({ error: execution.error }, { status: 400 });
   }
 
   const activeRunState = getActiveRunState();
@@ -223,6 +332,7 @@ export async function POST(request: Request) {
       scriptId: definition.id,
       npmScript: definition.npmScript,
       riskLevel: definition.riskLevel,
+      ...buildInputMetadata(execution.normalizedInputs),
     },
   });
 
@@ -233,6 +343,8 @@ export async function POST(request: Request) {
         : await executeScript({
             scriptId: definition.npmScript,
             timeoutMs: definition.timeoutMs,
+            scriptArgs: execution.scriptArgs,
+            envOverrides: "envOverrides" in execution ? execution.envOverrides : undefined,
           });
     const durationMs = Date.now() - startedAt;
 
@@ -253,6 +365,7 @@ export async function POST(request: Request) {
           durationMs,
           timedOut: result.timedOut,
           exitCode: result.exitCode,
+          ...buildInputMetadata(execution.normalizedInputs),
           stdoutTail: compactOutput(result.stdout),
           stderrTail: compactOutput(result.stderr),
         },
@@ -283,6 +396,7 @@ export async function POST(request: Request) {
         npmScript: definition.npmScript,
         durationMs,
         exitCode: result.exitCode,
+        ...buildInputMetadata(execution.normalizedInputs),
         stdoutTail: compactOutput(result.stdout),
       },
     });
@@ -311,6 +425,7 @@ export async function POST(request: Request) {
         scriptId: definition.id,
         npmScript: definition.npmScript,
         durationMs,
+        ...buildInputMetadata(execution.normalizedInputs),
         error: message,
       },
     });

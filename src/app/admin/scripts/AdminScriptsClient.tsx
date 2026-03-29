@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import type { AdminScriptCategory, AdminScriptDefinition } from "@/lib/adminScripts";
 import {
   AdminButton,
+  AdminField,
+  AdminInput,
   AdminMetricCard,
   AdminNotice,
   AdminPageIntro,
@@ -40,6 +42,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
   const [runningScriptId, setRunningScriptId] = useState<string | null>(null);
   const [lastRun, setLastRun] = useState<RunState | null>(null);
   const [requestError, setRequestError] = useState<string>("");
+  const [scriptInputs, setScriptInputs] = useState<Record<string, Record<string, string>>>({});
 
   const groupedScripts = useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
@@ -51,6 +54,19 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
   const readonlyCount = scripts.filter((script) => script.riskLevel === "read-only").length;
   const writeCount = scripts.length - readonlyCount;
 
+  const updateScriptInput = (scriptId: string, inputId: string, value: string) => {
+    setScriptInputs((current) => ({
+      ...current,
+      [scriptId]: {
+        ...(current[scriptId] ?? {}),
+        [inputId]: value,
+      },
+    }));
+  };
+
+  const getScriptInputValue = (scriptId: string, inputId: string) =>
+    scriptInputs[scriptId]?.[inputId] ?? "";
+
   const runScript = async (script: AdminScriptDefinition) => {
     setRunningScriptId(script.id);
     setRequestError("");
@@ -59,7 +75,10 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
       const response = await fetch("/api/admin/scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scriptId: script.id }),
+        body: JSON.stringify({
+          scriptId: script.id,
+          inputs: scriptInputs[script.id] ?? {},
+        }),
       });
 
       const data = (await response.json().catch(() => ({}))) as {
@@ -186,7 +205,6 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                               {script.dryRunByDefault ? "Dry-run first" : "Direct apply"}
                             </span>
                           </div>
-                          <p className="mt-2 text-sm text-slate-400">{script.description}</p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -210,7 +228,52 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            What it does
+                          </div>
+                          <div className="mt-2 text-sm text-slate-200">{script.description}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            Input
+                          </div>
+                          <div className="mt-2 text-sm text-slate-200">{script.inputSummary}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            Output
+                          </div>
+                          <div className="mt-2 text-sm text-slate-200">{script.outputSummary}</div>
+                        </div>
+                      </div>
+
+                      {script.inputs?.length ? (
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          {script.inputs.map((input) => (
+                            <div
+                              key={input.id}
+                              className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+                            >
+                              <AdminField label={input.label} optional="Optional">
+                                <AdminInput
+                                  type={input.kind === "url" ? "url" : "text"}
+                                  value={getScriptInputValue(script.id, input.id)}
+                                  onChange={(event) =>
+                                    updateScriptInput(script.id, input.id, event.target.value)
+                                  }
+                                  placeholder={input.placeholder}
+                                  disabled={Boolean(runningScriptId)}
+                                />
+                              </AdminField>
+                              <p className="mt-2 text-xs text-slate-500">{input.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-3">
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                             Command
