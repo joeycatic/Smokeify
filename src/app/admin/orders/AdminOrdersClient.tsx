@@ -77,6 +77,7 @@ type WebhookFailure = {
 };
 
 type Props = {
+  activeStorefrontLabel: string;
   initialSearchQuery?: string;
   orders: OrderRow[];
   webhookFailures: WebhookFailure[];
@@ -275,6 +276,7 @@ const getPaymentBadgeClass = (paymentStatus: string) => {
 };
 
 export default function AdminOrdersClient({
+  activeStorefrontLabel,
   initialSearchQuery = "",
   orders,
   webhookFailures,
@@ -955,6 +957,9 @@ export default function AdminOrdersClient({
                 </h1>
                 <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
                   Live ops view
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-100">
+                  {activeStorefrontLabel}
                 </span>
               </div>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { HorizontalBarsChart } from "@/components/admin/AdminCharts";
 import type {
@@ -10,6 +11,7 @@ import type {
   CustomerSummary,
   RegisteredCustomer,
 } from "@/lib/adminCustomers";
+import { ADMIN_STOREFRONT_SCOPE_LABELS, parseAdminStorefrontScope } from "@/lib/storefronts";
 
 const SEGMENT_META: Record<
   Segment,
@@ -91,6 +93,7 @@ const EMPTY_SUMMARY: CustomerSummary = {
 };
 
 export default function AdminCustomersClient() {
+  const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cohorts, setCohorts] = useState<CustomerCohort[]>([]);
   const [loading, setLoading] = useState(false);
@@ -114,6 +117,8 @@ export default function AdminCustomersClient() {
   const [storeCreditAmount, setStoreCreditAmount] = useState("");
   const [storeCreditReason, setStoreCreditReason] = useState("");
   const [storeCreditPassword, setStoreCreditPassword] = useState("");
+  const storefrontScope = parseAdminStorefrontScope(searchParams?.get("storefront"));
+  const storefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope];
 
   const loadCustomers = useEffectEvent(async () => {
     setLoading(true);
@@ -124,6 +129,7 @@ export default function AdminCustomersClient() {
       if (deferredQuery.trim()) params.set("q", deferredQuery.trim());
       if (tab !== "all") params.set("tab", tab);
       if (segmentFilter !== "all") params.set("segment", segmentFilter);
+      params.set("storefront", storefrontScope);
       const res = await fetch(`/api/admin/customers?${params.toString()}`, {
         method: "GET",
         cache: "no-store",
@@ -156,7 +162,7 @@ export default function AdminCustomersClient() {
 
   useEffect(() => {
     void loadCustomers();
-  }, [deferredQuery, page, refreshNonce, segmentFilter, tab]);
+  }, [deferredQuery, page, refreshNonce, segmentFilter, storefrontScope, tab]);
 
   useEffect(() => {
     if (!customers.length) {
@@ -338,6 +344,9 @@ export default function AdminCustomersClient() {
               CLV, churn risk, discount dependence, loyalty balance, and direct actions for the
               existing CRM without rebuilding the underlying customer system.
             </p>
+            <div className="mt-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
+              {storefrontLabel}
+            </div>
           </div>
           <button
             type="button"
@@ -385,7 +394,7 @@ export default function AdminCustomersClient() {
         <Panel
           eyebrow="Leaders"
           title="Top customer value"
-          description="Highest net revenue accounts and guests across the whole CRM."
+          description={`Highest net revenue accounts and guests in ${storefrontLabel}.`}
         >
           <CustomerSummaryList
             customers={summary.topCustomers}
@@ -400,7 +409,7 @@ export default function AdminCustomersClient() {
         <Panel
           eyebrow="Action queue"
           title="Customers needing attention"
-          description="Focus repeat buyers at churn risk, margin-heavy accounts, and return-risk cases."
+          description={`Focus repeat buyers at churn risk, margin-heavy accounts, and return-risk cases in ${storefrontLabel}.`}
         >
           <CustomerSummaryList
             customers={summary.atRiskCustomers}

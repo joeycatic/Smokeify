@@ -2,10 +2,17 @@ import type { Prisma, Storefront } from "@prisma/client";
 
 export const STOREFRONTS = ["MAIN", "GROW"] as const;
 export type StorefrontCode = (typeof STOREFRONTS)[number];
+export type AdminStorefrontScope = StorefrontCode | "ALL";
 
 export const STOREFRONT_LABELS: Record<StorefrontCode, string> = {
   MAIN: "Smokeify",
   GROW: "GrowVault",
+};
+
+export const ADMIN_STOREFRONT_SCOPE_LABELS: Record<AdminStorefrontScope, string> = {
+  ALL: "All storefronts",
+  MAIN: STOREFRONT_LABELS.MAIN,
+  GROW: STOREFRONT_LABELS.GROW,
 };
 
 export const STOREFRONT_OPTION_ROWS = STOREFRONTS.map((code) => ({
@@ -31,6 +38,20 @@ export const parseStorefront = (value?: string | null): StorefrontCode | null =>
     ? (normalized as StorefrontCode)
     : null;
 };
+
+export const parseAdminStorefrontScope = (
+  value?: string | string[] | null,
+): AdminStorefrontScope => {
+  const normalized = Array.isArray(value) ? value[0] : value;
+  if (normalized?.trim().toUpperCase() === "ALL") {
+    return "ALL";
+  }
+  return parseStorefront(normalized) ?? "ALL";
+};
+
+export const storefrontScopeToStorefront = (
+  storefrontScope: AdminStorefrontScope,
+): StorefrontCode | null => (storefrontScope === "ALL" ? null : storefrontScope);
 
 export const parseStorefronts = (
   value: unknown,

@@ -15,6 +15,7 @@ import {
   sortCustomers,
 } from "@/lib/adminCustomers";
 import { adminJson } from "@/lib/adminApi";
+import { parseAdminStorefrontScope, storefrontScopeToStorefront } from "@/lib/storefronts";
 
 const PAGE_SIZE = 40;
 
@@ -36,6 +37,8 @@ export async function GET(request: Request) {
   )
     ? (segmentParam as CustomerSegment)
     : "all";
+  const storefrontScope = parseAdminStorefrontScope(searchParams.get("storefront"));
+  const storefront = storefrontScopeToStorefront(storefrontScope);
   const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const normalizedQuery = rawQuery.toLowerCase();
 
@@ -54,7 +57,10 @@ export async function GET(request: Request) {
         notes: true,
         crmFlags: true,
         orders: {
-          where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
+          where: {
+            paymentStatus: { in: PAID_ORDER_STATUSES },
+            ...(storefront ? { sourceStorefront: storefront } : {}),
+          },
           select: {
             amountTotal: true,
             amountRefunded: true,
@@ -64,6 +70,7 @@ export async function GET(request: Request) {
           },
         },
         returnRequests: {
+          where: storefront ? { order: { sourceStorefront: storefront } } : undefined,
           select: { id: true, createdAt: true, status: true },
         },
       },
@@ -74,6 +81,7 @@ export async function GET(request: Request) {
         userId: null,
         customerEmail: { not: null },
         paymentStatus: { in: PAID_ORDER_STATUSES },
+        ...(storefront ? { sourceStorefront: storefront } : {}),
       },
       select: {
         customerEmail: true,
@@ -142,6 +150,7 @@ export async function GET(request: Request) {
     const lastOrderAt = sortedOrders.at(-1)?.createdAt ?? null;
     const discountOrderCount = sortedOrders.filter((order) => Boolean(order.discountCode)).length;
     const returnCount = user.returnRequests.length;
+    if (storefront && orderCount === 0) return [];
 
     return [
       {

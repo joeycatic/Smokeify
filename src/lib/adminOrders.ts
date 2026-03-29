@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type Storefront } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type AdminOrderItemOption = {
@@ -177,8 +177,9 @@ async function getManufacturerByProductId(productIds: string[]) {
   return new Map(products.map((product) => [product.id, product.manufacturer ?? null]));
 }
 
-export async function loadAdminOrders() {
+export async function loadAdminOrders(storefront: Storefront | null = null) {
   const orders = await prisma.order.findMany({
+    where: storefront ? { sourceStorefront: storefront } : undefined,
     orderBy: { createdAt: "desc" },
     include: {
       items: true,

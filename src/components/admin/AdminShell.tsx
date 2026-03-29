@@ -28,6 +28,11 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import AdminCommandBar from "@/components/admin/AdminCommandBar";
+import {
+  ADMIN_STOREFRONT_SCOPE_LABELS,
+  parseAdminStorefrontScope,
+  type AdminStorefrontScope,
+} from "@/lib/storefronts";
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -171,6 +176,8 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const currentLanguage = searchParams?.get("lang") === "de" ? "de" : "en";
+  const currentStorefrontScope = parseAdminStorefrontScope(searchParams?.get("storefront"));
+  const currentStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope];
 
   const currentTitle = useMemo(() => {
     const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
@@ -189,6 +196,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
   const languageHref = (nextLanguage: "de" | "en") => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("lang", nextLanguage);
+    params.set("storefront", currentStorefrontScope);
     const query = params.toString();
     return query ? `${pathname}?${query}` : pathname;
   };
@@ -196,12 +204,27 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
   const navHref = (href: string) => {
     const params = new URLSearchParams();
     params.set("lang", currentLanguage);
+    params.set("storefront", currentStorefrontScope);
     const query = params.toString();
     return query ? `${href}?${query}` : href;
   };
 
+  const storefrontHref = (nextScope: AdminStorefrontScope) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("storefront", nextScope);
+    if (pathname === "/admin/reports") {
+      if (nextScope === "ALL") {
+        params.delete("sourceStorefront");
+      } else {
+        params.set("sourceStorefront", nextScope);
+      }
+    }
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  };
+
   return (
-    <div className="admin-shell min-h-screen bg-[#05070a] text-slate-100">
+    <div className="admin-shell min-h-screen overflow-x-clip bg-[#05070a] text-slate-100">
       <div className="admin-shell__backdrop" aria-hidden="true" />
       <div className="relative flex min-h-screen">
         {sidebarOpen ? (
@@ -214,14 +237,14 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex max-h-screen w-[18rem] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-4 backdrop-blur md:sticky md:translate-x-0 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex max-h-screen w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-4 backdrop-blur md:sticky md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-                Smokeify
+                {currentStorefrontScope === "ALL" ? "Shared admin" : currentStorefrontLabel}
               </p>
               <h1 className="mt-2 text-lg font-semibold text-white">Admin</h1>
             </div>
@@ -236,9 +259,17 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           </div>
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Access
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Access
+                </p>
+                <p className="mt-1 text-xs text-slate-400">{currentStorefrontLabel}</p>
+              </div>
+              <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                {currentStorefrontScope}
+              </span>
+            </div>
             <div className="mt-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-slate-100">
@@ -286,7 +317,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
 
         <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
-            <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:px-6 sm:py-4 lg:px-8">
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
@@ -304,25 +335,46 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                   <h2 className="truncate text-lg font-semibold text-white">
                     {currentTitle}
                   </h2>
+                  <span className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 sm:inline-flex">
+                    {currentStorefrontLabel}
+                  </span>
                   <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 sm:inline-flex">
                     Admin-only workspace
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
                 <AdminCommandBar
                   key={pathname}
                   groups={NAV_GROUPS}
                   pathname={pathname}
                   currentLanguage={currentLanguage}
+                  currentStorefrontScope={currentStorefrontScope}
                 />
+
+                <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                  {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+                    <Link
+                      key={scope}
+                      href={storefrontHref(scope)}
+                      aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
+                      className={`inline-flex h-10 items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                        currentStorefrontScope === scope
+                          ? "bg-cyan-300/90 text-slate-950"
+                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                      }`}
+                    >
+                      {scope === "ALL" ? "All" : scope}
+                    </Link>
+                  ))}
+                </div>
 
                 <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
                   <Link
                     href={languageHref("de")}
                     aria-label="Switch admin page language to German"
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition sm:h-10 sm:w-10 ${
                       currentLanguage === "de"
                         ? "bg-cyan-300/90 text-slate-950"
                         : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
@@ -333,7 +385,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                   <Link
                     href={languageHref("en")}
                     aria-label="Switch admin page language to British English"
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition sm:h-10 sm:w-10 ${
                       currentLanguage === "en"
                         ? "bg-cyan-300/90 text-slate-950"
                         : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
@@ -347,7 +399,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           </header>
 
           <main className="relative">
-            <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
               {children}
             </div>
           </main>

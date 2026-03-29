@@ -4,6 +4,7 @@ import type { ComponentProps, ComponentType, KeyboardEvent as ReactKeyboardEvent
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import type { AdminStorefrontScope } from "@/lib/storefronts";
 
 type CommandNavItem = {
   href: string;
@@ -27,11 +28,17 @@ type AdminCommandBarProps = {
   groups: CommandNavGroup[];
   pathname: string;
   currentLanguage: "de" | "en";
+  currentStorefrontScope: AdminStorefrontScope;
 };
 
-function buildHref(href: string, currentLanguage: "de" | "en") {
+function buildHref(
+  href: string,
+  currentLanguage: "de" | "en",
+  currentStorefrontScope: AdminStorefrontScope,
+) {
   const params = new URLSearchParams();
   params.set("lang", currentLanguage);
+  params.set("storefront", currentStorefrontScope);
   const query = params.toString();
   return query ? `${href}?${query}` : href;
 }
@@ -45,6 +52,7 @@ export default function AdminCommandBar({
   groups,
   pathname,
   currentLanguage,
+  currentStorefrontScope,
 }: AdminCommandBarProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -58,11 +66,11 @@ export default function AdminCommandBar({
         group.items.map((item) => ({
           ...item,
           group: group.label,
-          hrefWithState: buildHref(item.href, currentLanguage),
+          hrefWithState: buildHref(item.href, currentLanguage, currentStorefrontScope),
           searchValue: `${item.label} ${group.label} ${item.href.replaceAll("/", " ")}`.toLowerCase(),
         })),
       ),
-    [currentLanguage, groups],
+    [currentLanguage, currentStorefrontScope, groups],
   );
 
   const filteredCommands = useMemo(() => {

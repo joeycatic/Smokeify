@@ -1,5 +1,6 @@
 import "server-only";
 
+import { type Storefront } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   buildExpenseSummary,
@@ -57,6 +58,43 @@ const buildVatOptionsFromExpenses = (
 export async function getFinanceOrdersSince(since: Date) {
   return prisma.order.findMany({
     where: { createdAt: { gte: since } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      createdAt: true,
+      currency: true,
+      shippingCountry: true,
+      paymentStatus: true,
+      status: true,
+      amountSubtotal: true,
+      amountTax: true,
+      amountShipping: true,
+      amountDiscount: true,
+      amountTotal: true,
+      amountRefunded: true,
+      items: {
+        select: {
+          quantity: true,
+          totalAmount: true,
+          baseCostAmount: true,
+          paymentFeeAmount: true,
+          adjustedCostAmount: true,
+          taxAmount: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getFinanceOrdersSinceForStorefront(
+  since: Date,
+  storefront: Storefront | null = null,
+) {
+  return prisma.order.findMany({
+    where: {
+      createdAt: { gte: since },
+      ...(storefront ? { sourceStorefront: storefront } : {}),
+    },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -147,14 +185,20 @@ export async function getExpensesSince(since: Date) {
   return result.expenses;
 }
 
-export async function getFinancePageData(days: AdminTimeRangeDays = 30) {
+export async function getFinancePageData(
+  days: AdminTimeRangeDays = 30,
+  storefront: Storefront | null = null,
+) {
   const currentStart = getAdminTimeWindowStart(days);
   const previousStart = getDateDaysAgo(days * 2 - 1);
   const [orders, expenseQuery, latestRecognizedOrder] = await Promise.all([
-    getFinanceOrdersSince(previousStart),
+    getFinanceOrdersSinceForStorefront(previousStart, storefront),
     queryExpensesSince(previousStart),
     prisma.order.findFirst({
-      where: { paymentStatus: { in: [...RECOGNIZED_PAYMENT_STATUSES] } },
+      where: {
+        paymentStatus: { in: [...RECOGNIZED_PAYMENT_STATUSES] },
+        ...(storefront ? { sourceStorefront: storefront } : {}),
+      },
       orderBy: { createdAt: "desc" },
       select: {
         createdAt: true,
@@ -164,7 +208,7 @@ export async function getFinancePageData(days: AdminTimeRangeDays = 30) {
       },
     }),
   ]);
-  const expenses = expenseQuery.expenses;
+  const expenses = storefront ? [] : expenseQuery.expenses;
   const currency = orders[0]?.currency ?? expenses[0]?.currency ?? "EUR";
   const currentOrders = orders.filter((order) => order.createdAt >= currentStart);
   const previousOrders = orders.filter((order) => order.createdAt < currentStart);
@@ -240,6 +284,7 @@ export async function getFinancePageData(days: AdminTimeRangeDays = 30) {
   ).sort((left, right) => right.grossAmount - left.grossAmount);
 
   return {
+    storefront,
     currentFinance,
     previousFinance,
     currentExpenseSummary,

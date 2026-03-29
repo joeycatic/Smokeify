@@ -13,6 +13,11 @@ import { authOptions } from "@/lib/auth";
 import { getFinancePageData } from "@/lib/adminAddonData";
 import { formatExpenseCategoryLabel, type ExpenseCategory } from "@/lib/adminExpenses";
 import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
+import {
+  ADMIN_STOREFRONT_SCOPE_LABELS,
+  parseAdminStorefrontScope,
+  storefrontScopeToStorefront,
+} from "@/lib/storefronts";
 
 const formatMoney = (amountCents: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
@@ -44,6 +49,8 @@ export default async function AdminFinancePage({
   if (session?.user?.role !== "ADMIN") notFound();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
+  const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams?.storefront);
+  const storefront = storefrontScopeToStorefront(storefrontScope);
   const selectedRange = getAdminTimeRangeOption(days);
 
   const {
@@ -58,7 +65,7 @@ export default async function AdminFinancePage({
     currentStart,
     currentEnd,
     latestRecognizedOrderAt,
-  } = await getFinancePageData(days);
+  } = await getFinancePageData(days, storefront);
   const currency = currentFinance.currency;
   const trendTitle =
     days === 30 ? "Rolling 3-day trend" : days === 90 ? "Weekly trend" : "Monthly trend";
@@ -85,6 +92,9 @@ export default async function AdminFinancePage({
               Add-on finance workspace for gross-to-net clarity, variable cost rollups and
               period-over-period control without changing the main admin workflows.
             </p>
+            <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
+              {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}
+            </div>
           </div>
           <div className="flex max-w-sm flex-col items-start gap-3">
             <AdminTimeRangeTabs pathname="/admin/finance" activeDays={days} />
@@ -119,6 +129,13 @@ export default async function AdminFinancePage({
           {latestRecognizedOrderAt
             ? ` Latest recognized paid order: ${formatDate(latestRecognizedOrderAt)}.`
             : " No recognized paid orders exist yet in the database."}
+        </div>
+      ) : null}
+
+      {storefront ? (
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+          Finance is currently scoped to {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}. Shared
+          expense and input-VAT allocations are excluded until expenses are tagged per storefront.
         </div>
       ) : null}
 

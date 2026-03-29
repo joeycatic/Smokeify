@@ -76,6 +76,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
   } | null>(null);
   const filters = initialSnapshot.filters;
   const currentLanguage = searchParams?.get("lang") === "de" ? "de" : "en";
+  const currentStorefrontScope = searchParams?.get("storefront")?.trim().toUpperCase() ?? "";
 
   const exportHref = useMemo(
     () =>
@@ -95,6 +96,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
           ...Object.fromEntries(
             Object.entries({
               lang: currentLanguage,
+              storefront: currentStorefrontScope || undefined,
               reportType: filters.reportType,
               days: String(filters.days),
               sourceStorefront: filters.sourceStorefront,
