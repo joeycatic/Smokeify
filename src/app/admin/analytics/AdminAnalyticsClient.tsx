@@ -546,6 +546,46 @@ export default function AdminAnalyticsClient() {
     [paymentAnalysis],
   );
 
+  const discountBars = useMemo<AdminChartPoint[]>(
+    () =>
+      discountAnalysis.map((item) => ({
+        label: item.code,
+        value: item.revenueCents,
+        secondaryValue: item.discountCents,
+      })),
+    [discountAnalysis],
+  );
+
+  const productMomentumBars = useMemo<AdminChartPoint[]>(
+    () =>
+      topProducts.slice(0, 6).map((item) => ({
+        label: item.productTitle,
+        value: item.revenueCents,
+        secondaryValue: item.marginCents,
+      })),
+    [topProducts],
+  );
+
+  const trafficSourceMixDonut = useMemo(
+    () =>
+      trafficSources.slice(0, 5).map((source, index) => ({
+        label: source.label,
+        value: source.sessions,
+        colorClassName: ["#22d3ee", "#818cf8", "#34d399", "#f59e0b", "#f87171"][index % 5],
+      })),
+    [trafficSources],
+  );
+
+  const paymentMixDonut = useMemo(
+    () =>
+      paymentAnalysis.map((item, index) => ({
+        label: item.method,
+        value: item.revenueCents,
+        colorClassName: ["#a78bfa", "#22d3ee", "#34d399", "#f59e0b", "#fb7185"][index % 5],
+      })),
+    [paymentAnalysis],
+  );
+
   const funnelLabels = useMemo(() => funnelTrend.map((point) => point.label), [funnelTrend]);
 
   const funnelSeries = useMemo(
@@ -564,6 +604,31 @@ export default function AdminAnalyticsClient() {
         label: "Purchases",
         color: "#34d399",
         values: funnelTrend.map((point) => point.purchases),
+      },
+    ],
+    [funnelTrend],
+  );
+
+  const conversionRateSeries = useMemo(
+    () => [
+      {
+        label: "View to cart",
+        color: "#22d3ee",
+        values: funnelTrend.map((point) =>
+          point.productViews > 0 ? point.addToCart / point.productViews * 100 : 0,
+        ),
+      },
+      {
+        label: "Cart to checkout",
+        color: "#a78bfa",
+        values: funnelTrend.map((point) =>
+          point.addToCart > 0 ? point.beginCheckout / point.addToCart * 100 : 0,
+        ),
+      },
+      {
+        label: "Session to purchase",
+        color: "#34d399",
+        values: funnelTrend.map((point) => point.sessionConversionRate * 100),
       },
     ],
     [funnelTrend],
@@ -896,7 +961,10 @@ export default function AdminAnalyticsClient() {
                         {formatPrice(periodComparison.revenue.current, periodComparison.currency)}
                       </span>
                     </div>
-                    <SparklineChart data={revenueTrend} />
+                    <SparklineChart
+                      data={revenueTrend}
+                      valueFormatter={(value) => formatPrice(value, periodComparison.currency)}
+                    />
                   </div>
                   <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
@@ -916,6 +984,7 @@ export default function AdminAnalyticsClient() {
                       data={ordersTrend}
                       strokeClassName="stroke-violet-300"
                       fillClassName="fill-violet-400/10"
+                      valueFormatter={(value) => `${Math.round(value)} orders`}
                     />
                   </div>
                 </div>
@@ -936,6 +1005,32 @@ export default function AdminAnalyticsClient() {
                 <CompactMetric label="Cart abandon" value={percent(funnel.cartAbandonmentRate)} />
                 <CompactMetric label="Checkout abandon" value={percent(funnel.checkoutAbandonmentRate)} />
               </div>
+            </Panel>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Panel
+              eyebrow="Conversion"
+              title="Step-rate trend"
+              description="Interactive rate view across the main conversion steps so you can inspect where efficiency is improving or slipping."
+            >
+              <MultiSeriesTrendChart
+                labels={funnelLabels}
+                series={conversionRateSeries}
+                valueFormatter={(value) => `${Math.round(value)}%`}
+              />
+            </Panel>
+
+            <Panel
+              eyebrow="Products"
+              title="Product momentum"
+              description="Interactive revenue ranking for the strongest products in the current window."
+            >
+              <HorizontalBarsChart
+                data={productMomentumBars}
+                valueFormatter={(value) => formatPrice(value)}
+                colorClassName="bg-emerald-400"
+              />
             </Panel>
           </div>
 
@@ -976,11 +1071,18 @@ export default function AdminAnalyticsClient() {
               title="Traffic sources"
               description="30-day first-party session volume and checkout starts."
             >
-              <HorizontalBarsChart
-                data={sourceBars}
-                valueFormatter={(value) => `${value} sessions`}
-                colorClassName="bg-cyan-400"
-              />
+              <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                <HorizontalBarsChart
+                  data={sourceBars}
+                  valueFormatter={(value) => `${value} sessions`}
+                  colorClassName="bg-cyan-400"
+                />
+                <DonutChart
+                  data={trafficSourceMixDonut}
+                  totalLabel="Sources"
+                  totalValue={String(trafficSources.length)}
+                />
+              </div>
             </Panel>
           </div>
 
@@ -1293,11 +1395,18 @@ export default function AdminAnalyticsClient() {
               title="Payment method mix"
               description="Paid revenue and refund exposure by payment type."
             >
-              <HorizontalBarsChart
-                data={paymentBars}
-                valueFormatter={(value) => formatPrice(value)}
-                colorClassName="bg-violet-400"
-              />
+              <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                <HorizontalBarsChart
+                  data={paymentBars}
+                  valueFormatter={(value) => formatPrice(value)}
+                  colorClassName="bg-violet-400"
+                />
+                <DonutChart
+                  data={paymentMixDonut}
+                  totalLabel="Methods"
+                  totalValue={String(paymentAnalysis.length)}
+                />
+              </div>
             </Panel>
 
             <Panel
@@ -1305,7 +1414,12 @@ export default function AdminAnalyticsClient() {
               title="Discount code impact"
               description="Revenue generated and discount volume over the last 30 days."
             >
-              <div className="space-y-3">
+              <div className="space-y-4">
+                <HorizontalBarsChart
+                  data={discountBars}
+                  valueFormatter={(value) => formatPrice(value)}
+                  colorClassName="bg-amber-400"
+                />
                 {discountAnalysis.length === 0 ? (
                   <EmptyState copy="No discount-backed paid orders in the current window." />
                 ) : (

@@ -1551,10 +1551,10 @@ export default function AdminProductClient({
 
       {(message || error) && (
         <div
-          className={`admin-product-alert rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          className={`admin-product-alert rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(0,0,0,0.25)] ${
             error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
+              ? "border-red-400/20 bg-red-400/10 text-red-200"
+              : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
           }`}
         >
           {error || message}
@@ -2301,7 +2301,7 @@ export default function AdminProductClient({
             type="button"
             onClick={saveDetails}
             disabled={hasEditorPolicyViolations}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b]"
+            className="h-10 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Save details
           </button>
@@ -2310,13 +2310,13 @@ export default function AdminProductClient({
 
       <section
         id="associations"
-        className="scroll-mt-32 rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
       >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-900">02</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm font-semibold text-amber-200">02</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Categories & collections</p>
-            <p className="text-xs text-stone-500">Organize where this product appears.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Categories & collections</p>
+            <p className="text-xs text-slate-400">Organize where this product appears.</p>
           </div>
         </div>
         <div className="space-y-4">
@@ -2489,7 +2489,7 @@ export default function AdminProductClient({
                 <button
                   type="button"
                   onClick={saveCategories}
-                  className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                  className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
                 >
                   Save categories
                 </button>
@@ -2538,7 +2538,7 @@ export default function AdminProductClient({
                   <button
                     type="button"
                     onClick={saveCollections}
-                    className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                    className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
                   >
                     Save collections
                   </button>
@@ -2571,20 +2571,20 @@ export default function AdminProductClient({
 
       <section
         id="media"
-        className="scroll-mt-32 rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
       >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">03</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sm font-semibold text-sky-200">03</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Images</p>
-            <p className="text-xs text-stone-500">Upload, reorder, and describe media.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Images</p>
+            <p className="text-xs text-slate-400">Upload, reorder, and describe media.</p>
           </div>
         </div>
           <div
             className={`rounded-md border border-dashed px-4 py-3 mb-5 transition ${
               uploadDragActive
-                ? "border-emerald-400 bg-emerald-50/80"
-                : "border-[#2f3e36]/20 bg-[#f8fbf6]"
+                ? "border-cyan-400/40 bg-cyan-400/10"
+                : "border-white/10 bg-white/[0.03]"
             }`}
             onDragOver={(event) => {
               event.preventDefault();
@@ -2798,7 +2798,7 @@ export default function AdminProductClient({
                 <button
                   type="button"
                   onClick={addImage}
-                  className="h-10 rounded-md bg-[#2f3e36] px-3 text-xs font-semibold text-white hover:bg-[#24312b]"
+                  className="h-10 rounded-xl bg-cyan-300 px-3 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
                 >
                   Add image
                 </button>
@@ -2810,20 +2810,20 @@ export default function AdminProductClient({
 
       <section
         id="variants"
-        className="scroll-mt-32 rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
       >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">04</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">Variants & stock</p>
-            <p className="text-xs text-stone-500">Pricing, inventory, and options.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Variants & stock</p>
+            <p className="text-xs text-slate-400">Pricing, inventory, and options.</p>
           </div>
         </div>
         <div className="space-y-6">
           {variantRows.map((variant) => (
             <div
               key={variant.id}
-              className="rounded-lg border border-[#2f3e36]/10 bg-[#f6f9f4] p-4"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingVariantId) {
@@ -3144,7 +3144,7 @@ export default function AdminProductClient({
                   <button
                     type="button"
                     onClick={() => updateVariant(variant)}
-                    className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
+                    className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
                   >
                     Save changes
                   </button>
@@ -3367,7 +3367,7 @@ export default function AdminProductClient({
             type="button"
             onClick={saveAllVariants}
             disabled={savingAllVariants}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+            className="h-10 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60"
           >
             {savingAllVariants ? "Saving..." : "Save variants"}
           </button>
@@ -3376,14 +3376,14 @@ export default function AdminProductClient({
 
       <section
         id="cross-sells"
-        className="scroll-mt-32 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-stone-900">
+            <h2 className="text-base font-semibold text-white">
               Manual recommendation overrides
             </h2>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-slate-400">
               Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
             </p>
           </div>
@@ -3391,7 +3391,7 @@ export default function AdminProductClient({
             type="button"
             onClick={saveCrossSells}
             disabled={fbtSaving}
-            className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+            className="h-9 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60"
           >
             {fbtSaving ? "Saving..." : "Save overrides"}
           </button>
@@ -3489,7 +3489,7 @@ export default function AdminProductClient({
                         /{result.handle}
                       </span>
                     </span>
-                    <span className="text-xs font-semibold text-[#2f3e36]">Hinzufügen</span>
+                    <span className="text-xs font-semibold text-cyan-200">Hinzufügen</span>
                   </button>
                 ))}
               </div>
@@ -3547,7 +3547,7 @@ export default function AdminProductClient({
                 <button
                   type="button"
                   onClick={saveDetails}
-                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#05070a]"
+                  className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950"
                 >
                   Save details
                 </button>
@@ -3599,7 +3599,7 @@ export default function AdminProductClient({
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="admin-product-modal relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
+          <div className="admin-product-modal relative w-full max-w-4xl rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-stone-900">
@@ -3780,7 +3780,7 @@ export default function AdminProductClient({
               <button
                 type="button"
                 onClick={addVariant}
-                className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
+                className="h-10 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
               >
                 Add variant
               </button>
@@ -3791,7 +3791,7 @@ export default function AdminProductClient({
 
       {confirmVariantId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="admin-product-modal w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+          <div className="admin-product-modal w-full max-w-sm rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Variante löschen
             </h3>
@@ -3873,6 +3873,75 @@ export default function AdminProductClient({
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select) {
+          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select)::placeholder {
+          color: #64748b;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select):focus {
+          border-color: rgba(34, 211, 238, 0.35);
+          background: rgba(255, 255, 255, 0.06);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.02),
+            0 0 0 1px rgba(34, 211, 238, 0.12);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+          border-color: rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.03);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.text-stone-500, .text-stone-600) {
+          color: #94a3b8;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.text-stone-700, .text-stone-800, .text-stone-900) {
+          color: #f8fafc;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          .bg-stone-50 {
+          background: rgba(255, 255, 255, 0.04);
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select) {
+          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select)::placeholder {
+          color: #64748b;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select):focus {
+          border-color: rgba(34, 211, 238, 0.35);
+          box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12);
+        }
+
+        .admin-product-redesign .admin-product-modal :is(.text-stone-500, .text-stone-600, .text-stone-700) {
+          color: #94a3b8;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(.text-stone-800, .text-stone-900) {
+          color: #f8fafc;
+        }
+      `}</style>
     </div>
   );
 }

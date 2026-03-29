@@ -22,13 +22,13 @@ export function AdminPageIntro({
   metrics?: ReactNode;
 }) {
   return (
-    <section className="admin-reveal overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+    <section className="admin-reveal overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:rounded-[32px] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
             {eyebrow}
           </p>
-          <h1 className="mt-3 text-3xl font-semibold text-white">{title}</h1>
+          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 max-w-3xl text-sm text-slate-400">{description}</p>
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
@@ -55,7 +55,7 @@ export function AdminPanel({
 }) {
   return (
     <section
-      className={`admin-reveal rounded-[28px] border border-white/10 bg-[#090d12]/90 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ${className}`}
+      className={`admin-reveal rounded-[24px] border border-white/10 bg-[#090d12]/90 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)] sm:rounded-[28px] sm:p-5 ${className}`}
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -219,18 +219,18 @@ export function AdminDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
         aria-label="Close dialog"
       />
-      <div className="relative w-full max-w-lg rounded-[28px] border border-white/10 bg-[#090d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+      <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
         <div className="mt-5">{children}</div>
-        {footer ? <div className="mt-5 flex justify-end gap-2">{footer}</div> : null}
+        {footer ? <div className="mt-5 flex flex-wrap justify-end gap-2">{footer}</div> : null}
       </div>
     </div>
   );
@@ -254,7 +254,7 @@ export function AdminDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch">
       <button
         type="button"
         className="absolute inset-0 bg-black/55"
@@ -262,7 +262,7 @@ export function AdminDrawer({
         aria-label="Close drawer"
       />
       <div
-        className={`filter-drawer-in relative h-full ${widthClassName} overflow-y-auto border-l border-white/10 bg-[#090d12] p-6 shadow-[-30px_0_80px_rgba(0,0,0,0.45)]`}
+        className={`filter-drawer-in relative h-[min(100dvh,48rem)] w-full ${widthClassName} overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
       >
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">

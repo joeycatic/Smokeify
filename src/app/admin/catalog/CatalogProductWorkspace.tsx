@@ -367,7 +367,32 @@ export function CatalogTablePanel({
         />
       </div>
 
-      <div className="overflow-x-auto rounded-[26px] border border-white/10 bg-[#05080d]">
+      <div className="space-y-3 md:hidden">
+        {products.map((product) => (
+          <CatalogMobileCard
+            key={product.id}
+            product={product}
+            selected={selectedIds.includes(product.id)}
+            onToggleSelected={() => onToggleSelected(product.id)}
+            onDuplicate={() => onDuplicate(product.id)}
+            onPrepareDelete={() => onPrepareDelete(product.id, product.title)}
+            duplicating={duplicatingId === product.id}
+            deleting={deletingId === product.id}
+          />
+        ))}
+        {products.length === 0 ? (
+          <AdminEmptyState
+            title={searchTerm.trim() ? "No matching products" : "No products yet"}
+            description={
+              searchTerm.trim()
+                ? "Try a different query or clear one of the active quick filters."
+                : "Create the first product or broaden the current catalog filters."
+            }
+          />
+        ) : null}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-[26px] border border-white/10 bg-[#05080d] md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#0a1017]/95 text-[11px] uppercase tracking-[0.22em] text-slate-500 backdrop-blur">
             <tr>
@@ -668,7 +693,7 @@ export function CatalogTablePanel({
           Showing <span className="text-slate-100">{products.length}</span> rows on this page out of{" "}
           <span className="text-slate-100">{totalCount}</span> total products
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
           <PaginationLink
             href={buildPageHref(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
@@ -766,9 +791,9 @@ export function CatalogBulkTray({
   if (!selectedIds.length) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-6 z-40 px-4">
-      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-[#06090d]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+    <div className="fixed inset-x-0 bottom-3 z-40 px-3 sm:bottom-6 sm:px-4">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[28px]">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               Sticky Selection Bar
@@ -791,7 +816,7 @@ export function CatalogBulkTray({
         </div>
 
         {bulkOpen ? (
-          <div className="border-t border-white/10 px-5 py-5">
+          <div className="max-h-[min(70dvh,38rem)] overflow-y-auto border-t border-white/10 px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid gap-4 xl:grid-cols-4">
               <AdminField label="Status">
                 <AdminSelect
@@ -940,6 +965,202 @@ export function CatalogErrorNotice({ error }: { error: string }) {
   return error ? <AdminNotice tone="error">{error}</AdminNotice> : null;
 }
 
+function CatalogMobileCard({
+  product,
+  selected,
+  onToggleSelected,
+  onDuplicate,
+  onPrepareDelete,
+  duplicating,
+  deleting,
+}: {
+  product: ProductRow;
+  selected: boolean;
+  onToggleSelected: () => void;
+  onDuplicate: () => void;
+  onPrepareDelete: () => void;
+  duplicating: boolean;
+  deleting: boolean;
+}) {
+  const revenueLabel = product.insights
+    ? new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+      }).format(product.insights.revenue30dCents / 100)
+    : "No sales data";
+
+  return (
+    <div
+      className={`rounded-[24px] border border-white/10 bg-[#05080d] p-4 ${
+        selected ? "ring-1 ring-cyan-400/40" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelected}
+          aria-label={`Select ${product.title}`}
+          className="mt-1"
+        />
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1016]">
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.imageAlt || product.title}
+              fill
+              sizes="64px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              No image
+            </div>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <Link
+              href={`/admin/catalog/${product.id}`}
+              className="min-w-0 flex-1 font-semibold text-slate-100 transition hover:text-cyan-200"
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${getStatusDotTone(product.status)}`}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{product.title}</span>
+              </span>
+            </Link>
+            <span
+              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStatusTone(
+                product.status,
+              )}`}
+            >
+              {product.status}
+            </span>
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span>/{product.handle}</span>
+            <span className="text-slate-700">•</span>
+            <span>{product._count.variants} variants</span>
+            <span className="text-slate-700">•</span>
+            <span>{formatDate(product.updatedAt)}</span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            {product.storefronts.map((storefront) => (
+              <span
+                key={`${product.id}-${storefront}`}
+                className={`rounded-full border px-2 py-1 font-semibold ${getStorefrontBadgeTone(
+                  storefront,
+                )}`}
+              >
+                {formatStorefrontLabel(storefront)}
+              </span>
+            ))}
+            {product.supplierName ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-slate-300">
+                {product.supplierName}
+              </span>
+            ) : null}
+            {product.insights ? (
+              <span
+                className={`rounded-full border px-2 py-1 font-semibold ${getTrendTone(
+                  product.insights.trendDirection,
+                )}`}
+              >
+                {product.insights.trendDirection === "trending"
+                  ? "Trending"
+                  : product.insights.trendDirection === "cooling"
+                    ? "Cooling"
+                    : "Steady"}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <MobileStat
+          label="Category"
+          value={product.mainCategory?.name ?? "Unassigned"}
+        />
+        <MobileStat
+          label="Availability"
+          value={`${product.availableInventory} available`}
+          detail={
+            typeof product.insights?.stockCoverDays === "number"
+              ? `${Math.round(product.insights.stockCoverDays)} days cover`
+              : "No velocity baseline yet"
+          }
+        />
+        <MobileStat
+          label="30d Revenue"
+          value={revenueLabel}
+          detail={
+            product.insights
+              ? `Margin ${formatPercent(product.insights.marginRate30d, 1)}`
+              : undefined
+          }
+        />
+        <MobileStat
+          label="Performance"
+          value={
+            product.insights
+              ? `${product.insights.views30d} views / ${product.insights.purchases30d} orders`
+              : "No demand data yet"
+          }
+          detail={
+            product.insights
+              ? `CVR ${formatPercent(product.insights.conversionRate30d, 1)}`
+              : undefined
+          }
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href={`/admin/catalog/${product.id}`}
+          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+        >
+          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          Open
+        </Link>
+        <AdminIconButton
+          type="button"
+          onClick={onDuplicate}
+          disabled={duplicating}
+          aria-label={`Duplicate ${product.title}`}
+          title="Duplicate product"
+        >
+          {duplicating ? (
+            <span className="text-xs font-semibold">...</span>
+          ) : (
+            <DocumentDuplicateIcon className="h-4 w-4" />
+          )}
+        </AdminIconButton>
+        <AdminIconButton
+          type="button"
+          className="border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/15 hover:text-red-100"
+          onClick={onPrepareDelete}
+          disabled={deleting}
+          aria-label={`Delete ${product.title}`}
+          title="Delete product"
+        >
+          {deleting ? (
+            <span className="text-xs font-semibold">...</span>
+          ) : (
+            <TrashIcon className="h-4 w-4" />
+          )}
+        </AdminIconButton>
+      </div>
+    </div>
+  );
+}
+
 function MetricBar({
   label,
   value,
@@ -963,6 +1184,26 @@ function MetricBar({
           style={{ width: `${total ? (value / total) * 100 : 0}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function MobileStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0b1016] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-2 text-sm font-semibold text-slate-100">{value}</div>
+      {detail ? <div className="mt-1 text-xs text-slate-500">{detail}</div> : null}
     </div>
   );
 }

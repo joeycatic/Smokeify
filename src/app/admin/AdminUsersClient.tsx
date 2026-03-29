@@ -436,7 +436,7 @@ export default function AdminUsersClient({
           <h2 className="mt-2 text-lg font-semibold text-white">{heading}</h2>
           <p className="mt-1 text-sm text-slate-400">{description}</p>
         </div>
-        <div className="grid min-w-[16rem] gap-2 sm:grid-cols-2">
+        <div className="grid w-full gap-2 sm:min-w-[16rem] sm:grid-cols-2 lg:w-auto">
           <StatChip label="Visible users" value={String(totalCount)} />
           <StatChip label="Admins visible" value={String(adminUsers.length)} />
           <StatChip label="Enabled admins" value={String(enabledAdminsVisible)} />
@@ -448,7 +448,7 @@ export default function AdminUsersClient({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex min-w-[16rem] flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+        <label className="flex w-full min-w-0 flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 sm:min-w-[16rem]">
           <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" aria-hidden="true">
             <path
               d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
@@ -647,7 +647,93 @@ export default function AdminUsersClient({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
+      <div className="space-y-3 md:hidden">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <Link
+                  href={`/admin/users/${user.id}`}
+                  className="truncate text-sm font-semibold text-slate-100 underline-offset-4 hover:text-cyan-300 hover:underline"
+                >
+                  {user.email ?? "Unknown email"}
+                </Link>
+                <div className="mt-1 truncate text-xs text-slate-500">
+                  {user.name ?? "No public name"}
+                </div>
+              </div>
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${ROLE_STYLES[user.role]}`}
+              >
+                {user.role}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Created
+                </div>
+                <div className="mt-1 text-sm text-slate-200">
+                  {new Date(user.createdAt).toLocaleDateString("de-DE")}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Profile
+                </div>
+                <div className="mt-1 text-sm text-slate-200">
+                  {user.sessionCount} sessions · {user.deviceCount} devices
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Role
+                <select
+                  value={user.role}
+                  onChange={(event) => {
+                    const nextRole = event.target.value as UserRow["role"];
+                    if (nextRole === user.role) return;
+                    setRolePassword("");
+                    setRolePasswordError("");
+                    setRoleConfirm({
+                      id: user.id,
+                      role: nextRole,
+                    });
+                  }}
+                  disabled={savingId === user.id}
+                  className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-semibold text-slate-100"
+                >
+                  {ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <Link
+                href={`/admin/users/${user.id}`}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+              >
+                Open profile
+              </Link>
+            </div>
+          </div>
+        ))}
+        {users.length === 0 ? (
+          <div className="rounded-[24px] border border-white/10 bg-[#070a0f] px-4 py-10 text-center text-sm text-slate-500">
+            No users found for this query.
+          </div>
+        ) : null}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-white/[0.03] text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -734,7 +820,7 @@ export default function AdminUsersClient({
           Showing <span className="font-semibold text-slate-100">{users.length}</span> of{" "}
           <span className="font-semibold text-slate-100">{totalCount}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
           <PagerLink
             href={buildPageHref(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
@@ -754,14 +840,14 @@ export default function AdminUsersClient({
       </div>
 
       {roleConfirm ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
             onClick={() => setRoleConfirm(null)}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-md rounded-[28px] border border-white/10 bg-[#090d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
             <h3 className="text-lg font-semibold text-white">Confirm role change</h3>
             <p className="mt-2 text-sm text-slate-400">
               Enter your admin password to apply this access change.
@@ -779,7 +865,7 @@ export default function AdminUsersClient({
             {rolePasswordError ? (
               <p className="mt-2 text-xs text-red-300">{rolePasswordError}</p>
             ) : null}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setRoleConfirm(null)}
@@ -800,7 +886,7 @@ export default function AdminUsersClient({
       ) : null}
 
       {governanceConfirm ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
@@ -812,7 +898,7 @@ export default function AdminUsersClient({
             }}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-md rounded-[28px] border border-white/10 bg-[#090d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
             <h3 className="text-lg font-semibold text-white">
               {GOVERNANCE_ACTION_COPY[governanceConfirm.action].title}
             </h3>
@@ -848,7 +934,7 @@ export default function AdminUsersClient({
             {governanceError ? (
               <p className="mt-2 text-xs text-red-300">{governanceError}</p>
             ) : null}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -874,7 +960,7 @@ export default function AdminUsersClient({
       ) : null}
 
       {mfaDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
@@ -886,7 +972,7 @@ export default function AdminUsersClient({
             }}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-xl rounded-[28px] border border-white/10 bg-[#090d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
             <h3 className="text-lg font-semibold text-white">
               {MFA_ACTION_COPY[mfaDialog.action].title}
             </h3>
@@ -953,7 +1039,7 @@ export default function AdminUsersClient({
             ) : null}
 
             {mfaError ? <p className="mt-2 text-xs text-red-300">{mfaError}</p> : null}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => {
