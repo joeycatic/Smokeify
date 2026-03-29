@@ -24,6 +24,118 @@ const providers: NextAuthOptions["providers"] = [];
 const VERIFY_LOGIN_COOKIE = "smokeify_verify_login";
 const FALLBACK_PASSWORD_HASH = bcrypt.hashSync("smokeify-admin-fallback", 10);
 
+const isMissingUserColumnError = (error: unknown, column: string) =>
+  error instanceof Error && error.message.includes(`column "User.${column}" does not exist`);
+
+type LoginUserRecord = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  image: string | null;
+  passwordHash: string | null;
+  emailVerified: Date | null;
+  role: "USER" | "ADMIN" | "STAFF";
+  authVersion: number;
+  adminTotpSecretEncrypted: string | null;
+  adminTotpEnabledAt: Date | null;
+  adminAccessDisabledAt: Date | null;
+};
+
+type AuthStateRecord = {
+  role: "USER" | "ADMIN" | "STAFF";
+  authVersion: number;
+  adminTotpEnabledAt: Date | null;
+  adminTotpSecretEncrypted: string | null;
+  adminAccessDisabledAt: Date | null;
+};
+
+async function findUserForLoginWithGovernance(identifier: string): Promise<LoginUserRecord | null> {
+  const identifierLower = identifier.toLowerCase();
+  const candidates = Array.from(new Set([identifier, identifierLower]));
+
+  try {
+    return await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { in: candidates } },
+          { name: { in: candidates } },
+        ],
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        passwordHash: true,
+        emailVerified: true,
+        role: true,
+        authVersion: true,
+        adminTotpSecretEncrypted: true,
+        adminTotpEnabledAt: true,
+        adminAccessDisabledAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingUserColumnError(error, "adminAccessDisabledAt")) {
+      throw error;
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { in: candidates } },
+          { name: { in: candidates } },
+        ],
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        passwordHash: true,
+        emailVerified: true,
+        role: true,
+        authVersion: true,
+        adminTotpSecretEncrypted: true,
+        adminTotpEnabledAt: true,
+      },
+    });
+
+    return user ? { ...user, adminAccessDisabledAt: null } : null;
+  }
+}
+
+async function getAuthStateByUserId(userId: string): Promise<AuthStateRecord | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        authVersion: true,
+        adminTotpEnabledAt: true,
+        adminTotpSecretEncrypted: true,
+        adminAccessDisabledAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingUserColumnError(error, "adminAccessDisabledAt")) {
+      throw error;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        authVersion: true,
+        adminTotpEnabledAt: true,
+        adminTotpSecretEncrypted: true,
+      },
+    });
+
+    return user ? { ...user, adminAccessDisabledAt: null } : null;
+  }
+}
+
 function extractAdminTotpCode(credentials: Record<string, unknown> | undefined) {
   const candidates = [
     credentials?.totpCode,
@@ -43,30 +155,7 @@ function extractAdminTotpCode(credentials: Record<string, unknown> | undefined) 
 }
 
 async function findUserForLogin(identifier: string) {
-  const identifierLower = identifier.toLowerCase();
-  const candidates = Array.from(new Set([identifier, identifierLower]));
-
-  return prisma.user.findFirst({
-    where: {
-      OR: [
-        { email: { in: candidates } },
-        { name: { in: candidates } },
-      ],
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      image: true,
-      passwordHash: true,
-      emailVerified: true,
-      role: true,
-      authVersion: true,
-      adminTotpSecretEncrypted: true,
-      adminTotpEnabledAt: true,
-      adminAccessDisabledAt: true,
-    },
-  });
+  return findUserForLoginWithGovernance(identifier);
 }
 
 function toAuthUser<T extends { adminAccessDisabledAt?: Date | null }>(user: T) {
@@ -306,16 +395,7 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user }) {
       if (user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: String(user.id) },
-          select: {
-            role: true,
-            authVersion: true,
-            adminTotpEnabledAt: true,
-            adminTotpSecretEncrypted: true,
-            adminAccessDisabledAt: true,
-          },
-        });
+        const dbUser = await getAuthStateByUserId(String(user.id));
         if (!dbUser) {
           token.invalidated = true;
           delete token.id;
@@ -341,16 +421,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: String(token.id) },
-          select: {
-            role: true,
-            authVersion: true,
-            adminTotpEnabledAt: true,
-            adminTotpSecretEncrypted: true,
-            adminAccessDisabledAt: true,
-          },
-        });
+        const dbUser = await getAuthStateByUserId(String(token.id));
         if (!dbUser) {
           token.invalidated = true;
           delete token.id;
