@@ -8,6 +8,11 @@ import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
+import {
+  buildNewsletterCampaignEmail,
+  buildNewsletterConfirmationEmail,
+} from "@/lib/newsletterEmail";
+import { parseStorefront } from "@/lib/storefronts";
 
 const sendEmail = async (opts: {
   to: string;
@@ -139,6 +144,9 @@ export async function POST(request: Request) {
     to?: string;
     order?: OrderInput;
     newsletter?: NewsletterInput;
+    subject?: string;
+    body?: string;
+    storefront?: string;
     productTitle?: string;
     variantTitle?: string;
     sessionId?: string;
@@ -155,10 +163,11 @@ export async function POST(request: Request) {
 
   const appOrigin = getAppOrigin(request);
   const shopUrl = `${appOrigin}/products`;
+  const storefront = parseStorefront(body.storefront) ?? "MAIN";
 
   if (type === "newsletter") {
-    const subject = toSafeString(body.newsletter?.subject);
-    const message = toSafeString(body.newsletter?.body);
+    const subject = toSafeString(body.newsletter?.subject ?? body.subject);
+    const message = toSafeString(body.newsletter?.body ?? body.body);
     if (!subject || !message) {
       return NextResponse.json(
         { error: "Newsletter subject and body are required" },
@@ -166,125 +175,27 @@ export async function POST(request: Request) {
       );
     }
 
-    const bodyHtml = message
-      .split("\n")
-      .map((line) =>
-        line.trim()
-          ? `<p style="margin:0 0 14px;font-size:15px;color:#4b5563;line-height:1.7;">${line}</p>`
-          : `<div style="height:8px;"></div>`
-      )
-      .join("");
+    const email = buildNewsletterCampaignEmail({
+      storefront,
+      recipientEmail: recipient,
+      subject,
+      body: message,
+      fallbackOrigin: appOrigin,
+    });
 
-    const html = `
-<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
-    <tr>
-      <td style="padding:0 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="background-color:#2f3e36;padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
-              <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;">${subject}</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
-              ${bodyHtml}
-              <div style="text-align:center;margin:24px 0 0;">
-                <a href="${shopUrl}" style="display:inline-block;padding:13px 30px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Jetzt shoppen &rarr;</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
-              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/privacy" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/agb" style="color:#9ca3af;text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
-                Du erhältst diese E-Mail als Newsletter-Abonnent von Smokeify.<br />
-                <a href="\${getUnsubscribeUrl()}" style="color:#9ca3af;text-decoration:underline;">Vom Newsletter abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>`;
-
-    try { await sendEmail({ to: recipient, subject, html, text: message }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
-    await logEmailTestingAction(type, recipient, { subject });
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient, { subject, storefront });
     return NextResponse.json({ ok: true });
   }
 
   if (type === "newsletter_confirmation") {
-    const subject = "Willkommen im Smokeify Newsletter";
-    const text = [
-      "Vielen Dank für deine Anmeldung zum Smokeify Newsletter!",
-      "",
-      "Du erhältst ab sofort exklusive Angebote, Neuheiten und Aktionen direkt in dein Postfach.",
-      "",
-      `Zum Shop: ${shopUrl}`,
-    ].join("\n");
-    const html = `
-<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
-    <tr>
-      <td style="padding:0 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="background-color:#2f3e36;padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
-              <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Willkommen!</div>
-              <div style="font-size:14px;color:rgba(255,255,255,0.65);">Du bist jetzt Teil unseres Newsletters.</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
-              <p style="margin:0 0 20px;font-size:15px;color:#4b5563;">Vielen Dank für deine Anmeldung! Du erhältst ab sofort exklusive Angebote, Neuheiten und Aktionen direkt in dein Postfach.</p>
-              <div style="text-align:center;margin:28px 0;">
-                <a href="${shopUrl}" style="display:inline-block;padding:14px 32px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Jetzt shoppen &rarr;</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
-              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/privacy" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/agb" style="color:#9ca3af;text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
-                Du erhältst diese E-Mail, weil du dich für den Smokeify Newsletter angemeldet hast.<br />
-                <a href="\${getUnsubscribeUrl()}" style="color:#9ca3af;text-decoration:underline;">Vom Newsletter abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>`;
-    try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
-    await logEmailTestingAction(type, recipient);
+    const email = buildNewsletterConfirmationEmail({
+      storefront,
+      recipientEmail: recipient,
+      fallbackOrigin: appOrigin,
+    });
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    await logEmailTestingAction(type, recipient, { storefront });
     return NextResponse.json({ ok: true });
   }
 

@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyUnsubscribeToken } from "@/lib/newsletterToken";
+import { resolveOrderSourceFromRequest } from "@/lib/orderSource";
+import { STOREFRONT_LABELS, type StorefrontCode } from "@/lib/storefronts";
 
-const html = (title: string, message: string, isError = false) => `<!DOCTYPE html>
+const html = (
+  title: string,
+  message: string,
+  storefront: StorefrontCode,
+  isError = false,
+) => `<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title} – Smokeify</title>
+  <title>${title} – ${STOREFRONT_LABELS[storefront]}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -86,7 +93,7 @@ const html = (title: string, message: string, isError = false) => `<!DOCTYPE htm
   <div class="card">
     <div class="bar"></div>
     <div class="header">
-      <div class="header-brand">Smokeify</div>
+      <div class="header-brand">${STOREFRONT_LABELS[storefront]}</div>
       <div class="header-title">${title}</div>
     </div>
     <div class="body">
@@ -94,26 +101,28 @@ const html = (title: string, message: string, isError = false) => `<!DOCTYPE htm
       <p>${message}</p>
       <a href="/" class="btn">Zurück zum Shop</a>
     </div>
-    <div class="footer">© ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten</div>
+    <div class="footer">© ${new Date().getFullYear()} ${STOREFRONT_LABELS[storefront]} &nbsp;·&nbsp; Alle Rechte vorbehalten</div>
   </div>
 </body>
 </html>`;
 
 export async function GET(request: Request) {
+  const storefront =
+    (resolveOrderSourceFromRequest(request).sourceStorefront as StorefrontCode | null) ?? "MAIN";
   const { searchParams } = new URL(request.url);
   const email = searchParams.get("email")?.trim().toLowerCase() ?? "";
   const token = searchParams.get("token") ?? "";
 
   if (!email || !token) {
     return new NextResponse(
-      html("Ungültiger Link", "Der Abmeldelink ist ungültig oder unvollständig.", true),
+      html("Ungültiger Link", "Der Abmeldelink ist ungültig oder unvollständig.", storefront, true),
       { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   }
 
   if (!verifyUnsubscribeToken(email, token)) {
     return new NextResponse(
-      html("Ungültiger Link", "Der Abmeldelink ist ungültig oder abgelaufen.", true),
+      html("Ungültiger Link", "Der Abmeldelink ist ungültig oder abgelaufen.", storefront, true),
       { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   }
@@ -132,7 +141,8 @@ export async function GET(request: Request) {
   return new NextResponse(
     html(
       "Abgemeldet",
-      "Du wurdest erfolgreich vom Smokeify-Newsletter abgemeldet. Du erhältst keine weiteren Marketing-E-Mails von uns."
+      `Du wurdest erfolgreich vom ${STOREFRONT_LABELS[storefront]}-Newsletter abgemeldet. Du erhältst keine weiteren Marketing-E-Mails von uns.`,
+      storefront
     ),
     { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
   );

@@ -12,6 +12,12 @@ import {
   AdminPanel,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import AdminNewsletterCampaignPanel from "./AdminNewsletterCampaignPanel";
+import {
+  STOREFRONT_OPTION_ROWS,
+  STOREFRONT_LABELS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 type EmailType =
   | "confirmation"
@@ -29,6 +35,17 @@ type ItemRow = {
   name: string;
   quantity: string;
   total: string;
+};
+
+type NewsletterAudienceSummary = {
+  activeRecipientCount: number;
+  unresolvedRecipientCount: number;
+  byStorefront: Record<
+    StorefrontCode,
+    {
+      attributedRecipientCount: number;
+    }
+  >;
 };
 
 const EMAIL_TYPE_LABELS: Record<EmailType, { title: string; subtitle: string }> = {
@@ -58,7 +75,14 @@ const toCents = (value: string) => {
   return Math.max(0, Math.round(parsed * 100));
 };
 
-export default function AdminEmailTestingClient() {
+export default function AdminEmailTestingClient({
+  initialStorefront,
+  newsletterAudienceSummary,
+}: {
+  initialStorefront: StorefrontCode;
+  newsletterAudienceSummary: NewsletterAudienceSummary;
+}) {
+  const [storefront, setStorefront] = useState<StorefrontCode>(initialStorefront);
   const [type, setType] = useState<EmailType>("confirmation");
   const [recipient, setRecipient] = useState("");
   const [orderId, setOrderId] = useState("TEST-ORDER-0001");
@@ -74,9 +98,13 @@ export default function AdminEmailTestingClient() {
   const [trackingNumber, setTrackingNumber] = useState("00340434161000000000");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [items, setItems] = useState<ItemRow[]>([makeItem()]);
-  const [newsletterSubject, setNewsletterSubject] = useState("Neu bei Smokeify");
+  const [newsletterSubject, setNewsletterSubject] = useState(
+    initialStorefront === "GROW" ? "Neu bei GrowVault" : "Neu bei Smokeify",
+  );
   const [newsletterBody, setNewsletterBody] = useState(
-    "Hallo,\n\nhier ist ein Test-Newsletter von Smokeify.\n\nViele Grüße,\nSmokeify-Team"
+    initialStorefront === "GROW"
+      ? "Hallo,\n\nhier ist ein Test-Newsletter von GrowVault.\n\nViele Grüße,\nGrowVault-Team"
+      : "Hallo,\n\nhier ist ein Test-Newsletter von Smokeify.\n\nViele Grüße,\nSmokeify-Team"
   );
   const [productTitle, setProductTitle] = useState("Beispiel-Shisha");
   const [variantTitle, setVariantTitle] = useState("Schwarz / Medium");
@@ -147,12 +175,13 @@ export default function AdminEmailTestingClient() {
       return {
         type,
         to: recipient.trim(),
+        storefront,
         subject: newsletterSubject.trim(),
         body: newsletterBody.trim(),
       };
     }
     if (isNewsletterConfirmation) {
-      return { type, to: recipient.trim() };
+      return { type, to: recipient.trim(), storefront };
     }
     if (isBackInStock) {
       return {
@@ -218,6 +247,7 @@ export default function AdminEmailTestingClient() {
     trackingCarrier,
     trackingNumber,
     trackingUrl,
+    storefront,
     type,
     variantTitle,
   ]);
@@ -279,16 +309,25 @@ export default function AdminEmailTestingClient() {
     <div className="space-y-6">
       <AdminPageIntro
         eyebrow="Admin / Email Testing"
-        title="Email QA workbench"
-        description="Test transactional, newsletter, and recovery emails from a dedicated dark lab surface with mock payload controls and a live payload summary."
+        title="Email operations workbench"
+        description="Create newsletter campaigns with storefront branding, then QA transactional, newsletter, and recovery emails from the same admin surface."
         metrics={
           <div className="grid gap-3 md:grid-cols-4">
             <AdminMetricCard label="Templates" value="9" detail="Supported testable flows" />
             <AdminMetricCard label="Selected type" value={EMAIL_TYPE_LABELS[type].title} detail="Active configuration" />
             <AdminMetricCard label="Items" value={String(items.length)} detail="Mock line items" />
-            <AdminMetricCard label="Recipient" value={recipient.trim() || "Unset"} detail="Current target" />
+            <AdminMetricCard
+              label="Newsletter audience"
+              value={String(newsletterAudienceSummary.activeRecipientCount)}
+              detail="Active recipients"
+            />
           </div>
         }
+      />
+
+      <AdminNewsletterCampaignPanel
+        initialAudienceSummary={newsletterAudienceSummary}
+        initialStorefront={initialStorefront}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -326,6 +365,31 @@ export default function AdminEmailTestingClient() {
                 placeholder="test@example.com"
               />
             </AdminField>
+
+            {(isNewsletter || isNewsletterConfirmation) ? (
+              <AdminField label="Storefront branding">
+                <select
+                  value={storefront}
+                  onChange={(event) => {
+                    const nextStorefront = event.target.value as StorefrontCode;
+                    setStorefront(nextStorefront);
+                    if (nextStorefront === "GROW" && newsletterSubject === "Neu bei Smokeify") {
+                      setNewsletterSubject("Neu bei GrowVault");
+                    }
+                    if (nextStorefront === "MAIN" && newsletterSubject === "Neu bei GrowVault") {
+                      setNewsletterSubject("Neu bei Smokeify");
+                    }
+                  }}
+                  className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                >
+                  {STOREFRONT_OPTION_ROWS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {STOREFRONT_LABELS[option.value]}
+                    </option>
+                  ))}
+                </select>
+              </AdminField>
+            ) : null}
 
             {isNewsletter ? (
               <>
