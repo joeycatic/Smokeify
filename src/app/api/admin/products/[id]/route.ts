@@ -120,6 +120,12 @@ export async function PATCH(
     lightSize?: string | null;
     airSystemDiameterMm?: number | null;
     shippingClass?: string | null;
+    merchantUnitPricingMeasure?: string | null;
+    merchantUnitPricingBaseMeasure?: string | null;
+    merchantCertificationAuthority?: string | null;
+    merchantCertificationName?: string | null;
+    merchantCertificationCode?: string | null;
+    merchantCertificationValue?: string | null;
     tags?: string[];
     status?: string;
     expectedUpdatedAt?: string | null;
@@ -152,6 +158,12 @@ export async function PATCH(
     lightSize?: string | null;
     airSystemDiameterMm?: number | null;
     shippingClass?: string | null;
+    merchantUnitPricingMeasure?: string | null;
+    merchantUnitPricingBaseMeasure?: string | null;
+    merchantCertificationAuthority?: string | null;
+    merchantCertificationName?: string | null;
+    merchantCertificationCode?: string | null;
+    merchantCertificationValue?: string | null;
     tags?: string[];
     status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   } = {};
@@ -340,6 +352,42 @@ export async function PATCH(
 
   if (typeof body.shippingClass !== "undefined") {
     updates.shippingClass = body.shippingClass?.trim() || null;
+  }
+
+  if (typeof body.merchantUnitPricingMeasure !== "undefined") {
+    updates.merchantUnitPricingMeasure = sanitizePlainText(
+      body.merchantUnitPricingMeasure
+    );
+  }
+
+  if (typeof body.merchantUnitPricingBaseMeasure !== "undefined") {
+    updates.merchantUnitPricingBaseMeasure = sanitizePlainText(
+      body.merchantUnitPricingBaseMeasure
+    );
+  }
+
+  if (typeof body.merchantCertificationAuthority !== "undefined") {
+    updates.merchantCertificationAuthority = sanitizePlainText(
+      body.merchantCertificationAuthority
+    );
+  }
+
+  if (typeof body.merchantCertificationName !== "undefined") {
+    updates.merchantCertificationName = sanitizePlainText(
+      body.merchantCertificationName
+    );
+  }
+
+  if (typeof body.merchantCertificationCode !== "undefined") {
+    updates.merchantCertificationCode = sanitizePlainText(
+      body.merchantCertificationCode
+    );
+  }
+
+  if (typeof body.merchantCertificationValue !== "undefined") {
+    updates.merchantCertificationValue = sanitizePlainText(
+      body.merchantCertificationValue
+    );
   }
 
   if (Array.isArray(body.tags)) {

@@ -389,6 +389,12 @@ model Product {
   shippingClass String?
   tags        String[]       @default([])
   storefronts Storefront[]   @default([MAIN])
+  merchantUnitPricingMeasure String?
+  merchantUnitPricingBaseMeasure String?
+  merchantCertificationAuthority String?
+  merchantCertificationName String?
+  merchantCertificationCode String?
+  merchantCertificationValue String?
   status      ProductStatus  @default(DRAFT)
   bestsellerScore Float?     // computed weekly by script
   conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)

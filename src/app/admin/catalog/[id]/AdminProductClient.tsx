@@ -86,6 +86,12 @@ type ProductDetail = {
   lightSize: string | null;
   airSystemDiameterMm: number | null;
   shippingClass: string | null;
+  merchantUnitPricingMeasure: string | null;
+  merchantUnitPricingBaseMeasure: string | null;
+  merchantCertificationAuthority: string | null;
+  merchantCertificationName: string | null;
+  merchantCertificationCode: string | null;
+  merchantCertificationValue: string | null;
   tags: string[];
   storefronts: StorefrontCode[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -167,6 +173,12 @@ type ProductDetailsState = {
   lightSize: string;
   airSystemDiameterMm: number | "";
   shippingClass: string;
+  merchantUnitPricingMeasure: string;
+  merchantUnitPricingBaseMeasure: string;
+  merchantCertificationAuthority: string;
+  merchantCertificationName: string;
+  merchantCertificationCode: string;
+  merchantCertificationValue: string;
   tags: string;
   storefronts: StorefrontCode[];
   status: ProductDetail["status"];
@@ -295,6 +307,12 @@ const buildInitialDetails = (
   lightSize: product.lightSize ?? "",
   airSystemDiameterMm: product.airSystemDiameterMm ?? "",
   shippingClass: product.shippingClass ?? "",
+  merchantUnitPricingMeasure: product.merchantUnitPricingMeasure ?? "",
+  merchantUnitPricingBaseMeasure: product.merchantUnitPricingBaseMeasure ?? "",
+  merchantCertificationAuthority: product.merchantCertificationAuthority ?? "",
+  merchantCertificationName: product.merchantCertificationName ?? "",
+  merchantCertificationCode: product.merchantCertificationCode ?? "",
+  merchantCertificationValue: product.merchantCertificationValue ?? "",
   tags: (product.tags ?? []).join(", "),
   storefronts: product.storefronts ?? ["MAIN"],
   status: product.status,
@@ -822,6 +840,12 @@ export default function AdminProductClient({
         lightSize: details.lightSize,
         airSystemDiameterMm: toNumberOrNull(details.airSystemDiameterMm),
         shippingClass: details.shippingClass,
+        merchantUnitPricingMeasure: details.merchantUnitPricingMeasure,
+        merchantUnitPricingBaseMeasure: details.merchantUnitPricingBaseMeasure,
+        merchantCertificationAuthority: details.merchantCertificationAuthority,
+        merchantCertificationName: details.merchantCertificationName,
+        merchantCertificationCode: details.merchantCertificationCode,
+        merchantCertificationValue: details.merchantCertificationValue,
         status: details.status,
         expectedUpdatedAt: productUpdatedAt,
       };
@@ -2191,6 +2215,100 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
+        <div className="mt-4 rounded-lg border border-violet-200/70 bg-violet-50/60 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
+            Merchant metadata
+          </p>
+          <p className="mt-1 text-[11px] text-stone-500">
+            Optional metadata for Google Merchant and light certificate feeds.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-xs font-semibold text-stone-600">
+              Unit pricing measure
+              <input
+                value={details.merchantUnitPricingMeasure}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantUnitPricingMeasure: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 100W"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Unit pricing base measure
+              <input
+                value={details.merchantUnitPricingBaseMeasure}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantUnitPricingBaseMeasure: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 1W"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate authority
+              <input
+                value={details.merchantCertificationAuthority}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationAuthority: event.target.value,
+                  }))
+                }
+                placeholder="e.g. EU"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate name
+              <input
+                value={details.merchantCertificationName}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationName: event.target.value,
+                  }))
+                }
+                placeholder="e.g. EPREL"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate code
+              <input
+                value={details.merchantCertificationCode}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationCode: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 123456"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate value
+              <input
+                value={details.merchantCertificationValue}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationValue: event.target.value,
+                  }))
+                }
+                placeholder="e.g. A++"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+          </div>
+        </div>
         <div
           id="seo"
           className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
