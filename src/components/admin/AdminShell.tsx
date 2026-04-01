@@ -11,6 +11,7 @@ import {
   BanknotesIcon,
   CalculatorIcon,
   ChartBarSquareIcon,
+  ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
   CommandLineIcon,
   CreditCardIcon,
@@ -112,6 +113,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/collections", label: "Collections", icon: FolderIcon },
       { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon },
       { href: "/admin/discounts", label: "Discounts", icon: TagIcon },
+      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon },
     ],
   },
   {
