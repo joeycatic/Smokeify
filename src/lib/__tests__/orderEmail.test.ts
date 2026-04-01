@@ -57,6 +57,7 @@ describe("orderEmail", () => {
     expect(email.html).toContain("GrowVault");
     expect(email.html).toContain("https://growvault.test/products");
     expect(email.text).toContain("bei GrowVault");
-    expect(email.html).toContain("#143126");
+    expect(email.html).toContain("linear-gradient(135deg,#0d2219 0%,#143126 44%,#1d4532 76%,#8ea85f 100%)");
+    expect(email.html).toContain("#163a2a");
   });
 });

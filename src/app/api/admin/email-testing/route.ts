@@ -13,10 +13,12 @@ import {
   buildNewsletterConfirmationEmail,
 } from "@/lib/newsletterEmail";
 import {
-  getStorefrontEmailBrand,
-  getStorefrontLinks,
   getStorefrontOrigin,
 } from "@/lib/storefrontEmailBrand";
+import {
+  buildBackInStockEmail,
+  buildCheckoutRecoveryEmail,
+} from "@/lib/storefrontNotificationEmail";
 import { parseStorefront } from "@/lib/storefronts";
 
 const sendEmail = async (opts: {
@@ -169,9 +171,6 @@ export async function POST(request: Request) {
   const storefront = parseStorefront(body.storefront) ?? "MAIN";
   const appOrigin = getAppOrigin(request);
   const emailOrigin = getStorefrontOrigin(storefront, appOrigin);
-  const storefrontBrand = getStorefrontEmailBrand(storefront);
-  const storefrontLinks = getStorefrontLinks(storefront, emailOrigin);
-  const shopUrl = storefrontLinks.shopUrl;
 
   if (type === "newsletter") {
     const subject = toSafeString(body.newsletter?.subject ?? body.subject);
@@ -210,133 +209,27 @@ export async function POST(request: Request) {
   if (type === "back_in_stock") {
     const productTitle = toSafeString(body.productTitle) || "Beispiel-Produkt";
     const variantTitle = toSafeString(body.variantTitle);
-    const displayTitle = variantTitle ? `${productTitle} (${variantTitle})` : productTitle;
-    const subject = `Benachrichtigung eingerichtet – ${storefrontBrand.brandName}`;
-    const text = [
-      `Wir benachrichtigen dich, sobald "${displayTitle}" wieder verfügbar ist.`,
-      "",
-      `Zum Shop: ${shopUrl}`,
-      "",
-      `Abmelden: \${getUnsubscribeUrl()}`,
-    ].join("\n");
-    const html = `
-<div style="background:${storefrontBrand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
-    <tr>
-      <td style="padding:0 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td height="4" style="background-color:${storefrontBrand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="background-color:${storefrontBrand.headerColor};padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${storefrontBrand.accentColor};margin-bottom:16px;">${storefrontBrand.brandName}</div>
-              <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Benachrichtigung eingerichtet</div>
-              <div style="font-size:14px;color:rgba(255,255,255,0.65);">Wir geben dir Bescheid, sobald der Artikel wieder verfügbar ist.</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Artikel</div>
-              <div style="background:#f9fafb;border-radius:10px;padding:18px 20px;font-size:15px;font-weight:600;color:#1a2a22;border:1px solid #f3f4f6;">${displayTitle}</div>
-              <div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>
-              <p style="margin:0;font-size:14px;color:#4b5563;">Wir senden dir eine E-Mail, sobald dieser Artikel wieder auf Lager ist. Du musst nichts weiter tun.</p>
-              <div style="text-align:center;margin:24px 0 0;">
-                <a href="${shopUrl}" style="display:inline-block;padding:12px 28px;background:${storefrontBrand.headerColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Zum Shop &rarr;</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
-              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} ${storefrontBrand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${storefrontLinks.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${storefrontLinks.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${storefrontLinks.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
-                Du erhältst diese E-Mail, weil du eine Benachrichtigung für diesen Artikel angefordert hast.<br />
-                <a href="\${getUnsubscribeUrl()}" style="color:#9ca3af;text-decoration:underline;">E-Mail-Benachrichtigungen abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>`;
-    try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    const email = buildBackInStockEmail({
+      storefront,
+      recipientEmail: recipient,
+      productTitle,
+      variantTitle,
+      fallbackOrigin: emailOrigin,
+    });
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { productTitle, variantTitle, storefront });
     return NextResponse.json({ ok: true });
   }
 
   if (type === "checkout_recovery") {
     const sessionId = toSafeString(body.sessionId) || "cs_test_XXXXXXXXXXXXXXXX";
-    const cartUrl = `${storefrontLinks.origin}/cart`;
-    const subject = `Dein Warenkorb wartet noch bei ${storefrontBrand.brandName}`;
-    const text = [
-      "Du hast einen Checkout gestartet, aber noch nicht abgeschlossen.",
-      "",
-      `Warenkorb fortsetzen: ${cartUrl}`,
-      "",
-      `Referenz: ${sessionId}`,
-      "",
-      `Abmelden: \${getUnsubscribeUrl()}`,
-    ].join("\n");
-    const html = `
-<div style="background:${storefrontBrand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
-    <tr>
-      <td style="padding:0 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td height="4" style="background-color:${storefrontBrand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="background-color:${storefrontBrand.headerColor};padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${storefrontBrand.accentColor};margin-bottom:16px;">${storefrontBrand.brandName}</div>
-              <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Dein Warenkorb wartet</div>
-              <div style="font-size:14px;color:rgba(255,255,255,0.65);">Du kannst deinen Checkout jederzeit fortsetzen.</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
-              <p style="margin:0 0 20px;font-size:15px;color:#4b5563;">Du hast einen Checkout gestartet, aber noch nicht abgeschlossen. Dein Warenkorb ist noch für dich reserviert.</p>
-              <div style="text-align:center;margin:28px 0;">
-                <a href="${cartUrl}" style="display:inline-block;padding:14px 32px;background:${storefrontBrand.headerColor};color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Checkout fortsetzen &rarr;</a>
-              </div>
-              <div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>
-              <div style="font-size:12px;color:#9ca3af;text-align:center;">Referenz: ${sessionId}</div>
-            </td>
-          </tr>
-        </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
-              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} ${storefrontBrand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${storefrontLinks.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${storefrontLinks.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${storefrontLinks.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
-                Du erhältst diese E-Mail, weil du einen Checkout bei ${storefrontBrand.brandName} begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.<br />
-                <a href="\${getUnsubscribeUrl()}" style="color:#9ca3af;text-decoration:underline;">E-Mail-Benachrichtigungen abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>`;
-    try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    const email = buildCheckoutRecoveryEmail({
+      storefront,
+      recipientEmail: recipient,
+      sessionId,
+      fallbackOrigin: emailOrigin,
+    });
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { sessionId, storefront });
     return NextResponse.json({ ok: true });
   }

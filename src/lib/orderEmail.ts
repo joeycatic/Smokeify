@@ -6,6 +6,8 @@ import {
 } from "@/lib/storefrontEmailBrand";
 import { type StorefrontCode } from "@/lib/storefronts";
 
+type EmailBrand = ReturnType<typeof getStorefrontEmailBrand>;
+
 type OrderItem = {
   name: string;
   quantity: number;
@@ -63,14 +65,14 @@ const renderItemsText = (items: OrderItem[]) =>
     )
     .join("\n");
 
-const renderItemsHtml = (items: OrderItem[]) =>
+const renderItemsHtml = (items: OrderItem[], brand: EmailBrand) =>
   items
     .map(
       (item, i) => `
       <tr>
-        <td style="padding:12px 0;font-size:14px;font-weight:600;color:#1a2a22;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">${normalizeItemName(item.name)}</td>
-        <td style="padding:12px 0;font-size:14px;color:#6b7280;text-align:center;width:40px;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">×${item.quantity}</td>
-        <td style="padding:12px 0;font-size:14px;font-weight:600;color:#1a2a22;text-align:right;width:110px;border-top:${i === 0 ? "none" : "1px solid #f3f4f6"};">${formatPrice(item.totalAmount, item.currency)}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${normalizeItemName(item.name)}</td>
+        <td style="padding:12px 0;font-size:14px;color:${brand.mutedTextColor};text-align:center;width:40px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">×${item.quantity}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};text-align:right;width:110px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${formatPrice(item.totalAmount, item.currency)}</td>
       </tr>`,
     )
     .join("");
@@ -80,14 +82,13 @@ const renderItemsHtml = (items: OrderItem[]) =>
 const emailOuter = (
   cardRows: string,
   options: {
-    brandName: string;
-    backgroundColor: string;
+    brand: EmailBrand;
     shopUrl: string;
     privacyUrl: string;
     termsUrl: string;
   },
 ) => `
-<div style="background:${options.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#1a2a22;">
+<div style="background:${options.brand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:${options.brand.textColor};">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="padding:0 16px;">
@@ -96,14 +97,14 @@ const emailOuter = (
         </table>
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
           <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
-              <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} ${options.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${options.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
+            <td style="padding:20px 0;border-top:1px solid ${options.brand.cardBorderColor};text-align:center;">
+              <div style="font-size:12px;color:${options.brand.footerTextColor};line-height:1.8;">
+                © ${new Date().getFullYear()} ${options.brand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${options.shopUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Shop</a>
                 &nbsp;·&nbsp;
-                <a href="${options.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
+                <a href="${options.privacyUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Datenschutz</a>
                 &nbsp;·&nbsp;
-                <a href="${options.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
+                <a href="${options.termsUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">AGB</a>
               </div>
             </td>
           </tr>
@@ -117,33 +118,33 @@ const emailHeader = (
   title: string,
   subtitle: string,
   options: {
-    brandName: string;
-    accentColor: string;
+    brand: EmailBrand;
+    headerBackground: string;
     headerColor: string;
   },
 ) => `
   <tr>
-    <td height="4" style="background-color:${options.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+    <td height="4" style="background-color:${options.brand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
   </tr>
   <tr>
-    <td style="background-color:${options.headerColor};padding:32px 32px 28px;">
-      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.accentColor};margin-bottom:16px;">${options.brandName}</div>
+    <td style="background:${options.headerBackground};background-color:${options.headerColor};padding:32px 32px 28px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.brand.heroLabelColor};margin-bottom:16px;">${options.brand.brandName}</div>
       <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${title}</div>
-      <div style="font-size:14px;color:rgba(255,255,255,0.65);">${subtitle}</div>
+      <div style="font-size:14px;color:${options.brand.heroMutedTextColor};">${subtitle}</div>
     </td>
   </tr>`;
 
-const sectionLabel = (text: string) =>
-  `<div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">${text}</div>`;
+const sectionLabel = (text: string, brand: EmailBrand) =>
+  `<div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${brand.subtleTextColor};margin-bottom:10px;">${text}</div>`;
 
-const divider = () =>
-  `<div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>`;
+const divider = (brand: EmailBrand) =>
+  `<div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>`;
 
-const primaryBtn = (href: string, label: string, backgroundColor: string) =>
-  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${backgroundColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
+const primaryBtn = (href: string, label: string, brand: EmailBrand) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
 
-const secondaryBtn = (href: string, label: string) =>
-  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:#f3f4f6;color:#1a2a22;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
+const secondaryBtn = (href: string, label: string, brand: EmailBrand) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.secondaryButtonBackgroundColor};color:${brand.secondaryButtonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
 
 // ─── Main builder ──────────────────────────────────────────────────────────
 
@@ -185,6 +186,10 @@ export function buildOrderEmail(
             : "Deine Bestellung wurde storniert.";
 
   const headerColor = type === "cancellation" ? "#374151" : brand.headerColor;
+  const headerBackground =
+    type === "cancellation"
+      ? "linear-gradient(135deg,#374151 0%,#4b5563 100%)"
+      : brand.heroBackground;
 
   const orderDate = new Date(order.createdAt).toLocaleDateString("de-DE", {
     day: "2-digit",
@@ -226,7 +231,7 @@ export function buildOrderEmail(
 
     const statusNote =
       type !== "confirmation"
-        ? `<div style="margin-bottom:24px;padding:14px 16px;background:#f0fdf4;border-left:3px solid ${brand.headerColor};border-radius:0 8px 8px 0;font-size:14px;color:#1a2a22;">${introLine}</div>`
+        ? `<div style="margin-bottom:24px;padding:14px 16px;background:${brand.noticeBackgroundColor};border-left:3px solid ${brand.noticeBorderColor};border-radius:0 8px 8px 0;font-size:14px;color:${brand.textColor};">${introLine}</div>`
         : "";
     const reviewInviteText =
       type === "confirmation"
@@ -234,7 +239,7 @@ export function buildOrderEmail(
         : null;
     const reviewInviteHtml =
       type === "confirmation"
-        ? `<div style="margin-top:20px;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#374151;">Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein.</div>`
+        ? `<div style="margin-top:20px;padding:12px 14px;background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;font-size:13px;color:${brand.mutedTextColor};">Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein.</div>`
         : "";
 
     return {
@@ -251,70 +256,70 @@ export function buildOrderEmail(
       ].join("\n"),
       html: emailOuter(`
         ${emailHeader(headerTitle, headerSubtitle, {
-          brandName: brand.brandName,
-          accentColor: brand.accentColor,
+          brand,
+          headerBackground,
           headerColor,
         })}
         <tr>
-          <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+          <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
 
             ${statusNote}
 
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td style="vertical-align:top;">
-                  ${sectionLabel("Bestellnummer")}
-                  <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
-                  <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+                  ${sectionLabel("Bestellnummer", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
                 </td>
                 <td style="vertical-align:top;text-align:right;">
-                  ${sectionLabel("Gesamt")}
-                  <div style="font-size:22px;font-weight:700;color:#2f3e36;">${formatPrice(order.amountTotal, order.currency)}</div>
+                  ${sectionLabel("Gesamt", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.emphasisColor};">${formatPrice(order.amountTotal, order.currency)}</div>
                 </td>
               </tr>
             </table>
 
-            ${divider()}
+            ${divider(brand)}
 
-            ${sectionLabel("Artikel")}
+            ${sectionLabel("Artikel", brand)}
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-              ${renderItemsHtml(order.items)}
+              ${renderItemsHtml(order.items, brand)}
             </table>
 
-            ${divider()}
+            ${divider(brand)}
 
-            ${sectionLabel("Zahlungsübersicht")}
-            <div style="background:#f9fafb;border-radius:10px;padding:20px;">
+            ${sectionLabel("Zahlungsübersicht", brand)}
+            <div style="background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;padding:20px;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">Zwischensumme</td>
-                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0;">${formatPrice(order.amountSubtotal, order.currency)}</td>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">Zwischensumme</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0;">${formatPrice(order.amountSubtotal, order.currency)}</td>
                 </tr>
                 ${
                   order.amountDiscount > 0
                     ? `<tr>
-                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">${discountLabel}</td>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">${discountLabel}</td>
                   <td style="font-size:14px;color:#059669;text-align:right;padding:4px 0;">−${formatPrice(order.amountDiscount, order.currency)}</td>
                 </tr>`
                     : ""
                 }
                 <tr>
-                  <td style="font-size:14px;color:#6b7280;padding:4px 0;">Steuern</td>
-                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0;">${formatPrice(order.amountTax, order.currency)}</td>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">Steuern</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0;">${formatPrice(order.amountTax, order.currency)}</td>
                 </tr>
                 <tr>
-                  <td style="font-size:14px;color:#6b7280;padding:4px 0 8px;">Versand</td>
-                  <td style="font-size:14px;color:#1a2a22;text-align:right;padding:4px 0 8px;">${formatPrice(order.amountShipping, order.currency)}</td>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0 8px;">Versand</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0 8px;">${formatPrice(order.amountShipping, order.currency)}</td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="height:1px;background:#e5e7eb;padding:0;font-size:0;"></td>
+                  <td colspan="2" style="height:1px;background:${brand.panelBorderColor};padding:0;font-size:0;"></td>
                 </tr>
                 <tr>
-                  <td style="font-size:15px;font-weight:700;color:#1a2a22;padding:12px 0 2px;">Gesamt</td>
-                  <td style="font-size:15px;font-weight:700;color:#2f3e36;text-align:right;padding:12px 0 2px;">${formatPrice(order.amountTotal, order.currency)}</td>
+                  <td style="font-size:15px;font-weight:700;color:${brand.textColor};padding:12px 0 2px;">Gesamt</td>
+                  <td style="font-size:15px;font-weight:700;color:${brand.emphasisColor};text-align:right;padding:12px 0 2px;">${formatPrice(order.amountTotal, order.currency)}</td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="font-size:12px;color:#9ca3af;padding-bottom:2px;">inkl. MwSt.</td>
+                  <td colspan="2" style="font-size:12px;color:${brand.subtleTextColor};padding-bottom:2px;">inkl. MwSt.</td>
                 </tr>
               </table>
             </div>
@@ -322,8 +327,8 @@ export function buildOrderEmail(
             ${
               orderUrl || invoiceUrl
                 ? `<div style="margin-top:28px;text-align:center;">
-                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor) : ""}
-                ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen") : ""}
+                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen", brand) : ""}
+                ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen", brand) : ""}
               </div>`
                 : ""
             }
@@ -331,8 +336,7 @@ export function buildOrderEmail(
 
           </td>
         </tr>`, {
-        brandName: brand.brandName,
-        backgroundColor: brand.backgroundColor,
+        brand,
         shopUrl: links.shopUrl,
         privacyUrl: links.privacyUrl,
         termsUrl: links.termsUrl,
@@ -345,14 +349,14 @@ export function buildOrderEmail(
     const trackingRows = [
       order.trackingCarrier
         ? `<tr>
-            <td style="font-size:13px;color:#6b7280;padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Versanddienst</td>
-            <td style="font-size:14px;color:#1a2a22;text-align:right;padding:8px 0;font-weight:600;">${order.trackingCarrier}</td>
+            <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Versanddienst</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-weight:600;">${order.trackingCarrier}</td>
           </tr>`
         : null,
       order.trackingNumber
         ? `<tr>
-            <td style="font-size:13px;color:#6b7280;padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Trackingnummer</td>
-            <td style="font-size:14px;color:#1a2a22;text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${order.trackingNumber}</td>
+            <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Trackingnummer</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${order.trackingNumber}</td>
           </tr>`
         : null,
     ]
@@ -377,55 +381,54 @@ export function buildOrderEmail(
       ].join("\n"),
       html: emailOuter(`
         ${emailHeader(headerTitle, headerSubtitle, {
-          brandName: brand.brandName,
-          accentColor: brand.accentColor,
+          brand,
+          headerBackground,
           headerColor,
         })}
         <tr>
-          <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+          <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
 
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td style="vertical-align:top;">
-                  ${sectionLabel("Bestellnummer")}
-                  <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
-                  <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+                  ${sectionLabel("Bestellnummer", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
                 </td>
               </tr>
             </table>
 
-            ${divider()}
+            ${divider(brand)}
 
-            ${sectionLabel("Versandinformationen")}
+            ${sectionLabel("Versandinformationen", brand)}
             ${
               trackingRows
-                ? `<div style="background:#f9fafb;border-radius:10px;padding:20px;">
+                ? `<div style="background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;padding:20px;">
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                   ${trackingRows}
                 </table>
                 ${
                   order.trackingUrl
                     ? `<div style="margin-top:18px;">
-                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:${brand.headerColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Paket verfolgen &rarr;</a>
+                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">Paket verfolgen &rarr;</a>
                   </div>`
                     : ""
                 }
               </div>`
-                : `<p style="font-size:14px;color:#6b7280;margin:0;">Trackingdaten folgen in Kürze.</p>`
+                : `<p style="font-size:14px;color:${brand.mutedTextColor};margin:0;">Trackingdaten folgen in Kürze.</p>`
             }
 
             ${
               orderUrl
                 ? `<div style="margin-top:28px;text-align:center;">
-                ${primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor)}
+                ${primaryBtn(orderUrl, "Bestellung ansehen", brand)}
               </div>`
                 : ""
             }
 
           </td>
         </tr>`, {
-        brandName: brand.brandName,
-        backgroundColor: brand.backgroundColor,
+        brand,
         shopUrl: links.shopUrl,
         privacyUrl: links.privacyUrl,
         termsUrl: links.termsUrl,
@@ -446,43 +449,42 @@ export function buildOrderEmail(
     ].join("\n"),
     html: emailOuter(`
       ${emailHeader(headerTitle, headerSubtitle, {
-        brandName: brand.brandName,
-        accentColor: brand.accentColor,
+        brand,
+        headerBackground,
         headerColor,
       })}
       <tr>
-        <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
+        <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
 
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
             <tr>
               <td style="vertical-align:top;">
-                ${sectionLabel("Bestellnummer")}
-                <div style="font-size:22px;font-weight:700;color:#1a2a22;font-family:monospace;">${orderNumber}</div>
-                <div style="font-size:13px;color:#9ca3af;margin-top:4px;">${orderDate}</div>
+                ${sectionLabel("Bestellnummer", brand)}
+                <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
               </td>
             </tr>
           </table>
 
-          ${divider()}
+          ${divider(brand)}
 
-          ${sectionLabel("Rückerstattungsbetrag")}
-          <div style="background:#f0fdf4;border-radius:12px;padding:28px;text-align:center;border:1px solid #d1fae5;">
-            <div style="font-size:38px;font-weight:700;color:#2f3e36;">${formatPrice(refundedAmount, order.currency)}</div>
-            <div style="font-size:13px;color:#6b7280;margin-top:8px;">wird innerhalb von 5–10 Werktagen gutgeschrieben</div>
+          ${sectionLabel("Rückerstattungsbetrag", brand)}
+          <div style="background:${brand.noticeBackgroundColor};border-radius:12px;padding:28px;text-align:center;border:1px solid ${brand.noticeBorderColor};">
+            <div style="font-size:38px;font-weight:700;color:${brand.emphasisColor};">${formatPrice(refundedAmount, order.currency)}</div>
+            <div style="font-size:13px;color:${brand.mutedTextColor};margin-top:8px;">wird innerhalb von 5–10 Werktagen gutgeschrieben</div>
           </div>
 
           ${
             orderUrl
               ? `<div style="margin-top:28px;text-align:center;">
-              ${primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor)}
+              ${primaryBtn(orderUrl, "Bestellung ansehen", brand)}
             </div>`
               : ""
           }
 
         </td>
       </tr>`, {
-      brandName: brand.brandName,
-      backgroundColor: brand.backgroundColor,
+      brand,
       shopUrl: links.shopUrl,
       privacyUrl: links.privacyUrl,
       termsUrl: links.termsUrl,

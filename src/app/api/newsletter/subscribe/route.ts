@@ -7,6 +7,10 @@ import { sendResendEmail } from "@/lib/resend";
 import { buildNewsletterConfirmationEmail } from "@/lib/newsletterEmail";
 import { resolveOrderSourceFromRequest } from "@/lib/orderSource";
 import { type StorefrontCode } from "@/lib/storefronts";
+import {
+  getStorefrontEmailBrand,
+  getStorefrontLinks,
+} from "@/lib/storefrontEmailBrand";
 
 const escapeHtml = (text: string) =>
   text
@@ -125,6 +129,8 @@ export async function POST(request: Request) {
   // Send admin notification email
   try {
     if (server && from) {
+      const brand = getStorefrontEmailBrand(resolvedStorefront);
+      const links = getStorefrontLinks(resolvedStorefront, request.url);
       const transporter = nodemailer.createTransport(server);
       await transporter.sendMail({
         to: adminTo,
@@ -132,22 +138,25 @@ export async function POST(request: Request) {
         subject: "Neue Newsletter-Anmeldung",
         text: `Neue Newsletter-Anmeldung: ${normalizedEmail}`,
         html: `
-<div style="background:#f6f5f2;padding:24px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
+<div style="background:${brand.backgroundColor};padding:24px 0;font-family:Arial,Helvetica,sans-serif;color:${brand.textColor};line-height:1.6;">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="padding:0 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr><td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+          <tr><td height="4" style="background-color:${brand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="background-color:#2f3e36;padding:24px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:10px;">${resolvedStorefront === "GROW" ? "GrowVault" : "Smokeify"}</div>
+            <td style="background:${brand.heroBackground};background-color:${brand.headerColor};padding:24px 28px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${brand.heroLabelColor};margin-bottom:10px;">${brand.brandName}</div>
               <div style="font-size:20px;font-weight:700;color:#ffffff;">Neue Newsletter-Anmeldung</div>
             </td>
           </tr>
           <tr>
-            <td style="background:#ffffff;padding:28px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">E-Mail-Adresse</div>
-              <div style="font-size:15px;font-weight:600;color:#2f3e36;">${escapeHtml(normalizedEmail)}</div>
+            <td style="background:${brand.cardBackgroundColor};padding:28px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${brand.subtleTextColor};margin-bottom:8px;">E-Mail-Adresse</div>
+              <div style="font-size:15px;font-weight:600;color:${brand.emphasisColor};">${escapeHtml(normalizedEmail)}</div>
+              <div style="margin-top:16px;font-size:12px;color:${brand.footerTextColor};">
+                <a href="${links.shopUrl}" style="color:${brand.footerTextColor};text-decoration:none;">${brand.brandName} Shop</a>
+              </div>
             </td>
           </tr>
         </table>
