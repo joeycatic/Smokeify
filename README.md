@@ -55,6 +55,7 @@ Optional (order email + Telegram notifications):
 Required for Discord account linking:
 
 - `SMOKEIFY_LINK_TOKEN_SECRET`
+- `DISCORD_BOT_API_KEY` for bot-side live order lookups via `/api/internal/discord/orders`
 
 ## Stripe webhooks (local)
 
