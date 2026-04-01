@@ -8,11 +8,11 @@ import {
 } from "@/lib/adminNewsletter";
 import {
   buildNewsletterCampaignEmail,
-  getStorefrontOrigin,
 } from "@/lib/newsletterEmail";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { sendResendEmail } from "@/lib/resend";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
 import { parseStorefront, STOREFRONT_LABELS, type StorefrontCode } from "@/lib/storefronts";
 
 export const runtime = "nodejs";

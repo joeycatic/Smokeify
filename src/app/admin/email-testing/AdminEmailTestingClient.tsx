@@ -187,6 +187,7 @@ export default function AdminEmailTestingClient({
       return {
         type,
         to: recipient.trim(),
+        storefront,
         productTitle: productTitle.trim(),
         variantTitle: variantTitle.trim(),
       };
@@ -195,12 +196,14 @@ export default function AdminEmailTestingClient({
       return {
         type,
         to: recipient.trim(),
+        storefront,
         sessionId: sessionId.trim(),
       };
     }
     return {
       type,
       to: recipient.trim(),
+      storefront,
       order: {
         id: orderId.trim() || "TEST-ORDER-0001",
         currency: currency.trim().toUpperCase() || "EUR",
@@ -366,30 +369,28 @@ export default function AdminEmailTestingClient({
               />
             </AdminField>
 
-            {(isNewsletter || isNewsletterConfirmation) ? (
-              <AdminField label="Storefront branding">
-                <select
-                  value={storefront}
-                  onChange={(event) => {
-                    const nextStorefront = event.target.value as StorefrontCode;
-                    setStorefront(nextStorefront);
-                    if (nextStorefront === "GROW" && newsletterSubject === "Neu bei Smokeify") {
-                      setNewsletterSubject("Neu bei GrowVault");
-                    }
-                    if (nextStorefront === "MAIN" && newsletterSubject === "Neu bei GrowVault") {
-                      setNewsletterSubject("Neu bei Smokeify");
-                    }
-                  }}
-                  className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
-                >
-                  {STOREFRONT_OPTION_ROWS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {STOREFRONT_LABELS[option.value]}
-                    </option>
-                  ))}
-                </select>
-              </AdminField>
-            ) : null}
+            <AdminField label="Storefront branding">
+              <select
+                value={storefront}
+                onChange={(event) => {
+                  const nextStorefront = event.target.value as StorefrontCode;
+                  setStorefront(nextStorefront);
+                  if (nextStorefront === "GROW" && newsletterSubject === "Neu bei Smokeify") {
+                    setNewsletterSubject("Neu bei GrowVault");
+                  }
+                  if (nextStorefront === "MAIN" && newsletterSubject === "Neu bei GrowVault") {
+                    setNewsletterSubject("Neu bei Smokeify");
+                  }
+                }}
+                className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+              >
+                {STOREFRONT_OPTION_ROWS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {STOREFRONT_LABELS[option.value]}
+                  </option>
+                ))}
+              </select>
+            </AdminField>
 
             {isNewsletter ? (
               <>

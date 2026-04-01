@@ -1,3 +1,11 @@
+import "server-only";
+
+import {
+  getStorefrontEmailBrand,
+  getStorefrontLinks,
+} from "@/lib/storefrontEmailBrand";
+import { type StorefrontCode } from "@/lib/storefronts";
+
 type OrderItem = {
   name: string;
   quantity: number;
@@ -29,6 +37,11 @@ type EmailType =
   | "refund"
   | "return_confirmation"
   | "cancellation";
+
+type OrderEmailOptions = {
+  storefront?: StorefrontCode | null;
+  fallbackOrigin?: string | null;
+};
 
 const formatPrice = (amount: number, currency: string) =>
   new Intl.NumberFormat("de-DE", {
@@ -64,8 +77,17 @@ const renderItemsHtml = (items: OrderItem[]) =>
 
 // ─── Shared layout primitives ──────────────────────────────────────────────
 
-const emailOuter = (cardRows: string) => `
-<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#1a2a22;">
+const emailOuter = (
+  cardRows: string,
+  options: {
+    brandName: string;
+    backgroundColor: string;
+    shopUrl: string;
+    privacyUrl: string;
+    termsUrl: string;
+  },
+) => `
+<div style="background:${options.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#1a2a22;">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="padding:0 16px;">
@@ -76,7 +98,12 @@ const emailOuter = (cardRows: string) => `
           <tr>
             <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
               <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten
+                © ${new Date().getFullYear()} ${options.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${options.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
+                &nbsp;·&nbsp;
+                <a href="${options.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
+                &nbsp;·&nbsp;
+                <a href="${options.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
               </div>
             </td>
           </tr>
@@ -89,14 +116,18 @@ const emailOuter = (cardRows: string) => `
 const emailHeader = (
   title: string,
   subtitle: string,
-  headerBg: string,
+  options: {
+    brandName: string;
+    accentColor: string;
+    headerColor: string;
+  },
 ) => `
   <tr>
-    <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+    <td height="4" style="background-color:${options.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
   </tr>
   <tr>
-    <td style="background-color:${headerBg};padding:32px 32px 28px;">
-      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
+    <td style="background-color:${options.headerColor};padding:32px 32px 28px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.accentColor};margin-bottom:16px;">${options.brandName}</div>
       <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${title}</div>
       <div style="font-size:14px;color:rgba(255,255,255,0.65);">${subtitle}</div>
     </td>
@@ -108,8 +139,8 @@ const sectionLabel = (text: string) =>
 const divider = () =>
   `<div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>`;
 
-const primaryBtn = (href: string, label: string) =>
-  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
+const primaryBtn = (href: string, label: string, backgroundColor: string) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${backgroundColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
 
 const secondaryBtn = (href: string, label: string) =>
   `<a href="${href}" style="display:inline-block;padding:13px 28px;background:#f3f4f6;color:#1a2a22;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;margin:4px;">${label}</a>`;
@@ -121,7 +152,11 @@ export function buildOrderEmail(
   order: OrderEmailInput,
   orderUrl?: string,
   invoiceUrl?: string,
+  options?: OrderEmailOptions,
 ) {
+  const storefront = options?.storefront ?? "MAIN";
+  const brand = getStorefrontEmailBrand(storefront);
+  const links = getStorefrontLinks(storefront, options?.fallbackOrigin);
   const orderNumber = order.id.slice(0, 8).toUpperCase();
   const discountLabel = order.discountCode
     ? `Rabatt (${order.discountCode})`
@@ -140,17 +175,16 @@ export function buildOrderEmail(
 
   const headerSubtitle =
     type === "confirmation"
-      ? "Danke für deine Bestellung bei Smokeify."
+      ? `Danke für deine Bestellung bei ${brand.brandName}.`
       : type === "shipping"
-        ? "Wir haben dein Paket auf den Weg gebracht."
-        : type === "refund"
+      ? "Wir haben dein Paket auf den Weg gebracht."
+      : type === "refund"
           ? "Der Betrag wird in Kürze gutgeschrieben."
           : type === "return_confirmation"
             ? "Wir haben deine Rücksendung erhalten."
             : "Deine Bestellung wurde storniert.";
 
-  const headerBg =
-    type === "cancellation" ? "#374151" : "#2f3e36";
+  const headerColor = type === "cancellation" ? "#374151" : brand.headerColor;
 
   const orderDate = new Date(order.createdAt).toLocaleDateString("de-DE", {
     day: "2-digit",
@@ -185,14 +219,14 @@ export function buildOrderEmail(
 
     const introLine =
       type === "confirmation"
-        ? `Danke für deine Bestellung ${orderNumber}.`
+        ? `Danke für deine Bestellung ${orderNumber} bei ${brand.brandName}.`
         : type === "return_confirmation"
           ? `Wir haben deine Rücksendung für Bestellung ${orderNumber} erhalten.`
           : `Deine Bestellung ${orderNumber} wurde storniert.`;
 
     const statusNote =
       type !== "confirmation"
-        ? `<div style="margin-bottom:24px;padding:14px 16px;background:#f0fdf4;border-left:3px solid #2f3e36;border-radius:0 8px 8px 0;font-size:14px;color:#1a2a22;">${introLine}</div>`
+        ? `<div style="margin-bottom:24px;padding:14px 16px;background:#f0fdf4;border-left:3px solid ${brand.headerColor};border-radius:0 8px 8px 0;font-size:14px;color:#1a2a22;">${introLine}</div>`
         : "";
     const reviewInviteText =
       type === "confirmation"
@@ -216,7 +250,11 @@ export function buildOrderEmail(
         invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
       ].join("\n"),
       html: emailOuter(`
-        ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+        ${emailHeader(headerTitle, headerSubtitle, {
+          brandName: brand.brandName,
+          accentColor: brand.accentColor,
+          headerColor,
+        })}
         <tr>
           <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
 
@@ -284,7 +322,7 @@ export function buildOrderEmail(
             ${
               orderUrl || invoiceUrl
                 ? `<div style="margin-top:28px;text-align:center;">
-                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen") : ""}
+                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor) : ""}
                 ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen") : ""}
               </div>`
                 : ""
@@ -292,7 +330,13 @@ export function buildOrderEmail(
             ${reviewInviteHtml}
 
           </td>
-        </tr>`),
+        </tr>`, {
+        brandName: brand.brandName,
+        backgroundColor: brand.backgroundColor,
+        shopUrl: links.shopUrl,
+        privacyUrl: links.privacyUrl,
+        termsUrl: links.termsUrl,
+      }),
     };
   }
 
@@ -332,7 +376,11 @@ export function buildOrderEmail(
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
       ].join("\n"),
       html: emailOuter(`
-        ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+        ${emailHeader(headerTitle, headerSubtitle, {
+          brandName: brand.brandName,
+          accentColor: brand.accentColor,
+          headerColor,
+        })}
         <tr>
           <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
 
@@ -358,7 +406,7 @@ export function buildOrderEmail(
                 ${
                   order.trackingUrl
                     ? `<div style="margin-top:18px;">
-                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Paket verfolgen &rarr;</a>
+                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:${brand.headerColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Paket verfolgen &rarr;</a>
                   </div>`
                     : ""
                 }
@@ -369,13 +417,19 @@ export function buildOrderEmail(
             ${
               orderUrl
                 ? `<div style="margin-top:28px;text-align:center;">
-                ${primaryBtn(orderUrl, "Bestellung ansehen")}
+                ${primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor)}
               </div>`
                 : ""
             }
 
           </td>
-        </tr>`),
+        </tr>`, {
+        brandName: brand.brandName,
+        backgroundColor: brand.backgroundColor,
+        shopUrl: links.shopUrl,
+        privacyUrl: links.privacyUrl,
+        termsUrl: links.termsUrl,
+      }),
     };
   }
 
@@ -391,7 +445,11 @@ export function buildOrderEmail(
       orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
     ].join("\n"),
     html: emailOuter(`
-      ${emailHeader(headerTitle, headerSubtitle, headerBg)}
+      ${emailHeader(headerTitle, headerSubtitle, {
+        brandName: brand.brandName,
+        accentColor: brand.accentColor,
+        headerColor,
+      })}
       <tr>
         <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
 
@@ -416,12 +474,18 @@ export function buildOrderEmail(
           ${
             orderUrl
               ? `<div style="margin-top:28px;text-align:center;">
-              ${primaryBtn(orderUrl, "Bestellung ansehen")}
+              ${primaryBtn(orderUrl, "Bestellung ansehen", brand.headerColor)}
             </div>`
               : ""
           }
 
         </td>
-      </tr>`),
+      </tr>`, {
+      brandName: brand.brandName,
+      backgroundColor: brand.backgroundColor,
+      shopUrl: links.shopUrl,
+      privacyUrl: links.privacyUrl,
+      termsUrl: links.termsUrl,
+    }),
   };
 }

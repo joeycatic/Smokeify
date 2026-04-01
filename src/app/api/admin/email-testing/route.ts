@@ -12,6 +12,11 @@ import {
   buildNewsletterCampaignEmail,
   buildNewsletterConfirmationEmail,
 } from "@/lib/newsletterEmail";
+import {
+  getStorefrontEmailBrand,
+  getStorefrontLinks,
+  getStorefrontOrigin,
+} from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 
 const sendEmail = async (opts: {
@@ -161,9 +166,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing recipient email" }, { status: 400 });
   }
 
-  const appOrigin = getAppOrigin(request);
-  const shopUrl = `${appOrigin}/products`;
   const storefront = parseStorefront(body.storefront) ?? "MAIN";
+  const appOrigin = getAppOrigin(request);
+  const emailOrigin = getStorefrontOrigin(storefront, appOrigin);
+  const storefrontBrand = getStorefrontEmailBrand(storefront);
+  const storefrontLinks = getStorefrontLinks(storefront, emailOrigin);
+  const shopUrl = storefrontLinks.shopUrl;
 
   if (type === "newsletter") {
     const subject = toSafeString(body.newsletter?.subject ?? body.subject);
@@ -180,7 +188,7 @@ export async function POST(request: Request) {
       recipientEmail: recipient,
       subject,
       body: message,
-      fallbackOrigin: appOrigin,
+      fallbackOrigin: emailOrigin,
     });
 
     try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
@@ -192,7 +200,7 @@ export async function POST(request: Request) {
     const email = buildNewsletterConfirmationEmail({
       storefront,
       recipientEmail: recipient,
-      fallbackOrigin: appOrigin,
+      fallbackOrigin: emailOrigin,
     });
     try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { storefront });
@@ -203,7 +211,7 @@ export async function POST(request: Request) {
     const productTitle = toSafeString(body.productTitle) || "Beispiel-Produkt";
     const variantTitle = toSafeString(body.variantTitle);
     const displayTitle = variantTitle ? `${productTitle} (${variantTitle})` : productTitle;
-    const subject = "Benachrichtigung eingerichtet – Smokeify";
+    const subject = `Benachrichtigung eingerichtet – ${storefrontBrand.brandName}`;
     const text = [
       `Wir benachrichtigen dich, sobald "${displayTitle}" wieder verfügbar ist.`,
       "",
@@ -212,17 +220,17 @@ export async function POST(request: Request) {
       `Abmelden: \${getUnsubscribeUrl()}`,
     ].join("\n");
     const html = `
-<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
+<div style="background:${storefrontBrand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="padding:0 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
           <tr>
-            <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+            <td height="4" style="background-color:${storefrontBrand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <tr>
-            <td style="background-color:#2f3e36;padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
+            <td style="background-color:${storefrontBrand.headerColor};padding:32px 32px 28px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${storefrontBrand.accentColor};margin-bottom:16px;">${storefrontBrand.brandName}</div>
               <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Benachrichtigung eingerichtet</div>
               <div style="font-size:14px;color:rgba(255,255,255,0.65);">Wir geben dir Bescheid, sobald der Artikel wieder verfügbar ist.</div>
             </td>
@@ -234,7 +242,7 @@ export async function POST(request: Request) {
               <div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>
               <p style="margin:0;font-size:14px;color:#4b5563;">Wir senden dir eine E-Mail, sobald dieser Artikel wieder auf Lager ist. Du musst nichts weiter tun.</p>
               <div style="text-align:center;margin:24px 0 0;">
-                <a href="${shopUrl}" style="display:inline-block;padding:12px 28px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Zum Shop &rarr;</a>
+                <a href="${shopUrl}" style="display:inline-block;padding:12px 28px;background:${storefrontBrand.headerColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:8px;">Zum Shop &rarr;</a>
               </div>
             </td>
           </tr>
@@ -243,12 +251,12 @@ export async function POST(request: Request) {
           <tr>
             <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
               <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
+                © ${new Date().getFullYear()} ${storefrontBrand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${storefrontLinks.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
                 &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/privacy" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
+                <a href="${storefrontLinks.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
                 &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/agb" style="color:#9ca3af;text-decoration:none;">AGB</a>
+                <a href="${storefrontLinks.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
               </div>
               <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
                 Du erhältst diese E-Mail, weil du eine Benachrichtigung für diesen Artikel angefordert hast.<br />
@@ -262,14 +270,14 @@ export async function POST(request: Request) {
   </table>
 </div>`;
     try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
-    await logEmailTestingAction(type, recipient, { productTitle, variantTitle });
+    await logEmailTestingAction(type, recipient, { productTitle, variantTitle, storefront });
     return NextResponse.json({ ok: true });
   }
 
   if (type === "checkout_recovery") {
     const sessionId = toSafeString(body.sessionId) || "cs_test_XXXXXXXXXXXXXXXX";
-    const cartUrl = `${appOrigin}/cart`;
-    const subject = "Dein Warenkorb wartet noch bei Smokeify";
+    const cartUrl = `${storefrontLinks.origin}/cart`;
+    const subject = `Dein Warenkorb wartet noch bei ${storefrontBrand.brandName}`;
     const text = [
       "Du hast einen Checkout gestartet, aber noch nicht abgeschlossen.",
       "",
@@ -280,17 +288,17 @@ export async function POST(request: Request) {
       `Abmelden: \${getUnsubscribeUrl()}`,
     ].join("\n");
     const html = `
-<div style="background:#f6f5f2;padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
+<div style="background:${storefrontBrand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;color:#1a2a22;line-height:1.6;">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="padding:0 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
           <tr>
-            <td height="4" style="background-color:#E4C56C;border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+            <td height="4" style="background-color:${storefrontBrand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <tr>
-            <td style="background-color:#2f3e36;padding:32px 32px 28px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#E4C56C;margin-bottom:16px;">Smokeify</div>
+            <td style="background-color:${storefrontBrand.headerColor};padding:32px 32px 28px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${storefrontBrand.accentColor};margin-bottom:16px;">${storefrontBrand.brandName}</div>
               <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">Dein Warenkorb wartet</div>
               <div style="font-size:14px;color:rgba(255,255,255,0.65);">Du kannst deinen Checkout jederzeit fortsetzen.</div>
             </td>
@@ -299,7 +307,7 @@ export async function POST(request: Request) {
             <td style="background:#ffffff;padding:32px;border:1px solid #e8eaed;border-top:none;border-radius:0 0 14px 14px;">
               <p style="margin:0 0 20px;font-size:15px;color:#4b5563;">Du hast einen Checkout gestartet, aber noch nicht abgeschlossen. Dein Warenkorb ist noch für dich reserviert.</p>
               <div style="text-align:center;margin:28px 0;">
-                <a href="${cartUrl}" style="display:inline-block;padding:14px 32px;background:#2f3e36;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Checkout fortsetzen &rarr;</a>
+                <a href="${cartUrl}" style="display:inline-block;padding:14px 32px;background:${storefrontBrand.headerColor};color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">Checkout fortsetzen &rarr;</a>
               </div>
               <div style="height:1px;background:#f3f4f6;margin:24px 0;"></div>
               <div style="font-size:12px;color:#9ca3af;text-align:center;">Referenz: ${sessionId}</div>
@@ -310,15 +318,15 @@ export async function POST(request: Request) {
           <tr>
             <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
               <div style="font-size:12px;color:#9ca3af;line-height:1.8;">
-                © ${new Date().getFullYear()} Smokeify &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
+                © ${new Date().getFullYear()} ${storefrontBrand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${storefrontLinks.shopUrl}" style="color:#9ca3af;text-decoration:none;">Shop</a>
                 &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/privacy" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
+                <a href="${storefrontLinks.privacyUrl}" style="color:#9ca3af;text-decoration:none;">Datenschutz</a>
                 &nbsp;·&nbsp;
-                <a href="${appOrigin}/pages/agb" style="color:#9ca3af;text-decoration:none;">AGB</a>
+                <a href="${storefrontLinks.termsUrl}" style="color:#9ca3af;text-decoration:none;">AGB</a>
               </div>
               <div style="font-size:11px;color:#d1d5db;margin-top:10px;line-height:1.6;">
-                Du erhältst diese E-Mail, weil du einen Checkout bei Smokeify begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.<br />
+                Du erhältst diese E-Mail, weil du einen Checkout bei ${storefrontBrand.brandName} begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.<br />
                 <a href="\${getUnsubscribeUrl()}" style="color:#9ca3af;text-decoration:underline;">E-Mail-Benachrichtigungen abmelden</a>
               </div>
             </td>
@@ -329,7 +337,7 @@ export async function POST(request: Request) {
   </table>
 </div>`;
     try { await sendEmail({ to: recipient, subject, html, text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
-    await logEmailTestingAction(type, recipient, { sessionId });
+    await logEmailTestingAction(type, recipient, { sessionId, storefront });
     return NextResponse.json({ ok: true });
   }
 
@@ -345,10 +353,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const origin =
-    request.headers.get("origin") ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000";
+  const origin = emailOrigin;
   const invoiceUrl =
     type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
   const email = buildOrderEmail(
@@ -370,7 +375,8 @@ export async function POST(request: Request) {
       items: order.items,
     },
     undefined,
-    invoiceUrl ?? undefined
+    invoiceUrl ?? undefined,
+    { storefront, fallbackOrigin: origin }
   );
 
   try {
@@ -388,6 +394,7 @@ export async function POST(request: Request) {
   await logEmailTestingAction(type, recipient, {
     orderId: order.id,
     itemCount: order.items.length,
+    storefront,
   });
   return NextResponse.json({ ok: true });
 }

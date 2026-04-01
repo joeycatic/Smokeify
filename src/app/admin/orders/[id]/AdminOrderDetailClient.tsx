@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
+import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 
 type Props = {
@@ -81,36 +82,6 @@ const formatItemOptions = (options?: Array<{ name: string; value: string }>) => 
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
-
-const calculateSelectedRefundAmount = (
-  order: AdminOrderRecord,
-  selection: Record<string, number>,
-) =>
-  order.items.reduce((sum, item) => {
-    const selectedQty = selection[item.id] ?? 0;
-    if (selectedQty <= 0) return sum;
-    const unitAmount = item.quantity > 0 ? item.totalAmount / item.quantity : 0;
-    return sum + Math.round(unitAmount * clamp(selectedQty, 0, item.quantity));
-  }, 0);
-
-const getRefundPreviewAmount = (
-  order: AdminOrderRecord,
-  mode: "full" | "items",
-  selection: Record<string, number>,
-  includeShipping: boolean,
-) => {
-  const remainingOrderAmount = Math.max(order.amountTotal - order.amountRefunded, 0);
-  if (mode === "full") {
-    const fullAmount = includeShipping
-      ? order.amountTotal
-      : Math.max(order.amountTotal - order.amountShipping, 0);
-    return clamp(fullAmount - order.amountRefunded, 0, remainingOrderAmount);
-  }
-
-  const selectedAmount = calculateSelectedRefundAmount(order, selection);
-  const withShipping = selectedAmount + (includeShipping ? order.amountShipping : 0);
-  return clamp(withShipping, 0, remainingOrderAmount);
-};
 
 const buildShippingLines = (order: AdminOrderRecord) => {
   const lines = [

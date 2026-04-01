@@ -9,6 +9,8 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
+import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import { parseStorefront } from "@/lib/storefronts";
 
 export async function POST(
   request: Request,
@@ -59,7 +61,11 @@ export async function POST(
     );
   }
 
-  const origin = getAppOrigin(request);
+  const storefront = parseStorefront(order.sourceStorefront ?? null) ?? "MAIN";
+  const origin = getStorefrontOrigin(
+    storefront,
+    order.sourceOrigin ?? getAppOrigin(request),
+  );
   const guestOrderUrl = buildOrderViewUrl(origin, order.id);
   const orderUrl = order.userId
     ? `${origin}/account/orders/${order.id}`
@@ -86,7 +92,8 @@ export async function POST(
       items: order.items,
     },
     orderUrl,
-    invoiceUrl ?? undefined
+    invoiceUrl ?? undefined,
+    { storefront, fallbackOrigin: origin }
   );
 
   await sendResendEmail({

@@ -26,6 +26,8 @@ import {
   canApplyDefaultVatFallback,
 } from "@/lib/vat";
 import { formatOrderSourceLabel, resolveOrderSourceFromMetadata } from "@/lib/orderSource";
+import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import { parseStorefront } from "@/lib/storefronts";
 
 export const runtime = "nodejs";
 
@@ -702,13 +704,23 @@ export const createOrderFromSession = async (
 
   try {
     if (created.customerEmail) {
-      const origin = getAppOrigin(request);
+      const storefront = parseStorefront(created.sourceStorefront ?? null) ?? "MAIN";
+      const origin = getStorefrontOrigin(
+        storefront,
+        created.sourceOrigin ?? getAppOrigin(request),
+      );
       const guestOrderUrl = buildOrderViewUrl(origin, created.id);
       const orderUrl = created.userId
         ? `${origin}/account/orders/${created.id}`
-        : guestOrderUrl ?? undefined;
+          : guestOrderUrl ?? undefined;
       const invoiceUrl = buildInvoiceUrl(origin, created.id);
-      const email = buildOrderEmail("confirmation", created, orderUrl, invoiceUrl ?? undefined);
+      const email = buildOrderEmail(
+        "confirmation",
+        created,
+        orderUrl,
+        invoiceUrl ?? undefined,
+        { storefront, fallbackOrigin: origin },
+      );
       await sendResendEmail({
         to: created.customerEmail,
         subject: email.subject,

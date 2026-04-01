@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { buildFinanceRollup, buildOrderFinanceBreakdown, buildVatSummary } from "@/lib/adminFinance";
+import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import {
   type AdminChartPoint,
   DonutChart,
@@ -185,36 +186,6 @@ const buildTimeline = (order: OrderRow) =>
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
-
-const calculateSelectedRefundAmount = (
-  order: OrderRow,
-  selection: Record<string, number> | undefined
-) =>
-  order.items.reduce((sum, item) => {
-    const selectedQty = selection?.[item.id] ?? 0;
-    if (selectedQty <= 0) return sum;
-    const unitAmount = item.quantity > 0 ? item.totalAmount / item.quantity : 0;
-    return sum + Math.round(unitAmount * clamp(selectedQty, 0, item.quantity));
-  }, 0);
-
-const getRefundPreviewAmount = (
-  order: OrderRow,
-  mode: "full" | "items",
-  selection: Record<string, number> | undefined,
-  includeShipping: boolean
-) => {
-  const remainingOrderAmount = Math.max(order.amountTotal - order.amountRefunded, 0);
-  if (mode === "full") {
-    const fullAmount = includeShipping
-      ? order.amountTotal
-      : Math.max(order.amountTotal - order.amountShipping, 0);
-    return clamp(fullAmount - order.amountRefunded, 0, remainingOrderAmount);
-  }
-
-  const selectedAmount = calculateSelectedRefundAmount(order, selection);
-  const withShipping = selectedAmount + (includeShipping ? order.amountShipping : 0);
-  return clamp(withShipping, 0, remainingOrderAmount);
-};
 
 const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(status);

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
@@ -5,6 +6,8 @@ import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
+import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import { parseStorefront } from "@/lib/storefronts";
 
 type AdminActor = {
   id: string;
@@ -16,6 +19,25 @@ const getStripe = () => {
   if (!secret) return null;
   return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
+
+const buildAdminRefundIdempotencyKey = (input: {
+  orderId: string;
+  previousRefundedAmount: number;
+  refundAmount: number;
+  source: string;
+}) =>
+  crypto
+    .createHash("sha256")
+    .update(
+      [
+        "admin-order-refund",
+        input.orderId,
+        String(input.previousRefundedAmount),
+        String(input.refundAmount),
+        input.source,
+      ].join(":"),
+    )
+    .digest("hex");
 
 export async function refundAdminOrder(input: {
   orderId: string;
@@ -56,6 +78,13 @@ export async function refundAdminOrder(input: {
   await stripe.refunds.create({
     payment_intent: order.stripePaymentIntent,
     amount: input.refundAmount,
+  }, {
+    idempotencyKey: buildAdminRefundIdempotencyKey({
+      orderId: order.id,
+      previousRefundedAmount: order.amountRefunded,
+      refundAmount: input.refundAmount,
+      source: input.source,
+    }),
   });
 
   const newRefunded = order.amountRefunded + input.refundAmount;
@@ -113,11 +142,19 @@ export async function refundAdminOrder(input: {
 
   if (updated.customerEmail && input.origin) {
     try {
-      const guestOrderUrl = buildOrderViewUrl(input.origin, updated.id);
+      const storefront = parseStorefront(updated.sourceStorefront ?? null) ?? "MAIN";
+      const origin = getStorefrontOrigin(
+        storefront,
+        updated.sourceOrigin ?? input.origin,
+      );
+      const guestOrderUrl = buildOrderViewUrl(origin, updated.id);
       const orderUrl = updated.userId
-        ? `${input.origin}/account/orders/${updated.id}`
+        ? `${origin}/account/orders/${updated.id}`
         : guestOrderUrl ?? undefined;
-      const email = buildOrderEmail("refund", updated, orderUrl);
+      const email = buildOrderEmail("refund", updated, orderUrl, undefined, {
+        storefront,
+        fallbackOrigin: origin,
+      });
       await sendResendEmail({
         to: updated.customerEmail,
         subject: email.subject,

@@ -5,6 +5,10 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import bcrypt from "bcryptjs";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { adminJson } from "@/lib/adminApi";
+import {
+  calculateSelectedRefundAmount,
+  getRefundPreviewAmount,
+} from "@/lib/adminRefundCalculator";
 import { refundAdminOrder } from "@/lib/adminRefunds";
 
 export const runtime = "nodejs";
@@ -86,27 +90,54 @@ export async function POST(
 
   let refundAmount = 0;
   let shippingRefundAmount = 0;
+  const refundCalculationOrder = {
+    amountTotal: order.amountTotal,
+    amountRefunded: order.amountRefunded,
+    amountShipping: order.amountShipping,
+    items: order.items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      totalAmount: item.totalAmount,
+    })),
+  };
 
   if (Array.isArray(body.items) && body.items.length > 0) {
-    const itemMap = new Map(order.items.map((item) => [item.id, item]));
-    for (const requestItem of body.items) {
-      const item = itemMap.get(requestItem.id);
-      if (!item) continue;
-      const requestedQty = Math.max(1, Number(requestItem.quantity ?? 1));
-      const qty = Math.min(requestedQty, item.quantity);
-      refundAmount += item.unitAmount * qty;
-    }
+    const selection = Object.fromEntries(
+      body.items.map((item) => [item.id, Number(item.quantity ?? 0)]),
+    );
+    const itemRefundAmount = calculateSelectedRefundAmount(
+      refundCalculationOrder,
+      selection,
+    );
+    refundAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "items",
+      selection,
+      includeShipping,
+    );
+    shippingRefundAmount = Math.max(refundAmount - itemRefundAmount, 0);
   } else if (Number.isFinite(body.amount)) {
     refundAmount = Math.max(0, Math.floor(Number(body.amount)));
+    if (includeShipping) {
+      const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
+      const remainingAfterBase = Math.max(0, remaining - refundAmount);
+      shippingRefundAmount = Math.min(order.amountShipping, remainingAfterBase);
+      refundAmount += shippingRefundAmount;
+    }
   } else {
-    refundAmount = order.amountTotal - order.amountRefunded;
-  }
-
-  if (includeShipping) {
-    const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
-    const remainingAfterBase = Math.max(0, remaining - refundAmount);
-    shippingRefundAmount = Math.min(order.amountShipping, remainingAfterBase);
-    refundAmount += shippingRefundAmount;
+    const withoutShippingAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "full",
+      undefined,
+      false,
+    );
+    refundAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "full",
+      undefined,
+      includeShipping,
+    );
+    shippingRefundAmount = Math.max(refundAmount - withoutShippingAmount, 0);
   }
 
   if (refundAmount <= 0) {

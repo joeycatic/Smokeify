@@ -1,16 +1,11 @@
 import "server-only";
 
 import { buildUnsubscribeUrl } from "@/lib/newsletterToken";
+import {
+  getStorefrontEmailBrand,
+  getStorefrontLinks,
+} from "@/lib/storefrontEmailBrand";
 import { type StorefrontCode } from "@/lib/storefronts";
-
-type NewsletterBrandMeta = {
-  brandName: string;
-  accentColor: string;
-  headerColor: string;
-  backgroundColor: string;
-  ctaLabel: string;
-  footerDescription: string;
-};
 
 const escapeHtml = (text: string) =>
   text
@@ -30,71 +25,6 @@ const toParagraphHtml = (body: string) =>
     )
     .join("");
 
-const BRAND_META: Record<StorefrontCode, NewsletterBrandMeta> = {
-  MAIN: {
-    brandName: "Smokeify",
-    accentColor: "#E4C56C",
-    headerColor: "#2f3e36",
-    backgroundColor: "#f6f5f2",
-    ctaLabel: "Jetzt shoppen",
-    footerDescription: "Du erhältst diese E-Mail, weil du Marketing-E-Mails von Smokeify abonniert hast.",
-  },
-  GROW: {
-    brandName: "GrowVault",
-    accentColor: "#8FD694",
-    headerColor: "#143126",
-    backgroundColor: "#f3f8f2",
-    ctaLabel: "Grow entdecken",
-    footerDescription: "Du erhältst diese E-Mail, weil du Marketing-E-Mails von GrowVault abonniert hast.",
-  },
-};
-
-const toOrigin = (value?: string | null) => {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    return new URL(trimmed).origin;
-  } catch {
-    return null;
-  }
-};
-
-export const getStorefrontOrigin = (
-  storefront: StorefrontCode,
-  fallbackOrigin?: string | null,
-) => {
-  if (storefront === "GROW") {
-    return (
-      toOrigin(process.env.NEXT_PUBLIC_GROW_APP_URL) ??
-      toOrigin(fallbackOrigin) ??
-      toOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
-      toOrigin(process.env.NEXTAUTH_URL) ??
-      "http://localhost:3000"
-    );
-  }
-
-  return (
-    toOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
-    toOrigin(process.env.NEXTAUTH_URL) ??
-    toOrigin(fallbackOrigin) ??
-    "http://localhost:3000"
-  );
-};
-
-const buildStorefrontLinks = (
-  storefront: StorefrontCode,
-  fallbackOrigin?: string | null,
-) => {
-  const origin = getStorefrontOrigin(storefront, fallbackOrigin);
-
-  return {
-    origin,
-    shopUrl: `${origin}/products`,
-    privacyUrl: `${origin}/pages/privacy`,
-    termsUrl: `${origin}/pages/agb`,
-  };
-};
-
 export const buildNewsletterCampaignEmail = ({
   storefront,
   recipientEmail,
@@ -108,8 +38,8 @@ export const buildNewsletterCampaignEmail = ({
   body: string;
   fallbackOrigin?: string | null;
 }) => {
-  const meta = BRAND_META[storefront];
-  const links = buildStorefrontLinks(storefront, fallbackOrigin);
+  const meta = getStorefrontEmailBrand(storefront);
+  const links = getStorefrontLinks(storefront, fallbackOrigin);
   const unsubscribeUrl = buildUnsubscribeUrl(links.origin, recipientEmail);
   const bodyHtml = toParagraphHtml(body);
   const text = [
@@ -184,8 +114,8 @@ export const buildNewsletterConfirmationEmail = ({
   recipientEmail: string;
   fallbackOrigin?: string | null;
 }) => {
-  const meta = BRAND_META[storefront];
-  const links = buildStorefrontLinks(storefront, fallbackOrigin);
+  const meta = getStorefrontEmailBrand(storefront);
+  const links = getStorefrontLinks(storefront, fallbackOrigin);
   const unsubscribeUrl = buildUnsubscribeUrl(links.origin, recipientEmail);
   const subject = `Willkommen im ${meta.brandName} Newsletter`;
   const text = [
