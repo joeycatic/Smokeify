@@ -52,6 +52,10 @@ Optional (order email + Telegram notifications):
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+Required for Discord account linking:
+
+- `SMOKEIFY_LINK_TOKEN_SECRET`
+
 ## Stripe webhooks (local)
 
 1. Run Stripe CLI: `stripe listen --forward-to http://localhost:3000/api/webhooks/stripe`
@@ -90,6 +94,33 @@ Script details are documented in `scripts/README.md`.
 - All totals computed server-side from DB truth
 - Webhooks are the source of payment truth
 - Orders are never marked paid from return URLs
+
+## Discord account linking
+
+Smokeify can now issue signed Discord link tokens for the bot-side `/account connect provider:Smokeify` flow.
+
+Current temporary manual flow:
+
+1. Run `/account connect provider:Smokeify` in Discord.
+2. Copy the short-lived challenge code, such as `ABCD-EFGH`.
+3. Open Smokeify account settings while logged in.
+4. Enter the challenge code and your Discord user ID.
+5. Copy the signed token Smokeify returns.
+6. Run `/account connect provider:Smokeify token:<token>` in Discord before the token expires.
+
+Token details:
+
+- Provider is always `SMOKEIFY`
+- `customerId` is always the authenticated Smokeify `User.id`
+- `customerRef` is limited to the user username when present
+- `displayName` is limited to the user's own profile name when present
+- Tokens are signed with `SMOKEIFY_LINK_TOKEN_SECRET`
+- Tokens currently expire after 10 minutes
+
+TODO:
+
+- Replace the manual Discord user ID entry with a direct bot-to-site callback once the bot can hand off verified session context.
+- Replace manual token copy/paste with a first-class OAuth or deep-link-based account-link confirmation flow.
 
 ## Links
 

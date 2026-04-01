@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import DiscordLinkSection from "./DiscordLinkSection";
 
 type Props = {
   initialName: string;
@@ -193,6 +194,10 @@ export default function AccountSettingsClient({
             </div>
           </div>
         </div>
+
+        <div className="border-t border-black/6" />
+
+        <DiscordLinkSection />
 
         {/* Actions */}
         <div className="space-y-3 pt-1">
