@@ -67,16 +67,38 @@ const sanitizeOrigin = (value?: string | null) => {
   }
 };
 
+const parseRequestUrl = (value?: string | null) => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return { host: null, origin: null };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return {
+      host: normalizeHost(parsed.host),
+      origin: parsed.origin,
+    };
+  } catch {
+    return { host: null, origin: null };
+  }
+};
+
 export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnapshot => {
+  const requestUrl = parseRequestUrl(request.url);
   const forwardedHost = normalizeHost(request.headers.get("x-forwarded-host"));
-  const host = forwardedHost ?? normalizeHost(request.headers.get("host"));
+  const host =
+    forwardedHost ??
+    normalizeHost(request.headers.get("host")) ??
+    requestUrl.host;
   const origin =
     sanitizeOrigin(request.headers.get("origin")) ??
     (host
       ? sanitizeOrigin(
           `${request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"}://${host}`,
         )
-      : null);
+      : null) ??
+    requestUrl.origin;
 
   return {
     sourceStorefront: resolveStorefrontFromHost(host),
