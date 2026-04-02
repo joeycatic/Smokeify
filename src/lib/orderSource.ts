@@ -40,6 +40,11 @@ const getConfiguredHostsByStorefront = (): Record<StorefrontCode, Set<string>> =
   ),
 });
 
+export const getConfiguredRequestHosts = () => {
+  const configuredHosts = getConfiguredHostsByStorefront();
+  return new Set([...configuredHosts.MAIN, ...configuredHosts.GROW]);
+};
+
 export type OrderSourceSnapshot = {
   sourceStorefront: Storefront | null;
   sourceHost: string | null;
@@ -68,6 +73,23 @@ const sanitizeOrigin = (value?: string | null) => {
   } catch {
     return null;
   }
+};
+
+export const getConfiguredStorefrontOrigin = (storefront?: string | null) => {
+  const normalizedStorefront = parseStorefront(storefront ?? null);
+  if (normalizedStorefront === "GROW") {
+    return sanitizeOrigin(process.env.NEXT_PUBLIC_GROW_APP_URL) ?? null;
+  }
+
+  if (normalizedStorefront === "MAIN") {
+    return (
+      sanitizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
+      sanitizeOrigin(process.env.NEXTAUTH_URL) ??
+      null
+    );
+  }
+
+  return null;
 };
 
 const parseRequestUrl = (value?: string | null) => {
@@ -132,6 +154,14 @@ export const resolveOrderSourceFromMetadata = (
     sourceOrigin,
   };
 };
+
+export const resolveCheckoutOrigin = (
+  orderSource: Pick<OrderSourceSnapshot, "sourceStorefront" | "sourceOrigin">,
+) =>
+  sanitizeOrigin(orderSource.sourceOrigin) ??
+  getConfiguredStorefrontOrigin(orderSource.sourceStorefront) ??
+  getConfiguredStorefrontOrigin("MAIN") ??
+  "http://localhost:3000";
 
 export const formatOrderSourceLabel = (
   sourceStorefront?: string | null,

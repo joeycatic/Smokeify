@@ -19,7 +19,7 @@ import {
   pointsToDiscountCents,
 } from "@/lib/loyalty";
 import { createGuestCheckoutAccess } from "@/lib/checkoutAccess";
-import { resolveOrderSourceFromRequest } from "@/lib/orderSource";
+import { resolveCheckoutOrigin, resolveOrderSourceFromRequest } from "@/lib/orderSource";
 
 export const runtime = "nodejs";
 
@@ -403,10 +403,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const appBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
-    process.env.NEXTAUTH_URL?.replace(/\/+$/, "") ??
-    "http://localhost:3000";
+  const orderSource = resolveOrderSourceFromRequest(req);
+  const appBaseUrl = resolveCheckoutOrigin(orderSource);
   const shippingAmount = getShippingAmount(country);
   const freeShippingCents = toCents(FREE_SHIPPING_THRESHOLD_EUR);
   const shippingCents =
@@ -458,7 +456,6 @@ export async function POST(req: Request) {
     appliedDiscountCode = promotionCode.code ?? rawDiscountCode;
   }
 
-  const orderSource = resolveOrderSourceFromRequest(req);
   const metadata: Record<string, string> = { country };
   if (orderSource.sourceStorefront) {
     metadata.sourceStorefront = orderSource.sourceStorefront;
