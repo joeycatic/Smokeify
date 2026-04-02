@@ -87,12 +87,15 @@ const parseRequestUrl = (value?: string | null) => {
 export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnapshot => {
   const requestUrl = parseRequestUrl(request.url);
   const forwardedHost = normalizeHost(request.headers.get("x-forwarded-host"));
+  const originHeader = sanitizeOrigin(request.headers.get("origin"));
+  const originHost = parseHostFromUrl(originHeader);
   const host =
     forwardedHost ??
     normalizeHost(request.headers.get("host")) ??
+    originHost ??
     requestUrl.host;
   const origin =
-    sanitizeOrigin(request.headers.get("origin")) ??
+    originHeader ??
     (host
       ? sanitizeOrigin(
           `${request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"}://${host}`,
@@ -110,23 +113,26 @@ export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnap
 export const resolveOrderSourceFromMetadata = (
   metadata?: Record<string, string | null | undefined> | null,
 ): OrderSourceSnapshot => {
-  const sourceHost = normalizeHost(metadata?.sourceHost ?? null);
+  const sourceOrigin = sanitizeOrigin(metadata?.sourceOrigin ?? null);
+  const sourceHost =
+    normalizeHost(metadata?.sourceHost ?? null) ?? parseHostFromUrl(sourceOrigin);
   const explicitStorefront = parseStorefront(metadata?.sourceStorefront ?? null);
 
   return {
     sourceStorefront: explicitStorefront ?? resolveStorefrontFromHost(sourceHost),
     sourceHost,
-    sourceOrigin: sanitizeOrigin(metadata?.sourceOrigin ?? null),
+    sourceOrigin,
   };
 };
 
 export const formatOrderSourceLabel = (
   sourceStorefront?: string | null,
   sourceHost?: string | null,
+  sourceOrigin?: string | null,
 ) => {
   const storefront = parseStorefront(sourceStorefront ?? null);
   if (storefront) {
     return STOREFRONT_LABELS[storefront];
   }
-  return sourceHost?.trim() || "Unknown website";
+  return normalizeHost(sourceHost ?? null) ?? parseHostFromUrl(sourceOrigin) ?? "Unknown website";
 };

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveOrderSourceFromRequest } from "@/lib/orderSource";
+import {
+  formatOrderSourceLabel,
+  resolveOrderSourceFromMetadata,
+  resolveOrderSourceFromRequest,
+} from "@/lib/orderSource";
 
 const originalMainUrl = process.env.NEXT_PUBLIC_APP_URL;
 const originalNextAuthUrl = process.env.NEXTAUTH_URL;
@@ -52,5 +56,46 @@ describe("orderSource", () => {
       sourceHost: "smokeify.de",
       sourceOrigin: "https://smokeify.de",
     });
+  });
+
+  it("falls back to the origin header when the request host is internal", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.eu";
+
+    const request = new Request("https://internal.vercel.app/api/checkout", {
+      method: "POST",
+      headers: {
+        origin: "https://growvault.eu",
+      },
+    });
+
+    expect(resolveOrderSourceFromRequest(request)).toEqual({
+      sourceStorefront: "GROW",
+      sourceHost: "growvault.eu",
+      sourceOrigin: "https://growvault.eu",
+    });
+  });
+
+  it("derives sourceHost from metadata.sourceOrigin when metadata.sourceHost is missing", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.eu";
+
+    expect(
+      resolveOrderSourceFromMetadata({
+        sourceOrigin: "https://growvault.eu/checkout",
+      }),
+    ).toEqual({
+      sourceStorefront: "GROW",
+      sourceHost: "growvault.eu",
+      sourceOrigin: "https://growvault.eu",
+    });
+  });
+
+  it("formats the source label from sourceOrigin when sourceHost is unavailable", () => {
+    expect(formatOrderSourceLabel(null, null, "https://growvault.eu/cart")).toBe(
+      "growvault.eu",
+    );
   });
 });

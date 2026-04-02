@@ -740,6 +740,7 @@ export const createOrderFromSession = async (
   const orderSourceLabel = formatOrderSourceLabel(
     created.sourceStorefront,
     created.sourceHost,
+    created.sourceOrigin,
   );
   const itemsForEnrichment = created.items.map((item) => ({
     ...item,

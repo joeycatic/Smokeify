@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { buildFinanceRollup, buildOrderFinanceBreakdown, buildVatSummary } from "@/lib/adminFinance";
 import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
+import { formatOrderSourceLabel } from "@/lib/orderSource";
 import {
   type AdminChartPoint,
   DonutChart,
@@ -115,10 +116,6 @@ const formatDelta = (current: number, previous: number) => {
   const rounded = Math.round(delta * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded}% vs prev 7d`;
 };
-const ORDER_SOURCE_LABELS: Record<string, string> = {
-  MAIN: "Smokeify",
-  GROW: "GrowVault",
-};
 const formatOrderItemName = (name: string, manufacturer?: string | null) => {
   const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
   if (!defaultSuffix.test(name)) return name;
@@ -148,17 +145,19 @@ const buildShippingLines = (order: OrderRow) => {
   return lines.filter((line) => Boolean(line?.trim())) as string[];
 };
 
-const getOrderSourceLabel = (order: Pick<OrderRow, "sourceStorefront" | "sourceHost">) => {
-  if (order.sourceStorefront && ORDER_SOURCE_LABELS[order.sourceStorefront]) {
-    return ORDER_SOURCE_LABELS[order.sourceStorefront];
-  }
-  return order.sourceHost?.trim() || "Unknown website";
-};
+const getOrderSourceLabel = (
+  order: Pick<OrderRow, "sourceStorefront" | "sourceHost" | "sourceOrigin">,
+) => formatOrderSourceLabel(order.sourceStorefront, order.sourceHost, order.sourceOrigin);
 
-const getOrderSourceDetail = (order: Pick<OrderRow, "sourceStorefront" | "sourceHost">) => {
+const getOrderSourceDetail = (
+  order: Pick<OrderRow, "sourceStorefront" | "sourceHost" | "sourceOrigin">,
+) => {
   const label = getOrderSourceLabel(order);
   if (order.sourceHost && order.sourceHost !== label) {
     return `${label} · ${order.sourceHost}`;
+  }
+  if (order.sourceOrigin && order.sourceOrigin !== label) {
+    return `${label} · ${order.sourceOrigin}`;
   }
   return label;
 };
@@ -183,9 +182,6 @@ const buildTimeline = (order: OrderRow) =>
     label: string;
     at: string;
   }>;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
 
 const getFulfillmentBadge = (status: string, paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(status);
@@ -1337,6 +1333,23 @@ export default function AdminOrdersClient({
             ...order,
             createdAt: new Date(order.createdAt),
           });
+          const orderDate = new Date(order.createdAt).toLocaleDateString("de-DE");
+          const updatedDate = new Date(order.updatedAt).toLocaleDateString("de-DE");
+          const orderEmail = getOrderEmail(order) ?? "No email";
+          const sourceLabel = getOrderSourceLabel(order);
+          const fulfillmentLabel = fulfillmentBadge.label.replace("Fulfillment: ", "");
+          const paymentDetail = order.paymentMethod
+            ? order.stripePaymentIntent
+              ? `${order.paymentMethod} · Stripe linked`
+              : order.paymentMethod
+            : order.stripePaymentIntent
+              ? "Stripe linked"
+              : "No payment method captured";
+          const fulfillmentDetail = tracking.number
+            ? [tracking.carrier, tracking.number].filter(Boolean).join(" · ")
+            : isShippingEmailSent(order)
+              ? "Shipping email sent"
+              : "No tracking update yet";
 
           return (
             <div
@@ -1360,136 +1373,168 @@ export default function AdminOrdersClient({
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}
-                className="grid w-full gap-5 text-left xl:grid-cols-[minmax(0,1fr)_220px]"
+                className="grid w-full gap-6 text-left xl:grid-cols-[minmax(0,1.4fr)_280px]"
               >
-                <div className="min-w-0 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0 space-y-5">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-black/10 pb-4">
                     <span className="orders-meta-chip rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-700">
                       Order {order.id.slice(0, 8).toUpperCase()}
                     </span>
                     <span className="orders-meta-chip rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
-                      {new Date(order.createdAt).toLocaleDateString("de-DE")}
+                      {orderDate}
                     </span>
-                    <span className="orders-meta-chip rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-800">
-                      {getOrderSourceLabel(order)}
-                    </span>
-                    {order.paymentMethod ? (
-                      <span className="orders-meta-chip orders-meta-chip-payment rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-700">
-                        {order.paymentMethod}
+                    {isArchived ? (
+                      <span className="orders-meta-chip rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-[11px] font-medium text-stone-700">
+                        Archived
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-3 text-sm font-semibold text-stone-900">
-                    {getOrderEmail(order) ?? "No email"}
-                  </div>
-                  <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">
-                    <span className={getOrderStatusBadgeClass(order.status)}>
-                      Status: {order.status}
-                    </span>
-                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
-                      Payment: {order.paymentStatus}
-                    </span>
-                    <span
-                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
-                    >
-                      {fulfillmentBadge.label}
-                    </span>
-                    {isShippingEmailSent(order) && (
-                      <span
-                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
-                      >
-                        Shipping email: sent
-                      </span>
-                    )}
-                  </div>
-                  {!isOpen && (
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Items
-                        </div>
-                        <div className="mt-2 text-base font-semibold text-stone-900">
-                          {order.items.length}
-                        </div>
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.95fr)]">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Customer
                       </div>
-                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                      <div className="mt-2 break-all text-lg font-semibold text-stone-950">
+                        {orderEmail}
+                      </div>
+                      {shippingLines.length ? (
+                        <div className="mt-2 text-sm text-stone-600">
+                          {shippingLines[0]}
+                          {shippingLines.length > 1
+                            ? ` · ${shippingLines.slice(1).join(", ")}`
+                            : ""}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-sm text-stone-500">
+                          No shipping address captured
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-black/10 bg-white/70 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
                           Website
                         </div>
-                        <div className="mt-2 text-base font-semibold text-stone-900">
-                          {getOrderSourceLabel(order)}
+                        <div className="mt-2 text-sm font-semibold text-stone-900">
+                          {sourceLabel}
                         </div>
-                        {order.sourceHost ? (
-                          <div className="mt-1 text-xs text-stone-500">{order.sourceHost}</div>
-                        ) : null}
+                        <div className="mt-1 text-xs text-stone-500">
+                          {order.sourceHost && order.sourceHost !== sourceLabel
+                            ? order.sourceHost
+                            : order.sourceOrigin ?? "No host captured"}
+                        </div>
                       </div>
-                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+                      <div className="rounded-2xl border border-black/10 bg-white/70 px-4 py-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Refunded
+                          Payment
                         </div>
-                        <div className="mt-2 text-base font-semibold text-stone-900">
-                          {formatPrice(order.amountRefunded, order.currency)}
+                        <div className="mt-2 text-sm font-semibold text-stone-900">
+                          {order.paymentStatus}
                         </div>
+                        <div className="mt-1 text-xs text-stone-500">{paymentDetail}</div>
                       </div>
-                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Net revenue
-                        </div>
-                        <div className="mt-2 text-base font-semibold text-stone-900">
-                          {formatPrice(finance.netRevenueCents, order.currency)}
-                        </div>
-                      </div>
-                      <div className="orders-summary-tile rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                          Contribution
-                        </div>
-                        <div className="mt-2 text-base font-semibold text-stone-900">
-                          {formatPrice(finance.contributionMarginCents, order.currency)}
-                        </div>
-                      </div>
+                    </div>
+                  </div>
+                  <div className="orders-status-panel grid gap-3 rounded-[22px] border border-black/10 bg-stone-50/80 p-4 md:grid-cols-3">
+                    <OrderStateBlock
+                      label="Order status"
+                      value={order.status}
+                      badgeClass={getOrderStatusBadgeClass(order.status)}
+                      detail={`Updated ${updatedDate}`}
+                    />
+                    <OrderStateBlock
+                      label="Payment"
+                      value={order.paymentStatus}
+                      badgeClass={getPaymentBadgeClass(order.paymentStatus)}
+                      detail={paymentDetail}
+                    />
+                    <OrderStateBlock
+                      label="Fulfillment"
+                      value={fulfillmentLabel}
+                      badgeClass={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
+                      detail={fulfillmentDetail}
+                    />
+                  </div>
+                  {!isOpen && (
+                    <div className="orders-overview-stats grid gap-x-6 gap-y-4 border-t border-black/10 pt-4 sm:grid-cols-2 xl:grid-cols-5">
+                      <OrderOverviewStat
+                        label="Items"
+                        value={String(order.items.length)}
+                        detail={
+                          order.items.length === 1
+                            ? "single line item"
+                            : "line items in order"
+                        }
+                      />
+                      <OrderOverviewStat
+                        label="Website"
+                        value={sourceLabel}
+                        detail={order.sourceHost ?? "no host captured"}
+                      />
+                      <OrderOverviewStat
+                        label="Refunded"
+                        value={formatPrice(order.amountRefunded, order.currency)}
+                        detail="already returned to customer"
+                      />
+                      <OrderOverviewStat
+                        label="Net revenue"
+                        value={formatPrice(finance.netRevenueCents, order.currency)}
+                        detail="after VAT and refunds"
+                      />
+                      <OrderOverviewStat
+                        label="Contribution"
+                        value={formatPrice(finance.contributionMarginCents, order.currency)}
+                        detail="after fees and COGS"
+                        valueClassName={
+                          finance.contributionMarginCents < 0
+                            ? "text-rose-700"
+                            : finance.contributionMarginCents > 0
+                              ? "text-emerald-800"
+                              : "text-stone-900"
+                        }
+                      />
                     </div>
                   )}
                 </div>
-                <div className="orders-total-panel flex min-w-[180px] flex-col items-start rounded-[22px] border border-black/10 bg-[#08111d] px-4 py-4 text-left text-white xl:items-end xl:text-right">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Total value
+                <div className="orders-total-panel flex min-w-[220px] flex-col justify-between rounded-[24px] border border-black/10 bg-[#08111d] px-5 py-5 text-left text-white">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Total value
+                    </div>
+                    <div className="mt-3 text-[clamp(2rem,3vw,2.5rem)] font-semibold leading-none text-white">
+                      {formatPrice(order.amountTotal, order.currency)}
+                    </div>
+                    <div className="mt-3 text-sm text-slate-300">
+                      {order.items.length} {order.items.length === 1 ? "item" : "items"} in
+                      this order
+                    </div>
                   </div>
-                  <div className="mt-2 text-xl font-semibold text-white">
-                    {formatPrice(order.amountTotal, order.currency)}
+                  <div className="mt-5 space-y-3 border-t border-white/10 pt-4 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Updated</span>
+                      <span className="font-medium text-white">{updatedDate}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Net revenue</span>
+                      <span className="font-medium text-white">
+                        {formatPrice(finance.netRevenueCents, order.currency)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Refunded</span>
+                      <span className="font-medium text-white">
+                        {formatPrice(order.amountRefunded, order.currency)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    {order.items.length} items · updated{" "}
-                    {new Date(order.updatedAt).toLocaleDateString("de-DE")}
-                  </div>
-                  <div className="mt-4 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
-                    {isOpen ? "Collapse details" : "Expand details"}
+                  <div className="mt-5 inline-flex items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                    {isOpen ? "Hide details" : "View details"}
                   </div>
                 </div>
               </button>
 
               {isOpen && (
                 <div className="mt-4 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className={getOrderStatusBadgeClass(order.status)}>
-                      Status: {order.status}
-                    </span>
-                    <span className={getPaymentBadgeClass(order.paymentStatus)}>
-                      Payment: {order.paymentStatus}
-                    </span>
-                    <span
-                      className={`${ORDER_BADGE_BASE} ${fulfillmentBadge.className}`}
-                    >
-                      {fulfillmentBadge.label}
-                    </span>
-                    {isShippingEmailSent(order) && (
-                      <span
-                        className={`${ORDER_BADGE_BASE} orders-status-chip orders-status-chip-info border-sky-200 bg-sky-50 text-sky-800`}
-                      >
-                        Shipping email: sent
-                      </span>
-                    )}
-                  </div>
-
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <OrderHealthCard
                       label="Payment"
@@ -2325,6 +2370,52 @@ function SummaryCard({
   );
 }
 
+function OrderStateBlock({
+  label,
+  value,
+  detail,
+  badgeClass,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  badgeClass: string;
+}) {
+  return (
+    <div className="orders-state-block rounded-2xl border border-black/10 bg-white/80 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+        {label}
+      </p>
+      <div className="mt-2">
+        <span className={badgeClass}>{value}</span>
+      </div>
+      <p className="mt-3 text-xs text-stone-500">{detail}</p>
+    </div>
+  );
+}
+
+function OrderOverviewStat({
+  label,
+  value,
+  detail,
+  valueClassName = "text-stone-900",
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="orders-overview-stat space-y-1 xl:border-l xl:border-black/10 xl:pl-6 first:xl:border-l-0 first:xl:pl-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+        {label}
+      </p>
+      <p className={`text-base font-semibold ${valueClassName}`}>{value}</p>
+      {detail ? <p className="text-xs text-stone-500">{detail}</p> : null}
+    </div>
+  );
+}
+
 function OrderHealthCard({
   label,
   value,
@@ -2335,12 +2426,12 @@ function OrderHealthCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#07111d] p-4 text-white shadow-[0_16px_32px_rgba(8,17,29,0.16)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+    <div className="rounded-[22px] border border-black/10 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
         {label}
       </p>
-      <p className="mt-3 text-sm font-semibold text-white">{value}</p>
-      <p className="mt-2 text-xs text-slate-400">{detail}</p>
+      <p className="mt-3 text-sm font-semibold text-stone-900">{value}</p>
+      <p className="mt-2 text-xs text-stone-500">{detail}</p>
     </div>
   );
 }

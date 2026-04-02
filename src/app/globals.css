@@ -1136,6 +1136,43 @@ body {
     0 16px 34px rgba(0, 0, 0, 0.22);
 }
 
+.admin-theme.admin-dark .admin-legacy-page .orders-status-panel {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(8, 13, 21, 0.92), rgba(10, 16, 24, 0.84)) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-state-block {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(9, 14, 24, 0.9), rgba(10, 15, 22, 0.82)) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-state-block .text-stone-500,
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stat .text-stone-500 {
+  color: #90a2b6 !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stats {
+  border-top-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stat {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stat .text-stone-900 {
+  color: #f8fafc !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stat .text-emerald-800 {
+  color: #86efac !important;
+}
+
+.admin-theme.admin-dark .admin-legacy-page .orders-overview-stat .text-rose-700 {
+  color: #fda4af !important;
+}
+
 .admin-theme.admin-dark .admin-legacy-page .orders-status-chip {
   border-width: 1px;
   backdrop-filter: blur(10px);

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
 import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
+import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 
 type Props = {
@@ -20,11 +21,6 @@ const PAID_PAYMENT_STATUSES = new Set([
   "refunded",
   "partially_refunded",
 ]);
-const ORDER_SOURCE_LABELS: Record<string, string> = {
-  MAIN: "Smokeify",
-  GROW: "GrowVault",
-};
-
 const formatPrice = (amount: number, currency: string) =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -95,13 +91,8 @@ const buildShippingLines = (order: AdminOrderRecord) => {
 };
 
 const getOrderSourceLabel = (
-  order: Pick<AdminOrderRecord, "sourceStorefront" | "sourceHost">,
-) => {
-  if (order.sourceStorefront && ORDER_SOURCE_LABELS[order.sourceStorefront]) {
-    return ORDER_SOURCE_LABELS[order.sourceStorefront];
-  }
-  return order.sourceHost?.trim() || "Unknown website";
-};
+  order: Pick<AdminOrderRecord, "sourceStorefront" | "sourceHost" | "sourceOrigin">,
+) => formatOrderSourceLabel(order.sourceStorefront, order.sourceHost, order.sourceOrigin);
 
 export default function AdminOrderDetailClient({ detail }: Props) {
   const [order, setOrder] = useState(detail.order);
