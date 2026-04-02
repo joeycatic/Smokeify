@@ -469,7 +469,12 @@ export const createOrderFromSession = async (
   const paymentMethod = await resolvePaymentMethod(stripe, checkoutSession);
   const paymentFeeConfig =
     PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
-  const orderSource = resolveOrderSourceFromMetadata(checkoutSession.metadata ?? {});
+  const orderSource = resolveOrderSourceFromMetadata(checkoutSession.metadata ?? {}, [
+    checkoutSession.success_url,
+    checkoutSession.cancel_url,
+    checkoutSession.return_url,
+    checkoutSession.url,
+  ]);
 
   const variantIds = Array.from(
     new Set(

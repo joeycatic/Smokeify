@@ -8,6 +8,7 @@ import {
   parseAdminTimeRangeDays,
   type AdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
+import { formatOrderSourceLabel } from "@/lib/orderSource";
 import { prisma } from "@/lib/prisma";
 
 export const ADMIN_REPORT_TYPES = ["overview", "orders", "products", "customers"] as const;
@@ -173,6 +174,7 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
         customerEmail: true,
         sourceStorefront: true,
         sourceHost: true,
+        sourceOrigin: true,
       },
     }),
     prisma.orderItem.groupBy({
@@ -206,6 +208,7 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
         customerEmail: true,
         sourceStorefront: true,
         sourceHost: true,
+        sourceOrigin: true,
       },
     }),
     getFinancePageData(filters.days),
@@ -230,9 +233,11 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
     { label: string; orders: number; revenueCents: number }
   >();
   for (const order of currentOrders) {
-    const label =
-      order.sourceHost?.trim() ||
-      (order.sourceStorefront === "GROW" ? "GrowVault" : "Smokeify");
+    const label = formatOrderSourceLabel(
+      order.sourceStorefront,
+      order.sourceHost,
+      order.sourceOrigin,
+    );
     const current = sourceMap.get(label) ?? { label, orders: 0, revenueCents: 0 };
     current.orders += 1;
     if (PAID_STATUS_SET.has(order.paymentStatus.trim().toLowerCase())) {

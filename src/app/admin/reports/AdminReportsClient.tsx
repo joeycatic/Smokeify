@@ -15,6 +15,7 @@ import {
 } from "@/components/admin/AdminWorkspace";
 import { buildAdminSearchHref } from "@/lib/adminTimeRange";
 import type { getAdminReportSnapshot } from "@/lib/adminReports";
+import { formatOrderSourceLabel } from "@/lib/orderSource";
 
 type Snapshot = Awaited<ReturnType<typeof getAdminReportSnapshot>>;
 type SavedReport = Snapshot["savedReports"][number];
@@ -514,7 +515,11 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                   <div className="mt-1 text-xs text-slate-500">
                     {order.customerEmail ?? "Unknown"} ·{" "}
                     {new Date(order.createdAt).toLocaleString("de-DE")} ·{" "}
-                    {order.sourceHost ?? order.sourceStorefront ?? "unknown source"}
+                    {formatOrderSourceLabel(
+                      order.sourceStorefront,
+                      order.sourceHost,
+                      order.sourceOrigin,
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

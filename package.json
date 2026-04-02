@@ -32,6 +32,7 @@
     "catalog:report-google-feed-headshop-exclusions": "node scripts/catalog/reportGoogleFeedHeadshopExclusions.mjs",
     "catalog:rename-hash-bowl-category": "node scripts/catalog/renameHashBowlCategory.mjs",
     "orders:backfill-payment-fees": "node scripts/orders/backfillOrderPaymentFees.mjs",
+    "orders:backfill-sources": "node scripts/orders/backfillOrderSources.mjs",
     "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
     "testing:seed-orders": "node scripts/testing/seedTestOrders.js",
     "video:studio": "cd remotion && npm run studio",

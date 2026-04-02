@@ -46,6 +46,9 @@ export type OrderSourceSnapshot = {
   sourceOrigin: string | null;
 };
 
+const pickFirst = (values: Array<string | null | undefined>) =>
+  values.find((value): value is string => Boolean(value)) ?? null;
+
 const resolveStorefrontFromHost = (host: string | null): Storefront | null => {
   if (!host) return null;
   const configuredHosts = getConfiguredHostsByStorefront();
@@ -112,10 +115,15 @@ export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnap
 
 export const resolveOrderSourceFromMetadata = (
   metadata?: Record<string, string | null | undefined> | null,
+  fallbackUrls: Array<string | null | undefined> = [],
 ): OrderSourceSnapshot => {
-  const sourceOrigin = sanitizeOrigin(metadata?.sourceOrigin ?? null);
+  const fallbackOrigin = pickFirst(fallbackUrls.map((value) => sanitizeOrigin(value)));
+  const fallbackHost = pickFirst(fallbackUrls.map((value) => parseHostFromUrl(value)));
+  const sourceOrigin = sanitizeOrigin(metadata?.sourceOrigin ?? null) ?? fallbackOrigin;
   const sourceHost =
-    normalizeHost(metadata?.sourceHost ?? null) ?? parseHostFromUrl(sourceOrigin);
+    normalizeHost(metadata?.sourceHost ?? null) ??
+    parseHostFromUrl(sourceOrigin) ??
+    fallbackHost;
   const explicitStorefront = parseStorefront(metadata?.sourceStorefront ?? null);
 
   return {

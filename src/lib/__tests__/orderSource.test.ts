@@ -93,6 +93,23 @@ describe("orderSource", () => {
     });
   });
 
+  it("falls back to checkout urls when metadata is missing", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.eu";
+
+    expect(
+      resolveOrderSourceFromMetadata({}, [
+        "https://growvault.eu/order/success?session_id=cs_test_123",
+        "https://growvault.eu/cart?checkout=cancel",
+      ]),
+    ).toEqual({
+      sourceStorefront: "GROW",
+      sourceHost: "growvault.eu",
+      sourceOrigin: "https://growvault.eu",
+    });
+  });
+
   it("formats the source label from sourceOrigin when sourceHost is unavailable", () => {
     expect(formatOrderSourceLabel(null, null, "https://growvault.eu/cart")).toBe(
       "growvault.eu",

@@ -5,6 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { buildFinanceRollup, buildOrderFinanceBreakdown, buildVatSummary } from "@/lib/adminFinance";
+import {
+  buildOrderCustomerCopyText,
+  getOrderCustomerEmail as getOrderEmail,
+} from "@/lib/adminOrderCustomer";
 import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import {
@@ -101,7 +105,6 @@ const PAID_PAYMENT_STATUSES = new Set([
   "partially_refunded",
 ]);
 const CLOSED_ORDER_STATUSES = new Set(["fulfilled", "refunded", "canceled", "cancelled", "failed"]);
-const getOrderEmail = (order: OrderRow) => order.user?.email ?? order.customerEmail;
 const formatDayLabel = (value: Date) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",
@@ -302,9 +305,31 @@ export default function AdminOrdersClient({
   const [reprocessingEventId, setReprocessingEventId] = useState<string | null>(
     null
   );
+  const [copiedCustomerKey, setCopiedCustomerKey] = useState<string | null>(null);
   const [orderUpdatedAtById, setOrderUpdatedAtById] = useState<
     Record<string, string>
   >(() => Object.fromEntries(orders.map((order) => [order.id, order.updatedAt])));
+
+  const copyCustomerValue = async (
+    key: string,
+    label: string,
+    value: string
+  ) => {
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      setError(`No ${label.toLowerCase()} available to copy.`);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(normalizedValue);
+      setCopiedCustomerKey(key);
+      window.setTimeout(() => {
+        setCopiedCustomerKey((current) => (current === key ? null : current));
+      }, 1800);
+    } catch {
+      setError(`Failed to copy ${label.toLowerCase()}.`);
+    }
+  };
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => !hiddenOrderIds.includes(order.id)),
@@ -1370,6 +1395,41 @@ export default function AdminOrdersClient({
                   </span>
                 </div>
               )}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Customer copy tools
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyCustomerValue(
+                        `${order.id}:email`,
+                        "Email",
+                        getOrderEmail(order)
+                      )
+                    }
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-black/20 hover:bg-stone-50"
+                  >
+                    {copiedCustomerKey === `${order.id}:email` ? "Copied email" : "Copy email"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyCustomerValue(
+                        `${order.id}:customer`,
+                        "Customer details",
+                        buildOrderCustomerCopyText(order)
+                      )
+                    }
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800 transition hover:border-cyan-300 hover:bg-cyan-100"
+                  >
+                    {copiedCustomerKey === `${order.id}:customer`
+                      ? "Copied customer"
+                      : "Copy customer"}
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setOpenId(isOpen ? null : order.id)}

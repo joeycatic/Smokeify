@@ -11,6 +11,33 @@ const TEST_SESSION_PREFIX = "test_session_";
 const START_DATE = new Date("2026-01-06T08:00:00");
 const END_DATE = new Date("2026-01-27T20:00:00");
 
+const sanitizeOrigin = (value) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return null;
+  }
+};
+
+const parseHostFromUrl = (value) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    return new URL(trimmed).host.toLowerCase();
+  } catch {
+    return null;
+  }
+};
+
+const DEFAULT_SOURCE_ORIGIN =
+  sanitizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
+  sanitizeOrigin(process.env.NEXTAUTH_URL) ??
+  "https://smokeify.de";
+const DEFAULT_SOURCE_HOST = parseHostFromUrl(DEFAULT_SOURCE_ORIGIN) ?? "smokeify.de";
+const DEFAULT_SOURCE_STOREFRONT = "MAIN";
+
 const FIRST_NAMES = [
   "Anna",
   "Ben",
@@ -319,6 +346,9 @@ async function main() {
         userId: user.id,
         stripeSessionId: `${TEST_SESSION_PREFIX}${randomUUID()}`,
         stripePaymentIntent: null,
+        sourceStorefront: DEFAULT_SOURCE_STOREFRONT,
+        sourceHost: DEFAULT_SOURCE_HOST,
+        sourceOrigin: DEFAULT_SOURCE_ORIGIN,
         status,
         paymentStatus: "paid",
         currency: CURRENCY,

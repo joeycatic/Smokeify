@@ -29,6 +29,7 @@ import {
   getAdminTimeWindowStart,
   type AdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
+import { STOREFRONT_LABELS } from "@/lib/storefronts";
 
 const getDateDaysAgo = (daysAgo: number) => {
   const date = new Date();
@@ -427,8 +428,42 @@ export async function getExpensesPageData(days = 120) {
   };
 }
 
-export async function getProfitabilityPageData(days = 30) {
-  const productPerformance = await getProductPerformance(days);
+export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
+  const [
+    productPerformance,
+    allFinanceData,
+    mainFinanceData,
+    growFinanceData,
+    mainCatalogCount,
+    mainExclusiveCatalogCount,
+    growCatalogCount,
+    growExclusiveCatalogCount,
+  ] = await Promise.all([
+    getProductPerformance(days),
+    getFinancePageData(days),
+    getFinancePageData(days, "MAIN"),
+    getFinancePageData(days, "GROW"),
+    prisma.product.count({
+      where: { status: "ACTIVE", storefronts: { has: "MAIN" } },
+    }),
+    prisma.product.count({
+      where: {
+        status: "ACTIVE",
+        storefronts: { has: "MAIN" },
+        NOT: { storefronts: { has: "GROW" } },
+      },
+    }),
+    prisma.product.count({
+      where: { status: "ACTIVE", storefronts: { has: "GROW" } },
+    }),
+    prisma.product.count({
+      where: {
+        status: "ACTIVE",
+        storefronts: { has: "GROW" },
+        NOT: { storefronts: { has: "MAIN" } },
+      },
+    }),
+  ]);
   const productIds = productPerformance.map((item) => item.productId);
   const products = productIds.length
     ? await prisma.product.findMany({
@@ -436,6 +471,7 @@ export async function getProfitabilityPageData(days = 30) {
         select: {
           id: true,
           title: true,
+          storefronts: true,
           supplierRef: { select: { name: true } },
           mainCategory: { select: { name: true } },
         },
@@ -448,6 +484,7 @@ export async function getProfitabilityPageData(days = 30) {
       const product = productMap.get(item.productId);
       return {
         ...item,
+        storefronts: product?.storefronts ?? ["MAIN"],
         categoryName: product?.mainCategory?.name ?? "Uncategorized",
         supplierName: product?.supplierRef?.name ?? "Unknown supplier",
         marginRate: item.revenueCents > 0 ? item.marginCents / item.revenueCents : 0,
@@ -455,12 +492,135 @@ export async function getProfitabilityPageData(days = 30) {
     })
     .sort((left, right) => right.marginCents - left.marginCents);
 
+  const buildStorefrontSummary = (
+    storefront: Storefront,
+    financeData: Awaited<ReturnType<typeof getFinancePageData>>,
+    activeProductCount: number,
+    exclusiveProductCount: number,
+  ) => {
+    const paidOrderCount = financeData.currentFinance.paidOrderCount;
+    return {
+      storefront,
+      label: STOREFRONT_LABELS[storefront],
+      activeProductCount,
+      exclusiveProductCount,
+      paidOrderCount,
+      refundedOrderCount: financeData.currentFinance.refundedOrderCount,
+      grossRevenueCents: financeData.currentFinance.grossRevenueCents,
+      netRevenueCents: financeData.currentFinance.netRevenueCents,
+      contributionMarginCents: financeData.currentFinance.contributionMarginCents,
+      contributionMarginRatio: financeData.currentFinance.contributionMarginRatio,
+      averageOrderValueCents:
+        paidOrderCount > 0
+          ? Math.round(financeData.currentFinance.grossRevenueCents / paidOrderCount)
+          : 0,
+      contributionPerOrderCents:
+        paidOrderCount > 0
+          ? Math.round(financeData.currentFinance.contributionMarginCents / paidOrderCount)
+          : 0,
+      refundRate:
+        paidOrderCount > 0
+          ? financeData.currentFinance.refundedOrderCount / paidOrderCount
+          : 0,
+    };
+  };
+
+  const storefronts = [
+    buildStorefrontSummary("MAIN", mainFinanceData, mainCatalogCount, mainExclusiveCatalogCount),
+    buildStorefrontSummary("GROW", growFinanceData, growCatalogCount, growExclusiveCatalogCount),
+  ].sort((left, right) => right.contributionMarginCents - left.contributionMarginCents);
+
+  const priceLiftCandidates = [...rows]
+    .filter(
+      (row) =>
+        row.purchases >= 2 &&
+        row.conversionRate >= 0.03 &&
+        row.marginRate > 0 &&
+        row.marginRate <= 0.35,
+    )
+    .sort((left, right) => {
+      if (right.purchases !== left.purchases) return right.purchases - left.purchases;
+      if (right.conversionRate !== left.conversionRate) {
+        return right.conversionRate - left.conversionRate;
+      }
+      return left.marginRate - right.marginRate;
+    })
+    .slice(0, 8);
+
+  const marginLeakCandidates = [...rows]
+    .filter(
+      (row) =>
+        row.views >= 20 && (row.marginCents <= 0 || row.marginRate <= 0.18),
+    )
+    .sort((left, right) => {
+      if (right.views !== left.views) return right.views - left.views;
+      if (left.marginRate !== right.marginRate) return left.marginRate - right.marginRate;
+      return left.marginCents - right.marginCents;
+    })
+    .slice(0, 8);
+
+  const scaleCandidates = [...rows]
+    .filter(
+      (row) =>
+        row.marginCents > 0 &&
+        row.marginRate >= 0.25 &&
+        row.conversionRate >= 0.02 &&
+        row.views <= 120,
+    )
+    .sort((left, right) => {
+      if (right.marginCents !== left.marginCents) return right.marginCents - left.marginCents;
+      if (right.marginRate !== left.marginRate) return right.marginRate - left.marginRate;
+      return left.views - right.views;
+    })
+    .slice(0, 8);
+
+  const growExpansionCandidates = [...rows]
+    .filter(
+      (row) =>
+        row.storefronts.includes("MAIN") &&
+        !row.storefronts.includes("GROW") &&
+        row.marginCents > 0 &&
+        row.purchases >= 2 &&
+        row.conversionRate >= 0.02,
+    )
+    .sort((left, right) => {
+      if (right.marginCents !== left.marginCents) return right.marginCents - left.marginCents;
+      if (right.purchases !== left.purchases) return right.purchases - left.purchases;
+      return right.conversionRate - left.conversionRate;
+    })
+    .slice(0, 8);
+
+  const unattributedPaidOrders = Math.max(
+    allFinanceData.currentFinance.paidOrderCount -
+      mainFinanceData.currentFinance.paidOrderCount -
+      growFinanceData.currentFinance.paidOrderCount,
+    0,
+  );
+  const unattributedContributionCents = Math.max(
+    allFinanceData.currentFinance.contributionMarginCents -
+      mainFinanceData.currentFinance.contributionMarginCents -
+      growFinanceData.currentFinance.contributionMarginCents,
+    0,
+  );
+
   return {
     rows,
     topProfit: rows.slice(0, 10),
     lowestProfit: [...rows].sort((left, right) => left.marginCents - right.marginCents).slice(0, 10),
     strongestMargin: [...rows].sort((left, right) => right.marginRate - left.marginRate).slice(0, 10),
     weakestMargin: [...rows].sort((left, right) => left.marginRate - right.marginRate).slice(0, 10),
+    storefronts,
+    opportunities: {
+      priceLiftCandidates,
+      marginLeakCandidates,
+      scaleCandidates,
+      growExpansionCandidates,
+    },
+    coverage: {
+      currency: allFinanceData.currentFinance.currency,
+      unattributedPaidOrders,
+      unattributedContributionCents,
+    },
   };
 }
 
