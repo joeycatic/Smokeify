@@ -260,6 +260,7 @@ export default function AdminPricingClient({
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<PricingRecommendationItem | null>(null);
   const [customApprovalPrice, setCustomApprovalPrice] = useState("");
+  const [customApprovalError, setCustomApprovalError] = useState("");
   const [runLimit, setRunLimit] = useState("");
   const [runNotes, setRunNotes] = useState("");
 
@@ -275,9 +276,11 @@ export default function AdminPricingClient({
   useEffect(() => {
     if (!selectedRecommendation) {
       setCustomApprovalPrice("");
+      setCustomApprovalError("");
       return;
     }
     setCustomApprovalPrice(formatPriceInput(selectedRecommendation.publishablePriceCents));
+    setCustomApprovalError("");
   }, [selectedRecommendation]);
 
   const refreshSnapshot = async (successMessage?: string) => {
@@ -362,6 +365,7 @@ export default function AdminPricingClient({
     setPendingReviewId(recommendationId);
     setError("");
     setMessage("");
+    setCustomApprovalError("");
 
     try {
       const response = await fetch(`/api/admin/pricing/recommendations/${recommendationId}`, {
@@ -379,7 +383,9 @@ export default function AdminPricingClient({
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(data.error ?? "Unable to process pricing recommendation.");
+        const nextError = data.error ?? "Unable to process pricing recommendation.";
+        setError(nextError);
+        setCustomApprovalError(nextError);
         return;
       }
 
@@ -394,7 +400,9 @@ export default function AdminPricingClient({
         setSelectedRecommendation(null);
       }
     } catch {
-      setError("Unable to process pricing recommendation.");
+      const nextError = "Unable to process pricing recommendation.";
+      setError(nextError);
+      setCustomApprovalError(nextError);
     } finally {
       setPendingReviewId(null);
     }
@@ -405,7 +413,7 @@ export default function AdminPricingClient({
 
     const parsedCustomPriceCents = parsePriceInputToCents(customApprovalPrice);
     if (Number.isNaN(parsedCustomPriceCents)) {
-      setError("Enter a valid approval price in EUR, for example 89,95.");
+      setCustomApprovalError("Enter a valid approval price in EUR, for example 89,95.");
       return;
     }
 
@@ -413,7 +421,20 @@ export default function AdminPricingClient({
       parsedCustomPriceCents !== null &&
       parsedCustomPriceCents <= 0
     ) {
-      setError("Custom approval price must be greater than zero.");
+      setCustomApprovalError("Custom approval price must be greater than zero.");
+      return;
+    }
+
+    if (
+      parsedCustomPriceCents !== null &&
+      typeof selectedRecommendation.hardMinimumPriceCents === "number" &&
+      parsedCustomPriceCents < selectedRecommendation.hardMinimumPriceCents
+    ) {
+      setCustomApprovalError(
+        `Custom approval price cannot be lower than the hard floor of ${formatCurrency(
+          selectedRecommendation.hardMinimumPriceCents
+        )}.`
+      );
       return;
     }
 
@@ -899,7 +920,12 @@ export default function AdminPricingClient({
                   <AdminInput
                     inputMode="decimal"
                     value={customApprovalPrice}
-                    onChange={(event) => setCustomApprovalPrice(event.target.value)}
+                    onChange={(event) => {
+                      setCustomApprovalPrice(event.target.value);
+                      if (customApprovalError) {
+                        setCustomApprovalError("");
+                      }
+                    }}
                     placeholder="e.g. 89,95"
                   />
                 </AdminField>
@@ -910,6 +936,11 @@ export default function AdminPricingClient({
                   </div>
                 </div>
               </div>
+              {customApprovalError ? (
+                <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                  {customApprovalError}
+                </div>
+              ) : null}
             </div>
 
             {selectedRecommendation.status === "PENDING_REVIEW" ? (
