@@ -327,7 +327,7 @@ export default function AdminPricingClient({
       <AdminPageIntro
         eyebrow="Operations / Pricing"
         title="Pricing automation control"
-        description="Smokeify consumes explainable pricing recommendations from Growvault. Review queues, preview runs, approvals, and audit activity stay visible here, while pricing logic remains upstream."
+        description="Smokeify consumes explainable pricing recommendations from the shared pricing service. Review queues, preview runs, approvals, and audit activity stay visible here, while pricing logic remains upstream."
         actions={
           <>
             <AdminButton tone="secondary" onClick={() => refreshSnapshot()}>
@@ -375,7 +375,7 @@ export default function AdminPricingClient({
       {message ? <AdminNotice tone="success">{message}</AdminNotice> : null}
       {!snapshot && !error ? (
         <AdminNotice tone="info">
-          Pricing integration is connected, but Growvault has not returned overview data yet.
+          Pricing integration is connected, but the shared pricing service has not returned overview data yet.
         </AdminNotice>
       ) : null}
 
@@ -383,7 +383,7 @@ export default function AdminPricingClient({
         <AdminPanel
           eyebrow="Run Controls"
           title="Preview or apply the upstream engine"
-          description="Use preview mode to populate recommendations without changing prices. Apply mode will execute Growvault’s approved automation flow and write eligible price changes."
+          description="Use preview mode to populate recommendations without changing prices. Apply mode will execute the shared pricing automation flow and write eligible price changes."
         >
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">

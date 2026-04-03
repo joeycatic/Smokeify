@@ -172,7 +172,9 @@ const asStringArray = (value: unknown): string[] =>
     : [];
 
 const toIntegrationMessage = (error: unknown) =>
-  error instanceof Error ? error.message : "Growvault pricing integration failed.";
+  error instanceof Error
+    ? error.message
+    : "Shared admin pricing integration failed.";
 
 const normalizeMode = (value: unknown): PricingRunMode =>
   value === "PREVIEW" ? "PREVIEW" : "APPLY";
@@ -420,10 +422,12 @@ export const extractVariantPricingProfilesFromProductPayload = (
 };
 
 const resolveBaseUrl = () => {
-  const raw = process.env.GROWVAULT_ADMIN_API_BASE_URL?.trim();
+  const raw =
+    process.env.SMOKEIFY_ADMIN_API_BASE_URL?.trim() ??
+    process.env.GROWVAULT_ADMIN_API_BASE_URL?.trim();
   if (!raw) {
     throw new GrowvaultAdminIntegrationError(
-      "GROWVAULT_ADMIN_API_BASE_URL is required for pricing integration."
+      "SMOKEIFY_ADMIN_API_BASE_URL is required for pricing integration. GROWVAULT_ADMIN_API_BASE_URL is still supported as a legacy alias."
     );
   }
 
@@ -431,21 +435,23 @@ const resolveBaseUrl = () => {
     return new URL(raw.endsWith("/") ? raw : `${raw}/`);
   } catch {
     throw new GrowvaultAdminIntegrationError(
-      "GROWVAULT_ADMIN_API_BASE_URL must be a valid absolute URL."
+      "SMOKEIFY_ADMIN_API_BASE_URL must be a valid absolute URL."
     );
   }
 };
 
 const getCookieCandidates = (forwardedCookieHeader?: string | null) => {
   const forwarded = forwardedCookieHeader?.trim();
-  const configured = process.env.GROWVAULT_ADMIN_SESSION_COOKIE?.trim();
+  const configured =
+    process.env.SMOKEIFY_ADMIN_SESSION_COOKIE?.trim() ??
+    process.env.GROWVAULT_ADMIN_SESSION_COOKIE?.trim();
   const candidates = [forwarded, configured].filter(
     (value, index, source): value is string => Boolean(value) && source.indexOf(value) === index
   );
 
   if (candidates.length === 0) {
     throw new GrowvaultAdminIntegrationError(
-      "Growvault admin session is unavailable. Forward a shared admin session cookie or configure GROWVAULT_ADMIN_SESSION_COOKIE."
+      "Shared admin session is unavailable. Forward a shared admin session cookie or configure SMOKEIFY_ADMIN_SESSION_COOKIE."
     );
   }
 

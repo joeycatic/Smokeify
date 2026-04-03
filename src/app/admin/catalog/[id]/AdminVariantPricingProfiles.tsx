@@ -291,7 +291,7 @@ export default function AdminVariantPricingProfiles({
               Pricing automation
             </p>
             <p className="text-xs text-slate-400">
-              Growvault-backed per-variant pricing profiles. No pricing logic runs locally.
+              Shared-admin-backed per-variant pricing profiles. No pricing logic runs locally.
             </p>
           </div>
         </div>
@@ -305,7 +305,7 @@ export default function AdminVariantPricingProfiles({
         {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
         {!pricingIntegrationError && missingVariantCount > 0 ? (
           <AdminNotice tone="info">
-            {missingVariantCount} variant(s) do not have a Growvault pricing profile record yet.
+            {missingVariantCount} variant(s) do not have a pricing profile record yet.
           </AdminNotice>
         ) : null}
 
