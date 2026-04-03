@@ -63,6 +63,13 @@ export type PricingRecommendationItem = {
     mode: PricingRunMode;
     startedAt: string;
   };
+  competitorSnapshot: {
+    minPriceCents: number | null;
+    averagePriceCents: number | null;
+    observedAt: string | null;
+    sourceLabel: string | null;
+    reliabilityScore: number | null;
+  } | null;
 };
 
 export type PricingChangeItem = {
@@ -231,6 +238,7 @@ const normalizeRecommendationItem = (
   const product = asObject(record?.product);
   const variant = asObject(record?.variant);
   const run = asObject(record?.run);
+  const inputSnapshot = asObject(record?.inputSnapshot);
   const id = asString(record?.id);
   const productId = asString(product?.id);
   const variantId = asString(variant?.id);
@@ -287,6 +295,15 @@ const normalizeRecommendationItem = (
       mode: normalizeMode(run.mode),
       startedAt,
     },
+    competitorSnapshot: inputSnapshot
+      ? {
+          minPriceCents: asNumber(inputSnapshot.competitorMinPriceCents),
+          averagePriceCents: asNumber(inputSnapshot.competitorAveragePriceCents),
+          observedAt: asNullableString(inputSnapshot.competitorObservedAt),
+          sourceLabel: asNullableString(inputSnapshot.competitorSourceLabel),
+          reliabilityScore: asNumber(inputSnapshot.competitorReliabilityScore),
+        }
+      : null,
   };
 };
 
