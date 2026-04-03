@@ -1,18 +1,16 @@
 import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
 import { requireAdmin } from "@/lib/adminCatalog";
-import { getAdminPricingOverview } from "@/lib/adminPricingIntegration";
+import { getAdminPricingOverview } from "@/lib/adminPricingServer";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const snapshot = await getAdminPricingOverview({
-      forwardedCookieHeader: request.headers.get("cookie"),
-    });
+    const snapshot = await getAdminPricingOverview();
     return adminJson(snapshot);
   } catch (error) {
     return adminJson(
@@ -20,7 +18,7 @@ export async function GET(request: NextRequest) {
         error:
           error instanceof Error
             ? error.message
-            : "Unable to load Growvault pricing overview.",
+            : "Unable to load pricing overview.",
       },
       { status: 502 }
     );

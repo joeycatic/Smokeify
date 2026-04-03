@@ -1,7 +1,6 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/adminCatalog";
-import { getGrowvaultProductVariantPricingSafe } from "@/lib/adminPricingIntegration";
+import { getAdminProductVariantPricingProfilesSafe } from "@/lib/adminPricingServer";
 import { getStockCoverageMap, PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
 import AdminProductClient from "./AdminProductClient";
@@ -13,7 +12,6 @@ export default async function AdminProductPage({
 }) {
   const { id } = await params;
   if (!(await requireAdmin())) notFound();
-  const requestHeaders = await headers();
 
   const product = await prisma.product.findUnique({
     where: { id },
@@ -146,9 +144,7 @@ export default async function AdminProductPage({
         request: { select: { reason: true } },
       },
     }),
-    getGrowvaultProductVariantPricingSafe(id, {
-      forwardedCookieHeader: requestHeaders.get("cookie"),
-    }),
+    getAdminProductVariantPricingProfilesSafe(id),
   ]);
 
   const analytics30dMap = new Map(analytics30d.map((row) => [row.eventName, row._count._all]));

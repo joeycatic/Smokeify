@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import { reviewAdminPricingRecommendation } from "@/lib/adminPricingIntegration";
+import { reviewAdminPricingRecommendation } from "@/lib/adminPricingServer";
 import type { PricingRecommendationAction } from "@/lib/adminPricingIntegration";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -42,7 +42,10 @@ export async function PATCH(
       id,
       body.action === "reject" ? "reject" : "approve",
       {
-        forwardedCookieHeader: request.headers.get("cookie"),
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
       }
     );
     return adminJson(result);

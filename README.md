@@ -100,7 +100,7 @@ Other variables in `.env.example` are grouped by concern:
 - supplier sync and repricing
 - storage and observability
 
-Pricing integration uses the shared Smokeify admin origin. Set `SMOKEIFY_ADMIN_API_BASE_URL` to that admin host when the pricing service is not available on the same request origin. The legacy `GROWVAULT_ADMIN_API_BASE_URL` name is still accepted for backward compatibility.
+Pricing automation now runs directly in Smokeify. The pricing engine, recommendation history, review queue, and price change audit data all live in this repo and use the `PRICING_AUTOMATION_*` environment values documented in `.env.example`.
 
 ### 3. Prepare the database
 

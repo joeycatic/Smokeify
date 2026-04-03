@@ -268,7 +268,7 @@ export default function AdminVariantPricingProfiles({
         ...prev,
         [variantId]: buildFormState(data.variantPricing!),
       }));
-      setMessage("Pricing profile saved to Growvault.");
+      setMessage("Pricing profile saved.");
     } catch {
       setError("Unable to save pricing profile.");
     } finally {
@@ -291,7 +291,7 @@ export default function AdminVariantPricingProfiles({
               Pricing automation
             </p>
             <p className="text-xs text-slate-400">
-              Shared-admin-backed per-variant pricing profiles. No pricing logic runs locally.
+              Per-variant pricing profiles for Smokeify’s local automation engine.
             </p>
           </div>
         </div>
@@ -343,7 +343,7 @@ export default function AdminVariantPricingProfiles({
                       </>
                     ) : (
                       <span className="rounded-full border border-red-400/20 bg-red-400/10 px-3 py-1 text-red-200">
-                        Growvault variant missing
+                        Pricing profile missing
                       </span>
                     )}
                   </div>
@@ -378,7 +378,7 @@ export default function AdminVariantPricingProfiles({
 
                 <div className="flex flex-col items-start justify-between gap-3">
                   <div className="text-xs text-slate-400">
-                    Remote variant sync {record ? formatDateTime(record.variantUpdatedAt) : "n/a"}
+                    Last pricing update {record ? formatDateTime(record.variantUpdatedAt) : "n/a"}
                   </div>
                   <AdminButton
                     tone="secondary"
@@ -400,7 +400,7 @@ export default function AdminVariantPricingProfiles({
         title={selectedRecord?.variantTitle ?? "Pricing profile"}
         description={
           selectedRecord
-            ? `${selectedRecord.sku ? `SKU ${selectedRecord.sku} · ` : ""}Remote sync ${formatDateTime(
+            ? `${selectedRecord.sku ? `SKU ${selectedRecord.sku} · ` : ""}Last pricing update ${formatDateTime(
                 selectedRecord.variantUpdatedAt
               )}`
             : undefined

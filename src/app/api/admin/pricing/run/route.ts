@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import {
-  runAdminPricingAutomation,
-} from "@/lib/adminPricingIntegration";
+import { runAdminPricingAutomation } from "@/lib/adminPricingServer";
 import type { PricingRunMode } from "@/lib/adminPricingIntegration";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -50,7 +48,10 @@ export async function POST(request: NextRequest) {
         notes: typeof body.notes === "string" ? body.notes : null,
       },
       {
-        forwardedCookieHeader: request.headers.get("cookie"),
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
       }
     );
 

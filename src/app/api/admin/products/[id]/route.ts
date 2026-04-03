@@ -43,7 +43,7 @@ export async function GET(
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
-        include: { options: true, inventory: true },
+        include: { options: true, inventory: true, pricingProfile: true },
       },
       categories: {
         orderBy: { position: "asc" },

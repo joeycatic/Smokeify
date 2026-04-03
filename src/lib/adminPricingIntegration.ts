@@ -125,29 +125,7 @@ export type VariantPricingProfileRecord = {
 
 export type PricingProfilePatch = Partial<PricingProfile>;
 
-type GrowvaultRequestOptions = {
-  forwardedCookieHeader?: string | null;
-  searchParams?: Record<string, string | number | boolean | null | undefined>;
-};
-
-type GrowvaultSafeResult<T> = {
-  data: T | null;
-  error: string | null;
-};
-
 type JsonObject = Record<string, unknown>;
-
-const DEFAULT_TIMEOUT_MS = 15_000;
-
-export class GrowvaultAdminIntegrationError extends Error {
-  status: number | null;
-
-  constructor(message: string, status: number | null = null) {
-    super(message);
-    this.name = "GrowvaultAdminIntegrationError";
-    this.status = status;
-  }
-}
 
 const asObject = (value: unknown): JsonObject | null =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -158,7 +136,11 @@ const asString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value : null;
 
 const asNullableString = (value: unknown): string | null =>
-  typeof value === "string" ? value : null;
+  typeof value === "string"
+    ? value
+    : value instanceof Date
+      ? value.toISOString()
+      : null;
 
 const asNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -170,11 +152,6 @@ const asStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
-
-const toIntegrationMessage = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : "Shared admin pricing integration failed.";
 
 const normalizeMode = (value: unknown): PricingRunMode =>
   value === "PREVIEW" ? "PREVIEW" : "APPLY";
@@ -393,7 +370,7 @@ export const normalizePricingOverview = (value: unknown): PricingOverviewSnapsho
 const normalizeVariantPricingRecord = (value: unknown): VariantPricingProfileRecord | null => {
   const record = asObject(value);
   const variantId = asString(record?.id);
-  const variantUpdatedAt = asString(record?.updatedAt);
+  const variantUpdatedAt = asNullableString(record?.updatedAt);
 
   if (!record || !variantId || !variantUpdatedAt) return null;
 
@@ -420,259 +397,3 @@ export const extractVariantPricingProfilesFromProductPayload = (
       .map((entry) => [entry.variantId, entry])
   );
 };
-
-const resolveBaseUrl = () => {
-  const raw =
-    process.env.SMOKEIFY_ADMIN_API_BASE_URL?.trim() ??
-    process.env.GROWVAULT_ADMIN_API_BASE_URL?.trim();
-  if (!raw) {
-    throw new GrowvaultAdminIntegrationError(
-      "SMOKEIFY_ADMIN_API_BASE_URL is required for pricing integration. GROWVAULT_ADMIN_API_BASE_URL is still supported as a legacy alias."
-    );
-  }
-
-  try {
-    return new URL(raw.endsWith("/") ? raw : `${raw}/`);
-  } catch {
-    throw new GrowvaultAdminIntegrationError(
-      "SMOKEIFY_ADMIN_API_BASE_URL must be a valid absolute URL."
-    );
-  }
-};
-
-const getCookieCandidates = (forwardedCookieHeader?: string | null) => {
-  const forwarded = forwardedCookieHeader?.trim();
-  const configured =
-    process.env.SMOKEIFY_ADMIN_SESSION_COOKIE?.trim() ??
-    process.env.GROWVAULT_ADMIN_SESSION_COOKIE?.trim();
-  const candidates = [forwarded, configured].filter(
-    (value, index, source): value is string => Boolean(value) && source.indexOf(value) === index
-  );
-
-  if (candidates.length === 0) {
-    throw new GrowvaultAdminIntegrationError(
-      "Shared admin session is unavailable. Forward a shared admin session cookie or configure SMOKEIFY_ADMIN_SESSION_COOKIE."
-    );
-  }
-
-  return candidates;
-};
-
-const buildUrl = (
-  path: string,
-  searchParams?: Record<string, string | number | boolean | null | undefined>
-) => {
-  const baseUrl = resolveBaseUrl();
-  const url = new URL(path.replace(/^\//, ""), baseUrl);
-  if (searchParams) {
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (typeof value === "undefined" || value === null || value === "") continue;
-      url.searchParams.set(key, String(value));
-    }
-  }
-  return url;
-};
-
-const parseErrorMessage = async (response: Response) => {
-  const text = await response.text();
-  if (!text) {
-    return `Growvault request failed with status ${response.status}.`;
-  }
-
-  try {
-    const payload = JSON.parse(text) as { error?: unknown };
-    if (typeof payload.error === "string" && payload.error.trim()) {
-      return payload.error;
-    }
-  } catch {
-    // Fall through to raw text.
-  }
-
-  return text;
-};
-
-async function requestGrowvaultAdminJson<T>(
-  path: string,
-  init: RequestInit = {},
-  options: GrowvaultRequestOptions = {}
-) {
-  const url = buildUrl(path, options.searchParams);
-  const cookieCandidates = getCookieCandidates(options.forwardedCookieHeader);
-  let lastError: GrowvaultAdminIntegrationError | null = null;
-
-  for (const cookieHeader of cookieCandidates) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-
-    try {
-      const headers = new Headers(init.headers);
-      headers.set("accept", "application/json");
-      headers.set("cookie", cookieHeader);
-
-      const method = (init.method ?? "GET").toUpperCase();
-      if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-        headers.set("origin", url.origin);
-        headers.set("referer", `${url.origin}/admin/pricing`);
-      }
-
-      const response = await fetch(url, {
-        ...init,
-        headers,
-        cache: "no-store",
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const message = await parseErrorMessage(response);
-        const error = new GrowvaultAdminIntegrationError(message, response.status);
-        if ((response.status === 401 || response.status === 403) && lastError === null) {
-          lastError = error;
-          continue;
-        }
-        throw error;
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof GrowvaultAdminIntegrationError) {
-        throw error;
-      }
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new GrowvaultAdminIntegrationError(
-          "Growvault pricing request timed out."
-        );
-      }
-      throw new GrowvaultAdminIntegrationError(toIntegrationMessage(error));
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  throw (
-    lastError ??
-    new GrowvaultAdminIntegrationError("Growvault pricing request was not authorized.", 401)
-  );
-}
-
-export async function getAdminPricingOverview(
-  options: GrowvaultRequestOptions = {}
-): Promise<PricingOverviewSnapshot> {
-  const payload = await requestGrowvaultAdminJson<unknown>(
-    "/api/admin/pricing",
-    undefined,
-    options
-  );
-  return normalizePricingOverview(payload);
-}
-
-export async function getAdminPricingOverviewSafe(
-  options: GrowvaultRequestOptions = {}
-): Promise<GrowvaultSafeResult<PricingOverviewSnapshot>> {
-  try {
-    return {
-      data: await getAdminPricingOverview(options),
-      error: null,
-    };
-  } catch (error) {
-    return {
-      data: null,
-      error: toIntegrationMessage(error),
-    };
-  }
-}
-
-export async function runAdminPricingAutomation(
-  body: {
-    mode: PricingRunMode;
-    limit?: number;
-    notes?: string | null;
-  },
-  options: GrowvaultRequestOptions = {}
-): Promise<{ summary: PricingRunSummary & { runId: string } }> {
-  return requestGrowvaultAdminJson(
-    "/api/admin/pricing/run",
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
-    options
-  );
-}
-
-export async function reviewAdminPricingRecommendation(
-  recommendationId: string,
-  action: PricingRecommendationAction,
-  options: GrowvaultRequestOptions = {}
-): Promise<{ ok: true; status: PricingRecommendationStatus }> {
-  return requestGrowvaultAdminJson(
-    `/api/admin/pricing/recommendations/${recommendationId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ action }),
-    },
-    options
-  );
-}
-
-export async function getGrowvaultProductVariantPricing(
-  productId: string,
-  options: GrowvaultRequestOptions = {}
-): Promise<Record<string, VariantPricingProfileRecord>> {
-  const payload = await requestGrowvaultAdminJson<unknown>(
-    `/api/admin/products/${productId}`,
-    undefined,
-    options
-  );
-  return extractVariantPricingProfilesFromProductPayload(payload);
-}
-
-export async function getGrowvaultProductVariantPricingSafe(
-  productId: string,
-  options: GrowvaultRequestOptions = {}
-): Promise<GrowvaultSafeResult<Record<string, VariantPricingProfileRecord>>> {
-  try {
-    return {
-      data: await getGrowvaultProductVariantPricing(productId, options),
-      error: null,
-    };
-  } catch (error) {
-    return {
-      data: null,
-      error: toIntegrationMessage(error),
-    };
-  }
-}
-
-export async function updateGrowvaultVariantPricingProfile(
-  variantId: string,
-  body: {
-    pricingProfile: PricingProfilePatch;
-    expectedUpdatedAt?: string | null;
-  },
-  options: GrowvaultRequestOptions = {}
-): Promise<VariantPricingProfileRecord> {
-  const payload = await requestGrowvaultAdminJson<unknown>(
-    `/api/admin/variants/${variantId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
-    options
-  );
-  const variant = normalizeVariantPricingRecord(asObject(payload)?.variant);
-  if (!variant) {
-    throw new GrowvaultAdminIntegrationError(
-      "Growvault variant response was missing pricing profile data."
-    );
-  }
-  return variant;
-}

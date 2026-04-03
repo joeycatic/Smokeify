@@ -327,7 +327,7 @@ export default function AdminPricingClient({
       <AdminPageIntro
         eyebrow="Operations / Pricing"
         title="Pricing automation control"
-        description="Smokeify consumes explainable pricing recommendations from the shared pricing service. Review queues, preview runs, approvals, and audit activity stay visible here, while pricing logic remains upstream."
+        description="Smokeify runs explainable pricing recommendations locally. Review queues, preview runs, approvals, and audit activity stay visible here alongside the live pricing engine."
         actions={
           <>
             <AdminButton tone="secondary" onClick={() => refreshSnapshot()}>
@@ -375,15 +375,15 @@ export default function AdminPricingClient({
       {message ? <AdminNotice tone="success">{message}</AdminNotice> : null}
       {!snapshot && !error ? (
         <AdminNotice tone="info">
-          Pricing integration is connected, but the shared pricing service has not returned overview data yet.
+          Pricing automation is enabled, but no overview data is available yet.
         </AdminNotice>
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <AdminPanel
           eyebrow="Run Controls"
-          title="Preview or apply the upstream engine"
-          description="Use preview mode to populate recommendations without changing prices. Apply mode will execute the shared pricing automation flow and write eligible price changes."
+          title="Preview or apply the local engine"
+          description="Use preview mode to populate recommendations without changing prices. Apply mode executes Smokeify’s pricing automation flow and writes eligible price changes."
         >
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -397,7 +397,7 @@ export default function AdminPricingClient({
               </AdminField>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Latest upstream run
+                  Latest run
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {latestRun ? (
@@ -426,7 +426,7 @@ export default function AdminPricingClient({
 
             <AdminField
               label="Operator notes"
-              optional="stored upstream when supported by Growvault"
+              optional="stored with the pricing run"
             >
               <AdminTextarea
                 rows={3}
@@ -455,7 +455,7 @@ export default function AdminPricingClient({
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-4">
                 <div className="text-sm font-semibold text-emerald-100">Apply run</div>
                 <div className="mt-2 text-sm text-emerald-50/80">
-                  Publish eligible prices upstream and write audit entries for every applied change.
+                  Publish eligible prices and write audit entries for every applied change.
                 </div>
                 <div className="mt-4">
                   <AdminButton
@@ -498,12 +498,12 @@ export default function AdminPricingClient({
         <AdminPanel
           eyebrow="Recent Recommendations"
           title="Activity and explanation feed"
-          description="Blocked rows, review-required recommendations, previews, approvals, and published outcomes all stay visible with their upstream reason codes."
+          description="Blocked rows, review-required recommendations, previews, approvals, and published outcomes all stay visible with their reason codes."
         >
           {recentRecommendations.length === 0 ? (
             <AdminEmptyState
               title="No recommendation history yet."
-              description="Run a preview in Growvault to populate recommendation history."
+              description="Run a preview to populate recommendation history."
             />
           ) : (
             <div className="space-y-3">
@@ -662,12 +662,12 @@ export default function AdminPricingClient({
       <AdminPanel
         eyebrow="Applied Changes"
         title="Recent published price changes"
-        description="Every upstream write is visible with old price, new price, floor, reason codes, and actor/source metadata so operators can audit the automation trail."
+        description="Every pricing write is visible with old price, new price, floor, reason codes, and actor/source metadata so operators can audit the automation trail."
       >
         {recentChanges.length === 0 ? (
           <AdminEmptyState
             title="No applied changes yet."
-            description="Apply runs will populate this audit table once Growvault writes price changes."
+            description="Apply runs populate this audit table once the pricing engine writes price changes."
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]">

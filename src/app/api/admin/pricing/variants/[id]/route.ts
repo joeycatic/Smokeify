@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import { updateGrowvaultVariantPricingProfile } from "@/lib/adminPricingIntegration";
+import { updateAdminVariantPricingProfile } from "@/lib/adminPricingServer";
 import type { PricingProfilePatch } from "@/lib/adminPricingIntegration";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -46,7 +46,7 @@ export async function PATCH(
   }
 
   try {
-    const variantPricing = await updateGrowvaultVariantPricingProfile(
+    const variantPricing = await updateAdminVariantPricingProfile(
       id,
       {
         pricingProfile: body.pricingProfile,
@@ -54,7 +54,10 @@ export async function PATCH(
           typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : null,
       },
       {
-        forwardedCookieHeader: request.headers.get("cookie"),
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
       }
     );
 
@@ -65,7 +68,7 @@ export async function PATCH(
         error:
           error instanceof Error
             ? error.message
-            : "Unable to save Growvault pricing profile.",
+            : "Unable to save pricing profile.",
       },
       { status: 502 }
     );

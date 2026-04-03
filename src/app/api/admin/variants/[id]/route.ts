@@ -178,7 +178,7 @@ export async function PATCH(
 
   const variant = await prisma.variant.findUnique({
     where: { id },
-    include: { options: true, inventory: true, product: true },
+    include: { options: true, inventory: true, product: true, pricingProfile: true },
   });
   if (variant?.product?.handle) {
     revalidatePath(`/products/${variant.product.handle}`);
