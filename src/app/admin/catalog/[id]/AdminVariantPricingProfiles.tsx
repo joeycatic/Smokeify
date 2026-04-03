@@ -63,6 +63,25 @@ const formatDateTime = (value: string | null | undefined) =>
 
 const toInputString = (value: number | null) => (value === null ? "" : String(value));
 
+const buildEmptyFormState = (): PricingProfileFormState => ({
+  supplierShippingCostCents: "",
+  inboundShippingCostCents: "",
+  packagingCostCents: "",
+  handlingCostCents: "",
+  paymentFeePercentBasisPoints: "",
+  paymentFixedFeeCents: "",
+  returnRiskBufferBasisPoints: "",
+  targetMarginBasisPoints: "",
+  competitorMinPriceCents: "",
+  competitorAveragePriceCents: "",
+  competitorObservedAt: "",
+  competitorSourceLabel: "",
+  competitorSourceCount: "",
+  competitorReliabilityScore: "",
+  productSegment: "CORE",
+  autoRepriceEnabled: true,
+});
+
 const toDateTimeLocalValue = (value: string | null) => {
   if (!value) return "";
   const date = new Date(value);
@@ -140,10 +159,13 @@ export default function AdminVariantPricingProfiles({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const selectedVariant = selectedVariantId
+    ? variants.find((variant) => variant.id === selectedVariantId) ?? null
+    : null;
   const selectedRecord = selectedVariantId ? recordsByVariantId[selectedVariantId] ?? null : null;
   const selectedForm =
-    selectedVariantId && formByVariantId[selectedVariantId]
-      ? formByVariantId[selectedVariantId]
+    selectedVariantId && selectedVariant
+      ? formByVariantId[selectedVariantId] ?? buildEmptyFormState()
       : null;
 
   const missingVariantCount = useMemo(
@@ -163,24 +185,7 @@ export default function AdminVariantPricingProfiles({
         ...(prev[variantId] ??
           (existingRecord
             ? buildFormState(existingRecord)
-            : {
-                supplierShippingCostCents: "",
-                inboundShippingCostCents: "",
-                packagingCostCents: "",
-                handlingCostCents: "",
-                paymentFeePercentBasisPoints: "",
-                paymentFixedFeeCents: "",
-                returnRiskBufferBasisPoints: "",
-                targetMarginBasisPoints: "",
-                competitorMinPriceCents: "",
-                competitorAveragePriceCents: "",
-                competitorObservedAt: "",
-                competitorSourceLabel: "",
-                competitorSourceCount: "",
-                competitorReliabilityScore: "",
-                productSegment: "CORE",
-                autoRepriceEnabled: true,
-              })),
+            : buildEmptyFormState())),
         [key]: value,
       },
     }));
@@ -189,7 +194,7 @@ export default function AdminVariantPricingProfiles({
   const saveVariantProfile = async (variantId: string) => {
     const record = recordsByVariantId[variantId];
     const form = formByVariantId[variantId];
-    if (!record || !form) return;
+    if (!form) return;
 
     setSavingVariantId(variantId);
     setMessage("");
@@ -247,7 +252,7 @@ export default function AdminVariantPricingProfiles({
         },
         body: JSON.stringify({
           pricingProfile: payload,
-          expectedUpdatedAt: record.variantUpdatedAt,
+          expectedUpdatedAt: record?.variantUpdatedAt ?? null,
         }),
       });
       const data = (await response.json()) as {
@@ -383,9 +388,9 @@ export default function AdminVariantPricingProfiles({
                   <AdminButton
                     tone="secondary"
                     onClick={() => setSelectedVariantId(variant.id)}
-                    disabled={!record || Boolean(pricingIntegrationError)}
+                    disabled={Boolean(pricingIntegrationError)}
                   >
-                    Edit profile
+                    {record ? "Edit profile" : "Create profile"}
                   </AdminButton>
                 </div>
               </div>
@@ -395,27 +400,32 @@ export default function AdminVariantPricingProfiles({
       </div>
 
       <AdminDrawer
-        open={selectedRecord !== null && selectedForm !== null}
+        open={selectedVariant !== null && selectedForm !== null}
         onClose={() => setSelectedVariantId(null)}
-        title={selectedRecord?.variantTitle ?? "Pricing profile"}
+        title={selectedRecord?.variantTitle ?? selectedVariant?.title ?? "Pricing profile"}
         description={
-          selectedRecord
-            ? `${selectedRecord.sku ? `SKU ${selectedRecord.sku} · ` : ""}Last pricing update ${formatDateTime(
-                selectedRecord.variantUpdatedAt
-              )}`
+          selectedVariant
+            ? `${selectedVariant.sku ? `SKU ${selectedVariant.sku} · ` : ""}Current price ${formatCurrency(
+                selectedVariant.priceCents
+              )} · Last pricing update ${formatDateTime(selectedRecord?.variantUpdatedAt)}`
             : undefined
         }
         widthClassName="w-full max-w-3xl"
       >
-        {selectedRecord && selectedForm ? (
+        {selectedVariantId && selectedVariant && selectedForm ? (
           <div className="space-y-5">
+            {!selectedRecord ? (
+              <AdminNotice tone="info">
+                No pricing profile exists yet for this variant. Saving will create one.
+              </AdminNotice>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               <AdminField label="Product segment">
                 <AdminSelect
                   value={selectedForm.productSegment}
                   onChange={(event) =>
                     updateField(
-                      selectedRecord.variantId,
+                      selectedVariantId,
                       "productSegment",
                       event.target.value as PricingProductSegment
                     )
@@ -434,7 +444,7 @@ export default function AdminVariantPricingProfiles({
                   value={selectedForm.autoRepriceEnabled ? "enabled" : "disabled"}
                   onChange={(event) =>
                     updateField(
-                      selectedRecord.variantId,
+                      selectedVariantId,
                       "autoRepriceEnabled",
                       event.target.value === "enabled"
                     )
@@ -459,7 +469,7 @@ export default function AdminVariantPricingProfiles({
                 ["targetMarginBasisPoints", "Target margin (bps)"],
               ]}
               form={selectedForm}
-              variantId={selectedRecord.variantId}
+              variantId={selectedVariantId}
               onChange={updateField}
             />
 
@@ -472,7 +482,7 @@ export default function AdminVariantPricingProfiles({
                 ["competitorReliabilityScore", "Competitor reliability score"],
               ]}
               form={selectedForm}
-              variantId={selectedRecord.variantId}
+              variantId={selectedVariantId}
               onChange={updateField}
             />
 
@@ -483,7 +493,7 @@ export default function AdminVariantPricingProfiles({
                   value={selectedForm.competitorObservedAt}
                   onChange={(event) =>
                     updateField(
-                      selectedRecord.variantId,
+                      selectedVariantId,
                       "competitorObservedAt",
                       event.target.value
                     )
@@ -495,7 +505,7 @@ export default function AdminVariantPricingProfiles({
                   value={selectedForm.competitorSourceLabel}
                   onChange={(event) =>
                     updateField(
-                      selectedRecord.variantId,
+                      selectedVariantId,
                       "competitorSourceLabel",
                       event.target.value
                     )
@@ -507,12 +517,14 @@ export default function AdminVariantPricingProfiles({
 
             <div className="flex justify-end">
               <AdminButton
-                onClick={() => saveVariantProfile(selectedRecord.variantId)}
-                disabled={savingVariantId === selectedRecord.variantId}
+                onClick={() => saveVariantProfile(selectedVariantId)}
+                disabled={savingVariantId === selectedVariantId}
               >
-                {savingVariantId === selectedRecord.variantId
+                {savingVariantId === selectedVariantId
                   ? "Saving..."
-                  : "Save pricing profile"}
+                  : selectedRecord
+                    ? "Save pricing profile"
+                    : "Create pricing profile"}
               </AdminButton>
             </div>
           </div>
