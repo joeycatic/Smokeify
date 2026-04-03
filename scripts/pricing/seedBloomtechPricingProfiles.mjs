@@ -192,8 +192,8 @@ const extractGuestGrossPriceCents = (html) => {
   const basePrice = Number.parseFloat(match[1].replace(",", "."));
   if (!Number.isFinite(basePrice)) return null;
 
-  // Bloomtech meta price is stored net in the public markup; normalize to gross EUR cents.
-  return Math.round(basePrice * 1.19 * 100);
+  // Bloomtech public product pages expose the guest-facing gross price in markup.
+  return Math.round(basePrice * 100);
 };
 
 const buildUpdateData = ({

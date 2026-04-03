@@ -144,6 +144,7 @@ const serializeInputSnapshot = (
   competitorMinPriceCents: input.competitorMinPriceCents,
   competitorAveragePriceCents: input.competitorAveragePriceCents,
   competitorObservedAt: input.competitorObservedAt?.toISOString() ?? null,
+  competitorSourceLabel: input.competitorSourceLabel ?? null,
   competitorReliabilityScore: input.competitorReliabilityScore,
   productSegment: input.productSegment,
   autoRepriceEnabled: input.autoRepriceEnabled,
@@ -311,6 +312,8 @@ export async function runPricingAutomation({
           variant.pricingProfile?.competitorAveragePriceCents ?? null,
         competitorObservedAt:
           variant.pricingProfile?.competitorObservedAt ?? null,
+        competitorSourceLabel:
+          variant.pricingProfile?.competitorSourceLabel ?? null,
         competitorReliabilityScore:
           variant.pricingProfile?.competitorReliabilityScore ?? null,
         productSegment: variant.pricingProfile?.productSegment ?? "CORE",

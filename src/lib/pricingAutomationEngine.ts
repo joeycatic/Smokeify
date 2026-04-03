@@ -43,6 +43,7 @@ export type PricingCalculationInput = {
   competitorMinPriceCents: number | null;
   competitorAveragePriceCents: number | null;
   competitorObservedAt: Date | null;
+  competitorSourceLabel?: string | null;
   competitorReliabilityScore: number | null;
   productSegment: PricingProductSegment;
   autoRepriceEnabled: boolean;
