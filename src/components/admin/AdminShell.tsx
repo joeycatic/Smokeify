@@ -102,6 +102,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Profitability",
         icon: PresentationChartLineIcon,
       },
+      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon },
       { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon },
     ],
   },

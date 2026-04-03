@@ -4,8 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
+import type { VariantPricingProfileRecord } from "@/lib/adminPricingIntegration";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import RichTextEditor from "@/components/admin/RichTextEditor";
+import AdminVariantPricingProfiles from "./AdminVariantPricingProfiles";
 import {
   collectMerchantPolicyViolations,
   type MerchantPolicyViolation,
@@ -146,6 +148,8 @@ type Props = {
   suppliers: SupplierRow[];
   crossSells: CrossSellItem[];
   insights: ProductInsights;
+  pricingProfilesByVariantId: Record<string, VariantPricingProfileRecord>;
+  pricingIntegrationError?: string | null;
 };
 
 type ProductDetailsState = {
@@ -399,6 +403,7 @@ const PRODUCT_EDITOR_SECTIONS = [
   { id: "associations", label: "Associations" },
   { id: "media", label: "Media" },
   { id: "variants", label: "Variants" },
+  { id: "pricing", label: "Pricing" },
   { id: "cross-sells", label: "Manual overrides" },
 ] as const;
 
@@ -409,6 +414,8 @@ export default function AdminProductClient({
   suppliers,
   crossSells: initialCrossSells,
   insights,
+  pricingProfilesByVariantId,
+  pricingIntegrationError,
 }: Props) {
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
@@ -3516,6 +3523,17 @@ export default function AdminProductClient({
         </div>
 
       </section>
+
+      <AdminVariantPricingProfiles
+        variants={variants.map((variant) => ({
+          id: variant.id,
+          title: variant.title,
+          sku: variant.sku,
+          priceCents: variant.priceCents,
+        }))}
+        pricingProfilesByVariantId={pricingProfilesByVariantId}
+        pricingIntegrationError={pricingIntegrationError}
+      />
 
       <section
         id="cross-sells"

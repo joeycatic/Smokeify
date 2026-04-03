@@ -1,5 +1,7 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { getGrowvaultProductVariantPricingSafe } from "@/lib/adminPricingIntegration";
 import { getStockCoverageMap, PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
 import AdminProductClient from "./AdminProductClient";
@@ -11,6 +13,7 @@ export default async function AdminProductPage({
 }) {
   const { id } = await params;
   if (!(await requireAdmin())) notFound();
+  const requestHeaders = await headers();
 
   const product = await prisma.product.findUnique({
     where: { id },
@@ -53,6 +56,7 @@ export default async function AdminProductPage({
     sales7d,
     trafficSources,
     returnItems,
+    pricingProfilesResult,
   ] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
@@ -141,6 +145,9 @@ export default async function AdminProductPage({
         quantity: true,
         request: { select: { reason: true } },
       },
+    }),
+    getGrowvaultProductVariantPricingSafe(id, {
+      forwardedCookieHeader: requestHeaders.get("cookie"),
     }),
   ]);
 
@@ -241,6 +248,8 @@ export default async function AdminProductPage({
           },
         }))}
         insights={productInsights}
+        pricingProfilesByVariantId={pricingProfilesResult.data ?? {}}
+        pricingIntegrationError={pricingProfilesResult.error}
       />
     </div>
   );
