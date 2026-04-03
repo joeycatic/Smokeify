@@ -440,7 +440,6 @@ export async function runPricingAutomation({
 export async function approvePricingRecommendation(
   recommendationId: string,
   actor: AdminActor,
-  customPriceCents?: number | null,
   prismaClient?: PrismaClient
 ) {
   const db = prismaClient ?? prisma;
@@ -464,21 +463,6 @@ export async function approvePricingRecommendation(
     throw new Error("Only review-queue recommendations can be approved.");
   }
 
-  const appliedPriceCents =
-    typeof customPriceCents === "number"
-      ? Math.round(customPriceCents)
-      : recommendation.publishablePriceCents;
-
-  if (!Number.isInteger(appliedPriceCents) || appliedPriceCents <= 0) {
-    throw new Error("Manual approval price must be a positive amount in cents.");
-  }
-  if (
-    typeof recommendation.hardMinimumPriceCents === "number" &&
-    appliedPriceCents < recommendation.hardMinimumPriceCents
-  ) {
-    throw new Error("Manual approval price cannot be lower than the hard floor.");
-  }
-
   await db.$transaction(async (tx) => {
     const changeAudit = await tx.pricingChangeAudit.create({
       data: {
@@ -488,22 +472,19 @@ export async function approvePricingRecommendation(
         actorId: actor.id ?? null,
         source: "MANUAL_REVIEW",
         oldPriceCents: recommendation.variant.priceCents,
-        newPriceCents: appliedPriceCents,
+        newPriceCents: recommendation.publishablePriceCents,
         hardMinimumPriceCents: recommendation.hardMinimumPriceCents,
         reasonCodes: recommendation.reasonCodes,
         inputSnapshot: toInputJsonValue(recommendation.inputSnapshot),
         metadata: {
           approvedFromReviewQueue: true,
-          recommendedPublishablePriceCents: recommendation.publishablePriceCents,
-          manualOverrideApplied:
-            appliedPriceCents !== recommendation.publishablePriceCents,
         } as Prisma.InputJsonValue,
       },
     });
 
     await tx.variant.update({
       where: { id: recommendation.variantId },
-      data: { priceCents: appliedPriceCents },
+      data: { priceCents: recommendation.publishablePriceCents },
     });
 
     await tx.pricingRecommendation.update({
@@ -526,10 +507,7 @@ export async function approvePricingRecommendation(
     summary: `Approved pricing recommendation for variant ${recommendation.variantId}`,
     metadata: {
       oldPriceCents: recommendation.variant.priceCents,
-      newPriceCents: appliedPriceCents,
-      recommendedPublishablePriceCents: recommendation.publishablePriceCents,
-      manualOverrideApplied:
-        appliedPriceCents !== recommendation.publishablePriceCents,
+      newPriceCents: recommendation.publishablePriceCents,
     } as Prisma.InputJsonValue,
   });
 }

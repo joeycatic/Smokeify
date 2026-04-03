@@ -272,7 +272,6 @@ export async function reviewAdminPricingRecommendation(
   action: PricingRecommendationAction,
   options: {
     actor?: AdminActor | null;
-    customPriceCents?: number | null;
   } = {}
 ): Promise<{ ok: true; status: PricingRecommendationStatus }> {
   const actor = requireActor(options.actor);
@@ -282,7 +281,7 @@ export async function reviewAdminPricingRecommendation(
     return { ok: true, status: "REJECTED" };
   }
 
-  await approvePricingRecommendation(recommendationId, actor, options.customPriceCents);
+  await approvePricingRecommendation(recommendationId, actor);
   return { ok: true, status: "APPLIED" };
 }
 
