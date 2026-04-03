@@ -239,7 +239,12 @@ export async function runPricingAutomation({
 
     const variants = await db.variant.findMany({
       where: {
-        product: { status: "ACTIVE" },
+        product: {
+          status: "ACTIVE",
+          NOT: {
+            supplier: { equals: "B2B Headshop", mode: "insensitive" },
+          },
+        },
       },
       take: limit,
       orderBy: [{ updatedAt: "desc" }],
