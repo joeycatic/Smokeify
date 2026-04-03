@@ -146,11 +146,11 @@ export const ADMIN_SCRIPT_DEFINITIONS: readonly AdminScriptDefinition[] = [
     title: "Seed Bloomtech pricing profiles",
     category: "Suppliers",
     description:
-      "Create or backfill Bloomtech-linked variant pricing profiles from one shared supplier template, with optional Bloomtech guest-price scraping for market fields.",
+      "Create or backfill Bloomtech-linked variant pricing profiles from one shared supplier template, with optional guest-only Bloomtech public-price scraping for market fields.",
     inputSummary:
       "Uses existing Bloomtech-linked catalog records plus pricing-profile defaults from environment variables. No per-product input is required.",
     outputSummary:
-      "Upserts missing or incomplete pricing profiles for Bloomtech variants and can also sync guest-price competitor fields when enabled in the environment.",
+      "Upserts missing or incomplete pricing profiles for Bloomtech variants and can also sync public guest-price competitor fields when enabled in the environment.",
     impact: "Writes variant pricing profile records used by pricing automation.",
     expectedDuration: "1-6 minutes",
     riskLevel: "write",

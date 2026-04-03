@@ -10,6 +10,7 @@
 
 ## `scripts/pricing`
 - `seedBloomtechPricingProfiles.mjs`: bulk-create or backfill Bloomtech variant pricing profiles from one supplier template.
+  - competitor sync is guest-only by design and reads the public Bloomtech storefront without login or cookies
   - requires explicit environment defaults for:
     - `PRICING_PROFILE_SUPPLIER_SHIPPING_CENTS`
     - `PRICING_PROFILE_INBOUND_SHIPPING_CENTS`
@@ -27,7 +28,7 @@
   - write changes explicitly:
     - `PRICING_PROFILE_SEED_ALLOW_WRITE=1 npm run pricing:seed-bloomtech-profiles -- --apply`
   - optional public-price sync:
-    - add `--scrape-guest-price` to store the Bloomtech guest price into competitor fields
+    - add `--scrape-guest-price` to store the Bloomtech public guest price into competitor fields
 
 ## `scripts/b2b-headshop`
 - `scrapeSupplierPreview.mjs`: scrape B2B Headshop supplier data into local preview JSON (supports login/cookie auth).

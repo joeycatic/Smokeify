@@ -10,7 +10,7 @@ const DEFAULT_PAYMENT_FIXED_FEE_CENTS = 25;
 const DEFAULT_RETURN_RISK_BUFFER_BPS = 300;
 const DEFAULT_TARGET_MARGIN_BPS = 2500;
 const DEFAULT_COMPETITOR_RELIABILITY = 0.65;
-const DEFAULT_COMPETITOR_SOURCE_LABEL = "Bloomtech guest price";
+const DEFAULT_COMPETITOR_SOURCE_LABEL = "Bloomtech public guest price";
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
@@ -164,7 +164,9 @@ const resolveRequiredTemplate = () => {
   return template;
 };
 
-const fetchHtml = async (url) => {
+// Pricing competitor data must come from the public Bloomtech storefront view.
+// This request intentionally carries no auth headers, no cookies, and no login state.
+const fetchGuestHtml = async (url) => {
   const response = await fetch(url, {
     headers: {
       "user-agent":
@@ -257,6 +259,11 @@ const run = async () => {
       "[pricing-profile-seed] Dry run only. Set PRICING_PROFILE_SEED_ALLOW_WRITE=1 and pass --apply to write."
     );
   }
+  if (scrapeGuestPrice) {
+    console.log(
+      "[pricing-profile-seed] Competitor sync uses Bloomtech public guest pages only. No login or cookie state is used."
+    );
+  }
 
   const products = await prisma.product.findMany({
     where: buildBloomtechFilter({
@@ -302,7 +309,7 @@ const run = async () => {
         summary.competitorSkipped += product.variants.length;
       } else {
         try {
-          const html = await fetchHtml(product.sellerUrl);
+          const html = await fetchGuestHtml(product.sellerUrl);
           const guestPriceCents = extractGuestGrossPriceCents(html);
           if (guestPriceCents !== null) {
             competitorSnapshot = {
