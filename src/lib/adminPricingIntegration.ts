@@ -70,6 +70,18 @@ export type PricingRecommendationItem = {
     sourceLabel: string | null;
     reliabilityScore: number | null;
   } | null;
+  costSnapshot: {
+    baseCostCents: number | null;
+    supplierShippingCostCents: number | null;
+    inboundShippingCostCents: number | null;
+    packagingCostCents: number | null;
+    handlingCostCents: number | null;
+    baseLandedCostCents: number | null;
+    paymentFeePercentBasisPoints: number | null;
+    paymentFixedFeeCents: number | null;
+    returnRiskBufferBasisPoints: number | null;
+    targetMarginBasisPoints: number | null;
+  } | null;
 };
 
 export type PricingChangeItem = {
@@ -239,6 +251,7 @@ const normalizeRecommendationItem = (
   const variant = asObject(record?.variant);
   const run = asObject(record?.run);
   const inputSnapshot = asObject(record?.inputSnapshot);
+  const outputSnapshot = asObject(record?.outputSnapshot);
   const id = asString(record?.id);
   const productId = asString(product?.id);
   const variantId = asString(variant?.id);
@@ -304,6 +317,39 @@ const normalizeRecommendationItem = (
           reliabilityScore: asNumber(inputSnapshot.competitorReliabilityScore),
         }
       : null,
+    costSnapshot:
+      inputSnapshot || outputSnapshot
+        ? {
+            baseCostCents: inputSnapshot ? asNumber(inputSnapshot.baseCostCents) : null,
+            supplierShippingCostCents: inputSnapshot
+              ? asNumber(inputSnapshot.supplierShippingCostCents)
+              : null,
+            inboundShippingCostCents: inputSnapshot
+              ? asNumber(inputSnapshot.inboundShippingCostCents)
+              : null,
+            packagingCostCents: inputSnapshot
+              ? asNumber(inputSnapshot.packagingCostCents)
+              : null,
+            handlingCostCents: inputSnapshot
+              ? asNumber(inputSnapshot.handlingCostCents)
+              : null,
+            baseLandedCostCents: outputSnapshot
+              ? asNumber(outputSnapshot.baseLandedCostCents)
+              : null,
+            paymentFeePercentBasisPoints: inputSnapshot
+              ? asNumber(inputSnapshot.paymentFeePercentBasisPoints)
+              : null,
+            paymentFixedFeeCents: inputSnapshot
+              ? asNumber(inputSnapshot.paymentFixedFeeCents)
+              : null,
+            returnRiskBufferBasisPoints: inputSnapshot
+              ? asNumber(inputSnapshot.returnRiskBufferBasisPoints)
+              : null,
+            targetMarginBasisPoints: inputSnapshot
+              ? asNumber(inputSnapshot.targetMarginBasisPoints)
+              : null,
+          }
+        : null,
   };
 };
 

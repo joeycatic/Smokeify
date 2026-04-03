@@ -35,6 +35,7 @@ export async function PATCH(
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
     action?: PricingRecommendationAction;
+    customPriceCents?: number | null;
   };
 
   try {
@@ -46,6 +47,11 @@ export async function PATCH(
           id: session.user.id,
           email: session.user.email ?? null,
         },
+        customPriceCents:
+          typeof body.customPriceCents === "number" &&
+          Number.isFinite(body.customPriceCents)
+            ? Math.round(body.customPriceCents)
+            : null,
       }
     );
     return adminJson(result);

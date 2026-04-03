@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AdminButton,
   AdminDrawer,
@@ -33,6 +33,14 @@ const formatCurrency = (amountCents: number | null) =>
     : new Intl.NumberFormat("de-DE", {
         style: "currency",
         currency: "EUR",
+      }).format(amountCents / 100);
+
+const formatPriceInput = (amountCents: number | null) =>
+  amountCents === null
+    ? ""
+    : new Intl.NumberFormat("de-DE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
       }).format(amountCents / 100);
 
 const formatDateTime = (value: string | null | undefined) =>
@@ -76,6 +84,23 @@ const formatReasonCode = (value: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatPercentFromBasisPoints = (value: number | null) =>
+  value === null
+    ? "n/a"
+    : new Intl.NumberFormat("de-DE", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(value / 100) + "%";
+
+const parsePriceInputToCents = (value: string) => {
+  const normalized = value.trim().replace(/\s+/g, "").replace(",", ".");
+  if (!normalized) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return Number.NaN;
+  }
+  return Math.round(Number(normalized) * 100);
+};
+
 function CompetitorSnapshotDetails({
   competitorSnapshot,
 }: {
@@ -107,6 +132,31 @@ function CompetitorSnapshotDetails({
       <div>Observed {formatDateTime(competitorSnapshot.observedAt)}</div>
       <div>Reliability {formatReliability(competitorSnapshot.reliabilityScore)}</div>
     </>
+  );
+}
+
+function CostSnapshotDetails({
+  costSnapshot,
+}: {
+  costSnapshot: PricingRecommendationItem["costSnapshot"];
+}) {
+  if (!costSnapshot) {
+    return <div className="text-sm text-slate-400">No cost breakdown captured.</div>;
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+      <div>Base cost {formatCurrency(costSnapshot.baseCostCents)}</div>
+      <div>Landed cost {formatCurrency(costSnapshot.baseLandedCostCents)}</div>
+      <div>Supplier shipping {formatCurrency(costSnapshot.supplierShippingCostCents)}</div>
+      <div>Inbound shipping {formatCurrency(costSnapshot.inboundShippingCostCents)}</div>
+      <div>Packaging {formatCurrency(costSnapshot.packagingCostCents)}</div>
+      <div>Handling {formatCurrency(costSnapshot.handlingCostCents)}</div>
+      <div>Payment fee {formatPercentFromBasisPoints(costSnapshot.paymentFeePercentBasisPoints)}</div>
+      <div>Fixed fee {formatCurrency(costSnapshot.paymentFixedFeeCents)}</div>
+      <div>Return buffer {formatPercentFromBasisPoints(costSnapshot.returnRiskBufferBasisPoints)}</div>
+      <div>Target margin {formatPercentFromBasisPoints(costSnapshot.targetMarginBasisPoints)}</div>
+    </div>
   );
 }
 
@@ -242,6 +292,8 @@ export default function AdminPricingClient({
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<PricingRecommendationItem | null>(null);
+  const [customApprovalPrice, setCustomApprovalPrice] = useState("");
+  const [customApprovalError, setCustomApprovalError] = useState("");
   const [runLimit, setRunLimit] = useState("");
   const [runNotes, setRunNotes] = useState("");
 
@@ -253,6 +305,16 @@ export default function AdminPricingClient({
   const blockedCount = recentRecommendations.filter(
     (item) => item.status === "BLOCKED"
   ).length;
+
+  useEffect(() => {
+    if (!selectedRecommendation) {
+      setCustomApprovalPrice("");
+      setCustomApprovalError("");
+      return;
+    }
+    setCustomApprovalPrice(formatPriceInput(selectedRecommendation.publishablePriceCents));
+    setCustomApprovalError("");
+  }, [selectedRecommendation]);
 
   const refreshSnapshot = async (successMessage?: string) => {
     setLoading(true);
@@ -330,11 +392,13 @@ export default function AdminPricingClient({
 
   const reviewRecommendation = async (
     recommendationId: string,
-    action: PricingRecommendationAction
+    action: PricingRecommendationAction,
+    options?: { customPriceCents?: number | null }
   ) => {
     setPendingReviewId(recommendationId);
     setError("");
     setMessage("");
+    setCustomApprovalError("");
 
     try {
       const response = await fetch(`/api/admin/pricing/recommendations/${recommendationId}`, {
@@ -342,27 +406,58 @@ export default function AdminPricingClient({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          customPriceCents:
+            typeof options?.customPriceCents === "number"
+              ? options.customPriceCents
+              : null,
+        }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(data.error ?? "Unable to process pricing recommendation.");
+        const nextError = data.error ?? "Unable to process pricing recommendation.";
+        setError(nextError);
+        setCustomApprovalError(nextError);
         return;
       }
 
       await refreshSnapshot(
         action === "approve"
-          ? "Recommendation approved and refreshed."
+          ? typeof options?.customPriceCents === "number"
+            ? "Custom price approved and refreshed."
+            : "Recommendation approved and refreshed."
           : "Recommendation rejected and refreshed."
       );
       if (selectedRecommendation?.id === recommendationId) {
         setSelectedRecommendation(null);
       }
     } catch {
-      setError("Unable to process pricing recommendation.");
+      const nextError = "Unable to process pricing recommendation.";
+      setError(nextError);
+      setCustomApprovalError(nextError);
     } finally {
       setPendingReviewId(null);
     }
+  };
+
+  const approveSelectedRecommendation = async () => {
+    if (!selectedRecommendation) return;
+
+    const parsedCustomPriceCents = parsePriceInputToCents(customApprovalPrice);
+    if (Number.isNaN(parsedCustomPriceCents)) {
+      setCustomApprovalError("Enter a valid approval price in EUR, for example 89,95.");
+      return;
+    }
+
+    if (parsedCustomPriceCents !== null && parsedCustomPriceCents <= 0) {
+      setCustomApprovalError("Custom approval price must be greater than zero.");
+      return;
+    }
+
+    await reviewRecommendation(selectedRecommendation.id, "approve", {
+      customPriceCents: parsedCustomPriceCents,
+    });
   };
 
   return (
@@ -823,11 +918,55 @@ export default function AdminPricingClient({
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Cost breakdown
+              </div>
+              <div className="mt-3">
+                <CostSnapshotDetails costSnapshot={selectedRecommendation.costSnapshot} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Reason codes
               </div>
               <div className="mt-3">
                 <ReasonCodeList reasonCodes={selectedRecommendation.reasonCodes} />
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Approval override
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,220px)_1fr] md:items-end">
+                <AdminField
+                  label="Custom approval price (EUR)"
+                  optional="leave as-is to approve the current publishable price"
+                >
+                  <AdminInput
+                    inputMode="decimal"
+                    value={customApprovalPrice}
+                    onChange={(event) => {
+                      setCustomApprovalPrice(event.target.value);
+                      if (customApprovalError) {
+                        setCustomApprovalError("");
+                      }
+                    }}
+                    placeholder="e.g. 89,95"
+                  />
+                </AdminField>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+                  Recommendation {formatCurrency(selectedRecommendation.publishablePriceCents)}
+                  <div className="mt-1 text-xs text-slate-500">
+                    Floor {formatCurrency(selectedRecommendation.hardMinimumPriceCents)}
+                  </div>
+                </div>
+              </div>
+              {customApprovalError ? (
+                <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                  {customApprovalError}
+                </div>
+              ) : null}
             </div>
 
             {selectedRecommendation.status === "PENDING_REVIEW" ? (
@@ -840,7 +979,7 @@ export default function AdminPricingClient({
                   Reject
                 </AdminButton>
                 <AdminButton
-                  onClick={() => reviewRecommendation(selectedRecommendation.id, "approve")}
+                  onClick={approveSelectedRecommendation}
                   disabled={pendingReviewId === selectedRecommendation.id}
                 >
                   {pendingReviewId === selectedRecommendation.id
