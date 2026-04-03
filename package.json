@@ -18,6 +18,7 @@
     "bloomtech:import-preview": "node scripts/bloomtech/importPreviewToCatalog.mjs",
     "bloomtech:override-pricing": "node scripts/bloomtech/overridePricesAndCosts.mjs",
     "bloomtech:report-missing-costs": "node scripts/bloomtech/reportMissingCosts.mjs",
+    "pricing:seed-bloomtech-profiles": "node scripts/pricing/seedBloomtechPricingProfiles.mjs",
     "b2b-headshop:scrape-preview": "node scripts/b2b-headshop/scrapeSupplierPreview.mjs",
     "b2b-headshop:override-pricing": "node scripts/b2b-headshop/overridePricesAndCosts.mjs",
     "b2b-headshop:report-missing-costs": "node scripts/b2b-headshop/reportMissingCosts.mjs",

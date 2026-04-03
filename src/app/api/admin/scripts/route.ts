@@ -107,6 +107,14 @@ function buildScriptExecution(definition: NonNullable<ReturnType<typeof getAdmin
         } as Record<string, string>,
         normalizedInputs: {} as Record<string, string>,
       };
+    case "pricing:seed-bloomtech-profiles":
+      return {
+        scriptArgs: ["--apply"],
+        envOverrides: {
+          PRICING_PROFILE_SEED_ALLOW_WRITE: "1",
+        } as Record<string, string>,
+        normalizedInputs: {} as Record<string, string>,
+      };
     default:
       return {
         scriptArgs: [] as string[],

@@ -141,6 +141,25 @@ export const ADMIN_SCRIPT_DEFINITIONS: readonly AdminScriptDefinition[] = [
     safetyNote: "Use before pricing overrides to catch incomplete supplier cost coverage.",
   },
   {
+    id: "pricing:seed-bloomtech-profiles",
+    npmScript: "pricing:seed-bloomtech-profiles",
+    title: "Seed Bloomtech pricing profiles",
+    category: "Suppliers",
+    description:
+      "Create or backfill Bloomtech-linked variant pricing profiles from one shared supplier template, with optional Bloomtech guest-price scraping for market fields.",
+    inputSummary:
+      "Uses existing Bloomtech-linked catalog records plus pricing-profile defaults from environment variables. No per-product input is required.",
+    outputSummary:
+      "Upserts missing or incomplete pricing profiles for Bloomtech variants and can also sync guest-price competitor fields when enabled in the environment.",
+    impact: "Writes variant pricing profile records used by pricing automation.",
+    expectedDuration: "1-6 minutes",
+    riskLevel: "write",
+    dryRunByDefault: true,
+    timeoutMs: 10 * 60 * 1000,
+    safetyNote:
+      "Dry-run by default. Before writing, set explicit profile defaults so shipping, packaging, and handling costs are not guessed.",
+  },
+  {
     id: "b2b-headshop:scrape-preview",
     npmScript: "b2b-headshop:scrape-preview",
     title: "B2B Headshop scrape preview",

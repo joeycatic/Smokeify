@@ -8,6 +8,27 @@
 - `my-preview.json`: sample preview file for local testing.
 - `supplier-preview.json`: default scrape output / import input.
 
+## `scripts/pricing`
+- `seedBloomtechPricingProfiles.mjs`: bulk-create or backfill Bloomtech variant pricing profiles from one supplier template.
+  - requires explicit environment defaults for:
+    - `PRICING_PROFILE_SUPPLIER_SHIPPING_CENTS`
+    - `PRICING_PROFILE_INBOUND_SHIPPING_CENTS`
+    - `PRICING_PROFILE_PACKAGING_CENTS`
+    - `PRICING_PROFILE_HANDLING_CENTS`
+  - optional environment defaults:
+    - `PRICING_PROFILE_PAYMENT_FEE_PERCENT_BPS`
+    - `PRICING_PROFILE_PAYMENT_FIXED_FEE_CENTS`
+    - `PRICING_PROFILE_RETURN_BUFFER_BPS`
+    - `PRICING_PROFILE_TARGET_MARGIN_BPS`
+    - `PRICING_PROFILE_SEGMENT`
+    - `PRICING_PROFILE_AUTO_REPRICE_ENABLED`
+  - run dry by default:
+    - `npm run pricing:seed-bloomtech-profiles`
+  - write changes explicitly:
+    - `PRICING_PROFILE_SEED_ALLOW_WRITE=1 npm run pricing:seed-bloomtech-profiles -- --apply`
+  - optional public-price sync:
+    - add `--scrape-guest-price` to store the Bloomtech guest price into competitor fields
+
 ## `scripts/b2b-headshop`
 - `scrapeSupplierPreview.mjs`: scrape B2B Headshop supplier data into local preview JSON (supports login/cookie auth).
 - `overridePricesAndCosts.mjs`: override cost + price on existing B2B Headshop products (preview/db/hybrid sources, `--apply` to write).
