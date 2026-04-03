@@ -1,34 +1,32 @@
 {
   "sourceMode": "product",
-  "sourceUrl": "https://bloomtech.de/Komplettarmaturen/Luxelite-PlantUV-24-Watt",
-  "sourceCategory": "https://bloomtech.de/Komplettarmaturen/Luxelite-PlantUV-24-Watt",
-  "sourceProduct": "https://bloomtech.de/Komplettarmaturen/Luxelite-PlantUV-24-Watt",
+  "sourceUrl": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+  "sourceCategory": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+  "sourceProduct": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
   "checkedLinks": 1,
   "previewCount": 1,
   "items": [
     {
-      "sourceUrl": "https://bloomtech.de/Komplettarmaturen/Luxelite-PlantUV-24-Watt",
-      "title": "Luxelite PlantUV 24 Watt",
-      "manufacturer": "Luxlight",
-      "handle": "luxelite-plantuv-24-watt-luxlight",
-      "shortDescription": "UV-Zusatzbeleuchtung",
-      "description": "Beschreibung Luxelite PlantUV 24 Watt Zusatzbeleuchtung Diese Armatur simuliert die Mittagssonne und kann als Zusatzbeleuchtung mit UV nicht nur Geschmack (Terpene) und Aussehen verbessern. Es wird auch die Harzbildung und die von sekundären Pflanzenstoffen erhöht. Durch die Aktivierung der DNA-Reparatur werden Pflanzen vitaler und widerstandsfähiger. Der Gehalt der Anthocyane und des Chlorophyll wird gesteigert. Anwendung: 2 Armaturen pro m² im Abstand von 50 cm zu den Pflanzenspitzen ergeben eine Bestrahlung mit UV-B von ca. 250 -300 mW/m². Die besten Ergebnisse sind bei der Gabe zur Mitte des Tages (der Photoperiode) zu erzielen. Den Einsatz würden wir ab ca. der zweiten Wachstumswoche empfehlen, 60 Minuten täglich. Ab ca. einer halben Woche vor der Zeitumstellung 18->12 die Gabe von UV aussetzen. In der 2. Blütewoche wieder 60 Minuten täglich. Ab der 3. Blütewoche, bis eine Woche vor der Ernte bis 120 Minuten täglich. Kann auch zum Abhärten von Stecklingen (z.B. vorm Heraussetzen nach draußen) genutzt werden. Über drei Tage jeweils 30 Minuten pro Tag anwenden. Technische Daten der Luxelite PlantUV 24 Watt: Anschluss: 230 V / 50 Hz Leistung: 24 Watt UV-B: 12 % UV-A: 30 % Kelvin: 7000K Lumen: 800 lm CRI: 95 Abmessungen: Länge des Leuchtmittels: 550 mm Durchmesser des Leuchtmittels: 16 mm Armatur: 572 x 94 x 51 mm Enthalten: Armatur Leuchtmittel Halterungen für die Armatur (Aufhängung wird separat benötigt) Stromkabel ACHTUNG: UV-B ist für das Auge schädlich, bei Arbeiten in der Nähe der Armatur diese unbedingt abschalten. Leistung: 24 Watt",
-      "technicalDetails": "Leistung: 24 Watt; Artikelgewicht: 0,80 kg",
+      "sourceUrl": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+      "title": "Bio-Grow 250 ml",
+      "manufacturer": "BioBizz",
+      "handle": "bio-grow-250-ml-biobizz",
+      "shortDescription": "Biodünger für das Wachstum",
+      "description": "Beschreibung BioBizz Bio-Grow 250 ml Bio-Wachstumsdünger Bio-Grow von Biobizz ist ein flüssiger Dünger der ein üppiges Wachstum fördert und für alle Erdemischungen geeignet ist. Hauptbestandteil ist Vinasse, aus pestizidfreier Zuckerrohrmelasse fermentiert. Ein sehr mineralstoff- und kohlenhydratreicher Volldünger, mit dem das Pflanzenwachstum direkt und indirekt über die starke Aktivierung der Mikroflora im Erdsubstrat genährt wird. Anwendungsbereich von Bio-Grow: Komplette flüssige Pflanzennahrung. Sowohl in der Wachstumsphase als in der Blüte zu gebrauchen, bei letzterer dann aber in Verbindung mit dem Blütedünger BIO-BLOOM. Dosierung: 1 - 4 ml Bio-Grow per Liter Wasser. Bei jeder Bewässerung wiederholen. Bitte am unten verlinkten Düngeplan orientieren.",
+      "technicalDetails": "Inhalt: 250ml; Artikelgewicht: 0,35 kg",
       "gtin": "",
-      "price": 58.31,
+      "price": 4.18,
       "stock": {
-        "statusText": "48 Auf Lager",
-        "quantity": 48,
+        "statusText": "20 Auf Lager",
+        "quantity": 20,
         "inStock": true
       },
       "supplierWeight": {
-        "raw": "0.8 kg",
-        "grams": 800
+        "raw": "0.35 kg",
+        "grams": 350
       },
       "supplierImages": [
-        "https://bloomtech.de/media/image/product/5506/lg/komplettarmaturen-luxelite-plantuv-24-watt.webp",
-        "https://bloomtech.de/media/image/product/5506/lg/komplettarmaturen-luxelite-plantuv-24-watt~2.webp",
-        "https://bloomtech.de/media/image/product/5506/lg/komplettarmaturen-luxelite-plantuv-24-watt~3.webp"
+        "https://bloomtech.de/media/image/product/6175/lg/biobizz-bio-grow-250-ml.webp"
       ]
     }
   ]
