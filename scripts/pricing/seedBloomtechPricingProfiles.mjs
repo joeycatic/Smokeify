@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { extractCompetitorPagePriceCentsFromHtml } from "../shared/extractCompetitorPagePrice.mjs";
 
 const prisma = new PrismaClient();
 
@@ -183,17 +184,9 @@ const fetchGuestHtml = async (url) => {
   return response.text();
 };
 
-const extractGuestGrossPriceCents = (html) => {
-  const match = html.match(
-    /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/i
-  );
-  if (!match) return null;
-
-  const basePrice = Number.parseFloat(match[1].replace(",", "."));
-  if (!Number.isFinite(basePrice)) return null;
-
-  // Bloomtech public product pages expose the guest-facing gross price in markup.
-  return Math.round(basePrice * 100);
+const extractGuestPriceCents = (html) => {
+  // Use the public Bloomtech page price verbatim. Do not add VAT or any markup here.
+  return extractCompetitorPagePriceCentsFromHtml(html);
 };
 
 const buildUpdateData = ({
@@ -310,7 +303,7 @@ const run = async () => {
       } else {
         try {
           const html = await fetchGuestHtml(product.sellerUrl);
-          const guestPriceCents = extractGuestGrossPriceCents(html);
+          const guestPriceCents = extractGuestPriceCents(html);
           if (guestPriceCents !== null) {
             competitorSnapshot = {
               priceCents: guestPriceCents,
