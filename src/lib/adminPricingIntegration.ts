@@ -22,6 +22,18 @@ export type PricingRunSummary = {
   applied: number;
   review: number;
   blocked: number;
+  refreshPublicCompetitorData?: boolean;
+  marketReportPath?: string | null;
+  publicRefreshStats?: {
+    productsRefreshed: number;
+    variantsUpdated: number;
+    skipped: number;
+  } | null;
+  marketImportStats?: {
+    reportPath: string;
+    variantsUpdated: number;
+    skipped: number;
+  } | null;
 };
 
 export type PricingOverviewRun = {
@@ -66,9 +78,18 @@ export type PricingRecommendationItem = {
   competitorSnapshot: {
     minPriceCents: number | null;
     averagePriceCents: number | null;
+    highPriceCents: number | null;
     observedAt: string | null;
     sourceLabel: string | null;
     reliabilityScore: number | null;
+  } | null;
+  compareAtSnapshot: {
+    currentCompareAtCents: number | null;
+    publicCompareAtCents: number | null;
+    marketHighPriceCents: number | null;
+    recommendedCompareAtCents: number | null;
+    publishableCompareAtCents: number | null;
+    source: string | null;
   } | null;
   costSnapshot: {
     baseCostCents: number | null;
@@ -89,6 +110,8 @@ export type PricingChangeItem = {
   source: string | null;
   oldPriceCents: number;
   newPriceCents: number;
+  oldCompareAtCents: number | null;
+  newCompareAtCents: number | null;
   hardMinimumPriceCents: number | null;
   reasonCodes: string[];
   createdAt: string;
@@ -113,6 +136,8 @@ export type PricingOverviewSnapshot = {
   reviewQueue: PricingRecommendationItem[];
   recentRecommendations: PricingRecommendationItem[];
   recentChanges: PricingChangeItem[];
+  latestRunRecommendations: PricingRecommendationItem[];
+  latestRunChanges: PricingChangeItem[];
 };
 
 export type PricingProfile = {
@@ -126,6 +151,8 @@ export type PricingProfile = {
   targetMarginBasisPoints: number | null;
   competitorMinPriceCents: number | null;
   competitorAveragePriceCents: number | null;
+  competitorHighPriceCents: number | null;
+  publicCompareAtCents: number | null;
   competitorObservedAt: string | null;
   competitorSourceLabel: string | null;
   competitorSourceCount: number | null;
@@ -199,6 +226,26 @@ const normalizeSummary = (value: unknown): PricingRunSummary | null => {
     applied: asNumber(record.applied) ?? 0,
     review: asNumber(record.review) ?? 0,
     blocked: asNumber(record.blocked) ?? 0,
+    refreshPublicCompetitorData: asBoolean(record.refreshPublicCompetitorData) ?? undefined,
+    marketReportPath: asNullableString(record.marketReportPath),
+    publicRefreshStats: asObject(record.publicRefreshStats)
+      ? {
+          productsRefreshed:
+            asNumber(asObject(record.publicRefreshStats)?.productsRefreshed) ?? 0,
+          variantsUpdated:
+            asNumber(asObject(record.publicRefreshStats)?.variantsUpdated) ?? 0,
+          skipped: asNumber(asObject(record.publicRefreshStats)?.skipped) ?? 0,
+        }
+      : null,
+    marketImportStats: asObject(record.marketImportStats)
+      ? {
+          reportPath:
+            asString(asObject(record.marketImportStats)?.reportPath) ?? "",
+          variantsUpdated:
+            asNumber(asObject(record.marketImportStats)?.variantsUpdated) ?? 0,
+          skipped: asNumber(asObject(record.marketImportStats)?.skipped) ?? 0,
+        }
+      : null,
   };
 };
 
@@ -231,6 +278,8 @@ export const normalizePricingProfile = (value: unknown): PricingProfile => {
     competitorAveragePriceCents: record
       ? asNumber(record.competitorAveragePriceCents)
       : null,
+    competitorHighPriceCents: record ? asNumber(record.competitorHighPriceCents) : null,
+    publicCompareAtCents: record ? asNumber(record.publicCompareAtCents) : null,
     competitorObservedAt: record ? asNullableString(record.competitorObservedAt) : null,
     competitorSourceLabel: record ? asNullableString(record.competitorSourceLabel) : null,
     competitorSourceCount: record ? asNumber(record.competitorSourceCount) : null,
@@ -312,11 +361,35 @@ const normalizeRecommendationItem = (
       ? {
           minPriceCents: asNumber(inputSnapshot.competitorMinPriceCents),
           averagePriceCents: asNumber(inputSnapshot.competitorAveragePriceCents),
+          highPriceCents: asNumber(inputSnapshot.competitorHighPriceCents),
           observedAt: asNullableString(inputSnapshot.competitorObservedAt),
           sourceLabel: asNullableString(inputSnapshot.competitorSourceLabel),
           reliabilityScore: asNumber(inputSnapshot.competitorReliabilityScore),
         }
       : null,
+    compareAtSnapshot:
+      inputSnapshot || outputSnapshot
+        ? {
+            currentCompareAtCents: inputSnapshot
+              ? asNumber(inputSnapshot.currentCompareAtCents)
+              : null,
+            publicCompareAtCents: inputSnapshot
+              ? asNumber(inputSnapshot.publicCompareAtCents)
+              : null,
+            marketHighPriceCents: inputSnapshot
+              ? asNumber(inputSnapshot.competitorHighPriceCents)
+              : null,
+            recommendedCompareAtCents: outputSnapshot
+              ? asNumber(outputSnapshot.recommendedCompareAtCents)
+              : null,
+            publishableCompareAtCents: outputSnapshot
+              ? asNumber(outputSnapshot.publishableCompareAtCents)
+              : null,
+            source: outputSnapshot
+              ? asNullableString(outputSnapshot.compareAtSource)
+              : null,
+          }
+        : null,
     costSnapshot:
       inputSnapshot || outputSnapshot
         ? {
@@ -372,6 +445,8 @@ const normalizeChangeItem = (value: unknown): PricingChangeItem | null => {
     source: asNullableString(record.source),
     oldPriceCents: asNumber(record.oldPriceCents) ?? 0,
     newPriceCents: asNumber(record.newPriceCents) ?? 0,
+    oldCompareAtCents: asNumber(record.oldCompareAtCents),
+    newCompareAtCents: asNumber(record.newCompareAtCents),
     hardMinimumPriceCents: asNumber(record.hardMinimumPriceCents),
     reasonCodes: asStringArray(record.reasonCodes),
     createdAt,
@@ -424,6 +499,16 @@ export const normalizePricingOverview = (value: unknown): PricingOverviewSnapsho
       : [],
     recentChanges: Array.isArray(record?.recentChanges)
       ? record.recentChanges
+          .map((entry) => normalizeChangeItem(entry))
+          .filter((entry): entry is PricingChangeItem => Boolean(entry))
+      : [],
+    latestRunRecommendations: Array.isArray(record?.latestRunRecommendations)
+      ? record.latestRunRecommendations
+          .map((entry) => normalizeRecommendationItem(entry, true))
+          .filter((entry): entry is PricingRecommendationItem => Boolean(entry))
+      : [],
+    latestRunChanges: Array.isArray(record?.latestRunChanges)
+      ? record.latestRunChanges
           .map((entry) => normalizeChangeItem(entry))
           .filter((entry): entry is PricingChangeItem => Boolean(entry))
       : [],

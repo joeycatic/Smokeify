@@ -41,10 +41,34 @@ const PRICING_PROFILE_INTEGER_FIELDS = [
   "targetMarginBasisPoints",
   "competitorMinPriceCents",
   "competitorAveragePriceCents",
+  "competitorHighPriceCents",
+  "publicCompareAtCents",
   "competitorSourceCount",
 ] as const;
 
 type PricingProfileIntegerField = (typeof PRICING_PROFILE_INTEGER_FIELDS)[number];
+
+const VARIANT_PRICING_PROFILE_SELECT = {
+  supplierShippingCostCents: true,
+  inboundShippingCostCents: true,
+  packagingCostCents: true,
+  handlingCostCents: true,
+  paymentFeePercentBasisPoints: true,
+  paymentFixedFeeCents: true,
+  returnRiskBufferBasisPoints: true,
+  targetMarginBasisPoints: true,
+  competitorMinPriceCents: true,
+  competitorAveragePriceCents: true,
+  competitorHighPriceCents: true,
+  publicCompareAtCents: true,
+  competitorObservedAt: true,
+  competitorSourceLabel: true,
+  competitorSourceCount: true,
+  competitorReliabilityScore: true,
+  productSegment: true,
+  autoRepriceEnabled: true,
+  updatedAt: true,
+} satisfies Prisma.VariantPricingProfileSelect;
 
 export class AdminPricingError extends Error {
   status: number;
@@ -97,6 +121,8 @@ const serializeVariantPricingRecord = (variant: {
     targetMarginBasisPoints: number | null;
     competitorMinPriceCents: number | null;
     competitorAveragePriceCents: number | null;
+    competitorHighPriceCents: number | null;
+    publicCompareAtCents: number | null;
     competitorObservedAt: Date | null;
     competitorSourceLabel: string | null;
     competitorSourceCount: number | null;
@@ -127,6 +153,8 @@ const serializeVariantPricingRecord = (variant: {
       competitorMinPriceCents: variant.pricingProfile.competitorMinPriceCents,
       competitorAveragePriceCents:
         variant.pricingProfile.competitorAveragePriceCents,
+      competitorHighPriceCents: variant.pricingProfile.competitorHighPriceCents,
+      publicCompareAtCents: variant.pricingProfile.publicCompareAtCents,
       competitorObservedAt:
         variant.pricingProfile.competitorObservedAt?.toISOString() ?? null,
       competitorSourceLabel: variant.pricingProfile.competitorSourceLabel,
@@ -152,11 +180,11 @@ const requireActor = (actor?: AdminActor | null) => {
 };
 
 export async function getAdminPricingOverview(): Promise<PricingOverviewSnapshot> {
-  const [latestRun, reviewQueue, recentRecommendations, recentChanges] =
+  const latestRun = await prisma.pricingRun.findFirst({
+    orderBy: { startedAt: "desc" },
+  });
+  const [reviewQueue, recentRecommendations, recentChanges, latestRunRecommendations] =
     await Promise.all([
-      prisma.pricingRun.findFirst({
-        orderBy: { startedAt: "desc" },
-      }),
       prisma.pricingRecommendation.findMany({
         where: { status: "PENDING_REVIEW" },
         orderBy: { createdAt: "desc" },
@@ -185,7 +213,29 @@ export async function getAdminPricingOverview(): Promise<PricingOverviewSnapshot
           actor: { select: { id: true, email: true } },
         },
       }),
+      latestRun
+        ? prisma.pricingRecommendation.findMany({
+            where: { runId: latestRun.id },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+            include: {
+              product: { select: { id: true, title: true, handle: true } },
+              variant: { select: { id: true, title: true, sku: true } },
+              run: { select: { id: true, mode: true, startedAt: true } },
+              priceChange: {
+                include: {
+                  product: { select: { id: true, title: true, handle: true } },
+                  variant: { select: { id: true, title: true, sku: true } },
+                  actor: { select: { id: true, email: true } },
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
     ]);
+  const latestRunChanges = latestRunRecommendations
+    .map((item) => item.priceChange)
+    .filter((item): item is NonNullable<(typeof latestRunRecommendations)[number]["priceChange"]> => Boolean(item));
 
   return normalizePricingOverview({
     latestRun: latestRun
@@ -217,6 +267,20 @@ export async function getAdminPricingOverview(): Promise<PricingOverviewSnapshot
       ...item,
       createdAt: item.createdAt.toISOString(),
     })),
+    latestRunRecommendations: latestRunRecommendations.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      reviewedAt: item.reviewedAt?.toISOString() ?? null,
+      appliedAt: item.appliedAt?.toISOString() ?? null,
+      run: {
+        ...item.run,
+        startedAt: item.run.startedAt.toISOString(),
+      },
+    })),
+    latestRunChanges: latestRunChanges.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+    })),
   });
 }
 
@@ -241,6 +305,8 @@ export async function runAdminPricingAutomation(
     mode: PricingRunMode;
     limit?: number;
     notes?: string | null;
+    refreshPublicCompetitorData?: boolean;
+    marketReportPath?: string | null;
   },
   options: {
     actor?: AdminActor | null;
@@ -251,6 +317,9 @@ export async function runAdminPricingAutomation(
     mode: body.mode === "PREVIEW" ? "PREVIEW" : "APPLY",
     limit: body.limit,
     notes: body.notes ?? null,
+    refreshPublicCompetitorData: body.refreshPublicCompetitorData !== false,
+    marketReportPath:
+      typeof body.marketReportPath === "string" ? body.marketReportPath : null,
     actor,
   });
 
@@ -299,7 +368,9 @@ export async function getAdminProductVariantPricingProfiles(
           title: true,
           sku: true,
           updatedAt: true,
-          pricingProfile: true,
+          pricingProfile: {
+            select: VARIANT_PRICING_PROFILE_SELECT,
+          },
         },
       },
     },
@@ -353,7 +424,9 @@ export async function updateAdminVariantPricingProfile(
       title: true,
       sku: true,
       updatedAt: true,
-      pricingProfile: true,
+      pricingProfile: {
+        select: VARIANT_PRICING_PROFILE_SELECT,
+      },
     },
   });
 
@@ -370,6 +443,7 @@ export async function updateAdminVariantPricingProfile(
   }
 
   const updateData: Prisma.VariantPricingProfileUncheckedUpdateInput = {};
+  const integerPatch: Partial<Record<PricingProfileIntegerField, number | null>> = {};
   const changedFields: string[] = [];
 
   const assignNullableInteger = (
@@ -379,19 +453,20 @@ export async function updateAdminVariantPricingProfile(
     if (typeof value === "undefined") return;
     changedFields.push(key);
     if (value === null || value === "") {
-      updateData[key] = null;
+      integerPatch[key] = null;
       return;
     }
     const parsed = parseIntegerValue(value);
     if (parsed === null) {
       throw new AdminPricingError(`Invalid value for ${key}.`, 400);
     }
-    updateData[key] = parsed;
+    integerPatch[key] = parsed;
   };
 
   for (const key of PRICING_PROFILE_INTEGER_FIELDS) {
     assignNullableInteger(key, body.pricingProfile[key]);
   }
+  Object.assign(updateData, integerPatch);
 
   if (typeof body.pricingProfile.competitorReliabilityScore !== "undefined") {
     changedFields.push("competitorReliabilityScore");
@@ -448,8 +523,8 @@ export async function updateAdminVariantPricingProfile(
   };
 
   for (const key of PRICING_PROFILE_INTEGER_FIELDS) {
-    if (typeof updateData[key] !== "undefined") {
-      createData[key] = updateData[key] as number | null;
+    if (typeof integerPatch[key] !== "undefined") {
+      Object.assign(createData, { [key]: integerPatch[key] });
     }
   }
   if (typeof updateData.competitorReliabilityScore !== "undefined") {
@@ -499,6 +574,8 @@ export async function updateAdminVariantPricingProfile(
       targetMarginBasisPoints: pricingProfile.targetMarginBasisPoints,
       competitorMinPriceCents: pricingProfile.competitorMinPriceCents,
       competitorAveragePriceCents: pricingProfile.competitorAveragePriceCents,
+      competitorHighPriceCents: pricingProfile.competitorHighPriceCents,
+      publicCompareAtCents: pricingProfile.publicCompareAtCents,
       competitorObservedAt: pricingProfile.competitorObservedAt?.toISOString() ?? null,
       competitorSourceLabel: pricingProfile.competitorSourceLabel,
       competitorSourceCount: pricingProfile.competitorSourceCount,

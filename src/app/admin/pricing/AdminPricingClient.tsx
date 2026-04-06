@@ -84,6 +84,14 @@ const formatReasonCode = (value: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatCompareAtSource = (value: string | null | undefined) => {
+  if (!value) return "None";
+  if (value === "public") return "Public list price";
+  if (value === "market_high") return "Market high";
+  if (value === "market_average") return "Market average";
+  return formatReasonCode(value);
+};
+
 const formatPercentFromBasisPoints = (value: number | null) =>
   value === null
     ? "n/a"
@@ -126,12 +134,42 @@ function CompetitorSnapshotDetails({
           {formatCurrency(competitorSnapshot.averagePriceCents)}
         </div>
       ) : null}
+      {competitorSnapshot.highPriceCents !== null ? (
+        <div>Market high {formatCurrency(competitorSnapshot.highPriceCents)}</div>
+      ) : null}
       <div>
         Competitor source {competitorSnapshot.sourceLabel?.trim() || "n/a"}
       </div>
       <div>Observed {formatDateTime(competitorSnapshot.observedAt)}</div>
       <div>Reliability {formatReliability(competitorSnapshot.reliabilityScore)}</div>
     </>
+  );
+}
+
+function CompareAtSnapshotDetails({
+  compareAtSnapshot,
+}: {
+  compareAtSnapshot: PricingRecommendationItem["compareAtSnapshot"];
+}) {
+  if (!compareAtSnapshot) {
+    return <div className="text-sm text-slate-400">No compare-at data captured.</div>;
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+      <div>Current compare-at {formatCurrency(compareAtSnapshot.currentCompareAtCents)}</div>
+      <div>Public list price {formatCurrency(compareAtSnapshot.publicCompareAtCents)}</div>
+      <div>Market high {formatCurrency(compareAtSnapshot.marketHighPriceCents)}</div>
+      <div>
+        Recommended compare-at{" "}
+        {formatCurrency(compareAtSnapshot.recommendedCompareAtCents)}
+      </div>
+      <div>
+        Publishable compare-at{" "}
+        {formatCurrency(compareAtSnapshot.publishableCompareAtCents)}
+      </div>
+      <div>Source {formatCompareAtSource(compareAtSnapshot.source)}</div>
+    </div>
   );
 }
 
@@ -267,6 +305,10 @@ function AppliedPriceChangeRow({ item }: { item: PricingChangeItem }) {
         <div className="font-semibold text-emerald-200">
           {formatCurrency(item.newPriceCents)}
         </div>
+        <div className="mt-1 text-xs text-slate-400">
+          Compare-at {formatCurrency(item.oldCompareAtCents)} {" -> "}{" "}
+          {formatCurrency(item.newCompareAtCents)}
+        </div>
         <div className="mt-1 text-xs text-slate-500">
           Floor {formatCurrency(item.hardMinimumPriceCents)}
         </div>
@@ -296,15 +338,25 @@ export default function AdminPricingClient({
   const [customApprovalError, setCustomApprovalError] = useState("");
   const [runLimit, setRunLimit] = useState("");
   const [runNotes, setRunNotes] = useState("");
+  const [refreshPublicCompetitorData, setRefreshPublicCompetitorData] = useState(true);
+  const [marketReportPath, setMarketReportPath] = useState("");
 
   const latestRun = snapshot?.latestRun ?? null;
   const reviewQueue = snapshot?.reviewQueue ?? [];
   const recentRecommendations = snapshot?.recentRecommendations ?? [];
   const recentChanges = snapshot?.recentChanges ?? [];
+  const latestRunRecommendations = snapshot?.latestRunRecommendations ?? [];
+  const latestRunChanges = snapshot?.latestRunChanges ?? [];
 
   const blockedCount = recentRecommendations.filter(
     (item) => item.status === "BLOCKED"
   ).length;
+  const latestRunQueued = latestRunRecommendations.filter(
+    (item) => item.status === "PENDING_REVIEW"
+  );
+  const latestRunBlocked = latestRunRecommendations.filter(
+    (item) => item.status === "BLOCKED"
+  );
 
   useEffect(() => {
     if (!selectedRecommendation) {
@@ -358,6 +410,8 @@ export default function AdminPricingClient({
           mode,
           limit: parsedLimit,
           notes: runNotes.trim() || null,
+          refreshPublicCompetitorData,
+          marketReportPath: marketReportPath.trim() || null,
         }),
       });
       const data = (await response.json()) as {
@@ -562,6 +616,37 @@ export default function AdminPricingClient({
               </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={refreshPublicCompetitorData}
+                  onChange={(event) => setRefreshPublicCompetitorData(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-white/15 bg-transparent text-cyan-400 focus:ring-cyan-400/30"
+                />
+                <span>
+                  <span className="block font-semibold text-white">
+                    Refresh Bloomtech public prices
+                  </span>
+                  <span className="mt-1 block text-xs text-slate-400">
+                    Uses the public guest-visible seller price only. No login or seller account
+                    state is used during the refresh.
+                  </span>
+                </span>
+              </label>
+
+              <AdminField
+                label="Market report path"
+                optional="leave empty to skip market report import for this run"
+              >
+                <AdminInput
+                  value={marketReportPath}
+                  onChange={(event) => setMarketReportPath(event.target.value)}
+                  placeholder="scripts/market/shops-price-report.json"
+                />
+              </AdminField>
+            </div>
+
             <AdminField
               label="Operator notes"
               optional="stored with the pricing run"
@@ -609,7 +694,8 @@ export default function AdminPricingClient({
             </div>
 
             {latestRun?.summary ? (
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-4">
                 {[
                   ["Processed", latestRun.summary.processed, "text-white"],
                   ["Applied", latestRun.summary.applied, "text-emerald-200"],
@@ -628,6 +714,37 @@ export default function AdminPricingClient({
                     </div>
                   </div>
                 ))}
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Run input refresh
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      Public refresh{" "}
+                      {latestRun.summary.refreshPublicCompetitorData ? "enabled" : "disabled"}
+                    </div>
+                    <div>
+                      Market report{" "}
+                      {latestRun.summary.marketReportPath?.trim() || "not imported"}
+                    </div>
+                    {latestRun.summary.publicRefreshStats ? (
+                      <div className="text-xs text-slate-400">
+                        Public refresh touched{" "}
+                        {latestRun.summary.publicRefreshStats.productsRefreshed} products /{" "}
+                        {latestRun.summary.publicRefreshStats.variantsUpdated} variants, skipped{" "}
+                        {latestRun.summary.publicRefreshStats.skipped}.
+                      </div>
+                    ) : null}
+                    {latestRun.summary.marketImportStats ? (
+                      <div className="text-xs text-slate-400">
+                        Market import updated{" "}
+                        {latestRun.summary.marketImportStats.variantsUpdated} variants, skipped{" "}
+                        {latestRun.summary.marketImportStats.skipped}.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
@@ -720,6 +837,125 @@ export default function AdminPricingClient({
       </div>
 
       <AdminPanel
+        eyebrow="Latest Run"
+        title="Applied and queued outcomes"
+        description="This run-level view shows exactly what the latest pricing pass changed, what still needs review, and what was blocked before you dig through the longer history feed."
+      >
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Applied in latest run</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Compare-at and live price writes from the most recent run.
+                </div>
+              </div>
+              <RecommendationBadge
+                label={`${latestRunChanges.length} changes`}
+                className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+              />
+            </div>
+            {latestRunChanges.length === 0 ? (
+              <AdminEmptyState
+                title="No applied changes in the latest run."
+                description="The last run either stayed in preview mode or queued everything for review."
+              />
+            ) : (
+              <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]">
+                <div className="grid grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <div>Variant</div>
+                  <div>Old price</div>
+                  <div>New price</div>
+                  <div>Source / actor</div>
+                  <div>Changed</div>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {latestRunChanges.slice(0, 8).map((item) => (
+                    <AppliedPriceChangeRow key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100/80">
+                  Queued for review
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-amber-100">
+                  {latestRunQueued.length}
+                </div>
+                <div className="mt-1 text-xs text-amber-50/75">
+                  Higher-price moves above the 8% review threshold stay here.
+                </div>
+              </div>
+              <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-100/80">
+                  Blocked
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-red-100">
+                  {latestRunBlocked.length}
+                </div>
+                <div className="mt-1 text-xs text-red-50/75">
+                  Missing cost inputs or invalid pricing floors prevented apply.
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[...latestRunQueued, ...latestRunBlocked].slice(0, 6).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedRecommendation(item)}
+                  className="w-full rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition hover:border-white/15 hover:bg-white/[0.05]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RecommendationBadge
+                      label={item.status}
+                      className={getStatusBadgeClassName(item.status)}
+                    />
+                    {item.compareAtSnapshot?.publishableCompareAtCents !== null &&
+                    item.compareAtSnapshot?.publishableCompareAtCents !== undefined ? (
+                      <RecommendationBadge
+                        label={`Compare-at ${formatCurrency(
+                          item.compareAtSnapshot?.publishableCompareAtCents ?? null
+                        )}`}
+                        className="border-white/10 bg-white/[0.04] text-slate-200"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-white">
+                    {item.product.title}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {item.variant.title}
+                    {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
+                  </div>
+                  <div className="mt-3 text-xs text-slate-300">
+                    {formatCurrency(item.currentPriceCents)} {" -> "}{" "}
+                    {formatCurrency(item.publishablePriceCents)} ·{" "}
+                    {formatBasisPoints(item.priceDeltaBasisPoints)}
+                  </div>
+                  <div className="mt-2 line-clamp-2 text-xs text-slate-500">
+                    {item.explanation ?? "No explanation returned."}
+                  </div>
+                </button>
+              ))}
+              {latestRunQueued.length === 0 && latestRunBlocked.length === 0 ? (
+                <AdminEmptyState
+                  title="No queued or blocked outcomes."
+                  description="The latest run either applied cleanly or has not produced any results yet."
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </AdminPanel>
+
+      <AdminPanel
         eyebrow="Review Queue"
         title="Pending pricing approvals"
         description="Review-required recommendations stay separate from blocked outcomes. Open a row to inspect the explanation, floor, target, publishable price, and reason codes before approving."
@@ -770,11 +1006,11 @@ export default function AdminPricingClient({
                   <div>{formatCurrency(item.publishablePriceCents)}</div>
                   <div>{formatConfidence(item.confidenceScore)}</div>
                   <div className="flex items-start justify-end gap-2">
-                      <AdminButton
-                        tone="secondary"
-                        onClick={() => setSelectedRecommendation(item)}
-                      >
-                        Inspect
+                    <AdminButton
+                      tone="secondary"
+                      onClick={() => setSelectedRecommendation(item)}
+                    >
+                      Inspect
                     </AdminButton>
                     <AdminButton
                       onClick={() => reviewRecommendation(item.id, "approve")}
@@ -922,6 +1158,17 @@ export default function AdminPricingClient({
               </div>
               <div className="mt-3">
                 <CostSnapshotDetails costSnapshot={selectedRecommendation.costSnapshot} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Compare-at strategy
+              </div>
+              <div className="mt-3">
+                <CompareAtSnapshotDetails
+                  compareAtSnapshot={selectedRecommendation.compareAtSnapshot}
+                />
               </div>
             </div>
 

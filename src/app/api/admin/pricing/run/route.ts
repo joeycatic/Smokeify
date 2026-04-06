@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     mode?: PricingRunMode;
     limit?: number;
     notes?: string | null;
+    refreshPublicCompetitorData?: boolean;
+    marketReportPath?: string | null;
   };
 
   try {
@@ -46,6 +48,9 @@ export async function POST(request: NextRequest) {
             ? Math.floor(body.limit)
             : undefined,
         notes: typeof body.notes === "string" ? body.notes : null,
+        refreshPublicCompetitorData: body.refreshPublicCompetitorData !== false,
+        marketReportPath:
+          typeof body.marketReportPath === "string" ? body.marketReportPath : null,
       },
       {
         actor: {

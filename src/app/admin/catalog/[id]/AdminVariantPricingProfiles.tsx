@@ -39,6 +39,8 @@ type PricingProfileFormState = {
   targetMarginBasisPoints: string;
   competitorMinPriceCents: string;
   competitorAveragePriceCents: string;
+  competitorHighPriceCents: string;
+  publicCompareAtCents: string;
   competitorObservedAt: string;
   competitorSourceLabel: string;
   competitorSourceCount: string;
@@ -74,6 +76,8 @@ const buildEmptyFormState = (): PricingProfileFormState => ({
   targetMarginBasisPoints: "",
   competitorMinPriceCents: "",
   competitorAveragePriceCents: "",
+  competitorHighPriceCents: "",
+  publicCompareAtCents: "",
   competitorObservedAt: "",
   competitorSourceLabel: "",
   competitorSourceCount: "",
@@ -111,6 +115,8 @@ const buildFormState = (record: VariantPricingProfileRecord): PricingProfileForm
   competitorAveragePriceCents: toInputString(
     record.pricingProfile.competitorAveragePriceCents
   ),
+  competitorHighPriceCents: toInputString(record.pricingProfile.competitorHighPriceCents),
+  publicCompareAtCents: toInputString(record.pricingProfile.publicCompareAtCents),
   competitorObservedAt: toDateTimeLocalValue(record.pricingProfile.competitorObservedAt),
   competitorSourceLabel: record.pricingProfile.competitorSourceLabel ?? "",
   competitorSourceCount: toInputString(record.pricingProfile.competitorSourceCount),
@@ -211,6 +217,8 @@ export default function AdminVariantPricingProfiles({
       ["targetMarginBasisPoints", "Target margin"],
       ["competitorMinPriceCents", "Competitor minimum price"],
       ["competitorAveragePriceCents", "Competitor average price"],
+      ["competitorHighPriceCents", "Competitor high price"],
+      ["publicCompareAtCents", "Public compare-at price"],
       ["competitorSourceCount", "Competitor source count"],
     ] as const;
 
@@ -377,6 +385,12 @@ export default function AdminVariantPricingProfiles({
                     Avg {record ? toInputString(record.pricingProfile.competitorAveragePriceCents) : "n/a"}
                   </div>
                   <div>
+                    High {record ? toInputString(record.pricingProfile.competitorHighPriceCents) : "n/a"}
+                  </div>
+                  <div>
+                    Public compare-at {record ? toInputString(record.pricingProfile.publicCompareAtCents) : "n/a"}
+                  </div>
+                  <div>
                     Observed {record ? formatDateTime(record.pricingProfile.competitorObservedAt) : "n/a"}
                   </div>
                 </div>
@@ -478,6 +492,8 @@ export default function AdminVariantPricingProfiles({
               fields={[
                 ["competitorMinPriceCents", "Competitor minimum price (cents)"],
                 ["competitorAveragePriceCents", "Competitor average price (cents)"],
+                ["competitorHighPriceCents", "Competitor high price (cents)"],
+                ["publicCompareAtCents", "Public compare-at price (cents)"],
                 ["competitorSourceCount", "Competitor source count"],
                 ["competitorReliabilityScore", "Competitor reliability score"],
               ]}

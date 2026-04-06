@@ -18,6 +18,8 @@ describe("normalizePricingProfile", () => {
       targetMarginBasisPoints: null,
       competitorMinPriceCents: null,
       competitorAveragePriceCents: null,
+      competitorHighPriceCents: null,
+      publicCompareAtCents: null,
       competitorObservedAt: null,
       competitorSourceLabel: null,
       competitorSourceCount: null,
@@ -44,6 +46,13 @@ describe("normalizePricingOverview", () => {
           applied: 0,
           review: 5,
           blocked: 7,
+          refreshPublicCompetitorData: true,
+          marketReportPath: "scripts/market/shops-price-report.json",
+          publicRefreshStats: {
+            productsRefreshed: 3,
+            variantsUpdated: 6,
+            skipped: 1,
+          },
         },
       },
       reviewQueue: [
@@ -138,6 +147,7 @@ describe("normalizePricingOverview", () => {
     });
 
     expect(snapshot.latestRun?.summary?.blocked).toBe(7);
+    expect(snapshot.latestRun?.summary?.publicRefreshStats?.productsRefreshed).toBe(3);
     expect(snapshot.reviewQueue[0]?.status).toBe("PENDING_REVIEW");
     expect(snapshot.recentRecommendations[0]?.appliedAt).toBe(
       "2026-04-02T10:08:00.000Z"
@@ -167,6 +177,8 @@ describe("extractVariantPricingProfilesFromProductPayload", () => {
               targetMarginBasisPoints: 3200,
               competitorMinPriceCents: 1599,
               competitorAveragePriceCents: 1699,
+              competitorHighPriceCents: 1799,
+              publicCompareAtCents: 1899,
               competitorObservedAt: "2026-04-02T08:00:00.000Z",
               competitorSourceLabel: "Idealo",
               competitorSourceCount: 4,
@@ -195,6 +207,8 @@ describe("extractVariantPricingProfilesFromProductPayload", () => {
         targetMarginBasisPoints: 3200,
         competitorMinPriceCents: 1599,
         competitorAveragePriceCents: 1699,
+        competitorHighPriceCents: 1799,
+        publicCompareAtCents: 1899,
         competitorObservedAt: "2026-04-02T08:00:00.000Z",
         competitorSourceLabel: "Idealo",
         competitorSourceCount: 4,
