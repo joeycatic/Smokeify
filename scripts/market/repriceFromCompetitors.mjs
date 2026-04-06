@@ -29,6 +29,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+console.warn(
+  "[deprecated] scripts/market/repriceFromCompetitors.mjs is retired for routine repricing. Use /admin/pricing with market report import instead."
+);
+
 const args = process.argv.slice(2);
 const hasFlag = (f) => args.includes(f);
 const flagValue = (f, def) => { const i = args.indexOf(f); return i !== -1 && args[i + 1] ? args[i + 1] : def; };

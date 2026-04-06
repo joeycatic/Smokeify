@@ -2,6 +2,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+console.warn(
+  "[deprecated] scripts/catalog/overridePricesAllProducts.mjs is retired for routine repricing. Use /admin/pricing for margin-first automation and audit history."
+);
+
 const DEFAULT_MARGIN_PERCENT_BELOW_THRESHOLD = 15;
 const DEFAULT_MARGIN_PERCENT_ABOVE_THRESHOLD = 20;
 const DEFAULT_ROUNDING_STRATEGY = "nearest_99";

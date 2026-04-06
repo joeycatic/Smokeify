@@ -4,6 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+console.warn(
+  "[deprecated] Bloomtech direct price overrides are retired for routine price changes. Keep using this script only for supplier import maintenance and move repricing to /admin/pricing."
+);
+
 const DEFAULT_INPUT = "scripts/bloomtech/supplier-preview.json";
 const DEFAULT_SELLER_NAME = "Bloomtech";
 const DEFAULT_SELLER_URL = "https://bloomtech.de";
