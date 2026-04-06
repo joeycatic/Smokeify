@@ -29,7 +29,11 @@ export async function GET(
     id: variant.id,
     title: variant.title,
     priceCents: variant.priceCents,
-    compareAtCents: variant.compareAtCents,
+    compareAtCents:
+      typeof variant.compareAtCents === "number" &&
+      variant.compareAtCents > variant.priceCents
+        ? variant.compareAtCents
+        : null,
     available:
       typeof variant.inventory?.quantityOnHand === "number"
         ? variant.inventory.quantityOnHand > 0

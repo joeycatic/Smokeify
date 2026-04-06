@@ -217,6 +217,10 @@ const buildUpdateData = ({
   if (competitorSnapshot) {
     assign("competitorMinPriceCents", competitorSnapshot.priceCents);
     assign("competitorAveragePriceCents", competitorSnapshot.priceCents);
+    assign("competitorHighPriceCents", competitorSnapshot.priceCents);
+    if (overwrite || typeof existingProfile?.publicCompareAtCents !== "number") {
+      nextData.publicCompareAtCents = competitorSnapshot.compareAtCents ?? null;
+    }
     assign("competitorObservedAt", competitorSnapshot.observedAt);
     assign("competitorSourceLabel", competitorSnapshot.sourceLabel);
     assign("competitorSourceCount", 1);
@@ -340,8 +344,7 @@ const run = async () => {
           ? competitorSnapshot.compareAtCents
           : null;
       const shouldUpdateCompareAt =
-        typeof nextCompareAtCents === "number" &&
-        variant.compareAtCents !== nextCompareAtCents;
+        Boolean(competitorSnapshot) && variant.compareAtCents !== nextCompareAtCents;
 
       const changedKeys = Object.keys(updateData);
       if (changedKeys.length === 0 && !shouldUpdateCompareAt) {
@@ -364,8 +367,8 @@ const run = async () => {
         .map((key) => `${key}=${updateData[key] instanceof Date ? updateData[key].toISOString() : updateData[key]}`)
         .join(" ");
       const compareAtPreview =
-        shouldUpdateCompareAt && typeof nextCompareAtCents === "number"
-          ? `${previewDetails ? " " : ""}compareAtCents=${nextCompareAtCents}`
+        shouldUpdateCompareAt
+          ? `${previewDetails ? " " : ""}compareAtCents=${nextCompareAtCents ?? "null"}`
           : "";
 
       console.log(
@@ -390,6 +393,8 @@ const run = async () => {
                 ? {
                     competitorMinPriceCents: competitorSnapshot.priceCents,
                     competitorAveragePriceCents: competitorSnapshot.priceCents,
+                    competitorHighPriceCents: competitorSnapshot.priceCents,
+                    publicCompareAtCents: competitorSnapshot.compareAtCents ?? null,
                     competitorObservedAt: competitorSnapshot.observedAt,
                     competitorSourceLabel: competitorSnapshot.sourceLabel,
                     competitorSourceCount: 1,
@@ -401,7 +406,7 @@ const run = async () => {
         );
       }
 
-      if (shouldUpdateCompareAt && typeof nextCompareAtCents === "number") {
+      if (shouldUpdateCompareAt) {
         writeOperations.push(
           prisma.variant.update({
             where: { id: variant.id },

@@ -338,14 +338,8 @@ const calculateCompareAtRecommendation = (
   input: PricingCalculationInput,
   publishablePriceCents: number,
   config: PricingAutomationConfig,
-  validation: PricingValidationResult,
   reasonCodes: PricingReasonCode[]
 ) => {
-  const canUseMarketData =
-    validation.competitorDataAvailable &&
-    validation.competitorDataFresh &&
-    validation.competitorDataReliable;
-
   if (
     isMeaningfullyHigherThanPrice(
       input.publicCompareAtCents,
@@ -357,36 +351,6 @@ const calculateCompareAtRecommendation = (
     return {
       compareAtCents: input.publicCompareAtCents,
       source: "public" as const,
-    };
-  }
-
-  if (
-    canUseMarketData &&
-    isMeaningfullyHigherThanPrice(
-      input.competitorHighPriceCents,
-      publishablePriceCents,
-      config
-    )
-  ) {
-    reasonCodes.push(PRICING_REASON_CODES.compareAtFromMarketHigh);
-    return {
-      compareAtCents: input.competitorHighPriceCents,
-      source: "market_high" as const,
-    };
-  }
-
-  if (
-    canUseMarketData &&
-    isMeaningfullyHigherThanPrice(
-      input.competitorAveragePriceCents,
-      publishablePriceCents,
-      config
-    )
-  ) {
-    reasonCodes.push(PRICING_REASON_CODES.compareAtFromMarketAverage);
-    return {
-      compareAtCents: input.competitorAveragePriceCents,
-      source: "market_average" as const,
     };
   }
 
@@ -564,13 +528,12 @@ export const calculatePricingRecommendation = (
       reasonCodes.push(PRICING_REASON_CODES.floorPriceProtection);
     }
 
-    const compareAtRecommendation = calculateCompareAtRecommendation(
-      input,
-      publishablePriceCents,
-      config,
-      validation,
-      reasonCodes
-    );
+  const compareAtRecommendation = calculateCompareAtRecommendation(
+    input,
+    publishablePriceCents,
+    config,
+    reasonCodes
+  );
     recommendedCompareAtCents = compareAtRecommendation.compareAtCents;
     publishableCompareAtCents = compareAtRecommendation.compareAtCents;
     compareAtSource = compareAtRecommendation.source;

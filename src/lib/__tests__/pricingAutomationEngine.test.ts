@@ -232,12 +232,12 @@ describe("pricingAutomationEngine", () => {
       config
     );
 
-    expect(result.publishableCompareAtCents).toBe(24_000);
-    expect(result.compareAtSource).toBe("market_high");
-    expect(result.reasonCodes).toContain("compare_at_from_market_high");
+    expect(result.publishableCompareAtCents).toBeNull();
+    expect(result.compareAtSource).toBeNull();
+    expect(result.reasonCodes).not.toContain("compare_at_from_market_high");
   });
 
-  it("uses market average for compare-at only when it is meaningfully above price", () => {
+  it("does not derive compare-at from market average alone", () => {
     const result = calculatePricingRecommendation(
       buildInput({
         currentPriceCents: 20_000,
@@ -249,9 +249,9 @@ describe("pricingAutomationEngine", () => {
       config
     );
 
-    expect(result.publishableCompareAtCents).toBe(21_500);
-    expect(result.compareAtSource).toBe("market_average");
-    expect(result.reasonCodes).toContain("compare_at_from_market_average");
+    expect(result.publishableCompareAtCents).toBeNull();
+    expect(result.compareAtSource).toBeNull();
+    expect(result.reasonCodes).not.toContain("compare_at_from_market_average");
   });
 
   it("clears compare-at when fallback data is not meaningfully above price", () => {

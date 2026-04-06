@@ -1,16 +1,17 @@
 export const PRICE_META_TAG_REGEX =
   /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/i;
+const PRICE_META_TAG_REGEX_GLOBAL =
+  /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/gi;
 
-const EXTRA_PRICE_PATTERNS = [
-  /<meta[^>]*(?:property|name)=["']product:price:amount["'][^>]*content=["']([^"']+)["'][^>]*>/gi,
+const EXPLICIT_COMPARE_AT_PATTERNS = [
   /"compare_at_price"\s*:\s*"([^"]+)"/gi,
   /"compareAtPrice"\s*:\s*"([^"]+)"/gi,
   /"listPrice"\s*:\s*"([^"]+)"/gi,
   /"regularPrice"\s*:\s*"([^"]+)"/gi,
   /"originalPrice"\s*:\s*"([^"]+)"/gi,
-  /"highPrice"\s*:\s*"([^"]+)"/gi,
   /"priceBefore"\s*:\s*"([^"]+)"/gi,
-  /"offerPrice"\s*:\s*"([^"]+)"/gi,
+  /<span[^>]*class=["'][^"']*(?:old-price|price-old|was-price|price-compare|compare-price)[^"']*["'][^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
+  /<del[^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
   /(?:UVP|Statt|Listenpreis|Originalpreis|Regul(?:aer|är)er Preis)[^0-9€]{0,40}(?:€\s*)?([0-9][0-9.,]*)/gi,
 ];
 
@@ -63,7 +64,9 @@ const collectPrices = (html, patterns) => {
 };
 
 export const extractCompetitorPagePricingFromHtml = (html) => {
-  const currentPriceCents = parsePriceToCents(html.match(PRICE_META_TAG_REGEX)?.[1] ?? "");
+  PRICE_META_TAG_REGEX_GLOBAL.lastIndex = 0;
+  const currentPriceMatch = PRICE_META_TAG_REGEX_GLOBAL.exec(html);
+  const currentPriceCents = parsePriceToCents(currentPriceMatch?.[1] ?? "");
   if (currentPriceCents === null) {
     return {
       priceCents: null,
@@ -71,15 +74,23 @@ export const extractCompetitorPagePricingFromHtml = (html) => {
     };
   }
 
-  const allPublicPriceCandidates = collectPrices(html, [PRICE_META_TAG_REGEX, ...EXTRA_PRICE_PATTERNS]);
-  const compareAtCandidates = allPublicPriceCandidates.filter(
-    (candidate) => candidate > currentPriceCents
+  const priceContextStart = Math.max(0, (currentPriceMatch?.index ?? 0) - 1500);
+  const priceContextEnd = Math.min(
+    html.length,
+    (currentPriceMatch?.index ?? 0) + 4000
   );
+  const priceContextHtml = html.slice(priceContextStart, priceContextEnd);
+  const explicitCompareAtCandidates = collectPrices(
+    priceContextHtml,
+    EXPLICIT_COMPARE_AT_PATTERNS
+  ).filter((candidate) => candidate > currentPriceCents);
 
   return {
     priceCents: currentPriceCents,
     compareAtCents:
-      compareAtCandidates.length > 0 ? Math.max(...compareAtCandidates) : null,
+      explicitCompareAtCandidates.length > 0
+        ? Math.max(...explicitCompareAtCandidates)
+        : null,
   };
 };
 
