@@ -1,10 +1,10 @@
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF to_regtype('"PricingRunStatus"') IS NOT NULL AND NOT EXISTS (
     SELECT 1
     FROM pg_enum
     WHERE enumlabel = 'RUNNING'
-      AND enumtypid = 'PricingRunStatus'::regtype
+      AND enumtypid = to_regtype('"PricingRunStatus"')
   ) THEN
     ALTER TYPE "PricingRunStatus" ADD VALUE 'RUNNING';
   END IF;
