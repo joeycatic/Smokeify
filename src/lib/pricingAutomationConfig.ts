@@ -26,6 +26,10 @@ export type PricingAutomationConfig = {
   strongSalesVelocityPerDay: number;
   highStockCoverDays: number;
   lowStockCoverDays: number;
+  publicCompetitorMarketWeightFloorBasisPoints: number;
+  higherPriceReviewThresholdBasisPoints: number;
+  compareAtMinLiftBasisPoints: number;
+  compareAtMinDeltaCents: number;
   defaultPaymentFeePercentBasisPoints: number;
   defaultPaymentFixedFeeCents: number;
   defaultReturnRiskBufferBasisPoints: number;
@@ -196,6 +200,22 @@ export const getPricingAutomationConfig = (
     lowStockCoverDays: parseFloatNumber(
       env.PRICING_AUTOMATION_LOW_STOCK_COVER_DAYS,
       14
+    ),
+    publicCompetitorMarketWeightFloorBasisPoints: parseInteger(
+      env.PRICING_AUTOMATION_PUBLIC_SOURCE_MARKET_WEIGHT_FLOOR_BPS,
+      8_500
+    ),
+    higherPriceReviewThresholdBasisPoints: parseInteger(
+      env.PRICING_AUTOMATION_HIGHER_PRICE_REVIEW_THRESHOLD_BPS,
+      800
+    ),
+    compareAtMinLiftBasisPoints: parseInteger(
+      env.PRICING_AUTOMATION_COMPARE_AT_MIN_LIFT_BPS,
+      500
+    ),
+    compareAtMinDeltaCents: parseInteger(
+      env.PRICING_AUTOMATION_COMPARE_AT_MIN_DELTA_CENTS,
+      100
     ),
     defaultPaymentFeePercentBasisPoints: parseInteger(
       env.PRICING_AUTOMATION_PAYMENT_FEE_PERCENT_BPS,

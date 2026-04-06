@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { extractCompetitorPagePriceCentsFromHtml } from "../shared/extractCompetitorPagePrice.mjs";
+import { extractCompetitorPagePricingFromHtml } from "../shared/extractCompetitorPagePrice.mjs";
 
 const prisma = new PrismaClient();
 
@@ -186,7 +186,7 @@ const fetchGuestHtml = async (url) => {
 
 const extractGuestPriceCents = (html) => {
   // Use the public Bloomtech page price verbatim. Do not add VAT or any markup here.
-  return extractCompetitorPagePriceCentsFromHtml(html);
+  return extractCompetitorPagePricingFromHtml(html);
 };
 
 const buildUpdateData = ({
@@ -277,6 +277,7 @@ const run = async () => {
           id: true,
           title: true,
           sku: true,
+          compareAtCents: true,
           pricingProfile: true,
         },
       },
@@ -303,10 +304,11 @@ const run = async () => {
       } else {
         try {
           const html = await fetchGuestHtml(product.sellerUrl);
-          const guestPriceCents = extractGuestPriceCents(html);
-          if (guestPriceCents !== null) {
+          const guestPricing = extractGuestPriceCents(html);
+          if (guestPricing.priceCents !== null) {
             competitorSnapshot = {
-              priceCents: guestPriceCents,
+              priceCents: guestPricing.priceCents,
+              compareAtCents: guestPricing.compareAtCents,
               observedAt: new Date(),
               sourceLabel: competitorSourceLabel,
               reliabilityScore: competitorReliabilityScore,
@@ -331,9 +333,18 @@ const run = async () => {
         overwrite,
         competitorSnapshot,
       });
+      const nextCompareAtCents =
+        competitorSnapshot &&
+        typeof competitorSnapshot.compareAtCents === "number" &&
+        competitorSnapshot.compareAtCents > competitorSnapshot.priceCents
+          ? competitorSnapshot.compareAtCents
+          : null;
+      const shouldUpdateCompareAt =
+        typeof nextCompareAtCents === "number" &&
+        variant.compareAtCents !== nextCompareAtCents;
 
       const changedKeys = Object.keys(updateData);
-      if (changedKeys.length === 0) {
+      if (changedKeys.length === 0 && !shouldUpdateCompareAt) {
         summary.unchangedVariants += 1;
         continue;
       }
@@ -352,33 +363,54 @@ const run = async () => {
       const previewDetails = changedKeys
         .map((key) => `${key}=${updateData[key] instanceof Date ? updateData[key].toISOString() : updateData[key]}`)
         .join(" ");
+      const compareAtPreview =
+        shouldUpdateCompareAt && typeof nextCompareAtCents === "number"
+          ? `${previewDetails ? " " : ""}compareAtCents=${nextCompareAtCents}`
+          : "";
 
       console.log(
-        `[pricing-profile-seed] ${kind} handle=${product.handle} variant="${variant.title}" sku=${variant.sku ?? "-"} ${previewDetails}`
+        `[pricing-profile-seed] ${kind} handle=${product.handle} variant="${variant.title}" sku=${variant.sku ?? "-"} ${previewDetails}${compareAtPreview}`
       );
 
       if (!apply || !allowWrite) {
         continue;
       }
 
-      await prisma.variantPricingProfile.upsert({
-        where: { variantId: variant.id },
-        update: updateData,
-        create: {
-          variantId: variant.id,
-          ...template,
-          ...(competitorSnapshot
-            ? {
-                competitorMinPriceCents: competitorSnapshot.priceCents,
-                competitorAveragePriceCents: competitorSnapshot.priceCents,
-                competitorObservedAt: competitorSnapshot.observedAt,
-                competitorSourceLabel: competitorSnapshot.sourceLabel,
-                competitorSourceCount: 1,
-                competitorReliabilityScore: competitorSnapshot.reliabilityScore,
-              }
-            : {}),
-        },
-      });
+      const writeOperations = [];
+
+      if (changedKeys.length > 0) {
+        writeOperations.push(
+          prisma.variantPricingProfile.upsert({
+            where: { variantId: variant.id },
+            update: updateData,
+            create: {
+              variantId: variant.id,
+              ...template,
+              ...(competitorSnapshot
+                ? {
+                    competitorMinPriceCents: competitorSnapshot.priceCents,
+                    competitorAveragePriceCents: competitorSnapshot.priceCents,
+                    competitorObservedAt: competitorSnapshot.observedAt,
+                    competitorSourceLabel: competitorSnapshot.sourceLabel,
+                    competitorSourceCount: 1,
+                    competitorReliabilityScore: competitorSnapshot.reliabilityScore,
+                  }
+                : {}),
+            },
+          })
+        );
+      }
+
+      if (shouldUpdateCompareAt && typeof nextCompareAtCents === "number") {
+        writeOperations.push(
+          prisma.variant.update({
+            where: { id: variant.id },
+            data: { compareAtCents: nextCompareAtCents },
+          })
+        );
+      }
+
+      await prisma.$transaction(writeOperations);
 
     }
   }

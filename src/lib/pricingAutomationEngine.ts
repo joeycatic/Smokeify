@@ -15,11 +15,17 @@ export const PRICING_REASON_CODES = {
   competitorUnreliable: "competitor_unreliable",
   competitorAwareTarget: "competitor_aware_target",
   marketFallbackToCurrent: "market_fallback_to_current_price",
+  sellerSoftCapApplied: "seller_soft_cap_applied",
+  sellerSoftCapExceededByFloor: "seller_soft_cap_exceeded_by_floor",
   inventoryPressureDown: "inventory_pressure_down",
   inventoryPressureUp: "inventory_pressure_up",
-  guardrailMaxAutoMoveExceeded: "guardrail_max_auto_move_exceeded",
+  guardrailHigherPriceReviewExceeded: "guardrail_higher_price_review_exceeded",
   floorPriceProtection: "floor_price_protection",
   roundedToPsychologicalEnding: "rounded_to_psychological_ending",
+  compareAtFromPublicListPrice: "compare_at_from_public_list_price",
+  compareAtFromMarketHigh: "compare_at_from_market_high",
+  compareAtFromMarketAverage: "compare_at_from_market_average",
+  compareAtCleared: "compare_at_cleared",
 } as const;
 
 export type PricingReasonCode =
@@ -31,6 +37,7 @@ export type PricingCalculationInput = {
   sku: string | null;
   title: string;
   currentPriceCents: number;
+  currentCompareAtCents: number | null;
   baseCostCents: number | null;
   supplierShippingCostCents: number | null;
   inboundShippingCostCents: number | null;
@@ -42,6 +49,8 @@ export type PricingCalculationInput = {
   targetMarginBasisPoints: number;
   competitorMinPriceCents: number | null;
   competitorAveragePriceCents: number | null;
+  competitorHighPriceCents: number | null;
+  publicCompareAtCents: number | null;
   competitorObservedAt: Date | null;
   competitorSourceLabel?: string | null;
   competitorReliabilityScore: number | null;
@@ -78,6 +87,9 @@ export type PricingCalculationResult = {
   marketTargetPriceCents: number;
   recommendedTargetPriceCents: number;
   publishablePriceCents: number;
+  recommendedCompareAtCents: number | null;
+  publishableCompareAtCents: number | null;
+  compareAtSource: "public" | "market_high" | "market_average" | null;
   priceDeltaBasisPoints: number;
   stockCoverDays: number | null;
   inventoryAdjustmentBasisPoints: number;
@@ -90,6 +102,33 @@ const clamp = (value: number, min: number, max: number) =>
 const roundToInt = (value: number) => Math.round(value);
 
 const safeRatio = (basisPoints: number) => Math.max(0, basisPoints) / 10_000;
+
+const isPublicCustomerPriceSource = (sourceLabel?: string | null) => {
+  if (!sourceLabel) return false;
+  const normalized = sourceLabel.trim().toLowerCase();
+  return (
+    normalized.includes("public") ||
+    normalized.includes("guest") ||
+    normalized.includes("customer")
+  );
+};
+
+const isMeaningfullyHigherThanPrice = (
+  candidateCents: number | null,
+  priceCents: number,
+  config: PricingAutomationConfig
+) => {
+  if (typeof candidateCents !== "number" || candidateCents <= priceCents) {
+    return false;
+  }
+
+  const minimumDeltaCents = Math.max(
+    config.compareAtMinDeltaCents,
+    Math.ceil(priceCents * safeRatio(config.compareAtMinLiftBasisPoints))
+  );
+
+  return candidateCents - priceCents >= minimumDeltaCents;
+};
 
 const buildPriceEndingCandidates = (targetCents: number, endingCents: number) => {
   const euroFloor = Math.floor(Math.max(0, targetCents) / 100);
@@ -254,14 +293,111 @@ const calculateMarketReferencePriceCents = (
   const biasedMarketReference = roundToInt(
     marketReference * (1 + segmentConfig.marketBiasBasisPoints / 10_000)
   );
-  const marketWeight = clamp(segmentConfig.marketWeightBasisPoints, 0, 10_000);
+  const publicSoftCapCents =
+    isPublicCustomerPriceSource(input.competitorSourceLabel) &&
+    typeof input.competitorAveragePriceCents === "number"
+      ? input.competitorAveragePriceCents
+      : null;
+  const softCappedMarketReference =
+    typeof publicSoftCapCents === "number"
+      ? Math.min(biasedMarketReference, publicSoftCapCents)
+      : biasedMarketReference;
+  if (
+    typeof publicSoftCapCents === "number" &&
+    softCappedMarketReference !== biasedMarketReference
+  ) {
+    reasonCodes.push(PRICING_REASON_CODES.sellerSoftCapApplied);
+  }
+  const marketWeight = clamp(
+    isPublicCustomerPriceSource(input.competitorSourceLabel)
+      ? Math.max(
+          segmentConfig.marketWeightBasisPoints,
+          config.publicCompetitorMarketWeightFloorBasisPoints
+        )
+      : segmentConfig.marketWeightBasisPoints,
+    0,
+    10_000
+  );
   const blendedTarget = roundToInt(
     (hardMinimumPriceCents * (10_000 - marketWeight) +
-      biasedMarketReference * marketWeight) /
+      softCappedMarketReference * marketWeight) /
       10_000
   );
   reasonCodes.push(PRICING_REASON_CODES.competitorAwareTarget);
-  return Math.max(hardMinimumPriceCents, blendedTarget);
+  const marketTarget = Math.max(hardMinimumPriceCents, blendedTarget);
+  if (
+    typeof publicSoftCapCents === "number" &&
+    marketTarget > publicSoftCapCents
+  ) {
+    reasonCodes.push(PRICING_REASON_CODES.sellerSoftCapExceededByFloor);
+  }
+  return marketTarget;
+};
+
+const calculateCompareAtRecommendation = (
+  input: PricingCalculationInput,
+  publishablePriceCents: number,
+  config: PricingAutomationConfig,
+  validation: PricingValidationResult,
+  reasonCodes: PricingReasonCode[]
+) => {
+  const canUseMarketData =
+    validation.competitorDataAvailable &&
+    validation.competitorDataFresh &&
+    validation.competitorDataReliable;
+
+  if (
+    isMeaningfullyHigherThanPrice(
+      input.publicCompareAtCents,
+      publishablePriceCents,
+      config
+    )
+  ) {
+    reasonCodes.push(PRICING_REASON_CODES.compareAtFromPublicListPrice);
+    return {
+      compareAtCents: input.publicCompareAtCents,
+      source: "public" as const,
+    };
+  }
+
+  if (
+    canUseMarketData &&
+    isMeaningfullyHigherThanPrice(
+      input.competitorHighPriceCents,
+      publishablePriceCents,
+      config
+    )
+  ) {
+    reasonCodes.push(PRICING_REASON_CODES.compareAtFromMarketHigh);
+    return {
+      compareAtCents: input.competitorHighPriceCents,
+      source: "market_high" as const,
+    };
+  }
+
+  if (
+    canUseMarketData &&
+    isMeaningfullyHigherThanPrice(
+      input.competitorAveragePriceCents,
+      publishablePriceCents,
+      config
+    )
+  ) {
+    reasonCodes.push(PRICING_REASON_CODES.compareAtFromMarketAverage);
+    return {
+      compareAtCents: input.competitorAveragePriceCents,
+      source: "market_average" as const,
+    };
+  }
+
+  if (input.currentCompareAtCents !== null) {
+    reasonCodes.push(PRICING_REASON_CODES.compareAtCleared);
+  }
+
+  return {
+    compareAtCents: null,
+    source: null,
+  };
 };
 
 const calculateInventoryAdjustmentBasisPoints = (
@@ -321,6 +457,14 @@ const buildExplanation = (
     );
   }
 
+  if (result.compareAtSource === "public") {
+    parts.push("Compare-at uses the public seller list price.");
+  } else if (result.compareAtSource === "market_high") {
+    parts.push("Compare-at falls back to conservative market high pricing.");
+  } else if (result.compareAtSource === "market_average") {
+    parts.push("Compare-at falls back to market average because no public list price was available.");
+  }
+
   parts.push(
     `Publishable recommendation ${(result.publishablePriceCents / 100).toFixed(2)} EUR from current ${(result.currentPriceCents / 100).toFixed(2)} EUR.`
   );
@@ -368,6 +512,9 @@ export const calculatePricingRecommendation = (
   let marketTargetPriceCents = Math.max(0, input.currentPriceCents);
   let recommendedTargetPriceCents = marketTargetPriceCents;
   let publishablePriceCents = marketTargetPriceCents;
+  let recommendedCompareAtCents: number | null = null;
+  let publishableCompareAtCents: number | null = null;
+  let compareAtSource: "public" | "market_high" | "market_average" | null = null;
   let inventoryAdjustmentBasisPoints = 0;
 
   if (baseLandedCostCents !== null) {
@@ -416,6 +563,17 @@ export const calculatePricingRecommendation = (
       publishablePriceCents = hardMinimumPriceCents;
       reasonCodes.push(PRICING_REASON_CODES.floorPriceProtection);
     }
+
+    const compareAtRecommendation = calculateCompareAtRecommendation(
+      input,
+      publishablePriceCents,
+      config,
+      validation,
+      reasonCodes
+    );
+    recommendedCompareAtCents = compareAtRecommendation.compareAtCents;
+    publishableCompareAtCents = compareAtRecommendation.compareAtCents;
+    compareAtSource = compareAtRecommendation.source;
   }
 
   const priceDeltaBasisPoints =
@@ -432,10 +590,10 @@ export const calculatePricingRecommendation = (
       validation.lowData ||
       (validation.competitorDataAvailable &&
         (!validation.competitorDataFresh || !validation.competitorDataReliable)) ||
-      Math.abs(priceDeltaBasisPoints) > config.maxAutoPriceMoveBasisPoints);
+      priceDeltaBasisPoints > config.higherPriceReviewThresholdBasisPoints);
 
-  if (Math.abs(priceDeltaBasisPoints) > config.maxAutoPriceMoveBasisPoints) {
-    reasonCodes.push(PRICING_REASON_CODES.guardrailMaxAutoMoveExceeded);
+  if (priceDeltaBasisPoints > config.higherPriceReviewThresholdBasisPoints) {
+    reasonCodes.push(PRICING_REASON_CODES.guardrailHigherPriceReviewExceeded);
   }
 
   const confidenceBase =
@@ -462,6 +620,9 @@ export const calculatePricingRecommendation = (
     marketTargetPriceCents,
     recommendedTargetPriceCents,
     publishablePriceCents,
+    recommendedCompareAtCents,
+    publishableCompareAtCents,
+    compareAtSource,
     priceDeltaBasisPoints,
     stockCoverDays,
     inventoryAdjustmentBasisPoints,

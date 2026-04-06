@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   Prisma,
+  PricingRunStatus,
   type PricingRecommendationStatus,
   type PrismaClient,
 } from "@prisma/client";
@@ -12,6 +13,11 @@ import {
   type PricingCalculationResult,
 } from "@/lib/pricingAutomationEngine";
 import { getPricingAutomationConfig } from "@/lib/pricingAutomationConfig";
+import {
+  DEFAULT_MARKET_REPORT_PATH,
+  importMarketReportCompetitorData,
+  refreshBloomtechPublicCompetitorData,
+} from "@/lib/pricingCompetitorSync";
 import { prisma } from "@/lib/prisma";
 
 type AdminActor = {
@@ -26,6 +32,8 @@ type RunPricingAutomationOptions = {
   limit?: number;
   now?: Date;
   notes?: string | null;
+  refreshPublicCompetitorData?: boolean;
+  marketReportPath?: string | null;
 };
 
 type DemandSignals = {
@@ -34,6 +42,26 @@ type DemandSignals = {
   salesVelocity: number;
   conversionRate: number;
 };
+
+const VARIANT_PRICING_PROFILE_SELECT = {
+  supplierShippingCostCents: true,
+  inboundShippingCostCents: true,
+  packagingCostCents: true,
+  handlingCostCents: true,
+  paymentFeePercentBasisPoints: true,
+  paymentFixedFeeCents: true,
+  returnRiskBufferBasisPoints: true,
+  targetMarginBasisPoints: true,
+  competitorMinPriceCents: true,
+  competitorAveragePriceCents: true,
+  competitorHighPriceCents: true,
+  publicCompareAtCents: true,
+  competitorObservedAt: true,
+  competitorSourceLabel: true,
+  competitorReliabilityScore: true,
+  productSegment: true,
+  autoRepriceEnabled: true,
+} satisfies Prisma.VariantPricingProfileSelect;
 
 const getDateDaysAgo = (now: Date, daysAgo: number) => {
   const value = new Date(now);
@@ -132,6 +160,7 @@ const serializeInputSnapshot = (
   sku: input.sku,
   title: input.title,
   currentPriceCents: input.currentPriceCents,
+  currentCompareAtCents: input.currentCompareAtCents,
   baseCostCents: input.baseCostCents,
   supplierShippingCostCents: input.supplierShippingCostCents,
   inboundShippingCostCents: input.inboundShippingCostCents,
@@ -143,6 +172,8 @@ const serializeInputSnapshot = (
   targetMarginBasisPoints: input.targetMarginBasisPoints,
   competitorMinPriceCents: input.competitorMinPriceCents,
   competitorAveragePriceCents: input.competitorAveragePriceCents,
+  competitorHighPriceCents: input.competitorHighPriceCents,
+  publicCompareAtCents: input.publicCompareAtCents,
   competitorObservedAt: input.competitorObservedAt?.toISOString() ?? null,
   competitorSourceLabel: input.competitorSourceLabel ?? null,
   competitorReliabilityScore: input.competitorReliabilityScore,
@@ -162,6 +193,10 @@ const serializeInputSnapshot = (
     competitorMinReliabilityScore: config.competitorMinReliabilityScore,
     lowDataMinViews: config.lowDataMinViews,
     lowDataMinUnitsSold: config.lowDataMinUnitsSold,
+    higherPriceReviewThresholdBasisPoints:
+      config.higherPriceReviewThresholdBasisPoints,
+    compareAtMinLiftBasisPoints: config.compareAtMinLiftBasisPoints,
+    compareAtMinDeltaCents: config.compareAtMinDeltaCents,
     segmentConfig: config.segmentConfigs[input.productSegment],
   },
 });
@@ -172,6 +207,9 @@ const serializeOutputSnapshot = (result: PricingCalculationResult) => ({
   marketTargetPriceCents: result.marketTargetPriceCents,
   recommendedTargetPriceCents: result.recommendedTargetPriceCents,
   publishablePriceCents: result.publishablePriceCents,
+  recommendedCompareAtCents: result.recommendedCompareAtCents,
+  publishableCompareAtCents: result.publishableCompareAtCents,
+  compareAtSource: result.compareAtSource,
   stockCoverDays: result.stockCoverDays,
   inventoryAdjustmentBasisPoints: result.inventoryAdjustmentBasisPoints,
   confidenceScore: result.confidenceScore,
@@ -197,14 +235,24 @@ export async function runPricingAutomation({
   limit,
   now = new Date(),
   notes,
+  refreshPublicCompetitorData = true,
+  marketReportPath,
 }: RunPricingAutomationOptions = {}) {
   const db = prismaClient ?? prisma;
   const config = getPricingAutomationConfig();
 
+  const runningRun = await db.pricingRun.findFirst({
+    where: { status: PricingRunStatus.RUNNING },
+    orderBy: { startedAt: "desc" },
+  });
+  if (runningRun) {
+    throw new Error("A pricing run is already in progress.");
+  }
+
   const run = await db.pricingRun.create({
     data: {
       mode,
-      status: "COMPLETED",
+      status: PricingRunStatus.RUNNING,
       triggeredById: actor?.id ?? null,
       notes: notes ?? null,
       startedAt: now,
@@ -216,6 +264,7 @@ export async function runPricingAutomation({
       await db.pricingRun.update({
         where: { id: run.id },
         data: {
+          status: "COMPLETED",
           finishedAt: new Date(),
           summary: {
             enabled: false,
@@ -223,6 +272,8 @@ export async function runPricingAutomation({
             applied: 0,
             review: 0,
             blocked: 0,
+            refreshPublicCompetitorData,
+            marketReportPath: marketReportPath ?? null,
           },
         },
       });
@@ -238,7 +289,7 @@ export async function runPricingAutomation({
       };
     }
 
-    const variants = await db.variant.findMany({
+    const initialVariants = await db.variant.findMany({
       where: {
         product: {
           status: "ACTIVE",
@@ -251,16 +302,77 @@ export async function runPricingAutomation({
       orderBy: [{ updatedAt: "desc" }],
       include: {
         inventory: true,
-        pricingProfile: true,
+        pricingProfile: {
+          select: VARIANT_PRICING_PROFILE_SELECT,
+        },
         product: {
           select: {
             id: true,
             title: true,
             createdAt: true,
+            handle: true,
+            sellerUrl: true,
+            sellerName: true,
+            supplier: true,
           },
         },
       },
     });
+
+    let publicRefreshStats: {
+      productsRefreshed: number;
+      variantsUpdated: number;
+      skipped: number;
+    } | null = null;
+    let marketImportStats: {
+      reportPath: string;
+      variantsUpdated: number;
+      skipped: number;
+    } | null = null;
+
+    if (refreshPublicCompetitorData) {
+      publicRefreshStats = await refreshBloomtechPublicCompetitorData(
+        db,
+        initialVariants,
+        now
+      );
+    }
+
+    if (marketReportPath !== null) {
+      marketImportStats = await importMarketReportCompetitorData(
+        db,
+        initialVariants,
+        marketReportPath || DEFAULT_MARKET_REPORT_PATH
+      );
+    }
+
+    const variantIdOrder = initialVariants.map((variant) => variant.id);
+    const orderMap = new Map(variantIdOrder.map((id, index) => [id, index]));
+    const variants = await db.variant.findMany({
+      where: { id: { in: variantIdOrder } },
+      include: {
+        inventory: true,
+        pricingProfile: {
+          select: VARIANT_PRICING_PROFILE_SELECT,
+        },
+        product: {
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+            handle: true,
+            sellerUrl: true,
+            sellerName: true,
+            supplier: true,
+          },
+        },
+      },
+    });
+    variants.sort(
+      (left, right) =>
+        (orderMap.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+        (orderMap.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+    );
 
     const since = getDateDaysAgo(now, config.recommendationWindowDays - 1);
     const demandMap = await buildVariantDemandMap(
@@ -287,6 +399,7 @@ export async function runPricingAutomation({
         sku: variant.sku,
         title: `${variant.product.title} / ${variant.title}`,
         currentPriceCents: variant.priceCents,
+        currentCompareAtCents: variant.compareAtCents,
         baseCostCents: variant.costCents > 0 ? variant.costCents : null,
         supplierShippingCostCents:
           variant.pricingProfile?.supplierShippingCostCents ?? null,
@@ -310,6 +423,10 @@ export async function runPricingAutomation({
           variant.pricingProfile?.competitorMinPriceCents ?? null,
         competitorAveragePriceCents:
           variant.pricingProfile?.competitorAveragePriceCents ?? null,
+        competitorHighPriceCents:
+          variant.pricingProfile?.competitorHighPriceCents ?? null,
+        publicCompareAtCents:
+          variant.pricingProfile?.publicCompareAtCents ?? null,
         competitorObservedAt:
           variant.pricingProfile?.competitorObservedAt ?? null,
         competitorSourceLabel:
@@ -357,28 +474,34 @@ export async function runPricingAutomation({
         applied += 1;
         if (variant.priceCents !== result.publishablePriceCents) {
           await db.$transaction(async (tx) => {
+            const changeAuditData: Prisma.PricingChangeAuditUncheckedCreateInput = {
+              recommendationId: recommendation.id,
+              variantId: variant.id,
+              productId: variant.productId,
+              actorId: actor?.id ?? null,
+              source: "AUTOMATION",
+              oldPriceCents: variant.priceCents,
+              newPriceCents: result.publishablePriceCents,
+              oldCompareAtCents: variant.compareAtCents,
+              newCompareAtCents: result.publishableCompareAtCents,
+              hardMinimumPriceCents: result.hardMinimumPriceCents,
+              reasonCodes: result.reasonCodes,
+              inputSnapshot: serializeInputSnapshot(input, config) as Prisma.InputJsonValue,
+              metadata: {
+                runId: run.id,
+                explanation: result.explanation,
+              } as Prisma.InputJsonValue,
+            };
             const changeAudit = await tx.pricingChangeAudit.create({
-              data: {
-                recommendationId: recommendation.id,
-                variantId: variant.id,
-                productId: variant.productId,
-                actorId: actor?.id ?? null,
-                source: "AUTOMATION",
-                oldPriceCents: variant.priceCents,
-                newPriceCents: result.publishablePriceCents,
-                hardMinimumPriceCents: result.hardMinimumPriceCents,
-                reasonCodes: result.reasonCodes,
-                inputSnapshot: serializeInputSnapshot(input, config) as Prisma.InputJsonValue,
-                metadata: {
-                  runId: run.id,
-                  explanation: result.explanation,
-                } as Prisma.InputJsonValue,
-              },
+              data: changeAuditData,
             });
 
             await tx.variant.update({
               where: { id: variant.id },
-              data: { priceCents: result.publishablePriceCents },
+              data: {
+                priceCents: result.publishablePriceCents,
+                compareAtCents: result.publishableCompareAtCents,
+              },
             });
 
             await tx.pricingRecommendation.update({
@@ -401,11 +524,16 @@ export async function runPricingAutomation({
       applied,
       review,
       blocked,
+      refreshPublicCompetitorData,
+      marketReportPath: marketImportStats?.reportPath ?? marketReportPath ?? null,
+      publicRefreshStats,
+      marketImportStats,
     };
 
     await db.pricingRun.update({
       where: { id: run.id },
       data: {
+        status: "COMPLETED",
         finishedAt: new Date(),
         summary: summary as Prisma.InputJsonValue,
       },
@@ -454,6 +582,7 @@ export async function approvePricingRecommendation(
         select: {
           id: true,
           priceCents: true,
+          compareAtCents: true,
           productId: true,
         },
       },
@@ -476,31 +605,55 @@ export async function approvePricingRecommendation(
     throw new Error("Manual approval price must be a positive amount in cents.");
   }
 
+  const outputSnapshot =
+    recommendation.outputSnapshot &&
+    typeof recommendation.outputSnapshot === "object" &&
+    !Array.isArray(recommendation.outputSnapshot)
+      ? (recommendation.outputSnapshot as Record<string, unknown>)
+      : null;
+  const recommendedCompareAtCents =
+    outputSnapshot &&
+    typeof outputSnapshot.publishableCompareAtCents === "number" &&
+    Number.isFinite(outputSnapshot.publishableCompareAtCents)
+      ? Math.round(outputSnapshot.publishableCompareAtCents)
+      : null;
+  const appliedCompareAtCents =
+    typeof recommendedCompareAtCents === "number" &&
+    recommendedCompareAtCents > appliedPriceCents
+      ? recommendedCompareAtCents
+      : null;
+
   await db.$transaction(async (tx) => {
+    const changeAuditData: Prisma.PricingChangeAuditUncheckedCreateInput = {
+      recommendationId: recommendation.id,
+      variantId: recommendation.variantId,
+      productId: recommendation.productId,
+      actorId: actor.id ?? null,
+      source: "MANUAL_REVIEW",
+      oldPriceCents: recommendation.variant.priceCents,
+      newPriceCents: appliedPriceCents,
+      oldCompareAtCents: recommendation.variant.compareAtCents,
+      newCompareAtCents: appliedCompareAtCents,
+      hardMinimumPriceCents: recommendation.hardMinimumPriceCents,
+      reasonCodes: recommendation.reasonCodes,
+      inputSnapshot: toInputJsonValue(recommendation.inputSnapshot),
+      metadata: {
+        approvedFromReviewQueue: true,
+        recommendedPublishablePriceCents: recommendation.publishablePriceCents,
+        manualOverrideApplied:
+          appliedPriceCents !== recommendation.publishablePriceCents,
+      } as Prisma.InputJsonValue,
+    };
     const changeAudit = await tx.pricingChangeAudit.create({
-      data: {
-        recommendationId: recommendation.id,
-        variantId: recommendation.variantId,
-        productId: recommendation.productId,
-        actorId: actor.id ?? null,
-        source: "MANUAL_REVIEW",
-        oldPriceCents: recommendation.variant.priceCents,
-        newPriceCents: appliedPriceCents,
-        hardMinimumPriceCents: recommendation.hardMinimumPriceCents,
-        reasonCodes: recommendation.reasonCodes,
-        inputSnapshot: toInputJsonValue(recommendation.inputSnapshot),
-        metadata: {
-          approvedFromReviewQueue: true,
-          recommendedPublishablePriceCents: recommendation.publishablePriceCents,
-          manualOverrideApplied:
-            appliedPriceCents !== recommendation.publishablePriceCents,
-        } as Prisma.InputJsonValue,
-      },
+      data: changeAuditData,
     });
 
     await tx.variant.update({
       where: { id: recommendation.variantId },
-      data: { priceCents: appliedPriceCents },
+      data: {
+        priceCents: appliedPriceCents,
+        compareAtCents: appliedCompareAtCents,
+      },
     });
 
     await tx.pricingRecommendation.update({
@@ -524,6 +677,8 @@ export async function approvePricingRecommendation(
     metadata: {
       oldPriceCents: recommendation.variant.priceCents,
       newPriceCents: appliedPriceCents,
+      oldCompareAtCents: recommendation.variant.compareAtCents,
+      newCompareAtCents: appliedCompareAtCents,
       recommendedPublishablePriceCents: recommendation.publishablePriceCents,
       manualOverrideApplied:
         appliedPriceCents !== recommendation.publishablePriceCents,

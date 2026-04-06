@@ -86,6 +86,7 @@ enum PricingRunMode {
 }
 
 enum PricingRunStatus {
+  RUNNING
   COMPLETED
   FAILED
 }
@@ -1012,6 +1013,8 @@ model VariantPricingProfile {
   targetMarginBasisPoints      Int?
   competitorMinPriceCents      Int?
   competitorAveragePriceCents  Int?
+  competitorHighPriceCents     Int?
+  publicCompareAtCents         Int?
   competitorObservedAt         DateTime?
   competitorSourceLabel        String?
   competitorSourceCount        Int?
@@ -1090,6 +1093,8 @@ model PricingChangeAudit {
   source                PricingChangeSource
   oldPriceCents         Int
   newPriceCents         Int
+  oldCompareAtCents     Int?
+  newCompareAtCents     Int?
   hardMinimumPriceCents Int?
   reasonCodes           String[]            @default([])
   inputSnapshot         Json
