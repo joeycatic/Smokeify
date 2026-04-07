@@ -1,3 +1,6 @@
+import fs from "fs";
+import { pathToFileURL } from "node:url";
+
 const DEFAULT_URL = "https://bloomtech.de/Biobizz_1";
 const DEFAULT_PRODUCT_URL = "https://bloomtech.de/BioBizz-Bio-Grow-250-ml";
 const DEFAULT_LIMIT = 50;
@@ -1034,17 +1037,7 @@ const parseArgs = () => {
   };
 };
 
-const run = async () => {
-  const {
-    mode,
-    url,
-    limit,
-    out,
-    dumpCategory,
-    dumpAccount,
-    dumpLogin,
-    dumpLoginResponse,
-  } = parseArgs();
+const loadDotEnvFile = async () => {
   const envPath = " .env";
   const envFilePath = envPath.trim();
   if (fs.existsSync(envFilePath)) {
@@ -1068,12 +1061,30 @@ const run = async () => {
         process.env[key] = value;
       });
   }
+};
+
+export const runBloomtechSupplierPreview = async ({
+  mode = "category",
+  url = mode === "product" ? DEFAULT_PRODUCT_URL : DEFAULT_URL,
+  limit = DEFAULT_LIMIT,
+  out = "scripts/bloomtech/supplier-preview.json",
+  dumpCategory = null,
+  dumpAccount = null,
+  dumpLogin = null,
+  dumpLoginResponse = null,
+  loadEnvFile = true,
+  persistOutput = true,
+  logger = console,
+} = {}) => {
+  if (loadEnvFile) {
+    await loadDotEnvFile();
+  }
   const cookieJar = createCookieJar();
   const cookieOverride = process.env.BLOOMTECH_COOKIE;
   if (cookieOverride) {
     cookieJar.setFromCookieString(cookieOverride);
     if (process.env.BLOOMTECH_DEBUG === "1") {
-      console.log("[preview] Using BLOOMTECH_COOKIE auth.");
+      logger.log("[preview] Using BLOOMTECH_COOKIE auth.");
     }
   } else {
     await loginBloomtech(cookieJar, { dumpLogin, dumpLoginResponse });
@@ -1102,7 +1113,7 @@ const run = async () => {
     }
     links = [url];
     prefetchedPages = new Map([[url, { html: categoryHtml, text: seedText }]]);
-    console.log(`[preview] source=product links=1 url=${url}`);
+    logger.log(`[preview] source=product links=1 url=${url}`);
   } else {
     if (seedKind === "product") {
       throw new Error(
@@ -1124,7 +1135,7 @@ const run = async () => {
         "No Bloomtech product links were found on this listing page. Use a category or brand listing URL that shows product cards.",
       );
     }
-    console.log(
+    logger.log(
       `[preview] source=category links=${links.length} jsonLd=${jsonLdLinks.length} productCards=${productLinks.length} url=${url}`,
     );
   }
@@ -1141,7 +1152,7 @@ const run = async () => {
       const text = prefetchedPage?.text ?? normalizeText(stripTags(html));
       checked += 1;
       if (detectBloomtechPageKind(html, text) !== "product") {
-        console.warn(`[preview] Skipped ${link}: expected product page.`);
+        logger.warn(`[preview] Skipped ${link}: expected product page.`);
         continue;
       }
       if (allowedSlugs.size > 0) {
@@ -1209,7 +1220,7 @@ const run = async () => {
         await sleep(REQUEST_DELAY_MS);
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         `[preview] Failed ${link}: ${error instanceof Error ? error.message : "unknown"}`,
       );
     }
@@ -1225,15 +1236,22 @@ const run = async () => {
     items: previews,
   };
 
-  await fs.promises.writeFile(out, JSON.stringify(payload, null, 2), "utf8");
-  console.log(
-    `Preview done. mode=${mode} checked=${checked} items=${previews.length} output=${out}`,
+  if (persistOutput && out) {
+    await fs.promises.writeFile(out, JSON.stringify(payload, null, 2), "utf8");
+  }
+  logger.log(
+    `Preview done. mode=${mode} checked=${checked} items=${previews.length}${persistOutput && out ? ` output=${out}` : ""}`,
   );
+  return payload;
 };
 
-import fs from "fs";
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (isDirectRun) {
+  runBloomtechSupplierPreview(parseArgs()).catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

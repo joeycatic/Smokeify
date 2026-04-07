@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { pathToFileURL } from "node:url";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -147,6 +148,23 @@ const extractSupplierImageUrls = (item) => {
   return urls;
 };
 
+const extractSupplierSku = (item) => {
+  const directCandidates = [item?.sku, item?.supplierSku];
+  for (const candidate of directCandidates) {
+    if (typeof candidate !== "string") continue;
+    const normalized = candidate.trim();
+    if (normalized) return normalized;
+  }
+
+  if (typeof item?.technicalDetails !== "string") return null;
+  const match = item.technicalDetails.match(
+    /(?:^|;\s*)Artikelnummer\s*:\s*([^;]+)/i
+  );
+  if (!match) return null;
+  const normalized = match[1].trim();
+  return normalized || null;
+};
+
 const parseCsvList = (value) =>
   (value ?? "")
     .split(",")
@@ -247,6 +265,13 @@ const loadPreview = (inputPath) => {
   return JSON.parse(raw);
 };
 
+const normalizePreviewPayload = ({ inputPath, payload }) => {
+  if (payload && typeof payload === "object") {
+    return payload;
+  }
+  return loadPreview(inputPath);
+};
+
 const resolveSupplier = async () => {
   const supplierId = process.env.BLOOMTECH_SUPPLIER_ID ?? null;
   const supplierName = process.env.BLOOMTECH_SUPPLIER_NAME ?? null;
@@ -278,22 +303,23 @@ const buildInventoryQuantity = (stock) => {
   return 0;
 };
 
-const run = async () => {
-  const {
-    input,
-    limit,
-    apply,
-    allowMissingPrice,
-    updateExistingPrices,
-    marginPercent,
-    rounding,
-    mainCategoryId,
-    mainCategoryHandle,
-    categoryIds,
-    categoryHandles,
-  } = parseArgs();
-  const allowWrite = process.env.BLOOMTECH_IMPORT_ALLOW_WRITE === "1";
-  const payload = loadPreview(input);
+export const runBloomtechImportPreview = async ({
+  input = DEFAULT_INPUT,
+  payload: providedPayload = null,
+  limit = 0,
+  apply = false,
+  allowMissingPrice = false,
+  updateExistingPrices = false,
+  marginPercent = null,
+  rounding = null,
+  mainCategoryId = null,
+  mainCategoryHandle = null,
+  categoryIds = null,
+  categoryHandles = null,
+  allowWrite = process.env.BLOOMTECH_IMPORT_ALLOW_WRITE === "1",
+  logger = console,
+} = {}) => {
+  const payload = normalizePreviewPayload({ inputPath: input, payload: providedPayload });
   const items = Array.isArray(payload.items) ? payload.items : [];
   const sellerName = process.env.BLOOMTECH_SELLER_NAME ?? DEFAULT_SELLER_NAME;
   const sellerUrl = process.env.BLOOMTECH_SELLER_URL ?? DEFAULT_SELLER_URL;
@@ -310,7 +336,7 @@ const run = async () => {
   });
 
   if (!apply || !allowWrite) {
-    console.log(
+    logger.log(
       "[import] Dry run only. Set BLOOMTECH_IMPORT_ALLOW_WRITE=1 and pass --apply to write."
     );
   }
@@ -341,6 +367,9 @@ const run = async () => {
         : slugifyFallback(title);
 
     const sourceUrl = typeof item.sourceUrl === "string" ? item.sourceUrl.trim() : "";
+    const manufacturer =
+      typeof item.manufacturer === "string" ? item.manufacturer.trim() : "";
+    const supplierSku = extractSupplierSku(item);
     const existingByHandle = await prisma.product.findUnique({
       where: { handle },
       select: {
@@ -349,10 +378,17 @@ const run = async () => {
         supplier: true,
         sellerName: true,
         sellerUrl: true,
+        manufacturer: true,
         variants: {
           orderBy: { position: "asc" },
           take: 1,
-          select: { id: true, title: true, priceCents: true, costCents: true },
+          select: {
+            id: true,
+            title: true,
+            sku: true,
+            priceCents: true,
+            costCents: true,
+          },
         },
       },
     });
@@ -390,12 +426,13 @@ const run = async () => {
       }
       const supplierImageUrls = extractSupplierImageUrls(item);
       const sellPriceCents = costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
+      const variantSku = supplierSku || primaryVariant.sku || handle;
       if (!apply || !allowWrite) {
         const costLabel = costCents === null ? "missing" : formatCents(costCents);
         const priceLabel =
           costCents === null ? "0.00" : formatCents(sellPriceCents);
-        console.log(
-          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length}`
+        logger.log(
+          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} sku=${variantSku} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length}`
         );
         continue;
       }
@@ -403,6 +440,7 @@ const run = async () => {
         prisma.variant.update({
           where: { id: primaryVariant.id },
           data: {
+            sku: variantSku,
             costCents: costCents ?? 0,
             priceCents: sellPriceCents,
           },
@@ -410,7 +448,11 @@ const run = async () => {
         prisma.product.update({
           where: { id: existingByHandle.id },
           data: {
+            supplier: supplier?.name ?? sellerName,
+            supplierId: supplier?.id ?? undefined,
+            sellerName,
             sellerUrl: sourceUrl || existingByHandle.sellerUrl,
+            manufacturer: manufacturer || existingByHandle.manufacturer,
             images:
               supplierImageUrls.length > 0
                 ? {
@@ -457,13 +499,14 @@ const run = async () => {
       item.supplierWeight && typeof item.supplierWeight.grams === "number"
         ? Math.round(item.supplierWeight.grams)
         : null;
+    const variantSku = supplierSku || handle;
 
     if (!apply || !allowWrite) {
       const costLabel = costCents === null ? "missing" : formatCents(costCents);
       const priceLabel =
         costCents === null ? "0.00" : formatCents(sellPriceCents);
-      console.log(
-        `[import] dry-run pricing handle=${handle} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
+      logger.log(
+        `[import] dry-run pricing handle=${handle} sku=${variantSku} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
       );
       continue;
     }
@@ -483,10 +526,8 @@ const run = async () => {
             ? item.shortDescription.trim()
             : null,
         manufacturer:
-          typeof item.manufacturer === "string"
-            ? item.manufacturer.trim()
-            : null,
-        supplier: supplier?.name ?? null,
+          manufacturer || null,
+        supplier: supplier?.name ?? sellerName,
         supplierId: supplier?.id ?? null,
         sellerName,
         sellerUrl: sourceUrl || sellerUrl,
@@ -516,7 +557,7 @@ const run = async () => {
         variants: {
           create: {
             title: "Default",
-            sku: handle,
+            sku: variantSku,
             priceCents: sellPriceCents,
             costCents: costCents ?? 0,
             position: 0,
@@ -534,24 +575,36 @@ const run = async () => {
     results.created += 1;
   }
 
-  console.log(
+  logger.log(
     `[import] processed=${results.processed} created=${results.created} updated=${results.updated} skipped=${results.skipped} missingPrice=${results.missingPrice} margin=${pricingConfig.marginPercent}% rounding=${pricingConfig.rounding} currency=${pricingConfig.currency}`
   );
   if (!apply || !allowWrite) {
     if (skippedItems.length > 0) {
-      console.log("[import] skipped items:");
+      logger.log("[import] skipped items:");
       skippedItems.forEach((item) => {
         const handleLabel = item.handle ? `handle=${item.handle}` : "handle=?";
         const titleLabel = item.title ? `title=${item.title}` : "title=?";
-        console.log(`- ${handleLabel} ${titleLabel} reason=${item.reason}`);
+        logger.log(`- ${handleLabel} ${titleLabel} reason=${item.reason}`);
       });
     } else {
-      console.log("[import] no skipped items.");
+      logger.log("[import] no skipped items.");
     }
   }
+  return {
+    results,
+    skippedItems,
+    pricingConfig,
+    sellerName,
+    sellerUrl,
+  };
 };
 
-run()
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  runBloomtechImportPreview(parseArgs())
   .catch((error) => {
     console.error("[import] Failed:", error);
     process.exitCode = 1;
@@ -559,3 +612,4 @@ run()
   .finally(async () => {
     await prisma.$disconnect();
   });
+}

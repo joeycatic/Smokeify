@@ -1,6 +1,11 @@
 import { spawn } from "node:child_process";
 import { NextResponse } from "next/server";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import {
+  type BloomtechPreviewPayload,
+  loadLatestBloomtechPreviewPayload,
+  saveBloomtechPreviewPayload,
+} from "@/lib/bloomtechAdminPreviewStore";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { getAdminScriptDefinition } from "@/lib/adminScripts";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +13,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
 export const runtime = "nodejs";
+export const maxDuration = 600;
 
 const OUTPUT_LIMIT = 12_000;
 const AUDIT_OUTPUT_LIMIT = 1_000;
@@ -30,6 +36,12 @@ function getActiveRunState() {
 
 function appendOutput(current: string, chunk: Buffer | string) {
   const next = current + chunk.toString();
+  if (next.length <= OUTPUT_LIMIT) return next;
+  return next.slice(-OUTPUT_LIMIT);
+}
+
+function appendOutputLine(current: string, line: string) {
+  const next = current ? `${current}\n${line}` : line;
   if (next.length <= OUTPUT_LIMIT) return next;
   return next.slice(-OUTPUT_LIMIT);
 }
@@ -236,36 +248,124 @@ async function executeScript({
 }
 
 async function executeInternalSupplierSync() {
-  const stdoutLines: string[] = [];
-  const stderrLines: string[] = [];
-  const appendLine = (target: string[], line: string) => {
-    target.push(line);
-    let combined = target.join("\n");
-    while (combined.length > OUTPUT_LIMIT && target.length > 1) {
-      target.shift();
-      combined = target.join("\n");
-    }
-  };
+  let stdout = "";
+  let stderr = "";
 
   const { runSupplierSync } = await import("@/lib/supplierStockSync.mjs");
   const result = await runSupplierSync({
     prisma,
     logger: {
       info(message: string) {
-        appendLine(stdoutLines, message);
+        stdout = appendOutputLine(stdout, message);
       },
       warn(message: string) {
-        appendLine(stderrLines, message);
+        stderr = appendOutputLine(stderr, message);
       },
     },
   });
 
   return {
     ok: true,
-    stdout: stdoutLines.join("\n"),
-    stderr: stderrLines.join("\n"),
+    stdout,
+    stderr,
     exitCode: 0,
     timedOut: result.timedOut,
+  };
+}
+
+function createBufferedLogger() {
+  let stdout = "";
+  let stderr = "";
+
+  return {
+    logger: {
+      log: (...args: unknown[]) => {
+        stdout = appendOutputLine(stdout, args.map(String).join(" "));
+      },
+      warn: (...args: unknown[]) => {
+        stderr = appendOutputLine(stderr, args.map(String).join(" "));
+      },
+      error: (...args: unknown[]) => {
+        stderr = appendOutputLine(stderr, args.map(String).join(" "));
+      },
+    },
+    getResult: () => ({ stdout, stderr }),
+  };
+}
+
+async function executeInternalBloomtechPreview({
+  scriptId,
+  sourceUrl,
+}: {
+  scriptId: string;
+  sourceUrl?: string;
+}) {
+  const mode =
+    scriptId === "bloomtech:scrape-product-preview" ? "product" : "category";
+  const { logger, getResult } = createBufferedLogger();
+  const bloomtechModule = await import(
+    "../../../../../scripts/bloomtech/scrapeSupplierPreview.mjs"
+  );
+  const runBloomtechSupplierPreview = bloomtechModule.runBloomtechSupplierPreview as (
+    options: Record<string, unknown>
+  ) => Promise<{ items?: unknown[] }>;
+  const payload = await runBloomtechSupplierPreview({
+    mode,
+    ...(sourceUrl ? { url: sourceUrl } : {}),
+    persistOutput: false,
+    logger: logger as Console,
+  });
+  await saveBloomtechPreviewPayload(payload as BloomtechPreviewPayload);
+
+  const buffered = getResult();
+  const savedLine = `[preview] saved latest Bloomtech preview to database payload items=${Array.isArray(payload.items) ? payload.items.length : 0}`;
+
+  return {
+    ok: true,
+    stdout: appendOutputLine(buffered.stdout, savedLine),
+    stderr: buffered.stderr,
+    exitCode: 0,
+    timedOut: false,
+  };
+}
+
+async function executeInternalBloomtechImportPreview() {
+  const preview = await loadLatestBloomtechPreviewPayload();
+  if (!preview) {
+    return {
+      ok: false,
+      stdout: "",
+      stderr:
+        "No stored Bloomtech preview is available. Run a Bloomtech scrape preview first.",
+      exitCode: 1,
+      timedOut: false,
+    };
+  }
+
+  const { logger, getResult } = createBufferedLogger();
+  const bloomtechModule = await import(
+    "../../../../../scripts/bloomtech/importPreviewToCatalog.mjs"
+  );
+  const runBloomtechImportPreview = bloomtechModule.runBloomtechImportPreview as (
+    options: Record<string, unknown>
+  ) => Promise<unknown>;
+
+  await runBloomtechImportPreview({
+    payload: preview.payload,
+    apply: true,
+    allowWrite: true,
+    logger: logger as Console,
+  });
+
+  const buffered = getResult();
+  const previewMetaLine = `[import] using stored Bloomtech preview savedAt=${preview.createdAt.toISOString()} items=${preview.payload.items.length}`;
+
+  return {
+    ok: true,
+    stdout: appendOutputLine(previewMetaLine, buffered.stdout),
+    stderr: buffered.stderr,
+    exitCode: 0,
+    timedOut: false,
   };
 }
 
@@ -348,6 +448,15 @@ export async function POST(request: Request) {
     const result =
       definition.id === "suppliers:sync-stock"
         ? await executeInternalSupplierSync()
+        : definition.id === "bloomtech:scrape-preview" ||
+            definition.id === "bloomtech:scrape-category-preview" ||
+            definition.id === "bloomtech:scrape-product-preview"
+          ? await executeInternalBloomtechPreview({
+              scriptId: definition.id,
+              sourceUrl: execution.normalizedInputs.sourceUrl,
+            })
+          : definition.id === "bloomtech:import-preview"
+            ? await executeInternalBloomtechImportPreview()
         : await executeScript({
             scriptId: definition.npmScript,
             timeoutMs: definition.timeoutMs,
