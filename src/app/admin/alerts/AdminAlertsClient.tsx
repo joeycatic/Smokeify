@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminEmptyState, AdminMetricCard, AdminPanel } from "@/components/admin/AdminInsightPrimitives";
+import { AdminInput, AdminSelect } from "@/components/admin/AdminWorkspace";
 import type { AdminAlertAssignee, AdminAlertQueueItem } from "@/lib/adminAlerts";
 
 type Props = {
@@ -210,7 +211,7 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                   </div>
 
                   <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,220px)_minmax(0,220px)_minmax(0,1fr)]">
-                    <select
+                    <AdminSelect
                       value={draft.assigneeUserId}
                       onChange={(event) =>
                         setDrafts((current) => ({
@@ -218,7 +219,6 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                           [alert.id]: { ...draft, assigneeUserId: event.target.value },
                         }))
                       }
-                      className="h-10 rounded-xl border border-white/10 bg-[#0b1016] px-3 text-sm text-slate-100"
                     >
                       <option value="">Unassigned</option>
                       {assignees.map((assignee) => (
@@ -226,9 +226,9 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                           {assignee.name ?? assignee.email ?? assignee.id}
                         </option>
                       ))}
-                    </select>
+                    </AdminSelect>
 
-                    <input
+                    <AdminInput
                       type="datetime-local"
                       value={draft.snoozedUntil}
                       onChange={(event) =>
@@ -237,10 +237,9 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                           [alert.id]: { ...draft, snoozedUntil: event.target.value },
                         }))
                       }
-                      className="h-10 rounded-xl border border-white/10 bg-[#0b1016] px-3 text-sm text-slate-100"
                     />
 
-                    <input
+                    <AdminInput
                       type="text"
                       value={draft.resolutionNote}
                       onChange={(event) =>
@@ -250,7 +249,6 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                         }))
                       }
                       placeholder="Resolution note"
-                      className="h-10 rounded-xl border border-white/10 bg-[#0b1016] px-3 text-sm text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
 

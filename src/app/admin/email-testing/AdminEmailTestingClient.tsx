@@ -10,6 +10,7 @@ import {
   AdminNotice,
   AdminPageIntro,
   AdminPanel,
+  AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
 import AdminNewsletterCampaignPanel from "./AdminNewsletterCampaignPanel";
@@ -370,7 +371,7 @@ export default function AdminEmailTestingClient({
             </AdminField>
 
             <AdminField label="Storefront branding">
-              <select
+              <AdminSelect
                 value={storefront}
                 onChange={(event) => {
                   const nextStorefront = event.target.value as StorefrontCode;
@@ -382,14 +383,13 @@ export default function AdminEmailTestingClient({
                     setNewsletterSubject("Neu bei Smokeify");
                   }
                 }}
-                className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
               >
                 {STOREFRONT_OPTION_ROWS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {STOREFRONT_LABELS[option.value]}
                   </option>
                 ))}
-              </select>
+              </AdminSelect>
             </AdminField>
 
             {isNewsletter ? (

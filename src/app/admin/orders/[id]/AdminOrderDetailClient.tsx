@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type Dispatch, type ReactNode, type SetStateAction, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
@@ -10,6 +10,8 @@ import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 
 type Props = { detail: AdminOrderDetail };
+type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
+type TrackingDraft = { carrier: string; number: string; url: string };
 
 const ORDER_BADGE_BASE =
   "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold leading-none whitespace-nowrap";
@@ -19,6 +21,7 @@ const DARK_PANEL =
   "rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(4,8,20,0.98),rgba(6,10,24,0.96))] p-5 shadow-[0_24px_64px_rgba(2,6,23,0.42)]";
 const INPUT_CLASS =
   "h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
+const SELECT_CLASS = `admin-select ${INPUT_CLASS}`;
 const PRIMARY_BUTTON =
   "inline-flex h-10 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300";
 const SECONDARY_BUTTON =
@@ -31,6 +34,14 @@ const EDITABLE_ORDER_STATUSES = [
   "return_approved",
   "return_rejected",
 ] as const;
+const AUTO_SHIP_BLOCKING_STATUSES = ["shipped", "fulfilled", "refunded", "canceled", "cancelled", "failed"];
+const ORDER_TABS: Array<{ id: OrderTabId; label: string; detail: string }> = [
+  { id: "overview", label: "Overview", detail: "Snapshot and finance" },
+  { id: "fulfillment", label: "Fulfillment", detail: "Status and tracking" },
+  { id: "refunds", label: "Refunds", detail: "Line items and previews" },
+  { id: "customer", label: "Customer", detail: "Contact and shipping" },
+  { id: "timeline", label: "Timeline", detail: "Events and email actions" },
+];
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
 
@@ -107,14 +118,76 @@ const getTrackingState = (order: AdminOrderRecord) => {
   return "Awaiting shipment";
 };
 
+const getFulfillmentOutcome = (
+  order: AdminOrderRecord,
+  statusDraft: string,
+  trackingDraft: TrackingDraft,
+) => {
+  const hasTrackingDraft = Boolean(trackingDraft.number.trim() || trackingDraft.url.trim());
+  const normalizedExistingStatus = normalizeStatus(order.status);
+  const normalizedDraftStatus = normalizeStatus(statusDraft);
+  const statusChanged = normalizedDraftStatus !== normalizedExistingStatus;
+  const willAutoMarkShipped =
+    hasTrackingDraft &&
+    !statusChanged &&
+    !AUTO_SHIP_BLOCKING_STATUSES.includes(normalizedExistingStatus);
+
+  if (order.shippingEmailSentAt) {
+    return {
+      tone: "info" as const,
+      title: "Shipping email already sent",
+      detail: `Sent ${formatDateTime(order.shippingEmailSentAt)}. Saving will not auto-send another shipping email.`,
+    };
+  }
+
+  if (!hasTrackingDraft) {
+    return {
+      tone: "warning" as const,
+      title: "No shipping email will be sent on save",
+      detail: "Tracking number or tracking URL is required before the system can send the shipping email automatically.",
+    };
+  }
+
+  if (willAutoMarkShipped) {
+    return {
+      tone: "success" as const,
+      title: "Saving will auto-mark shipped and send the shipping email once",
+      detail: "When tracking is added without a blocking status change, the backend resolves the order to shipped.",
+    };
+  }
+
+  if (normalizedDraftStatus === "shipped") {
+    return {
+      tone: "success" as const,
+      title: "Saving will send the shipping email once",
+      detail: "Tracking is present and the resulting status will be shipped.",
+    };
+  }
+
+  if (normalizedDraftStatus === "fulfilled") {
+    return {
+      tone: "warning" as const,
+      title: "Fulfilled does not send the shipping email",
+      detail: "If the customer should be notified, use the shipped path or send the shipping email manually from the timeline tab.",
+    };
+  }
+
+  return {
+    tone: "info" as const,
+    title: "Tracking will save, but the email stays manual",
+    detail: "The current fulfillment path does not meet the automatic shipping-email rule.",
+  };
+};
+
 export default function AdminOrderDetailClient({ detail }: Props) {
   const [order, setOrder] = useState(detail.order);
   const [statusDraft, setStatusDraft] = useState(detail.order.status);
-  const [trackingDraft, setTrackingDraft] = useState({
+  const [trackingDraft, setTrackingDraft] = useState<TrackingDraft>({
     carrier: detail.order.trackingCarrier ?? "",
     number: detail.order.trackingNumber ?? "",
     url: detail.order.trackingUrl ?? "",
   });
+  const [activeTab, setActiveTab] = useState<OrderTabId>("overview");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -172,6 +245,10 @@ export default function AdminOrderDetailClient({ detail }: Props) {
     { label: "Shipping", sentAt: order.shippingEmailSentAt },
     { label: "Refund", sentAt: order.refundEmailSentAt },
   ];
+  const fulfillmentOutcome = useMemo(
+    () => getFulfillmentOutcome(order, statusDraft, trackingDraft),
+    [order, statusDraft, trackingDraft],
+  );
 
   const updateOrderState = (nextOrder: Partial<AdminOrderRecord>) => {
     setOrder((current) => ({ ...current, ...nextOrder }));
@@ -373,225 +450,68 @@ export default function AdminOrderDetailClient({ detail }: Props) {
       {error ? <Banner tone="error">{error}</Banner> : null}
       {notice ? <Banner tone="success">{notice}</Banner> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_390px]">
-        <div className="space-y-6">
-          <Panel className={LIGHT_PANEL} eyebrow="Fulfillment posture" title="Status and tracking workspace">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                <p className="text-sm leading-6 text-slate-300">Payment remains backend-authoritative. This workspace edits fulfillment state and shipment details only.</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <StateCard label="Order" value={order.status} badgeClass={getOrderStatusBadgeClass(order.status)} />
-                  <StateCard label="Payment" value={order.paymentStatus} badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
-                  <StateCard label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "Tracking number not saved"} />
-                  <StateCard label="Shipping email" value={order.shippingEmailSentAt ? "Sent" : "Pending"} detail={order.shippingEmailSentAt ? formatDateTime(order.shippingEmailSentAt) : "No shipping email recorded"} />
-                </div>
-              </div>
-              <div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
-                    <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} className={`${INPUT_CLASS} mt-2`}>
-                      {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
-                        <option value={statusDraft}>{statusDraft} (legacy)</option>
-                      ) : null}
-                      {EDITABLE_ORDER_STATUSES.map((status) => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                  </label>
-                  {[
-                    ["Tracking carrier", trackingDraft.carrier, (value: string) => setTrackingDraft((current) => ({ ...current, carrier: value }))],
-                    ["Tracking number", trackingDraft.number, (value: string) => setTrackingDraft((current) => ({ ...current, number: value }))],
-                    ["Tracking URL", trackingDraft.url, (value: string) => setTrackingDraft((current) => ({ ...current, url: value }))],
-                  ].map(([label, value, onChange]) => (
-                    <label key={label as string} className="block">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label as string}</span>
-                      <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} className={`${INPUT_CLASS} mt-2`} />
-                    </label>
-                  ))}
-                </div>
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
-                  <p className="max-w-xl text-sm text-slate-300">Saving tracking on an open order now auto-marks it as shipped and sends the shipping email once. The server still enforces optimistic concurrency.</p>
-                  <button type="button" onClick={saveOrder} disabled={saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
-                </div>
-              </div>
-            </div>
-          </Panel>
+      <OrderTabBar activeTab={activeTab} onChange={setActiveTab} />
 
-          <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Stripe refund confirmation step.</p>
-              <div className="grid min-w-[280px] gap-3 sm:grid-cols-2">
-                <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
-                <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              {order.items.map((item) => {
-                const itemHref = getItemHref(item);
-                const selectedQty = refundSelection[item.id] ?? 0;
-                const itemName = formatOrderItemName(item.name, item.manufacturer);
-                const contributionAmount = item.totalAmount - item.adjustedCostAmount;
-                return (
-                  <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] lg:items-center">
-                      <div className="flex min-w-0 items-start gap-4">
-                        <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} aria-label={`Select ${itemName} for refund`} /></label>
-                        {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-2xl border border-white/10 object-cover" /> : <div className="h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.05]" />}
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {itemHref ? <Link href={itemHref} className="text-base font-semibold text-white underline-offset-2 transition hover:text-cyan-200 hover:underline">{itemName}</Link> : <p className="text-base font-semibold text-white">{itemName}</p>}
-                            {item.manufacturer ? <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-slate-300">{item.manufacturer}</span> : null}
-                          </div>
-                          {item.options?.length ? <p className="mt-1 text-sm text-slate-300">{formatItemOptions(item.options)}</p> : null}
-                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-                            <span>Unit {formatPrice(item.unitAmount, item.currency)}</span>
-                            <span>Cost {formatPrice(item.baseCostAmount, item.currency)}</span>
-                            <span>{formatTaxRate(item.taxRateBasisPoints)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Qty</p><p className="text-sm font-semibold text-white">{item.quantity}</p></div>
-                      <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Tax</p><p className="text-sm font-semibold text-white">{formatPrice(item.taxAmount, item.currency)}</p></div>
-                      <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
-                      <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
-                      <div className="flex items-center justify-end gap-2 lg:block">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:mb-2 lg:text-right">Refund</p>
-                        <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 lg:ml-auto" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} />Include shipping in refund preview</label>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("items"); }} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08]">Refund selected items ({selectedRefundItemCount})</button>
-                <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("full"); }} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600">Full refund</button>
-              </div>
-            </div>
-          </Panel>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Panel className={LIGHT_PANEL} eyebrow="Customer dossier" title="Customer and shipping">
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => void copyCustomerValue("email", "Email", customerEmail)} className={SECONDARY_BUTTON}>{copiedCustomerField === "email" ? "Copied email" : "Copy email"}</button>
-                <button type="button" onClick={() => void copyCustomerValue("customer", "Customer details", customerCopyText)} className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-400/15">{copiedCustomerField === "customer" ? "Copied customer" : "Copy customer"}</button>
-              </div>
-              <div className="mt-5 grid gap-3">
-                <Row label="Customer" value={customerName} />
-                <Row label="Email" value={customerEmail || "—"} />
-                <Row label="Website" value={sourceLabel} />
-                <Row label="Source host" value={order.sourceHost ?? "—"} />
-                <Row label="Source origin" value={order.sourceOrigin ?? "—"} />
-                <Row label="Payment method" value={order.paymentMethod ?? "—"} />
-              </div>
-              <div className="mt-5 rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Delivery address</p>
-                <div className="mt-3 space-y-1 text-sm leading-6 text-slate-200">{shippingLines.length ? shippingLines.map((line) => <div key={line}>{line}</div>) : <div className="text-slate-500">No shipping address stored.</div>}</div>
-              </div>
-            </Panel>
-
-            <Panel className={LIGHT_PANEL} eyebrow="Timeline" title="Order events">
-              <ol className="space-y-4">
-                {timeline.map((entry, index) => (
-                  <li key={`${entry.label}-${entry.at}`} className="relative pl-8">
-                    {index < timeline.length - 1 ? <span className="absolute left-[11px] top-7 h-[calc(100%-0.25rem)] w-px bg-white/10" /> : null}
-                    <span className="absolute left-0 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[11px] font-semibold text-slate-200">{index + 1}</span>
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
-                      <p className="text-sm font-semibold text-white">{entry.label}</p>
-                      <p className="mt-1 text-sm text-slate-300">{formatDateTime(entry.at)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </Panel>
-          </div>
-
-          <Panel className={LIGHT_PANEL} eyebrow="Audit" title="Admin timeline and change trail">
-            <div className="space-y-3">
-              {detail.auditLogs.length ? detail.auditLogs.map((entry) => (
-                <div key={entry.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{entry.summary ?? entry.action}</p>
-                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">{entry.actorEmail ?? "System"} · {entry.action}</p>
-                    </div>
-                    <div className="text-sm text-slate-300">{formatDateTime(entry.createdAt)}</div>
-                  </div>
-                </div>
-              )) : <Empty text="No order audit entries yet." />}
-            </div>
-          </Panel>
-        </div>
-
-        <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-          <Panel className={DARK_PANEL} eyebrow="Finance" title="Order ledger" dark>
-            <div className="rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200/80">Contribution margin</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatPrice(financeBreakdown.contributionMarginCents, order.currency)}</p>
-              <p className="mt-2 text-sm text-emerald-100/80">Includes item costs and payment fees.</p>
-            </div>
-            <div className="mt-5 space-y-3">
-              <DarkRow label="Gross order" value={formatPrice(financeBreakdown.grossOrderCents, order.currency)} />
-              <DarkRow label="Refunded gross" value={formatPrice(financeBreakdown.refundedGrossCents, order.currency)} />
-              <DarkRow label="Output VAT" value={formatPrice(financeBreakdown.outputVatCents, order.currency)} />
-              <DarkRow label="Net revenue" value={formatPrice(financeBreakdown.netRevenueCents, order.currency)} />
-              <DarkRow label="COGS" value={formatPrice(financeBreakdown.cogsCents, order.currency)} />
-              <DarkRow label="Payment fees" value={formatPrice(financeBreakdown.paymentFeesCents, order.currency)} />
-              <DarkRow label="Collected after refunds" value={formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)} />
-            </div>
-          </Panel>
-
-          <Panel className={DARK_PANEL} eyebrow="Customer comms" title="Email actions" dark>
-            <div className="space-y-2">
-              {emailStatuses.map((entry) => (
-                <div key={entry.label} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                  <span className="text-sm font-medium text-slate-200">{entry.label}</span>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${entry.sentAt ? "bg-emerald-400/15 text-emerald-200" : "bg-white/10 text-slate-300"}`}>{entry.sentAt ? formatCompactDate(entry.sentAt) : "Not sent"}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 grid gap-2">
-              <button type="button" onClick={() => sendEmail("confirmation")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
-              <button type="button" onClick={() => sendEmail("shipping")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
-              <button type="button" onClick={() => sendEmail("refund")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
-              <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
-              <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>
-            </div>
-          </Panel>
-
-          <Panel className={DARK_PANEL} eyebrow="Returns" title="Linked return requests" dark>
-            <div className="space-y-3">
-              {detail.returnRequests.length ? detail.returnRequests.map((request) => (
-                <div key={request.id} className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{request.status}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">{request.requestedResolution} · {formatCompactDate(request.createdAt)}</p>
-                    </div>
-                    <Link href="/admin/returns" className="text-xs font-semibold text-cyan-200 underline-offset-2 hover:text-cyan-100 hover:underline">Open returns</Link>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-200">{request.reason}</p>
-                  {request.items.length ? <p className="mt-3 text-xs leading-5 text-slate-400">{request.items.map((item) => `${item.orderItemName} x${item.quantity}`).join(" · ")}</p> : null}
-                </div>
-              )) : <Empty text="No return requests linked to this order." dark />}
-            </div>
-          </Panel>
-
-          <Panel className={DARK_PANEL} eyebrow="Webhooks" title="Recent failed webhook context" dark>
-            <div className="space-y-3">
-              {detail.webhookFailures.length ? detail.webhookFailures.map((event) => (
-                <div key={event.id} className="rounded-[22px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
-                  <p className="text-sm font-semibold text-rose-100">{event.type}</p>
-                  <p className="mt-1 break-all text-xs leading-5 text-rose-100/80">{event.eventId}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
-                </div>
-              )) : <Empty text="No failed webhook events in the recent queue." dark />}
-            </div>
-          </Panel>
-        </div>
+      <div key={activeTab} className="admin-tab-panel">
+        {activeTab === "overview" ? (
+          <OverviewTab
+            order={order}
+            detail={detail}
+            financeBreakdown={financeBreakdown}
+            sourceLabel={sourceLabel}
+          />
+        ) : null}
+        {activeTab === "fulfillment" ? (
+          <FulfillmentTab
+            order={order}
+            statusDraft={statusDraft}
+            setStatusDraft={setStatusDraft}
+            trackingDraft={trackingDraft}
+            setTrackingDraft={setTrackingDraft}
+            saving={saving}
+            saveOrder={saveOrder}
+            fulfillmentOutcome={fulfillmentOutcome}
+          />
+        ) : null}
+        {activeTab === "refunds" ? (
+          <RefundsTab
+            order={order}
+            refundSelection={refundSelection}
+            setRefundSelection={setRefundSelection}
+            refundIncludeShipping={refundIncludeShipping}
+            setRefundIncludeShipping={setRefundIncludeShipping}
+            selectedRefundItemCount={selectedRefundItemCount}
+            selectedRefundQuantity={selectedRefundQuantity}
+            selectedItemsRefundPreview={selectedItemsRefundPreview}
+            fullRefundPreview={fullRefundPreview}
+            setRefundMode={setRefundMode}
+            setRefundPassword={setRefundPassword}
+            setRefundPasswordError={setRefundPasswordError}
+            getItemHref={getItemHref}
+          />
+        ) : null}
+        {activeTab === "customer" ? (
+          <CustomerTab
+            order={order}
+            customerName={customerName}
+            customerEmail={customerEmail}
+            customerCopyText={customerCopyText}
+            copiedCustomerField={copiedCustomerField}
+            copyCustomerValue={copyCustomerValue}
+            shippingLines={shippingLines}
+            sourceLabel={sourceLabel}
+          />
+        ) : null}
+        {activeTab === "timeline" ? (
+          <TimelineTab
+            order={order}
+            detail={detail}
+            timeline={timeline}
+            emailStatuses={emailStatuses}
+            sendingEmail={sendingEmail}
+            sendEmail={sendEmail}
+          />
+        ) : null}
       </div>
 
       {refundMode ? (
@@ -642,6 +562,459 @@ function Panel({
       <div className="mt-5">{children}</div>
     </section>
   );
+}
+
+function OrderTabBar({
+  activeTab,
+  onChange,
+}: {
+  activeTab: OrderTabId;
+  onChange: (tab: OrderTabId) => void;
+}) {
+  return (
+    <div className="sticky top-4 z-20">
+      <div className="rounded-[28px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur">
+        <div className="grid grid-cols-5 gap-1">
+          {ORDER_TABS.map((tab) => {
+            const active = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onChange(tab.id)}
+                className="group relative overflow-hidden rounded-[22px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
+                aria-pressed={active}
+              >
+                <span
+                  className={`absolute inset-0 rounded-[22px] border transition duration-300 ${
+                    active
+                      ? "scale-100 border-cyan-300/25 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(34,211,238,0.08))] shadow-[0_12px_30px_rgba(34,211,238,0.14)]"
+                      : "scale-[0.96] border-transparent bg-white/[0.02] opacity-80 group-hover:opacity-100"
+                  }`}
+                />
+                <span className="relative block text-sm font-semibold text-white">{tab.label}</span>
+                <span
+                  className={`relative mt-1 block text-[11px] leading-5 transition ${
+                    active ? "text-cyan-100/85" : "text-slate-400"
+                  }`}
+                >
+                  {tab.detail}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({
+  order,
+  detail,
+  financeBreakdown,
+  sourceLabel,
+}: {
+  order: AdminOrderRecord;
+  detail: AdminOrderDetail;
+  financeBreakdown: ReturnType<typeof buildOrderFinanceBreakdown>;
+  sourceLabel: string;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_390px]">
+      <div className="space-y-6">
+        <Panel className={LIGHT_PANEL} eyebrow="Status posture" title="Order overview">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StateCard label="Order" value={order.status} detail="Current fulfillment lifecycle state." badgeClass={getOrderStatusBadgeClass(order.status)} />
+            <StateCard label="Payment" value={order.paymentStatus} detail="Stripe-authoritative payment state." badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
+            <StateCard label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "Tracking number not saved"} />
+            <StateCard label="Website" value={sourceLabel} detail={order.userId ? "Signed-in customer order" : "Guest checkout order"} />
+          </div>
+        </Panel>
+
+        <Panel className={LIGHT_PANEL} eyebrow="Finance" title="Order ledger">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DataCard label="Gross order" value={formatPrice(financeBreakdown.grossOrderCents, order.currency)} detail="Customer-facing total before refunds." />
+            <DataCard label="Collected after refunds" value={formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)} detail="Net cash collected after refund activity." />
+          </div>
+          <div className="mt-5 grid gap-3 xl:grid-cols-2">
+            <DarkRow label="Net revenue" value={formatPrice(financeBreakdown.netRevenueCents, order.currency)} />
+            <DarkRow label="Output VAT" value={formatPrice(financeBreakdown.outputVatCents, order.currency)} />
+            <DarkRow label="COGS" value={formatPrice(financeBreakdown.cogsCents, order.currency)} />
+            <DarkRow label="Payment fees" value={formatPrice(financeBreakdown.paymentFeesCents, order.currency)} />
+            <DarkRow label="Refunded gross" value={formatPrice(financeBreakdown.refundedGrossCents, order.currency)} />
+            <DarkRow label="Contribution margin" value={formatPrice(financeBreakdown.contributionMarginCents, order.currency)} />
+          </div>
+        </Panel>
+
+        <Panel className={LIGHT_PANEL} eyebrow="Returns" title="Linked return requests">
+          <div className="space-y-3">
+            {detail.returnRequests.length ? detail.returnRequests.map((request) => (
+              <div key={request.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{request.status}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">{request.requestedResolution} · {formatCompactDate(request.createdAt)}</p>
+                  </div>
+                  <Link href="/admin/returns" className="text-xs font-semibold text-cyan-200 underline-offset-2 hover:text-cyan-100 hover:underline">Open returns</Link>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-200">{request.reason}</p>
+                {request.items.length ? <p className="mt-3 text-xs leading-5 text-slate-400">{request.items.map((item) => `${item.orderItemName} x${item.quantity}`).join(" · ")}</p> : null}
+              </div>
+            )) : <Empty text="No return requests linked to this order." />}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+        <Panel className={DARK_PANEL} eyebrow="Snapshot" title="Key metadata" dark>
+          <div className="space-y-3">
+            <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
+            <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
+            <DarkRow label="Source host" value={order.sourceHost ?? "No source host stored"} />
+            <DarkRow label="Source origin" value={order.sourceOrigin ?? "No source origin stored"} />
+            <DarkRow label="Payment intent" value={order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.stripePaymentIntent)} />
+          </div>
+        </Panel>
+
+        <Panel className={DARK_PANEL} eyebrow="Webhooks" title="Recent failed webhook context" dark>
+          <div className="space-y-3">
+            {detail.webhookFailures.length ? detail.webhookFailures.map((event) => (
+              <div key={event.id} className="rounded-[22px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
+                <p className="text-sm font-semibold text-rose-100">{event.type}</p>
+                <p className="mt-1 break-all text-xs leading-5 text-rose-100/80">{event.eventId}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
+              </div>
+            )) : <Empty text="No failed webhook events in the recent queue." dark />}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function FulfillmentTab({
+  order,
+  statusDraft,
+  setStatusDraft,
+  trackingDraft,
+  setTrackingDraft,
+  saving,
+  saveOrder,
+  fulfillmentOutcome,
+}: {
+  order: AdminOrderRecord;
+  statusDraft: string;
+  setStatusDraft: (value: string) => void;
+  trackingDraft: TrackingDraft;
+  setTrackingDraft: Dispatch<SetStateAction<TrackingDraft>>;
+  saving: boolean;
+  saveOrder: () => Promise<void>;
+  fulfillmentOutcome: ReturnType<typeof getFulfillmentOutcome>;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_390px]">
+      <div className="space-y-6">
+        <Panel className={LIGHT_PANEL} eyebrow="Fulfillment posture" title="Status and tracking workspace">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+              <p className="text-sm leading-6 text-slate-300">Payment remains backend-authoritative. This workspace edits fulfillment state and shipment details only.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <StateCard label="Order" value={order.status} detail="Current saved status on the order." badgeClass={getOrderStatusBadgeClass(order.status)} />
+                <StateCard label="Payment" value={order.paymentStatus} detail="Current saved payment state." badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
+                <StateCard label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "Tracking number not saved"} />
+                <StateCard label="Shipping email" value={order.shippingEmailSentAt ? "Sent" : "Pending"} detail={order.shippingEmailSentAt ? formatDateTime(order.shippingEmailSentAt) : "No shipping email recorded"} />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
+                  <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} className={`${SELECT_CLASS} mt-2`}>
+                    {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
+                      <option value={statusDraft}>{statusDraft} (legacy)</option>
+                    ) : null}
+                    {EDITABLE_ORDER_STATUSES.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+                {[
+                  ["Tracking carrier", trackingDraft.carrier, (value: string) => setTrackingDraft((current) => ({ ...current, carrier: value }))],
+                  ["Tracking number", trackingDraft.number, (value: string) => setTrackingDraft((current) => ({ ...current, number: value }))],
+                  ["Tracking URL", trackingDraft.url, (value: string) => setTrackingDraft((current) => ({ ...current, url: value }))],
+                ].map(([label, value, onChange]) => (
+                  <label key={label as string} className="block">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label as string}</span>
+                    <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} className={`${INPUT_CLASS} mt-2`} />
+                  </label>
+                ))}
+              </div>
+
+              <OutcomeCard tone={fulfillmentOutcome.tone} eyebrow="Save outcome" title={fulfillmentOutcome.title} detail={fulfillmentOutcome.detail} />
+
+              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Fulfillment rules</p>
+                <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                  <p>Tracking on an open order can auto-mark the order as shipped.</p>
+                  <p>Fulfilled does not auto-send the shipping email.</p>
+                  <p>The shipping email only auto-sends once and only from the shipped path.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+            <p className="max-w-xl text-sm text-slate-300">Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.</p>
+            <button type="button" onClick={() => void saveOrder()} disabled={saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+        <Panel className={DARK_PANEL} eyebrow="Draft comparison" title="Current vs pending" dark>
+          <div className="space-y-3">
+            <DraftRow label="Saved status" value={order.status} />
+            <DraftRow label="Pending status" value={statusDraft} emphasis />
+            <DraftRow label="Saved tracking number" value={order.trackingNumber ?? "—"} />
+            <DraftRow label="Pending tracking number" value={trackingDraft.number || "—"} emphasis />
+            <DraftRow label="Saved tracking URL" value={order.trackingUrl ?? "—"} mono />
+            <DraftRow label="Pending tracking URL" value={trackingDraft.url || "—"} mono emphasis />
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function RefundsTab({
+  order,
+  refundSelection,
+  setRefundSelection,
+  refundIncludeShipping,
+  setRefundIncludeShipping,
+  selectedRefundItemCount,
+  selectedRefundQuantity,
+  selectedItemsRefundPreview,
+  fullRefundPreview,
+  setRefundMode,
+  setRefundPassword,
+  setRefundPasswordError,
+  getItemHref,
+}: {
+  order: AdminOrderRecord;
+  refundSelection: Record<string, number>;
+  setRefundSelection: Dispatch<SetStateAction<Record<string, number>>>;
+  refundIncludeShipping: boolean;
+  setRefundIncludeShipping: Dispatch<SetStateAction<boolean>>;
+  selectedRefundItemCount: number;
+  selectedRefundQuantity: number;
+  selectedItemsRefundPreview: number;
+  fullRefundPreview: number;
+  setRefundMode: Dispatch<SetStateAction<"full" | "items" | null>>;
+  setRefundPassword: Dispatch<SetStateAction<string>>;
+  setRefundPasswordError: Dispatch<SetStateAction<string>>;
+  getItemHref: (item: AdminOrderItemRecord) => string | null;
+}) {
+  return (
+    <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Stripe refund confirmation step.</p>
+        <div className="grid min-w-[280px] gap-3 sm:grid-cols-2">
+          <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
+          <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
+        </div>
+      </div>
+      <div className="mt-5 space-y-3">
+        {order.items.map((item) => {
+          const itemHref = getItemHref(item);
+          const selectedQty = refundSelection[item.id] ?? 0;
+          const itemName = formatOrderItemName(item.name, item.manufacturer);
+          const contributionAmount = item.totalAmount - item.adjustedCostAmount;
+          return (
+            <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] lg:items-center">
+                <div className="flex min-w-0 items-start gap-4">
+                  <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} aria-label={`Select ${itemName} for refund`} /></label>
+                  {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-2xl border border-white/10 object-cover" /> : <div className="h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.05]" />}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {itemHref ? <Link href={itemHref} className="text-base font-semibold text-white underline-offset-2 transition hover:text-cyan-200 hover:underline">{itemName}</Link> : <p className="text-base font-semibold text-white">{itemName}</p>}
+                      {item.manufacturer ? <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-slate-300">{item.manufacturer}</span> : null}
+                    </div>
+                    {item.options?.length ? <p className="mt-1 text-sm text-slate-300">{formatItemOptions(item.options)}</p> : null}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                      <span>Unit {formatPrice(item.unitAmount, item.currency)}</span>
+                      <span>Cost {formatPrice(item.baseCostAmount, item.currency)}</span>
+                      <span>{formatTaxRate(item.taxRateBasisPoints)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Qty</p><p className="text-sm font-semibold text-white">{item.quantity}</p></div>
+                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Tax</p><p className="text-sm font-semibold text-white">{formatPrice(item.taxAmount, item.currency)}</p></div>
+                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
+                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
+                <div className="flex items-center justify-end gap-2 lg:block">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:mb-2 lg:text-right">Refund</p>
+                  <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 lg:ml-auto" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} />Include shipping in refund preview</label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("items"); }} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08]">Refund selected items ({selectedRefundItemCount})</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("full"); }} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600">Full refund</button>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function CustomerTab({
+  order,
+  customerName,
+  customerEmail,
+  customerCopyText,
+  copiedCustomerField,
+  copyCustomerValue,
+  shippingLines,
+  sourceLabel,
+}: {
+  order: AdminOrderRecord;
+  customerName: string;
+  customerEmail: string;
+  customerCopyText: string;
+  copiedCustomerField: "email" | "customer" | null;
+  copyCustomerValue: (field: "email" | "customer", label: string, value: string) => Promise<void>;
+  shippingLines: string[];
+  sourceLabel: string;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
+      <Panel className={LIGHT_PANEL} eyebrow="Customer dossier" title="Customer and shipping">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => void copyCustomerValue("email", "Email", customerEmail)} className={SECONDARY_BUTTON}>{copiedCustomerField === "email" ? "Copied email" : "Copy email"}</button>
+          <button type="button" onClick={() => void copyCustomerValue("customer", "Customer details", customerCopyText)} className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-400/15">{copiedCustomerField === "customer" ? "Copied customer" : "Copy customer"}</button>
+        </div>
+        <div className="mt-5 grid gap-3">
+          <Row label="Customer" value={customerName} />
+          <Row label="Email" value={customerEmail || "—"} />
+          <Row label="Website" value={sourceLabel} />
+          <Row label="Source host" value={order.sourceHost ?? "—"} />
+          <Row label="Source origin" value={order.sourceOrigin ?? "—"} />
+          <Row label="Payment method" value={order.paymentMethod ?? "—"} />
+        </div>
+        <div className="mt-5 rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Delivery address</p>
+          <div className="mt-3 space-y-1 text-sm leading-6 text-slate-200">{shippingLines.length ? shippingLines.map((line) => <div key={line}>{line}</div>) : <div className="text-slate-500">No shipping address stored.</div>}</div>
+        </div>
+      </Panel>
+
+      <Panel className={DARK_PANEL} eyebrow="Identity" title="Order ownership" dark>
+        <div className="space-y-3">
+          <DarkRow label="Customer type" value={order.userId ? "Signed-in customer" : "Guest checkout"} />
+          <DarkRow label="Customer account id" value={order.userId ?? "No account linked"} mono={Boolean(order.userId)} />
+          <DarkRow label="Order created" value={formatDateTime(order.createdAt)} />
+          <DarkRow label="Last updated" value={formatDateTime(order.updatedAt)} />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function TimelineTab({
+  order,
+  detail,
+  timeline,
+  emailStatuses,
+  sendingEmail,
+  sendEmail,
+}: {
+  order: AdminOrderRecord;
+  detail: AdminOrderDetail;
+  timeline: Array<{ label: string; at: string }>;
+  emailStatuses: Array<{ label: string; sentAt: string | null }>;
+  sendingEmail: "confirmation" | "shipping" | "refund" | null;
+  sendEmail: (type: "confirmation" | "shipping" | "refund") => Promise<void>;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
+      <div className="space-y-6">
+        <Panel className={LIGHT_PANEL} eyebrow="Timeline" title="Order events">
+          <ol className="space-y-4">
+            {timeline.map((entry, index) => (
+              <li key={`${entry.label}-${entry.at}`} className="relative pl-8">
+                {index < timeline.length - 1 ? <span className="absolute left-[11px] top-7 h-[calc(100%-0.25rem)] w-px bg-white/10" /> : null}
+                <span className="absolute left-0 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[11px] font-semibold text-slate-200">{index + 1}</span>
+                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
+                  <p className="text-sm font-semibold text-white">{entry.label}</p>
+                  <p className="mt-1 text-sm text-slate-300">{formatDateTime(entry.at)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
+        <Panel className={LIGHT_PANEL} eyebrow="Audit" title="Admin timeline and change trail">
+          <div className="space-y-3">
+            {detail.auditLogs.length ? detail.auditLogs.map((entry) => (
+              <div key={entry.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{entry.summary ?? entry.action}</p>
+                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">{entry.actorEmail ?? "System"} · {entry.action}</p>
+                  </div>
+                  <div className="text-sm text-slate-300">{formatDateTime(entry.createdAt)}</div>
+                </div>
+              </div>
+            )) : <Empty text="No order audit entries yet." />}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+        <Panel className={DARK_PANEL} eyebrow="Customer comms" title="Email actions" dark>
+          <div className="space-y-2">
+            {emailStatuses.map((entry) => (
+              <div key={entry.label} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <span className="text-sm font-medium text-slate-200">{entry.label}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${entry.sentAt ? "bg-emerald-400/15 text-emerald-200" : "bg-white/10 text-slate-300"}`}>{entry.sentAt ? formatCompactDate(entry.sentAt) : "Not sent"}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 space-y-3">
+            <OutcomeCard tone={order.shippingEmailSentAt ? "info" : "warning"} eyebrow="Shipping email rule" title={order.shippingEmailSentAt ? "Shipping email already recorded" : "Manual send remains available here"} detail={order.shippingEmailSentAt ? "Use this tab for resending other customer messages or reviewing the send history." : "If the fulfillment save path will not auto-send, use the shipping button below."} />
+            <div className="grid gap-2">
+              <button type="button" onClick={() => void sendEmail("confirmation")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
+              <button type="button" onClick={() => void sendEmail("shipping")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
+              <button type="button" onClick={() => void sendEmail("refund")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
+              <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
+              <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>
+            </div>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function DraftRow({ label, value, mono, emphasis }: { label: string; value: string; mono?: boolean; emphasis?: boolean }) {
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p><p className={`mt-2 text-sm ${emphasis ? "font-semibold text-cyan-100" : "font-medium text-white"} ${mono ? "break-all font-mono text-[13px]" : ""}`}>{value}</p></div>;
+}
+
+function OutcomeCard({ tone, eyebrow, title, detail }: { tone: "success" | "info" | "warning"; eyebrow: string; title: string; detail: string }) {
+  const toneClass = tone === "success"
+    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+    : tone === "warning"
+      ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+      : "border-cyan-400/20 bg-cyan-400/10 text-cyan-100";
+
+  return <div className={`rounded-[24px] border px-4 py-4 ${toneClass}`}><p className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-80">{eyebrow}</p><p className="mt-2 text-sm font-semibold">{title}</p><p className="mt-2 text-sm leading-6 opacity-90">{detail}</p></div>;
 }
 
 function Banner({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
