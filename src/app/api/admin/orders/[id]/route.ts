@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
 import { adminJson } from "@/lib/adminApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
 import {
   buildOrderEmailSentAtUpdate,
@@ -53,6 +54,12 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "order.fulfillment.update")) {
+    return adminJson(
+      { error: "You do not have permission to update fulfillment state." },
+      { status: 403 },
+    );
   }
 
   const { id } = await context.params;

@@ -9,6 +9,7 @@ import {
   calculateSelectedRefundAmount,
   getRefundPreviewAmount,
 } from "@/lib/adminRefundCalculator";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { refundAdminOrder } from "@/lib/adminRefunds";
 
 export const runtime = "nodejs";
@@ -35,6 +36,12 @@ export async function POST(
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "order.refund.process")) {
+    return adminJson(
+      { error: "You do not have permission to process refunds." },
+      { status: 403 },
+    );
   }
 
   const { id } = await context.params;

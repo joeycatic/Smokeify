@@ -5,6 +5,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import {
   buildOrderEmailSentAtUpdate,
   sendAdminOrderEmailById,
@@ -32,6 +33,12 @@ export async function POST(
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "order.email.send")) {
+    return adminJson(
+      { error: "You do not have permission to send customer emails." },
+      { status: 403 },
+    );
   }
 
   const { id } = await context.params;

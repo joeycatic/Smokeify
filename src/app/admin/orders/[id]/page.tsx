@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { getOrderAdminActionPermissions } from "@/lib/adminPermissions";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
 import AdminOrderDetailClient from "./AdminOrderDetailClient";
 
@@ -8,7 +9,8 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  const session = await requireAdmin();
+  if (!session) notFound();
 
   const { id } = await params;
   const detail = await loadAdminOrderDetail(id);
@@ -16,7 +18,10 @@ export default async function AdminOrderDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
-      <AdminOrderDetailClient detail={detail} />
+      <AdminOrderDetailClient
+        detail={detail}
+        actionPermissions={getOrderAdminActionPermissions(session.user.role)}
+      />
     </div>
   );
 }
