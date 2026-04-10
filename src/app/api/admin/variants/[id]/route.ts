@@ -280,8 +280,10 @@ export async function DELETE(
 
   const body = (await request.json().catch(() => ({}))) as {
     adminPassword?: string;
+    reason?: string;
   };
   const adminPassword = body.adminPassword?.trim();
+  const reason = body.reason?.trim();
   const admin = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { passwordHash: true },
@@ -289,6 +291,12 @@ export async function DELETE(
   if (!admin?.passwordHash || !adminPassword) {
     return NextResponse.json(
       { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  if (!reason) {
+    return NextResponse.json(
+      { error: "Grund für das Löschen erforderlich." },
       { status: 400 }
     );
   }
@@ -307,6 +315,8 @@ export async function DELETE(
     action: "variant.delete",
     targetType: "variant",
     targetId: id,
+    summary: `Deleted variant (${reason})`,
+    metadata: { reason },
   });
   if (variant?.product?.handle) {
     revalidatePath(`/products/${variant.product.handle}`);
