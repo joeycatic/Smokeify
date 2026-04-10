@@ -31,6 +31,16 @@ type Props = {
 };
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
+type PersistedOrderDraft = {
+  version: 1;
+  baseUpdatedAt: string;
+  activeTab: OrderTabId;
+  statusDraft: string;
+  trackingDraft: TrackingDraft;
+  refundSelection: Record<string, number>;
+  refundIncludeShipping: boolean;
+  refundMode: "full" | "items" | null;
+};
 
 const ORDER_BADGE_BASE =
   "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold leading-none whitespace-nowrap";
@@ -62,6 +72,7 @@ const ORDER_TABS: Array<{ id: OrderTabId; label: string; detail: string }> = [
   { id: "timeline", label: "Timeline", detail: "Events and email actions" },
 ];
 const LEAVE_CONFIRMATION_MESSAGE = "You have unsaved order changes. Leave this page and discard them?";
+const ORDER_DRAFT_STORAGE_PREFIX = "admin-order-draft:";
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
 
@@ -220,11 +231,14 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   const [refundIncludeShipping, setRefundIncludeShipping] = useState(false);
   const [refundPassword, setRefundPassword] = useState("");
   const [refundPasswordError, setRefundPasswordError] = useState("");
+  const [refundReason, setRefundReason] = useState("");
   const [refundMode, setRefundMode] = useState<"full" | "items" | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [emailReason, setEmailReason] = useState("");
   const [copiedCustomerField, setCopiedCustomerField] = useState<"email" | "customer" | null>(
     null,
   );
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const tabButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const hasUnsavedChangesRef = useRef(false);
 
@@ -298,10 +312,93 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   );
   const activeTabButtonId = getOrderTabButtonId(activeTab);
   const activeTabPanelId = getOrderTabPanelId(activeTab);
+  const draftStorageKey = useMemo(
+    () => `${ORDER_DRAFT_STORAGE_PREFIX}${detail.order.id}`,
+    [detail.order.id],
+  );
 
   useEffect(() => {
     hasUnsavedChangesRef.current = hasUnsavedChanges;
   }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rawDraft = window.sessionStorage.getItem(draftStorageKey);
+    if (!rawDraft) {
+      setDraftHydrated(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawDraft) as Partial<PersistedOrderDraft>;
+      if (parsed.baseUpdatedAt !== detail.order.updatedAt) {
+        window.sessionStorage.removeItem(draftStorageKey);
+        setNotice("A saved local draft was discarded because the order changed on the server.");
+        return;
+      }
+
+      const restoredTab = ORDER_TABS.some((tab) => tab.id === parsed.activeTab)
+        ? parsed.activeTab
+        : "overview";
+      setActiveTab(restoredTab ?? "overview");
+      if (typeof parsed.statusDraft === "string") {
+        setStatusDraft(parsed.statusDraft);
+      }
+      if (parsed.trackingDraft) {
+        setTrackingDraft({
+          carrier: typeof parsed.trackingDraft.carrier === "string" ? parsed.trackingDraft.carrier : "",
+          number: typeof parsed.trackingDraft.number === "string" ? parsed.trackingDraft.number : "",
+          url: typeof parsed.trackingDraft.url === "string" ? parsed.trackingDraft.url : "",
+        });
+      }
+      setRefundSelection(
+        Object.fromEntries(
+          Object.entries(parsed.refundSelection ?? {}).map(([itemId, value]) => [
+            itemId,
+            clamp(Number(value), 0, 999),
+          ]),
+        ),
+      );
+      setRefundIncludeShipping(parsed.refundIncludeShipping === true);
+      setRefundMode(parsed.refundMode === "full" || parsed.refundMode === "items" ? parsed.refundMode : null);
+      setNotice("Recovered your local order draft from this browser session.");
+    } catch {
+      window.sessionStorage.removeItem(draftStorageKey);
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, [detail.order.updatedAt, draftStorageKey]);
+
+  useEffect(() => {
+    if (!draftHydrated || typeof window === "undefined") return;
+    if (!hasUnsavedChanges) {
+      window.sessionStorage.removeItem(draftStorageKey);
+      return;
+    }
+
+    const draft: PersistedOrderDraft = {
+      version: 1,
+      baseUpdatedAt: order.updatedAt,
+      activeTab,
+      statusDraft,
+      trackingDraft,
+      refundSelection,
+      refundIncludeShipping,
+      refundMode,
+    };
+    window.sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
+  }, [
+    activeTab,
+    draftStorageKey,
+    hasUnsavedChanges,
+    order.updatedAt,
+    refundIncludeShipping,
+    refundMode,
+    refundSelection,
+    statusDraft,
+    trackingDraft,
+    draftHydrated,
+  ]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -434,6 +531,11 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       setError("You do not have permission to send customer emails.");
       return;
     }
+    const reason = emailReason.trim();
+    if (!reason) {
+      setError("A short reason is required before sending customer emails.");
+      return;
+    }
     setError("");
     setNotice("");
     setSendingEmail(type);
@@ -441,7 +543,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       const response = await fetch(`/api/admin/orders/${order.id}/email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, reason }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
@@ -452,6 +554,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       updateOrderState(
         type === "confirmation" ? { confirmationEmailSentAt: now } : type === "shipping" ? { shippingEmailSentAt: now } : { refundEmailSentAt: now },
       );
+      setEmailReason("");
       setNotice(`${type[0]?.toUpperCase() ?? ""}${type.slice(1)} email sent.`);
     } catch {
       setError(`Failed to send ${type} email.`);
@@ -467,8 +570,13 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
     }
     if (!refundMode) return;
     const adminPassword = refundPassword.trim();
+    const reason = refundReason.trim();
     if (!adminPassword) {
       setRefundPasswordError("Admin password is required.");
+      return;
+    }
+    if (!reason) {
+      setRefundPasswordError("Refund reason is required.");
       return;
     }
     const items =
@@ -486,10 +594,23 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       const response = await fetch(`/api/admin/orders/${order.id}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword, includeShipping: refundIncludeShipping, ...(refundMode === "items" ? { items } : {}) }),
+        body: JSON.stringify({
+          adminPassword,
+          includeShipping: refundIncludeShipping,
+          reason,
+          expectedUpdatedAt: order.updatedAt,
+          ...(refundMode === "items" ? { items } : {}),
+        }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string; order?: Partial<AdminOrderRecord> };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        order?: Partial<AdminOrderRecord>;
+        currentUpdatedAt?: string;
+      };
       if (!response.ok) {
+        if (data.currentUpdatedAt) {
+          setOrder((current) => ({ ...current, updatedAt: data.currentUpdatedAt! }));
+        }
         setRefundPasswordError(data.error ?? "Refund failed.");
         return;
       }
@@ -497,6 +618,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       setRefundSelection({});
       setRefundPassword("");
       setRefundPasswordError("");
+      setRefundReason("");
       setRefundIncludeShipping(false);
       setRefundMode(null);
       setNotice("Refund processed.");
@@ -508,6 +630,24 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   };
 
   const getItemHref = (item: AdminOrderItemRecord) => (item.productId ? `/admin/catalog/${item.productId}` : null);
+  const discardLocalDraft = () => {
+    setStatusDraft(order.status);
+    setTrackingDraft({
+      carrier: order.trackingCarrier ?? "",
+      number: order.trackingNumber ?? "",
+      url: order.trackingUrl ?? "",
+    });
+    setRefundSelection({});
+    setRefundIncludeShipping(false);
+    setRefundPassword("");
+    setRefundPasswordError("");
+    setRefundReason("");
+    setRefundMode(null);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(draftStorageKey);
+    }
+    setNotice("Local draft discarded.");
+  };
   const handleTabChange = (nextTab: OrderTabId) => {
     setActiveTab(nextTab);
     const nextIndex = ORDER_TABS.findIndex((tab) => tab.id === nextTab);
@@ -581,6 +721,13 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
               {label}
             </span>
           ))}
+          <button
+            type="button"
+            onClick={discardLocalDraft}
+            className="ml-auto inline-flex h-9 items-center rounded-full border border-amber-200/20 bg-black/20 px-4 text-xs font-semibold text-amber-100 transition hover:bg-black/30"
+          >
+            Discard local draft
+          </button>
         </div>
       ) : null}
 
@@ -634,6 +781,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
             setRefundMode={setRefundMode}
             setRefundPassword={setRefundPassword}
             setRefundPasswordError={setRefundPasswordError}
+            setRefundReason={setRefundReason}
             getItemHref={getItemHref}
             canProcessRefund={actionPermissions.canProcessRefund}
           />
@@ -659,13 +807,15 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
             sendingEmail={sendingEmail}
             sendEmail={sendEmail}
             canSendOrderEmail={actionPermissions.canSendOrderEmail}
+            emailReason={emailReason}
+            setEmailReason={setEmailReason}
           />
         ) : null}
       </div>
 
       {refundMode ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <button type="button" className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setRefundMode(null)} aria-label="Close refund dialog" />
+          <button type="button" className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} aria-label="Close refund dialog" />
           <div className="relative w-full max-w-md rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,21,0.98),rgba(10,16,26,0.96))] p-6 shadow-[0_30px_80px_rgba(2,6,23,0.5)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Refund confirmation</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">Confirm refund</h3>
@@ -676,12 +826,16 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
               <p className="mt-2 text-sm text-slate-300">{refundMode === "items" ? `${selectedRefundQuantity} units selected` : "Full-order refund preview"}</p>
             </div>
             <label className="block mt-4">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Refund reason</span>
+              <textarea value={refundReason} onChange={(event) => { setRefundReason(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Explain why this refund is being issued." className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10" />
+            </label>
+            <label className="block mt-4">
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin password</span>
               <input type="password" value={refundPassword} onChange={(event) => { setRefundPassword(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Admin password" className={`${INPUT_CLASS} mt-2`} />
             </label>
             {refundPasswordError ? <p className="mt-3 text-sm font-medium text-rose-300">{refundPasswordError}</p> : null}
             <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setRefundMode(null)} className={SECONDARY_BUTTON}>Cancel</button>
+              <button type="button" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} className={SECONDARY_BUTTON}>Cancel</button>
               <button type="button" onClick={confirmRefund} disabled={refunding} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-300">{refunding ? "Refunding..." : "Process refund"}</button>
             </div>
           </div>
@@ -996,6 +1150,7 @@ function RefundsTab({
   setRefundMode,
   setRefundPassword,
   setRefundPasswordError,
+  setRefundReason,
   getItemHref,
   canProcessRefund,
 }: {
@@ -1011,6 +1166,7 @@ function RefundsTab({
   setRefundMode: Dispatch<SetStateAction<"full" | "items" | null>>;
   setRefundPassword: Dispatch<SetStateAction<string>>;
   setRefundPasswordError: Dispatch<SetStateAction<string>>;
+  setRefundReason: Dispatch<SetStateAction<string>>;
   getItemHref: (item: AdminOrderItemRecord) => string | null;
   canProcessRefund: boolean;
 }) {
@@ -1064,8 +1220,8 @@ function RefundsTab({
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} disabled={!canProcessRefund} />Include shipping in refund preview</label>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
         </div>
       </div>
       {!canProcessRefund ? (
@@ -1142,6 +1298,8 @@ function TimelineTab({
   sendingEmail,
   sendEmail,
   canSendOrderEmail,
+  emailReason,
+  setEmailReason,
 }: {
   order: AdminOrderRecord;
   detail: AdminOrderDetail;
@@ -1150,6 +1308,8 @@ function TimelineTab({
   sendingEmail: "confirmation" | "shipping" | "refund" | null;
   sendEmail: (type: "confirmation" | "shipping" | "refund") => Promise<void>;
   canSendOrderEmail: boolean;
+  emailReason: string;
+  setEmailReason: Dispatch<SetStateAction<string>>;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
@@ -1206,6 +1366,16 @@ function TimelineTab({
                 detail="Send controls stay visible so the workflow is clear, but only allowed roles can dispatch customer emails."
               />
             ) : null}
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Reason for manual email</span>
+              <textarea
+                value={emailReason}
+                onChange={(event) => setEmailReason(event.target.value)}
+                className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
+                placeholder="Explain why the customer needs this manual email."
+                disabled={!canSendOrderEmail || sendingEmail !== null}
+              />
+            </label>
             <div className="grid gap-2">
               <button type="button" onClick={() => void sendEmail("confirmation")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
               <button type="button" onClick={() => void sendEmail("shipping")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>

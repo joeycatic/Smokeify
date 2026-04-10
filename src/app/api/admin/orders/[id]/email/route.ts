@@ -44,10 +44,18 @@ export async function POST(
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
     type?: "confirmation" | "shipping" | "refund";
+    reason?: string;
   };
   const type = body.type;
   if (!type) {
     return adminJson({ error: "Missing email type" }, { status: 400 });
+  }
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!reason) {
+    return adminJson(
+      { error: "A short reason is required before sending customer emails." },
+      { status: 400 }
+    );
   }
 
   const order = await prisma.order.findUnique({
@@ -91,6 +99,7 @@ export async function POST(
       emailType: type,
       recipient,
       orderNumber: order.orderNumber,
+      reason,
     },
   });
 

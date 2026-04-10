@@ -47,6 +47,7 @@ export async function refundAdminOrder(input: {
   refundAmount: number;
   includeShipping?: boolean;
   shippingRefundAmount?: number;
+  reason: string;
   actor: AdminActor;
   source: string;
   origin?: string;
@@ -117,6 +118,7 @@ export async function refundAdminOrder(input: {
       includeShipping: input.includeShipping === true,
       shippingRefundAmount: input.shippingRefundAmount ?? 0,
       refundAmount: input.refundAmount,
+      reason: input.reason,
       totalAmount: order.amountTotal,
       newRefunded,
       fullyRefunded,
@@ -133,6 +135,7 @@ export async function refundAdminOrder(input: {
       includeShipping: input.includeShipping === true,
       shippingRefundAmount: input.shippingRefundAmount ?? 0,
       refundAmount: input.refundAmount,
+      reason: input.reason,
       previousAmountRefunded: order.amountRefunded,
       nextAmountRefunded: newRefunded,
       previousPaymentStatus: order.paymentStatus,

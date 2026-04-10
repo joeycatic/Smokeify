@@ -51,9 +51,12 @@ export async function POST(
     amount?: number;
     includeShipping?: boolean;
     adminPassword?: string;
+    reason?: string;
+    expectedUpdatedAt?: string;
   };
   const includeShipping = body.includeShipping === true;
   const adminPassword = body.adminPassword?.trim();
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   const admin = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { passwordHash: true },
@@ -70,6 +73,12 @@ export async function POST(
       { status: 400 }
     );
   }
+  if (!reason) {
+    return adminJson(
+      { error: "Refund reason is required." },
+      { status: 400 }
+    );
+  }
   const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
   if (!validPassword) {
     return adminJson({ error: "Passwort ist falsch." }, { status: 401 });
@@ -81,6 +90,19 @@ export async function POST(
   });
   if (!order) {
     return adminJson({ error: "Order not found" }, { status: 404 });
+  }
+  if (
+    body.expectedUpdatedAt &&
+    order.updatedAt.toISOString() !== body.expectedUpdatedAt
+  ) {
+    return adminJson(
+      {
+        error:
+          "This order was updated by another admin. Refresh the latest order before refunding.",
+        currentUpdatedAt: order.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
   }
   if (order.paymentStatus === "refunded") {
     return adminJson(
@@ -168,6 +190,7 @@ export async function POST(
       refundAmount,
       includeShipping,
       shippingRefundAmount,
+      reason,
       actor: { id: session.user.id, email: session.user.email ?? null },
       source: "admin.orders.refund",
       origin: getAppOrigin(request),

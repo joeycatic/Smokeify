@@ -106,6 +106,7 @@ export async function PATCH(
         await refundAdminOrder({
           orderId: requestRow.orderId,
           refundAmount: returnAmountCents,
+          reason: adminNote || `Approved return request ${requestRow.id}`,
           actor: { id: session.user.id, email: session.user.email ?? null },
           source: "admin.returns.refund",
           origin: getAppOrigin(request),
