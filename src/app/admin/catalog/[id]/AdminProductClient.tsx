@@ -407,6 +407,33 @@ const PRODUCT_EDITOR_SECTIONS = [
   { id: "cross-sells", label: "Manual overrides" },
 ] as const;
 
+type ProductEditorSectionId = (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"];
+
+type PersistedProductDraft = {
+  version: 1;
+  baseProductUpdatedAt: string;
+  baseVariantUpdatedAtById: Record<string, string>;
+  activeSection: ProductEditorSectionId;
+  details: ProductDetailsState;
+  images: ImageItem[];
+  variants: VariantItem[];
+  priceDrafts: Record<string, string>;
+  costDrafts: Record<string, string>;
+  compareDrafts: Record<string, string>;
+  categoryIds: string[];
+  collectionIds: string[];
+  fbtItems: CrossSellProduct[];
+};
+
+const PRODUCT_DRAFT_STORAGE_PREFIX = "admin-product-draft:";
+
+const serializeVersionMap = (value: Record<string, string>) =>
+  JSON.stringify(
+    Object.entries(value).sort(([leftId], [rightId]) =>
+      leftId.localeCompare(rightId)
+    )
+  );
+
 export default function AdminProductClient({
   product,
   categories,
@@ -417,6 +444,7 @@ export default function AdminProductClient({
   pricingProfilesByVariantId,
   pricingIntegrationError,
 }: Props) {
+  const productDraftStorageKey = `${PRODUCT_DRAFT_STORAGE_PREFIX}${product.id}`;
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
     if (product.supplier) {
@@ -489,10 +517,14 @@ export default function AdminProductClient({
   const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
   const [staleConflictMessage, setStaleConflictMessage] = useState("");
+  const [activeSection, setActiveSection] =
+    useState<ProductEditorSectionId>("performance");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
   const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
   const [confirmVariantText, setConfirmVariantText] = useState("");
+  const [confirmVariantReason, setConfirmVariantReason] = useState("");
   const [confirmVariantError, setConfirmVariantError] = useState("");
   const [confirmVariantLoading, setConfirmVariantLoading] = useState(false);
   const [confirmVariantPassword, setConfirmVariantPassword] = useState("");
@@ -759,6 +791,85 @@ export default function AdminProductClient({
   ].filter(Boolean);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rawDraft = window.sessionStorage.getItem(productDraftStorageKey);
+    if (!rawDraft) return;
+    try {
+      const draft = JSON.parse(rawDraft) as PersistedProductDraft;
+      const currentVariantVersions = Object.fromEntries(
+        product.variants.map((variant) => [variant.id, variant.updatedAt])
+      );
+      const versionsMatch =
+        draft.version === 1 &&
+        draft.baseProductUpdatedAt === product.updatedAt &&
+        serializeVersionMap(draft.baseVariantUpdatedAtById) ===
+          serializeVersionMap(currentVariantVersions);
+      if (!versionsMatch) {
+        window.sessionStorage.removeItem(productDraftStorageKey);
+        return;
+      }
+      setDetails(draft.details);
+      setImages(draft.images);
+      setVariants(draft.variants);
+      setPriceDrafts(draft.priceDrafts);
+      setCostDrafts(draft.costDrafts);
+      setCompareDrafts(draft.compareDrafts);
+      setCategoryIds(new Set(draft.categoryIds));
+      setCollectionIds(new Set(draft.collectionIds));
+      setFbtItems(draft.fbtItems);
+      setActiveSection(draft.activeSection);
+      setDraftMessage("Recovered local draft from this browser session.");
+      window.requestAnimationFrame(() => {
+        document.getElementById(draft.activeSection)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    } catch {
+      window.sessionStorage.removeItem(productDraftStorageKey);
+    }
+  }, [product.id, product.updatedAt, product.variants, productDraftStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hasUnsavedChanges) {
+      window.sessionStorage.removeItem(productDraftStorageKey);
+      return;
+    }
+    const draft: PersistedProductDraft = {
+      version: 1,
+      baseProductUpdatedAt: productUpdatedAt,
+      baseVariantUpdatedAtById: variantUpdatedAtById,
+      activeSection,
+      details,
+      images,
+      variants,
+      priceDrafts,
+      costDrafts,
+      compareDrafts,
+      categoryIds: Array.from(categoryIds),
+      collectionIds: Array.from(collectionIds),
+      fbtItems,
+    };
+    window.sessionStorage.setItem(productDraftStorageKey, JSON.stringify(draft));
+  }, [
+    activeSection,
+    categoryIds,
+    collectionIds,
+    compareDrafts,
+    costDrafts,
+    details,
+    fbtItems,
+    hasUnsavedChanges,
+    images,
+    priceDrafts,
+    productUpdatedAt,
+    productDraftStorageKey,
+    variantUpdatedAtById,
+    variants,
+  ]);
+
+  useEffect(() => {
     setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
   }, [
     details.title,
@@ -778,6 +889,12 @@ export default function AdminProductClient({
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  const discardLocalDraft = () => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(productDraftStorageKey);
+    window.location.reload();
+  };
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -1332,14 +1449,18 @@ export default function AdminProductClient({
     );
   };
 
-  const deleteVariant = async (id: string, adminPassword: string) => {
+  const deleteVariant = async (
+    id: string,
+    adminPassword: string,
+    reason: string
+  ) => {
     setMessage("");
     setError("");
     setStaleConflictMessage("");
     const res = await fetch(`/api/admin/variants/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminPassword }),
+      body: JSON.stringify({ adminPassword, reason }),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -1526,7 +1647,8 @@ export default function AdminProductClient({
     );
   }, [details.supplierId, suppliers]);
 
-  const scrollToSection = (sectionId: (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"]) => {
+  const scrollToSection = (sectionId: ProductEditorSectionId) => {
+    setActiveSection(sectionId);
     document
       .getElementById(sectionId)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1650,6 +1772,21 @@ export default function AdminProductClient({
         </div>
       )}
 
+      {draftMessage ? (
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100 shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{draftMessage}</span>
+            <button
+              type="button"
+              onClick={discardLocalDraft}
+              className="rounded-full border border-cyan-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-cyan-100"
+            >
+              Discard local draft
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {staleConflictMessage ? (
         <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1672,7 +1809,11 @@ export default function AdminProductClient({
               key={section.id}
               type="button"
               onClick={() => scrollToSection(section.id)}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                activeSection === section.id
+                  ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
+                  : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+              }`}
             >
               {section.label}
             </button>
@@ -3314,6 +3455,7 @@ export default function AdminProductClient({
                       setConfirmVariantId(variant.id);
                       setConfirmVariantTitle(variant.title);
                       setConfirmVariantText("");
+                      setConfirmVariantReason("");
                       setConfirmVariantError("");
                       setConfirmVariantPassword("");
                       setConfirmVariantPasswordError("");
@@ -3686,6 +3828,14 @@ export default function AdminProductClient({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
+                onClick={discardLocalDraft}
+                disabled={!hasUnsavedChanges}
+                className="rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-400"
+              >
+                Discard local draft
+              </button>
+              <button
+                type="button"
                 onClick={saveAllChanges}
                 disabled={!hasUnsavedChanges || savingAllChanges}
                 className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
@@ -3924,6 +4074,18 @@ export default function AdminProductClient({
               className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               placeholder="Bestätigen"
             />
+            <textarea
+              value={confirmVariantReason}
+              onChange={(event) => {
+                setConfirmVariantReason(event.target.value);
+                if (confirmVariantError) {
+                  setConfirmVariantError("");
+                }
+              }}
+              rows={3}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Grund für das Löschen"
+            />
             <input
               type="password"
               value={confirmVariantPassword}
@@ -3950,6 +4112,10 @@ export default function AdminProductClient({
                 onClick={() => {
                   setConfirmVariantId(null);
                   setConfirmVariantError("");
+                  setConfirmVariantReason("");
+                  setConfirmVariantPassword("");
+                  setConfirmVariantPasswordError("");
+                  setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
                 className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30 disabled:opacity-60"
@@ -3963,6 +4129,11 @@ export default function AdminProductClient({
                     setConfirmVariantError("Bitte Bestätigen eingeben.");
                     return;
                   }
+                  const reason = confirmVariantReason.trim();
+                  if (!reason) {
+                    setConfirmVariantError("Bitte einen Grund angeben.");
+                    return;
+                  }
                   const adminPassword = confirmVariantPassword.trim();
                   if (!adminPassword) {
                     setConfirmVariantPasswordError(
@@ -3973,9 +4144,13 @@ export default function AdminProductClient({
                   if (!confirmVariantId) return;
                   setConfirmVariantLoading(true);
                   setConfirmVariantError("");
-                  await deleteVariant(confirmVariantId, adminPassword);
+                  await deleteVariant(confirmVariantId, adminPassword, reason);
                   setConfirmVariantLoading(false);
                   setConfirmVariantId(null);
+                  setConfirmVariantReason("");
+                  setConfirmVariantPassword("");
+                  setConfirmVariantPasswordError("");
+                  setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
                 className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"

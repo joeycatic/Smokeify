@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
@@ -126,31 +126,68 @@ function Field({
 const inputCls =
   "h-10 w-full rounded-lg border border-black/10 bg-stone-50 px-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500/60 focus:bg-white focus:ring-2 focus:ring-emerald-500/20";
 
+type UserFormState = {
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  customerGroup: CustomerGroup;
+  notes: string;
+  newsletterOptIn: boolean;
+};
+
+type PersistedUserDraft = {
+  version: 1;
+  baseUpdatedAt: string;
+  form: UserFormState;
+};
+
+const USER_DRAFT_STORAGE_PREFIX = "admin-user-draft:";
+
+function serializeUserForm(form: UserFormState) {
+  return JSON.stringify(form);
+}
+
 export default function AdminUserEditClient({
   user,
   recentOrders,
   auditLogs,
   actorRole,
 }: Props) {
+  const userDraftStorageKey = `${USER_DRAFT_STORAGE_PREFIX}${user.id}`;
+  const initialForm = useMemo<UserFormState>(
+    () => ({
+      email: user.email ?? "",
+      name: user.name ?? "",
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      street: user.street ?? "",
+      houseNumber: user.houseNumber ?? "",
+      postalCode: user.postalCode ?? "",
+      city: user.city ?? "",
+      country: user.country ?? "DE",
+      customerGroup: user.customerGroup,
+      notes: user.notes ?? "",
+      newsletterOptIn: user.newsletterOptIn,
+    }),
+    [user]
+  );
   const [userUpdatedAt, setUserUpdatedAt] = useState(user.updatedAt);
-  const [form, setForm] = useState({
-    email: user.email ?? "",
-    name: user.name ?? "",
-    firstName: user.firstName ?? "",
-    lastName: user.lastName ?? "",
-    street: user.street ?? "",
-    houseNumber: user.houseNumber ?? "",
-    postalCode: user.postalCode ?? "",
-    city: user.city ?? "",
-    country: user.country ?? "DE",
-    customerGroup: user.customerGroup,
-    notes: user.notes ?? "",
-    newsletterOptIn: user.newsletterOptIn,
-  });
+  const [form, setForm] = useState(initialForm);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [savedFormSnapshot, setSavedFormSnapshot] = useState(() =>
+    serializeUserForm(initialForm)
+  );
+  const hasUnsavedChanges = serializeUserForm(form) !== savedFormSnapshot;
 
   const set = <K extends keyof typeof form>(
     key: K,
@@ -159,6 +196,53 @@ export default function AdminUserEditClient({
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
     setError(null);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rawDraft = window.sessionStorage.getItem(userDraftStorageKey);
+    if (!rawDraft) return;
+    try {
+      const draft = JSON.parse(rawDraft) as PersistedUserDraft;
+      if (draft.version !== 1 || draft.baseUpdatedAt !== user.updatedAt) {
+        window.sessionStorage.removeItem(userDraftStorageKey);
+        return;
+      }
+      setForm(draft.form);
+      setDraftMessage("Recovered local draft from this browser session.");
+    } catch {
+      window.sessionStorage.removeItem(userDraftStorageKey);
+    }
+  }, [user.updatedAt, userDraftStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hasUnsavedChanges) {
+      window.sessionStorage.removeItem(userDraftStorageKey);
+      return;
+    }
+    const draft: PersistedUserDraft = {
+      version: 1,
+      baseUpdatedAt: userUpdatedAt,
+      form,
+    };
+    window.sessionStorage.setItem(userDraftStorageKey, JSON.stringify(draft));
+  }, [form, hasUnsavedChanges, userDraftStorageKey, userUpdatedAt]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const discardLocalDraft = () => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(userDraftStorageKey);
+    window.location.reload();
   };
 
   const handleSave = async () => {
@@ -190,6 +274,7 @@ export default function AdminUserEditClient({
       if (data.user?.updatedAt) {
         setUserUpdatedAt(data.user.updatedAt);
       }
+      setSavedFormSnapshot(serializeUserForm(form));
       setSaved(true);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
@@ -263,6 +348,19 @@ export default function AdminUserEditClient({
           Audit-Log →
         </Link>
       </div>
+
+      {draftMessage ? (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm">
+          <span>{draftMessage}</span>
+          <button
+            type="button"
+            onClick={discardLocalDraft}
+            className="rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800"
+          >
+            Entwurf verwerfen
+          </button>
+        </div>
+      ) : null}
 
       {/* ── Section: Identity ──────────────────────────── */}
       <Section title="Identität & Kontakt">
@@ -418,13 +516,30 @@ export default function AdminUserEditClient({
 
       {/* ── Save button ────────────────────────────────── */}
       <div className="mb-10 flex flex-wrap items-center gap-4">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            hasUnsavedChanges
+              ? "bg-amber-100 text-amber-800"
+              : "bg-emerald-100 text-emerald-800"
+          }`}
+        >
+          {hasUnsavedChanges ? "Ungespeicherte Änderungen" : "Synchronisiert"}
+        </span>
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || !hasUnsavedChanges}
           className="inline-flex h-10 items-center gap-2 rounded-full bg-[#2f3e36] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#24312b] disabled:opacity-60"
         >
           {saving ? "Speichern…" : "Änderungen speichern"}
+        </button>
+        <button
+          type="button"
+          onClick={discardLocalDraft}
+          disabled={!hasUnsavedChanges}
+          className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 disabled:opacity-60"
+        >
+          Entwurf verwerfen
         </button>
         {saved && (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
