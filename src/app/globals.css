@@ -1457,7 +1457,8 @@ textarea:focus-visible,
   .admin-reveal,
   .admin-reveal-delay-1,
   .admin-reveal-delay-2,
-  .admin-bar-fill {
+  .admin-bar-fill,
+  .admin-tab-panel {
     animation: none;
   }
 
@@ -1468,5 +1469,9 @@ textarea:focus-visible,
   .admin-lift:hover {
     transform: none;
     box-shadow: none;
+  }
+
+  .admin-tab-panel {
+    transform: none;
   }
 }

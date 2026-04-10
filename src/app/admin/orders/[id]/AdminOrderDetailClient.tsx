@@ -1,6 +1,16 @@
 "use client";
 
-import { type Dispatch, type ReactNode, type SetStateAction, useMemo, useState } from "react";
+import {
+  type Dispatch,
+  type KeyboardEvent,
+  type MutableRefObject,
+  type ReactNode,
+  type SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
@@ -9,7 +19,16 @@ import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 
-type Props = { detail: AdminOrderDetail };
+type OrderActionPermissions = {
+  canUpdateFulfillment: boolean;
+  canSendOrderEmail: boolean;
+  canProcessRefund: boolean;
+};
+
+type Props = {
+  detail: AdminOrderDetail;
+  actionPermissions: OrderActionPermissions;
+};
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
 
@@ -42,6 +61,7 @@ const ORDER_TABS: Array<{ id: OrderTabId; label: string; detail: string }> = [
   { id: "customer", label: "Customer", detail: "Contact and shipping" },
   { id: "timeline", label: "Timeline", detail: "Events and email actions" },
 ];
+const LEAVE_CONFIRMATION_MESSAGE = "You have unsaved order changes. Leave this page and discard them?";
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
 
@@ -55,6 +75,8 @@ const formatCompactDate = (value: string) =>
   new Date(value).toLocaleDateString("de-DE", { dateStyle: "medium" });
 const normalizeStatus = (value: string) => value.trim().toLowerCase();
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const getOrderTabButtonId = (tab: OrderTabId) => `order-tab-${tab}`;
+const getOrderTabPanelId = (tab: OrderTabId) => `order-panel-${tab}`;
 
 const getOrderStatusBadgeClass = (status: string) => {
   const normalizedStatus = normalizeStatus(status);
@@ -179,7 +201,7 @@ const getFulfillmentOutcome = (
   };
 };
 
-export default function AdminOrderDetailClient({ detail }: Props) {
+export default function AdminOrderDetailClient({ detail, actionPermissions }: Props) {
   const [order, setOrder] = useState(detail.order);
   const [statusDraft, setStatusDraft] = useState(detail.order.status);
   const [trackingDraft, setTrackingDraft] = useState<TrackingDraft>({
@@ -203,6 +225,8 @@ export default function AdminOrderDetailClient({ detail }: Props) {
   const [copiedCustomerField, setCopiedCustomerField] = useState<"email" | "customer" | null>(
     null,
   );
+  const tabButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const hasUnsavedChangesRef = useRef(false);
 
   const financeBreakdown = useMemo(
     () => buildOrderFinanceBreakdown({ ...order, createdAt: new Date(order.createdAt) }),
@@ -249,6 +273,86 @@ export default function AdminOrderDetailClient({ detail }: Props) {
     () => getFulfillmentOutcome(order, statusDraft, trackingDraft),
     [order, statusDraft, trackingDraft],
   );
+  const fulfillmentDirty =
+    normalizeStatus(statusDraft) !== normalizeStatus(order.status) ||
+    trackingDraft.carrier.trim() !== (order.trackingCarrier ?? "").trim() ||
+    trackingDraft.number.trim() !== (order.trackingNumber ?? "").trim() ||
+    trackingDraft.url.trim() !== (order.trackingUrl ?? "").trim();
+  const refundsDirty =
+    Object.values(refundSelection).some((value) => value > 0) ||
+    refundIncludeShipping ||
+    refundMode !== null ||
+    Boolean(refundPassword.trim()) ||
+    Boolean(refundPasswordError);
+  const hasUnsavedChanges = fulfillmentDirty || refundsDirty;
+  const dirtyTabs = useMemo(
+    (): Partial<Record<OrderTabId, boolean>> => ({
+      fulfillment: fulfillmentDirty,
+      refunds: refundsDirty,
+    }),
+    [fulfillmentDirty, refundsDirty],
+  );
+  const dirtyTabLabels = useMemo(
+    () => ORDER_TABS.filter((tab) => dirtyTabs[tab.id]).map((tab) => tab.label),
+    [dirtyTabs],
+  );
+  const activeTabButtonId = getOrderTabButtonId(activeTab);
+  const activeTabPanelId = getOrderTabPanelId(activeTab);
+
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest("a");
+      if (!anchor?.href) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const nextUrl = new URL(anchor.href, window.location.href);
+      if (nextUrl.origin !== window.location.origin) return;
+      if (nextUrl.href === window.location.href) return;
+      if (!window.confirm(LEAVE_CONFIRMATION_MESSAGE)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const handlePopState = () => {
+      if (!hasUnsavedChangesRef.current) return;
+      if (!window.confirm(LEAVE_CONFIRMATION_MESSAGE)) {
+        window.history.go(1);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleDocumentClick, true);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleDocumentClick, true);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [hasUnsavedChanges]);
 
   const updateOrderState = (nextOrder: Partial<AdminOrderRecord>) => {
     setOrder((current) => ({ ...current, ...nextOrder }));
@@ -278,6 +382,10 @@ export default function AdminOrderDetailClient({ detail }: Props) {
   };
 
   const saveOrder = async () => {
+    if (!actionPermissions.canUpdateFulfillment) {
+      setError("You do not have permission to update fulfillment state.");
+      return;
+    }
     setError("");
     setNotice("");
     setSaving(true);
@@ -322,6 +430,10 @@ export default function AdminOrderDetailClient({ detail }: Props) {
   };
 
   const sendEmail = async (type: "confirmation" | "shipping" | "refund") => {
+    if (!actionPermissions.canSendOrderEmail) {
+      setError("You do not have permission to send customer emails.");
+      return;
+    }
     setError("");
     setNotice("");
     setSendingEmail(type);
@@ -349,6 +461,10 @@ export default function AdminOrderDetailClient({ detail }: Props) {
   };
 
   const confirmRefund = async () => {
+    if (!actionPermissions.canProcessRefund) {
+      setRefundPasswordError("You do not have permission to process refunds.");
+      return;
+    }
     if (!refundMode) return;
     const adminPassword = refundPassword.trim();
     if (!adminPassword) {
@@ -392,6 +508,13 @@ export default function AdminOrderDetailClient({ detail }: Props) {
   };
 
   const getItemHref = (item: AdminOrderItemRecord) => (item.productId ? `/admin/catalog/${item.productId}` : null);
+  const handleTabChange = (nextTab: OrderTabId) => {
+    setActiveTab(nextTab);
+    const nextIndex = ORDER_TABS.findIndex((tab) => tab.id === nextTab);
+    window.requestAnimationFrame(() => {
+      tabButtonRefs.current[nextIndex]?.focus();
+    });
+  };
 
   return (
     <div className="space-y-6 text-slate-100">
@@ -411,6 +534,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
                   <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{sourceLabel}</span>
                   <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
                   <span className={getPaymentBadgeClass(order.paymentStatus)}>{order.paymentStatus}</span>
+                  {hasUnsavedChanges ? <span className="inline-flex items-center rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1.5 text-[11px] font-semibold text-amber-100">Unsaved changes</span> : null}
                 </div>
               </div>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300"><span className="font-semibold text-white">{customerName}</span> · {customerEmail || "No email on file"} · {order.userId ? "Signed-in customer" : "Guest checkout"} · Created {formatDateTime(order.createdAt)}</p>
@@ -449,10 +573,31 @@ export default function AdminOrderDetailClient({ detail }: Props) {
 
       {error ? <Banner tone="error">{error}</Banner> : null}
       {notice ? <Banner tone="success">{notice}</Banner> : null}
+      {hasUnsavedChanges ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-medium text-amber-100">
+          <span>Unsaved changes are local to this page.</span>
+          {dirtyTabLabels.map((label) => (
+            <span key={label} className="rounded-full border border-amber-300/20 bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
-      <OrderTabBar activeTab={activeTab} onChange={setActiveTab} />
+      <OrderTabBar
+        activeTab={activeTab}
+        onChange={handleTabChange}
+        dirtyTabs={dirtyTabs}
+        tabButtonRefs={tabButtonRefs}
+      />
 
-      <div key={activeTab} className="admin-tab-panel">
+      <div
+        key={activeTab}
+        id={activeTabPanelId}
+        role="tabpanel"
+        aria-labelledby={activeTabButtonId}
+        className="admin-tab-panel"
+      >
         {activeTab === "overview" ? (
           <OverviewTab
             order={order}
@@ -469,8 +614,10 @@ export default function AdminOrderDetailClient({ detail }: Props) {
             trackingDraft={trackingDraft}
             setTrackingDraft={setTrackingDraft}
             saving={saving}
+            fulfillmentDirty={fulfillmentDirty}
             saveOrder={saveOrder}
             fulfillmentOutcome={fulfillmentOutcome}
+            canUpdateFulfillment={actionPermissions.canUpdateFulfillment}
           />
         ) : null}
         {activeTab === "refunds" ? (
@@ -488,6 +635,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
             setRefundPassword={setRefundPassword}
             setRefundPasswordError={setRefundPasswordError}
             getItemHref={getItemHref}
+            canProcessRefund={actionPermissions.canProcessRefund}
           />
         ) : null}
         {activeTab === "customer" ? (
@@ -510,6 +658,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
             emailStatuses={emailStatuses}
             sendingEmail={sendingEmail}
             sendEmail={sendEmail}
+            canSendOrderEmail={actionPermissions.canSendOrderEmail}
           />
         ) : null}
       </div>
@@ -567,23 +716,48 @@ function Panel({
 function OrderTabBar({
   activeTab,
   onChange,
+  dirtyTabs,
+  tabButtonRefs,
 }: {
   activeTab: OrderTabId;
   onChange: (tab: OrderTabId) => void;
+  dirtyTabs: Partial<Record<OrderTabId, boolean>>;
+  tabButtonRefs: MutableRefObject<Array<HTMLButtonElement | null>>;
 }) {
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % ORDER_TABS.length;
+    else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + ORDER_TABS.length) % ORDER_TABS.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = ORDER_TABS.length - 1;
+    else return;
+
+    event.preventDefault();
+    onChange(ORDER_TABS[nextIndex]!.id);
+  };
+
   return (
     <div className="sticky top-4 z-20">
       <div className="rounded-[28px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur">
-        <div className="grid grid-cols-5 gap-1">
-          {ORDER_TABS.map((tab) => {
+        <div className="grid grid-cols-5 gap-1" role="tablist" aria-label="Order workspace sections">
+          {ORDER_TABS.map((tab, index) => {
             const active = tab.id === activeTab;
+            const isDirty = Boolean(dirtyTabs[tab.id]);
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => onChange(tab.id)}
+                onKeyDown={(event) => handleKeyDown(event, index)}
+                ref={(node) => {
+                  tabButtonRefs.current[index] = node;
+                }}
                 className="group relative overflow-hidden rounded-[22px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
-                aria-pressed={active}
+                id={getOrderTabButtonId(tab.id)}
+                role="tab"
+                aria-selected={active}
+                aria-controls={getOrderTabPanelId(tab.id)}
+                tabIndex={active ? 0 : -1}
               >
                 <span
                   className={`absolute inset-0 rounded-[22px] border transition duration-300 ${
@@ -592,7 +766,10 @@ function OrderTabBar({
                       : "scale-[0.96] border-transparent bg-white/[0.02] opacity-80 group-hover:opacity-100"
                   }`}
                 />
-                <span className="relative block text-sm font-semibold text-white">{tab.label}</span>
+                <span className="relative flex items-center gap-2 text-sm font-semibold text-white">
+                  <span>{tab.label}</span>
+                  {isDirty ? <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.14)]" aria-hidden="true" /> : null}
+                </span>
                 <span
                   className={`relative mt-1 block text-[11px] leading-5 transition ${
                     active ? "text-cyan-100/85" : "text-slate-400"
@@ -600,6 +777,7 @@ function OrderTabBar({
                 >
                   {tab.detail}
                 </span>
+                {isDirty ? <span className="sr-only">Unsaved changes in this tab.</span> : null}
               </button>
             );
           })}
@@ -700,8 +878,10 @@ function FulfillmentTab({
   trackingDraft,
   setTrackingDraft,
   saving,
+  fulfillmentDirty,
   saveOrder,
   fulfillmentOutcome,
+  canUpdateFulfillment,
 }: {
   order: AdminOrderRecord;
   statusDraft: string;
@@ -709,8 +889,10 @@ function FulfillmentTab({
   trackingDraft: TrackingDraft;
   setTrackingDraft: Dispatch<SetStateAction<TrackingDraft>>;
   saving: boolean;
+  fulfillmentDirty: boolean;
   saveOrder: () => Promise<void>;
   fulfillmentOutcome: ReturnType<typeof getFulfillmentOutcome>;
+  canUpdateFulfillment: boolean;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_390px]">
@@ -731,7 +913,7 @@ function FulfillmentTab({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
-                  <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} className={`${SELECT_CLASS} mt-2`}>
+                  <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} disabled={!canUpdateFulfillment} className={`${SELECT_CLASS} mt-2`}>
                     {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
                       <option value={statusDraft}>{statusDraft} (legacy)</option>
                     ) : null}
@@ -747,12 +929,20 @@ function FulfillmentTab({
                 ].map(([label, value, onChange]) => (
                   <label key={label as string} className="block">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label as string}</span>
-                    <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} className={`${INPUT_CLASS} mt-2`} />
+                    <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} disabled={!canUpdateFulfillment} className={`${INPUT_CLASS} mt-2`} />
                   </label>
                 ))}
               </div>
 
               <OutcomeCard tone={fulfillmentOutcome.tone} eyebrow="Save outcome" title={fulfillmentOutcome.title} detail={fulfillmentOutcome.detail} />
+              {!canUpdateFulfillment ? (
+                <OutcomeCard
+                  tone="warning"
+                  eyebrow="Permission"
+                  title="Fulfillment edits are locked for your role"
+                  detail="This workspace is visible for review, but only allowed roles can save status and tracking changes."
+                />
+              ) : null}
 
               <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Fulfillment rules</p>
@@ -766,8 +956,13 @@ function FulfillmentTab({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
-            <p className="max-w-xl text-sm text-slate-300">Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.</p>
-            <button type="button" onClick={() => void saveOrder()} disabled={saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
+            <p className="max-w-xl text-sm text-slate-300">
+              Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.
+            </p>
+            <div className="flex items-center gap-3">
+              {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Unsaved fulfillment draft</span> : null}
+              <button type="button" onClick={() => void saveOrder()} disabled={!canUpdateFulfillment || !fulfillmentDirty || saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
+            </div>
           </div>
         </Panel>
       </div>
@@ -802,6 +997,7 @@ function RefundsTab({
   setRefundPassword,
   setRefundPasswordError,
   getItemHref,
+  canProcessRefund,
 }: {
   order: AdminOrderRecord;
   refundSelection: Record<string, number>;
@@ -816,6 +1012,7 @@ function RefundsTab({
   setRefundPassword: Dispatch<SetStateAction<string>>;
   setRefundPasswordError: Dispatch<SetStateAction<string>>;
   getItemHref: (item: AdminOrderItemRecord) => string | null;
+  canProcessRefund: boolean;
 }) {
   return (
     <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
@@ -836,7 +1033,7 @@ function RefundsTab({
             <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] lg:items-center">
                 <div className="flex min-w-0 items-start gap-4">
-                  <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} aria-label={`Select ${itemName} for refund`} /></label>
+                  <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} disabled={!canProcessRefund} aria-label={`Select ${itemName} for refund`} /></label>
                   {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-2xl border border-white/10 object-cover" /> : <div className="h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.05]" />}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -857,7 +1054,7 @@ function RefundsTab({
                 <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
                 <div className="flex items-center justify-end gap-2 lg:block">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:mb-2 lg:text-right">Refund</p>
-                  <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 lg:ml-auto" />
+                  <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} disabled={!canProcessRefund} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 lg:ml-auto" />
                 </div>
               </div>
             </div>
@@ -865,12 +1062,22 @@ function RefundsTab({
         })}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
-        <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} />Include shipping in refund preview</label>
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} disabled={!canProcessRefund} />Include shipping in refund preview</label>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("items"); }} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08]">Refund selected items ({selectedRefundItemCount})</button>
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("full"); }} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600">Full refund</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
         </div>
       </div>
+      {!canProcessRefund ? (
+        <div className="mt-5">
+          <OutcomeCard
+            tone="warning"
+            eyebrow="Permission"
+            title="Refund actions are locked for your role"
+            detail="You can review refund previews here, but only allowed roles can open the Stripe-authoritative refund flow."
+          />
+        </div>
+      ) : null}
     </Panel>
   );
 }
@@ -934,6 +1141,7 @@ function TimelineTab({
   emailStatuses,
   sendingEmail,
   sendEmail,
+  canSendOrderEmail,
 }: {
   order: AdminOrderRecord;
   detail: AdminOrderDetail;
@@ -941,6 +1149,7 @@ function TimelineTab({
   emailStatuses: Array<{ label: string; sentAt: string | null }>;
   sendingEmail: "confirmation" | "shipping" | "refund" | null;
   sendEmail: (type: "confirmation" | "shipping" | "refund") => Promise<void>;
+  canSendOrderEmail: boolean;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
@@ -989,10 +1198,18 @@ function TimelineTab({
           </div>
           <div className="mt-5 space-y-3">
             <OutcomeCard tone={order.shippingEmailSentAt ? "info" : "warning"} eyebrow="Shipping email rule" title={order.shippingEmailSentAt ? "Shipping email already recorded" : "Manual send remains available here"} detail={order.shippingEmailSentAt ? "Use this tab for resending other customer messages or reviewing the send history." : "If the fulfillment save path will not auto-send, use the shipping button below."} />
+            {!canSendOrderEmail ? (
+              <OutcomeCard
+                tone="warning"
+                eyebrow="Permission"
+                title="Customer email actions are locked for your role"
+                detail="Send controls stay visible so the workflow is clear, but only allowed roles can dispatch customer emails."
+              />
+            ) : null}
             <div className="grid gap-2">
-              <button type="button" onClick={() => void sendEmail("confirmation")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
-              <button type="button" onClick={() => void sendEmail("shipping")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
-              <button type="button" onClick={() => void sendEmail("refund")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
+              <button type="button" onClick={() => void sendEmail("confirmation")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
+              <button type="button" onClick={() => void sendEmail("shipping")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
+              <button type="button" onClick={() => void sendEmail("refund")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
               <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
               <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>
             </div>
@@ -1018,7 +1235,7 @@ function OutcomeCard({ tone, eyebrow, title, detail }: { tone: "success" | "info
 }
 
 function Banner({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
-  return <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
+  return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
 }
 
 function StateCard({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {
