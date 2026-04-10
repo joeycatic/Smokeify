@@ -10,6 +10,7 @@ import {
   AdminNotice,
   AdminPageIntro,
   AdminPanel,
+  AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
 
 type AdminScriptsClientProps = {
@@ -43,6 +44,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
   const [lastRun, setLastRun] = useState<RunState | null>(null);
   const [requestError, setRequestError] = useState<string>("");
   const [scriptInputs, setScriptInputs] = useState<Record<string, Record<string, string>>>({});
+  const [scriptReasons, setScriptReasons] = useState<Record<string, string>>({});
 
   const groupedScripts = useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
@@ -67,7 +69,21 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
   const getScriptInputValue = (scriptId: string, inputId: string) =>
     scriptInputs[scriptId]?.[inputId] ?? "";
 
+  const updateScriptReason = (scriptId: string, value: string) => {
+    setScriptReasons((current) => ({
+      ...current,
+      [scriptId]: value,
+    }));
+  };
+
+  const getScriptReason = (scriptId: string) => scriptReasons[scriptId] ?? "";
+
   const runScript = async (script: AdminScriptDefinition) => {
+    const reason = getScriptReason(script.id).trim();
+    if (!reason) {
+      setRequestError("Add a short execution reason before running an admin script.");
+      return;
+    }
     setRunningScriptId(script.id);
     setRequestError("");
 
@@ -78,6 +94,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
         body: JSON.stringify({
           scriptId: script.id,
           inputs: scriptInputs[script.id] ?? {},
+          reason,
         }),
       });
 
@@ -272,6 +289,21 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                           ))}
                         </div>
                       ) : null}
+
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <AdminField label="Execution reason">
+                          <AdminTextarea
+                            value={getScriptReason(script.id)}
+                            onChange={(event) => updateScriptReason(script.id, event.target.value)}
+                            placeholder="Why is this run needed right now?"
+                            rows={3}
+                            disabled={Boolean(runningScriptId)}
+                          />
+                        </AdminField>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Required for auditability before the script can run.
+                        </p>
+                      </div>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-3">
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">

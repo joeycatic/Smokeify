@@ -5,6 +5,7 @@ import type { PricingRunMode } from "@/lib/adminPricingIntegration";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) {
@@ -28,6 +29,12 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!canAdminPerformAction(session.user.role, "pricing.write")) {
+    return adminJson(
+      { error: "You do not have permission to run pricing automation." },
+      { status: 403 }
+    );
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     mode?: PricingRunMode;
@@ -36,6 +43,13 @@ export async function POST(request: NextRequest) {
     refreshPublicCompetitorData?: boolean;
     marketReportPath?: string | null;
   };
+  const runNotes = typeof body.notes === "string" ? body.notes.trim() : "";
+  if ((body.mode ?? "APPLY") !== "PREVIEW" && !runNotes) {
+    return adminJson(
+      { error: "Apply runs require notes that explain why this pricing change is being executed." },
+      { status: 400 }
+    );
+  }
 
   try {
     const result = await runAdminPricingAutomation(
@@ -47,7 +61,7 @@ export async function POST(request: NextRequest) {
           body.limit > 0
             ? Math.floor(body.limit)
             : undefined,
-        notes: typeof body.notes === "string" ? body.notes : null,
+        notes: runNotes || null,
         refreshPublicCompetitorData: body.refreshPublicCompetitorData !== false,
         marketReportPath:
           typeof body.marketReportPath === "string" ? body.marketReportPath : null,

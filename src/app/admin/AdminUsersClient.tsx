@@ -72,17 +72,23 @@ const GOVERNANCE_ACTION_COPY: Record<
     title: "Re-enable admin access",
     description: "This restores admin entry for the account.",
     buttonLabel: "Enable access",
+    reasonLabel: "Reason",
+    reasonPlaceholder: "Access restored after review, leave ended, account recovered",
   },
   revoke_sessions: {
     title: "Revoke admin sessions",
     description: "This invalidates current sessions and forces the admin to sign in again.",
     buttonLabel: "Revoke sessions",
+    reasonLabel: "Reason",
+    reasonPlaceholder: "Suspicious activity, device loss, emergency rotation",
   },
   clear_trusted_devices: {
     title: "Clear trusted devices",
     description:
       "This removes remembered devices so the account must pass fresh device verification again.",
     buttonLabel: "Clear devices",
+    reasonLabel: "Reason",
+    reasonPlaceholder: "Device hygiene, account review, access reset",
   },
 };
 
@@ -142,6 +148,7 @@ export default function AdminUsersClient({
     role: UserRow["role"];
   } | null>(null);
   const [rolePassword, setRolePassword] = useState("");
+  const [roleReason, setRoleReason] = useState("");
   const [rolePasswordError, setRolePasswordError] = useState("");
   const [governanceConfirm, setGovernanceConfirm] = useState<{
     id: string;
@@ -243,7 +250,8 @@ export default function AdminUsersClient({
   const updateRole = async (
     id: string,
     role: UserRow["role"],
-    adminPassword: string
+    adminPassword: string,
+    reason: string
   ) => {
     setSavingId(id);
     setError("");
@@ -254,7 +262,7 @@ export default function AdminUsersClient({
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, role, adminPassword }),
+        body: JSON.stringify({ id, role, adminPassword, reason }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -279,23 +287,34 @@ export default function AdminUsersClient({
   const confirmRoleChange = async () => {
     if (!roleConfirm) return;
     const adminPassword = rolePassword.trim();
+    const reason = roleReason.trim();
     if (!adminPassword) {
       setRolePasswordError("Enter your admin password.");
+      return;
+    }
+    if (!reason) {
+      setRolePasswordError("Enter a short reason for the role change.");
       return;
     }
     const { id, role } = roleConfirm;
     setRoleConfirm(null);
     setRolePassword("");
+    setRoleReason("");
     setRolePasswordError("");
-    await updateRole(id, role, adminPassword);
+    await updateRole(id, role, adminPassword, reason);
   };
 
   const runGovernanceAction = async () => {
     if (!governanceConfirm) return;
     const { id, action } = governanceConfirm;
     const adminPassword = governancePassword.trim();
+    const reason = governanceReason.trim();
     if (!adminPassword) {
       setGovernanceError("Enter your admin password.");
+      return;
+    }
+    if (!reason) {
+      setGovernanceError("Enter a short reason for this governance action.");
       return;
     }
 
@@ -311,7 +330,7 @@ export default function AdminUsersClient({
         body: JSON.stringify({
           action,
           adminPassword,
-          reason: governanceReason.trim(),
+          reason,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -844,7 +863,12 @@ export default function AdminUsersClient({
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
-            onClick={() => setRoleConfirm(null)}
+            onClick={() => {
+              setRoleConfirm(null);
+              setRoleReason("");
+              setRolePassword("");
+              setRolePasswordError("");
+            }}
             aria-label="Close dialog"
           />
           <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
@@ -852,6 +876,16 @@ export default function AdminUsersClient({
             <p className="mt-2 text-sm text-slate-400">
               Enter your admin password to apply this access change.
             </p>
+            <input
+              type="text"
+              value={roleReason}
+              onChange={(event) => {
+                setRoleReason(event.target.value);
+                if (rolePasswordError) setRolePasswordError("");
+              }}
+              className="mt-4 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+              placeholder="Reason for the role change"
+            />
             <input
               type="password"
               value={rolePassword}
@@ -868,7 +902,12 @@ export default function AdminUsersClient({
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setRoleConfirm(null)}
+                onClick={() => {
+                  setRoleConfirm(null);
+                  setRoleReason("");
+                  setRolePassword("");
+                  setRolePasswordError("");
+                }}
                 className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
               >
                 Cancel

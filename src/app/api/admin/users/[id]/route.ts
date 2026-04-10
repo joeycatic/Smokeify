@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 const VALID_GROUPS = ["NORMAL", "VIP", "WHOLESALE", "BLOCKED"] as const;
 type CustomerGroup = (typeof VALID_GROUPS)[number];
@@ -14,6 +15,12 @@ export async function GET(
 ) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canAdminPerformAction(session.user.role, "user.manage")) {
+    return NextResponse.json(
+      { error: "You do not have permission to edit users." },
+      { status: 403 }
+    );
+  }
 
   const { id } = await context.params;
 
@@ -84,10 +91,21 @@ export async function PATCH(
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const { id } = await context.params;
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : null;
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  if (expectedUpdatedAt && existing.updatedAt.toISOString() !== expectedUpdatedAt) {
+    return NextResponse.json(
+      {
+        error:
+          "This user was updated by another admin. Reload the latest record before saving again.",
+        currentUpdatedAt: existing.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
+  }
 
   // Validate customerGroup
   if (
@@ -157,7 +175,7 @@ export async function PATCH(
 
   const str = (v: unknown) => (typeof v === "string" ? v.trim() || null : null);
 
-  await prisma.user.update({
+  const updatedUser = await prisma.user.update({
     where: { id },
     data: {
       ...(body.email !== undefined ? { email: str(body.email) } : {}),
@@ -195,5 +213,8 @@ export async function PATCH(
     });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    user: { id: updatedUser.id, updatedAt: updatedUser.updatedAt.toISOString() },
+  });
 }

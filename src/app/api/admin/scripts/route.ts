@@ -11,6 +11,7 @@ import { getAdminScriptDefinition } from "@/lib/adminScripts";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -391,10 +392,17 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!canAdminPerformAction(session.user.role, "admin.script.execute")) {
+    return NextResponse.json(
+      { error: "You do not have permission to execute admin scripts." },
+      { status: 403 },
+    );
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     scriptId?: string;
     inputs?: Record<string, unknown>;
+    reason?: string;
   };
   const scriptId = body.scriptId?.trim();
   if (!scriptId) {
@@ -404,6 +412,13 @@ export async function POST(request: Request) {
   const definition = getAdminScriptDefinition(scriptId);
   if (!definition) {
     return NextResponse.json({ error: "Script is not approved for admin execution." }, { status: 400 });
+  }
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!reason) {
+    return NextResponse.json(
+      { error: "A short execution reason is required before running admin scripts." },
+      { status: 400 },
+    );
   }
 
   const requestedInputs = normalizeScriptInputs(body.inputs);
@@ -436,13 +451,14 @@ export async function POST(request: Request) {
     targetType: "script",
     targetId: definition.id,
     summary: `Started ${definition.title}`,
-    metadata: {
-      scriptId: definition.id,
-      npmScript: definition.npmScript,
-      riskLevel: definition.riskLevel,
-      ...buildInputMetadata(execution.normalizedInputs),
-    },
-  });
+        metadata: {
+          scriptId: definition.id,
+          npmScript: definition.npmScript,
+          riskLevel: definition.riskLevel,
+          reason,
+          ...buildInputMetadata(execution.normalizedInputs),
+        },
+      });
 
   try {
     const result =
@@ -482,6 +498,7 @@ export async function POST(request: Request) {
           durationMs,
           timedOut: result.timedOut,
           exitCode: result.exitCode,
+          reason,
           ...buildInputMetadata(execution.normalizedInputs),
           stdoutTail: compactOutput(result.stdout),
           stderrTail: compactOutput(result.stderr),
@@ -513,6 +530,7 @@ export async function POST(request: Request) {
         npmScript: definition.npmScript,
         durationMs,
         exitCode: result.exitCode,
+        reason,
         ...buildInputMetadata(execution.normalizedInputs),
         stdoutTail: compactOutput(result.stdout),
       },
@@ -542,6 +560,7 @@ export async function POST(request: Request) {
         scriptId: definition.id,
         npmScript: definition.npmScript,
         durationMs,
+        reason,
         ...buildInputMetadata(execution.normalizedInputs),
         error: message,
       },

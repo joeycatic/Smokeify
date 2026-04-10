@@ -8,11 +8,18 @@ import {
   ensureAnotherEnabledAdminExists,
   verifyAdminPassword,
 } from "@/lib/adminUserGovernance";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 export async function GET() {
   const session = await requireAdminOnly();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "user.manage")) {
+    return NextResponse.json(
+      { error: "You do not have permission to manage users." },
+      { status: 403 }
+    );
   }
 
   const users = await prisma.user.findMany({
@@ -72,15 +79,23 @@ export async function PATCH(request: Request) {
     id?: string;
     role?: string;
     adminPassword?: string;
+    reason?: string;
   };
   if (!body.id || !body.role) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
   const adminPassword = body.adminPassword?.trim() ?? "";
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   if (!adminPassword) {
     return NextResponse.json(
       { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  if (!reason) {
+    return NextResponse.json(
+      { error: "Eine kurze Begründung ist erforderlich." },
       { status: 400 }
     );
   }
@@ -135,7 +150,7 @@ export async function PATCH(request: Request) {
     targetType: "user",
     targetId: updated.id,
     summary: `Set role to ${updated.role}`,
-    metadata: { role: updated.role, email: updated.email },
+    metadata: { role: updated.role, email: updated.email, reason },
   });
 
   return NextResponse.json({

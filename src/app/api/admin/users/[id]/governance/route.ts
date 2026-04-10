@@ -8,6 +8,7 @@ import {
   ensureAnotherEnabledAdminExists,
   verifyAdminPassword,
 } from "@/lib/adminUserGovernance";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 type GovernanceAction =
   | "disable_admin_access"
@@ -64,6 +65,12 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!canAdminPerformAction(session.user.role, "user.manage")) {
+    return NextResponse.json(
+      { error: "You do not have permission to manage admin accounts." },
+      { status: 403 }
+    );
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     action?: GovernanceAction;
@@ -103,6 +110,12 @@ export async function POST(
   }
 
   const disableReason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!disableReason) {
+    return NextResponse.json(
+      { error: "A short reason is required for governance actions." },
+      { status: 400 }
+    );
+  }
 
   if (
     body.action === "disable_admin_access" &&
@@ -121,7 +134,7 @@ export async function POST(
         where: { id: existing.id },
         data: {
           adminAccessDisabledAt: new Date(),
-          adminAccessDisableReason: disableReason || "Admin access disabled",
+          adminAccessDisableReason: disableReason,
           authVersion: { increment: 1 },
           sessions: { deleteMany: {} },
           devices: { deleteMany: {} },
@@ -176,6 +189,7 @@ export async function POST(
         targetType: "user",
         targetId: updated.id,
         summary: `Re-enabled admin access for ${updated.email ?? updated.id}`,
+        metadata: { reason: disableReason },
       });
 
       return NextResponse.json({ user: serializeUser(updated) });
@@ -206,6 +220,7 @@ export async function POST(
         targetType: "user",
         targetId: updated.id,
         summary: `Revoked admin sessions for ${updated.email ?? updated.id}`,
+        metadata: { reason: disableReason },
       });
 
       return NextResponse.json({ user: serializeUser(updated) });
@@ -235,6 +250,7 @@ export async function POST(
         targetType: "user",
         targetId: updated.id,
         summary: `Cleared trusted devices for ${updated.email ?? updated.id}`,
+        metadata: { reason: disableReason },
       });
 
       return NextResponse.json({ user: serializeUser(updated) });

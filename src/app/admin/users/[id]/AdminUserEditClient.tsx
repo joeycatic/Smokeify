@@ -132,6 +132,7 @@ export default function AdminUserEditClient({
   auditLogs,
   actorRole,
 }: Props) {
+  const [userUpdatedAt, setUserUpdatedAt] = useState(user.updatedAt);
   const [form, setForm] = useState({
     email: user.email ?? "",
     name: user.name ?? "",
@@ -168,15 +169,26 @@ export default function AdminUserEditClient({
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          expectedUpdatedAt: userUpdatedAt,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         error?: string;
+        currentUpdatedAt?: string;
+        user?: { id: string; updatedAt: string };
       };
       if (!res.ok) {
+        if (data.currentUpdatedAt) {
+          setUserUpdatedAt(data.currentUpdatedAt);
+        }
         setError(data.error ?? "Speichern fehlgeschlagen.");
         return;
+      }
+      if (data.user?.updatedAt) {
+        setUserUpdatedAt(data.user.updatedAt);
       }
       setSaved(true);
     } catch {

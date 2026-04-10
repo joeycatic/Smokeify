@@ -394,6 +394,11 @@ export default function AdminPricingClient({
     setRunningMode(mode);
     setError("");
     setMessage("");
+    if (mode === "APPLY" && !runNotes.trim()) {
+      setError("Apply runs require notes that explain why this pricing change is being executed.");
+      setRunningMode(null);
+      return;
+    }
 
     const parsedLimit =
       runLimit.trim().length > 0 && Number.isFinite(Number(runLimit))
@@ -649,7 +654,7 @@ export default function AdminPricingClient({
 
             <AdminField
               label="Operator notes"
-              optional="stored with the pricing run"
+              optional="required for apply runs"
             >
               <AdminTextarea
                 rows={3}
@@ -658,6 +663,9 @@ export default function AdminPricingClient({
                 placeholder="Explain why you are triggering this run."
               />
             </AdminField>
+            <p className="text-xs text-slate-500">
+              Apply mode is blocked until you capture the execution reason here.
+            </p>
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-4">
