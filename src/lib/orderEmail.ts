@@ -3,6 +3,7 @@ import "server-only";
 import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
+  resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { type StorefrontCode } from "@/lib/storefronts";
 
@@ -155,7 +156,9 @@ export function buildOrderEmail(
   invoiceUrl?: string,
   options?: OrderEmailOptions,
 ) {
-  const storefront = options?.storefront ?? "MAIN";
+  const storefront = resolveStorefrontEmailBrand(options?.storefront, [
+    options?.fallbackOrigin,
+  ]);
   const brand = getStorefrontEmailBrand(storefront);
   const links = getStorefrontLinks(storefront, options?.fallbackOrigin);
   const orderNumber = order.id.slice(0, 8).toUpperCase();

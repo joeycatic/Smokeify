@@ -4,6 +4,9 @@ vi.mock("server-only", () => ({}));
 
 let buildOrderEmail: typeof import("../orderEmail").buildOrderEmail;
 
+process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.test";
+process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.test";
+
 const sampleOrder = {
   id: "ord_test_12345678",
   createdAt: new Date("2026-03-31T10:00:00.000Z"),
@@ -59,5 +62,21 @@ describe("orderEmail", () => {
     expect(email.text).toContain("bei GrowVault");
     expect(email.html).toContain("linear-gradient(135deg,#0d2219 0%,#143126 44%,#1d4532 76%,#8ea85f 100%)");
     expect(email.html).toContain("#163a2a");
+  });
+
+  it("infers GrowVault branding from the fallback origin for legacy orders", () => {
+    const email = buildOrderEmail(
+      "confirmation",
+      sampleOrder,
+      "https://growvault.test/account/orders/ord_test_12345678",
+      "https://growvault.test/api/orders/ord_test_12345678/invoice",
+      {
+        fallbackOrigin: "https://growvault.test",
+      },
+    );
+
+    expect(email.html).toContain("GrowVault");
+    expect(email.html).toContain("https://growvault.test/products");
+    expect(email.text).toContain("bei GrowVault");
   });
 });

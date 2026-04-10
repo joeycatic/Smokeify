@@ -6,7 +6,10 @@ import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
-import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import {
+  getStorefrontOrigin,
+  resolveStorefrontEmailBrand,
+} from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 
 type AdminActor = {
@@ -142,7 +145,10 @@ export async function refundAdminOrder(input: {
 
   if (updated.customerEmail && input.origin) {
     try {
-      const storefront = parseStorefront(updated.sourceStorefront ?? null) ?? "MAIN";
+      const storefront = resolveStorefrontEmailBrand(
+        parseStorefront(updated.sourceStorefront ?? null),
+        [updated.sourceOrigin, updated.sourceHost, input.origin],
+      );
       const origin = getStorefrontOrigin(
         storefront,
         updated.sourceOrigin ?? input.origin,

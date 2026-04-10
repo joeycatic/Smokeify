@@ -26,7 +26,10 @@ import {
   canApplyDefaultVatFallback,
 } from "@/lib/vat";
 import { formatOrderSourceLabel, resolveOrderSourceFromMetadata } from "@/lib/orderSource";
-import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import {
+  getStorefrontOrigin,
+  resolveStorefrontEmailBrand,
+} from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 
 export const runtime = "nodejs";
@@ -709,7 +712,10 @@ export const createOrderFromSession = async (
 
   try {
     if (created.customerEmail) {
-      const storefront = parseStorefront(created.sourceStorefront ?? null) ?? "MAIN";
+      const storefront = resolveStorefrontEmailBrand(
+        parseStorefront(created.sourceStorefront ?? null),
+        [created.sourceOrigin, created.sourceHost, getAppOrigin(request)],
+      );
       const origin = getStorefrontOrigin(
         storefront,
         created.sourceOrigin ?? getAppOrigin(request),

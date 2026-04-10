@@ -9,7 +9,10 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
-import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
+import {
+  getStorefrontOrigin,
+  resolveStorefrontEmailBrand,
+} from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 
 export async function POST(
@@ -61,7 +64,10 @@ export async function POST(
     );
   }
 
-  const storefront = parseStorefront(order.sourceStorefront ?? null) ?? "MAIN";
+  const storefront = resolveStorefrontEmailBrand(
+    parseStorefront(order.sourceStorefront ?? null),
+    [order.sourceOrigin, order.sourceHost, getAppOrigin(request)],
+  );
   const origin = getStorefrontOrigin(
     storefront,
     order.sourceOrigin ?? getAppOrigin(request),
