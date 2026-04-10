@@ -1,11 +1,19 @@
 import PageLayout from "@/components/PageLayout";
+import { businessDetails } from "@/lib/businessDetails";
 
 export default function ImprintPage() {
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-    process.env.CONTACT_EMAIL?.trim() ||
-    "contact@smokeify.de";
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+  const {
+    cityPostalLine,
+    companyName,
+    contactEmail,
+    contactPhone,
+    country,
+    legalName,
+    streetLine,
+    vatId,
+    websiteLabel,
+    websiteUrl,
+  } = businessDetails;
 
   return (
     <PageLayout commerce={false}>
@@ -21,11 +29,11 @@ export default function ImprintPage() {
             <section className="space-y-3">
               <h2 className="text-xl font-semibold text-stone-900">Anbieter</h2>
               <div className="text-sm text-stone-700 leading-relaxed">
-                <p className="font-semibold text-stone-900">Smokeify</p>
-                <p>Joey Bennett Catic</p>
-                <p>33758 Schloß Holte-Stukenbrock</p>
-                <p>Brinkeweg 106a</p>
-                <p>Deutschland</p>
+                <p className="font-semibold text-stone-900">{companyName}</p>
+                <p>{legalName}</p>
+                <p>{streetLine}</p>
+                <p>{cityPostalLine}</p>
+                <p>{country}</p>
               </div>
             </section>
 
@@ -47,20 +55,31 @@ export default function ImprintPage() {
                   </a>
                 ) : null}
                 <a
-                  href="https://www.smokeify.de"
+                  href={websiteUrl}
                   className="block text-stone-600 hover:text-stone-700"
                 >
-                  www.smokeify.de
+                  {websiteLabel}
                 </a>
               </div>
             </section>
+
+            {vatId ? (
+              <section className="space-y-3">
+                <h2 className="text-xl font-semibold text-stone-900">
+                  Umsatzsteuer-ID
+                </h2>
+                <p className="text-sm text-stone-700 leading-relaxed">
+                  USt-IdNr.: {vatId}
+                </p>
+              </section>
+            ) : null}
 
             <section className="space-y-3">
               <h2 className="text-xl font-semibold text-stone-900">
                 Verantwortlich für den Inhalt
               </h2>
               <p className="text-sm text-stone-700 leading-relaxed">
-                Joey Bennett Catic
+                {legalName}
               </p>
             </section>
           </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import FooterNewsletter from "@/components/FooterNewsletter";
+import { businessDetails } from "@/lib/businessDetails";
 
 function IconInstagram() {
   return (
@@ -46,11 +47,8 @@ function IconDiscord() {
 }
 
 export default function Footer() {
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-    process.env.CONTACT_EMAIL?.trim() ||
-    "contact@smokeify.de";
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+  const { contactEmail, contactPhone, cityPostalLine, streetLine, vatId } =
+    businessDetails;
   const socialLinks = [
     {
       href: process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim(),
@@ -86,8 +84,8 @@ export default function Footer() {
             </div>
 
             <div className="space-y-1 text-sm text-white/75">
-              <p>Brinkeweg 106a</p>
-              <p>33758 Schloß Holte-Stukenbrock</p>
+              <p>{streetLine}</p>
+              <p>{cityPostalLine}</p>
               <a
                 href={`mailto:${contactEmail}`}
                 className="block transition hover:text-white"
@@ -102,6 +100,7 @@ export default function Footer() {
                   {contactPhone}
                 </a>
               ) : null}
+              {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
             </div>
 
             {socialLinks.some((entry) => Boolean(entry.href)) && (

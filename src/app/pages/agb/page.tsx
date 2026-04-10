@@ -1,4 +1,5 @@
 import PageLayout from "@/components/PageLayout";
+import { businessDetails } from "@/lib/businessDetails";
 
 export const AGB_SECTIONS = [
   {
@@ -122,11 +123,18 @@ export const AGB_SECTIONS = [
 ];
 
 export default function AgbPage() {
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-    process.env.CONTACT_EMAIL?.trim() ||
-    "contact@smokeify.de";
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+  const {
+    cityPostalLine,
+    companyName,
+    contactEmail,
+    contactPhone,
+    country,
+    legalName,
+    streetLine,
+    vatId,
+    websiteLabel,
+    websiteUrl,
+  } = businessDetails;
 
   return (
     <PageLayout commerce={false}>
@@ -146,10 +154,12 @@ export default function AgbPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Anbieter
               </p>
-              <p className="font-semibold text-stone-900">Smokeify</p>
-              <p>Joey Bennett Catic</p>
-              <p>Brinkeweg 106a</p>
-              <p>33758 Schloß Holte-Stukenbrock</p>
+              <p className="font-semibold text-stone-900">{companyName}</p>
+              <p>{legalName}</p>
+              <p>{streetLine}</p>
+              <p>{cityPostalLine}</p>
+              <p>{country}</p>
+              {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
             </div>
             <div className="space-y-1 text-sm text-stone-700">
               <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
@@ -164,10 +174,10 @@ export default function AgbPage() {
                 </a>
                 {contactPhone ? <span>{contactPhone}</span> : null}
                 <a
-                  href="https://www.smokeify.de"
+                  href={websiteUrl}
                   className="text-stone-600 hover:text-stone-700"
                 >
-                  www.smokeify.de
+                  {websiteLabel}
                 </a>
               </div>
             </div>

@@ -1,18 +1,12 @@
 import { Prisma } from "@prisma/client";
+import {
+  businessDetails,
+  documentSellerLines,
+  supportCompanyLines,
+} from "@/lib/businessDetails";
 import { prisma } from "@/lib/prisma";
 
-const SELLER_LINES = [
-  "Smokeify",
-  "Brinkeweg 106a",
-  "33758 Schloß Holte-Stukenbrock",
-  "Deutschland",
-  "contact@smokeify.de",
-] as const;
-const SUPPORT_PHONE = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
-const SUPPORT_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-  process.env.CONTACT_EMAIL?.trim() ||
-  "contact@smokeify.de";
+const SELLER_LINES = documentSellerLines;
 
 const DEFAULT_ITEM_SUFFIX = / - Default( Title)?(?=\s*\(|$)/i;
 
@@ -842,7 +836,15 @@ const buildPackingSlipPageStream = ({
   const tableHeaderY = infoBoxesBottomY - (pageIndex === 0 ? 34 : 28);
   const tableStartY = tableHeaderY - 28;
 
-  commands.push(createPdfText({ font: "F2", size: 11, x: leftColumnX, y: 804, text: "Smokeify" }));
+  commands.push(
+    createPdfText({
+      font: "F2",
+      size: 11,
+      x: leftColumnX,
+      y: 804,
+      text: businessDetails.companyName,
+    }),
+  );
   commands.push(createPdfText({ font: "F2", size: 24, x: leftColumnX, y: 778, text: title }));
   commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 758, text: `Lieferscheinnummer ${slipNumber}` }));
   commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 742, text: `Bestellnummer ${orderLabel}` }));
@@ -851,10 +853,17 @@ const buildPackingSlipPageStream = ({
 
   commands.push(createPdfText({ font: "F2", size: 11, x: rightColumnX, y: 804, text: pageLabel }));
   commands.push(createPdfText({ font: "F1", size: 11, x: rightColumnX, y: 786, text: SELLER_LINES[0] }));
-  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 770, text: SELLER_LINES[1] }));
-  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 756, text: SELLER_LINES[2] }));
-  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 742, text: SELLER_LINES[3] }));
-  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 728, text: SELLER_LINES[4] }));
+  SELLER_LINES.slice(1).forEach((line, index) => {
+    commands.push(
+      createPdfText({
+        font: "F1",
+        size: 10,
+        x: rightColumnX,
+        y: 770 - index * 14,
+        text: line,
+      }),
+    );
+  });
 
   if (pageIndex === 0) {
     commands.push(
@@ -952,15 +961,7 @@ const buildPackingSlipPageStream = ({
   });
 
   const supportLines = expandWrappedPdfLines(
-    [
-      "Smokeify",
-      "Joey Bennett Catic",
-      "Brinkeweg 106a",
-      "33758 Schloß Holte-Stukenbrock",
-      "Deutschland",
-      `Telefon: ${SUPPORT_PHONE || "-"}`,
-      `E-Mail: ${SUPPORT_EMAIL}`,
-    ],
+    supportCompanyLines,
     supportBoxWidth - boxPadding * 2,
     supportFontSize,
   );
