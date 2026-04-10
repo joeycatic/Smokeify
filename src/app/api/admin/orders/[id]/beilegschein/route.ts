@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
 import {
-  buildPackingSlipHtml,
+  buildPackingSlipPdf,
   buildPackingSlipNumber,
   loadOrderDocumentData,
 } from "@/lib/orderDocuments";
@@ -23,13 +23,13 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const html = buildPackingSlipHtml(order);
-  const filename = `beilegschein-${buildPackingSlipNumber(order).toLowerCase()}.html`;
+  const pdf = buildPackingSlipPdf(order);
+  const filename = `lieferschein-${buildPackingSlipNumber(order).toLowerCase()}.pdf`;
 
-  return new NextResponse(html, {
+  return new NextResponse(pdf, {
     headers: {
       "Cache-Control": "private, no-store",
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });

@@ -8,6 +8,11 @@ const SELLER_LINES = [
   "Deutschland",
   "contact@smokeify.de",
 ] as const;
+const SUPPORT_PHONE = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+  process.env.CONTACT_EMAIL?.trim() ||
+  "contact@smokeify.de";
 
 const DEFAULT_ITEM_SUFFIX = / - Default( Title)?(?=\s*\(|$)/i;
 
@@ -46,6 +51,21 @@ export type OrderDocumentData = {
   items: OrderDocumentItem[];
 };
 
+type PdfTextEntry = {
+  font: "F1" | "F2";
+  size: number;
+  x: number;
+  y: number;
+  text: string;
+};
+
+type PdfRectEntry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type OrderDocumentOrder = Prisma.OrderGetPayload<{
   include: { items: true };
 }>;
@@ -62,7 +82,7 @@ export const buildInvoiceNumber = (order: Pick<OrderDocumentData, "createdAt" | 
 
 export const buildPackingSlipNumber = (
   order: Pick<OrderDocumentData, "createdAt" | "orderNumber">,
-) => `BS-${order.createdAt.getFullYear()}-${order.orderNumber.toString().padStart(6, "0")}`;
+) => `LS-${order.createdAt.getFullYear()}-${order.orderNumber.toString().padStart(6, "0")}`;
 
 export const escapeHtml = (value: string | null | undefined) =>
   (value ?? "")
@@ -524,9 +544,9 @@ export function buildPackingSlipHtml(order: OrderDocumentData) {
 
   return buildDocumentLayout({
     lang: "de",
-    title: `Beilegschein ${slipNumber}`,
-    documentTitle: "Beilegschein",
-    documentNumber: `Beilegscheinnummer ${slipNumber}`,
+    title: `Lieferschein ${slipNumber}`,
+    documentTitle: "Lieferschein",
+    documentNumber: `Lieferscheinnummer ${slipNumber}`,
     documentMetaLines: [
       `Bestellnummer ${order.id.slice(0, 8).toUpperCase()}`,
       `Bestelldatum ${orderDate}`,
@@ -564,6 +584,459 @@ export function buildPackingSlipHtml(order: OrderDocumentData) {
       { label: "Bestellwert", value: formatOrderDocumentPrice(order.amountTotal, order.currency) },
     ],
     footerNote:
-      "Interner Packbeleg. Preise fuer den Versandprozess nicht erneut berechnen und vor dem Versand die Vollstaendigkeit pruefen.",
+      "Interner Packbeleg. Preise für den Versandprozess nicht erneut berechnen und vor dem Versand die Vollständigkeit prüfen.",
   });
+}
+
+const PDF_PAGE_WIDTH = 595;
+const PDF_PAGE_HEIGHT = 842;
+const PDF_MARGIN = 48;
+const PDF_ITEM_ROW_HEIGHT = 20;
+
+const sanitizePdfText = (value: string) =>
+  Array.from(value)
+    .map((char) => {
+      const codePoint = char.codePointAt(0) ?? 0;
+      if (codePoint === 10 || codePoint === 13 || codePoint === 9) return " ";
+      if (codePoint >= 32 && codePoint <= 255) return char;
+      if (char === "€") return "EUR";
+      if (char === "–" || char === "—") return "-";
+      if (char === "…" ) return "...";
+      return "?";
+    })
+    .join("");
+
+const escapePdfText = (value: string) =>
+  sanitizePdfText(value).replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+
+const truncatePdfText = (value: string, maxLength: number) => {
+  const normalized = sanitizePdfText(value);
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const estimatePdfTextWidth = (text: string, fontSize: number) =>
+  sanitizePdfText(text).length * fontSize * 0.52;
+
+const wrapPdfText = (value: string, maxWidth: number, fontSize: number) => {
+  const normalized = sanitizePdfText(value).trim();
+  if (!normalized) return [""];
+
+  const words = normalized.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  const pushCurrentLine = () => {
+    if (currentLine) lines.push(currentLine);
+    currentLine = "";
+  };
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (estimatePdfTextWidth(nextLine, fontSize) <= maxWidth) {
+      currentLine = nextLine;
+      continue;
+    }
+
+    if (currentLine) {
+      pushCurrentLine();
+    }
+
+    if (estimatePdfTextWidth(word, fontSize) <= maxWidth) {
+      currentLine = word;
+      continue;
+    }
+
+    let chunk = "";
+    for (const char of Array.from(word)) {
+      const nextChunk = `${chunk}${char}`;
+      if (estimatePdfTextWidth(nextChunk, fontSize) <= maxWidth) {
+        chunk = nextChunk;
+        continue;
+      }
+      if (chunk) lines.push(chunk);
+      chunk = char;
+    }
+    currentLine = chunk;
+  }
+
+  pushCurrentLine();
+  return lines.length ? lines : [normalized];
+};
+
+const expandWrappedPdfLines = (
+  lines: string[],
+  maxWidth: number,
+  fontSize: number,
+) => lines.flatMap((line) => wrapPdfText(line, maxWidth, fontSize));
+
+const createPdfText = (entry: PdfTextEntry) =>
+  `BT /${entry.font} ${entry.size} Tf 1 0 0 1 ${entry.x} ${entry.y} Tm (${escapePdfText(entry.text)}) Tj ET`;
+
+const createPdfRect = (entry: PdfRectEntry) => `${entry.x} ${entry.y} ${entry.width} ${entry.height} re S`;
+
+const createPdfLine = (x1: number, y1: number, x2: number, y2: number) =>
+  `${x1} ${y1} m ${x2} ${y2} l S`;
+
+const addWrappedPdfText = ({
+  commands,
+  font,
+  size,
+  x,
+  startY,
+  lineHeight,
+  maxWidth,
+  lines,
+}: {
+  commands: string[];
+  font: "F1" | "F2";
+  size: number;
+  x: number;
+  startY: number;
+  lineHeight: number;
+  maxWidth: number;
+  lines: string[];
+}) => {
+  let rowIndex = 0;
+  for (const line of lines) {
+    const wrappedLines = wrapPdfText(line, maxWidth, size);
+    for (const wrappedLine of wrappedLines) {
+      commands.push(
+        createPdfText({
+          font,
+          size,
+          x,
+          y: startY - rowIndex * lineHeight,
+          text: wrappedLine,
+        }),
+      );
+      rowIndex += 1;
+    }
+  }
+  return rowIndex;
+};
+
+const createPdfDocument = (pageStreams: Buffer[]) => {
+  const objectCount = 4 + pageStreams.length * 2;
+  const buffers: Buffer[] = [Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "binary")];
+  const offsets: number[] = [0];
+  let currentOffset = buffers[0].length;
+
+  const appendObject = (objectNumber: number, content: Buffer | string) => {
+    const header = Buffer.from(`${objectNumber} 0 obj\n`, "ascii");
+    const body = typeof content === "string" ? Buffer.from(content, "latin1") : content;
+    const footer = Buffer.from("\nendobj\n", "ascii");
+    offsets[objectNumber] = currentOffset;
+    buffers.push(header, body, footer);
+    currentOffset += header.length + body.length + footer.length;
+  };
+
+  appendObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
+
+  const pageObjectNumbers = pageStreams.map((_, index) => 6 + index * 2);
+  appendObject(
+    2,
+    `<< /Type /Pages /Count ${pageStreams.length} /Kids [${pageObjectNumbers
+      .map((pageNumber) => `${pageNumber} 0 R`)
+      .join(" ")}] >>`,
+  );
+  appendObject(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  appendObject(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+  pageStreams.forEach((streamBuffer, index) => {
+    const streamObjectNumber = 5 + index * 2;
+    const pageObjectNumber = 6 + index * 2;
+    appendObject(
+      streamObjectNumber,
+      Buffer.concat([
+        Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, "ascii"),
+        streamBuffer,
+        Buffer.from("\nendstream", "ascii"),
+      ]),
+    );
+    appendObject(
+      pageObjectNumber,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_PAGE_WIDTH} ${PDF_PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${streamObjectNumber} 0 R >>`,
+    );
+  });
+
+  const xrefOffset = currentOffset;
+  const xrefEntries = Array.from({ length: objectCount + 1 }, (_, index) => {
+    if (index === 0) return "0000000000 65535 f ";
+    return `${String(offsets[index] ?? 0).padStart(10, "0")} 00000 n `;
+  }).join("\n");
+
+  const trailer = `xref\n0 ${objectCount + 1}\n${xrefEntries}\ntrailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  buffers.push(Buffer.from(trailer, "ascii"));
+
+  return Buffer.concat(buffers);
+};
+
+const buildPackingSlipPageStream = ({
+  order,
+  itemChunk,
+  pageIndex,
+  pageCount,
+  totalUnits,
+}: {
+  order: OrderDocumentData;
+  itemChunk: OrderDocumentItem[];
+  pageIndex: number;
+  pageCount: number;
+  totalUnits: number;
+}) => {
+  const commands: string[] = [
+    "0.12 0.18 0.15 RG",
+    "0.12 0.18 0.15 rg",
+    "1 w",
+  ];
+
+  const title = pageIndex === 0 ? "Lieferschein" : "Lieferschein - Fortsetzung";
+  const slipNumber = buildPackingSlipNumber(order);
+  const orderLabel = order.id.slice(0, 8).toUpperCase();
+  const orderDate = order.createdAt.toLocaleDateString("de-DE");
+  const updatedDate = order.updatedAt.toLocaleDateString("de-DE");
+  const pageLabel = `Seite ${pageIndex + 1} von ${pageCount}`;
+  const leftColumnX = PDF_MARGIN;
+  const rightColumnX = 320;
+  const leftBoxWidth = 232;
+  const rightBoxWidth = 227;
+  const boxPadding = 12;
+  const infoFontSize = 10;
+  const infoLineHeight = 14;
+  const infoLabelHeight = 26;
+  const infoBottomPadding = 14;
+  const infoBoxTopY = pageIndex === 0 ? 656 : 744;
+  const supportFontSize = 10;
+  const supportLineHeight = 14;
+  const supportLabelHeight = 26;
+  const supportBottomPadding = 16;
+  const supportBoxWidth = PDF_PAGE_WIDTH - PDF_MARGIN * 2;
+  const addressLines = expandWrappedPdfLines(
+    buildAddressLines(order),
+    leftBoxWidth - boxPadding * 2,
+    infoFontSize,
+  );
+  const orderDetailLines = expandWrappedPdfLines(
+    [
+      `Kontakt: ${order.customerEmail ?? "Keine E-Mail hinterlegt."}`,
+      `Zahlungsstatus: ${order.paymentStatus}`,
+      `Zuletzt aktualisiert: ${updatedDate}`,
+      `Positionen: ${order.items.length}`,
+      `Gesamtmenge: ${totalUnits}`,
+      `Bestellwert: ${formatOrderDocumentPrice(order.amountTotal, order.currency)}`,
+    ],
+    rightBoxWidth - boxPadding * 2,
+    infoFontSize,
+  );
+  const leftInfoBoxHeight = Math.max(
+    96,
+    infoLabelHeight + addressLines.length * infoLineHeight + infoBottomPadding,
+  );
+  const rightInfoBoxHeight = Math.max(
+    96,
+    infoLabelHeight + orderDetailLines.length * infoLineHeight + infoBottomPadding,
+  );
+  const infoBoxesBottomY =
+    infoBoxTopY - Math.max(leftInfoBoxHeight, rightInfoBoxHeight);
+  const tableHeaderY = infoBoxesBottomY - (pageIndex === 0 ? 34 : 28);
+  const tableStartY = tableHeaderY - 28;
+
+  commands.push(createPdfText({ font: "F2", size: 11, x: leftColumnX, y: 804, text: "Smokeify" }));
+  commands.push(createPdfText({ font: "F2", size: 24, x: leftColumnX, y: 778, text: title }));
+  commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 758, text: `Lieferscheinnummer ${slipNumber}` }));
+  commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 742, text: `Bestellnummer ${orderLabel}` }));
+  commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 726, text: `Bestelldatum ${orderDate}` }));
+  commands.push(createPdfText({ font: "F1", size: 11, x: leftColumnX, y: 710, text: `Status ${order.status}` }));
+
+  commands.push(createPdfText({ font: "F2", size: 11, x: rightColumnX, y: 804, text: pageLabel }));
+  commands.push(createPdfText({ font: "F1", size: 11, x: rightColumnX, y: 786, text: SELLER_LINES[0] }));
+  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 770, text: SELLER_LINES[1] }));
+  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 756, text: SELLER_LINES[2] }));
+  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 742, text: SELLER_LINES[3] }));
+  commands.push(createPdfText({ font: "F1", size: 10, x: rightColumnX, y: 728, text: SELLER_LINES[4] }));
+
+  if (pageIndex === 0) {
+    commands.push(
+      createPdfRect({
+        x: leftColumnX,
+        y: infoBoxTopY - leftInfoBoxHeight,
+        width: leftBoxWidth,
+        height: leftInfoBoxHeight,
+      }),
+    );
+    commands.push(
+      createPdfRect({
+        x: rightColumnX,
+        y: infoBoxTopY - rightInfoBoxHeight,
+        width: rightBoxWidth,
+        height: rightInfoBoxHeight,
+      }),
+    );
+    commands.push(
+      createPdfText({
+        font: "F2",
+        size: 11,
+        x: leftColumnX + boxPadding,
+        y: infoBoxTopY - 22,
+        text: "Versandadresse",
+      }),
+    );
+    addWrappedPdfText({
+      commands,
+      font: "F1",
+      size: infoFontSize,
+      x: leftColumnX + boxPadding,
+      startY: infoBoxTopY - 48,
+      lineHeight: infoLineHeight,
+      maxWidth: leftBoxWidth - boxPadding * 2,
+      lines: addressLines,
+    });
+
+    commands.push(
+      createPdfText({
+        font: "F2",
+        size: 11,
+        x: rightColumnX + boxPadding,
+        y: infoBoxTopY - 22,
+        text: "Auftragsdaten",
+      }),
+    );
+    addWrappedPdfText({
+      commands,
+      font: "F1",
+      size: infoFontSize,
+      x: rightColumnX + boxPadding,
+      startY: infoBoxTopY - 48,
+      lineHeight: infoLineHeight,
+      maxWidth: rightBoxWidth - boxPadding * 2,
+      lines: orderDetailLines,
+    });
+  }
+
+  commands.push(createPdfText({ font: "F2", size: 10, x: leftColumnX, y: tableHeaderY, text: "Artikel" }));
+  commands.push(createPdfText({ font: "F2", size: 10, x: 390, y: tableHeaderY, text: "SKU" }));
+  commands.push(createPdfText({ font: "F2", size: 10, x: 520, y: tableHeaderY, text: "Menge" }));
+  commands.push(createPdfLine(leftColumnX, tableHeaderY - 6, PDF_PAGE_WIDTH - PDF_MARGIN, tableHeaderY - 6));
+
+  itemChunk.forEach((item, index) => {
+    const rowY = tableStartY - index * PDF_ITEM_ROW_HEIGHT;
+    commands.push(
+      createPdfText({
+        font: "F1",
+        size: 10,
+        x: leftColumnX,
+        y: rowY,
+        text: truncatePdfText(item.name, 52),
+      }),
+    );
+    commands.push(
+      createPdfText({
+        font: "F1",
+        size: 10,
+        x: 390,
+        y: rowY,
+        text: truncatePdfText(item.sku ?? "-", 16),
+      }),
+    );
+    commands.push(
+      createPdfText({
+        font: "F1",
+        size: 10,
+        x: 530,
+        y: rowY,
+        text: String(item.quantity),
+      }),
+    );
+    commands.push(createPdfLine(leftColumnX, rowY - 6, PDF_PAGE_WIDTH - PDF_MARGIN, rowY - 6));
+  });
+
+  const supportLines = expandWrappedPdfLines(
+    [
+      "Smokeify",
+      "Joey Bennett Catic",
+      "Brinkeweg 106a",
+      "33758 Schloß Holte-Stukenbrock",
+      "Deutschland",
+      `Telefon: ${SUPPORT_PHONE || "-"}`,
+      `E-Mail: ${SUPPORT_EMAIL}`,
+    ],
+    supportBoxWidth - boxPadding * 2,
+    supportFontSize,
+  );
+  const supportBoxHeight = Math.max(
+    108,
+    supportLabelHeight + supportLines.length * supportLineHeight + supportBottomPadding,
+  );
+  const supportBoxTopY = tableStartY - itemChunk.length * PDF_ITEM_ROW_HEIGHT - 42;
+
+  if (pageIndex === pageCount - 1 && supportBoxTopY - supportBoxHeight > 72) {
+    commands.push(
+      createPdfRect({
+        x: leftColumnX,
+        y: supportBoxTopY - supportBoxHeight,
+        width: supportBoxWidth,
+        height: supportBoxHeight,
+      }),
+    );
+    commands.push(
+      createPdfText({
+        font: "F2",
+        size: 11,
+        x: leftColumnX + boxPadding,
+        y: supportBoxTopY - 22,
+        text: "Support / Unternehmensdaten",
+      }),
+    );
+    addWrappedPdfText({
+      commands,
+      font: "F1",
+      size: supportFontSize,
+      x: leftColumnX + boxPadding,
+      startY: supportBoxTopY - 48,
+      lineHeight: supportLineHeight,
+      maxWidth: supportBoxWidth - boxPadding * 2,
+      lines: supportLines,
+    });
+  }
+
+  commands.push(
+    createPdfText({
+      font: "F1",
+      size: 9,
+      x: leftColumnX,
+      y: 42,
+      text: "Interner Packbeleg. Preise für den Versandprozess nicht erneut berechnen und vor dem Versand die Vollständigkeit prüfen.",
+    }),
+  );
+
+  return Buffer.from(commands.join("\n"), "latin1");
+};
+
+export function buildPackingSlipPdf(order: OrderDocumentData) {
+  const totalUnits = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const firstPageItems = 18;
+  const followingPageItems = 24;
+  const pageChunks: OrderDocumentItem[][] = [];
+
+  if (order.items.length <= firstPageItems) {
+    pageChunks.push(order.items);
+  } else {
+    pageChunks.push(order.items.slice(0, firstPageItems));
+    for (let index = firstPageItems; index < order.items.length; index += followingPageItems) {
+      pageChunks.push(order.items.slice(index, index + followingPageItems));
+    }
+  }
+
+  const pageStreams = pageChunks.map((itemChunk, pageIndex) =>
+    buildPackingSlipPageStream({
+      order,
+      itemChunk,
+      pageIndex,
+      pageCount: pageChunks.length,
+      totalUnits,
+    }),
+  );
+
+  return createPdfDocument(pageStreams);
 }

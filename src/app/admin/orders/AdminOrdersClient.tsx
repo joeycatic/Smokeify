@@ -218,12 +218,12 @@ function OrderRow({ order }: { order: AdminOrderRecord }) {
           </div>
 
           <a
-            href={`/api/admin/orders/${order.id}/beilegschein`}
+            href={`/api/admin/orders/${order.id}/lieferschein`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25"
           >
-            Beilegschein
+            Lieferschein
           </a>
           <Link
             href={`/admin/orders/${order.id}`}

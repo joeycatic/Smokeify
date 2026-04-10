@@ -36,4 +36,23 @@ describe("buildAdminOrderPatch", () => {
       }),
     ).toThrow(/Only fulfillment and return statuses can be updated/i);
   });
+
+  it("does not reject unchanged legacy statuses while saving tracking updates", () => {
+    expect(
+      buildAdminOrderPatch(
+        {
+          status: "complete",
+          trackingCarrier: "DHL",
+          trackingNumber: "123456",
+        },
+        { currentStatus: "complete" },
+      ),
+    ).toEqual({
+      updates: {
+        trackingCarrier: "DHL",
+        trackingNumber: "123456",
+      },
+      changedFields: ["trackingCarrier", "trackingNumber"],
+    });
+  });
 });

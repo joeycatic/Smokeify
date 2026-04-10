@@ -23,6 +23,14 @@ const PRIMARY_BUTTON =
   "inline-flex h-10 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300";
 const SECONDARY_BUTTON =
   "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:border-white/5 disabled:text-slate-500";
+const EDITABLE_ORDER_STATUSES = [
+  "processing",
+  "shipped",
+  "fulfilled",
+  "canceled",
+  "return_approved",
+  "return_rejected",
+] as const;
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
 
@@ -210,6 +218,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
+        warning?: string;
         currentUpdatedAt?: string;
         order?: Partial<AdminOrderRecord>;
       };
@@ -227,7 +236,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
           updatedAt: new Date().toISOString(),
         },
       );
-      setNotice("Order workspace updated.");
+      setNotice(data.warning ?? "Order workspace updated.");
     } catch {
       setError("Failed to save order.");
     } finally {
@@ -379,8 +388,18 @@ export default function AdminOrderDetailClient({ detail }: Props) {
               </div>
               <div>
                 <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
+                    <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} className={`${INPUT_CLASS} mt-2`}>
+                      {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
+                        <option value={statusDraft}>{statusDraft} (legacy)</option>
+                      ) : null}
+                      {EDITABLE_ORDER_STATUSES.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </label>
                   {[
-                    ["Order status", statusDraft, (value: string) => setStatusDraft(value)],
                     ["Tracking carrier", trackingDraft.carrier, (value: string) => setTrackingDraft((current) => ({ ...current, carrier: value }))],
                     ["Tracking number", trackingDraft.number, (value: string) => setTrackingDraft((current) => ({ ...current, number: value }))],
                     ["Tracking URL", trackingDraft.url, (value: string) => setTrackingDraft((current) => ({ ...current, url: value }))],
@@ -392,7 +411,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
                   ))}
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
-                  <p className="max-w-xl text-sm text-slate-300">Save after confirming this order was not updated elsewhere. The server still enforces optimistic concurrency.</p>
+                  <p className="max-w-xl text-sm text-slate-300">Saving tracking on an open order now auto-marks it as shipped and sends the shipping email once. The server still enforces optimistic concurrency.</p>
                   <button type="button" onClick={saveOrder} disabled={saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
                 </div>
               </div>
@@ -538,7 +557,7 @@ export default function AdminOrderDetailClient({ detail }: Props) {
               <button type="button" onClick={() => sendEmail("confirmation")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
               <button type="button" onClick={() => sendEmail("shipping")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
               <button type="button" onClick={() => sendEmail("refund")} disabled={sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
-              <a href={`/api/admin/orders/${order.id}/beilegschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Beilegschein</a>
+              <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
               <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>
             </div>
           </Panel>

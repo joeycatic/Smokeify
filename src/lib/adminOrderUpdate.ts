@@ -6,6 +6,10 @@ type AdminOrderPatchInput = {
   trackingUrl?: string;
 };
 
+type BuildAdminOrderPatchOptions = {
+  currentStatus?: string | null;
+};
+
 type AdminOrderPatchResult = {
   updates: {
     status?: string;
@@ -31,6 +35,7 @@ const normalizeOptionalString = (value: unknown) =>
 
 export function buildAdminOrderPatch(
   input: AdminOrderPatchInput,
+  options?: BuildAdminOrderPatchOptions,
 ): AdminOrderPatchResult {
   if (typeof input.paymentStatus !== "undefined") {
     throw new Error(
@@ -42,7 +47,13 @@ export function buildAdminOrderPatch(
   const changedFields: string[] = [];
 
   const normalizedStatus = normalizeOptionalString(input.status).toLowerCase();
+  const normalizedCurrentStatus = normalizeOptionalString(
+    options?.currentStatus,
+  ).toLowerCase();
   if (normalizedStatus) {
+    if (normalizedStatus === normalizedCurrentStatus) {
+      return appendTrackingUpdates(input, updates, changedFields);
+    }
     if (!ALLOWED_ADMIN_ORDER_STATUSES.has(normalizedStatus)) {
       throw new Error(
         "Only fulfillment and return statuses can be updated from the admin order editor.",
@@ -52,6 +63,14 @@ export function buildAdminOrderPatch(
     changedFields.push("status");
   }
 
+  return appendTrackingUpdates(input, updates, changedFields);
+}
+
+function appendTrackingUpdates(
+  input: AdminOrderPatchInput,
+  updates: AdminOrderPatchResult["updates"],
+  changedFields: string[],
+) {
   if (typeof input.trackingCarrier !== "undefined") {
     updates.trackingCarrier = normalizeOptionalString(input.trackingCarrier) || null;
     changedFields.push("trackingCarrier");

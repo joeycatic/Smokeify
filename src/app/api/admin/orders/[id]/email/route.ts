@@ -1,19 +1,14 @@
 import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
-import { sendResendEmail } from "@/lib/resend";
-import { buildOrderEmail } from "@/lib/orderEmail";
-import { buildInvoiceUrl } from "@/lib/invoiceLink";
-import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
 import {
-  getStorefrontOrigin,
-  resolveStorefrontEmailBrand,
-} from "@/lib/storefrontEmailBrand";
-import { parseStorefront } from "@/lib/storefronts";
+  buildOrderEmailSentAtUpdate,
+  sendAdminOrderEmailById,
+} from "@/lib/adminOrderEmail";
 
 export async function POST(
   request: Request,
@@ -56,69 +51,27 @@ export async function POST(
     return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
-  const recipient = order.customerEmail;
-  if (!recipient) {
+  let recipient: string;
+  try {
+    const result = await sendAdminOrderEmailById({
+      orderId: id,
+      type,
+      requestOrigin: getAppOrigin(request),
+    });
+    recipient = result.recipient;
+  } catch (error) {
     return adminJson(
-      { error: "Order has no customer email" },
-      { status: 400 }
+      {
+        error:
+          error instanceof Error ? error.message : `Failed to send ${type} email.`,
+      },
+      { status: 400 },
     );
   }
 
-  const storefront = resolveStorefrontEmailBrand(
-    parseStorefront(order.sourceStorefront ?? null),
-    [order.sourceOrigin, order.sourceHost, getAppOrigin(request)],
-  );
-  const origin = getStorefrontOrigin(
-    storefront,
-    order.sourceOrigin ?? getAppOrigin(request),
-  );
-  const guestOrderUrl = buildOrderViewUrl(origin, order.id);
-  const orderUrl = order.userId
-    ? `${origin}/account/orders/${order.id}`
-    : guestOrderUrl ?? undefined;
-  const invoiceUrl =
-    type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
-  const email = buildOrderEmail(
-    type,
-    {
-      id: order.id,
-      createdAt: order.createdAt,
-      currency: order.currency,
-      amountSubtotal: order.amountSubtotal,
-      amountTax: order.amountTax,
-      amountShipping: order.amountShipping,
-      amountDiscount: order.amountDiscount,
-      amountTotal: order.amountTotal,
-      amountRefunded: order.amountRefunded,
-      discountCode: order.discountCode,
-      customerEmail: order.customerEmail,
-      trackingCarrier: order.trackingCarrier,
-      trackingNumber: order.trackingNumber,
-      trackingUrl: order.trackingUrl,
-      items: order.items,
-    },
-    orderUrl,
-    invoiceUrl ?? undefined,
-    { storefront, fallbackOrigin: origin }
-  );
-
-  await sendResendEmail({
-    to: recipient,
-    subject: email.subject,
-    html: email.html,
-    text: email.text,
-  });
-
-  const sentAtUpdate =
-    type === "confirmation"
-      ? { confirmationEmailSentAt: new Date() }
-      : type === "shipping"
-      ? { shippingEmailSentAt: new Date() }
-      : { refundEmailSentAt: new Date() };
-
   await prisma.order.update({
     where: { id },
-    data: sentAtUpdate,
+    data: buildOrderEmailSentAtUpdate(type),
   });
 
   await logAdminAction({

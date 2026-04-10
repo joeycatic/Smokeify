@@ -7,6 +7,11 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
 import { adminJson } from "@/lib/adminApi";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
+import {
+  buildOrderEmailSentAtUpdate,
+  sendAdminOrderEmailForOrder,
+} from "@/lib/adminOrderEmail";
+import { getAppOrigin } from "@/lib/appOrigin";
 
 export async function GET(
   _request: Request,
@@ -62,8 +67,17 @@ export async function PATCH(
 
   let updates: ReturnType<typeof buildAdminOrderPatch>["updates"];
   let changedFields: string[];
+
+  const existing = await prisma.order.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+  if (!existing) {
+    return adminJson({ error: "Order not found" }, { status: 404 });
+  }
+
   try {
-    const patch = buildAdminOrderPatch(body);
+    const patch = buildAdminOrderPatch(body, { currentStatus: existing.status });
     updates = patch.updates;
     changedFields = patch.changedFields;
   } catch (error) {
@@ -80,14 +94,6 @@ export async function PATCH(
     return adminJson({ error: "No updates provided" }, { status: 400 });
   }
 
-  const existing = await prisma.order.findUnique({
-    where: { id },
-    include: { items: true },
-  });
-  if (!existing) {
-    return adminJson({ error: "Order not found" }, { status: 404 });
-  }
-
   if (
     body.expectedUpdatedAt &&
     existing.updatedAt.toISOString() !== body.expectedUpdatedAt
@@ -102,11 +108,76 @@ export async function PATCH(
     );
   }
 
+  const nextTrackingNumber =
+    typeof updates.trackingNumber !== "undefined"
+      ? updates.trackingNumber
+      : existing.trackingNumber;
+  const nextTrackingUrl =
+    typeof updates.trackingUrl !== "undefined"
+      ? updates.trackingUrl
+      : existing.trackingUrl;
+  const hasTrackingAfterUpdate = Boolean(
+    nextTrackingNumber?.trim() || nextTrackingUrl?.trim(),
+  );
+  const normalizedExistingStatus = existing.status.trim().toLowerCase();
+  const normalizedNextStatus = (updates.status ?? existing.status).trim().toLowerCase();
+
+  const shouldAutoMarkShipped =
+    !updates.status &&
+    hasTrackingAfterUpdate &&
+    !["shipped", "fulfilled", "refunded", "canceled", "cancelled", "failed"].includes(
+      normalizedExistingStatus,
+    );
+
+  if (shouldAutoMarkShipped) {
+    updates.status = "shipped";
+    changedFields.push("status");
+  }
+
   const updated = await prisma.order.update({
     where: { id },
     data: updates,
     include: { items: true },
   });
+
+  let warning: string | undefined;
+  const shouldSendShippingEmail =
+    !existing.shippingEmailSentAt &&
+    hasTrackingAfterUpdate &&
+    (updates.status === "shipped" || normalizedNextStatus === "shipped");
+
+  if (shouldSendShippingEmail) {
+    try {
+      const emailResult = await sendAdminOrderEmailForOrder({
+        order: updated,
+        type: "shipping",
+        requestOrigin: getAppOrigin(request),
+      });
+      await prisma.order.update({
+        where: { id },
+        data: buildOrderEmailSentAtUpdate("shipping"),
+      });
+      updated.shippingEmailSentAt = new Date();
+      await logAdminAction({
+        actor: { id: session.user.id, email: session.user.email ?? null },
+        action: "order.email.send",
+        targetType: "order",
+        targetId: id,
+        summary: `Sent shipping email for order #${updated.orderNumber}`,
+        metadata: {
+          emailType: "shipping",
+          recipient: emailResult.recipient,
+          orderNumber: updated.orderNumber,
+          source: "admin.orders.patch",
+        },
+      });
+    } catch (error) {
+      warning =
+        error instanceof Error
+          ? `Order saved, but the shipping email could not be sent: ${error.message}`
+          : "Order saved, but the shipping email could not be sent.";
+    }
+  }
 
   await logAdminAction({
     actor: { id: session.user.id, email: session.user.email ?? null },
@@ -129,7 +200,7 @@ export async function PATCH(
       },
     });
   }
-  return adminJson({ order: updated });
+  return adminJson({ order: updated, warning });
 }
 
 export async function DELETE(
