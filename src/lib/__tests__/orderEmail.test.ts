@@ -79,4 +79,31 @@ describe("orderEmail", () => {
     expect(email.html).toContain("https://growvault.test/products");
     expect(email.text).toContain("bei GrowVault");
   });
+
+  it("infers GrowVault branding from the real growvault domain without env host config", () => {
+    const previousGrowUrl = process.env.NEXT_PUBLIC_GROW_APP_URL;
+    delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+
+    try {
+      const email = buildOrderEmail(
+        "shipping",
+        sampleOrder,
+        "https://www.growvault.de/account/orders/ord_test_12345678",
+        undefined,
+        {
+          fallbackOrigin: "https://www.growvault.de",
+        },
+      );
+
+      expect(email.html).toContain("GrowVault");
+      expect(email.html).toContain("https://www.growvault.de/products");
+      expect(email.html).toContain("#163a2a");
+    } finally {
+      if (typeof previousGrowUrl === "undefined") {
+        delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+      } else {
+        process.env.NEXT_PUBLIC_GROW_APP_URL = previousGrowUrl;
+      }
+    }
+  });
 });

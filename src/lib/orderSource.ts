@@ -1,44 +1,11 @@
 import type { Storefront } from "@prisma/client";
-import { parseStorefront, STOREFRONT_LABELS, type StorefrontCode } from "@/lib/storefronts";
-
-const normalizeHost = (value?: string | null) =>
-  value
-    ?.split(",")[0]
-    ?.trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "") ?? null;
-
-const parseHostFromUrl = (value?: string | null) => {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    return normalizeHost(new URL(trimmed).host);
-  } catch {
-    return normalizeHost(trimmed);
-  }
-};
-
-const splitConfiguredHosts = (value?: string | null) =>
-  (value ?? "")
-    .split(",")
-    .map((entry) => parseHostFromUrl(entry))
-    .filter((entry): entry is string => Boolean(entry));
-
-const getConfiguredHostsByStorefront = (): Record<StorefrontCode, Set<string>> => ({
-  MAIN: new Set(
-    [
-      parseHostFromUrl(process.env.NEXT_PUBLIC_APP_URL),
-      parseHostFromUrl(process.env.NEXTAUTH_URL),
-      ...splitConfiguredHosts(process.env.MAIN_STOREFRONT_HOSTS),
-    ].filter((entry): entry is string => Boolean(entry)),
-  ),
-  GROW: new Set(
-    [
-      parseHostFromUrl(process.env.NEXT_PUBLIC_GROW_APP_URL),
-      ...splitConfiguredHosts(process.env.GROW_STOREFRONT_HOSTS),
-    ].filter((entry): entry is string => Boolean(entry)),
-  ),
-});
+import { parseStorefront, STOREFRONT_LABELS } from "@/lib/storefronts";
+import {
+  getConfiguredHostsByStorefront,
+  normalizeStorefrontHost,
+  parseStorefrontHostFromUrl,
+  resolveStorefrontFromHost,
+} from "@/lib/storefrontHosts";
 
 export const getConfiguredRequestHosts = () => {
   const configuredHosts = getConfiguredHostsByStorefront();
@@ -53,17 +20,6 @@ export type OrderSourceSnapshot = {
 
 const pickFirst = (values: Array<string | null | undefined>) =>
   values.find((value): value is string => Boolean(value)) ?? null;
-
-const resolveStorefrontFromHost = (host: string | null): Storefront | null => {
-  if (!host) return null;
-  const configuredHosts = getConfiguredHostsByStorefront();
-  for (const storefront of ["MAIN", "GROW"] as const) {
-    if (configuredHosts[storefront].has(host)) {
-      return storefront;
-    }
-  }
-  return null;
-};
 
 const sanitizeOrigin = (value?: string | null) => {
   const trimmed = value?.split(",")[0]?.trim();
@@ -101,7 +57,7 @@ const parseRequestUrl = (value?: string | null) => {
   try {
     const parsed = new URL(trimmed);
     return {
-      host: normalizeHost(parsed.host),
+      host: normalizeStorefrontHost(parsed.host),
       origin: parsed.origin,
     };
   } catch {
@@ -111,12 +67,12 @@ const parseRequestUrl = (value?: string | null) => {
 
 export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnapshot => {
   const requestUrl = parseRequestUrl(request.url);
-  const forwardedHost = normalizeHost(request.headers.get("x-forwarded-host"));
+  const forwardedHost = normalizeStorefrontHost(request.headers.get("x-forwarded-host"));
   const originHeader = sanitizeOrigin(request.headers.get("origin"));
-  const originHost = parseHostFromUrl(originHeader);
+  const originHost = parseStorefrontHostFromUrl(originHeader);
   const host =
     forwardedHost ??
-    normalizeHost(request.headers.get("host")) ??
+    normalizeStorefrontHost(request.headers.get("host")) ??
     originHost ??
     requestUrl.host;
   const origin =
@@ -129,7 +85,7 @@ export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnap
     requestUrl.origin;
 
   return {
-    sourceStorefront: resolveStorefrontFromHost(host),
+    sourceStorefront: resolveStorefrontFromHost(host) as Storefront | null,
     sourceHost: host,
     sourceOrigin: origin,
   };
@@ -140,16 +96,19 @@ export const resolveOrderSourceFromMetadata = (
   fallbackUrls: Array<string | null | undefined> = [],
 ): OrderSourceSnapshot => {
   const fallbackOrigin = pickFirst(fallbackUrls.map((value) => sanitizeOrigin(value)));
-  const fallbackHost = pickFirst(fallbackUrls.map((value) => parseHostFromUrl(value)));
+  const fallbackHost = pickFirst(
+    fallbackUrls.map((value) => parseStorefrontHostFromUrl(value)),
+  );
   const sourceOrigin = sanitizeOrigin(metadata?.sourceOrigin ?? null) ?? fallbackOrigin;
   const sourceHost =
-    normalizeHost(metadata?.sourceHost ?? null) ??
-    parseHostFromUrl(sourceOrigin) ??
+    normalizeStorefrontHost(metadata?.sourceHost ?? null) ??
+    parseStorefrontHostFromUrl(sourceOrigin) ??
     fallbackHost;
   const explicitStorefront = parseStorefront(metadata?.sourceStorefront ?? null);
 
   return {
-    sourceStorefront: explicitStorefront ?? resolveStorefrontFromHost(sourceHost),
+    sourceStorefront:
+      explicitStorefront ?? (resolveStorefrontFromHost(sourceHost) as Storefront | null),
     sourceHost,
     sourceOrigin,
   };
@@ -172,5 +131,9 @@ export const formatOrderSourceLabel = (
   if (storefront) {
     return STOREFRONT_LABELS[storefront];
   }
-  return normalizeHost(sourceHost ?? null) ?? parseHostFromUrl(sourceOrigin) ?? "Unknown website";
+  return (
+    normalizeStorefrontHost(sourceHost ?? null) ??
+    parseStorefrontHostFromUrl(sourceOrigin) ??
+    "Unknown website"
+  );
 };

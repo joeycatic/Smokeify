@@ -104,6 +104,23 @@ describe("orderSource", () => {
     });
   });
 
+  it("recognizes the growvault.de domain even when grow env hosts are not configured", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+    process.env.GROW_STOREFRONT_HOSTS = "";
+
+    expect(
+      resolveOrderSourceFromMetadata({
+        sourceOrigin: "https://www.growvault.de/checkout",
+      }),
+    ).toEqual({
+      sourceStorefront: "GROW",
+      sourceHost: "www.growvault.de",
+      sourceOrigin: "https://www.growvault.de",
+    });
+  });
+
   it("falls back to checkout urls when metadata is missing", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
     process.env.NEXTAUTH_URL = "https://smokeify.de";
@@ -132,6 +149,7 @@ describe("orderSource", () => {
       "growvault.de",
       "smokeify.de",
       "www.growvault.de",
+      "www.smokeify.de",
     ]);
   });
 

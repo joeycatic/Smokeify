@@ -1,6 +1,10 @@
 import "server-only";
 
 import { parseStorefront, type StorefrontCode } from "@/lib/storefronts";
+import {
+  getConfiguredHostsByStorefront,
+  parseStorefrontHostFromUrl,
+} from "@/lib/storefrontHosts";
 
 export type StorefrontEmailBrandMeta = {
   brandName: string;
@@ -101,51 +105,12 @@ const toOrigin = (value?: string | null) => {
   }
 };
 
-const normalizeHost = (value?: string | null) =>
-  value
-    ?.split(",")[0]
-    ?.trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "") ?? null;
-
-const parseHostFromUrl = (value?: string | null) => {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    return normalizeHost(new URL(trimmed).host);
-  } catch {
-    return normalizeHost(trimmed);
-  }
-};
-
-const splitConfiguredHosts = (value?: string | null) =>
-  (value ?? "")
-    .split(",")
-    .map((entry) => parseHostFromUrl(entry))
-    .filter((entry): entry is string => Boolean(entry));
-
-const getConfiguredHostsByStorefront = (): Record<StorefrontCode, Set<string>> => ({
-  MAIN: new Set(
-    [
-      parseHostFromUrl(process.env.NEXT_PUBLIC_APP_URL),
-      parseHostFromUrl(process.env.NEXTAUTH_URL),
-      ...splitConfiguredHosts(process.env.MAIN_STOREFRONT_HOSTS),
-    ].filter((entry): entry is string => Boolean(entry)),
-  ),
-  GROW: new Set(
-    [
-      parseHostFromUrl(process.env.NEXT_PUBLIC_GROW_APP_URL),
-      ...splitConfiguredHosts(process.env.GROW_STOREFRONT_HOSTS),
-    ].filter((entry): entry is string => Boolean(entry)),
-  ),
-});
-
 const resolveStorefrontFromCandidates = (
   candidates: Array<string | null | undefined>,
 ): StorefrontCode | null => {
   const configuredHosts = getConfiguredHostsByStorefront();
   for (const candidate of candidates) {
-    const host = parseHostFromUrl(candidate);
+    const host = parseStorefrontHostFromUrl(candidate);
     if (!host) continue;
     if (configuredHosts.GROW.has(host)) return "GROW";
     if (configuredHosts.MAIN.has(host)) return "MAIN";
