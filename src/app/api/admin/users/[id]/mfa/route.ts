@@ -12,6 +12,7 @@ import {
   verifyTotpCode,
 } from "@/lib/security";
 import { verifyAdminPassword } from "@/lib/adminUserGovernance";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 type MfaAction =
   | "start_enrollment"
@@ -80,6 +81,12 @@ export async function POST(
   const session = await requireAdminOnly();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "user.manage")) {
+    return NextResponse.json(
+      { error: "You do not have permission to manage admin MFA." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json().catch(() => ({}))) as {

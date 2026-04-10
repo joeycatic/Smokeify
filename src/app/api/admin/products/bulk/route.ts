@@ -6,6 +6,7 @@ import { sanitizePlainText } from "@/lib/sanitizeHtml";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 type BulkPayload = {
@@ -49,6 +50,12 @@ export async function POST(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to run bulk catalog updates." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json()) as BulkPayload;

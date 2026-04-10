@@ -10,6 +10,7 @@ import {
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
 import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 const normalizeSellerUrl = (value?: string | null) => {
@@ -35,6 +36,12 @@ export async function GET(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to edit catalog products." },
+      { status: 403 }
+    );
   }
 
   const product = await prisma.product.findUnique({
@@ -92,6 +99,12 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to delete catalog products." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json()) as {

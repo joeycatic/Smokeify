@@ -1,10 +1,14 @@
 import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import { updateAdminVariantPricingProfile } from "@/lib/adminPricingServer";
+import {
+  AdminPricingError,
+  updateAdminVariantPricingProfile,
+} from "@/lib/adminPricingServer";
 import type { PricingProfilePatch } from "@/lib/adminPricingIntegration";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 export async function PATCH(
   request: NextRequest,
@@ -30,6 +34,12 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "pricing.write")) {
+    return adminJson(
+      { error: "You do not have permission to edit pricing profiles." },
+      { status: 403 }
+    );
   }
 
   const { id } = await context.params;
@@ -70,7 +80,7 @@ export async function PATCH(
             ? error.message
             : "Unable to save pricing profile.",
       },
-      { status: 502 }
+      { status: error instanceof AdminPricingError ? error.status : 502 }
     );
   }
 }

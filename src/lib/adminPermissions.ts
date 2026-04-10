@@ -1,7 +1,11 @@
 export type AdminAction =
   | "order.fulfillment.update"
   | "order.email.send"
-  | "order.refund.process";
+  | "order.refund.process"
+  | "catalog.product.write"
+  | "pricing.write"
+  | "admin.script.execute"
+  | "user.manage";
 
 type AdminRole = "ADMIN" | "STAFF";
 
@@ -9,6 +13,10 @@ const ACTION_ROLE_MAP: Record<AdminAction, AdminRole[]> = {
   "order.fulfillment.update": ["ADMIN", "STAFF"],
   "order.email.send": ["ADMIN"],
   "order.refund.process": ["ADMIN"],
+  "catalog.product.write": ["ADMIN", "STAFF"],
+  "pricing.write": ["ADMIN"],
+  "admin.script.execute": ["ADMIN"],
+  "user.manage": ["ADMIN"],
 };
 
 function normalizeRole(role: unknown): string | null {
@@ -26,5 +34,14 @@ export function getOrderAdminActionPermissions(role: unknown) {
     canUpdateFulfillment: canAdminPerformAction(role, "order.fulfillment.update"),
     canSendOrderEmail: canAdminPerformAction(role, "order.email.send"),
     canProcessRefund: canAdminPerformAction(role, "order.refund.process"),
+  };
+}
+
+export function getAdminCapabilitySnapshot(role: unknown) {
+  return {
+    canWriteCatalog: canAdminPerformAction(role, "catalog.product.write"),
+    canWritePricing: canAdminPerformAction(role, "pricing.write"),
+    canExecuteScripts: canAdminPerformAction(role, "admin.script.execute"),
+    canManageUsers: canAdminPerformAction(role, "user.manage"),
   };
 }

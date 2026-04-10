@@ -7,6 +7,7 @@ import { sendResendEmail } from "@/lib/resend";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import bcrypt from "bcryptjs";
 
 export async function PATCH(
@@ -32,6 +33,12 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to edit product variants." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json()) as {
@@ -263,6 +270,12 @@ export async function DELETE(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to delete product variants." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json().catch(() => ({}))) as {
