@@ -625,6 +625,7 @@ model Order {
   confirmationEmailSentAt DateTime?
   shippingEmailSentAt  DateTime?
   refundEmailSentAt    DateTime?
+  refundRequestEmailSentAt DateTime?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -732,7 +733,7 @@ model ReturnRequest {
   id          String       @id @default(cuid())
   orderId     String
   exchangeOrderId String?  @unique
-  userId      String
+  userId      String?
   status      ReturnStatus @default(PENDING)
   requestedResolution ReturnResolutionType @default(REFUND)
   exchangePreference String?
@@ -746,7 +747,7 @@ model ReturnRequest {
 
   order Order @relation("ReturnRequestsOrder", fields: [orderId], references: [id], onDelete: Cascade)
   exchangeOrder Order? @relation("ReturnExchangeOrder", fields: [exchangeOrderId], references: [id], onDelete: SetNull)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   items ReturnItem[]
   storeCreditTransactions StoreCreditTransaction[]
 

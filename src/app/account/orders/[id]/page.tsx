@@ -101,6 +101,7 @@ export default async function OrderDetailPage({
     "order.lifecycle.status_changed": "Status geändert",
     "order.lifecycle.payment_status_changed": "Zahlungsstatus geändert",
     "order.lifecycle.payment_failed": "Zahlung fehlgeschlagen",
+    "order.lifecycle.return_requested": "Rückerstattung angefragt",
     "order.lifecycle.refund_updated": "Rückerstattung aktualisiert",
   };
 

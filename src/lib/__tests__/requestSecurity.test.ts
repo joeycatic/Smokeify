@@ -54,4 +54,20 @@ describe("requestSecurity", () => {
 
     expect(isSameOrigin(request)).toBe(true);
   });
+
+  it("accepts localhost requests when origin matches the request host", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    delete process.env.MAIN_STOREFRONT_HOSTS;
+    delete process.env.GROW_STOREFRONT_HOSTS;
+
+    const request = new Request("http://127.0.0.1:3900/api/admin/orders/test/email", {
+      method: "POST",
+      headers: {
+        origin: "http://127.0.0.1:3900",
+      },
+    });
+
+    expect(isSameOrigin(request)).toBe(true);
+  });
 });

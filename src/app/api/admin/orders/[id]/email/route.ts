@@ -43,7 +43,7 @@ export async function POST(
 
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
-    type?: "confirmation" | "shipping" | "refund";
+    type?: "confirmation" | "shipping" | "refund" | "refund_request";
     reason?: string;
   };
   const type = body.type;

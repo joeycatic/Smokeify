@@ -2,6 +2,8 @@ import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
+import { buildRefundRequestEmail } from "@/lib/refundRequestEmail";
+import { buildRefundRequestUrl } from "@/lib/refundRequestLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import {
   getStorefrontOrigin,
@@ -9,14 +11,20 @@ import {
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 
-export type AdminOrderEmailType = "confirmation" | "shipping" | "refund";
+export type AdminOrderEmailType =
+  | "confirmation"
+  | "shipping"
+  | "refund"
+  | "refund_request";
 
 export const buildOrderEmailSentAtUpdate = (type: AdminOrderEmailType) =>
   type === "confirmation"
     ? { confirmationEmailSentAt: new Date() }
     : type === "shipping"
       ? { shippingEmailSentAt: new Date() }
-      : { refundEmailSentAt: new Date() };
+      : type === "refund"
+        ? { refundEmailSentAt: new Date() }
+        : { refundRequestEmailSentAt: new Date() };
 
 export async function sendAdminOrderEmailById(input: {
   orderId: string;
@@ -46,6 +54,7 @@ export async function sendAdminOrderEmailForOrder(input: {
     sourceHost: string | null;
     sourceOrigin: string | null;
     customerEmail: string | null;
+    shippingName: string | null;
     createdAt: Date;
     currency: string;
     amountSubtotal: number;
@@ -88,13 +97,32 @@ export async function sendAdminOrderEmailForOrder(input: {
   const invoiceUrl =
     input.type === "confirmation" ? buildInvoiceUrl(origin, input.order.id) : null;
 
-  const email = buildOrderEmail(
-    input.type,
-    input.order,
-    orderUrl,
-    invoiceUrl ?? undefined,
-    { storefront, fallbackOrigin: origin },
-  );
+  const email =
+    input.type === "refund_request"
+      ? (() => {
+          const refundRequestUrl = buildRefundRequestUrl(origin, input.order.id);
+          if (!refundRequestUrl) {
+            throw new Error("Refund request links are not configured.");
+          }
+          return buildRefundRequestEmail(
+            {
+              orderId: input.order.id,
+              customerName: input.order.shippingName,
+            },
+            {
+              storefront,
+              fallbackOrigin: origin,
+              refundRequestUrl,
+            },
+          );
+        })()
+      : buildOrderEmail(
+          input.type,
+          input.order,
+          orderUrl,
+          invoiceUrl ?? undefined,
+          { storefront, fallbackOrigin: origin },
+        );
 
   await sendResendEmail({
     to: recipient,

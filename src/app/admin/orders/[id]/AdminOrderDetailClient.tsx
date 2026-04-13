@@ -31,6 +31,7 @@ type Props = {
 };
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
+type AdminEmailAction = "confirmation" | "shipping" | "refund" | "refund_request";
 type PersistedOrderDraft = {
   version: 1;
   baseUpdatedAt: string;
@@ -224,9 +225,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState<"confirmation" | "shipping" | "refund" | null>(
-    null,
-  );
+  const [sendingEmail, setSendingEmail] = useState<AdminEmailAction | null>(null);
   const [refundSelection, setRefundSelection] = useState<Record<string, number>>({});
   const [refundIncludeShipping, setRefundIncludeShipping] = useState(false);
   const [refundPassword, setRefundPassword] = useState("");
@@ -253,6 +252,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
         { label: "Order created", at: order.createdAt },
         { label: "Confirmation email sent", at: order.confirmationEmailSentAt ?? undefined },
         { label: "Shipping email sent", at: order.shippingEmailSentAt ?? undefined },
+        { label: "Refund form email sent", at: order.refundRequestEmailSentAt ?? undefined },
         { label: "Refund email sent", at: order.refundEmailSentAt ?? undefined },
         { label: "Last updated", at: order.updatedAt },
       ].filter((entry) => Boolean(entry.at)) as Array<{ label: string; at: string }>,
@@ -281,6 +281,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   const emailStatuses = [
     { label: "Confirmation", sentAt: order.confirmationEmailSentAt },
     { label: "Shipping", sentAt: order.shippingEmailSentAt },
+    { label: "Refund form", sentAt: order.refundRequestEmailSentAt ?? null },
     { label: "Refund", sentAt: order.refundEmailSentAt },
   ];
   const fulfillmentOutcome = useMemo(
@@ -526,7 +527,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
     }
   };
 
-  const sendEmail = async (type: "confirmation" | "shipping" | "refund") => {
+  const sendEmail = async (type: AdminEmailAction) => {
     if (!actionPermissions.canSendOrderEmail) {
       setError("You do not have permission to send customer emails.");
       return;
@@ -552,10 +553,20 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       }
       const now = new Date().toISOString();
       updateOrderState(
-        type === "confirmation" ? { confirmationEmailSentAt: now } : type === "shipping" ? { shippingEmailSentAt: now } : { refundEmailSentAt: now },
+        type === "confirmation"
+          ? { confirmationEmailSentAt: now }
+          : type === "shipping"
+            ? { shippingEmailSentAt: now }
+            : type === "refund"
+              ? { refundEmailSentAt: now }
+              : { refundRequestEmailSentAt: now },
       );
       setEmailReason("");
-      setNotice(`${type[0]?.toUpperCase() ?? ""}${type.slice(1)} email sent.`);
+      setNotice(
+        type === "refund_request"
+          ? "Refund form email sent."
+          : `${type[0]?.toUpperCase() ?? ""}${type.slice(1)} email sent.`,
+      );
     } catch {
       setError(`Failed to send ${type} email.`);
     } finally {
@@ -1305,8 +1316,8 @@ function TimelineTab({
   detail: AdminOrderDetail;
   timeline: Array<{ label: string; at: string }>;
   emailStatuses: Array<{ label: string; sentAt: string | null }>;
-  sendingEmail: "confirmation" | "shipping" | "refund" | null;
-  sendEmail: (type: "confirmation" | "shipping" | "refund") => Promise<void>;
+  sendingEmail: AdminEmailAction | null;
+  sendEmail: (type: AdminEmailAction) => Promise<void>;
   canSendOrderEmail: boolean;
   emailReason: string;
   setEmailReason: Dispatch<SetStateAction<string>>;
@@ -1379,6 +1390,7 @@ function TimelineTab({
             <div className="grid gap-2">
               <button type="button" onClick={() => void sendEmail("confirmation")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
               <button type="button" onClick={() => void sendEmail("shipping")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
+              <button type="button" onClick={() => void sendEmail("refund_request")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/30 hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund_request" ? "Sending..." : "Send refund form"}</button>
               <button type="button" onClick={() => void sendEmail("refund")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
               <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
               <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>

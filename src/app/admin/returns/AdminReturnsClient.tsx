@@ -9,7 +9,7 @@ import { calculateReturnRequestAmountCents } from "@/lib/adminReturns";
 type ReturnRequestRow = {
   id: string;
   orderId: string;
-  userId: string;
+  userId: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   requestedResolution: "REFUND" | "STORE_CREDIT" | "EXCHANGE";
   exchangePreference: string | null;
@@ -19,8 +19,15 @@ type ReturnRequestRow = {
   exchangeApprovedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  user: { email: string | null; name: string | null };
-  order: { id: string; amountTotal: number; currency: string; status: string };
+  user: { email: string | null; name: string | null } | null;
+  order: {
+    id: string;
+    amountTotal: number;
+    currency: string;
+    status: string;
+    customerEmail: string | null;
+    shippingName: string | null;
+  };
   exchangeOrder: { id: string; orderNumber: number; status: string } | null;
   items: Array<{
     id: string;
@@ -93,7 +100,7 @@ export default function AdminReturnsClient({ requests }: Props) {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return requestRows;
     return requestRows.filter((req) => {
-      const email = req.user?.email?.toLowerCase() ?? "";
+      const email = (req.user?.email ?? req.order.customerEmail ?? "").toLowerCase();
       return (
         req.order.id.toLowerCase().includes(query) ||
         req.id.toLowerCase().includes(query) ||
@@ -368,7 +375,7 @@ export default function AdminReturnsClient({ requests }: Props) {
                     </div>
 
                     <div className="text-sm font-semibold text-stone-900">
-                      {req.user?.email ?? "No email"}
+                      {req.user?.email ?? req.order.customerEmail ?? "No email"}
                     </div>
 
                     <div className="orders-status-row flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-[11px]">

@@ -669,7 +669,7 @@ export async function getActivityFeed(limit = 12) {
         reason: true,
         createdAt: true,
         user: { select: { email: true } },
-        order: { select: { orderNumber: true } },
+        order: { select: { orderNumber: true, customerEmail: true } },
       },
     }),
     prisma.processedWebhookEvent.findMany({
@@ -703,7 +703,7 @@ export async function getActivityFeed(limit = 12) {
     ...recentReturns.map((entry) => ({
       id: `return-${entry.id}`,
       title: `Return ${entry.status.toLowerCase()} for #${entry.order.orderNumber}`,
-      subtitle: entry.user.email ?? entry.reason,
+      subtitle: entry.user?.email ?? entry.order.customerEmail ?? entry.reason,
       createdAt: entry.createdAt,
       tone: entry.status === "PENDING" ? ("warning" as const) : ("neutral" as const),
     })),

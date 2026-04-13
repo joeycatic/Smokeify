@@ -56,6 +56,7 @@ export type AdminOrderRecord = {
   confirmationEmailSentAt: string | null;
   shippingEmailSentAt: string | null;
   refundEmailSentAt: string | null;
+  refundRequestEmailSentAt?: string | null;
   discountCode: string | null;
   customerEmail: string | null;
   userId: string | null;
@@ -166,6 +167,7 @@ function serializeAdminOrder(
     confirmationEmailSentAt: order.confirmationEmailSentAt?.toISOString() ?? null,
     shippingEmailSentAt: order.shippingEmailSentAt?.toISOString() ?? null,
     refundEmailSentAt: order.refundEmailSentAt?.toISOString() ?? null,
+    refundRequestEmailSentAt: order.refundRequestEmailSentAt?.toISOString() ?? null,
   };
 }
 

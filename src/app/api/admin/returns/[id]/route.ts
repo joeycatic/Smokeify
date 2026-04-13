@@ -112,6 +112,12 @@ export async function PATCH(
           origin: getAppOrigin(request),
         });
       } else if (requestRow.requestedResolution === "STORE_CREDIT") {
+        if (!requestRow.userId) {
+          return NextResponse.json(
+            { error: "Store credit cannot be issued for guest return requests." },
+            { status: 400 },
+          );
+        }
         await issueAdminStoreCredit({
           userId: requestRow.userId,
           amountCents: returnAmountCents,

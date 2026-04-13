@@ -247,21 +247,27 @@ function PagerLink({
   disabled: boolean;
   children: React.ReactNode;
 }) {
+  const className = `inline-flex h-10 items-center justify-center rounded-xl border px-4 font-semibold transition ${
+    disabled
+      ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600"
+      : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+  }`;
+
+  if (disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        className={className}
+      >
+        {children}
+      </span>
+    );
+  }
+
   return (
     <Link
       href={href}
-      aria-disabled={disabled}
-      tabIndex={disabled ? -1 : 0}
-      onClick={(event) => {
-        if (disabled) {
-          event.preventDefault();
-        }
-      }}
-      className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 font-semibold transition ${
-        disabled
-          ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600"
-          : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
-      }`}
+      className={className}
     >
       {children}
     </Link>

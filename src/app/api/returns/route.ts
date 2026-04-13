@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import {
+  ReturnRequestSubmissionError,
+  createReturnRequestForOrder,
+} from "@/lib/returnRequestSubmission";
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -51,37 +55,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const existing = await prisma.returnRequest.findFirst({
-    where: { orderId, userId: session.user.id, status: "PENDING" },
-  });
-  if (existing) {
-    return NextResponse.json(
-      { error: "Return request already submitted" },
-      { status: 409 }
-    );
-  }
-
-  const items = Array.isArray(body.items) ? body.items : [];
-  const itemMap = new Map(order.items.map((item) => [item.id, item]));
-  const selected = items
-    .map((item) => {
-      const orderItem = itemMap.get(item.id);
-      if (!orderItem) return null;
-      const quantity = Math.max(1, Number(item.quantity ?? 1));
-      return {
-        orderItemId: orderItem.id,
-        quantity: Math.min(quantity, orderItem.quantity),
-      };
-    })
-    .filter(Boolean) as { orderItemId: string; quantity: number }[];
-
-  if (!selected.length) {
-    return NextResponse.json(
-      { error: "Select items to return" },
-      { status: 400 }
-    );
-  }
-
   const requestedResolution =
     body.requestedResolution === "STORE_CREDIT" || body.requestedResolution === "EXCHANGE"
       ? body.requestedResolution
@@ -91,21 +64,33 @@ export async function POST(request: Request) {
       ? body.exchangePreference.trim() || null
       : null;
 
-  const created = await prisma.returnRequest.create({
-    data: {
-      orderId,
-      userId: session.user.id,
+  try {
+    const created = await createReturnRequestForOrder({
+      order: {
+        id: order.id,
+        userId: order.userId,
+        customerEmail: order.customerEmail,
+        shippingName: order.shippingName,
+        items: order.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+        })),
+      },
       reason,
+      items: Array.isArray(body.items) ? body.items : [],
       requestedResolution,
       exchangePreference,
-      items: { create: selected },
-    },
-  });
+      requesterName: order.shippingName,
+      requesterEmail: order.customerEmail,
+      submissionSource: "account",
+    });
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { status: "return_requested" },
-  });
-
-  return NextResponse.json({ request: created });
+    return NextResponse.json({ request: created });
+  } catch (error) {
+    if (error instanceof ReturnRequestSubmissionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Request failed" }, { status: 500 });
+  }
 }

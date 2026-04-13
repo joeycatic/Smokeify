@@ -55,6 +55,8 @@ export default async function AdminReturnsPage() {
             amountTotal: req.order.amountTotal,
             currency: req.order.currency,
             status: req.order.status,
+            customerEmail: req.order.customerEmail,
+            shippingName: req.order.shippingName,
           },
           items: req.items.map((item) => ({
             id: item.id,
