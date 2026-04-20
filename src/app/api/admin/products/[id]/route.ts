@@ -12,6 +12,12 @@ import {
 import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
+import {
+  PRODUCT_COMPLIANCE_STATUSES,
+  collectProductComplianceBlockers,
+  normalizeProductComplianceStatus,
+  type ProductComplianceStatus,
+} from "@/lib/productCompliance";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -27,6 +33,38 @@ const normalizeSellerUrl = (value?: string | null) => {
     return { ok: false, value: null };
   }
 };
+
+const normalizeStringList = (value: unknown) =>
+  Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter(Boolean),
+        ),
+      )
+    : [];
+
+const normalizeCountryList = (value: unknown) =>
+  normalizeStringList(value).map((entry) => entry.toUpperCase());
+
+const parseComplianceStatusInput = (value: unknown): ProductComplianceStatus | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  return PRODUCT_COMPLIANCE_STATUSES.includes(normalized as ProductComplianceStatus)
+    ? (normalized as ProductComplianceStatus)
+    : null;
+};
+
+const serializeComplianceBlockersForJson = (
+  blockers: ReturnType<typeof collectProductComplianceBlockers>,
+) =>
+  blockers.map((blocker) => ({
+    type: blocker.type,
+    field: blocker.field,
+    reason: blocker.reason,
+    ...(blocker.match ? { match: blocker.match } : {}),
+  }));
 
 export async function GET(
   request: NextRequest,
@@ -139,6 +177,14 @@ export async function PATCH(
     merchantCertificationName?: string | null;
     merchantCertificationCode?: string | null;
     merchantCertificationValue?: string | null;
+    complianceStatus?: string | null;
+    complianceNotes?: string | null;
+    complianceCountryAllowlist?: string[];
+    complianceCountryDenylist?: string[];
+    complianceAgeGateRequired?: boolean;
+    complianceFeedEligible?: boolean;
+    complianceAdsEligible?: boolean;
+    complianceManualBlockers?: string[];
     tags?: string[];
     status?: string;
     expectedUpdatedAt?: string | null;
@@ -177,13 +223,65 @@ export async function PATCH(
     merchantCertificationName?: string | null;
     merchantCertificationCode?: string | null;
     merchantCertificationValue?: string | null;
+    complianceStatus?: ProductComplianceStatus;
+    complianceReviewedAt?: Date | null;
+    complianceReviewedById?: string | null;
+    complianceNotes?: string | null;
+    complianceCountryAllowlist?: string[];
+    complianceCountryDenylist?: string[];
+    complianceAgeGateRequired?: boolean;
+    complianceFeedEligible?: boolean;
+    complianceAdsEligible?: boolean;
+    complianceManualBlockers?: string[];
     tags?: string[];
     status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   } = {};
 
   const existingProduct = await prisma.product.findUnique({
     where: { id },
-    select: { id: true, updatedAt: true },
+    select: {
+      id: true,
+      title: true,
+      handle: true,
+      description: true,
+      technicalDetails: true,
+      shortDescription: true,
+      manufacturer: true,
+      productGroup: true,
+      tags: true,
+      storefronts: true,
+      merchantCertificationAuthority: true,
+      merchantCertificationName: true,
+      merchantCertificationCode: true,
+      merchantCertificationValue: true,
+      complianceStatus: true,
+      complianceNotes: true,
+      complianceCountryAllowlist: true,
+      complianceCountryDenylist: true,
+      complianceAgeGateRequired: true,
+      complianceFeedEligible: true,
+      complianceAdsEligible: true,
+      complianceManualBlockers: true,
+      updatedAt: true,
+      mainCategory: {
+        select: {
+          handle: true,
+          storefronts: true,
+          parent: { select: { handle: true, storefronts: true } },
+        },
+      },
+      categories: {
+        select: {
+          category: {
+            select: {
+              handle: true,
+              storefronts: true,
+              parent: { select: { handle: true, storefronts: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!existingProduct) {
@@ -403,6 +501,53 @@ export async function PATCH(
     );
   }
 
+  if (typeof body.complianceStatus !== "undefined") {
+    const nextStatus = parseComplianceStatusInput(body.complianceStatus);
+    if (!nextStatus) {
+      return NextResponse.json(
+        { error: "Invalid compliance status." },
+        { status: 400 }
+      );
+    }
+    updates.complianceStatus = nextStatus;
+    updates.complianceReviewedAt = new Date();
+    updates.complianceReviewedById = session.user.id;
+  }
+
+  if (typeof body.complianceNotes !== "undefined") {
+    updates.complianceNotes = sanitizePlainText(body.complianceNotes);
+  }
+
+  if (typeof body.complianceCountryAllowlist !== "undefined") {
+    updates.complianceCountryAllowlist = normalizeCountryList(
+      body.complianceCountryAllowlist,
+    );
+  }
+
+  if (typeof body.complianceCountryDenylist !== "undefined") {
+    updates.complianceCountryDenylist = normalizeCountryList(
+      body.complianceCountryDenylist,
+    );
+  }
+
+  if (typeof body.complianceAgeGateRequired === "boolean") {
+    updates.complianceAgeGateRequired = body.complianceAgeGateRequired;
+  }
+
+  if (typeof body.complianceFeedEligible === "boolean") {
+    updates.complianceFeedEligible = body.complianceFeedEligible;
+  }
+
+  if (typeof body.complianceAdsEligible === "boolean") {
+    updates.complianceAdsEligible = body.complianceAdsEligible;
+  }
+
+  if (typeof body.complianceManualBlockers !== "undefined") {
+    updates.complianceManualBlockers = normalizeStringList(
+      body.complianceManualBlockers,
+    );
+  }
+
   if (Array.isArray(body.tags)) {
     updates.tags = body.tags.map((tag) => tag.trim()).filter(Boolean);
   }
@@ -439,10 +584,104 @@ export async function PATCH(
     );
   }
 
+  const nextComplianceSnapshot = {
+    title: updates.title ?? existingProduct.title,
+    handle: updates.handle ?? existingProduct.handle,
+    description:
+      typeof updates.description !== "undefined"
+        ? updates.description
+        : existingProduct.description,
+    shortDescription:
+      typeof updates.shortDescription !== "undefined"
+        ? updates.shortDescription
+        : existingProduct.shortDescription,
+    manufacturer:
+      typeof updates.manufacturer !== "undefined"
+        ? updates.manufacturer
+        : existingProduct.manufacturer,
+    storefronts: updates.storefronts ?? existingProduct.storefronts,
+    merchantCertificationAuthority:
+      typeof updates.merchantCertificationAuthority !== "undefined"
+        ? updates.merchantCertificationAuthority
+        : existingProduct.merchantCertificationAuthority,
+    merchantCertificationName:
+      typeof updates.merchantCertificationName !== "undefined"
+        ? updates.merchantCertificationName
+        : existingProduct.merchantCertificationName,
+    merchantCertificationCode:
+      typeof updates.merchantCertificationCode !== "undefined"
+        ? updates.merchantCertificationCode
+        : existingProduct.merchantCertificationCode,
+    merchantCertificationValue:
+      typeof updates.merchantCertificationValue !== "undefined"
+        ? updates.merchantCertificationValue
+        : existingProduct.merchantCertificationValue,
+    complianceStatus: normalizeProductComplianceStatus(
+      updates.complianceStatus ?? existingProduct.complianceStatus,
+    ),
+    complianceCountryAllowlist:
+      updates.complianceCountryAllowlist ?? existingProduct.complianceCountryAllowlist,
+    complianceCountryDenylist:
+      updates.complianceCountryDenylist ?? existingProduct.complianceCountryDenylist,
+    complianceAgeGateRequired:
+      updates.complianceAgeGateRequired ?? existingProduct.complianceAgeGateRequired,
+    complianceFeedEligible:
+      updates.complianceFeedEligible ?? existingProduct.complianceFeedEligible,
+    complianceAdsEligible:
+      updates.complianceAdsEligible ?? existingProduct.complianceAdsEligible,
+    complianceManualBlockers:
+      updates.complianceManualBlockers ?? existingProduct.complianceManualBlockers,
+    mainCategory: existingProduct.mainCategory,
+    categories: existingProduct.categories,
+  };
+  const complianceBlockers = collectProductComplianceBlockers(nextComplianceSnapshot);
+  const serializedComplianceBlockers =
+    serializeComplianceBlockersForJson(complianceBlockers);
+
+  if (
+    updates.complianceStatus === "APPROVED" &&
+    complianceBlockers.length > 0 &&
+    !updates.complianceNotes?.trim() &&
+    !existingProduct.complianceNotes?.trim()
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Approval requires a compliance note when automated or manual blockers are present.",
+        complianceBlockers,
+      },
+      { status: 400 },
+    );
+  }
+
   const product = await prisma.product.update({
     where: { id },
     data: updates,
   });
+
+  if (
+    updates.complianceStatus &&
+    updates.complianceStatus !== existingProduct.complianceStatus
+  ) {
+    await prisma.productComplianceEvent.create({
+      data: {
+        productId: id,
+        actorId: session.user.id,
+        actorEmail: session.user.email ?? null,
+        fromStatus: existingProduct.complianceStatus,
+        toStatus: updates.complianceStatus,
+        blockers: serializedComplianceBlockers,
+        notes: updates.complianceNotes ?? existingProduct.complianceNotes,
+        metadata: {
+          source: "admin.product.patch",
+          feedEligible: nextComplianceSnapshot.complianceFeedEligible,
+          adsEligible: nextComplianceSnapshot.complianceAdsEligible,
+          countryAllowlist: nextComplianceSnapshot.complianceCountryAllowlist,
+          countryDenylist: nextComplianceSnapshot.complianceCountryDenylist,
+        },
+      },
+    });
+  }
 
   await logAdminAction({
     actor: { id: session.user.id, email: session.user.email ?? null },
@@ -450,7 +689,10 @@ export async function PATCH(
     targetType: "product",
     targetId: id,
     summary: `Updated product fields: ${Object.keys(updates).join(", ")}`,
-    metadata: { updates },
+    metadata: {
+      updateKeys: Object.keys(updates),
+      complianceBlockers: serializedComplianceBlockers,
+    },
   });
 
   return NextResponse.json({
@@ -459,6 +701,7 @@ export async function PATCH(
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     },
+    complianceBlockers,
   });
 }
 

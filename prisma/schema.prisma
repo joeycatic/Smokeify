@@ -57,6 +57,26 @@ enum PlantHealthStatus {
   CRITICAL
 }
 
+enum PlantAnalysisReviewStatus {
+  UNREVIEWED
+  REVIEWED_OK
+  REVIEWED_INCORRECT
+  REVIEWED_UNSAFE
+  NEEDS_PROMPT_FIX
+  NEEDS_RECOMMENDATION_FIX
+  PRIVACY_REVIEW
+}
+
+enum PlantAnalysisSafetyFlag {
+  OVERCONFIDENT
+  MEDICAL_OR_LEGAL_CLAIM
+  UNSAFE_ACTION
+  IRRELEVANT_PRODUCT_RECOMMENDATION
+  LOW_IMAGE_QUALITY
+  USER_DISPUTED
+  PRIVACY_SENSITIVE_IMAGE
+}
+
 enum ExpenseCategory {
   INVENTORY
   SHIPPING
@@ -114,6 +134,39 @@ enum RecurringExpenseInterval {
 enum Storefront {
   MAIN
   GROW
+}
+
+enum ProductComplianceStatus {
+  DRAFT_REVIEW
+  APPROVED
+  NEEDS_CHANGES
+  BLOCKED
+}
+
+enum ProductComplianceBlockerType {
+  MEDICAL_CLAIM
+  ILLEGAL_USE_IMPLICATION
+  RESTRICTED_CATEGORY
+  RESTRICTED_TEXT
+  MISSING_CERTIFICATION
+  SHIPPING_RESTRICTION
+  REGION_RESTRICTION
+  AD_POLICY
+  FEED_POLICY
+  AGE_GATE_REQUIRED
+  MANUAL
+}
+
+enum ProductComplianceSurface {
+  STOREFRONT
+  SEARCH
+  RECOMMENDATIONS
+  CUSTOMIZER
+  ANALYZER
+  SITEMAP
+  FEED
+  ADS
+  LANDING_PAGE
 }
 
 enum RecommendationRuleTriggerType {
@@ -194,11 +247,15 @@ model User {
   reviewIncentives ReviewIncentive[]
   plantAnalyses  PlantAnalysisRun[]
   plantAnalysisFeedback PlantAnalysisFeedback[]
+  plantAnalysisReviews PlantAnalysisRun[] @relation("PlantAnalysisReviewedBy")
+  plantAnalysisReviewEvents PlantAnalysisReviewEvent[] @relation("PlantAnalysisReviewEventActor")
   analyticsSessions AnalyticsSession[]
   analyticsEvents AnalyticsEvent[]
   pricingRunsTriggered PricingRun[] @relation("PricingRunTriggeredBy")
   pricingRecommendationsReviewed PricingRecommendation[] @relation("PricingRecommendationReviewedBy")
   pricingChangeAudits PricingChangeAudit[] @relation("PricingChangeActor")
+  productsComplianceReviewed Product[] @relation("ProductComplianceReviewedBy")
+  productComplianceEvents ProductComplianceEvent[] @relation("ProductComplianceEventActor")
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -430,6 +487,16 @@ model Product {
   merchantCertificationName String?
   merchantCertificationCode String?
   merchantCertificationValue String?
+  complianceStatus ProductComplianceStatus @default(DRAFT_REVIEW)
+  complianceReviewedAt DateTime?
+  complianceReviewedById String?
+  complianceNotes String?
+  complianceCountryAllowlist String[] @default([])
+  complianceCountryDenylist String[] @default([])
+  complianceAgeGateRequired Boolean @default(false)
+  complianceFeedEligible Boolean @default(false)
+  complianceAdsEligible Boolean @default(false)
+  complianceManualBlockers String[] @default([])
   status      ProductStatus  @default(DRAFT)
   bestsellerScore Float?     // computed weekly by script
   conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
@@ -448,13 +515,37 @@ model Product {
   crossSellBackRefs  ProductCrossSell[] @relation("ProductCrossSellBackRefs")
   pricingRecommendations PricingRecommendation[]
   pricingChangeAudits PricingChangeAudit[]
+  complianceReviewedBy User? @relation("ProductComplianceReviewedBy", fields: [complianceReviewedById], references: [id], onDelete: SetNull)
+  complianceEvents ProductComplianceEvent[]
 
   @@index([status])
   @@index([supplierId])
   @@index([mainCategoryId])
   @@index([productGroup])
+  @@index([complianceStatus])
+  @@index([complianceReviewedById])
   @@index([bestsellerScore])
   @@index([status, bestsellerScore])
+}
+
+model ProductComplianceEvent {
+  id String @id @default(cuid())
+  productId String
+  actorId String?
+  actorEmail String?
+  fromStatus ProductComplianceStatus?
+  toStatus ProductComplianceStatus?
+  blockers Json?
+  notes String?
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  actor User? @relation("ProductComplianceEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([toStatus, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model ProductImage {
@@ -1147,15 +1238,47 @@ model PlantAnalysisRun {
   healthStatus PlantHealthStatus
   species     String
   outputJson  Json
+  reviewStatus PlantAnalysisReviewStatus @default(UNREVIEWED)
+  reviewedById String?
+  reviewedAt DateTime?
+  reviewNotes String?
+  safetyFlags PlantAnalysisSafetyFlag[] @default([])
+  imageRetentionUntil DateTime?
+  imageDeletedAt DateTime?
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   issues PlantAnalysisIssue[]
   feedback PlantAnalysisFeedback[]
+  reviewEvents PlantAnalysisReviewEvent[]
 
   @@index([userId, createdAt])
   @@index([healthStatus, createdAt])
+  @@index([reviewStatus, createdAt])
+  @@index([reviewedById, createdAt])
+  @@index([imageRetentionUntil])
   @@index([imageHash])
+}
+
+model PlantAnalysisReviewEvent {
+  id String @id @default(cuid())
+  analysisId String
+  actorId String?
+  actorEmail String?
+  fromStatus PlantAnalysisReviewStatus?
+  toStatus PlantAnalysisReviewStatus?
+  safetyFlags PlantAnalysisSafetyFlag[] @default([])
+  notes String?
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  actor User? @relation("PlantAnalysisReviewEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([analysisId, createdAt])
+  @@index([toStatus, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model PlantAnalysisIssue {
