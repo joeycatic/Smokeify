@@ -18,8 +18,8 @@ export function AdminPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-      <div className="mb-4">
+    <section className="max-w-full rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:rounded-[28px] sm:p-5">
+      <div className="mb-4 min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
           {eyebrow}
         </p>
@@ -59,12 +59,12 @@ export function AdminMetricCard({
       className={`orders-kpi-card rounded-[22px] border border-white/10 bg-white/[0.04] p-5 ${toneClassName}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="max-w-[14ch] text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        <p className="max-w-[14ch] break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:tracking-[0.22em]">
           {label}
         </p>
         {detail ? (
           <span
-            className={`orders-kpi-badge rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${detailBadgeClassName}`}
+            className={`orders-kpi-badge shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.18em] ${detailBadgeClassName}`}
           >
             {detail}
           </span>
@@ -106,11 +106,11 @@ export function AdminDeltaRow({
 }) {
   return (
     <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
-      <div>
+      <div className="min-w-0">
         <div className="text-sm font-semibold text-slate-100">{label}</div>
         <div className="text-xs text-slate-500">vs previous comparable window</div>
       </div>
-      <div className="text-right">
+      <div className="shrink-0 text-right">
         <div className="text-sm font-semibold text-white">{value}</div>
         <div className={`text-xs font-medium ${deltaToneClassName}`}>{delta}</div>
       </div>
@@ -138,7 +138,7 @@ export function AdminTimeRangeTabs({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-wrap gap-2 text-xs font-semibold ${className}`}>
+    <div className={`admin-scroll-x -mx-1 flex gap-2 px-1 text-xs font-semibold sm:mx-0 sm:flex-wrap sm:px-0 ${className}`}>
       {ADMIN_TIME_RANGE_OPTIONS.map((option) => {
         const active = option.value === activeDays;
         return (

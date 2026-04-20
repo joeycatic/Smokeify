@@ -537,14 +537,14 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
       </AdminPanel>
 
       {scheduleDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/70"
             aria-label="Close schedule dialog"
             onClick={() => setScheduleDialog(null)}
           />
-          <div className="relative w-full max-w-lg rounded-[28px] border border-white/10 bg-[#0b1220] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#0b1220] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
             <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
               Scheduled delivery
             </div>
@@ -627,7 +627,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <AdminButton tone="secondary" onClick={() => setScheduleDialog(null)}>
                 Cancel
               </AdminButton>

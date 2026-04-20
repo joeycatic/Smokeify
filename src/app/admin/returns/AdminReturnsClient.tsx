@@ -549,7 +549,7 @@ export default function AdminReturnsClient({ requests }: Props) {
       )}
 
       {approvalTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
@@ -560,7 +560,7 @@ export default function AdminReturnsClient({ requests }: Props) {
             }}
             aria-label="Close return approval dialog"
           />
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-4 shadow-xl sm:p-6">
             <h3 className="text-lg font-semibold text-stone-900">Approve return request</h3>
             <p className="mt-2 text-sm text-stone-600">
               This will apply the requested resolution path for the selected returned items.
@@ -600,7 +600,7 @@ export default function AdminReturnsClient({ requests }: Props) {
             {approvalError ? (
               <p className="mt-2 text-xs text-red-600">{approvalError}</p>
             ) : null}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => {

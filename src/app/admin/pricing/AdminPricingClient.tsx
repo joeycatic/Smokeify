@@ -289,7 +289,7 @@ function ReasonCodeList({ reasonCodes }: { reasonCodes: string[] }) {
 
 function AppliedPriceChangeRow({ item }: { item: PricingChangeItem }) {
   return (
-    <div className="grid grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 px-4 py-4 text-sm text-slate-300">
+    <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 px-4 py-4 text-sm text-slate-300">
       <div>
         <div className="font-semibold text-white">{item.product.title}</div>
         <div className="mt-1 text-xs text-slate-400">
@@ -869,8 +869,8 @@ export default function AdminPricingClient({
                 description="The last run either stayed in preview mode or queued everything for review."
               />
             ) : (
-              <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]">
-                <div className="grid grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
+                <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                   <div>Variant</div>
                   <div>Old price</div>
                   <div>New price</div>
@@ -974,8 +974,8 @@ export default function AdminPricingClient({
             description="The latest preview did not produce review-required items."
           />
         ) : (
-          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]">
-            <div className="grid grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
+            <div className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               <div>Variant</div>
               <div>Current</div>
               <div>Target</div>
@@ -986,7 +986,7 @@ export default function AdminPricingClient({
               {reviewQueue.map((item) => (
                 <div
                   key={item.id}
-                  className="grid grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-slate-300"
+                  className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-slate-300"
                 >
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1052,8 +1052,8 @@ export default function AdminPricingClient({
             description="Apply runs populate this audit table once the pricing engine writes price changes."
           />
         ) : (
-          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]">
-            <div className="grid grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
+            <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               <div>Variant</div>
               <div>Old price</div>
               <div>New price</div>

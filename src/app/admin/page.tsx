@@ -96,10 +96,15 @@ const ADMIN_PAGE_COPY = {
       },
       actions: {
         eyebrow: "Aktionen",
-        title: "Wichtigste Aufgaben",
+        title: "Priorisierter Admin-Inbox",
         description:
-          "Nur die wenigen Punkte, die den nächsten Schritt des Teams wirklich verändern sollten.",
-        empty: "Aktuell sind keine Aufgaben mit hoher Priorität markiert.",
+          "Operative Signale nach Dringlichkeit sortiert, damit die naechste Entscheidung klar ist.",
+        empty: "Aktuell sind keine priorisierten Aufgaben markiert.",
+        priority: {
+          critical: "Kritisch",
+          high: "Hoch",
+          medium: "Mittel",
+        },
       },
       activity: {
         eyebrow: "Aktivität",
@@ -152,6 +157,14 @@ const ADMIN_PAGE_COPY = {
       },
     },
     actions: {
+      category: {
+        payments: "Zahlungen",
+        vat: "USt",
+        expenses: "Ausgaben",
+        conversion: "Conversion",
+        inventory: "Bestand",
+        support: "Support",
+      },
       webhookFailures: {
         title: "Stripe-Webhook-Fehler",
         detail: (count: number) =>
@@ -163,6 +176,18 @@ const ADMIN_PAGE_COPY = {
         detail: (rate: string) =>
           `${rate} der Checkouts brechen vor der Zahlung ab.`,
         hrefLabel: "Analyse öffnen",
+      },
+      vatDeadline: {
+        title: "USt-Frist naht",
+        detail: (days: number) =>
+          `${days} Tag(e) bis zur USt-Uebergabe, aber der Status ist noch nicht bereit.`,
+        hrefLabel: "USt öffnen",
+      },
+      expensesIncomplete: {
+        title: "Ausgabendaten unvollstaendig",
+        detail: (documents: number, vat: number) =>
+          `${documents} Beleg(e) und ${vat} USt-Betraeg(e) fehlen fuer den Vorsteuerabzug.`,
+        hrefLabel: "Ausgaben öffnen",
       },
       replenishment: {
         title: "Nachschub erforderlich",
@@ -233,9 +258,14 @@ const ADMIN_PAGE_COPY = {
       },
       actions: {
         eyebrow: "Actions",
-        title: "Top actions",
-        description: "Only the few items that should change what the team does next.",
-        empty: "No high-priority actions are currently flagged.",
+        title: "Priority admin inbox",
+        description: "Operational signals sorted by urgency so the next decision is clear.",
+        empty: "No prioritized actions are currently flagged.",
+        priority: {
+          critical: "Critical",
+          high: "High",
+          medium: "Medium",
+        },
       },
       activity: {
         eyebrow: "Activity",
@@ -288,6 +318,14 @@ const ADMIN_PAGE_COPY = {
       },
     },
     actions: {
+      category: {
+        payments: "Payments",
+        vat: "VAT",
+        expenses: "Expenses",
+        conversion: "Conversion",
+        inventory: "Inventory",
+        support: "Support",
+      },
       webhookFailures: {
         title: "Stripe webhook failures",
         detail: (count: number) =>
@@ -298,6 +336,18 @@ const ADMIN_PAGE_COPY = {
         title: "Checkout abandonment elevated",
         detail: (rate: string) => `${rate} of checkouts are dropping before payment.`,
         hrefLabel: "Inspect analytics",
+      },
+      vatDeadline: {
+        title: "VAT deadline approaching",
+        detail: (days: number) =>
+          `${days} day(s) remain until VAT handover, but the status is not ready.`,
+        hrefLabel: "Open VAT",
+      },
+      expensesIncomplete: {
+        title: "Expense data incomplete",
+        detail: (documents: number, vat: number) =>
+          `${documents} document(s) and ${vat} VAT amount(s) are missing for input VAT review.`,
+        hrefLabel: "Open expenses",
       },
       replenishment: {
         title: "Replenishment required",
@@ -345,6 +395,30 @@ const formatVatStatus = (
 };
 
 type ActivityItem = Awaited<ReturnType<typeof getActivityFeed>>[number];
+
+type AdminInboxPriority = "critical" | "high" | "medium";
+
+type AdminInboxAction = {
+  priority: AdminInboxPriority;
+  category: string;
+  score: number;
+  title: string;
+  detail: string;
+  href: string;
+  hrefLabel: string;
+};
+
+const ADMIN_INBOX_PRIORITY_WEIGHT: Record<AdminInboxPriority, number> = {
+  critical: 3,
+  high: 2,
+  medium: 1,
+};
+
+const ADMIN_INBOX_PRIORITY_CLASS: Record<AdminInboxPriority, string> = {
+  critical: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+  high: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+  medium: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+};
 
 export default async function AdminPage({
   searchParams,
@@ -480,17 +554,52 @@ export default async function AdminPage({
     .sort((left, right) => right.marginCents - left.marginCents)
     .at(0);
 
-  const primaryAction = [
+  const primaryActionCandidates: Array<AdminInboxAction | null> = [
     failedWebhookCount > 0
       ? {
+          priority: "critical" as const,
+          category: copy.actions.category.payments,
+          score: failedWebhookCount,
           title: copy.actions.webhookFailures.title,
           detail: copy.actions.webhookFailures.detail(failedWebhookCount),
           href: "/admin/orders",
           hrefLabel: copy.actions.webhookFailures.hrefLabel,
         }
       : null,
+    vatData.deadline.daysUntilDue <= 7 &&
+    financeData.vatSummary.status !== "ready_for_handover"
+      ? {
+          priority: "high" as const,
+          category: copy.actions.category.vat,
+          score: Math.max(0, 8 - vatData.deadline.daysUntilDue),
+          title: copy.actions.vatDeadline.title,
+          detail: copy.actions.vatDeadline.detail(vatData.deadline.daysUntilDue),
+          href: "/admin/vat",
+          hrefLabel: copy.actions.vatDeadline.hrefLabel,
+        }
+      : null,
+    financeData.currentExpenseSummary.missingDocumentCount > 0 ||
+    financeData.currentExpenseSummary.missingVatCount > 0
+      ? {
+          priority: "high" as const,
+          category: copy.actions.category.expenses,
+          score:
+            financeData.currentExpenseSummary.missingDocumentCount +
+            financeData.currentExpenseSummary.missingVatCount,
+          title: copy.actions.expensesIncomplete.title,
+          detail: copy.actions.expensesIncomplete.detail(
+            financeData.currentExpenseSummary.missingDocumentCount,
+            financeData.currentExpenseSummary.missingVatCount,
+          ),
+          href: "/admin/expenses",
+          hrefLabel: copy.actions.expensesIncomplete.hrefLabel,
+        }
+      : null,
     funnelSnapshot.beginCheckout >= 10 && funnelSnapshot.checkoutAbandonmentRate >= 0.6
       ? {
+          priority: "high" as const,
+          category: copy.actions.category.conversion,
+          score: Math.round(funnelSnapshot.checkoutAbandonmentRate * 100),
           title: copy.actions.checkoutAbandonment.title,
           detail: copy.actions.checkoutAbandonment.detail(
             formatPercent(funnelSnapshot.checkoutAbandonmentRate),
@@ -503,6 +612,12 @@ export default async function AdminPage({
     (lowStockVariants[0].available <= 0 ||
       (typeof lowStockVariants[0].coverDays === "number" && lowStockVariants[0].coverDays < 7))
       ? {
+          priority: "high" as const,
+          category: copy.actions.category.inventory,
+          score:
+            lowStockVariants[0].available <= 0
+              ? 100
+              : Math.max(0, 14 - Math.round(lowStockVariants[0].coverDays ?? 0)),
           title: copy.actions.replenishment.title,
           detail:
             lowStockVariants[0].available <= 0
@@ -521,20 +636,26 @@ export default async function AdminPage({
       : null,
     pendingReturnCount > 0
       ? {
+          priority: "medium" as const,
+          category: copy.actions.category.support,
+          score: pendingReturnCount,
           title: copy.actions.pendingReturns.title,
           detail: copy.actions.pendingReturns.detail(pendingReturnCount),
           href: "/admin/returns",
           hrefLabel: copy.actions.pendingReturns.hrefLabel,
         }
       : null,
-  ]
-    .filter(Boolean)
-    .slice(0, 3) as Array<{
-    title: string;
-    detail: string;
-    href: string;
-    hrefLabel: string;
-  }>;
+  ];
+
+  const primaryAction = primaryActionCandidates
+    .filter((item): item is AdminInboxAction => item !== null)
+    .sort((left, right) => {
+      const priorityDelta =
+        ADMIN_INBOX_PRIORITY_WEIGHT[right.priority] - ADMIN_INBOX_PRIORITY_WEIGHT[left.priority];
+      if (priorityDelta !== 0) return priorityDelta;
+      return right.score - left.score;
+    })
+    .slice(0, 5);
 
   const moduleCards = [
     {
@@ -752,9 +873,19 @@ export default async function AdminPage({
               {primaryAction.map((item) => (
                 <div
                   key={`${item.title}-${item.href}`}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
                 >
-                  <div className="text-sm font-semibold text-white">{item.title}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${ADMIN_INBOX_PRIORITY_CLASS[item.priority]}`}
+                    >
+                      {copy.panels.actions.priority[item.priority]}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                      {item.category}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-white">{item.title}</div>
                   <div className="mt-1 text-sm text-slate-400">{item.detail}</div>
                   <Link
                     href={item.href}

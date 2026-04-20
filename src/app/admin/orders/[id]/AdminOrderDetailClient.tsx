@@ -825,9 +825,9 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
       </div>
 
       {refundMode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button type="button" className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} aria-label="Close refund dialog" />
-          <div className="relative w-full max-w-md rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,21,0.98),rgba(10,16,26,0.96))] p-6 shadow-[0_30px_80px_rgba(2,6,23,0.5)]">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,21,0.98),rgba(10,16,26,0.96))] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.5)] sm:rounded-[30px] sm:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Refund confirmation</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">Confirm refund</h3>
             <p className="mt-3 text-sm leading-6 text-slate-300">Refunds are irreversible and Stripe-authoritative. Review the preview, then confirm with your admin password.</p>
@@ -845,7 +845,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
               <input type="password" value={refundPassword} onChange={(event) => { setRefundPassword(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Admin password" className={`${INPUT_CLASS} mt-2`} />
             </label>
             {refundPasswordError ? <p className="mt-3 text-sm font-medium text-rose-300">{refundPasswordError}</p> : null}
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} className={SECONDARY_BUTTON}>Cancel</button>
               <button type="button" onClick={confirmRefund} disabled={refunding} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-300">{refunding ? "Refunding..." : "Process refund"}</button>
             </div>
@@ -902,9 +902,9 @@ function OrderTabBar({
   };
 
   return (
-    <div className="sticky top-24 z-20">
-      <div className="rounded-[28px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur">
-        <div className="grid grid-cols-5 gap-1" role="tablist" aria-label="Order workspace sections">
+    <div className="sticky top-[5.25rem] z-20 sm:top-24">
+      <div className="rounded-[22px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur sm:rounded-[28px]">
+        <div className="admin-scroll-x flex gap-1 sm:grid sm:grid-cols-5" role="tablist" aria-label="Order workspace sections">
           {ORDER_TABS.map((tab, index) => {
             const active = tab.id === activeTab;
             const isDirty = Boolean(dirtyTabs[tab.id]);
@@ -917,7 +917,7 @@ function OrderTabBar({
                 ref={(node) => {
                   tabButtonRefs.current[index] = node;
                 }}
-                className="group relative overflow-hidden rounded-[22px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
+                className="group relative min-w-[8.5rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
                 id={getOrderTabButtonId(tab.id)}
                 role="tab"
                 aria-selected={active}

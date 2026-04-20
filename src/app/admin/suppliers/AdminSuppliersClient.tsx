@@ -429,7 +429,7 @@ export default function AdminSuppliersClient() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search suppliers by name, email, contact..."
-            className="h-10 min-w-[260px] flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+            className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[260px]"
           />
           <span className="text-xs text-slate-500">
             {filteredSuppliers.length} suppliers
@@ -613,14 +613,14 @@ export default function AdminSuppliersClient() {
       </Panel>
 
       {deleteTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/70"
             onClick={() => setDeleteTarget(null)}
             aria-label="Close dialog"
           />
-          <div className="relative z-10 w-full max-w-md rounded-[28px] border border-white/10 bg-[#0a0d12] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#0a0d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
             <h3 className="text-lg font-semibold text-white">Delete supplier?</h3>
             <p className="mt-2 text-sm text-slate-400">
               This will permanently delete <span className="font-semibold text-slate-100">{deleteTarget.name}</span>.
@@ -638,7 +638,7 @@ export default function AdminSuppliersClient() {
             {deletePasswordError ? (
               <p className="mt-2 text-xs text-red-300">{deletePasswordError}</p>
             ) : null}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}

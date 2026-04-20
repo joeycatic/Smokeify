@@ -537,13 +537,13 @@ export default function AdminCustomersClient() {
                 setPage(1);
               }}
               placeholder="Search by email, name, segment, group..."
-              className="h-10 min-w-[240px] flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+              className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[240px]"
             />
             <span className="text-xs text-slate-500">{totalCount} results</span>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
-            <div className="grid grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
+            <div className="grid min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               <div>Type</div>
               <div>Email</div>
               <div>Segments</div>
@@ -566,7 +566,7 @@ export default function AdminCustomersClient() {
                       key={`${key}-${index}`}
                       type="button"
                       onClick={() => setSelectedKey(key)}
-                      className={`grid w-full grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-slate-300 transition ${
+                      className={`grid w-full min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-slate-300 transition ${
                         isSelected ? "bg-cyan-400/[0.07]" : "hover:bg-white/[0.03]"
                       }`}
                     >

@@ -34,6 +34,7 @@ import {
   parseAdminStorefrontScope,
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
+import AdminConnectionStatus from "@/components/admin/AdminConnectionStatus";
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -227,7 +228,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
   };
 
   return (
-    <div className="admin-shell min-h-screen overflow-x-clip bg-[#05070a] text-slate-100">
+    <div className="admin-shell min-h-screen w-full overflow-x-hidden bg-[#05070a] text-slate-100">
       <div className="admin-shell__backdrop" aria-hidden="true" />
       <div className="relative flex min-h-screen">
         {sidebarOpen ? (
@@ -240,7 +241,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex max-h-screen w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-4 backdrop-blur md:sticky md:translate-x-0 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
@@ -318,7 +319,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           </nav>
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-x-hidden">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
             <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:px-6 sm:py-4 lg:px-8">
               <button
@@ -334,7 +335,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
                   Internal Console
                 </p>
-                <div className="mt-1 flex items-center gap-3">
+                <div className="mt-1 flex min-w-0 items-center gap-3">
                   <h2 className="truncate text-lg font-semibold text-white">
                     {currentTitle}
                   </h2>
@@ -347,7 +348,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                 </div>
               </div>
 
-              <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+              <div className="admin-header-controls -mx-3 flex w-[calc(100%+1.5rem)] min-w-0 items-center gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:w-auto sm:flex-nowrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0">
                 <AdminCommandBar
                   key={pathname}
                   groups={NAV_GROUPS}
@@ -356,7 +357,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                   currentStorefrontScope={currentStorefrontScope}
                 />
 
-                <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
                   {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
                     <Link
                       key={scope}
@@ -373,7 +374,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
                   <Link
                     href={languageHref("de")}
                     aria-label="Switch admin page language to German"
@@ -399,6 +400,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                 </div>
               </div>
             </div>
+            <AdminConnectionStatus />
           </header>
 
           <main className="relative">

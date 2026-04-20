@@ -1655,14 +1655,14 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className="admin-legacy-page admin-product-redesign space-y-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-5 pb-36 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] md:p-8 md:pb-40">
-      <div className="admin-product-hero admin-reveal rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)]">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
+    <div className="admin-legacy-page admin-product-redesign space-y-6 rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:space-y-8 md:rounded-[32px] md:p-8 md:pb-40">
+      <div className="admin-product-hero admin-reveal rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[28px] sm:p-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="min-w-0">
             <p className="text-xs font-semibold tracking-[0.3em] text-cyan-200/80">
               CATALOG / PRODUCT
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{details.title}</h1>
+            <h1 className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{details.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
               <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
                 {details.status}
@@ -1681,7 +1681,7 @@ export default function AdminProductClient({
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
             <AdminThemeToggle />
             <Link
               href="/admin/catalog"
@@ -1802,8 +1802,8 @@ export default function AdminProductClient({
         </div>
       ) : null}
 
-      <div className="sticky top-20 z-20 rounded-[24px] border border-white/10 bg-[#05070a]/88 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="sticky top-[5.25rem] z-20 rounded-[20px] border border-white/10 bg-[#05070a]/88 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur sm:top-20 sm:rounded-[24px] sm:p-3">
+        <div className="admin-scroll-x flex items-center gap-2 sm:flex-wrap">
           {PRODUCT_EDITOR_SECTIONS.map((section) => (
             <button
               key={section.id}
@@ -3809,8 +3809,8 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-4 z-40 px-4">
-        <div className="mx-auto w-full max-w-6xl rounded-[24px] border border-white/10 bg-[#05070a]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-4 sm:px-4 sm:pb-0">
+        <div className="mx-auto w-full max-w-6xl rounded-[20px] border border-white/10 bg-[#05070a]/92 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[24px] sm:p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
@@ -3825,7 +3825,7 @@ export default function AdminProductClient({
                 </span>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={discardLocalDraft}
@@ -3855,14 +3855,14 @@ export default function AdminProductClient({
       </div>
 
       {addVariantOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="admin-product-modal relative w-full max-w-4xl rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
+          <div className="admin-product-modal relative max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:rounded-[28px] sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-stone-900">
@@ -4032,7 +4032,7 @@ export default function AdminProductClient({
                 New option
               </button>
             </div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
@@ -4053,8 +4053,8 @@ export default function AdminProductClient({
       )}
 
       {confirmVariantId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="admin-product-modal w-full max-w-sm rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 py-3 sm:items-center sm:px-4">
+          <div className="admin-product-modal max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Variante löschen
             </h3>

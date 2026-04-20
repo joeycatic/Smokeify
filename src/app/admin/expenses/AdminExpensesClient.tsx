@@ -1433,7 +1433,7 @@ export default function AdminExpensesClient({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search title, supplier, category, notes..."
-              className="h-10 min-w-[260px] flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05]"
+              className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] sm:min-w-[260px]"
             />
             <span className="text-xs text-slate-500">{filteredExpenses.length} expenses</span>
           </div>

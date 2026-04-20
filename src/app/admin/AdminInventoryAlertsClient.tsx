@@ -84,9 +84,9 @@ export default function AdminInventoryAlertsClient({
   };
 
   return (
-    <section className="admin-reveal space-y-5 rounded-[28px] border border-white/10 bg-[#090d12]/90 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className="admin-reveal space-y-5 rounded-[24px] border border-white/10 bg-[#090d12]/90 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)] sm:rounded-[28px] sm:p-5">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
             Inventory
           </p>
@@ -95,7 +95,7 @@ export default function AdminInventoryAlertsClient({
             Variants at or below threshold, with direct jump links into product editing.
           </p>
         </div>
-        <div className="grid min-w-[16rem] gap-2 sm:grid-cols-2">
+        <div className="grid w-full gap-2 sm:min-w-[16rem] sm:grid-cols-2 lg:w-auto">
           <StatChip label="Low stock" value={String(totalCount)} tone="amber" />
           <StatChip label="Out of stock" value={String(outOfStockCount)} tone="red" />
           <StatChip label="Visible rows" value={String(variants.length)} tone="neutral" />
@@ -103,8 +103,8 @@ export default function AdminInventoryAlertsClient({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex min-w-[16rem] flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+        <label className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 sm:min-w-[16rem]">
           <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" aria-hidden="true">
             <path
               d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
@@ -133,8 +133,8 @@ export default function AdminInventoryAlertsClient({
           No low-stock variants for this query.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
-          <div className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+        <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#070a0f]">
+          <div className="grid min-w-[680px] grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             <div>Variant</div>
             <div>Available</div>
             <div>Threshold</div>
@@ -145,7 +145,7 @@ export default function AdminInventoryAlertsClient({
             {variants.map((variant) => (
               <div
                 key={variant.id}
-                className="grid grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                className="grid min-w-[680px] grid-cols-[1.8fr_100px_100px_120px_120px] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
               >
                 <div>
                   <Link
@@ -182,7 +182,7 @@ export default function AdminInventoryAlertsClient({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+      <div className="flex flex-col items-start justify-between gap-3 text-xs text-slate-400 sm:flex-row sm:items-center">
         <div>
           Showing <span className="font-semibold text-slate-100">{variants.length}</span> of{" "}
           <span className="font-semibold text-slate-100">{totalCount}</span>

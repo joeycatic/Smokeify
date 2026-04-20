@@ -791,10 +791,10 @@ export function CatalogBulkTray({
   if (!selectedIds.length) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-3 z-40 px-3 sm:bottom-6 sm:px-4">
+    <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-6 sm:px-4 sm:pb-0">
       <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[28px]">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
-          <div>
+        <div className="flex flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               Sticky Selection Bar
             </p>
@@ -802,7 +802,7 @@ export function CatalogBulkTray({
               {selectedIds.length} products staged for bulk updates
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <AdminButton type="button" tone="secondary" onClick={onClearSelection}>
               Clear selection
             </AdminButton>
@@ -834,7 +834,7 @@ export function CatalogBulkTray({
                 </AdminSelect>
               </AdminField>
               <AdminField label="Price direction">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <AdminSelect
                     value={bulkPriceDirection}
                     onChange={(event) =>
@@ -900,7 +900,7 @@ export function CatalogBulkTray({
                 </AdminSelect>
               </AdminField>
               <AdminField label="Category change">
-                <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-2">
+                <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
                   <AdminSelect
                     value={bulkCategoryAction}
                     onChange={(event) =>

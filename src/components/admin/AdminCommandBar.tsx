@@ -155,14 +155,14 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white lg:hidden"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white lg:hidden"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-3 py-4 sm:px-4 sm:pt-[10vh]">
           <button
             type="button"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -174,9 +174,9 @@ export default function AdminCommandBar({
             role="dialog"
             aria-modal="true"
             aria-label="Admin command bar"
-            className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-[#090d12]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
+            className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px]"
           >
-            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
+            <div className="flex min-w-0 items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4 sm:py-4">
               <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-slate-500" />
               <input
                 ref={inputRef}
@@ -190,12 +190,12 @@ export default function AdminCommandBar({
                 className="h-11 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                 aria-label="Search admin commands"
               />
-              <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500">
+              <span className="hidden rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500 sm:inline-flex">
                 Esc
               </span>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto p-3">
+            <div className="min-h-0 overflow-y-auto p-3">
               {filteredCommands.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
                   No admin pages match that search.
@@ -213,7 +213,7 @@ export default function AdminCommandBar({
                         type="button"
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => selectCommand(command)}
-                        className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                        className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition sm:px-4 ${
                           active
                             ? "border-cyan-400/20 bg-cyan-400/10"
                             : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
@@ -231,7 +231,7 @@ export default function AdminCommandBar({
                           </span>
                         </span>
                         {current ? (
-                          <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                          <span className="hidden shrink-0 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 sm:inline-flex">
                             Current
                           </span>
                         ) : null}

@@ -487,6 +487,26 @@ body {
   box-shadow: 20px 0 60px rgba(0, 0, 0, 0.35);
 }
 
+.admin-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.admin-scroll-x > * {
+  flex-shrink: 0;
+}
+
+.admin-data-grid-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .admin-reveal {
   animation: admin-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -532,6 +552,37 @@ body {
 
 .admin-tab-panel {
   animation: admin-tab-panel 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (max-width: 767px) {
+  .admin-shell {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-shell :is(input, select, textarea) {
+    max-width: 100%;
+  }
+
+  .admin-shell :is(button, a) {
+    max-width: 100%;
+  }
+
+  .admin-shell :is(table) {
+    min-width: 640px;
+  }
+
+  .admin-header-controls {
+    scrollbar-width: none;
+  }
+
+  .admin-header-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-lift:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 @keyframes admin-reveal {

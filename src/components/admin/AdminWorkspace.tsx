@@ -22,16 +22,16 @@ export function AdminPageIntro({
   metrics?: ReactNode;
 }) {
   return (
-    <section className="admin-reveal overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:rounded-[32px] sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className="admin-reveal max-w-full overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:rounded-[32px] sm:p-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
             {eyebrow}
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 max-w-3xl text-sm text-slate-400">{description}</p>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+        {actions ? <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">{actions}</div> : null}
       </div>
       {metrics ? <div className="mt-6">{metrics}</div> : null}
     </section>
@@ -57,8 +57,8 @@ export function AdminPanel({
     <section
       className={`admin-reveal rounded-[24px] border border-white/10 bg-[#090d12]/90 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)] sm:rounded-[28px] sm:p-5 ${className}`}
     >
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
+        <div className="min-w-0">
           {eyebrow ? (
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
               {eyebrow}
@@ -67,7 +67,7 @@ export function AdminPanel({
           <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
           {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
       </div>
       {children}
     </section>
@@ -230,7 +230,7 @@ export function AdminDialog({
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
         <div className="mt-5">{children}</div>
-        {footer ? <div className="mt-5 flex flex-wrap justify-end gap-2">{footer}</div> : null}
+        {footer ? <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">{footer}</div> : null}
       </div>
     </div>
   );
@@ -262,7 +262,7 @@ export function AdminDrawer({
         aria-label="Close drawer"
       />
       <div
-        className={`filter-drawer-in relative h-[min(100dvh,48rem)] w-full ${widthClassName} overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
+        className={`filter-drawer-in relative h-[min(100dvh,48rem)] w-full ${widthClassName} max-w-full overflow-y-auto rounded-t-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
       >
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">

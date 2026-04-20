@@ -409,7 +409,7 @@ function DiscountSection({
   onToggle: (id: string, active: boolean) => Promise<void>;
 }) {
   return (
-    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f]">
+    <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#070a0f]">
       <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
           {title}
@@ -424,7 +424,7 @@ function DiscountSection({
         <div className="px-4 py-6 text-sm text-slate-500">No codes in this state.</div>
       ) : (
         <>
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             <div>Code</div>
             <div>Value</div>
             <div>Usage</div>
@@ -440,7 +440,7 @@ function DiscountSection({
               return (
                 <div
                   key={discount.id}
-                  className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                  className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
                 >
                   <div>
                     <div className="font-semibold text-white">{discount.code}</div>

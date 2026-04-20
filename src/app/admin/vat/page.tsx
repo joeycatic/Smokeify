@@ -148,8 +148,8 @@ export default async function AdminVatPage() {
           {monthly.length === 0 ? (
             <AdminEmptyState copy="No VAT periods are available yet." />
           ) : (
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
-              <div className="grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
+              <div className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 <div>Month</div>
                 <div>Output</div>
                 <div>Input</div>
@@ -161,7 +161,7 @@ export default async function AdminVatPage() {
                 {monthly.map((row) => (
                   <div
                     key={row.monthKey}
-                    className="grid grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-300"
+                    className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-300"
                   >
                     <div className="font-semibold text-white">{row.monthLabel}</div>
                     <div>{formatMoney(row.outputVatCents, currency)}</div>

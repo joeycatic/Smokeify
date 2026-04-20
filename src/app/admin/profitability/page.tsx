@@ -405,8 +405,8 @@ export default async function AdminProfitabilityPage({
         {rows.length === 0 ? (
           <AdminEmptyState copy="No profitability rows are available yet." />
         ) : (
-          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]">
-            <div className="grid grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
+            <div className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               <div>Product</div>
               <div>Category</div>
               <div>Supplier</div>
@@ -420,7 +420,7 @@ export default async function AdminProfitabilityPage({
                 <Link
                   key={row.productId}
                   href={`/admin/catalog/${row.productId}`}
-                  className="grid grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                  className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
                 >
                   <div>
                     <div className="font-semibold text-white">{row.productTitle}</div>
