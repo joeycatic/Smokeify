@@ -46,3 +46,4 @@ agents.md
 # remotion generated artifacts
 remotion/out/
 remotion/node_modules/
+.env*.local

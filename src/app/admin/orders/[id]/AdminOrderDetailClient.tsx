@@ -902,7 +902,7 @@ function OrderTabBar({
   };
 
   return (
-    <div className="sticky top-4 z-20">
+    <div className="sticky top-24 z-20">
       <div className="rounded-[28px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur">
         <div className="grid grid-cols-5 gap-1" role="tablist" aria-label="Order workspace sections">
           {ORDER_TABS.map((tab, index) => {
@@ -966,12 +966,12 @@ function OverviewTab({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_390px]">
       <div className="space-y-6">
-        <Panel className={LIGHT_PANEL} eyebrow="Status posture" title="Order overview">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StateCard label="Order" value={order.status} detail="Current fulfillment lifecycle state." badgeClass={getOrderStatusBadgeClass(order.status)} />
-            <StateCard label="Payment" value={order.paymentStatus} detail="Stripe-authoritative payment state." badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
-            <StateCard label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "Tracking number not saved"} />
-            <StateCard label="Website" value={sourceLabel} detail={order.userId ? "Signed-in customer order" : "Guest checkout order"} />
+        <Panel className={LIGHT_PANEL} eyebrow="Status" title="Order overview">
+          <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+            <OverviewSummaryRow label="Order" value={order.status} badgeClass={getOrderStatusBadgeClass(order.status)} />
+            <OverviewSummaryRow label="Payment" value={order.paymentStatus} badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
+            <OverviewSummaryRow label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "No tracking number"} />
+            <OverviewSummaryRow label="Website" value={sourceLabel} detail={order.userId ? "Signed-in" : "Guest checkout"} />
           </div>
         </Panel>
 
@@ -1060,25 +1060,25 @@ function FulfillmentTab({
   canUpdateFulfillment: boolean;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_390px]">
+    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_390px]">
       <div className="space-y-6">
         <Panel className={LIGHT_PANEL} eyebrow="Fulfillment posture" title="Status and tracking workspace">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-              <p className="text-sm leading-6 text-slate-300">Payment remains backend-authoritative. This workspace edits fulfillment state and shipment details only.</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <StateCard label="Order" value={order.status} detail="Current saved status on the order." badgeClass={getOrderStatusBadgeClass(order.status)} />
-                <StateCard label="Payment" value={order.paymentStatus} detail="Current saved payment state." badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
-                <StateCard label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "Tracking number not saved"} />
-                <StateCard label="Shipping email" value={order.shippingEmailSentAt ? "Sent" : "Pending"} detail={order.shippingEmailSentAt ? formatDateTime(order.shippingEmailSentAt) : "No shipping email recorded"} />
+          <div className="grid gap-5 2xl:grid-cols-[300px_minmax(0,1fr)]">
+            <div>
+              <p className="text-sm leading-6 text-slate-300">Edits here only affect fulfillment and shipment details.</p>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+                <OverviewSummaryRow label="Order" value={order.status} badgeClass={getOrderStatusBadgeClass(order.status)} />
+                <OverviewSummaryRow label="Payment" value={order.paymentStatus} badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
+                <OverviewSummaryRow label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "No tracking number"} />
+                <OverviewSummaryRow label="Email" value={order.shippingEmailSentAt ? "Sent" : "Pending"} detail={order.shippingEmailSentAt ? formatDateTime(order.shippingEmailSentAt) : "No shipping email"} />
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div className="grid gap-4">
                 <label className="block">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
-                  <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} disabled={!canUpdateFulfillment} className={`${SELECT_CLASS} mt-2`}>
+                  <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} disabled={!canUpdateFulfillment} className={`${SELECT_CLASS} mt-2 h-12`}>
                     {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
                       <option value={statusDraft}>{statusDraft} (legacy)</option>
                     ) : null}
@@ -1094,7 +1094,7 @@ function FulfillmentTab({
                 ].map(([label, value, onChange]) => (
                   <label key={label as string} className="block">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label as string}</span>
-                    <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} disabled={!canUpdateFulfillment} className={`${INPUT_CLASS} mt-2`} />
+                    <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} disabled={!canUpdateFulfillment} className={`${INPUT_CLASS} mt-2 h-12`} />
                   </label>
                 ))}
               </div>
@@ -1109,18 +1109,16 @@ function FulfillmentTab({
                 />
               ) : null}
 
-              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Fulfillment rules</p>
-                <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-                  <p>Tracking on an open order can auto-mark the order as shipped.</p>
-                  <p>Fulfilled does not auto-send the shipping email.</p>
-                  <p>The shipping email only auto-sends once and only from the shipped path.</p>
-                </div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Rules</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Tracking can auto-mark open orders as shipped. Shipping email auto-sends once from that path.
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
             <p className="max-w-xl text-sm text-slate-300">
               Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.
             </p>
@@ -1132,7 +1130,7 @@ function FulfillmentTab({
         </Panel>
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+      <div className="space-y-6 2xl:sticky 2xl:top-[7.75rem] 2xl:self-start">
         <Panel className={DARK_PANEL} eyebrow="Draft comparison" title="Current vs pending" dark>
           <div className="space-y-3">
             <DraftRow label="Saved status" value={order.status} />
@@ -1420,12 +1418,16 @@ function Banner({ tone, children }: { tone: "success" | "error"; children: React
   return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
 }
 
-function StateCard({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {
+function OverviewSummaryRow({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <div className="mt-3">{badgeClass ? <span className={badgeClass}>{value}</span> : <p className="text-sm font-semibold text-white">{value}</p>}</div>
-      <p className="mt-3 text-sm text-slate-300">{detail ?? "Current recorded value"}</p>
+    <div className="flex flex-col gap-2 border-b border-white/8 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+        {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+      </div>
+      <div className="sm:text-right">
+        {badgeClass ? <span className={badgeClass}>{value}</span> : <p className="text-sm font-semibold text-white">{value}</p>}
+      </div>
     </div>
   );
 }
