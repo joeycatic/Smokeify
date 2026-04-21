@@ -481,12 +481,12 @@ export default function AdminCustomersClient() {
       </Panel>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
-        <Panel
-          eyebrow="Directory"
-          title="Customer records"
-          description="Filter by type, segment, and intent. Select a row to open the intelligence drawer."
-        >
-          <div className="mb-4 flex flex-wrap items-center gap-3">
+      <Panel
+        eyebrow="Directory"
+        title="Customer records"
+        description="Filter by type, segment, and intent. Select a row to open the intelligence drawer."
+      >
+          <div className="mb-4 flex flex-col items-stretch gap-3">
             <div className="flex overflow-hidden rounded-full border border-white/10 bg-white/[0.03] text-xs font-semibold">
               {(["all", "registered", "guest"] as const).map((value) => (
                 <button
@@ -529,35 +529,28 @@ export default function AdminCustomersClient() {
               ))}
             </div>
 
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search by email, name, segment, group..."
-              className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[240px]"
-            />
-            <span className="text-xs text-slate-500">{totalCount} results</span>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by email, name, segment, group..."
+                className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[240px]"
+              />
+              <span className="text-xs text-slate-500">{totalCount} results</span>
+            </div>
           </div>
 
-          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
-            <div className="grid min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              <div>Type</div>
-              <div>Email</div>
-              <div>Segments</div>
-              <div className="text-right">Orders</div>
-              <div className="text-right">Net</div>
-              <div className="text-right">AOV</div>
+          {customers.length === 0 ? (
+            <div className="rounded-[24px] border border-white/10 bg-[#090d12] px-4 py-10 text-center text-sm text-slate-500">
+              {loading ? "Loading..." : "No customers found."}
             </div>
-
-            {customers.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-slate-500">
-                {loading ? "Loading..." : "No customers found."}
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
                 {customers.map((customer, index) => {
                   const key = getCustomerKey(customer);
                   const isSelected = key === getCustomerKey(selectedCustomer);
@@ -566,51 +559,119 @@ export default function AdminCustomersClient() {
                       key={`${key}-${index}`}
                       type="button"
                       onClick={() => setSelectedKey(key)}
-                      className={`grid w-full min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-slate-300 transition ${
-                        isSelected ? "bg-cyan-400/[0.07]" : "hover:bg-white/[0.03]"
+                      className={`w-full rounded-[24px] border px-4 py-4 text-left text-sm text-slate-300 transition ${
+                        isSelected
+                          ? "border-cyan-400/20 bg-cyan-400/[0.07]"
+                          : "border-white/10 bg-[#090d12] hover:bg-white/[0.03]"
                       }`}
                     >
-                      <div>
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            customer.type === "registered"
-                              ? "bg-emerald-400/10 text-emerald-300"
-                              : "bg-amber-400/10 text-amber-300"
-                          }`}
-                        >
-                          {customer.type === "registered" ? "Registered" : "Guest"}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-slate-100">{customer.email}</div>
-                        <div className="truncate text-xs text-slate-500">
-                          {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                              customer.type === "registered"
+                                ? "bg-emerald-400/10 text-emerald-300"
+                                : "bg-amber-400/10 text-amber-300"
+                            }`}
+                          >
+                            {customer.type === "registered" ? "Registered" : "Guest"}
+                          </span>
+                          <div className="mt-3 break-all font-medium text-slate-100">{customer.email}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-slate-100">
+                            {formatEur(customer.netRevenueCents)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">{customer.orderCount} orders</div>
                         </div>
                       </div>
-                      <div className="flex min-w-0 flex-wrap gap-1">
-                        {customer.segments.slice(0, 2).map((segment) => (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {customer.segments.slice(0, 3).map((segment) => (
                           <SegmentBadge key={segment} segment={segment} />
                         ))}
-                        {customer.segments.length > 2 ? (
+                        {customer.segments.length > 3 ? (
                           <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">
-                            +{customer.segments.length - 2}
+                            +{customer.segments.length - 3}
                           </span>
                         ) : null}
                       </div>
-                      <div className="text-right tabular-nums">{customer.orderCount}</div>
-                      <div className="text-right tabular-nums font-medium text-slate-100">
-                        {formatEur(customer.netRevenueCents)}
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <MiniMetric label="Net" value={formatEur(customer.netRevenueCents)} />
+                        <MiniMetric label="AOV" value={formatEur(customer.aovCents)} />
                       </div>
-                      <div className="text-right text-slate-500">{formatEur(customer.aovCents)}</div>
                     </button>
                   );
                 })}
               </div>
-            )}
-          </div>
+
+              <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#090d12] md:block">
+                <div className="grid min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <div>Type</div>
+                  <div>Email</div>
+                  <div>Segments</div>
+                  <div className="text-right">Orders</div>
+                  <div className="text-right">Net</div>
+                  <div className="text-right">AOV</div>
+                </div>
+
+                <div className="divide-y divide-white/5">
+                  {customers.map((customer, index) => {
+                    const key = getCustomerKey(customer);
+                    const isSelected = key === getCustomerKey(selectedCustomer);
+                    return (
+                      <button
+                        key={`${key}-${index}`}
+                        type="button"
+                        onClick={() => setSelectedKey(key)}
+                        className={`grid w-full min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-slate-300 transition ${
+                          isSelected ? "bg-cyan-400/[0.07]" : "hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        <div>
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                              customer.type === "registered"
+                                ? "bg-emerald-400/10 text-emerald-300"
+                                : "bg-amber-400/10 text-amber-300"
+                            }`}
+                          >
+                            {customer.type === "registered" ? "Registered" : "Guest"}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-slate-100">{customer.email}</div>
+                          <div className="truncate text-xs text-slate-500">
+                            {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 flex-wrap gap-1">
+                          {customer.segments.slice(0, 2).map((segment) => (
+                            <SegmentBadge key={segment} segment={segment} />
+                          ))}
+                          {customer.segments.length > 2 ? (
+                            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">
+                              +{customer.segments.length - 2}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-right tabular-nums">{customer.orderCount}</div>
+                        <div className="text-right tabular-nums font-medium text-slate-100">
+                          {formatEur(customer.netRevenueCents)}
+                        </div>
+                        <div className="text-right text-slate-500">{formatEur(customer.aovCents)}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
           {totalPages > 1 ? (
-            <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-400">
+            <div className="mt-4 flex flex-col items-start justify-between gap-3 text-xs text-slate-400 sm:flex-row sm:items-center">
               <span>
                 Page {page} / {totalPages}
               </span>

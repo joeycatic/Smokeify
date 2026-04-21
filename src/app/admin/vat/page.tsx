@@ -25,6 +25,27 @@ const formatVatStatus = (value: "estimated" | "review_required" | "ready_for_han
   return "Estimated";
 };
 
+function VatMobileValue({
+  label,
+  value,
+  emphasize = false,
+}: {
+  label: string;
+  value: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className={`mt-2 text-sm font-semibold ${emphasize ? "text-amber-300" : "text-white"}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default async function AdminVatPage() {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "ADMIN") notFound();
@@ -148,33 +169,52 @@ export default async function AdminVatPage() {
           {monthly.length === 0 ? (
             <AdminEmptyState copy="No VAT periods are available yet." />
           ) : (
-            <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
-              <div className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                <div>Month</div>
-                <div>Output</div>
-                <div>Input</div>
-                <div>Liability</div>
-                <div>Coverage</div>
-                <div>Status</div>
-              </div>
-              <div className="divide-y divide-white/5">
+            <>
+              <div className="space-y-3 md:hidden">
                 {monthly.map((row) => (
                   <div
                     key={row.monthKey}
-                    className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-300"
+                    className="rounded-[24px] border border-white/10 bg-[#090d12] px-4 py-4 text-sm text-slate-300"
                   >
                     <div className="font-semibold text-white">{row.monthLabel}</div>
-                    <div>{formatMoney(row.outputVatCents, currency)}</div>
-                    <div>{formatMoney(row.inputVatCents, currency)}</div>
-                    <div className="font-semibold text-amber-300">
-                      {formatMoney(row.estimatedLiabilityCents, currency)}
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <VatMobileValue label="Output" value={formatMoney(row.outputVatCents, currency)} />
+                      <VatMobileValue label="Input" value={formatMoney(row.inputVatCents, currency)} />
+                      <VatMobileValue label="Liability" value={formatMoney(row.estimatedLiabilityCents, currency)} emphasize />
+                      <VatMobileValue label="Coverage" value={formatPercent(row.taxCoverageRate)} />
+                      <VatMobileValue label="Status" value={formatVatStatus(row.status)} />
                     </div>
-                    <div>{formatPercent(row.taxCoverageRate)}</div>
-                    <div>{formatVatStatus(row.status)}</div>
                   </div>
                 ))}
               </div>
-            </div>
+              <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#090d12] md:block">
+                <div className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <div>Month</div>
+                  <div>Output</div>
+                  <div>Input</div>
+                  <div>Liability</div>
+                  <div>Coverage</div>
+                  <div>Status</div>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {monthly.map((row) => (
+                    <div
+                      key={row.monthKey}
+                      className="grid min-w-[720px] grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-300"
+                    >
+                      <div className="font-semibold text-white">{row.monthLabel}</div>
+                      <div>{formatMoney(row.outputVatCents, currency)}</div>
+                      <div>{formatMoney(row.inputVatCents, currency)}</div>
+                      <div className="font-semibold text-amber-300">
+                        {formatMoney(row.estimatedLiabilityCents, currency)}
+                      </div>
+                      <div>{formatPercent(row.taxCoverageRate)}</div>
+                      <div>{formatVatStatus(row.status)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </AdminPanel>
 

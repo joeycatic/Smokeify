@@ -405,50 +405,107 @@ export default async function AdminProfitabilityPage({
         {rows.length === 0 ? (
           <AdminEmptyState copy="No profitability rows are available yet." />
         ) : (
-          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
-            <div className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              <div>Product</div>
-              <div>Category</div>
-              <div>Supplier</div>
-              <div>Storefronts</div>
-              <div>Revenue</div>
-              <div>Profit</div>
-              <div>CVR / Views</div>
-            </div>
-            <div className="divide-y divide-white/5">
+          <>
+            <div className="space-y-3 md:hidden">
               {rows.map((row) => (
                 <Link
                   key={row.productId}
                   href={`/admin/catalog/${row.productId}`}
-                  className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                  className="block rounded-[24px] border border-white/10 bg-[#090d12] px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
                 >
-                  <div>
-                    <div className="font-semibold text-white">{row.productTitle}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {row.purchases} purchases · {row.addToCart} carts
-                    </div>
+                  <div className="font-semibold text-white">{row.productTitle}</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {row.categoryName} · {row.supplierName}
                   </div>
-                  <div>{row.categoryName}</div>
-                  <div>{row.supplierName}</div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {row.storefronts.map((storefront) => (
-                      <StorefrontBadge key={`${row.productId}-table-${storefront}`} storefront={storefront} />
+                      <StorefrontBadge key={`${row.productId}-card-${storefront}`} storefront={storefront} />
                     ))}
                   </div>
-                  <div>{formatMoney(row.revenueCents, currency)}</div>
-                  <div className={row.marginCents >= 0 ? "text-cyan-300" : "text-amber-300"}>
-                    {formatMoney(row.marginCents, currency)}
-                  </div>
-                  <div>
-                    <div>{formatPercent(row.conversionRate)}</div>
-                    <div className="mt-1 text-xs text-slate-500">{row.views} views</div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <ProfitabilityMeta label="Revenue" value={formatMoney(row.revenueCents, currency)} />
+                    <ProfitabilityMeta
+                      label="Profit"
+                      value={formatMoney(row.marginCents, currency)}
+                      tone={row.marginCents >= 0 ? "positive" : "warning"}
+                    />
+                    <ProfitabilityMeta label="CVR" value={formatPercent(row.conversionRate)} />
+                    <ProfitabilityMeta label="Views" value={String(row.views)} />
                   </div>
                 </Link>
               ))}
             </div>
-          </div>
+            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#090d12] md:block">
+              <div className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div>Product</div>
+                <div>Category</div>
+                <div>Supplier</div>
+                <div>Storefronts</div>
+                <div>Revenue</div>
+                <div>Profit</div>
+                <div>CVR / Views</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {rows.map((row) => (
+                  <Link
+                    key={row.productId}
+                    href={`/admin/catalog/${row.productId}`}
+                    className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                  >
+                    <div>
+                      <div className="font-semibold text-white">{row.productTitle}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {row.purchases} purchases · {row.addToCart} carts
+                      </div>
+                    </div>
+                    <div>{row.categoryName}</div>
+                    <div>{row.supplierName}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {row.storefronts.map((storefront) => (
+                        <StorefrontBadge key={`${row.productId}-table-${storefront}`} storefront={storefront} />
+                      ))}
+                    </div>
+                    <div>{formatMoney(row.revenueCents, currency)}</div>
+                    <div className={row.marginCents >= 0 ? "text-cyan-300" : "text-amber-300"}>
+                      {formatMoney(row.marginCents, currency)}
+                    </div>
+                    <div>
+                      <div>{formatPercent(row.conversionRate)}</div>
+                      <div className="mt-1 text-xs text-slate-500">{row.views} views</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </AdminPanel>
+    </div>
+  );
+}
+
+function ProfitabilityMeta({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "positive" | "warning";
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "text-cyan-300"
+      : tone === "warning"
+        ? "text-amber-300"
+        : "text-white";
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className={`mt-2 text-sm font-semibold ${toneClass}`}>{value}</div>
     </div>
   );
 }

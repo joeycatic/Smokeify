@@ -322,6 +322,54 @@ function AppliedPriceChangeRow({ item }: { item: PricingChangeItem }) {
   );
 }
 
+function AppliedPriceChangeCard({ item }: { item: PricingChangeItem }) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
+      <div className="font-semibold text-white">{item.product.title}</div>
+      <div className="mt-1 text-xs text-slate-400">
+        {item.variant.title}
+        {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
+      </div>
+      <div className="mt-3">
+        <ReasonCodeList reasonCodes={item.reasonCodes} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <PricingMobileValue label="Old price" value={formatCurrency(item.oldPriceCents)} />
+        <PricingMobileValue label="New price" value={formatCurrency(item.newPriceCents)} tone="positive" />
+        <PricingMobileValue
+          label="Compare-at"
+          value={`${formatCurrency(item.oldCompareAtCents)} -> ${formatCurrency(item.newCompareAtCents)}`}
+        />
+        <PricingMobileValue label="Floor" value={formatCurrency(item.hardMinimumPriceCents)} />
+        <PricingMobileValue label="Source" value={item.source ?? "Unknown source"} />
+        <PricingMobileValue label="Changed" value={formatDateTime(item.createdAt)} />
+      </div>
+      <div className="mt-3 text-xs text-slate-500">{item.actor?.email ?? "System actor"}</div>
+    </div>
+  );
+}
+
+function PricingMobileValue({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "positive";
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className={`mt-2 text-sm font-semibold ${tone === "positive" ? "text-emerald-200" : "text-white"}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPricingClient({
   initialSnapshot,
   initialError,
@@ -869,20 +917,27 @@ export default function AdminPricingClient({
                 description="The last run either stayed in preview mode or queued everything for review."
               />
             ) : (
-              <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
-                <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  <div>Variant</div>
-                  <div>Old price</div>
-                  <div>New price</div>
-                  <div>Source / actor</div>
-                  <div>Changed</div>
-                </div>
-                <div className="divide-y divide-white/5">
+              <>
+                <div className="space-y-3 md:hidden">
                   {latestRunChanges.slice(0, 8).map((item) => (
-                    <AppliedPriceChangeRow key={item.id} item={item} />
+                    <AppliedPriceChangeCard key={item.id} item={item} />
                   ))}
                 </div>
-              </div>
+                <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
+                  <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <div>Variant</div>
+                    <div>Old price</div>
+                    <div>New price</div>
+                    <div>Source / actor</div>
+                    <div>Changed</div>
+                  </div>
+                  <div className="divide-y divide-white/5">
+                    {latestRunChanges.slice(0, 8).map((item) => (
+                      <AppliedPriceChangeRow key={item.id} item={item} />
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
 
@@ -974,50 +1029,40 @@ export default function AdminPricingClient({
             description="The latest preview did not produce review-required items."
           />
         ) : (
-          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
-            <div className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              <div>Variant</div>
-              <div>Current</div>
-              <div>Target</div>
-              <div>Confidence</div>
-              <div className="text-right">Actions</div>
-            </div>
-            <div className="divide-y divide-white/5">
+          <>
+            <div className="space-y-3 md:hidden">
               {reviewQueue.map((item) => (
                 <div
                   key={item.id}
-                  className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-slate-300"
+                  className="rounded-[22px] border border-white/10 bg-[#06090d] px-4 py-4 text-sm text-slate-300"
                 >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRecommendation(item)}
-                        className="text-left font-semibold text-white transition hover:text-cyan-200"
-                      >
-                        {item.product.title}
-                      </button>
-                      <RecommendationBadge
-                        label={item.status}
-                        className={getStatusBadgeClassName(item.status)}
-                      />
-                    </div>
-                    <div className="mt-1 text-xs text-slate-400">
-                      {item.variant.title}
-                      {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
-                    </div>
-                    <div className="mt-2 line-clamp-2 text-xs text-slate-400">
-                      {item.explanation ?? "No explanation returned."}
-                    </div>
-                  </div>
-                  <div>{formatCurrency(item.currentPriceCents)}</div>
-                  <div>{formatCurrency(item.publishablePriceCents)}</div>
-                  <div>{formatConfidence(item.confidenceScore)}</div>
-                  <div className="flex items-start justify-end gap-2">
-                    <AdminButton
-                      tone="secondary"
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
                       onClick={() => setSelectedRecommendation(item)}
+                      className="text-left font-semibold text-white transition hover:text-cyan-200"
                     >
+                      {item.product.title}
+                    </button>
+                    <RecommendationBadge
+                      label={item.status}
+                      className={getStatusBadgeClassName(item.status)}
+                    />
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {item.variant.title}
+                    {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
+                  </div>
+                  <div className="mt-2 line-clamp-3 text-xs text-slate-400">
+                    {item.explanation ?? "No explanation returned."}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <PricingMobileValue label="Current" value={formatCurrency(item.currentPriceCents)} />
+                    <PricingMobileValue label="Target" value={formatCurrency(item.publishablePriceCents)} />
+                    <PricingMobileValue label="Confidence" value={formatConfidence(item.confidenceScore)} />
+                  </div>
+                  <div className="mt-4 flex flex-col gap-2">
+                    <AdminButton tone="secondary" onClick={() => setSelectedRecommendation(item)}>
                       Inspect
                     </AdminButton>
                     <AdminButton
@@ -1037,7 +1082,71 @@ export default function AdminPricingClient({
                 </div>
               ))}
             </div>
-          </div>
+            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
+              <div className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div>Variant</div>
+                <div>Current</div>
+                <div>Target</div>
+                <div>Confidence</div>
+                <div className="text-right">Actions</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {reviewQueue.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-slate-300"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecommendation(item)}
+                          className="text-left font-semibold text-white transition hover:text-cyan-200"
+                        >
+                          {item.product.title}
+                        </button>
+                        <RecommendationBadge
+                          label={item.status}
+                          className={getStatusBadgeClassName(item.status)}
+                        />
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {item.variant.title}
+                        {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
+                      </div>
+                      <div className="mt-2 line-clamp-2 text-xs text-slate-400">
+                        {item.explanation ?? "No explanation returned."}
+                      </div>
+                    </div>
+                    <div>{formatCurrency(item.currentPriceCents)}</div>
+                    <div>{formatCurrency(item.publishablePriceCents)}</div>
+                    <div>{formatConfidence(item.confidenceScore)}</div>
+                    <div className="flex items-start justify-end gap-2">
+                      <AdminButton
+                        tone="secondary"
+                        onClick={() => setSelectedRecommendation(item)}
+                      >
+                        Inspect
+                      </AdminButton>
+                      <AdminButton
+                        onClick={() => reviewRecommendation(item.id, "approve")}
+                        disabled={pendingReviewId === item.id}
+                      >
+                        {pendingReviewId === item.id ? "Saving..." : "Approve"}
+                      </AdminButton>
+                      <AdminButton
+                        tone="danger"
+                        onClick={() => reviewRecommendation(item.id, "reject")}
+                        disabled={pendingReviewId === item.id}
+                      >
+                        Reject
+                      </AdminButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </AdminPanel>
 
@@ -1052,20 +1161,27 @@ export default function AdminPricingClient({
             description="Apply runs populate this audit table once the pricing engine writes price changes."
           />
         ) : (
-          <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#06090d]">
-            <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              <div>Variant</div>
-              <div>Old price</div>
-              <div>New price</div>
-              <div>Source / actor</div>
-              <div>Changed</div>
-            </div>
-            <div className="divide-y divide-white/5">
+          <>
+            <div className="space-y-3 md:hidden">
               {recentChanges.map((item) => (
-                <AppliedPriceChangeRow key={item.id} item={item} />
+                <AppliedPriceChangeCard key={item.id} item={item} />
               ))}
             </div>
-          </div>
+            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
+              <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div>Variant</div>
+                <div>Old price</div>
+                <div>New price</div>
+                <div>Source / actor</div>
+                <div>Changed</div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {recentChanges.map((item) => (
+                  <AppliedPriceChangeRow key={item.id} item={item} />
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </AdminPanel>
 
