@@ -507,6 +507,32 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+.admin-mobile-card-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-mobile-card {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.admin-mobile-card-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.admin-mobile-card-value {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  color: rgb(226 232 240);
+}
+
 .admin-reveal {
   animation: admin-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -569,6 +595,15 @@ body {
 
   .admin-shell :is(table) {
     min-width: 640px;
+  }
+
+  .admin-shell .admin-panel-actions > * {
+    width: 100%;
+  }
+
+  .admin-shell .admin-panel-actions > .w-auto,
+  .admin-shell .admin-panel-actions > [class*="sm:w-auto"] {
+    width: 100%;
   }
 
   .admin-header-controls {

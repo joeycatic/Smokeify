@@ -164,12 +164,14 @@ export function SparklineChart({
           {boundedActiveIndex + 1} / {data.length}
         </div>
       </div>
-      <div className="mt-2 grid grid-cols-7 gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-        {data.slice(-7).map((point) => (
-          <span key={point.label} className="truncate text-center">
-            {point.label}
-          </span>
-        ))}
+      <div className="admin-scroll-x mt-2">
+        <div className="grid min-w-[22rem] grid-cols-7 gap-2 text-[9px] uppercase tracking-[0.14em] text-slate-500 sm:min-w-0 sm:text-[10px] sm:tracking-[0.2em]">
+          {data.slice(-7).map((point) => (
+            <span key={point.label} className="truncate text-center">
+              {point.label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -539,12 +541,14 @@ export function MultiSeriesTrendChart({
           );
         })}
       </svg>
-      <div className="grid grid-cols-7 gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-        {labels.slice(-7).map((label) => (
-          <span key={label} className="truncate text-center">
-            {label}
-          </span>
-        ))}
+      <div className="admin-scroll-x">
+        <div className="grid min-w-[22rem] grid-cols-7 gap-2 text-[9px] uppercase tracking-[0.14em] text-slate-500 sm:min-w-0 sm:text-[10px] sm:tracking-[0.2em]">
+          {labels.slice(-7).map((label) => (
+            <span key={label} className="truncate text-center">
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {validSeries.map((entry) => {

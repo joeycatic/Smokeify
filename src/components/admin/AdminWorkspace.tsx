@@ -31,7 +31,11 @@ export function AdminPageIntro({
           <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 max-w-3xl text-sm text-slate-400">{description}</p>
         </div>
-        {actions ? <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">{actions}</div> : null}
+        {actions ? (
+          <div className="admin-panel-actions flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            {actions}
+          </div>
+        ) : null}
       </div>
       {metrics ? <div className="mt-6">{metrics}</div> : null}
     </section>
@@ -67,7 +71,11 @@ export function AdminPanel({
           <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
           {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
         </div>
-        {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
+        {actions ? (
+          <div className="admin-panel-actions flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            {actions}
+          </div>
+        ) : null}
       </div>
       {children}
     </section>
@@ -179,7 +187,7 @@ export function AdminButton({
   return (
     <button
       {...props}
-      className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClass} ${className}`}
+      className={`inline-flex h-10 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${toneClass} ${className}`}
     >
       {children}
     </button>
@@ -226,7 +234,7 @@ export function AdminDialog({
         onClick={onClose}
         aria-label="Close dialog"
       />
-      <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
+      <div className="relative max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-[28px] sm:p-6">
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
         <div className="mt-5">{children}</div>
@@ -262,7 +270,7 @@ export function AdminDrawer({
         aria-label="Close drawer"
       />
       <div
-        className={`filter-drawer-in relative h-[min(100dvh,48rem)] w-full ${widthClassName} max-w-full overflow-y-auto rounded-t-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
+        className={`filter-drawer-in relative max-h-[calc(100dvh-0.5rem)] w-full ${widthClassName} max-w-full overflow-y-auto rounded-t-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:max-h-none sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
       >
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">

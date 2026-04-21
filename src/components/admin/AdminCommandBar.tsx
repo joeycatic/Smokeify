@@ -27,17 +27,11 @@ type FlattenedCommand = CommandNavItem & {
 type AdminCommandBarProps = {
   groups: CommandNavGroup[];
   pathname: string;
-  currentLanguage: "de" | "en";
   currentStorefrontScope: AdminStorefrontScope;
 };
 
-function buildHref(
-  href: string,
-  currentLanguage: "de" | "en",
-  currentStorefrontScope: AdminStorefrontScope,
-) {
+function buildHref(href: string, currentStorefrontScope: AdminStorefrontScope) {
   const params = new URLSearchParams();
-  params.set("lang", currentLanguage);
   params.set("storefront", currentStorefrontScope);
   const query = params.toString();
   return query ? `${href}?${query}` : href;
@@ -51,7 +45,6 @@ function isCurrentPath(pathname: string, item: CommandNavItem) {
 export default function AdminCommandBar({
   groups,
   pathname,
-  currentLanguage,
   currentStorefrontScope,
 }: AdminCommandBarProps) {
   const router = useRouter();
@@ -66,11 +59,11 @@ export default function AdminCommandBar({
         group.items.map((item) => ({
           ...item,
           group: group.label,
-          hrefWithState: buildHref(item.href, currentLanguage, currentStorefrontScope),
+          hrefWithState: buildHref(item.href, currentStorefrontScope),
           searchValue: `${item.label} ${group.label} ${item.href.replaceAll("/", " ")}`.toLowerCase(),
         })),
       ),
-    [currentLanguage, currentStorefrontScope, groups],
+    [currentStorefrontScope, groups],
   );
 
   const filteredCommands = useMemo(() => {
@@ -155,10 +148,11 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white lg:hidden"
+        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white lg:hidden"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
+        <span className="hidden min-[360px]:inline">Search</span>
       </button>
 
       {open ? (
@@ -174,7 +168,7 @@ export default function AdminCommandBar({
             role="dialog"
             aria-modal="true"
             aria-label="Admin command bar"
-            className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px]"
+            className="relative z-10 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]"
           >
             <div className="flex min-w-0 items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4 sm:py-4">
               <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-slate-500" />
