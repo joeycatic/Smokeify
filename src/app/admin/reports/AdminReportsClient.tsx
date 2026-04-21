@@ -323,7 +323,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
             </AdminSelect>
           </AdminField>
           <AdminField label="Save Preset">
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <AdminInput
                 value={saveName}
                 onChange={(event) => setSaveName(event.target.value)}
@@ -352,7 +352,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
               initialSnapshot.savedReports.map((report) => (
                 <div
                   key={report.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <div className="text-sm font-semibold text-white">{report.name}</div>
@@ -364,7 +364,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                       {report.deliveryEmail ? ` · ${report.deliveryEmail}` : ""}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Link
                       href={buildAdminSearchHref("/admin/reports", {
                         lang: currentLanguage,

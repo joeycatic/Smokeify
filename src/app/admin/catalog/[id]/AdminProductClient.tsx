@@ -1802,7 +1802,7 @@ export default function AdminProductClient({
         </div>
       ) : null}
 
-      <div className="sticky top-[5.25rem] z-20 rounded-[20px] border border-white/10 bg-[#05070a]/88 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur sm:top-20 sm:rounded-[24px] sm:p-3">
+      <div className="sticky top-[4.75rem] z-20 rounded-[20px] border border-white/10 bg-[#05070a]/88 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur sm:top-20 sm:rounded-[24px] sm:p-3">
         <div className="admin-scroll-x flex items-center gap-2 sm:flex-wrap">
           {PRODUCT_EDITOR_SECTIONS.map((section) => (
             <button
@@ -3830,7 +3830,7 @@ export default function AdminProductClient({
                 type="button"
                 onClick={discardLocalDraft}
                 disabled={!hasUnsavedChanges}
-                className="rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-400"
+                className="w-full rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-400 sm:w-auto"
               >
                 Discard local draft
               </button>
@@ -3838,14 +3838,14 @@ export default function AdminProductClient({
                 type="button"
                 onClick={saveAllChanges}
                 disabled={!hasUnsavedChanges || savingAllChanges}
-                className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                className="w-full rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:w-auto"
               >
                 {savingAllChanges ? "Saving..." : "Save all changes"}
               </button>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200"
+                className="w-full rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200 sm:w-auto"
               >
                 Reload latest
               </button>

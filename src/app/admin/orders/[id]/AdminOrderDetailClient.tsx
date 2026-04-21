@@ -902,7 +902,7 @@ function OrderTabBar({
   };
 
   return (
-    <div className="sticky top-[5.25rem] z-20 sm:top-24">
+    <div className="sticky top-[4.75rem] z-20 sm:top-24">
       <div className="rounded-[22px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur sm:rounded-[28px]">
         <div className="admin-scroll-x flex gap-1 sm:grid sm:grid-cols-5" role="tablist" aria-label="Order workspace sections">
           {ORDER_TABS.map((tab, index) => {
@@ -917,7 +917,7 @@ function OrderTabBar({
                 ref={(node) => {
                   tabButtonRefs.current[index] = node;
                 }}
-                className="group relative min-w-[8.5rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
+                className="group relative min-w-[7.75rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
                 id={getOrderTabButtonId(tab.id)}
                 role="tab"
                 aria-selected={active}
@@ -1118,11 +1118,11 @@ function FulfillmentTab({
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-xl text-sm text-slate-300">
               Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Unsaved fulfillment draft</span> : null}
               <button type="button" onClick={() => void saveOrder()} disabled={!canUpdateFulfillment || !fulfillmentDirty || saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
             </div>
@@ -1183,7 +1183,7 @@ function RefundsTab({
     <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Stripe refund confirmation step.</p>
-        <div className="grid min-w-[280px] gap-3 sm:grid-cols-2">
+        <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2">
           <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
           <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
         </div>
@@ -1226,9 +1226,9 @@ function RefundsTab({
           );
         })}
       </div>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
+      <div className="mt-5 flex flex-col gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} disabled={!canProcessRefund} />Include shipping in refund preview</label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
           <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
         </div>
