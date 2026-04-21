@@ -7,6 +7,8 @@ import {
   normalizePlantAnalysisReviewStatus,
   type PlantAnalysisSafetyFlag,
 } from "@/lib/adminPlantAnalysis";
+import { mergePlantAnalyzerStoredOutput } from "@/lib/plantAnalyzerOutput";
+import type { PlantAnalyzerReviewedCase } from "@/lib/plantAnalyzerTypes";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
@@ -105,11 +107,32 @@ export async function PATCH(
     reviewStatus?: string;
     safetyFlags?: string[];
     reviewNotes?: string | null;
+    overrideDiagnosis?: {
+      species?: string;
+      confidence?: number;
+      healthStatus?: "healthy" | "warning" | "critical";
+      recommendations?: string[];
+    } | null;
+    overrideProductSuggestions?: Array<{
+      id: string;
+      title: string;
+      handle: string;
+      imageUrl: string | null;
+      imageAlt: string;
+      price: { amount: string; currencyCode: "EUR" } | null;
+      reason: string;
+    }> | null;
   };
 
   const existing = await prisma.plantAnalysisRun.findUnique({
     where: { id },
-    select: { id: true, reviewStatus: true, safetyFlags: true, reviewNotes: true },
+    select: {
+      id: true,
+      reviewStatus: true,
+      safetyFlags: true,
+      reviewNotes: true,
+      outputJson: true,
+    },
   });
   if (!existing) {
     return NextResponse.json({ error: "Analysis not found." }, { status: 404 });
@@ -139,7 +162,73 @@ export async function PATCH(
       ? existing.reviewNotes
       : body.reviewNotes?.trim() || null;
 
+  const nextOverrideDiagnosis =
+    body.overrideDiagnosis && typeof body.overrideDiagnosis === "object"
+      ? {
+          ...(body.overrideDiagnosis.species ? { species: body.overrideDiagnosis.species } : {}),
+          ...(typeof body.overrideDiagnosis.confidence === "number"
+            ? { confidence: body.overrideDiagnosis.confidence }
+            : {}),
+          ...(body.overrideDiagnosis.healthStatus
+            ? { healthStatus: body.overrideDiagnosis.healthStatus }
+            : {}),
+          ...(Array.isArray(body.overrideDiagnosis.recommendations)
+            ? {
+                recommendations: body.overrideDiagnosis.recommendations
+                  .map((entry) => entry.trim())
+                  .filter(Boolean)
+                  .slice(0, 6),
+              }
+            : {}),
+        }
+      : null;
+
+  const nextOverrideProductSuggestions = Array.isArray(body.overrideProductSuggestions)
+    ? body.overrideProductSuggestions
+        .filter(
+          (entry) =>
+            entry &&
+            typeof entry.id === "string" &&
+            typeof entry.title === "string" &&
+            typeof entry.handle === "string" &&
+            typeof entry.imageAlt === "string" &&
+            typeof entry.reason === "string",
+        )
+        .slice(0, 6)
+    : null;
+
   const updated = await prisma.$transaction(async (tx) => {
+    const queueStatus: PlantAnalyzerReviewedCase["queueStatus"] =
+      nextStatus === "REVIEWED_OK"
+        ? "resolved"
+        : nextStatus === "NEEDS_PROMPT_FIX" ||
+            nextStatus === "NEEDS_RECOMMENDATION_FIX"
+          ? "rerun_requested"
+          : nextStatus === "PRIVACY_REVIEW" ||
+              nextStatus === "REVIEWED_UNSAFE" ||
+              nextStatus === "REVIEWED_INCORRECT"
+            ? "in_review"
+            : "new";
+
+    const reviewedCase: PlantAnalyzerReviewedCase = {
+      reviewStatus: nextStatus,
+      queueStatus,
+      reviewedAt: new Date().toISOString(),
+      reviewNotes: nextNotes,
+      qualityLabels: nextSafetyFlags,
+      override:
+        nextOverrideDiagnosis || nextOverrideProductSuggestions
+          ? {
+              ...(nextOverrideDiagnosis
+                ? { diagnosis: nextOverrideDiagnosis }
+                : {}),
+              ...(nextOverrideProductSuggestions
+                ? { productSuggestions: nextOverrideProductSuggestions }
+                : {}),
+              resolutionNote: nextNotes,
+            }
+          : null,
+    };
     const run = await tx.plantAnalysisRun.update({
       where: { id },
       data: {
@@ -148,6 +237,9 @@ export async function PATCH(
         reviewNotes: nextNotes,
         reviewedAt: new Date(),
         reviewedById: session.user.id,
+        outputJson: mergePlantAnalyzerStoredOutput(existing.outputJson, {
+          reviewedCase,
+        }),
       },
     });
     await tx.plantAnalysisReviewEvent.create({

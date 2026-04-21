@@ -17,6 +17,10 @@ import {
   getAdminAlertsQueueData,
   syncAdminAlerts,
 } from "@/lib/adminAlerts";
+import {
+  buildGrowvaultDiagnosticAlerts,
+  getGrowvaultSharedDiagnosticsFeed,
+} from "@/lib/growvaultSharedStorefront";
 import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
 import {
   getFunnelSnapshot,
@@ -802,6 +806,9 @@ export async function getAlertsPageData() {
           ]),
         }
       : null,
+    ...buildGrowvaultDiagnosticAlerts(
+      (await getGrowvaultSharedDiagnosticsFeed()).statuses,
+    ),
   ].filter(Boolean) as Array<{
     type: string;
     title: string;

@@ -40,6 +40,21 @@ export type PlantAnalyzerDiagnosis = {
   recommendations: string[];
 };
 
+export type PlantAnalyzerReviewOverride = {
+  diagnosis?: Partial<PlantAnalyzerDiagnosis> | null;
+  productSuggestions?: PlantAnalyzerProductSuggestion[];
+  resolutionNote?: string | null;
+};
+
+export type PlantAnalyzerReviewedCase = {
+  reviewStatus: string;
+  queueStatus: "new" | "in_review" | "rerun_requested" | "resolved" | "dismissed";
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  qualityLabels: string[];
+  override?: PlantAnalyzerReviewOverride | null;
+};
+
 export type PlantAnalyzerStoredOutput = {
   species?: string;
   confidence?: number;
@@ -57,4 +72,5 @@ export type PlantAnalyzerStoredOutput = {
   productSuggestions?: PlantAnalyzerProductSuggestion[];
   guideSuggestions?: PlantAnalyzerGuideSuggestion[];
   usedFallback?: boolean;
+  reviewedCase?: PlantAnalyzerReviewedCase;
 };

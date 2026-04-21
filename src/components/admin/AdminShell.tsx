@@ -10,6 +10,7 @@ import {
   BellAlertIcon,
   BanknotesIcon,
   CalculatorIcon,
+  BeakerIcon,
   ChartBarSquareIcon,
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
@@ -145,6 +146,16 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/recommendations",
         label: "Recommendations",
         icon: RectangleGroupIcon,
+      },
+      {
+        href: "/admin/growvault",
+        label: "Growvault",
+        icon: HomeIcon,
+      },
+      {
+        href: "/admin/analyzer",
+        label: "Analyzer",
+        icon: BeakerIcon,
       },
       {
         href: "/admin/scripts",
