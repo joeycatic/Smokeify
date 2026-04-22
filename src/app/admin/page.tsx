@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
 import {
   DonutChart,
   SparklineChart,
@@ -13,7 +12,6 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminInsightPrimitives";
-import { authOptions } from "@/lib/auth";
 import { getFinancePageData, getVatPageData } from "@/lib/adminAddonData";
 import {
   getActiveSessionSnapshot,
@@ -29,6 +27,7 @@ import {
   getAdminTimeWindowStart,
   parseAdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
@@ -425,8 +424,7 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
   const resolvedSearchParams = await searchParams;
   const language = resolveAdminLanguage(resolvedSearchParams?.lang);
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
@@ -724,32 +722,33 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.18),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
+        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <div className="max-w-3xl min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
               {copy.hero.eyebrow}
             </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">{copy.hero.title}</h1>
+            <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{copy.hero.title}</h1>
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
               {copy.hero.description}
             </p>
           </div>
-          <div className="flex max-w-sm flex-col items-start gap-3">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-3 backdrop-blur sm:p-4 lg:max-w-sm lg:justify-self-end">
             <AdminTimeRangeTabs
               pathname="/admin"
               activeDays={days}
               extraParams={{ lang: language }}
+              className="sm:flex-nowrap lg:flex-wrap"
             />
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-slate-100">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-semibold sm:grid-cols-3 lg:grid-cols-1">
+              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-center text-slate-100">
                 {copy.hero.liveVisitors(liveSnapshot.activeVisitorCount)}
               </span>
-              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-center text-cyan-200">
                 {copy.hero.keyActions(primaryAction.length)}
               </span>
-              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-200">
+              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-center text-amber-200">
                 {copy.hero.vatBadge(
                   formatVatStatus(vatData.current?.status ?? "estimated", language),
                 )}
