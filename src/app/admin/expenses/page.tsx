@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { getExpensesPageData } from "@/lib/adminAddonData";
 import AdminExpensesClient from "./AdminExpensesClient";
 
 export default async function AdminExpensesPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+  if (!(await requireAdmin())) notFound();
 
   const data = await getExpensesPageData(120);
 
@@ -32,11 +29,24 @@ export default async function AdminExpensesPage() {
           title: expense.title,
           category: expense.category,
           notes: expense.notes,
+          invoiceIssuerName: expense.invoiceIssuerName,
+          invoiceNumber: expense.invoiceNumber,
+          invoiceDescription: expense.invoiceDescription,
+          supplierCountry: expense.supplierCountry,
+          reverseChargeReference: expense.reverseChargeReference,
+          isSmallBusinessSupplier: expense.isSmallBusinessSupplier,
           currency: expense.currency,
           grossAmount: expense.grossAmount,
           netAmount: expense.netAmount,
           vatAmount: expense.vatAmount,
           vatRateBasisPoints: expense.vatRateBasisPoints,
+          taxRegime: expense.taxRegime,
+          germanVatRate: expense.germanVatRate,
+          taxClassification: expense.taxClassification,
+          invoiceValidationStatus: expense.invoiceValidationStatus,
+          inputVatEligibility: expense.inputVatEligibility,
+          taxReviewStatus: expense.taxReviewStatus,
+          manualReviewReason: expense.manualReviewReason,
           isDeductible: expense.isDeductible,
           documentDate: expense.documentDate.toISOString(),
           paidAt: expense.paidAt ? expense.paidAt.toISOString() : null,

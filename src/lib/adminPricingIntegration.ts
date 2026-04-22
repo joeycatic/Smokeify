@@ -48,6 +48,7 @@ export type PricingOverviewRun = {
 export type PricingRecommendationItem = {
   id: string;
   status: PricingRecommendationStatus;
+  reviewNote: string | null;
   confidenceScore: number | null;
   reviewRequired: boolean;
   reasonCodes: string[];
@@ -326,6 +327,7 @@ const normalizeRecommendationItem = (
   return {
     id,
     status: normalizeStatus(record.status),
+    reviewNote: asNullableString(record.reviewNote),
     confidenceScore: asNumber(record.confidenceScore),
     reviewRequired: asBoolean(record.reviewRequired) ?? false,
     reasonCodes: asStringArray(record.reasonCodes),

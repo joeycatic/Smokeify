@@ -199,6 +199,75 @@ enum AdminReportDeliveryFrequency {
   WEEKLY
 }
 
+enum TaxRegime {
+  NORMAL
+  KLEINUNTERNEHMER
+  MANUAL_REVIEW
+}
+
+enum GermanVatRate {
+  VAT_19
+  VAT_7
+  VAT_0
+  EXEMPT
+  REVERSE_CHARGE
+  UNKNOWN
+}
+
+enum TaxClassification {
+  DOMESTIC_STANDARD
+  DOMESTIC_REDUCED
+  DOMESTIC_ZERO
+  EXEMPT
+  KLEINUNTERNEHMER
+  REVERSE_CHARGE
+  INTRA_EU_MANUAL
+  EXPORT_MANUAL
+  UNKNOWN
+}
+
+enum InvoiceValidationStatus {
+  ENTWURF
+  PRUEFUNG_ERFORDERLICH
+  VOLLSTAENDIG
+}
+
+enum InputVatEligibility {
+  VORSTEUERFAEHIG
+  NICHT_VORSTEUERFAEHIG
+  TEILWEISE_VORSTEUERFAEHIG
+  MANUELLE_PRUEFUNG
+}
+
+enum TaxReviewStatus {
+  ENTWURF
+  PRUEFUNG_ERFORDERLICH
+  BEREIT_ZUR_UEBERGABE
+  GESPERRT
+}
+
+enum AdminCustomerCohortStatus {
+  ENTWURF
+  AKTIV
+  IN_BEARBEITUNG
+  ABGESCHLOSSEN
+}
+
+enum AdminCustomerTaskStatus {
+  OFFEN
+  IN_BEARBEITUNG
+  WIEDERVORLAGE
+  ERLEDIGT
+}
+
+enum AdminCustomerTaskPlaybook {
+  RUECKGEWINNUNG
+  VIP_BETREUUNG
+  RETOUREN_RISIKO
+  MARGE_SCHUETZEN
+  MANUELL
+}
+
 model User {
   id             String         @id @default(cuid())
   name           String?        @unique
@@ -256,6 +325,9 @@ model User {
   pricingChangeAudits PricingChangeAudit[] @relation("PricingChangeActor")
   productsComplianceReviewed Product[] @relation("ProductComplianceReviewedBy")
   productComplianceEvents ProductComplianceEvent[] @relation("ProductComplianceEventActor")
+  crmOwnedTasks AdminCustomerTask[] @relation("AdminCustomerTaskOwner")
+  crmCreatedTasks AdminCustomerTask[] @relation("AdminCustomerTaskCreatedBy")
+  crmCustomerTasks AdminCustomerTask[] @relation("AdminCustomerTaskCustomer")
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -387,6 +459,8 @@ model Supplier {
   email       String?
   phone       String?
   website     String?
+  country     String?
+  vatId       String?
   notes       String?
   leadTimeDays Int?
   createdAt   DateTime @default(now())
@@ -402,11 +476,24 @@ model Expense {
   title              String
   category           ExpenseCategory       @default(OTHER)
   notes              String?
+  invoiceIssuerName  String?
+  invoiceNumber      String?
+  invoiceDescription String?
+  supplierCountry    String?
+  reverseChargeReference String?
+  isSmallBusinessSupplier Boolean          @default(false)
   currency           String                @default("EUR")
   grossAmount        Int
   netAmount          Int
   vatAmount          Int                   @default(0)
   vatRateBasisPoints Int?
+  taxRegime          TaxRegime             @default(NORMAL)
+  germanVatRate      GermanVatRate         @default(UNKNOWN)
+  taxClassification  TaxClassification     @default(UNKNOWN)
+  invoiceValidationStatus InvoiceValidationStatus @default(ENTWURF)
+  inputVatEligibility InputVatEligibility  @default(MANUELLE_PRUEFUNG)
+  taxReviewStatus    TaxReviewStatus       @default(ENTWURF)
+  manualReviewReason String?
   isDeductible       Boolean               @default(true)
   documentDate       DateTime
   paidAt             DateTime?
@@ -421,6 +508,9 @@ model Expense {
   @@index([paidAt])
   @@index([category, documentDate])
   @@index([documentStatus, documentDate])
+  @@index([taxReviewStatus, documentDate])
+  @@index([invoiceValidationStatus, documentDate])
+  @@index([inputVatEligibility, documentDate])
 }
 
 model RecurringExpense {
@@ -497,6 +587,10 @@ model Product {
   complianceFeedEligible Boolean @default(false)
   complianceAdsEligible Boolean @default(false)
   complianceManualBlockers String[] @default([])
+  taxRegime   TaxRegime      @default(NORMAL)
+  germanVatRate GermanVatRate @default(UNKNOWN)
+  taxClassification TaxClassification @default(UNKNOWN)
+  taxReviewStatus TaxReviewStatus @default(ENTWURF)
   status      ProductStatus  @default(DRAFT)
   bestsellerScore Float?     // computed weekly by script
   conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
@@ -717,6 +811,11 @@ model Order {
   shippingEmailSentAt  DateTime?
   refundEmailSentAt    DateTime?
   refundRequestEmailSentAt DateTime?
+  taxRegime            TaxRegime    @default(NORMAL)
+  germanVatRate        GermanVatRate @default(UNKNOWN)
+  taxClassification    TaxClassification @default(UNKNOWN)
+  taxReviewStatus      TaxReviewStatus   @default(ENTWURF)
+  taxSnapshot          Json?
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -1013,6 +1112,9 @@ model AdminCustomerCohort {
   description    String?
   filters        Json
   customerCount  Int      @default(0)
+  status         AdminCustomerCohortStatus @default(ENTWURF)
+  assigneeUserId String?
+  assigneeEmail  String?
   createdById    String?
   createdByEmail String?
   createdAt      DateTime @default(now())
@@ -1020,6 +1122,32 @@ model AdminCustomerCohort {
 
   @@index([createdAt])
   @@index([updatedAt])
+  @@index([status, updatedAt])
+}
+
+model AdminCustomerTask {
+  id             String                    @id @default(cuid())
+  customerId     String
+  ownerId        String?
+  createdById    String?
+  sourceCohortId String?
+  status         AdminCustomerTaskStatus   @default(OFFEN)
+  playbook       AdminCustomerTaskPlaybook @default(MANUELL)
+  title          String
+  description    String?
+  dueAt          DateTime?
+  snoozedUntil   DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  customer  User                @relation("AdminCustomerTaskCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  owner     User?               @relation("AdminCustomerTaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy User?               @relation("AdminCustomerTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([customerId, status, updatedAt])
+  @@index([ownerId, status, dueAt])
+  @@index([sourceCohortId])
 }
 
 model AnalyticsSession {
@@ -1159,6 +1287,7 @@ model PricingRecommendation {
   priceDeltaBasisPoints       Int                         @default(0)
   inputSnapshot               Json
   outputSnapshot              Json?
+  reviewNote                  String?
   createdAt                   DateTime                    @default(now())
   reviewedAt                  DateTime?
   appliedAt                   DateTime?

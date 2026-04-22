@@ -5,7 +5,7 @@ import { hasAdminAccess } from "@/lib/adminAccess";
 export const PRODUCT_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
-export async function requireAdmin() {
+export async function requireFreshAdmin() {
   const session = await getServerSession(authOptions);
   if (
     !session?.user?.id ||
@@ -20,19 +20,20 @@ export async function requireAdmin() {
   return session;
 }
 
-export async function requireAdminOnly() {
-  const session = await getServerSession(authOptions);
-  if (
-    !session?.user?.id ||
-    !hasAdminAccess({
-      role: session.user.role,
-      adminVerifiedAt: session.user.adminVerifiedAt,
-      adminAccessDisabledAt: session.user.adminAccessDisabledAt,
-    })
-  ) {
-    return null;
+export async function assertFreshAdmin() {
+  const session = await requireFreshAdmin();
+  if (!session) {
+    throw new Error("Unauthorized");
   }
   return session;
+}
+
+export async function requireAdmin() {
+  return requireFreshAdmin();
+}
+
+export async function requireAdminOnly() {
+  return requireFreshAdmin();
 }
 
 export function slugify(value: string) {

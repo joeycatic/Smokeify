@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { type Storefront } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
 import {
   AdminTimeRangeTabs,
   AdminEmptyState,
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminInsightPrimitives";
-import { authOptions } from "@/lib/auth";
 import { getProfitabilityPageData } from "@/lib/adminAddonData";
+import { requireAdmin } from "@/lib/adminCatalog";
 import {
   getAdminTimeRangeOption,
   parseAdminTimeRangeDays,
@@ -173,8 +172,7 @@ export default async function AdminProfitabilityPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);

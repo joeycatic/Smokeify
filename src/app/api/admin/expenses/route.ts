@@ -6,6 +6,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { getExpensesPageData } from "@/lib/adminAddonData";
 import { parseExpensePayload, serializeExpenseRecord, serializeRecurringExpenseRecord } from "@/lib/adminExpenseApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
@@ -15,6 +16,9 @@ export async function GET(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "tax.review")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const url = new URL(request.url);
@@ -61,6 +65,9 @@ export async function POST(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "tax.review")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const parsed = parseExpensePayload(await request.json());

@@ -572,6 +572,7 @@ export async function approvePricingRecommendation(
   recommendationId: string,
   actor: AdminActor,
   customPriceCents?: number | null,
+  reviewNote?: string | null,
   prismaClient?: PrismaClient
 ) {
   const db = prismaClient ?? prisma;
@@ -661,6 +662,7 @@ export async function approvePricingRecommendation(
       data: {
         status: "APPLIED",
         reviewedById: actor.id ?? null,
+        reviewNote: reviewNote?.trim() || null,
         reviewedAt: new Date(),
         appliedAt: new Date(),
         priceChange: { connect: { id: changeAudit.id } },
@@ -682,6 +684,7 @@ export async function approvePricingRecommendation(
       recommendedPublishablePriceCents: recommendation.publishablePriceCents,
       manualOverrideApplied:
         appliedPriceCents !== recommendation.publishablePriceCents,
+      reviewNote: reviewNote?.trim() || null,
     } as Prisma.InputJsonValue,
   });
 }
@@ -689,6 +692,7 @@ export async function approvePricingRecommendation(
 export async function rejectPricingRecommendation(
   recommendationId: string,
   actor: AdminActor,
+  reviewNote?: string | null,
   prismaClient?: PrismaClient
 ) {
   const db = prismaClient ?? prisma;
@@ -709,6 +713,7 @@ export async function rejectPricingRecommendation(
     data: {
       status: "REJECTED",
       reviewedById: actor.id ?? null,
+      reviewNote: reviewNote?.trim() || null,
       reviewedAt: new Date(),
     },
   });
@@ -719,5 +724,8 @@ export async function rejectPricingRecommendation(
     targetType: "pricing_recommendation",
     targetId: recommendationId,
     summary: `Rejected pricing recommendation for variant ${recommendation.variantId}`,
+    metadata: {
+      reviewNote: reviewNote?.trim() || null,
+    } as Prisma.InputJsonValue,
   });
 }

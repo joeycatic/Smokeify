@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { parseExpensePayload, serializeExpenseRecord } from "@/lib/adminExpenseApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
@@ -33,6 +34,9 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "tax.review")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await context.params;

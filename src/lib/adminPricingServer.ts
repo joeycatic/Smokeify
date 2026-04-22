@@ -342,16 +342,22 @@ export async function reviewAdminPricingRecommendation(
   options: {
     actor?: AdminActor | null;
     customPriceCents?: number | null;
+    reviewNote?: string | null;
   } = {}
 ): Promise<{ ok: true; status: PricingRecommendationStatus }> {
   const actor = requireActor(options.actor);
 
   if (action === "reject") {
-    await rejectPricingRecommendation(recommendationId, actor);
+    await rejectPricingRecommendation(recommendationId, actor, options.reviewNote);
     return { ok: true, status: "REJECTED" };
   }
 
-  await approvePricingRecommendation(recommendationId, actor, options.customPriceCents);
+  await approvePricingRecommendation(
+    recommendationId,
+    actor,
+    options.customPriceCents,
+    options.reviewNote,
+  );
   return { ok: true, status: "APPLIED" };
 }
 

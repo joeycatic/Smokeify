@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
 import {
   AdminCompactMetric,
   AdminEmptyState,
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminInsightPrimitives";
-import { authOptions } from "@/lib/auth";
 import { getVatPageData } from "@/lib/adminAddonData";
+import { requireAdmin } from "@/lib/adminCatalog";
 
 const formatMoney = (amountCents: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
@@ -20,9 +19,9 @@ const formatMoney = (amountCents: number, currency = "EUR") =>
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 const formatVatStatus = (value: "estimated" | "review_required" | "ready_for_handover") => {
-  if (value === "ready_for_handover") return "Ready for handover";
-  if (value === "review_required") return "Review required";
-  return "Estimated";
+  if (value === "ready_for_handover") return "Bereit zur Übergabe";
+  if (value === "review_required") return "Prüfung erforderlich";
+  return "Geschätzt";
 };
 
 function VatMobileValue({
@@ -47,10 +46,9 @@ function VatMobileValue({
 }
 
 export default async function AdminVatPage() {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
 
-  const { current, monthly, deadline, expenseMigrationRequired } = await getVatPageData(6);
+  const { current, monthly, ustva, deadline, expenseMigrationRequired } = await getVatPageData(6);
   const currency = "EUR";
   const currentMonthKey = new Date().toISOString().slice(0, 7);
 
@@ -61,14 +59,15 @@ export default async function AdminVatPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-200/70">
-              Control Layer / VAT
+              Control Layer / Umsatzsteuer
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
-              Cash-based VAT tracking for monthly review and handover
+              Umsatzsteuer-Monitor für monatliche Prüfung und Übergabe
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              Management-grade VAT visibility for regular VAT taxation with input tax deduction
-              and monthly reporting. This page supports review and completeness, not filing.
+              Operative Sicht auf Umsatzsteuer, Vorsteuer und Vollständigkeit für die monatliche
+              Übergabe. Diese Seite unterstützt Prüfung und Buchhaltungsvorbereitung, nicht die
+              Abgabe.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
@@ -76,31 +75,45 @@ export default async function AdminVatPage() {
               href="/admin/finance"
               className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
             >
-              Finance overview
+              Finanzübersicht
             </Link>
             <Link
               href="/admin/orders"
               className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-amber-200 transition hover:border-amber-300/30 hover:bg-amber-400/15"
             >
-              Review orders
+              Bestellungen prüfen
             </Link>
             <Link
               href="/admin/expenses"
               className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
             >
-              Expense capture
+              Ausgaben
             </Link>
             {expenseMigrationRequired ? (
               <span className="rounded-full border border-red-400/20 bg-red-500/10 px-3 py-2 text-red-200">
-                Export unavailable
+                Export nicht verfügbar
               </span>
             ) : (
-              <a
-                href={`/api/admin/expenses/export?month=${currentMonthKey}`}
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
-              >
-                Export CSV
-              </a>
+              <>
+                <a
+                  href={`/api/admin/vat/ustva?format=json${ustva ? `&month=${ustva.monthKey}` : ""}`}
+                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                >
+                  UStVA JSON
+                </a>
+                <a
+                  href={`/api/admin/vat/ustva?format=csv${ustva ? `&month=${ustva.monthKey}` : ""}`}
+                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                >
+                  UStVA CSV
+                </a>
+                <a
+                  href={`/api/admin/expenses/export?month=${currentMonthKey}`}
+                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                >
+                  Ausgaben-CSV
+                </a>
+              </>
             )}
           </div>
         </div>
@@ -108,9 +121,8 @@ export default async function AdminVatPage() {
 
       {expenseMigrationRequired ? (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Expense storage is not available in the current database yet. Output VAT is still shown,
-          but input VAT and export handover remain unavailable until the pending Prisma migration is
-          applied.
+          Ausgaben sind in der aktuellen Datenbank noch nicht vollständig verfügbar. Umsatzsteuer
+          wird weiterhin angezeigt, Vorsteuer und Export bleiben aber bis zur Migration gesperrt.
         </div>
       ) : null}
 
@@ -161,6 +173,113 @@ export default async function AdminVatPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <AdminPanel
+          eyebrow="UStVA Vorbereitung"
+          title={ustva ? `Umsatzsteuer-Voranmeldung ${ustva.monthLabel}` : "UStVA Vorbereitung"}
+          description="Vorbereitete Kennzahlen für die monatliche Übergabe. Die Werte helfen bei der Voranmeldung, ersetzen aber keine ELSTER-Übermittlung oder steuerliche Prüfung."
+        >
+          {ustva ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <AdminCompactMetric label="Status" value={ustva.filingLabel} />
+                <AdminCompactMetric label="Saldo" value={ustva.paymentStateLabel} />
+                <AdminCompactMetric
+                  label="Zahllast"
+                  value={formatMoney(ustva.payableCents, currency)}
+                />
+                <AdminCompactMetric
+                  label="Überschuss"
+                  value={formatMoney(ustva.refundCents, currency)}
+                />
+              </div>
+
+              <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#090d12]">
+                <div className="grid min-w-[760px] grid-cols-[100px_1.6fr_0.9fr_120px_1.6fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <div>Kz.</div>
+                  <div>Bezeichnung</div>
+                  <div>Wert</div>
+                  <div>Status</div>
+                  <div>Hinweis</div>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {ustva.fields.map((field) => (
+                    <div
+                      key={`${field.code ?? "info"}-${field.label}`}
+                      className="grid min-w-[760px] grid-cols-[100px_1.6fr_0.9fr_120px_1.6fr] gap-3 px-4 py-3 text-sm text-slate-300"
+                    >
+                      <div className="font-semibold text-white">{field.code ?? "—"}</div>
+                      <div>{field.label}</div>
+                      <div className="font-semibold text-white">
+                        {formatMoney(field.valueCents, currency)}
+                      </div>
+                      <div>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                            field.status === "ready"
+                              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+                              : field.status === "review_required"
+                                ? "border-amber-400/20 bg-amber-400/10 text-amber-100"
+                                : "border-white/10 bg-white/[0.03] text-slate-200"
+                          }`}
+                        >
+                          {field.status === "ready"
+                            ? "Bereit"
+                            : field.status === "review_required"
+                              ? "Prüfen"
+                              : "Manuell"}
+                        </span>
+                      </div>
+                      <div className="text-slate-400">{field.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-white">Manuell zu prüfen</div>
+                  {ustva.manualReview.map((field) => (
+                    <div
+                      key={`${field.code ?? "manual"}-${field.label}`}
+                      className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+                    >
+                      <div className="font-semibold">
+                        {field.code ? `Kz. ${field.code}` : "Hinweis"} · {field.label}
+                      </div>
+                      <div className="mt-1 text-amber-50/90">{field.note}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-white">Blocker und Hinweise</div>
+                  {ustva.blockers.length ? (
+                    ustva.blockers.map((blocker) => (
+                      <div
+                        key={blocker}
+                        className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                      >
+                        {blocker}
+                      </div>
+                    ))
+                  ) : (
+                    <AdminEmptyState copy="Für die vorbereiteten Kernkennzahlen sind aktuell keine Blocker markiert." />
+                  )}
+                  {ustva.notes.map((note) => (
+                    <div
+                      key={note}
+                      className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300"
+                    >
+                      {note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <AdminEmptyState copy="Noch keine UStVA-Daten für den aktuellen Zeitraum vorhanden." />
+          )}
+        </AdminPanel>
+
         <AdminPanel
           eyebrow="Monthly Tracking"
           title="VAT by reporting month"

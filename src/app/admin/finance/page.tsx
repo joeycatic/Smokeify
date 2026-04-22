@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
 import {
   AdminTimeRangeTabs,
   AdminCompactMetric,
@@ -9,7 +8,6 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminInsightPrimitives";
-import { authOptions } from "@/lib/auth";
 import { getFinancePageData } from "@/lib/adminAddonData";
 import { formatExpenseCategoryLabel, type ExpenseCategory } from "@/lib/adminExpenses";
 import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
@@ -18,6 +16,7 @@ import {
   parseAdminStorefrontScope,
   storefrontScopeToStorefront,
 } from "@/lib/storefronts";
+import { requireAdmin } from "@/lib/adminCatalog";
 
 const formatMoney = (amountCents: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", {
@@ -45,8 +44,7 @@ export default async function AdminFinancePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") notFound();
+  if (!(await requireAdmin())) notFound();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams?.storefront);
@@ -83,14 +81,14 @@ export default async function AdminFinancePage({
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-200/70">
-              Control Layer / Finance
+              Control Layer / Finanzen
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
-              Revenue quality, cost pressure and contribution margin
+              Umsatzqualität, Kostendruck und Deckungsbeitrag
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              Add-on finance workspace for gross-to-net clarity, variable cost rollups and
-              period-over-period control without changing the main admin workflows.
+              Operativer Finanzbereich für Brutto-/Netto-Transparenz, variable Kosten und
+              Periodenvergleich ohne Umbau der restlichen Admin-Abläufe.
             </p>
             <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
               {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}
@@ -103,19 +101,19 @@ export default async function AdminFinancePage({
                 href="/admin/orders"
                 className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
               >
-                Order breakdowns
+                Bestellungen
               </Link>
               <Link
                 href="/admin/vat"
                 className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
               >
-                VAT monitor
+                USt-Monitor
               </Link>
               <Link
                 href="/admin/expenses"
                 className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
               >
-                Expense capture
+                Ausgaben
               </Link>
             </div>
           </div>
@@ -134,15 +132,16 @@ export default async function AdminFinancePage({
 
       {storefront ? (
         <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-          Finance is currently scoped to {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}. Shared
-          expense and input-VAT allocations are excluded until expenses are tagged per storefront.
+          Finanzen sind aktuell auf {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]} begrenzt.
+          Gemeinsame Ausgaben- und Vorsteuer-Zuordnungen bleiben außen vor, bis Belege pro
+          Storefront markiert werden.
         </div>
       ) : null}
 
       {expenseMigrationRequired ? (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Expense storage is not available in the current database yet. Input VAT and expense
-          layers are shown as unavailable until the pending Prisma migration is applied.
+          Ausgaben sind in der aktuellen Datenbank noch nicht vollständig verfügbar. Vorsteuer und
+          Kostenebene bleiben bis zur ausstehenden Prisma-Migration deaktiviert.
         </div>
       ) : null}
 

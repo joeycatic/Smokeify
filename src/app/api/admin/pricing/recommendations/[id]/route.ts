@@ -1,69 +1,54 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import { reviewAdminPricingRecommendation } from "@/lib/adminPricingServer";
 import type { PricingRecommendationAction } from "@/lib/adminPricingIntegration";
-import { requireAdmin } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { reviewAdminPricingRecommendation } from "@/lib/adminPricingServer";
+import { withAdminRoute } from "@/lib/adminRoute";
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  if (!isSameOrigin(request)) {
-    return adminJson({ error: "Forbidden" }, { status: 403 });
-  }
+export const PATCH = withAdminRoute<{ id: string }>(
+  async ({ request, params, session }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      action?: PricingRecommendationAction;
+      customPriceCents?: number | null;
+      reviewNote?: string | null;
+    };
 
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-pricing-review:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return adminJson(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as {
-    action?: PricingRecommendationAction;
-    customPriceCents?: number | null;
-  };
-
-  try {
-    const result = await reviewAdminPricingRecommendation(
-      id,
-      body.action === "reject" ? "reject" : "approve",
-      {
-        actor: {
-          id: session.user.id,
-          email: session.user.email ?? null,
+    try {
+      const result = await reviewAdminPricingRecommendation(
+        params.id,
+        body.action === "reject" ? "reject" : "approve",
+        {
+          actor: {
+            id: session.user.id,
+            email: session.user.email ?? null,
+          },
+          customPriceCents:
+            typeof body.customPriceCents === "number" &&
+            Number.isFinite(body.customPriceCents)
+              ? Math.round(body.customPriceCents)
+              : null,
+          reviewNote: typeof body.reviewNote === "string" ? body.reviewNote : null,
         },
-        customPriceCents:
-          typeof body.customPriceCents === "number" &&
-          Number.isFinite(body.customPriceCents)
-            ? Math.round(body.customPriceCents)
-            : null,
-      }
-    );
-    return adminJson(result);
-  } catch (error) {
-    return adminJson(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to process pricing recommendation.",
-      },
-      { status: 502 }
-    );
-  }
-}
+      );
+
+      return adminJson(result);
+    } catch (error) {
+      return adminJson(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Preisempfehlung konnte nicht verarbeitet werden.",
+        },
+        { status: 502 },
+      );
+    }
+  },
+  {
+    action: "pricing.review",
+    rateLimit: {
+      keyPrefix: "admin-pricing-review",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);
