@@ -1,5 +1,11 @@
 import {
   DEFAULT_VAT_RATE_BASIS_POINTS,
+  TAX_REGIMES,
+  type GermanVatRate,
+  type InputVatEligibility,
+  type TaxClassification,
+  type TaxRegime,
+  type TaxReviewStatus,
   type ExpenseCategory,
   type ExpenseDocumentStatus,
   type RecurringExpenseInterval,
@@ -8,17 +14,35 @@ import {
   isExpenseDocumentStatus,
   isRecurringExpenseInterval,
 } from "@/lib/adminExpenses";
+import {
+  buildVatReviewSnapshot,
+  classifyGermanTaxContext,
+  type InvoiceValidationStatus,
+} from "@/lib/germanTax";
 
 type ParsedExpensePayload = {
   supplierId: string | null;
   title: string;
   category: ExpenseCategory;
   notes: string | null;
+  invoiceIssuerName: string | null;
+  invoiceNumber: string | null;
+  invoiceDescription: string | null;
+  supplierCountry: string | null;
+  reverseChargeReference: string | null;
+  isSmallBusinessSupplier: boolean;
   currency: string;
   grossAmount: number;
   netAmount: number;
   vatAmount: number;
   vatRateBasisPoints: number | null;
+  taxRegime: TaxRegime;
+  germanVatRate: GermanVatRate;
+  taxClassification: TaxClassification;
+  invoiceValidationStatus: InvoiceValidationStatus;
+  inputVatEligibility: InputVatEligibility;
+  taxReviewStatus: TaxReviewStatus;
+  manualReviewReason: string | null;
   isDeductible: boolean;
   documentDate: Date;
   paidAt: Date | null;
@@ -64,6 +88,9 @@ const parseOptionalDate = (value: unknown) => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
+
+const parseOptionalString = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : null;
 
 export function parseExpensePayload(body: unknown): ParseResult {
   const input = typeof body === "object" && body ? (body as Record<string, unknown>) : null;
@@ -122,11 +149,43 @@ export function parseExpensePayload(body: unknown): ParseResult {
     typeof input.supplierId === "string" && input.supplierId.trim()
       ? input.supplierId.trim()
       : null;
+  const supplierCountry =
+    typeof input.supplierCountry === "string" && input.supplierCountry.trim()
+      ? input.supplierCountry.trim().toUpperCase()
+      : null;
 
   const currency =
     typeof input.currency === "string" && input.currency.trim()
       ? input.currency.trim().toUpperCase()
       : "EUR";
+  const requestedTaxRegime =
+    typeof input.taxRegime === "string" && TAX_REGIMES.includes(input.taxRegime as TaxRegime)
+      ? (input.taxRegime as TaxRegime)
+      : null;
+  const taxClassification = classifyGermanTaxContext({
+    currency,
+    vatRateBasisPoints: resolvedVatRateBasisPoints,
+    supplierCountry,
+    reverseChargeReference: parseOptionalString(input.reverseChargeReference),
+    taxRegime: requestedTaxRegime,
+    isSmallBusinessSupplier: input.isSmallBusinessSupplier === true,
+  });
+  const invoiceReview = buildVatReviewSnapshot({
+    invoiceIssuerName: parseOptionalString(input.invoiceIssuerName),
+    invoiceNumber: parseOptionalString(input.invoiceNumber),
+    invoiceDescription: parseOptionalString(input.invoiceDescription),
+    documentDate,
+    grossAmount,
+    netAmount,
+    vatAmount,
+    vatRateBasisPoints: resolvedVatRateBasisPoints,
+    documentStatus,
+    taxRegime: taxClassification.taxRegime,
+    taxClassification: taxClassification.taxClassification,
+    reverseChargeReference: parseOptionalString(input.reverseChargeReference),
+    isSmallBusinessSupplier: input.isSmallBusinessSupplier === true,
+    isDeductible: input.isDeductible,
+  });
 
   return {
     ok: true,
@@ -135,11 +194,28 @@ export function parseExpensePayload(body: unknown): ParseResult {
       title,
       category,
       notes: typeof input.notes === "string" && input.notes.trim() ? input.notes.trim() : null,
+      invoiceIssuerName: parseOptionalString(input.invoiceIssuerName),
+      invoiceNumber: parseOptionalString(input.invoiceNumber),
+      invoiceDescription: parseOptionalString(input.invoiceDescription),
+      supplierCountry,
+      reverseChargeReference: parseOptionalString(input.reverseChargeReference),
+      isSmallBusinessSupplier: input.isSmallBusinessSupplier === true,
       currency,
       grossAmount,
       netAmount,
       vatAmount,
       vatRateBasisPoints: resolvedVatRateBasisPoints,
+      taxRegime: taxClassification.taxRegime,
+      germanVatRate: taxClassification.germanVatRate,
+      taxClassification: taxClassification.taxClassification,
+      invoiceValidationStatus: invoiceReview.invoiceValidationStatus,
+      inputVatEligibility: invoiceReview.inputVatEligibility,
+      taxReviewStatus: invoiceReview.taxReviewStatus,
+      manualReviewReason:
+        invoiceReview.manualReviewReason ??
+        invoiceReview.blockers[0] ??
+        invoiceReview.warnings[0] ??
+        null,
       isDeductible: input.isDeductible,
       documentDate,
       paidAt,
@@ -231,11 +307,24 @@ export function serializeExpenseRecord<
     title: string;
     category: ExpenseCategory;
     notes: string | null;
+    invoiceIssuerName?: string | null;
+    invoiceNumber?: string | null;
+    invoiceDescription?: string | null;
+    supplierCountry?: string | null;
+    reverseChargeReference?: string | null;
+    isSmallBusinessSupplier?: boolean;
     currency: string;
     grossAmount: number;
     netAmount: number;
     vatAmount: number;
     vatRateBasisPoints: number | null;
+    taxRegime: TaxRegime;
+    germanVatRate: GermanVatRate;
+    taxClassification: TaxClassification;
+    invoiceValidationStatus: InvoiceValidationStatus;
+    inputVatEligibility: InputVatEligibility;
+    taxReviewStatus: TaxReviewStatus;
+    manualReviewReason?: string | null;
     isDeductible: boolean;
     documentDate: Date;
     paidAt: Date | null;
@@ -252,11 +341,24 @@ export function serializeExpenseRecord<
     title: expense.title,
     category: expense.category,
     notes: expense.notes,
+    invoiceIssuerName: expense.invoiceIssuerName ?? null,
+    invoiceNumber: expense.invoiceNumber ?? null,
+    invoiceDescription: expense.invoiceDescription ?? null,
+    supplierCountry: expense.supplierCountry ?? null,
+    reverseChargeReference: expense.reverseChargeReference ?? null,
+    isSmallBusinessSupplier: expense.isSmallBusinessSupplier ?? false,
     currency: expense.currency,
     grossAmount: expense.grossAmount,
     netAmount: expense.netAmount,
     vatAmount: expense.vatAmount,
     vatRateBasisPoints: expense.vatRateBasisPoints,
+    taxRegime: expense.taxRegime,
+    germanVatRate: expense.germanVatRate,
+    taxClassification: expense.taxClassification,
+    invoiceValidationStatus: expense.invoiceValidationStatus,
+    inputVatEligibility: expense.inputVatEligibility,
+    taxReviewStatus: expense.taxReviewStatus,
+    manualReviewReason: expense.manualReviewReason ?? null,
     isDeductible: expense.isDeductible,
     documentDate: expense.documentDate.toISOString(),
     paidAt: expense.paidAt ? expense.paidAt.toISOString() : null,

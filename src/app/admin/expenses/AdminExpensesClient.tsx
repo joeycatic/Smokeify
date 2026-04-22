@@ -6,16 +6,24 @@ import {
   DEFAULT_VAT_RATE_BASIS_POINTS,
   EXPENSE_CATEGORIES,
   EXPENSE_DOCUMENT_STATUSES,
+  formatGermanVatRateLabel,
   RECURRING_EXPENSE_INTERVALS,
+  formatInputVatEligibilityLabel,
   calculateVatComponentsFromGross,
   calculateVatComponentsFromNet,
   formatExpenseCategoryLabel,
   formatExpenseDocumentStatusLabel,
   formatRecurringExpenseIntervalLabel,
+  formatTaxReviewStatusLabel,
   getRecurringExpenseMonthlyAmountCents,
   type ExpenseCategory,
   type ExpenseDocumentStatus,
+  type GermanVatRate,
+  type InputVatEligibility,
   type RecurringExpenseInterval,
+  type TaxClassification,
+  type TaxRegime,
+  type TaxReviewStatus,
 } from "@/lib/adminExpenses";
 
 type SupplierOption = {
@@ -36,6 +44,9 @@ type ExpenseSummary = {
   missingVatCount: number;
   verifiedCount: number;
   readyCount: number;
+  invoiceCompleteCount: number;
+  reviewRequiredCount: number;
+  blockedCount: number;
 };
 
 type RecurringExpenseSummary = {
@@ -68,11 +79,24 @@ type ExpenseRecord = {
   title: string;
   category: ExpenseCategory;
   notes: string | null;
+  invoiceIssuerName: string | null;
+  invoiceNumber: string | null;
+  invoiceDescription: string | null;
+  supplierCountry: string | null;
+  reverseChargeReference: string | null;
+  isSmallBusinessSupplier: boolean;
   currency: string;
   grossAmount: number;
   netAmount: number;
   vatAmount: number;
   vatRateBasisPoints: number | null;
+  taxRegime: TaxRegime;
+  germanVatRate: GermanVatRate;
+  taxClassification: TaxClassification;
+  invoiceValidationStatus: "ENTWURF" | "PRUEFUNG_ERFORDERLICH" | "VOLLSTAENDIG";
+  inputVatEligibility: InputVatEligibility;
+  taxReviewStatus: TaxReviewStatus;
+  manualReviewReason: string | null;
   isDeductible: boolean;
   documentDate: string;
   paidAt: string | null;
@@ -106,6 +130,13 @@ type ExpenseFormState = {
   title: string;
   category: ExpenseCategory;
   notes: string;
+  invoiceIssuerName: string;
+  invoiceNumber: string;
+  invoiceDescription: string;
+  supplierCountry: string;
+  reverseChargeReference: string;
+  isSmallBusinessSupplier: boolean;
+  taxRegime: TaxRegime | "";
   grossAmount: string;
   netAmount: string;
   vatAmount: string;
@@ -265,6 +296,13 @@ const emptyForm = (): ExpenseFormState => ({
   title: "",
   category: "OPERATIONS",
   notes: "",
+  invoiceIssuerName: "",
+  invoiceNumber: "",
+  invoiceDescription: "",
+  supplierCountry: "DE",
+  reverseChargeReference: "",
+  isSmallBusinessSupplier: false,
+  taxRegime: "",
   grossAmount: "",
   netAmount: "",
   vatAmount: "",
@@ -326,11 +364,18 @@ const buildPayload = (
       title: form.title.trim(),
       category: form.category,
       notes: form.notes.trim() || null,
+      invoiceIssuerName: form.invoiceIssuerName.trim() || null,
+      invoiceNumber: form.invoiceNumber.trim() || null,
+      invoiceDescription: form.invoiceDescription.trim() || null,
+      supplierCountry: form.supplierCountry.trim().toUpperCase() || null,
+      reverseChargeReference: form.reverseChargeReference.trim() || null,
+      isSmallBusinessSupplier: form.isSmallBusinessSupplier,
       currency: "EUR",
       grossAmount,
       netAmount,
       vatAmount,
       vatRateBasisPoints,
+      taxRegime: form.taxRegime || null,
       isDeductible: form.isDeductible,
       documentDate: form.documentDate,
       paidAt: form.paidAt || null,
@@ -393,6 +438,13 @@ const toEditableForm = (expense: ExpenseRecord): ExpenseFormState => ({
   title: expense.title,
   category: expense.category,
   notes: expense.notes ?? "",
+  invoiceIssuerName: expense.invoiceIssuerName ?? "",
+  invoiceNumber: expense.invoiceNumber ?? "",
+  invoiceDescription: expense.invoiceDescription ?? "",
+  supplierCountry: expense.supplierCountry ?? "DE",
+  reverseChargeReference: expense.reverseChargeReference ?? "",
+  isSmallBusinessSupplier: expense.isSmallBusinessSupplier,
+  taxRegime: expense.taxRegime ?? "",
   grossAmount: toMoneyInput(expense.grossAmount),
   netAmount: toMoneyInput(expense.netAmount),
   vatAmount: toMoneyInput(expense.vatAmount),
@@ -464,6 +516,42 @@ const calculateShare = (value: number, total: number) =>
 const getCategoryTone = (category: ExpenseCategory) => CATEGORY_TONES[category] ?? CATEGORY_TONES.OTHER;
 
 const getDocumentStatusTone = (status: ExpenseDocumentStatus) => DOCUMENT_STATUS_TONES[status];
+
+const formatInvoiceValidationStatus = (
+  value: ExpenseRecord["invoiceValidationStatus"],
+) => {
+  switch (value) {
+    case "VOLLSTAENDIG":
+      return "Vollständig";
+    case "PRUEFUNG_ERFORDERLICH":
+      return "Prüfung erforderlich";
+    default:
+      return "Entwurf";
+  }
+};
+
+const formatTaxClassificationLabel = (value: TaxClassification) => {
+  switch (value) {
+    case "DOMESTIC_STANDARD":
+      return "Steuerpflichtig";
+    case "DOMESTIC_REDUCED":
+      return "Ermäßigt";
+    case "DOMESTIC_ZERO":
+      return "0 %";
+    case "EXEMPT":
+      return "Steuerfrei";
+    case "REVERSE_CHARGE":
+      return "Reverse-Charge";
+    case "KLEINUNTERNEHMER":
+      return "Kleinunternehmer";
+    case "INTRA_EU_MANUAL":
+      return "Innergemeinschaftlich";
+    case "EXPORT_MANUAL":
+      return "Export / manuell";
+    default:
+      return "Manuelle Prüfung";
+  }
+};
 
 type AdminExpensesClientProps = {
   initialSuppliers: SupplierOption[];
@@ -949,6 +1037,24 @@ export default function AdminExpensesClient({
               tone="text-emerald-200"
               bar="bg-emerald-300"
             />
+            <MiniMetric
+              label="Invoice complete"
+              value={String(currentMonthSummary.invoiceCompleteCount)}
+              tone="text-cyan-200"
+              bar="bg-cyan-300"
+            />
+            <MiniMetric
+              label="Review required"
+              value={String(currentMonthSummary.reviewRequiredCount)}
+              tone="text-amber-200"
+              bar="bg-amber-300"
+            />
+            <MiniMetric
+              label="Blocked"
+              value={String(currentMonthSummary.blockedCount)}
+              tone="text-rose-200"
+              bar="bg-rose-300"
+            />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <SignalPill
@@ -1045,6 +1151,76 @@ export default function AdminExpensesClient({
                 ))}
               </select>
             </Field>
+            <Field label="Rechnungsaussteller">
+              <input
+                value={newExpense.invoiceIssuerName}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    invoiceIssuerName: event.target.value,
+                  }))
+                }
+                placeholder="DHL Freight GmbH"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Rechnungsnummer">
+              <input
+                value={newExpense.invoiceNumber}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    invoiceNumber: event.target.value,
+                  }))
+                }
+                placeholder="RG-2026-0412"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Leistungsbeschreibung" className="md:col-span-2">
+              <input
+                value={newExpense.invoiceDescription}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    invoiceDescription: event.target.value,
+                  }))
+                }
+                placeholder="Versandkosten März 2026"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Lieferantenland">
+              <input
+                value={newExpense.supplierCountry}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    supplierCountry: event.target.value.toUpperCase(),
+                  }))
+                }
+                placeholder="DE"
+                maxLength={2}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Steuerregime">
+              <select
+                value={newExpense.taxRegime}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    taxRegime: event.target.value as ExpenseFormState["taxRegime"],
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="">Automatisch</option>
+                <option value="NORMAL">Normal</option>
+                <option value="KLEINUNTERNEHMER">Kleinunternehmer</option>
+                <option value="MANUAL_REVIEW">Manuelle Prüfung</option>
+              </select>
+            </Field>
             <Field label="Net amount">
               <input
                 value={newExpense.netAmount}
@@ -1113,6 +1289,19 @@ export default function AdminExpensesClient({
                 className={`${inputClass} min-h-[96px] py-3`}
               />
             </Field>
+            <Field label="Reverse-Charge-Hinweis" className="md:col-span-2">
+              <input
+                value={newExpense.reverseChargeReference}
+                onChange={(event) =>
+                  setNewExpense((current) => ({
+                    ...current,
+                    reverseChargeReference: event.target.value,
+                  }))
+                }
+                placeholder="§ 13b UStG / Reverse-Charge"
+                className={inputClass}
+              />
+            </Field>
           </div>
           <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
             <input
@@ -1127,6 +1316,20 @@ export default function AdminExpensesClient({
               className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
             />
             Deductible for input VAT
+          </label>
+          <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={newExpense.isSmallBusinessSupplier}
+              onChange={(event) =>
+                setNewExpense((current) => ({
+                  ...current,
+                  isSmallBusinessSupplier: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+            />
+            Lieferant ist Kleinunternehmer
           </label>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -1464,6 +1667,9 @@ export default function AdminExpensesClient({
                         <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
                           {formatMoney(expense.grossAmount)}
                         </span>
+                        <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-200">
+                          {formatTaxReviewStatusLabel(expense.taxReviewStatus)}
+                        </span>
                       </div>
                     </div>
                     <div className="text-xs text-slate-500">
@@ -1496,11 +1702,30 @@ export default function AdminExpensesClient({
                     <RecordMeta label="Net" value={formatMoney(expense.netAmount)} />
                     <RecordMeta label="VAT" value={formatMoney(expense.vatAmount)} />
                     <RecordMeta label="Deductible" value={expense.isDeductible ? "Yes" : "No"} />
+                    <RecordMeta label="USt-Satz" value={formatGermanVatRateLabel(expense.germanVatRate)} />
+                    <RecordMeta
+                      label="Steuerlogik"
+                      value={formatTaxClassificationLabel(expense.taxClassification)}
+                    />
+                    <RecordMeta
+                      label="Rechnungsstatus"
+                      value={formatInvoiceValidationStatus(expense.invoiceValidationStatus)}
+                    />
+                    <RecordMeta
+                      label="Vorsteuer"
+                      value={formatInputVatEligibilityLabel(expense.inputVatEligibility)}
+                    />
                     <RecordMeta
                       label="Created"
                       value={new Date(expense.createdAt).toLocaleDateString("de-DE")}
                     />
                   </div>
+
+                  {expense.manualReviewReason ? (
+                    <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                      {expense.manualReviewReason}
+                    </div>
+                  ) : null}
 
                   {expense.notes ? (
                     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
@@ -1588,6 +1813,68 @@ export default function AdminExpensesClient({
                                 {formatExpenseDocumentStatusLabel(status)}
                               </option>
                             ))}
+                          </select>
+                        </Field>
+                        <Field label="Rechnungsaussteller">
+                          <input
+                            value={expense.invoiceIssuerName ?? ""}
+                            onChange={(event) =>
+                              updateExpenseField(expense.id, "invoiceIssuerName", event.target.value)
+                            }
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="Rechnungsnummer">
+                          <input
+                            value={expense.invoiceNumber ?? ""}
+                            onChange={(event) =>
+                              updateExpenseField(expense.id, "invoiceNumber", event.target.value)
+                            }
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="Leistungsbeschreibung" className="md:col-span-2">
+                          <input
+                            value={expense.invoiceDescription ?? ""}
+                            onChange={(event) =>
+                              updateExpenseField(
+                                expense.id,
+                                "invoiceDescription",
+                                event.target.value,
+                              )
+                            }
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="Lieferantenland">
+                          <input
+                            value={expense.supplierCountry ?? ""}
+                            onChange={(event) =>
+                              updateExpenseField(
+                                expense.id,
+                                "supplierCountry",
+                                event.target.value.toUpperCase(),
+                              )
+                            }
+                            maxLength={2}
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="Steuerregime">
+                          <select
+                            value={expense.taxRegime}
+                            onChange={(event) =>
+                              updateExpenseField(
+                                expense.id,
+                                "taxRegime",
+                                event.target.value as ExpenseRecord["taxRegime"],
+                              )
+                            }
+                            className={inputClass}
+                          >
+                            <option value="NORMAL">Normal</option>
+                            <option value="KLEINUNTERNEHMER">Kleinunternehmer</option>
+                            <option value="MANUAL_REVIEW">Manuelle Prüfung</option>
                           </select>
                         </Field>
                         <Field label="Gross amount">
@@ -1689,6 +1976,19 @@ export default function AdminExpensesClient({
                             className={`${inputClass} min-h-[96px] py-3`}
                           />
                         </Field>
+                        <Field label="Reverse-Charge-Hinweis" className="md:col-span-2">
+                          <input
+                            value={expense.reverseChargeReference ?? ""}
+                            onChange={(event) =>
+                              updateExpenseField(
+                                expense.id,
+                                "reverseChargeReference",
+                                event.target.value,
+                              )
+                            }
+                            className={inputClass}
+                          />
+                        </Field>
                       </div>
 
                       <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
@@ -1701,6 +2001,21 @@ export default function AdminExpensesClient({
                           className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
                         />
                         Deductible for input VAT
+                      </label>
+                      <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={expense.isSmallBusinessSupplier}
+                          onChange={(event) =>
+                            updateExpenseField(
+                              expense.id,
+                              "isSmallBusinessSupplier",
+                              event.target.checked,
+                            )
+                          }
+                          className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+                        />
+                        Lieferant ist Kleinunternehmer
                       </label>
 
                       <div className="mt-4 flex flex-wrap justify-end gap-2">

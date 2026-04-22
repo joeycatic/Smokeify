@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { logAdminAction } from "@/lib/adminAuditLog";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
@@ -19,6 +21,9 @@ export async function GET(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "tax.review")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const url = new URL(request.url);
@@ -64,8 +69,14 @@ export async function GET(request: Request) {
       "document_date",
       "paid_at",
       "supplier",
+      "rechnungsaussteller",
+      "rechnungsnummer",
       "title",
       "category",
+      "tax_review_status",
+      "invoice_validation_status",
+      "input_vat_eligibility",
+      "manual_review_reason",
       "gross_amount_cents",
       "net_amount_cents",
       "vat_amount_cents",
@@ -79,8 +90,14 @@ export async function GET(request: Request) {
       expense.documentDate.toISOString(),
       expense.paidAt ? expense.paidAt.toISOString() : "",
       expense.supplier?.name ?? "",
+      expense.invoiceIssuerName ?? "",
+      expense.invoiceNumber ?? "",
       expense.title,
       expense.category,
+      expense.taxReviewStatus,
+      expense.invoiceValidationStatus,
+      expense.inputVatEligibility,
+      expense.manualReviewReason ?? "",
       expense.grossAmount,
       expense.netAmount,
       expense.vatAmount,
@@ -96,6 +113,18 @@ export async function GET(request: Request) {
   const fileMonth = `${monthStart.getUTCFullYear()}-${String(
     monthStart.getUTCMonth() + 1,
   ).padStart(2, "0")}`;
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "admin.ust.exportiert",
+    targetType: "expense_export",
+    targetId: fileMonth,
+    summary: `USt-Ausgabeexport für ${fileMonth} erstellt`,
+    metadata: {
+      expenseCount: expenses.length,
+      month: fileMonth,
+    },
+  });
 
   return new NextResponse(csv, {
     headers: {

@@ -12,6 +12,7 @@ import {
   buildVatSummary,
   RECOGNIZED_PAYMENT_STATUSES,
 } from "@/lib/adminFinance";
+import { buildUstvaPreparation } from "@/lib/adminUstva";
 import {
   buildAlertDedupeKey,
   getAdminAlertsQueueData,
@@ -356,6 +357,14 @@ export async function getVatPageData(months = 6) {
       missingExpenseDocumentCount: expenseSummary.missingDocumentCount,
       missingExpenseVatCount: expenseSummary.missingVatCount,
       missingExpenseSupplierCount: expenseSummary.missingSupplierCount,
+      reviewRequiredExpenseCount: expenseSummary.reviewRequiredCount,
+      blockedExpenseCount: expenseSummary.blockedCount,
+      reverseChargeExpenseCount: monthExpenses.filter(
+        (expense) =>
+          expense.taxClassification === "REVERSE_CHARGE" ||
+          expense.taxClassification === "INTRA_EU_MANUAL" ||
+          expense.taxClassification === "EXPORT_MANUAL",
+      ).length,
     };
   });
 
@@ -369,6 +378,26 @@ export async function getVatPageData(months = 6) {
   return {
     current,
     monthly,
+    ustva: current
+      ? buildUstvaPreparation({
+          monthKey: current.monthKey,
+          monthLabel: current.monthLabel,
+          outputVatCents: current.outputVatCents,
+          refundedVatEstimateCents: current.refundedVatEstimateCents,
+          inputVatCents: current.inputVatCents,
+          estimatedLiabilityCents: current.estimatedLiabilityCents,
+          ordersMissingTaxCount: current.ordersMissingTaxCount,
+          status: current.status,
+          blockers: current.blockers,
+          notes: current.notes,
+          missingExpenseDocumentCount: current.missingExpenseDocumentCount,
+          missingExpenseVatCount: current.missingExpenseVatCount,
+          missingExpenseSupplierCount: current.missingExpenseSupplierCount,
+          reviewRequiredExpenseCount: current.reviewRequiredExpenseCount,
+          blockedExpenseCount: current.blockedExpenseCount,
+          reverseChargeExpenseCount: current.reverseChargeExpenseCount,
+        })
+      : null,
     deadline: getVatDeadlineInfo(),
     expenseMigrationRequired: expenseQuery.migrationRequired,
   };

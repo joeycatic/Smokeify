@@ -3,6 +3,21 @@ export {
   calculateVatComponentsFromGross,
   calculateVatComponentsFromNet,
 } from "@/lib/vat";
+export {
+  GERMAN_VAT_RATES,
+  INPUT_VAT_ELIGIBILITY_VALUES,
+  TAX_CLASSIFICATIONS,
+  TAX_REGIMES,
+  TAX_REVIEW_STATUSES,
+  formatGermanVatRateLabel,
+  formatInputVatEligibilityLabel,
+  formatTaxReviewStatusLabel,
+  type GermanVatRate,
+  type InputVatEligibility,
+  type TaxClassification,
+  type TaxRegime,
+  type TaxReviewStatus,
+} from "@/lib/germanTax";
 
 export const EXPENSE_CATEGORIES = [
   "INVENTORY",
@@ -27,11 +42,24 @@ export type AdminExpenseInput = {
   title: string;
   category: ExpenseCategory;
   notes: string | null;
+  invoiceIssuerName?: string | null;
+  invoiceNumber?: string | null;
+  invoiceDescription?: string | null;
+  supplierCountry?: string | null;
+  reverseChargeReference?: string | null;
+  isSmallBusinessSupplier?: boolean;
   currency: string;
   grossAmount: number;
   netAmount: number;
   vatAmount: number;
   vatRateBasisPoints: number | null;
+  taxRegime?: import("@/lib/germanTax").TaxRegime;
+  germanVatRate?: import("@/lib/germanTax").GermanVatRate;
+  taxClassification?: import("@/lib/germanTax").TaxClassification;
+  invoiceValidationStatus?: import("@/lib/germanTax").InvoiceValidationStatus;
+  inputVatEligibility?: import("@/lib/germanTax").InputVatEligibility;
+  taxReviewStatus?: import("@/lib/germanTax").TaxReviewStatus;
+  manualReviewReason?: string | null;
   isDeductible: boolean;
   documentDate: Date;
   paidAt: Date | null;
@@ -51,6 +79,9 @@ export type AdminExpenseSummary = {
   missingVatCount: number;
   verifiedCount: number;
   readyCount: number;
+  invoiceCompleteCount: number;
+  reviewRequiredCount: number;
+  blockedCount: number;
 };
 
 export type VatDeadlineInfo = {
@@ -101,30 +132,30 @@ export function isRecurringExpenseInterval(value: string): value is RecurringExp
 export function formatExpenseCategoryLabel(category: ExpenseCategory) {
   switch (category) {
     case "INVENTORY":
-      return "Inventory";
+      return "Wareneinsatz";
     case "SHIPPING":
-      return "Shipping";
+      return "Versand";
     case "MARKETING":
       return "Marketing";
     case "SOFTWARE":
       return "Software";
     case "OPERATIONS":
-      return "Operations";
+      return "Betrieb";
     case "TAXES":
-      return "Taxes";
+      return "Steuern";
     default:
-      return "Other";
+      return "Sonstiges";
   }
 }
 
 export function formatExpenseDocumentStatusLabel(status: ExpenseDocumentStatus) {
   switch (status) {
     case "MISSING":
-      return "Missing document";
+      return "Beleg fehlt";
     case "RECEIVED":
-      return "Received";
+      return "Beleg erhalten";
     case "VERIFIED":
-      return "Verified";
+      return "Geprüft";
     default:
       return status;
   }
@@ -170,9 +201,12 @@ export function buildExpenseSummary(
       if (expense.documentStatus === "MISSING") summary.missingDocumentCount += 1;
       if (expense.isDeductible && expense.vatAmount <= 0) summary.missingVatCount += 1;
       if (expense.documentStatus === "VERIFIED") summary.verifiedCount += 1;
+      if (expense.invoiceValidationStatus === "VOLLSTAENDIG") summary.invoiceCompleteCount += 1;
+      if (expense.taxReviewStatus === "PRUEFUNG_ERFORDERLICH") summary.reviewRequiredCount += 1;
+      if (expense.taxReviewStatus === "GESPERRT") summary.blockedCount += 1;
       if (
-        expense.documentStatus !== "MISSING" &&
-        (!expense.isDeductible || expense.vatAmount > 0)
+        expense.taxReviewStatus === "BEREIT_ZUR_UEBERGABE" &&
+        expense.invoiceValidationStatus === "VOLLSTAENDIG"
       ) {
         summary.readyCount += 1;
       }
@@ -191,6 +225,9 @@ export function buildExpenseSummary(
       missingVatCount: 0,
       verifiedCount: 0,
       readyCount: 0,
+      invoiceCompleteCount: 0,
+      reviewRequiredCount: 0,
+      blockedCount: 0,
     },
   );
 }
