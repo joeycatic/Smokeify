@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 const normalizeFlags = (value: unknown) => {
   if (!Array.isArray(value)) return [];
@@ -27,6 +28,9 @@ export async function PATCH(
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "crm.write")) {
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
 
   const ip = getClientIp(request.headers);

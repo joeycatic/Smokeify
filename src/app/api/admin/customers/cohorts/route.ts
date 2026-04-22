@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
 import type { CustomerSegment, CustomerTab } from "@/lib/adminCustomers";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -14,6 +15,9 @@ export async function POST(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "crm.write")) {
+    return adminJson({ error: "Forbidden" }, { status: 403 });
   }
 
   const ip = getClientIp(request.headers);

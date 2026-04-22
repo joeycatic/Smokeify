@@ -15,6 +15,7 @@ import {
   sortCustomers,
 } from "@/lib/adminCustomers";
 import { adminJson } from "@/lib/adminApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { parseAdminStorefrontScope, storefrontScopeToStorefront } from "@/lib/storefronts";
 
 const PAGE_SIZE = 40;
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const normalizedQuery = rawQuery.toLowerCase();
 
-  const [users, guestOrders, cohorts] = await Promise.all([
+  const [users, guestOrders, cohorts, owners] = await Promise.all([
     prisma.user.findMany({
       where: { role: "USER" },
       select: {
@@ -97,6 +98,11 @@ export async function GET(request: Request) {
     prisma.adminCustomerCohort.findMany({
       orderBy: { updatedAt: "desc" },
       take: 12,
+    }),
+    prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] } },
+      orderBy: [{ name: "asc" }, { email: "asc" }],
+      select: { id: true, email: true, name: true },
     }),
   ]);
 
@@ -329,6 +335,9 @@ export async function GET(request: Request) {
     customerCount: cohort.customerCount,
     filters: (cohort.filters as CustomerCohort["filters"]) ?? {},
     createdByEmail: cohort.createdByEmail,
+    assigneeUserId: cohort.assigneeUserId,
+    assigneeEmail: cohort.assigneeEmail,
+    status: cohort.status,
     createdAt: cohort.createdAt.toISOString(),
     updatedAt: cohort.updatedAt.toISOString(),
   }));
@@ -341,5 +350,9 @@ export async function GET(request: Request) {
     totalPages,
     summary,
     cohorts: serializedCohorts,
+    owners,
+    capabilities: {
+      canWriteCrm: canAdminPerformAction(session.user.role, "crm.write"),
+    },
   });
 }

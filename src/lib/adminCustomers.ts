@@ -67,6 +67,9 @@ export type CustomerCohort = {
     segment?: CustomerSegment | "all";
   };
   createdByEmail: string | null;
+  assigneeUserId?: string | null;
+  assigneeEmail?: string | null;
+  status?: "ENTWURF" | "AKTIV" | "IN_BEARBEITUNG" | "ABGESCHLOSSEN";
   createdAt: string;
   updatedAt: string;
 };

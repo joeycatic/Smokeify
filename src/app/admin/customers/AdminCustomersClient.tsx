@@ -92,6 +92,117 @@ const EMPTY_SUMMARY: CustomerSummary = {
   atRiskCustomers: [],
 };
 
+type AdminCustomerTaskStatus = "OFFEN" | "IN_BEARBEITUNG" | "WIEDERVORLAGE" | "ERLEDIGT";
+type AdminCustomerTaskPlaybook =
+  | "RUECKGEWINNUNG"
+  | "VIP_BETREUUNG"
+  | "RETOUREN_RISIKO"
+  | "MARGE_SCHUETZEN"
+  | "MANUELL";
+type AdminCustomerCohortStatus = "ENTWURF" | "AKTIV" | "IN_BEARBEITUNG" | "ABGESCHLOSSEN";
+
+type TaskOwner = {
+  id: string;
+  email: string | null;
+  name: string | null;
+};
+
+type CustomerTask = {
+  id: string;
+  customerId: string;
+  customerEmail: string | null;
+  customerName: string | null;
+  ownerId: string | null;
+  ownerEmail: string | null;
+  ownerName: string | null;
+  createdById: string | null;
+  createdByEmail: string | null;
+  sourceCohortId: string | null;
+  status: AdminCustomerTaskStatus;
+  playbook: AdminCustomerTaskPlaybook;
+  title: string;
+  description: string | null;
+  dueAt: string | null;
+  snoozedUntil: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const CUSTOMER_TASK_STATUSES: AdminCustomerTaskStatus[] = [
+  "OFFEN",
+  "IN_BEARBEITUNG",
+  "WIEDERVORLAGE",
+  "ERLEDIGT",
+];
+const CUSTOMER_TASK_PLAYBOOKS: AdminCustomerTaskPlaybook[] = [
+  "RUECKGEWINNUNG",
+  "VIP_BETREUUNG",
+  "RETOUREN_RISIKO",
+  "MARGE_SCHUETZEN",
+  "MANUELL",
+];
+const CUSTOMER_COHORT_STATUSES: AdminCustomerCohortStatus[] = [
+  "ENTWURF",
+  "AKTIV",
+  "IN_BEARBEITUNG",
+  "ABGESCHLOSSEN",
+];
+
+const formatTaskStatusLabel = (value: AdminCustomerTaskStatus) => {
+  switch (value) {
+    case "IN_BEARBEITUNG":
+      return "In Bearbeitung";
+    case "WIEDERVORLAGE":
+      return "Wiedervorlage";
+    case "ERLEDIGT":
+      return "Erledigt";
+    default:
+      return "Offen";
+  }
+};
+
+const formatTaskPlaybookLabel = (value: AdminCustomerTaskPlaybook) => {
+  switch (value) {
+    case "RUECKGEWINNUNG":
+      return "Rückgewinnung";
+    case "VIP_BETREUUNG":
+      return "VIP-Betreuung";
+    case "RETOUREN_RISIKO":
+      return "Retouren-Risiko";
+    case "MARGE_SCHUETZEN":
+      return "Marge schützen";
+    default:
+      return "Manuell";
+  }
+};
+
+const formatCohortStatusLabel = (value: AdminCustomerCohortStatus | null | undefined) => {
+  switch (value) {
+    case "AKTIV":
+      return "Aktiv";
+    case "IN_BEARBEITUNG":
+      return "In Bearbeitung";
+    case "ABGESCHLOSSEN":
+      return "Abgeschlossen";
+    default:
+      return "Entwurf";
+  }
+};
+
+const getTaskStatusTone = (value: AdminCustomerTaskStatus) => {
+  switch (value) {
+    case "IN_BEARBEITUNG":
+      return "border-cyan-400/20 bg-cyan-400/10 text-cyan-100";
+    case "WIEDERVORLAGE":
+      return "border-amber-400/20 bg-amber-400/10 text-amber-100";
+    case "ERLEDIGT":
+      return "border-emerald-400/20 bg-emerald-400/10 text-emerald-100";
+    default:
+      return "border-white/10 bg-white/[0.03] text-slate-200";
+  }
+};
+
 export default function AdminCustomersClient() {
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -108,12 +219,22 @@ export default function AdminCustomersClient() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [summary, setSummary] = useState<CustomerSummary>(EMPTY_SUMMARY);
+  const [owners, setOwners] = useState<TaskOwner[]>([]);
+  const [canWriteCrm, setCanWriteCrm] = useState(false);
+  const [tasks, setTasks] = useState<CustomerTask[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [customerMutationId, setCustomerMutationId] = useState<string | null>(null);
   const [cohortName, setCohortName] = useState("");
   const [cohortDescription, setCohortDescription] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [flagDraft, setFlagDraft] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskOwnerId, setTaskOwnerId] = useState("");
+  const [taskDueAt, setTaskDueAt] = useState("");
+  const [taskStatus, setTaskStatus] = useState<AdminCustomerTaskStatus>("OFFEN");
+  const [taskPlaybook, setTaskPlaybook] = useState<AdminCustomerTaskPlaybook>("MANUELL");
   const [storeCreditAmount, setStoreCreditAmount] = useState("");
   const [storeCreditReason, setStoreCreditReason] = useState("");
   const [storeCreditPassword, setStoreCreditPassword] = useState("");
@@ -142,17 +263,23 @@ export default function AdminCustomersClient() {
       const data = (await res.json()) as {
         customers?: Customer[];
         cohorts?: CustomerCohort[];
+        owners?: TaskOwner[];
         currentPage?: number;
         totalCount?: number;
         totalPages?: number;
         summary?: CustomerSummary;
+        capabilities?: {
+          canWriteCrm?: boolean;
+        };
       };
       setCustomers(data.customers ?? []);
       setCohorts(data.cohorts ?? []);
+      setOwners(data.owners ?? []);
       setPage(data.currentPage ?? page);
       setTotalCount(data.totalCount ?? 0);
       setTotalPages(data.totalPages ?? 1);
       setSummary(data.summary ?? EMPTY_SUMMARY);
+      setCanWriteCrm(Boolean(data.capabilities?.canWriteCrm));
     } catch {
       setError("Failed to load customers.");
     } finally {
@@ -184,11 +311,58 @@ export default function AdminCustomersClient() {
     if (selectedCustomer?.type === "registered") {
       setNoteDraft(selectedCustomer.notes ?? "");
       setFlagDraft(selectedCustomer.crmFlags.join(", "));
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskOwnerId("");
+      setTaskDueAt("");
+      setTaskStatus("OFFEN");
+      setTaskPlaybook(
+        selectedCustomer.segments.includes("churn_risk")
+          ? "RUECKGEWINNUNG"
+          : selectedCustomer.segments.includes("vip")
+            ? "VIP_BETREUUNG"
+            : selectedCustomer.segments.includes("return_risk")
+              ? "RETOUREN_RISIKO"
+              : selectedCustomer.segments.includes("discount_driven")
+                ? "MARGE_SCHUETZEN"
+                : "MANUELL",
+      );
     } else {
       setNoteDraft("");
       setFlagDraft("");
     }
   }, [selectedCustomer]);
+
+  const loadTasks = useEffectEvent(async (customerId: string) => {
+    setTasksLoading(true);
+    try {
+      const response = await fetch(
+        `/api/admin/customer-tasks?customerId=${encodeURIComponent(customerId)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+      const data = (await response.json().catch(() => ({}))) as {
+        tasks?: CustomerTask[];
+      };
+      if (!response.ok) {
+        setTasks([]);
+        return;
+      }
+      setTasks(data.tasks ?? []);
+    } finally {
+      setTasksLoading(false);
+    }
+  });
+
+  useEffect(() => {
+    if (!selectedCustomer || selectedCustomer.type !== "registered" || !canWriteCrm) {
+      setTasks([]);
+      return;
+    }
+    void loadTasks(selectedCustomer.id);
+  }, [canWriteCrm, loadTasks, selectedCustomer]);
 
   const actionSummary = useMemo(() => {
     if (!selectedCustomer) return null;
@@ -324,6 +498,118 @@ export default function AdminCustomersClient() {
       setNotice("Reactivation cohort saved.");
     } catch {
       setError("Failed to save cohort.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
+
+  const createTask = async () => {
+    if (!selectedCustomer || selectedCustomer.type !== "registered") return;
+    setError("");
+    setNotice("");
+    setCustomerMutationId(`task-create:${selectedCustomer.id}`);
+    try {
+      const response = await fetch(`/api/admin/customers/${selectedCustomer.id}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId: taskOwnerId || null,
+          status: taskStatus,
+          playbook: taskPlaybook,
+          title: taskTitle,
+          description: taskDescription,
+          dueAt: taskDueAt ? new Date(`${taskDueAt}T09:00:00.000Z`).toISOString() : null,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        task?: CustomerTask;
+      };
+      if (!response.ok || !data.task) {
+        setError(data.error ?? "Failed to create CRM task.");
+        return;
+      }
+      setTasks((current) => [data.task!, ...current].slice(0, 20));
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDueAt("");
+      setTaskStatus("OFFEN");
+      setNotice("CRM-Aufgabe erstellt.");
+    } catch {
+      setError("Failed to create CRM task.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
+
+  const updateTask = async (
+    taskId: string,
+    patch: Partial<{
+      ownerId: string | null;
+      status: AdminCustomerTaskStatus;
+      playbook: AdminCustomerTaskPlaybook;
+      title: string;
+      description: string;
+      dueAt: string | null;
+      snoozedUntil: string | null;
+    }>,
+  ) => {
+    setError("");
+    setNotice("");
+    setCustomerMutationId(`task:${taskId}`);
+    try {
+      const response = await fetch(`/api/admin/customer-tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        task?: CustomerTask;
+      };
+      if (!response.ok || !data.task) {
+        setError(data.error ?? "Failed to update CRM task.");
+        return;
+      }
+      setTasks((current) => current.map((task) => (task.id === taskId ? data.task! : task)));
+      setNotice("CRM-Aufgabe aktualisiert.");
+    } catch {
+      setError("Failed to update CRM task.");
+    } finally {
+      setCustomerMutationId(null);
+    }
+  };
+
+  const updateCohort = async (
+    cohortId: string,
+    patch: Partial<{
+      status: AdminCustomerCohortStatus;
+      assigneeUserId: string | null;
+    }>,
+  ) => {
+    setError("");
+    setNotice("");
+    setCustomerMutationId(`cohort:${cohortId}`);
+    try {
+      const response = await fetch(`/api/admin/customers/cohorts/${cohortId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        cohort?: CustomerCohort;
+      };
+      if (!response.ok || !data.cohort) {
+        setError(data.error ?? "Failed to update cohort.");
+        return;
+      }
+      setCohorts((current) =>
+        current.map((cohort) => (cohort.id === cohortId ? data.cohort! : cohort)),
+      );
+      setNotice("CRM-Kohorte aktualisiert.");
+    } catch {
+      setError("Failed to update cohort.");
     } finally {
       setCustomerMutationId(null);
     }
@@ -467,12 +753,60 @@ export default function AdminCustomersClient() {
                 }}
                 className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 text-left transition hover:bg-white/[0.05]"
               >
-                <div className="text-sm font-semibold text-slate-100">{cohort.name}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {cohort.customerCount} customers · updated {formatDate(cohort.updatedAt)}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-100">{cohort.name}</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {cohort.customerCount} customers · updated {formatDate(cohort.updatedAt)}
+                    </div>
+                  </div>
+                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-200">
+                    {formatCohortStatusLabel(cohort.status)}
+                  </span>
                 </div>
                 {cohort.description ? (
                   <p className="mt-2 text-sm text-slate-400">{cohort.description}</p>
+                ) : null}
+                {canWriteCrm ? (
+                  <div
+                    className="mt-3 grid gap-2 sm:grid-cols-2"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <select
+                      value={cohort.status ?? "ENTWURF"}
+                      onChange={(event) =>
+                        void updateCohort(cohort.id, {
+                          status: event.target.value as AdminCustomerCohortStatus,
+                        })
+                      }
+                      className="h-9 rounded-2xl border border-white/10 bg-[#090d12] px-3 text-xs text-slate-100 outline-none"
+                    >
+                      {CUSTOMER_COHORT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {formatCohortStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={cohort.assigneeUserId ?? ""}
+                      onChange={(event) =>
+                        void updateCohort(cohort.id, {
+                          assigneeUserId: event.target.value || null,
+                        })
+                      }
+                      className="h-9 rounded-2xl border border-white/10 bg-[#090d12] px-3 text-xs text-slate-100 outline-none"
+                    >
+                      <option value="">No owner</option>
+                      {owners.map((owner) => (
+                        <option key={owner.id} value={owner.id}>
+                          {owner.name ?? owner.email ?? owner.id}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="sm:col-span-2 text-[11px] text-slate-500">
+                      {cohort.assigneeEmail ? `Owner: ${cohort.assigneeEmail}` : "Not assigned"}
+                    </div>
+                  </div>
                 ) : null}
               </button>
             ))
@@ -863,6 +1197,190 @@ export default function AdminCustomersClient() {
                 </div>
               ) : null}
 
+              {selectedCustomer.type === "registered" && canWriteCrm ? (
+                <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        CRM tasks
+                      </p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        Create follow-up work, assign owners, and track reactivation or retention actions.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
+                      {tasksLoading ? "Loading..." : `${tasks.length} task(s)`}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <FieldShell label="Title">
+                      <input
+                        value={taskTitle}
+                        onChange={(event) => setTaskTitle(event.target.value)}
+                        placeholder="Win-back outreach"
+                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                      />
+                    </FieldShell>
+                    <FieldShell label="Playbook">
+                      <select
+                        value={taskPlaybook}
+                        onChange={(event) =>
+                          setTaskPlaybook(event.target.value as AdminCustomerTaskPlaybook)
+                        }
+                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                      >
+                        {CUSTOMER_TASK_PLAYBOOKS.map((playbook) => (
+                          <option key={playbook} value={playbook}>
+                            {formatTaskPlaybookLabel(playbook)}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldShell>
+                    <FieldShell label="Owner">
+                      <select
+                        value={taskOwnerId}
+                        onChange={(event) => setTaskOwnerId(event.target.value)}
+                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                      >
+                        <option value="">Unassigned</option>
+                        {owners.map((owner) => (
+                          <option key={owner.id} value={owner.id}>
+                            {owner.name ?? owner.email ?? owner.id}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldShell>
+                    <FieldShell label="Status">
+                      <select
+                        value={taskStatus}
+                        onChange={(event) =>
+                          setTaskStatus(event.target.value as AdminCustomerTaskStatus)
+                        }
+                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                      >
+                        {CUSTOMER_TASK_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {formatTaskStatusLabel(status)}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldShell>
+                    <FieldShell label="Due date" className="md:col-span-2">
+                      <input
+                        type="date"
+                        value={taskDueAt}
+                        onChange={(event) => setTaskDueAt(event.target.value)}
+                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                      />
+                    </FieldShell>
+                    <FieldShell label="Description" className="md:col-span-2">
+                      <textarea
+                        value={taskDescription}
+                        onChange={(event) => setTaskDescription(event.target.value)}
+                        rows={3}
+                        placeholder="Context, next action, offer or support note..."
+                        className="w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                      />
+                    </FieldShell>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={createTask}
+                      disabled={customerMutationId === `task-create:${selectedCustomer.id}`}
+                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:text-cyan-300"
+                    >
+                      {customerMutationId === `task-create:${selectedCustomer.id}`
+                        ? "Creating..."
+                        : "Create task"}
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {tasks.length === 0 ? (
+                      <EmptyPanelCopy message="No CRM tasks for this customer yet." />
+                    ) : (
+                      tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="rounded-2xl border border-white/10 bg-[#090d12] px-4 py-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-100">{task.title}</div>
+                              <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold">
+                                <span
+                                  className={`rounded-full border px-2.5 py-1 ${getTaskStatusTone(task.status)}`}
+                                >
+                                  {formatTaskStatusLabel(task.status)}
+                                </span>
+                                <span className="rounded-full border border-white/10 px-2.5 py-1 text-slate-200">
+                                  {formatTaskPlaybookLabel(task.playbook)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right text-xs text-slate-500">
+                              <div>{task.ownerName ?? task.ownerEmail ?? "Unassigned"}</div>
+                              <div>{task.dueAt ? `Due ${formatDate(task.dueAt)}` : "No due date"}</div>
+                            </div>
+                          </div>
+                          {task.description ? (
+                            <p className="mt-3 text-sm text-slate-300">{task.description}</p>
+                          ) : null}
+                          <div className="mt-4 grid gap-2 md:grid-cols-3">
+                            <select
+                              value={task.status}
+                              onChange={(event) =>
+                                void updateTask(task.id, {
+                                  status: event.target.value as AdminCustomerTaskStatus,
+                                })
+                              }
+                              className="h-9 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-xs text-slate-100 outline-none"
+                            >
+                              {CUSTOMER_TASK_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                  {formatTaskStatusLabel(status)}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={task.ownerId ?? ""}
+                              onChange={(event) =>
+                                void updateTask(task.id, {
+                                  ownerId: event.target.value || null,
+                                })
+                              }
+                              className="h-9 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-xs text-slate-100 outline-none"
+                            >
+                              <option value="">Unassigned</option>
+                              {owners.map((owner) => (
+                                <option key={owner.id} value={owner.id}>
+                                  {owner.name ?? owner.email ?? owner.id}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void updateTask(task.id, {
+                                  status: task.status === "ERLEDIGT" ? "OFFEN" : "ERLEDIGT",
+                                })
+                              }
+                              disabled={customerMutationId === `task:${task.id}`}
+                              className="inline-flex h-9 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-emerald-300"
+                            >
+                              {task.status === "ERLEDIGT" ? "Reopen" : "Mark done"}
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
               {"crmFlags" in selectedCustomer && selectedCustomer.crmFlags.length ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -1113,6 +1631,25 @@ function EmptyPanelCopy({ message }: { message: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
       {message}
+    </div>
+  );
+}
+
+function FieldShell({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
