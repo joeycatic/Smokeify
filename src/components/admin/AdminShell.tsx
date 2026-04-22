@@ -213,7 +213,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:p-4 md:translate-x-0 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur md:translate-x-0 md:p-4 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
@@ -291,7 +291,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           </nav>
         </aside>
 
-        <div className="min-w-0 flex-1 overflow-x-hidden">
+        <div className="min-w-0 flex-1 overflow-x-hidden md:pl-[18rem]">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
             <div className="mx-auto flex max-w-[1600px] flex-wrap items-start gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:flex-nowrap lg:items-center lg:px-8">
               <button

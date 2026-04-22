@@ -18,7 +18,7 @@ export function AdminPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="max-w-full rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:rounded-[28px] sm:p-5">
+    <section className="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:rounded-[28px] sm:p-5">
       <div className="mb-4 min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
           {eyebrow}

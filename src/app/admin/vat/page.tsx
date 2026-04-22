@@ -172,7 +172,7 @@ export default async function AdminVatPage() {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
         <AdminPanel
           eyebrow="UStVA Vorbereitung"
           title={ustva ? `Umsatzsteuer-Voranmeldung ${ustva.monthLabel}` : "UStVA Vorbereitung"}
@@ -377,7 +377,7 @@ export default async function AdminVatPage() {
         </AdminPanel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start">
         <AdminPanel
           eyebrow="Expense Input"
           title="What now feeds input VAT"
