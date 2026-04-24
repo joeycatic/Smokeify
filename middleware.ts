@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { hasAdminAccess } from "@/lib/adminAccess";
+import {
+  getRequiredAdminApiScope,
+  getRequiredAdminPageScope,
+  hasAdminScope,
+} from "@/lib/adminPermissions";
 
 const MAINTENANCE_FLAG = "1";
 
@@ -39,6 +44,7 @@ export async function middleware(request: NextRequest) {
     const hasVerifiedAdminAccess = hasAdminAccess({
       role,
       adminVerifiedAt: token?.adminVerifiedAt,
+      adminAccessDisabledAt: token?.adminAccessDisabledAt,
       invalidated: token?.invalidated,
     });
 
@@ -56,12 +62,33 @@ export async function middleware(request: NextRequest) {
       if (!hasVerifiedAdminAccess) {
         return NextResponse.redirect(buildAdminLoginUrl(request));
       }
-      return NextResponse.next();
+      const requiredScope = getRequiredAdminPageScope(pathname);
+      if (requiredScope && !hasAdminScope(role, requiredScope)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/admin";
+        redirectUrl.search = "";
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      const requestHeaders = new Headers(request.headers);
+      if (requiredScope) {
+        requestHeaders.set("x-admin-required-scope", requiredScope);
+      }
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
 
     if (isAdminApi) {
       if (!hasVerifiedAdminAccess) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const requiredScope = getRequiredAdminApiScope(pathname, request.method);
+      if (requiredScope && !hasAdminScope(role, requiredScope)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       return NextResponse.next();
     }

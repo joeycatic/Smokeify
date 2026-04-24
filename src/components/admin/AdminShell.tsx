@@ -31,6 +31,10 @@ import {
 } from "@heroicons/react/24/outline";
 import AdminCommandBar from "@/components/admin/AdminCommandBar";
 import {
+  hasAdminScope,
+  type AdminScope,
+} from "@/lib/adminPermissions";
+import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   parseAdminStorefrontScope,
   type AdminStorefrontScope,
@@ -40,6 +44,7 @@ import AdminConnectionStatus from "@/components/admin/AdminConnectionStatus";
 type AdminShellProps = {
   children: React.ReactNode;
   userEmail: string | null;
+  userRole: "USER" | "ADMIN" | "STAFF";
 };
 
 type NavItem = {
@@ -47,6 +52,7 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<React.ComponentProps<"svg">>;
   exact?: boolean;
+  scope: AdminScope;
 };
 
 type NavGroup = {
@@ -58,56 +64,65 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
     items: [
-      { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true },
-      { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon },
-      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon },
+      { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
+      { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
+      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
     ],
   },
   {
     label: "Control Layer",
     items: [
-      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon },
-      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon },
-      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon },
-      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon },
+      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
+      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
+      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon, scope: "tax.review" },
+      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon, scope: "tax.review" },
       {
         href: "/admin/profitability",
         label: "Profitability",
         icon: PresentationChartLineIcon,
+        scope: "finance.read",
       },
-      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon },
-      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon },
+      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
+      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
     ],
   },
   {
     label: "Commerce",
     items: [
-      { href: "/admin/catalog", label: "Catalog", icon: CubeIcon },
-      { href: "/admin/categories", label: "Categories", icon: SwatchIcon },
-      { href: "/admin/collections", label: "Collections", icon: FolderIcon },
-      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon },
-      { href: "/admin/discounts", label: "Discounts", icon: TagIcon },
-      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon },
+      { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
+      { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
+      { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
+      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
+      { href: "/admin/discounts", label: "Discounts", icon: TagIcon, scope: "discounts.manage" },
+      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
     ],
   },
   {
     label: "Orders",
     items: [
-      { href: "/admin/orders", label: "Orders", icon: CreditCardIcon },
-      { href: "/admin/returns", label: "Returns", icon: ArchiveBoxIcon },
+      { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
+      { href: "/admin/returns", label: "Returns", icon: ArchiveBoxIcon, scope: "returns.read" },
       {
         href: "/admin/inventory-adjustments",
         label: "Inventory",
         icon: TruckIcon,
+        scope: "inventory.read",
+      },
+      {
+        href: "/admin/procurement",
+        label: "Procurement",
+        icon: TruckIcon,
+        scope: "procurement.read",
       },
     ],
   },
   {
     label: "CRM",
     items: [
-      { href: "/admin/customers", label: "Customers", icon: UsersIcon },
-      { href: "/admin/users", label: "Users", icon: UsersIcon },
-      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon },
+      { href: "/admin/customers", label: "Customers", icon: UsersIcon, scope: "customers.read" },
+      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
+      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
+      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
     ],
   },
   {
@@ -117,21 +132,31 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/recommendations",
         label: "Recommendations",
         icon: RectangleGroupIcon,
+        scope: "pricing.review",
       },
       {
         href: "/admin/growvault",
         label: "Growvault",
         icon: HomeIcon,
+        scope: "analytics.read",
       },
       {
         href: "/admin/analyzer",
         label: "Analyzer",
         icon: BeakerIcon,
+        scope: "ops.read",
       },
       {
         href: "/admin/scripts",
         label: "Scripts",
         icon: CommandLineIcon,
+        scope: "scripts.execute",
+      },
+      {
+        href: "/admin/ops",
+        label: "Ops",
+        icon: ClipboardDocumentListIcon,
+        scope: "ops.read",
       },
     ],
   },
@@ -142,6 +167,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/email-testing",
         label: "Email Testing",
         icon: ArrowTopRightOnSquareIcon,
+        scope: "ops.read",
       },
     ],
   },
@@ -150,6 +176,7 @@ const NAV_GROUPS: NavGroup[] = [
 const HIDDEN_ROUTE_TITLES: Array<{ prefix: string; title: string }> = [
   { prefix: "/admin/catalog/", title: "Product Detail" },
   { prefix: "/admin/users/", title: "User Detail" },
+  { prefix: "/admin/procurement/", title: "Purchase Order" },
 ];
 
 function isActive(pathname: string, item: NavItem) {
@@ -157,26 +184,34 @@ function isActive(pathname: string, item: NavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-export default function AdminShell({ children, userEmail }: AdminShellProps) {
+export default function AdminShell({ children, userEmail, userRole }: AdminShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const currentStorefrontScope = parseAdminStorefrontScope(searchParams?.get("storefront"));
   const currentStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope];
+  const visibleNavGroups = useMemo(
+    () =>
+      NAV_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => hasAdminScope(userRole, item.scope)),
+      })).filter((group) => group.items.length > 0),
+    [userRole],
+  );
 
   const currentTitle = useMemo(() => {
     const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
-      pathname.startsWith(item.prefix)
+      pathname.startsWith(item.prefix),
     );
     if (hiddenMatch) return hiddenMatch.title;
 
-    for (const group of NAV_GROUPS) {
+    for (const group of visibleNavGroups) {
       const match = group.items.find((item) => isActive(pathname, item));
       if (match) return match.label;
     }
 
     return "Admin";
-  }, [pathname]);
+  }, [pathname, visibleNavGroups]);
 
   const navHref = (href: string) => {
     const params = new URLSearchParams();
@@ -251,7 +286,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                 <p className="truncate text-sm font-medium text-slate-100">
                   {userEmail ?? "admin"}
                 </p>
-                <p className="text-xs text-slate-400">ADMIN only</p>
+                <p className="text-xs text-slate-400">{userRole} access</p>
               </div>
               <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
                 LIVE SAFE
@@ -260,7 +295,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           </div>
 
           <nav className="mt-6 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {NAV_GROUPS.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.label}>
                 <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
                   {group.label}
@@ -315,7 +350,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                     {currentStorefrontLabel}
                   </span>
                   <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 sm:inline-flex">
-                    Admin-only workspace
+                    Capability-scoped workspace
                   </span>
                 </div>
               </div>
@@ -323,7 +358,7 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
               <div className="admin-header-controls -mx-3 flex w-[calc(100%+1.5rem)] min-w-0 items-center gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:w-auto sm:pb-0 lg:ml-auto lg:flex-nowrap lg:justify-end lg:overflow-visible lg:px-0">
                 <AdminCommandBar
                   key={pathname}
-                  groups={NAV_GROUPS}
+                  groups={visibleNavGroups}
                   pathname={pathname}
                   currentStorefrontScope={currentStorefrontScope}
                 />
@@ -344,7 +379,6 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
                     </Link>
                   ))}
                 </div>
-
               </div>
             </div>
             <AdminConnectionStatus />

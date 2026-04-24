@@ -252,7 +252,7 @@ providers.push(
           throw new Error("EMAIL_NOT_VERIFIED");
         }
 
-        if (user.role !== "ADMIN") {
+        if (user.role !== "ADMIN" && user.role !== "STAFF") {
           throw new Error("AccessDenied");
         }
 
@@ -411,7 +411,10 @@ export const authOptions: NextAuthOptions = {
           dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
         );
         token.adminAccessDisabledAt = dbUser.adminAccessDisabledAt?.getTime();
-        if (dbUser.role === "ADMIN" && typeof user.adminVerifiedAt === "number") {
+        if (
+          (dbUser.role === "ADMIN" || dbUser.role === "STAFF") &&
+          typeof user.adminVerifiedAt === "number"
+        ) {
           token.adminVerifiedAt = user.adminVerifiedAt;
         } else {
           delete token.adminVerifiedAt;
@@ -447,7 +450,7 @@ export const authOptions: NextAuthOptions = {
           dbUser.adminTotpEnabledAt && dbUser.adminTotpSecretEncrypted
         );
         token.adminAccessDisabledAt = dbUser.adminAccessDisabledAt?.getTime();
-        if (dbUser.role !== "ADMIN") {
+        if (dbUser.role !== "ADMIN" && dbUser.role !== "STAFF") {
           delete token.adminVerifiedAt;
         }
         token.invalidated = false;

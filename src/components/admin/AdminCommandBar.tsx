@@ -19,10 +19,32 @@ type CommandNavGroup = {
 };
 
 type FlattenedCommand = CommandNavItem & {
+  id: string;
   group: string;
   hrefWithState: string;
   searchValue: string;
 };
+
+type CommandSearchResult = {
+  group: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  badge?: string;
+};
+
+type DisplayCommand =
+  | (FlattenedCommand & {
+      kind: "page";
+      title: string;
+      subtitle: string;
+      href: string;
+      badge?: string;
+    })
+  | (CommandSearchResult & {
+      kind: "entity";
+    });
 
 type AdminCommandBarProps = {
   groups: CommandNavGroup[];
@@ -52,11 +74,14 @@ export default function AdminCommandBar({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [entityResults, setEntityResults] = useState<CommandSearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const commands = useMemo<FlattenedCommand[]>(
     () =>
       groups.flatMap((group) =>
         group.items.map((item) => ({
+          id: `${group.label}:${item.href}`,
           ...item,
           group: group.label,
           hrefWithState: buildHref(item.href, currentStorefrontScope),
@@ -71,13 +96,73 @@ export default function AdminCommandBar({
     if (!normalizedQuery) return commands;
     return commands.filter((item) => item.searchValue.includes(normalizedQuery));
   }, [commands, query]);
+  const normalizedQuery = query.trim();
+  const displayCommands = useMemo<DisplayCommand[]>(() => {
+    const pageResults = filteredCommands.map((item) => ({
+      ...item,
+      kind: "page" as const,
+      title: item.label,
+      subtitle: item.group,
+      href: item.hrefWithState,
+    }));
+
+    if (normalizedQuery.length < 2) {
+      return pageResults;
+    }
+
+    return [
+      ...entityResults.map((result) => ({
+        ...result,
+        kind: "entity" as const,
+      })),
+      ...pageResults,
+    ];
+  }, [entityResults, filteredCommands, normalizedQuery.length]);
   const boundedActiveIndex =
-    filteredCommands.length === 0 ? 0 : Math.min(activeIndex, filteredCommands.length - 1);
+    displayCommands.length === 0 ? 0 : Math.min(activeIndex, displayCommands.length - 1);
 
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (normalizedQuery.length < 2) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    const runSearch = async () => {
+      setSearchLoading(true);
+      try {
+        const response = await fetch(`/api/admin/search?q=${encodeURIComponent(normalizedQuery)}`, {
+          signal: controller.signal,
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          results?: CommandSearchResult[];
+        };
+        if (active) {
+          setEntityResults(data.results ?? []);
+        }
+      } catch {
+        if (active) {
+          setEntityResults([]);
+        }
+      } finally {
+        if (active) {
+          setSearchLoading(false);
+        }
+      }
+    };
+
+    void runSearch();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [normalizedQuery, open]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,34 +184,35 @@ export default function AdminCommandBar({
 
   const openCommandBar = () => setOpen(true);
 
-  const selectCommand = (command: FlattenedCommand | undefined) => {
+  const selectCommand = (command: DisplayCommand | undefined) => {
     if (!command) return;
     setOpen(false);
     setQuery("");
     setActiveIndex(0);
-    router.push(command.hrefWithState);
+    setEntityResults([]);
+    router.push(command.href);
   };
 
   const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      if (filteredCommands.length === 0) return;
-      setActiveIndex((current) => (current + 1) % filteredCommands.length);
+      if (displayCommands.length === 0) return;
+      setActiveIndex((current) => (current + 1) % displayCommands.length);
       return;
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      if (filteredCommands.length === 0) return;
+      if (displayCommands.length === 0) return;
       setActiveIndex((current) =>
-        current === 0 ? filteredCommands.length - 1 : current - 1,
+        current === 0 ? displayCommands.length - 1 : current - 1,
       );
       return;
     }
 
     if (event.key === "Enter") {
       event.preventDefault();
-      selectCommand(filteredCommands[boundedActiveIndex]);
+      selectCommand(displayCommands[boundedActiveIndex]);
     }
   };
 
@@ -176,11 +262,20 @@ export default function AdminCommandBar({
                 ref={inputRef}
                 value={query}
                 onChange={(event) => {
-                  setQuery(event.target.value);
+                  const nextQuery = event.target.value;
+                  setQuery(nextQuery);
                   setActiveIndex(0);
+                  if (nextQuery.trim().length < 2) {
+                    setEntityResults([]);
+                    setSearchLoading(false);
+                  }
                 }}
                 onKeyDown={handleInputKeyDown}
-                placeholder="Search admin pages"
+                placeholder={
+                  normalizedQuery.length >= 2
+                    ? "Search pages, orders, customers, products, suppliers..."
+                    : "Search admin pages"
+                }
                 className="h-11 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                 aria-label="Search admin commands"
               />
@@ -190,20 +285,25 @@ export default function AdminCommandBar({
             </div>
 
             <div className="min-h-0 overflow-y-auto p-3">
-              {filteredCommands.length === 0 ? (
+              {displayCommands.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
-                  No admin pages match that search.
+                  {normalizedQuery.length >= 2
+                    ? "No admin pages or records match that search."
+                    : "No admin pages match that search."}
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {filteredCommands.map((command, index) => {
-                    const Icon = command.icon;
+                  {displayCommands.map((command, index) => {
+                    const Icon = command.kind === "page" ? command.icon : null;
                     const active = index === boundedActiveIndex;
-                    const current = isCurrentPath(pathname, command);
+                    const current =
+                      command.kind === "page"
+                        ? isCurrentPath(pathname, command)
+                        : pathname === command.href || pathname.startsWith(`${command.href}/`);
 
                     return (
                       <button
-                        key={`${command.group}-${command.href}`}
+                        key={`${command.group}-${command.id}`}
                         type="button"
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => selectCommand(command)}
@@ -213,17 +313,28 @@ export default function AdminCommandBar({
                             : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
                         }`}
                       >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300">
-                          <Icon className="h-5 w-5" />
-                        </span>
+                        {Icon ? (
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300">
+                            <Icon className="h-5 w-5" />
+                          </span>
+                        ) : (
+                          <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                            {command.group.slice(0, 2)}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold text-white">
-                            {command.label}
+                            {command.title}
                           </span>
                           <span className="mt-1 block truncate text-xs text-slate-500">
-                            {command.group}
+                            {command.subtitle}
                           </span>
                         </span>
+                        {command.badge ? (
+                          <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300 sm:inline-flex">
+                            {command.badge}
+                          </span>
+                        ) : null}
                         {current ? (
                           <span className="hidden shrink-0 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 sm:inline-flex">
                             Current
@@ -234,6 +345,9 @@ export default function AdminCommandBar({
                   })}
                 </div>
               )}
+              {searchLoading && normalizedQuery.length >= 2 ? (
+                <div className="mt-3 text-center text-xs text-slate-500">Searching records…</div>
+              ) : null}
             </div>
           </div>
         </div>

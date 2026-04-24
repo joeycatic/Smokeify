@@ -203,14 +203,18 @@ const getTaskStatusTone = (value: AdminCustomerTaskStatus) => {
   }
 };
 
-export default function AdminCustomersClient() {
+export default function AdminCustomersClient({
+  initialSearchQuery = "",
+}: {
+  initialSearchQuery?: string;
+}) {
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cohorts, setCohorts] = useState<CustomerCohort[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialSearchQuery);
   const deferredQuery = useDeferredValue(query);
   const [tab, setTab] = useState<"all" | "registered" | "guest">("all");
   const [segmentFilter, setSegmentFilter] = useState<Segment | "all">("all");

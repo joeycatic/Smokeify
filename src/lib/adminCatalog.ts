@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasAdminAccess } from "@/lib/adminAccess";
+import type { AdminRole, AdminScope } from "@/lib/adminPermissions";
+import { hasAdminScope } from "@/lib/adminPermissions";
 
 export const PRODUCT_STATUSES = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
@@ -28,12 +30,35 @@ export async function assertFreshAdmin() {
   return session;
 }
 
-export async function requireAdmin() {
-  return requireFreshAdmin();
+export async function requireAdmin(scope?: AdminScope | AdminScope[]) {
+  const session = await requireFreshAdmin();
+  if (!session) {
+    return null;
+  }
+  if (scope && !hasAdminScope(session.user.role, scope)) {
+    return null;
+  }
+  return session;
 }
 
 export async function requireAdminOnly() {
-  return requireFreshAdmin();
+  const session = await requireFreshAdmin();
+  if (!session || session.user.role !== "ADMIN") {
+    return null;
+  }
+  return session;
+}
+
+export async function requireAdminRole(role: AdminRole) {
+  const session = await requireFreshAdmin();
+  if (!session || session.user.role !== role) {
+    return null;
+  }
+  return session;
+}
+
+export async function requireAdminScope(scope: AdminScope | AdminScope[]) {
+  return requireAdmin(scope);
 }
 
 export function slugify(value: string) {

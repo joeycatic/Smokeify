@@ -1,3 +1,5 @@
+import { isAdminRole } from "@/lib/adminPermissions";
+
 const DEFAULT_ADMIN_REAUTH_TTL_MINUTES = 120;
 
 function parsePositiveInteger(value: string | undefined, fallback: number) {
@@ -40,7 +42,7 @@ export function hasAdminAccess({
     return false;
   }
 
-  return role === "ADMIN" && isFreshAdminReauth(adminVerifiedAt);
+  return isAdminRole(role) && isFreshAdminReauth(adminVerifiedAt);
 }
 
 export function isAdminTotpEnabled(value: unknown) {

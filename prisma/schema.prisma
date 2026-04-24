@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -268,78 +268,112 @@ enum AdminCustomerTaskPlaybook {
   MANUELL
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELED
+}
+
+enum SupportCaseStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+}
+
+enum SupportCaseSourceType {
+  RETURN_REQUEST
+  CONTACT_SUBMISSION
+  MANUAL
+}
+
+enum SupportCasePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AdminJobRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
-  id             String         @id @default(cuid())
-  name           String?        @unique
-  firstName      String?
-  lastName       String?
-  street         String?
-  houseNumber    String?
-  postalCode     String?
-  city           String?
-  country        String?
-  birthDate      DateTime?
-  email          String?        @unique
-  emailVerified  DateTime?
-  image          String?
-  passwordHash   String?
-  authVersion    Int            @default(0)
-  adminTotpSecretEncrypted String?
+  id                              String                     @id @default(cuid())
+  name                            String?                    @unique
+  firstName                       String?
+  lastName                        String?
+  street                          String?
+  houseNumber                     String?
+  postalCode                      String?
+  city                            String?
+  country                         String?
+  birthDate                       DateTime?
+  email                           String?                    @unique
+  emailVerified                   DateTime?
+  image                           String?
+  passwordHash                    String?
+  authVersion                     Int                        @default(0)
+  adminTotpSecretEncrypted        String?
   adminTotpPendingSecretEncrypted String?
-  adminTotpEnabledAt DateTime?
-  adminAccessDisabledAt DateTime?
-  adminAccessDisableReason String?
-  role           UserRole       @default(USER)
-  customerGroup  CustomerGroup  @default(NORMAL)
-  notes          String?
-  newsletterOptIn Boolean       @default(false)
-  newsletterOptInAt DateTime?
-  accounts       Account[]
-  sessions       Session[]
-  wishlistItems  WishlistItem[]
-  savedSetups    SavedSetup[]
-  orders         Order[]
-  returnRequests ReturnRequest[]
-  reviews        Review[]
-  devices        Device[]
-  verificationCodes VerificationCode[]
-  backInStockRequests BackInStockRequest[]
-  newsletterSubscriber NewsletterSubscriber?
-  loyaltyPointsBalance Int      @default(0)
-  storeCreditBalance Int      @default(0)
-  crmFlags       String[]       @default([])
-  newsletterOfferClaimedAt DateTime?
-  newsletterOfferClaimedEmail String?
-  cartItems       UserCartItem[]
-  loyaltyTransactions LoyaltyPointTransaction[]
-  storeCreditTransactions StoreCreditTransaction[]
-  reviewIncentives ReviewIncentive[]
-  plantAnalyses  PlantAnalysisRun[]
-  plantAnalysisFeedback PlantAnalysisFeedback[]
-  plantAnalysisReviews PlantAnalysisRun[] @relation("PlantAnalysisReviewedBy")
-  plantAnalysisReviewEvents PlantAnalysisReviewEvent[] @relation("PlantAnalysisReviewEventActor")
-  analyticsSessions AnalyticsSession[]
-  analyticsEvents AnalyticsEvent[]
-  pricingRunsTriggered PricingRun[] @relation("PricingRunTriggeredBy")
-  pricingRecommendationsReviewed PricingRecommendation[] @relation("PricingRecommendationReviewedBy")
-  pricingChangeAudits PricingChangeAudit[] @relation("PricingChangeActor")
-  productsComplianceReviewed Product[] @relation("ProductComplianceReviewedBy")
-  productComplianceEvents ProductComplianceEvent[] @relation("ProductComplianceEventActor")
-  crmOwnedTasks AdminCustomerTask[] @relation("AdminCustomerTaskOwner")
-  crmCreatedTasks AdminCustomerTask[] @relation("AdminCustomerTaskCreatedBy")
-  crmCustomerTasks AdminCustomerTask[] @relation("AdminCustomerTaskCustomer")
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  adminTotpEnabledAt              DateTime?
+  adminAccessDisabledAt           DateTime?
+  adminAccessDisableReason        String?
+  role                            UserRole                   @default(USER)
+  customerGroup                   CustomerGroup              @default(NORMAL)
+  notes                           String?
+  newsletterOptIn                 Boolean                    @default(false)
+  newsletterOptInAt               DateTime?
+  accounts                        Account[]
+  sessions                        Session[]
+  wishlistItems                   WishlistItem[]
+  savedSetups                     SavedSetup[]
+  orders                          Order[]
+  returnRequests                  ReturnRequest[]
+  reviews                         Review[]
+  devices                         Device[]
+  verificationCodes               VerificationCode[]
+  backInStockRequests             BackInStockRequest[]
+  newsletterSubscriber            NewsletterSubscriber?
+  loyaltyPointsBalance            Int                        @default(0)
+  storeCreditBalance              Int                        @default(0)
+  crmFlags                        String[]                   @default([])
+  newsletterOfferClaimedAt        DateTime?
+  newsletterOfferClaimedEmail     String?
+  cartItems                       UserCartItem[]
+  loyaltyTransactions             LoyaltyPointTransaction[]
+  storeCreditTransactions         StoreCreditTransaction[]
+  reviewIncentives                ReviewIncentive[]
+  plantAnalyses                   PlantAnalysisRun[]
+  plantAnalysisFeedback           PlantAnalysisFeedback[]
+  plantAnalysisReviews            PlantAnalysisRun[]         @relation("PlantAnalysisReviewedBy")
+  plantAnalysisReviewEvents       PlantAnalysisReviewEvent[] @relation("PlantAnalysisReviewEventActor")
+  analyticsSessions               AnalyticsSession[]
+  analyticsEvents                 AnalyticsEvent[]
+  pricingRunsTriggered            PricingRun[]               @relation("PricingRunTriggeredBy")
+  pricingRecommendationsReviewed  PricingRecommendation[]    @relation("PricingRecommendationReviewedBy")
+  pricingChangeAudits             PricingChangeAudit[]       @relation("PricingChangeActor")
+  productsComplianceReviewed      Product[]                  @relation("ProductComplianceReviewedBy")
+  productComplianceEvents         ProductComplianceEvent[]   @relation("ProductComplianceEventActor")
+  crmOwnedTasks                   AdminCustomerTask[]        @relation("AdminCustomerTaskOwner")
+  crmCreatedTasks                 AdminCustomerTask[]        @relation("AdminCustomerTaskCreatedBy")
+  crmCustomerTasks                AdminCustomerTask[]        @relation("AdminCustomerTaskCustomer")
+  supportCases                    SupportCase[]              @relation("SupportCaseCustomer")
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
 }
 
 model NewsletterSubscriber {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  userId        String?  @unique
-  subscribedAt  DateTime @default(now())
+  id             String    @id @default(cuid())
+  email          String    @unique
+  userId         String?   @unique
+  subscribedAt   DateTime  @default(now())
   unsubscribedAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -434,7 +468,7 @@ model SavedSetup {
 }
 
 model BackInStockRequest {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   email        String
   productId    String
   productTitle String?
@@ -442,8 +476,8 @@ model BackInStockRequest {
   variantTitle String?
   userId       String?
   notifiedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -453,57 +487,61 @@ model BackInStockRequest {
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  contactName String?
-  email       String?
-  phone       String?
-  website     String?
-  country     String?
-  vatId       String?
-  notes       String?
-  leadTimeDays Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  products    Product[]
-  expenses    Expense[]
+  id                String             @id @default(cuid())
+  name              String             @unique
+  contactName       String?
+  email             String?
+  phone             String?
+  website           String?
+  country           String?
+  vatId             String?
+  notes             String?
+  leadTimeDays      Int?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  products          Product[]
+  expenses          Expense[]
   recurringExpenses RecurringExpense[]
+  purchaseOrders    PurchaseOrder[]
 }
 
 model Expense {
-  id                 String                @id @default(cuid())
-  supplierId         String?
-  title              String
-  category           ExpenseCategory       @default(OTHER)
-  notes              String?
-  invoiceIssuerName  String?
-  invoiceNumber      String?
-  invoiceDescription String?
-  supplierCountry    String?
-  reverseChargeReference String?
-  isSmallBusinessSupplier Boolean          @default(false)
-  currency           String                @default("EUR")
-  grossAmount        Int
-  netAmount          Int
-  vatAmount          Int                   @default(0)
-  vatRateBasisPoints Int?
-  taxRegime          TaxRegime             @default(NORMAL)
-  germanVatRate      GermanVatRate         @default(UNKNOWN)
-  taxClassification  TaxClassification     @default(UNKNOWN)
+  id                      String                  @id @default(cuid())
+  supplierId              String?
+  purchaseOrderId         String?
+  title                   String
+  category                ExpenseCategory         @default(OTHER)
+  notes                   String?
+  invoiceIssuerName       String?
+  invoiceNumber           String?
+  invoiceDescription      String?
+  supplierCountry         String?
+  reverseChargeReference  String?
+  isSmallBusinessSupplier Boolean                 @default(false)
+  currency                String                  @default("EUR")
+  grossAmount             Int
+  netAmount               Int
+  vatAmount               Int                     @default(0)
+  vatRateBasisPoints      Int?
+  taxRegime               TaxRegime               @default(NORMAL)
+  germanVatRate           GermanVatRate           @default(UNKNOWN)
+  taxClassification       TaxClassification       @default(UNKNOWN)
   invoiceValidationStatus InvoiceValidationStatus @default(ENTWURF)
-  inputVatEligibility InputVatEligibility  @default(MANUELLE_PRUEFUNG)
-  taxReviewStatus    TaxReviewStatus       @default(ENTWURF)
-  manualReviewReason String?
-  isDeductible       Boolean               @default(true)
-  documentDate       DateTime
-  paidAt             DateTime?
-  documentStatus     ExpenseDocumentStatus @default(RECEIVED)
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  inputVatEligibility     InputVatEligibility     @default(MANUELLE_PRUEFUNG)
+  taxReviewStatus         TaxReviewStatus         @default(ENTWURF)
+  manualReviewReason      String?
+  isDeductible            Boolean                 @default(true)
+  documentDate            DateTime
+  paidAt                  DateTime?
+  documentStatus          ExpenseDocumentStatus   @default(RECEIVED)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 
-  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
 
   @@index([supplierId])
+  @@index([purchaseOrderId])
   @@index([documentDate])
   @@index([paidAt])
   @@index([category, documentDate])
@@ -539,78 +577,78 @@ model RecurringExpense {
   @@index([category, isActive])
 }
 
-
-
 model Product {
-  id          String         @id @default(cuid())
-  title       String
-  handle      String         @unique
-  description String?
-  technicalDetails String?
-  shortDescription String?
-  seoTitle     String?
-  seoDescription String?
-  manufacturer String?
-  supplier    String?
-  supplierId  String?
-  sellerName  String?
-  sellerUrl   String?
-  leadTimeDays Int?
-  weightGrams Int?
-  lengthMm    Int?
-  widthMm     Int?
-  heightMm    Int?
-  growboxPlantCountMin Int?
-  growboxPlantCountMax Int?
-  growboxSize String?
-  growboxConnectionDiameterMm Int[] @default([])
-  lightSize String?
-  airSystemDiameterMm Int?
-  productGroup String?
-  mainCategoryId String?
-  shippingClass String?
-  tags        String[]       @default([])
-  storefronts Storefront[]   @default([MAIN])
-  merchantUnitPricingMeasure String?
+  id                             String                  @id @default(cuid())
+  title                          String
+  handle                         String                  @unique
+  description                    String?
+  technicalDetails               String?
+  shortDescription               String?
+  seoTitle                       String?
+  seoDescription                 String?
+  manufacturer                   String?
+  supplier                       String?
+  supplierId                     String?
+  sellerName                     String?
+  sellerUrl                      String?
+  leadTimeDays                   Int?
+  weightGrams                    Int?
+  lengthMm                       Int?
+  widthMm                        Int?
+  heightMm                       Int?
+  growboxPlantCountMin           Int?
+  growboxPlantCountMax           Int?
+  growboxSize                    String?
+  growboxConnectionDiameterMm    Int[]                   @default([])
+  lightSize                      String?
+  airSystemDiameterMm            Int?
+  productGroup                   String?
+  mainCategoryId                 String?
+  shippingClass                  String?
+  tags                           String[]                @default([])
+  storefronts                    Storefront[]            @default([MAIN])
+  merchantUnitPricingMeasure     String?
   merchantUnitPricingBaseMeasure String?
   merchantCertificationAuthority String?
-  merchantCertificationName String?
-  merchantCertificationCode String?
-  merchantCertificationValue String?
-  complianceStatus ProductComplianceStatus @default(DRAFT_REVIEW)
-  complianceReviewedAt DateTime?
-  complianceReviewedById String?
-  complianceNotes String?
-  complianceCountryAllowlist String[] @default([])
-  complianceCountryDenylist String[] @default([])
-  complianceAgeGateRequired Boolean @default(false)
-  complianceFeedEligible Boolean @default(false)
-  complianceAdsEligible Boolean @default(false)
-  complianceManualBlockers String[] @default([])
-  taxRegime   TaxRegime      @default(NORMAL)
-  germanVatRate GermanVatRate @default(UNKNOWN)
-  taxClassification TaxClassification @default(UNKNOWN)
-  taxReviewStatus TaxReviewStatus @default(ENTWURF)
-  status      ProductStatus  @default(DRAFT)
-  bestsellerScore Float?     // computed weekly by script
-  conversionRate  Float?     // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  merchantCertificationName      String?
+  merchantCertificationCode      String?
+  merchantCertificationValue     String?
+  complianceStatus               ProductComplianceStatus @default(DRAFT_REVIEW)
+  complianceReviewedAt           DateTime?
+  complianceReviewedById         String?
+  complianceNotes                String?
+  complianceCountryAllowlist     String[]                @default([])
+  complianceCountryDenylist      String[]                @default([])
+  complianceAgeGateRequired      Boolean                 @default(false)
+  complianceFeedEligible         Boolean                 @default(false)
+  complianceAdsEligible          Boolean                 @default(false)
+  complianceManualBlockers       String[]                @default([])
+  taxRegime                      TaxRegime               @default(NORMAL)
+  germanVatRate                  GermanVatRate           @default(UNKNOWN)
+  taxClassification              TaxClassification       @default(UNKNOWN)
+  taxReviewStatus                TaxReviewStatus         @default(ENTWURF)
+  status                         ProductStatus           @default(DRAFT)
+  bestsellerScore                Float? // computed weekly by script
+  conversionRate                 Float? // set manually (0.0–1.0, e.g. 0.035 = 3.5%)
+  createdAt                      DateTime                @default(now())
+  updatedAt                      DateTime                @updatedAt
 
-  variants    Variant[]
-  images      ProductImage[]
-  categories  ProductCategory[]
-  collections ProductCollection[]
-  reviews     Review[]
-  inventoryAdjustments InventoryAdjustment[]
-  mainCategory Category? @relation("ProductMainCategory", fields: [mainCategoryId], references: [id], onDelete: SetNull)
-  supplierRef Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  crossSells         ProductCrossSell[] @relation("ProductCrossSells")
-  crossSellBackRefs  ProductCrossSell[] @relation("ProductCrossSellBackRefs")
-  pricingRecommendations PricingRecommendation[]
-  pricingChangeAudits PricingChangeAudit[]
-  complianceReviewedBy User? @relation("ProductComplianceReviewedBy", fields: [complianceReviewedById], references: [id], onDelete: SetNull)
-  complianceEvents ProductComplianceEvent[]
+  variants                  Variant[]
+  images                    ProductImage[]
+  categories                ProductCategory[]
+  collections               ProductCollection[]
+  reviews                   Review[]
+  inventoryAdjustments      InventoryAdjustment[]
+  mainCategory              Category?                  @relation("ProductMainCategory", fields: [mainCategoryId], references: [id], onDelete: SetNull)
+  supplierRef               Supplier?                  @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  crossSells                ProductCrossSell[]         @relation("ProductCrossSells")
+  crossSellBackRefs         ProductCrossSell[]         @relation("ProductCrossSellBackRefs")
+  pricingRecommendations    PricingRecommendation[]
+  pricingChangeAudits       PricingChangeAudit[]
+  complianceReviewedBy      User?                      @relation("ProductComplianceReviewedBy", fields: [complianceReviewedById], references: [id], onDelete: SetNull)
+  complianceEvents          ProductComplianceEvent[]
+  purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemProduct")
+  purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemProduct")
 
   @@index([status])
   @@index([supplierId])
@@ -623,19 +661,19 @@ model Product {
 }
 
 model ProductComplianceEvent {
-  id String @id @default(cuid())
-  productId String
-  actorId String?
+  id         String                   @id @default(cuid())
+  productId  String
+  actorId    String?
   actorEmail String?
   fromStatus ProductComplianceStatus?
-  toStatus ProductComplianceStatus?
-  blockers Json?
-  notes String?
-  metadata Json?
-  createdAt DateTime @default(now())
+  toStatus   ProductComplianceStatus?
+  blockers   Json?
+  notes      String?
+  metadata   Json?
+  createdAt  DateTime                 @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  actor User? @relation("ProductComplianceEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor   User?   @relation("ProductComplianceEventActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([productId, createdAt])
   @@index([toStatus, createdAt])
@@ -656,34 +694,36 @@ model ProductImage {
 }
 
 model Variant {
-  id        String   @id @default(cuid())
-  productId String
-  title     String
-  sku       String?  @unique
-  priceCents Int
-  costCents  Int      @default(0)
-  lowStockThreshold Int @default(5)
-  compareAtCents Int?
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  productId         String
+  title             String
+  sku               String?  @unique
+  priceCents        Int
+  costCents         Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  compareAtCents    Int?
+  position          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  options   VariantOption[]
-  inventory VariantInventory?
-  inventoryAdjustments InventoryAdjustment[]
-  pricingProfile VariantPricingProfile?
-  pricingRecommendations PricingRecommendation[]
-  pricingChangeAudits PricingChangeAudit[]
+  product                   Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options                   VariantOption[]
+  inventory                 VariantInventory?
+  inventoryAdjustments      InventoryAdjustment[]
+  pricingProfile            VariantPricingProfile?
+  pricingRecommendations    PricingRecommendation[]
+  pricingChangeAudits       PricingChangeAudit[]
+  purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemVariant")
+  purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemVariant")
 
   @@index([productId, position])
 }
 
 model VariantOption {
-  id        String @id @default(cuid())
-  variantId String
-  name      String
-  value     String
+  id            String @id @default(cuid())
+  variantId     String
+  name          String
+  value         String
   imagePosition Int?
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
@@ -692,23 +732,27 @@ model VariantOption {
 }
 
 model VariantInventory {
-  id            String   @id @default(cuid())
-  variantId     String   @unique
-  quantityOnHand Int     @default(0)
-  reserved      Int      @default(0)
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  variantId      String   @unique
+  quantityOnHand Int      @default(0)
+  reserved       Int      @default(0)
+  updatedAt      DateTime @updatedAt
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 }
 
 model InventoryAdjustment {
-  id           String   @id @default(cuid())
-  variantId    String
-  productId    String
-  orderId      String?
+  id            String   @id @default(cuid())
+  variantId     String
+  productId     String
+  orderId       String?
+  sourceType    String?
+  sourceId      String?
+  actorId       String?
+  note          String?
   quantityDelta Int
-  reason       String
-  createdAt    DateTime @default(now())
+  reason        String
+  createdAt     DateTime @default(now())
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -717,23 +761,24 @@ model InventoryAdjustment {
   @@index([variantId])
   @@index([productId])
   @@index([orderId])
+  @@index([sourceType, sourceId])
   @@index([createdAt])
 }
 
 model Category {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
-  handle      String   @unique
+  handle      String       @unique
   description String?
   parentId    String?
   storefronts Storefront[] @default([MAIN])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children Category[] @relation("CategoryHierarchy")
-  products ProductCategory[]
-  mainCategoryProducts Product[] @relation("ProductMainCategory")
+  parent               Category?         @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children             Category[]        @relation("CategoryHierarchy")
+  products             ProductCategory[]
+  mainCategoryProducts Product[]         @relation("ProductMainCategory")
 
   @@index([parentId])
 }
@@ -778,54 +823,55 @@ model ProductCollection {
 }
 
 model Order {
-  id                   String      @id @default(cuid())
-  orderNumber          Int         @unique @default(autoincrement())
-  userId               String?
-  stripeSessionId      String      @unique
-  stripePaymentIntent  String?     @unique
-  sourceStorefront     Storefront?
-  sourceHost           String?
-  sourceOrigin         String?
-  paymentMethod        String?
-  status               String
-  paymentStatus        String
-  currency             String
-  amountSubtotal       Int
-  amountTax            Int       @default(0)
-  amountShipping       Int
-  amountDiscount       Int       @default(0)
-  amountTotal          Int
-  discountCode         String?
-  amountRefunded       Int       @default(0)
-  customerEmail        String?
-  shippingName         String?
-  shippingLine1        String?
-  shippingLine2        String?
-  shippingPostalCode   String?
-  shippingCity         String?
-  shippingCountry      String?
-  trackingCarrier      String?
-  trackingNumber       String?
-  trackingUrl          String?
-  confirmationEmailSentAt DateTime?
-  shippingEmailSentAt  DateTime?
-  refundEmailSentAt    DateTime?
+  id                       String            @id @default(cuid())
+  orderNumber              Int               @unique @default(autoincrement())
+  userId                   String?
+  stripeSessionId          String            @unique
+  stripePaymentIntent      String?           @unique
+  sourceStorefront         Storefront?
+  sourceHost               String?
+  sourceOrigin             String?
+  paymentMethod            String?
+  status                   String
+  paymentStatus            String
+  currency                 String
+  amountSubtotal           Int
+  amountTax                Int               @default(0)
+  amountShipping           Int
+  amountDiscount           Int               @default(0)
+  amountTotal              Int
+  discountCode             String?
+  amountRefunded           Int               @default(0)
+  customerEmail            String?
+  shippingName             String?
+  shippingLine1            String?
+  shippingLine2            String?
+  shippingPostalCode       String?
+  shippingCity             String?
+  shippingCountry          String?
+  trackingCarrier          String?
+  trackingNumber           String?
+  trackingUrl              String?
+  confirmationEmailSentAt  DateTime?
+  shippingEmailSentAt      DateTime?
+  refundEmailSentAt        DateTime?
   refundRequestEmailSentAt DateTime?
-  taxRegime            TaxRegime    @default(NORMAL)
-  germanVatRate        GermanVatRate @default(UNKNOWN)
-  taxClassification    TaxClassification @default(UNKNOWN)
-  taxReviewStatus      TaxReviewStatus   @default(ENTWURF)
-  taxSnapshot          Json?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  taxRegime                TaxRegime         @default(NORMAL)
+  germanVatRate            GermanVatRate     @default(UNKNOWN)
+  taxClassification        TaxClassification @default(UNKNOWN)
+  taxReviewStatus          TaxReviewStatus   @default(ENTWURF)
+  taxSnapshot              Json?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
-  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items     OrderItem[]
-  returnRequests ReturnRequest[] @relation("ReturnRequestsOrder")
-  exchangeForReturnRequest ReturnRequest? @relation("ReturnExchangeOrder")
-  inventoryAdjustments InventoryAdjustment[]
-  loyaltyPointTransaction LoyaltyPointTransaction?
-  storeCreditTransactions StoreCreditTransaction[]
+  user                     User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items                    OrderItem[]
+  returnRequests           ReturnRequest[]          @relation("ReturnRequestsOrder")
+  exchangeForReturnRequest ReturnRequest?           @relation("ReturnExchangeOrder")
+  inventoryAdjustments     InventoryAdjustment[]
+  loyaltyPointTransaction  LoyaltyPointTransaction?
+  storeCreditTransactions  StoreCreditTransaction[]
+  supportCases             SupportCase[]
 
   @@index([status])
   @@index([createdAt])
@@ -835,53 +881,61 @@ model Order {
 }
 
 model LandingPageSection {
-  id         String     @id @default(cuid())
-  storefront Storefront @default(MAIN)
-  key        String
-  isManual   Boolean    @default(false)
-  productIds String[]   @default([])
-  draftIsManual Boolean @default(false)
-  draftProductIds String[] @default([])
-  scheduledPublishAt DateTime?
-  lastPublishedAt DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  storefront          Storefront @default(MAIN)
+  key                 String
+  isManual            Boolean    @default(false)
+  productIds          String[]   @default([])
+  draftIsManual       Boolean    @default(false)
+  draftProductIds     String[]   @default([])
+  scheduledPublishAt  DateTime?
+  publishedRevisionId String?
+  scheduledRevisionId String?
+  lastPublishedAt     DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  revisions         LandingPageSectionRevision[] @relation("LandingPageSectionRevisions")
+  publishedRevision LandingPageSectionRevision?  @relation("LandingPageSectionPublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  scheduledRevision LandingPageSectionRevision?  @relation("LandingPageSectionScheduledRevision", fields: [scheduledRevisionId], references: [id], onDelete: SetNull)
 
   @@unique([storefront, key])
+  @@index([publishedRevisionId])
+  @@index([scheduledRevisionId])
 }
 
 model AdminSavedReport {
-  id              String      @id @default(cuid())
-  name            String
-  reportType      String      @default("overview")
-  days            Int         @default(30)
-  sourceStorefront Storefront?
-  paymentState    String      @default("all")
-  deliveryEnabled Boolean     @default(false)
-  deliveryEmail   String?
+  id                String                        @id @default(cuid())
+  name              String
+  reportType        String                        @default("overview")
+  days              Int                           @default(30)
+  sourceStorefront  Storefront?
+  paymentState      String                        @default("all")
+  deliveryEnabled   Boolean                       @default(false)
+  deliveryEmail     String?
   deliveryFrequency AdminReportDeliveryFrequency?
-  deliveryWeekday Int?
-  deliveryHour    Int?
-  lastDeliveredAt DateTime?
-  nextDeliveryAt  DateTime?
-  createdById     String?
-  createdByEmail  String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  deliveryWeekday   Int?
+  deliveryHour      Int?
+  lastDeliveredAt   DateTime?
+  nextDeliveryAt    DateTime?
+  createdById       String?
+  createdByEmail    String?
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
 
   @@index([createdAt])
   @@index([updatedAt])
 }
 
 model UserCartItem {
-  id          String   @id @default(cuid())
-  userId      String
-  variantId   String
-  quantity    Int
-  optionsKey  String   @default("")
-  options     Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  variantId  String
+  quantity   Int
+  optionsKey String   @default("")
+  options    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -899,20 +953,20 @@ model LoyaltyPointTransaction {
   metadata    Json?
   createdAt   DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
 }
 
 model ReviewIncentive {
-  id                     String   @id @default(cuid())
-  reviewId               String   @unique
-  userId                 String?
-  email                  String?
-  promotionCode          String   @unique
-  stripePromotionCodeId  String?  @unique
-  createdAt              DateTime @default(now())
+  id                    String   @id @default(cuid())
+  reviewId              String   @unique
+  userId                String?
+  email                 String?
+  promotionCode         String   @unique
+  stripePromotionCodeId String?  @unique
+  createdAt             DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -920,26 +974,27 @@ model ReviewIncentive {
 }
 
 model ReturnRequest {
-  id          String       @id @default(cuid())
-  orderId     String
-  exchangeOrderId String?  @unique
-  userId      String?
-  status      ReturnStatus @default(PENDING)
+  id                  String               @id @default(cuid())
+  orderId             String
+  exchangeOrderId     String?              @unique
+  userId              String?
+  status              ReturnStatus         @default(PENDING)
   requestedResolution ReturnResolutionType @default(REFUND)
-  exchangePreference String?
-  reason      String
-  adminNote   String?
-  storeCreditAmount Int    @default(0)
+  exchangePreference  String?
+  reason              String
+  adminNote           String?
+  storeCreditAmount   Int                  @default(0)
   storeCreditIssuedAt DateTime?
-  exchangeApprovedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  exchangeApprovedAt  DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
-  order Order @relation("ReturnRequestsOrder", fields: [orderId], references: [id], onDelete: Cascade)
-  exchangeOrder Order? @relation("ReturnExchangeOrder", fields: [exchangeOrderId], references: [id], onDelete: SetNull)
-  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items ReturnItem[]
+  order                   Order                    @relation("ReturnRequestsOrder", fields: [orderId], references: [id], onDelete: Cascade)
+  exchangeOrder           Order?                   @relation("ReturnExchangeOrder", fields: [exchangeOrderId], references: [id], onDelete: SetNull)
+  user                    User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items                   ReturnItem[]
   storeCreditTransactions StoreCreditTransaction[]
+  supportCase             SupportCase?
 
   @@index([orderId])
   @@index([userId])
@@ -955,9 +1010,9 @@ model StoreCreditTransaction {
   metadata        Json?
   createdAt       DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   returnRequest ReturnRequest? @relation(fields: [returnRequestId], references: [id], onDelete: SetNull)
-  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order         Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([returnRequestId])
@@ -965,41 +1020,41 @@ model StoreCreditTransaction {
 }
 
 model OrderItem {
-  id           String   @id @default(cuid())
-  orderId      String
-  name         String
-  quantity     Int
-  unitAmount   Int
-  totalAmount  Int
-  baseCostAmount Int    @default(0)
-  paymentFeeAmount Int  @default(0)
-  adjustedCostAmount Int @default(0)
-  taxAmount    Int      @default(0)
+  id                 String  @id @default(cuid())
+  orderId            String
+  name               String
+  quantity           Int
+  unitAmount         Int
+  totalAmount        Int
+  baseCostAmount     Int     @default(0)
+  paymentFeeAmount   Int     @default(0)
+  adjustedCostAmount Int     @default(0)
+  taxAmount          Int     @default(0)
   taxRateBasisPoints Int?
-  currency     String
-  imageUrl     String?
-  productId    String?
-  variantId    String?
-  options      Json?
+  currency           String
+  imageUrl           String?
+  productId          String?
+  variantId          String?
+  options            Json?
 
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  returnItems  ReturnItem[]
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnItems ReturnItem[]
 
   @@index([orderId])
 }
 
 model ReturnItem {
-  id              String        @id @default(cuid())
+  id              String @id @default(cuid())
   returnRequestId String
   orderItemId     String
-  quantity        Int           @default(1)
+  quantity        Int    @default(1)
 
-  request  ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
-  orderItem OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  request   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
+  @@unique([returnRequestId, orderItemId])
   @@index([returnRequestId])
   @@index([orderItemId])
-  @@unique([returnRequestId, orderItemId])
 }
 
 model Review {
@@ -1032,13 +1087,13 @@ model RateLimit {
 }
 
 model ProcessedWebhookEvent {
-  id          String   @id @default(cuid())
-  eventId     String   @unique
+  id          String    @id @default(cuid())
+  eventId     String    @unique
   type        String
-  status      String   @default("processing")
+  status      String    @default("processing")
   processedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
@@ -1060,29 +1115,29 @@ model AdminAuditLog {
 }
 
 model AdminAlert {
-  id             String             @id @default(cuid())
-  type           String
-  category       String
-  priority       AdminAlertPriority
-  dedupeKey      String             @unique
-  title          String
-  detail         String
-  href           String
-  actionLabel    String?
-  status         AdminAlertStatus   @default(OPEN)
-  assigneeUserId String?
-  assigneeEmail  String?
-  firstSeenAt    DateTime
-  lastSeenAt     DateTime
-  repeatCount    Int                @default(1)
-  signalActive   Boolean            @default(true)
+  id              String             @id @default(cuid())
+  type            String
+  category        String
+  priority        AdminAlertPriority
+  dedupeKey       String             @unique
+  title           String
+  detail          String
+  href            String
+  actionLabel     String?
+  status          AdminAlertStatus   @default(OPEN)
+  assigneeUserId  String?
+  assigneeEmail   String?
+  firstSeenAt     DateTime
+  lastSeenAt      DateTime
+  repeatCount     Int                @default(1)
+  signalActive    Boolean            @default(true)
   signalClearedAt DateTime?
-  snoozedUntil   DateTime?
-  resolvedAt     DateTime?
-  resolutionNote String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  events         AdminAlertEvent[]
+  snoozedUntil    DateTime?
+  resolvedAt      DateTime?
+  resolutionNote  String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  events          AdminAlertEvent[]
 
   @@index([status, priority, updatedAt])
   @@index([signalActive, status])
@@ -1090,8 +1145,8 @@ model AdminAlert {
 }
 
 model AdminAlertEvent {
-  id         String     @id @default(cuid())
-  alertId     String
+  id         String            @id @default(cuid())
+  alertId    String
   actorId    String?
   actorEmail String?
   eventType  String
@@ -1099,26 +1154,26 @@ model AdminAlertEvent {
   toStatus   AdminAlertStatus?
   note       String?
   metadata   Json?
-  createdAt  DateTime   @default(now())
-  alert      AdminAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  createdAt  DateTime          @default(now())
+  alert      AdminAlert        @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId, createdAt])
   @@index([eventType, createdAt])
 }
 
 model AdminCustomerCohort {
-  id             String   @id @default(cuid())
+  id             String                    @id @default(cuid())
   name           String
   description    String?
   filters        Json
-  customerCount  Int      @default(0)
+  customerCount  Int                       @default(0)
   status         AdminCustomerCohortStatus @default(ENTWURF)
   assigneeUserId String?
   assigneeEmail  String?
   createdById    String?
   createdByEmail String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -1141,17 +1196,126 @@ model AdminCustomerTask {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
-  customer  User                @relation("AdminCustomerTaskCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-  owner     User?               @relation("AdminCustomerTaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  createdBy User?               @relation("AdminCustomerTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  customer  User  @relation("AdminCustomerTaskCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  owner     User? @relation("AdminCustomerTaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy User? @relation("AdminCustomerTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([customerId, status, updatedAt])
   @@index([ownerId, status, dueAt])
   @@index([sourceCohortId])
 }
 
+model PurchaseOrder {
+  id                  String              @id @default(cuid())
+  purchaseOrderNumber Int                 @unique @default(autoincrement())
+  supplierId          String
+  status              PurchaseOrderStatus @default(DRAFT)
+  reference           String?
+  note                String?
+  expectedDeliveryAt  DateTime?
+  submittedAt         DateTime?
+  canceledAt          DateTime?
+  receivedAt          DateTime?
+  createdById         String?
+  createdByEmail      String?
+  updatedById         String?
+  updatedByEmail      String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  supplier Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items    PurchaseOrderItem[]
+  receipts PurchaseOrderReceipt[]
+  events   PurchaseOrderEvent[]
+  expenses Expense[]
+
+  @@index([supplierId, status, updatedAt])
+  @@index([status, updatedAt])
+  @@index([expectedDeliveryAt])
+}
+
+model PurchaseOrderItem {
+  id               String   @id @default(cuid())
+  purchaseOrderId  String
+  productId        String
+  variantId        String
+  skuSnapshot      String?
+  productTitle     String
+  variantTitle     String
+  orderedQuantity  Int
+  receivedQuantity Int      @default(0)
+  unitCostCents    Int
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder              @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product                    @relation("PurchaseOrderItemProduct", fields: [productId], references: [id], onDelete: Restrict)
+  variant       Variant                    @relation("PurchaseOrderItemVariant", fields: [variantId], references: [id], onDelete: Restrict)
+  receiptItems  PurchaseOrderReceiptItem[]
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model PurchaseOrderReceipt {
+  id              String    @id @default(cuid())
+  purchaseOrderId String
+  note            String?
+  receivedAt      DateTime  @default(now())
+  createdById     String?
+  createdByEmail  String?
+  reversedAt      DateTime?
+  reversedById    String?
+  reversedByEmail String?
+  reversalNote    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  purchaseOrder PurchaseOrder              @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  items         PurchaseOrderReceiptItem[]
+
+  @@index([purchaseOrderId, receivedAt])
+  @@index([reversedAt])
+}
+
+model PurchaseOrderReceiptItem {
+  id                  String   @id @default(cuid())
+  receiptId           String
+  purchaseOrderItemId String
+  productId           String
+  variantId           String
+  quantityReceived    Int
+  createdAt           DateTime @default(now())
+
+  receipt           PurchaseOrderReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem    @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
+  product           Product              @relation("PurchaseOrderReceiptItemProduct", fields: [productId], references: [id], onDelete: Restrict)
+  variant           Variant              @relation("PurchaseOrderReceiptItemVariant", fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([receiptId])
+  @@index([purchaseOrderItemId])
+}
+
+model PurchaseOrderEvent {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  actorId         String?
+  actorEmail      String?
+  eventType       String
+  summary         String?
+  note            String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId, createdAt])
+}
+
 model AnalyticsSession {
-  id            String   @id
+  id            String      @id
   userId        String?
   storefront    Storefront?
   firstPath     String?
@@ -1163,9 +1327,9 @@ model AnalyticsSession {
   utmMedium     String?
   utmCampaign   String?
   deviceType    String?
-  startedAt     DateTime @default(now())
-  lastSeenAt    DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  startedAt     DateTime    @default(now())
+  lastSeenAt    DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   user   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   events AnalyticsEvent[]
@@ -1177,7 +1341,7 @@ model AnalyticsSession {
 }
 
 model AnalyticsEvent {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   sessionId   String
   userId      String?
   storefront  Storefront?
@@ -1195,7 +1359,7 @@ model AnalyticsEvent {
   valueCents  Int?
   quantity    Int?
   metadata    Json?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
 
   session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1208,6 +1372,107 @@ model AnalyticsEvent {
   @@index([productId, eventName, createdAt])
   @@index([variantId, eventName, createdAt])
   @@index([orderId])
+}
+
+model ContactSubmission {
+  id          String    @id @default(cuid())
+  name        String
+  email       String
+  message     String
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  supportCases SupportCase[]
+
+  @@index([createdAt])
+  @@index([email, createdAt])
+}
+
+model SupportCase {
+  id                    String                @id @default(cuid())
+  linkedOrderId         String?
+  linkedCustomerId      String?
+  returnRequestId       String?               @unique
+  contactSubmissionId   String?               @unique
+  sourceType            SupportCaseSourceType
+  status                SupportCaseStatus     @default(OPEN)
+  priority              SupportCasePriority   @default(MEDIUM)
+  assigneeUserId        String?
+  assigneeEmail         String?
+  createdById           String?
+  createdByEmail        String?
+  summary               String
+  resolutionNote        String?
+  latestCustomerEventAt DateTime?
+  resolvedAt            DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  linkedOrder       Order?             @relation(fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedCustomer    User?              @relation("SupportCaseCustomer", fields: [linkedCustomerId], references: [id], onDelete: SetNull)
+  returnRequest     ReturnRequest?     @relation(fields: [returnRequestId], references: [id], onDelete: SetNull)
+  contactSubmission ContactSubmission? @relation(fields: [contactSubmissionId], references: [id], onDelete: SetNull)
+  events            SupportCaseEvent[]
+
+  @@index([status, updatedAt])
+  @@index([assigneeUserId, status, updatedAt])
+  @@index([linkedOrderId])
+  @@index([linkedCustomerId])
+  @@index([sourceType, createdAt])
+}
+
+model SupportCaseEvent {
+  id            String   @id @default(cuid())
+  supportCaseId String
+  actorId       String?
+  actorEmail    String?
+  eventType     String
+  summary       String?
+  note          String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  supportCase SupportCase @relation(fields: [supportCaseId], references: [id], onDelete: Cascade)
+
+  @@index([supportCaseId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model AdminJobRun {
+  id               String            @id @default(cuid())
+  jobType          String
+  status           AdminJobRunStatus @default(RUNNING)
+  triggeredById    String?
+  triggeredByEmail String?
+  summary          String?
+  errorMessage     String?
+  metadata         Json?
+  startedAt        DateTime          @default(now())
+  finishedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([jobType, startedAt])
+  @@index([status, startedAt])
+}
+
+model LandingPageSectionRevision {
+  id             String     @id @default(cuid())
+  sectionId      String
+  storefront     Storefront
+  key            String
+  isManual       Boolean
+  productIds     String[]   @default([])
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime   @default(now())
+
+  section             LandingPageSection   @relation("LandingPageSectionRevisions", fields: [sectionId], references: [id], onDelete: Cascade)
+  publishedBySections LandingPageSection[] @relation("LandingPageSectionPublishedRevision")
+  scheduledBySections LandingPageSection[] @relation("LandingPageSectionScheduledRevision")
+
+  @@index([sectionId, createdAt])
+  @@index([storefront, key, createdAt])
 }
 
 model ProductCrossSell {
@@ -1296,10 +1561,10 @@ model PricingRecommendation {
   reviewedAt                  DateTime?
   appliedAt                   DateTime?
 
-  run         PricingRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
-  variant     Variant           @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  reviewedBy  User?             @relation("PricingRecommendationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  run         PricingRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  variant     Variant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reviewedBy  User?               @relation("PricingRecommendationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   priceChange PricingChangeAudit?
 
   @@index([runId, createdAt])
@@ -1338,18 +1603,18 @@ model PricingChangeAudit {
 }
 
 model RecommendationRule {
-  id          String                       @id @default(cuid())
-  name        String
-  description String?
-  triggerType RecommendationRuleTriggerType
+  id           String                        @id @default(cuid())
+  name         String
+  description  String?
+  triggerType  RecommendationRuleTriggerType
   triggerValue String
-  targetType  RecommendationRuleTargetType
-  targetValue String
-  priority    Int                          @default(0)
-  maxProducts Int?
-  isActive    Boolean                      @default(true)
-  createdAt   DateTime                     @default(now())
-  updatedAt   DateTime                     @updatedAt
+  targetType   RecommendationRuleTargetType
+  targetValue  String
+  priority     Int                           @default(0)
+  maxProducts  Int?
+  isActive     Boolean                       @default(true)
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
 
   @@index([isActive, triggerType])
   @@index([triggerType, triggerValue, isActive])
@@ -1357,33 +1622,33 @@ model RecommendationRule {
 }
 
 model PlantAnalysisRun {
-  id          String   @id @default(cuid())
-  userId      String?
-  plantId     String?
-  imageUri    String?
-  imageHash   String
-  imageMime   String?
-  notes       String?
-  provider    String
-  model       String
-  latencyMs   Int
-  confidence  Float
-  healthStatus PlantHealthStatus
-  species     String
-  outputJson  Json
-  reviewStatus PlantAnalysisReviewStatus @default(UNREVIEWED)
-  reviewedById String?
-  reviewedAt DateTime?
-  reviewNotes String?
-  safetyFlags PlantAnalysisSafetyFlag[] @default([])
+  id                  String                    @id @default(cuid())
+  userId              String?
+  plantId             String?
+  imageUri            String?
+  imageHash           String
+  imageMime           String?
+  notes               String?
+  provider            String
+  model               String
+  latencyMs           Int
+  confidence          Float
+  healthStatus        PlantHealthStatus
+  species             String
+  outputJson          Json
+  reviewStatus        PlantAnalysisReviewStatus @default(UNREVIEWED)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  safetyFlags         PlantAnalysisSafetyFlag[] @default([])
   imageRetentionUntil DateTime?
-  imageDeletedAt DateTime?
-  createdAt   DateTime @default(now())
+  imageDeletedAt      DateTime?
+  createdAt           DateTime                  @default(now())
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  reviewedBy User? @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  issues PlantAnalysisIssue[]
-  feedback PlantAnalysisFeedback[]
+  user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy   User?                      @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  issues       PlantAnalysisIssue[]
+  feedback     PlantAnalysisFeedback[]
   reviewEvents PlantAnalysisReviewEvent[]
 
   @@index([userId, createdAt])
@@ -1395,19 +1660,19 @@ model PlantAnalysisRun {
 }
 
 model PlantAnalysisReviewEvent {
-  id String @id @default(cuid())
-  analysisId String
-  actorId String?
-  actorEmail String?
-  fromStatus PlantAnalysisReviewStatus?
-  toStatus PlantAnalysisReviewStatus?
-  safetyFlags PlantAnalysisSafetyFlag[] @default([])
-  notes String?
-  metadata Json?
-  createdAt DateTime @default(now())
+  id          String                     @id @default(cuid())
+  analysisId  String
+  actorId     String?
+  actorEmail  String?
+  fromStatus  PlantAnalysisReviewStatus?
+  toStatus    PlantAnalysisReviewStatus?
+  safetyFlags PlantAnalysisSafetyFlag[]  @default([])
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime                   @default(now())
 
   analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-  actor User? @relation("PlantAnalysisReviewEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor    User?            @relation("PlantAnalysisReviewEventActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([analysisId, createdAt])
   @@index([toStatus, createdAt])
@@ -1415,14 +1680,14 @@ model PlantAnalysisReviewEvent {
 }
 
 model PlantAnalysisIssue {
-  id          String   @id @default(cuid())
-  analysisId  String
+  id            String            @id @default(cuid())
+  analysisId    String
   sourceIssueId String?
-  label       String
-  confidence  Float
-  severity    PlantHealthStatus
-  position    Int      @default(0)
-  createdAt   DateTime @default(now())
+  label         String
+  confidence    Float
+  severity      PlantHealthStatus
+  position      Int               @default(0)
+  createdAt     DateTime          @default(now())
 
   analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
@@ -1430,17 +1695,17 @@ model PlantAnalysisIssue {
 }
 
 model PlantAnalysisFeedback {
-  id          String   @id @default(cuid())
-  analysisId  String
-  userId      String?
-  isCorrect   Boolean
+  id           String   @id @default(cuid())
+  analysisId   String
+  userId       String?
+  isCorrect    Boolean
   correctLabel String?
-  comment     String?
-  source      String   @default("user")
-  createdAt   DateTime @default(now())
+  comment      String?
+  source       String   @default("user")
+  createdAt    DateTime @default(now())
 
   analysis PlantAnalysisRun @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user     User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([analysisId, createdAt])
   @@index([userId, createdAt])

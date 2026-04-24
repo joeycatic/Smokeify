@@ -2,13 +2,22 @@ import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import { adminJson } from "@/lib/adminApi";
 import { requireFreshAdmin } from "@/lib/adminCatalog";
-import { canAdminPerformAction, type AdminAction } from "@/lib/adminPermissions";
+import {
+  canAdminPerformAction,
+  getRequiredAdminApiScope,
+  hasAdminScope,
+  type AdminAction,
+  type AdminRole,
+  type AdminScope,
+} from "@/lib/adminPermissions";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
 type AdminRouteOptions = {
   sameOrigin?: boolean;
   action?: AdminAction;
+  scope?: AdminScope | AdminScope[];
+  role?: AdminRole;
   rateLimit?: {
     keyPrefix: string;
     limit: number;
@@ -57,6 +66,16 @@ export function withAdminRoute<TParams extends Record<string, string> = Record<s
     const session = await requireFreshAdmin();
     if (!session) {
       return adminJson({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (options.role && session.user.role !== options.role) {
+      return adminJson({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const inferredScope =
+      options.scope ?? getRequiredAdminApiScope(request.nextUrl.pathname, request.method);
+    if (inferredScope && !hasAdminScope(session.user.role, inferredScope)) {
+      return adminJson({ error: "Forbidden" }, { status: 403 });
     }
 
     if (options.action && !canAdminPerformAction(session.user.role, options.action)) {

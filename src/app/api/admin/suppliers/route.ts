@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/adminCatalog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { listAdminProcurementSuppliers } from "@/lib/adminProcurement";
 
 const normalizeWebsite = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -53,9 +54,14 @@ export async function GET() {
       },
     },
   });
+  const procurementSuppliers = await listAdminProcurementSuppliers();
+  const procurementSummaryBySupplierId = new Map(
+    procurementSuppliers.map((supplier) => [supplier.id, supplier]),
+  );
 
   return NextResponse.json({
     suppliers: suppliers.map((supplier) => {
+      const procurementSummary = procurementSummaryBySupplierId.get(supplier.id);
       const activeProducts = supplier.products.filter(
         (product) => product.status === "ACTIVE"
       ).length;
@@ -82,6 +88,9 @@ export async function GET() {
         productCount: supplier._count.products,
         activeProductCount: activeProducts,
         lowStockProductCount: lowStockProducts,
+        openPurchaseOrderCount: procurementSummary?.openPurchaseOrderCount ?? 0,
+        latePurchaseOrderCount: procurementSummary?.latePurchaseOrderCount ?? 0,
+        lastReceiptAt: procurementSummary?.lastReceiptAt ?? null,
       };
     }),
   });

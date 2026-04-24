@@ -308,8 +308,8 @@ export async function mutateAdminAlert(input: {
         where: { id: input.assigneeUserId },
         select: { id: true, email: true, role: true },
       });
-      if (!assignee || assignee.role !== "ADMIN") {
-        throw new Error("Assignee must be an admin.");
+      if (!assignee || (assignee.role !== "ADMIN" && assignee.role !== "STAFF")) {
+        throw new Error("Assignee must be an admin or staff account.");
       }
       data = {
         assigneeUserId: assignee.id,

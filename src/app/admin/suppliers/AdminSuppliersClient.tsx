@@ -17,6 +17,9 @@ type Supplier = {
   productCount: number;
   activeProductCount: number;
   lowStockProductCount: number;
+  openPurchaseOrderCount: number;
+  latePurchaseOrderCount: number;
+  lastReceiptAt: string | null;
 };
 
 const isValidWebsite = (value: string) => !value || /^https?:\/\//i.test(value);
@@ -31,12 +34,16 @@ const normalizeLeadTime = (value: string) => {
   return { ok: true, value: Math.floor(parsed) };
 };
 
-export default function AdminSuppliersClient() {
+export default function AdminSuppliersClient({
+  initialSearchQuery = "",
+}: {
+  initialSearchQuery?: string;
+}) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialSearchQuery);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -74,7 +81,40 @@ export default function AdminSuppliersClient() {
   };
 
   useEffect(() => {
-    void loadSuppliers();
+    let active = true;
+
+    const bootstrap = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/admin/suppliers", { method: "GET" });
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          if (active) {
+            setError(data.error ?? "Failed to load suppliers.");
+          }
+          return;
+        }
+        const data = (await res.json()) as { suppliers?: Supplier[] };
+        if (active) {
+          setSuppliers(data.suppliers ?? []);
+        }
+      } catch {
+        if (active) {
+          setError("Failed to load suppliers.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const filteredSuppliers = useMemo(() => {
@@ -107,6 +147,14 @@ export default function AdminSuppliersClient() {
   );
   const totalLowStockProducts = useMemo(
     () => suppliers.reduce((sum, supplier) => sum + supplier.lowStockProductCount, 0),
+    [suppliers]
+  );
+  const totalOpenPurchaseOrders = useMemo(
+    () => suppliers.reduce((sum, supplier) => sum + supplier.openPurchaseOrderCount, 0),
+    [suppliers]
+  );
+  const totalLatePurchaseOrders = useMemo(
+    () => suppliers.reduce((sum, supplier) => sum + supplier.latePurchaseOrderCount, 0),
     [suppliers]
   );
 
@@ -279,11 +327,13 @@ export default function AdminSuppliersClient() {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <MetricCard label="Suppliers" value={String(totalSuppliers)} />
           <MetricCard label="Catalog products" value={String(totalProducts)} />
           <MetricCard label="Avg. lead time" value={`${averageLeadTime} days`} />
           <MetricCard label="Low-stock products" value={String(totalLowStockProducts)} />
+          <MetricCard label="Open POs" value={String(totalOpenPurchaseOrders)} />
+          <MetricCard label="Late POs" value={String(totalLatePurchaseOrders)} />
         </div>
       </section>
 
@@ -460,6 +510,18 @@ export default function AdminSuppliersClient() {
                       <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-300">
                         {supplier.lowStockProductCount} low stock
                       </span>
+                      <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-sky-300">
+                        {supplier.openPurchaseOrderCount} open POs
+                      </span>
+                      <span className="rounded-full bg-rose-400/10 px-2.5 py-1 text-rose-300">
+                        {supplier.latePurchaseOrderCount} late
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      Last receipt{" "}
+                      {supplier.lastReceiptAt
+                        ? new Date(supplier.lastReceiptAt).toLocaleDateString("de-DE")
+                        : "—"}
                     </div>
                   </div>
                   <div className="text-xs text-slate-500">
