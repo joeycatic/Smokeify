@@ -11,6 +11,7 @@ type AnalyticsSessionState = {
   id: string;
   startedAt: number;
   lastSeenAt: number;
+  storefront: "MAIN";
   utmSource: string | null;
   utmMedium: string | null;
   utmCampaign: string | null;
@@ -18,6 +19,7 @@ type AnalyticsSessionState = {
 
 type AnalyticsEventPayload = {
   sessionId: string;
+  storefront: "MAIN";
   eventName: string;
   pagePath?: string;
   pageType?: string;
@@ -33,6 +35,8 @@ type AnalyticsEventPayload = {
   orderId?: string | null;
   metadata?: Record<string, unknown>;
 };
+
+const ANALYTICS_STOREFRONT = "MAIN" as const;
 
 const readCookieValue = (key: string): string | null => {
   if (typeof document === "undefined") return null;
@@ -110,6 +114,7 @@ const readAnalyticsSession = (): AnalyticsSessionState | null => {
       id: parsed.id,
       startedAt: parsed.startedAt,
       lastSeenAt: parsed.lastSeenAt,
+      storefront: ANALYTICS_STOREFRONT,
       utmSource: trimTrackingValue(
         typeof parsed.utmSource === "string" ? parsed.utmSource : null,
         120,
@@ -155,6 +160,7 @@ export const getAnalyticsSession = () => {
     id: createAnalyticsSessionId(),
     startedAt: now,
     lastSeenAt: now,
+    storefront: ANALYTICS_STOREFRONT,
     ...attribution,
   };
   persistAnalyticsSession(freshSession);
@@ -214,6 +220,7 @@ const buildPayload = (
 
   return {
     sessionId,
+    storefront: ANALYTICS_STOREFRONT,
     eventName,
     pagePath,
     pageType,

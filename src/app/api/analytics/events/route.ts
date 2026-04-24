@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Storefront } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isSameOrigin } from "@/lib/requestSecurity";
@@ -8,6 +8,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 type AnalyticsIngestBody = {
   sessionId?: unknown;
+  storefront?: unknown;
   eventName?: unknown;
   pagePath?: unknown;
   pageType?: unknown;
@@ -29,6 +30,16 @@ const trimString = (value: unknown, maxLength = 255) => {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   return trimmed.slice(0, maxLength);
+};
+
+const STOREFRONTS = new Set<Storefront>(["MAIN", "GROW"]);
+
+const normalizeStorefront = (value: unknown): Storefront | undefined => {
+  const storefront = trimString(value, 12)?.toUpperCase();
+  if (!storefront || !STOREFRONTS.has(storefront as Storefront)) {
+    return undefined;
+  }
+  return storefront as Storefront;
 };
 
 const normalizePath = (value: unknown) => {
@@ -90,6 +101,7 @@ export async function POST(request: Request) {
   }
 
   const sessionId = trimString(body.sessionId, 120);
+  const storefront = normalizeStorefront(body.storefront);
   const eventName = trimString(body.eventName, 80);
   if (!sessionId || !eventName) {
     return NextResponse.json({ error: "sessionId and eventName are required" }, { status: 400 });
@@ -119,6 +131,7 @@ export async function POST(request: Request) {
     create: {
       id: sessionId,
       userId,
+      storefront,
       firstPath: pagePath,
       lastPath: pagePath,
       firstPageType: pageType,
@@ -137,6 +150,7 @@ export async function POST(request: Request) {
       lastPageType: pageType,
       deviceType,
       ...(userId ? { userId } : {}),
+      ...(storefront ? { storefront } : {}),
     },
   });
 
@@ -145,6 +159,7 @@ export async function POST(request: Request) {
       data: {
         sessionId,
         userId,
+        storefront,
         eventName,
         pagePath,
         pageType,

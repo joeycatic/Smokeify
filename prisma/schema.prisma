@@ -1153,6 +1153,7 @@ model AdminCustomerTask {
 model AnalyticsSession {
   id            String   @id
   userId        String?
+  storefront    Storefront?
   firstPath     String?
   lastPath      String?
   firstPageType String?
@@ -1172,12 +1173,14 @@ model AnalyticsSession {
   @@index([lastSeenAt])
   @@index([userId, lastSeenAt])
   @@index([utmSource, lastSeenAt])
+  @@index([storefront, lastSeenAt])
 }
 
 model AnalyticsEvent {
   id          String   @id @default(cuid())
   sessionId   String
   userId      String?
+  storefront  Storefront?
   eventName   String
   pagePath    String?
   pageType    String?
@@ -1201,6 +1204,7 @@ model AnalyticsEvent {
   @@index([pageType, createdAt])
   @@index([sessionId, createdAt])
   @@index([userId, createdAt])
+  @@index([storefront, eventName, createdAt])
   @@index([productId, eventName, createdAt])
   @@index([variantId, eventName, createdAt])
   @@index([orderId])
