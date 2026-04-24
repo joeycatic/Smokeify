@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { ensureContactSubmissionSupportCase } from "@/lib/adminSupport";
+import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 
@@ -53,6 +55,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email not configured" }, { status: 500 });
   }
 
+  const submission = await prisma.contactSubmission.create({
+    data: {
+      name,
+      email,
+      message,
+    },
+  });
+
   try {
     const transporter = nodemailer.createTransport(server);
     await transporter.sendMail({
@@ -101,6 +111,16 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+
+  await prisma.contactSubmission.update({
+    where: { id: submission.id },
+    data: {
+      processedAt: new Date(),
+    },
+  });
+  await ensureContactSubmissionSupportCase({
+    contactSubmissionId: submission.id,
+  });
 
   return NextResponse.json({ ok: true });
 }

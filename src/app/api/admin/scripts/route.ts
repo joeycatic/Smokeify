@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { finishAdminJobRun, startAdminJobRun } from "@/lib/adminJobRuns";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -444,6 +445,20 @@ export async function POST(request: Request) {
   };
 
   const startedAt = Date.now();
+  const jobRun = await startAdminJobRun({
+    jobType: "admin_script",
+    summary: definition.title,
+    metadata: {
+      scriptId: definition.id,
+      npmScript: definition.npmScript,
+      reason,
+      ...buildInputMetadata(execution.normalizedInputs),
+    },
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
+    },
+  });
 
   await logAdminAction({
     actor: { id: session.user.id, email: session.user.email ?? null },
@@ -504,6 +519,17 @@ export async function POST(request: Request) {
           stderrTail: compactOutput(result.stderr),
         },
       });
+      await finishAdminJobRun({
+        id: jobRun.id,
+        status: "FAILED",
+        summary: definition.title,
+        errorMessage,
+        metadata: {
+          durationMs,
+          timedOut: result.timedOut,
+          exitCode: result.exitCode,
+        },
+      });
 
       return NextResponse.json(
         {
@@ -535,6 +561,15 @@ export async function POST(request: Request) {
         stdoutTail: compactOutput(result.stdout),
       },
     });
+    await finishAdminJobRun({
+      id: jobRun.id,
+      status: "SUCCEEDED",
+      summary: definition.title,
+      metadata: {
+        durationMs,
+        exitCode: result.exitCode,
+      },
+    });
 
     return NextResponse.json({
       ok: true,
@@ -563,6 +598,15 @@ export async function POST(request: Request) {
         reason,
         ...buildInputMetadata(execution.normalizedInputs),
         error: message,
+      },
+    });
+    await finishAdminJobRun({
+      id: jobRun.id,
+      status: "FAILED",
+      summary: definition.title,
+      errorMessage: message,
+      metadata: {
+        durationMs,
       },
     });
 

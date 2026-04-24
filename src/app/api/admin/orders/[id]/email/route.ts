@@ -6,6 +6,7 @@ import { getAppOrigin } from "@/lib/appOrigin";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { adminJson } from "@/lib/adminApi";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { appendSupportEventForOrderEmail } from "@/lib/adminSupport";
 import {
   buildOrderEmailSentAtUpdate,
   sendAdminOrderEmailById,
@@ -100,6 +101,16 @@ export async function POST(
       recipient,
       orderNumber: order.orderNumber,
       reason,
+    },
+  });
+
+  await appendSupportEventForOrderEmail({
+    orderId: id,
+    emailType: type,
+    reason,
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
     },
   });
 

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
 import { buildOrderCustomerCopyText, getOrderCustomerEmail } from "@/lib/adminOrderCustomer";
 import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
+import { canReplayWebhookEvent } from "@/lib/adminWebhookReplay";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 
@@ -28,6 +29,7 @@ type OrderActionPermissions = {
 type Props = {
   detail: AdminOrderDetail;
   actionPermissions: OrderActionPermissions;
+  canReplayWebhooks: boolean;
 };
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
@@ -213,8 +215,13 @@ const getFulfillmentOutcome = (
   };
 };
 
-export default function AdminOrderDetailClient({ detail, actionPermissions }: Props) {
+export default function AdminOrderDetailClient({
+  detail,
+  actionPermissions,
+  canReplayWebhooks,
+}: Props) {
   const [order, setOrder] = useState(detail.order);
+  const [webhookFailures, setWebhookFailures] = useState(detail.webhookFailures);
   const [statusDraft, setStatusDraft] = useState(detail.order.status);
   const [trackingDraft, setTrackingDraft] = useState<TrackingDraft>({
     carrier: detail.order.trackingCarrier ?? "",
@@ -226,6 +233,7 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<AdminEmailAction | null>(null);
+  const [replayingWebhookEventId, setReplayingWebhookEventId] = useState<string | null>(null);
   const [refundSelection, setRefundSelection] = useState<Record<string, number>>({});
   const [refundIncludeShipping, setRefundIncludeShipping] = useState(false);
   const [refundPassword, setRefundPassword] = useState("");
@@ -278,6 +286,29 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
   const customerCopyText = useMemo(() => buildOrderCustomerCopyText(order), [order]);
   const customerName = order.user.name ?? order.shippingName ?? "Unknown customer";
   const sourceLabel = getOrderSourceLabel(order);
+
+  const replayWebhook = async (eventId: string) => {
+    setReplayingWebhookEventId(eventId);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/webhooks/stripe/reprocess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to replay webhook.");
+      }
+      setWebhookFailures((current) => current.filter((event) => event.eventId !== eventId));
+      setNotice(`Webhook ${eventId} reprocessed.`);
+    } catch (replayError) {
+      setError(replayError instanceof Error ? replayError.message : "Failed to replay webhook.");
+    } finally {
+      setReplayingWebhookEventId(null);
+    }
+  };
   const emailStatuses = [
     { label: "Confirmation", sentAt: order.confirmationEmailSentAt },
     { label: "Shipping", sentAt: order.shippingEmailSentAt },
@@ -762,6 +793,10 @@ export default function AdminOrderDetailClient({ detail, actionPermissions }: Pr
             detail={detail}
             financeBreakdown={financeBreakdown}
             sourceLabel={sourceLabel}
+            webhookFailures={webhookFailures}
+            canReplayWebhooks={canReplayWebhooks}
+            replayingWebhookEventId={replayingWebhookEventId}
+            onReplayWebhook={replayWebhook}
           />
         ) : null}
         {activeTab === "fulfillment" ? (
@@ -957,11 +992,19 @@ function OverviewTab({
   detail,
   financeBreakdown,
   sourceLabel,
+  webhookFailures,
+  canReplayWebhooks,
+  replayingWebhookEventId,
+  onReplayWebhook,
 }: {
   order: AdminOrderRecord;
   detail: AdminOrderDetail;
   financeBreakdown: ReturnType<typeof buildOrderFinanceBreakdown>;
   sourceLabel: string;
+  webhookFailures: AdminOrderDetail["webhookFailures"];
+  canReplayWebhooks: boolean;
+  replayingWebhookEventId: string | null;
+  onReplayWebhook: (eventId: string) => void | Promise<void>;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_390px]">
@@ -1022,11 +1065,21 @@ function OverviewTab({
 
         <Panel className={DARK_PANEL} eyebrow="Webhooks" title="Recent failed webhook context" dark>
           <div className="space-y-3">
-            {detail.webhookFailures.length ? detail.webhookFailures.map((event) => (
+            {webhookFailures.length ? webhookFailures.map((event) => (
               <div key={event.id} className="rounded-[22px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
                 <p className="text-sm font-semibold text-rose-100">{event.type}</p>
                 <p className="mt-1 break-all text-xs leading-5 text-rose-100/80">{event.eventId}</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
+                {canReplayWebhooks && canReplayWebhookEvent(event.type) ? (
+                  <button
+                    type="button"
+                    onClick={() => void onReplayWebhook(event.eventId)}
+                    disabled={replayingWebhookEventId === event.eventId}
+                    className="mt-3 inline-flex h-9 items-center justify-center rounded-xl border border-rose-100/20 bg-rose-100/10 px-3 text-xs font-semibold text-rose-50 transition hover:bg-rose-100/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {replayingWebhookEventId === event.eventId ? "Reprocessing..." : "Replay webhook"}
+                  </button>
+                ) : null}
               </div>
             )) : <Empty text="No failed webhook events in the recent queue." dark />}
           </div>

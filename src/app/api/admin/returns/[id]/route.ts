@@ -14,6 +14,10 @@ import { getAppOrigin } from "@/lib/appOrigin";
 import { issueAdminStoreCredit } from "@/lib/adminStoreCredit";
 import { buildReturnStoreCreditReason } from "@/lib/storeCredit";
 import { createAdminExchangeOrder } from "@/lib/adminExchanges";
+import {
+  ensureReturnRequestSupportCase,
+  updateAdminSupportCase,
+} from "@/lib/adminSupport";
 
 export async function PATCH(
   request: Request,
@@ -201,6 +205,23 @@ export async function PATCH(
       status: body.status,
       requestedResolution: requestRow.requestedResolution,
       returnAmountCents,
+    },
+  });
+
+  const supportCase = await ensureReturnRequestSupportCase({
+    returnRequestId: requestRow.id,
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
+    },
+  });
+  await updateAdminSupportCase(supportCase.id, {
+    status: "RESOLVED",
+    resolutionNote: adminNote,
+    note: `Return request ${body.status} with ${requestRow.requestedResolution.toLowerCase()} resolution.`,
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
     },
   });
 

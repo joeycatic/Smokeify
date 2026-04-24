@@ -14,6 +14,7 @@ import {
   parseAdminReportType,
   serializeAdminReportFilters,
 } from "@/lib/adminReports";
+import { finishAdminJobRun, startAdminJobRun } from "@/lib/adminJobRuns";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 
 export const runtime = "nodejs";
@@ -35,6 +36,10 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
+  const jobRun = await startAdminJobRun({
+    jobType: "admin_report_delivery",
+    summary: "Scheduled admin report delivery",
+  });
   const reports = await prisma.adminSavedReport.findMany({
     where: {
       deliveryEnabled: true,
@@ -107,6 +112,18 @@ export async function POST(request: Request) {
       });
     }
   }
+
+  await finishAdminJobRun({
+    id: jobRun.id,
+    status: failed.length > 0 ? "FAILED" : "SUCCEEDED",
+    summary: "Scheduled admin report delivery",
+    errorMessage: failed.length > 0 ? `${failed.length} report deliveries failed.` : null,
+    metadata: {
+      processed: reports.length,
+      sent,
+      failed,
+    },
+  });
 
   return NextResponse.json({
     ok: true,

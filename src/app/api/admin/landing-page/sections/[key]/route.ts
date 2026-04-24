@@ -1,8 +1,9 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type Storefront } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { finishAdminJobRun, startAdminJobRun } from "@/lib/adminJobRuns";
 import { getLandingPageSectionDefinition } from "@/lib/landingPageConfig";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { parseStorefront, STOREFRONT_LABELS } from "@/lib/storefronts";
@@ -19,6 +20,73 @@ const parseProductIds = (value: unknown) => {
     ),
   );
 };
+
+async function createSectionRevision(input: {
+  sectionId: string;
+  storefront: Storefront;
+  key: string;
+  isManual: boolean;
+  productIds: string[];
+  actor: { id: string | null; email: string | null };
+}) {
+  return prisma.landingPageSectionRevision.create({
+    data: {
+      sectionId: input.sectionId,
+      storefront: input.storefront,
+      key: input.key,
+      isManual: input.isManual,
+      productIds: input.productIds,
+      createdById: input.actor.id,
+      createdByEmail: input.actor.email,
+    },
+  });
+}
+
+async function serializeSection(sectionId: string) {
+  const section = await prisma.landingPageSection.findUniqueOrThrow({
+    where: { id: sectionId },
+    include: {
+      publishedRevision: {
+        select: {
+          id: true,
+          productIds: true,
+        },
+      },
+      revisions: {
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          isManual: true,
+          productIds: true,
+          createdAt: true,
+          createdByEmail: true,
+        },
+      },
+    },
+  });
+
+  return {
+    id: section.id,
+    key: section.key,
+    isManual: section.isManual,
+    productIds: section.publishedRevision?.productIds ?? section.productIds,
+    draftIsManual: section.draftIsManual,
+    draftProductIds: section.draftProductIds,
+    scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
+    scheduledRevisionId: section.scheduledRevisionId,
+    publishedRevisionId: section.publishedRevisionId,
+    lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
+    updatedAt: section.updatedAt.toISOString(),
+    revisions: section.revisions.map((revision) => ({
+      id: revision.id,
+      isManual: revision.isManual,
+      productIds: revision.productIds,
+      createdAt: revision.createdAt.toISOString(),
+      createdByEmail: revision.createdByEmail,
+    })),
+  };
+}
 
 const isMissingLandingPageSectionTableError = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -120,6 +188,17 @@ export async function PUT(
         draftProductIds: productIds,
       },
     });
+    await createSectionRevision({
+      sectionId: section.id,
+      storefront,
+      key: definition.key,
+      isManual: section.draftIsManual,
+      productIds: section.draftProductIds,
+      actor: {
+        id: session.user.id,
+        email: session.user.email ?? null,
+      },
+    });
 
     await logAdminAction({
       actor: { id: session.user.id, email: session.user.email ?? null },
@@ -150,17 +229,7 @@ export async function PUT(
     });
 
     return NextResponse.json({
-      section: {
-        id: section.id,
-        key: section.key,
-        isManual: section.isManual,
-        productIds: section.productIds,
-        draftIsManual: section.draftIsManual,
-        draftProductIds: section.draftProductIds,
-        scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
-        lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
-        updatedAt: section.updatedAt.toISOString(),
-      },
+      section: await serializeSection(section.id),
     });
   } catch (error) {
     if (isMissingLandingPageSectionTableError(error)) {
@@ -196,6 +265,7 @@ export async function POST(
     storefront?: unknown;
     action?: unknown;
     scheduledPublishAt?: unknown;
+    revisionId?: unknown;
   };
   const storefront =
     parseStorefront(typeof body.storefront === "string" ? body.storefront : null) ??
@@ -227,18 +297,60 @@ export async function POST(
       );
     }
 
+    const latestRevision = await prisma.landingPageSectionRevision.findFirst({
+      where: { sectionId: existing.id },
+      orderBy: { createdAt: "desc" },
+    });
+    const selectedRevisionId =
+      typeof body.revisionId === "string" ? body.revisionId : null;
+    const selectedRevision = selectedRevisionId
+      ? await prisma.landingPageSectionRevision.findFirst({
+          where: {
+            id: selectedRevisionId,
+            sectionId: existing.id,
+          },
+        })
+      : latestRevision;
+
     let section;
     if (action === "publish_now") {
+      if (!selectedRevision) {
+        return NextResponse.json(
+          { error: "Save the draft section before publishing it." },
+          { status: 400 },
+        );
+      }
+      const jobRun = await startAdminJobRun({
+        jobType: "landing_page_publish",
+        summary: `${storefrontLabel} ${definition.title}`,
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
+      });
       section = await prisma.landingPageSection.update({
         where: { id: existing.id },
         data: {
-          isManual: existing.draftIsManual,
-          productIds: existing.draftProductIds,
+          isManual: selectedRevision.isManual,
+          productIds: selectedRevision.productIds,
+          publishedRevisionId: selectedRevision.id,
           scheduledPublishAt: null,
+          scheduledRevisionId: null,
           lastPublishedAt: new Date(),
         },
       });
+      await finishAdminJobRun({
+        id: jobRun.id,
+        status: "SUCCEEDED",
+        summary: `${storefrontLabel} ${definition.title}`,
+      });
     } else if (action === "schedule") {
+      if (!selectedRevision) {
+        return NextResponse.json(
+          { error: "Save the draft section before scheduling it." },
+          { status: 400 },
+        );
+      }
       const scheduleValue =
         typeof body.scheduledPublishAt === "string" ? body.scheduledPublishAt : "";
       const scheduledPublishAt = new Date(scheduleValue);
@@ -251,10 +363,27 @@ export async function POST(
           { status: 400 },
         );
       }
+      const jobRun = await startAdminJobRun({
+        jobType: "landing_page_schedule",
+        summary: `${storefrontLabel} ${definition.title}`,
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
+      });
       section = await prisma.landingPageSection.update({
         where: { id: existing.id },
         data: {
           scheduledPublishAt,
+          scheduledRevisionId: selectedRevision.id,
+        },
+      });
+      await finishAdminJobRun({
+        id: jobRun.id,
+        status: "SUCCEEDED",
+        summary: `${storefrontLabel} ${definition.title}`,
+        metadata: {
+          scheduledPublishAt: scheduledPublishAt.toISOString(),
         },
       });
     } else if (action === "clear_schedule") {
@@ -262,6 +391,48 @@ export async function POST(
         where: { id: existing.id },
         data: {
           scheduledPublishAt: null,
+          scheduledRevisionId: null,
+        },
+      });
+    } else if (action === "rollback_draft") {
+      if (!selectedRevision) {
+        return NextResponse.json(
+          { error: "Choose a revision to restore into the draft." },
+          { status: 400 },
+        );
+      }
+      section = await prisma.landingPageSection.update({
+        where: { id: existing.id },
+        data: {
+          draftIsManual: selectedRevision.isManual,
+          draftProductIds: selectedRevision.productIds,
+        },
+      });
+      await createSectionRevision({
+        sectionId: existing.id,
+        storefront,
+        key: definition.key,
+        isManual: selectedRevision.isManual,
+        productIds: selectedRevision.productIds,
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
+      });
+    } else if (action === "rollback_live") {
+      if (!selectedRevision) {
+        return NextResponse.json(
+          { error: "Choose a revision to restore into the live section." },
+          { status: 400 },
+        );
+      }
+      section = await prisma.landingPageSection.update({
+        where: { id: existing.id },
+        data: {
+          isManual: selectedRevision.isManual,
+          productIds: selectedRevision.productIds,
+          publishedRevisionId: selectedRevision.id,
+          lastPublishedAt: new Date(),
         },
       });
     } else {
@@ -278,6 +449,7 @@ export async function POST(
         storefront,
         key: definition.key,
         action,
+        selectedRevisionId: selectedRevision?.id ?? null,
         scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
         lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
         live: {
@@ -292,17 +464,7 @@ export async function POST(
     });
 
     return NextResponse.json({
-      section: {
-        id: section.id,
-        key: section.key,
-        isManual: section.isManual,
-        productIds: section.productIds,
-        draftIsManual: section.draftIsManual,
-        draftProductIds: section.draftProductIds,
-        scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
-        lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
-        updatedAt: section.updatedAt.toISOString(),
-      },
+      section: await serializeSection(section.id),
     });
   } catch (error) {
     if (isMissingLandingPageSectionTableError(error)) {

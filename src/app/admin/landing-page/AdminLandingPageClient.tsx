@@ -41,8 +41,17 @@ type LandingPageSection = {
   updatedAt: string | null;
   lastPublishedAt: string | null;
   scheduledPublishAt: string | null;
+  publishedRevisionId: string | null;
+  scheduledRevisionId: string | null;
   products: LandingPageProduct[];
   draftProducts: LandingPageProduct[];
+  revisions: Array<{
+    id: string;
+    isManual: boolean;
+    productIds: string[];
+    createdAt: string;
+    createdByEmail: string | null;
+  }>;
 };
 
 type ProductSearchResult = {
@@ -88,6 +97,8 @@ function LandingPageSectionEditor({
   onPublish,
   onSchedule,
   onClearSchedule,
+  onRestoreDraft,
+  onRestoreLive,
 }: {
   section: LandingPageSection;
   initialSection: LandingPageSection;
@@ -104,6 +115,8 @@ function LandingPageSectionEditor({
   onPublish: () => void;
   onSchedule: (value: string) => void;
   onClearSchedule: () => void;
+  onRestoreDraft: (revisionId: string) => void;
+  onRestoreLive: (revisionId: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProductSearchResult[]>([]);
@@ -367,6 +380,60 @@ function LandingPageSectionEditor({
           </div>
         </div>
 
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="text-sm font-semibold text-white">Revision history</div>
+          <div className="mt-1 text-sm text-slate-400">
+            Each draft save creates a frozen snapshot. Scheduled publishes stay pinned to the revision selected at schedule time.
+          </div>
+          <div className="mt-4 space-y-3">
+            {section.revisions.length === 0 ? (
+              <div className="text-sm text-slate-500">
+                No revisions saved yet. Save the current draft to create the first snapshot.
+              </div>
+            ) : (
+              section.revisions.map((revision) => (
+                <div
+                  key={revision.id}
+                  className="rounded-2xl border border-white/10 bg-[#070a0f] p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">
+                        {revision.isManual ? "Manual revision" : "Automatic fallback revision"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {revision.productIds.length} product(s) ·{" "}
+                        {new Date(revision.createdAt).toLocaleString("de-DE")}
+                        {revision.createdByEmail ? ` · ${revision.createdByEmail}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+                      {section.publishedRevisionId === revision.id ? (
+                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">
+                          Live
+                        </span>
+                      ) : null}
+                      {section.scheduledRevisionId === revision.id ? (
+                        <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">
+                          Scheduled
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <AdminButton tone="secondary" onClick={() => onRestoreDraft(revision.id)}>
+                      Restore draft
+                    </AdminButton>
+                    <AdminButton tone="secondary" onClick={() => onRestoreLive(revision.id)}>
+                      Publish revision
+                    </AdminButton>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-wrap justify-end gap-2">
           <AdminButton tone="secondary" disabled={!isDirty || saving || acting} onClick={onReset}>
             Revert draft
@@ -436,6 +503,9 @@ export default function AdminLandingPageClient({
       updatedAt?: string | null;
       lastPublishedAt?: string | null;
       scheduledPublishAt?: string | null;
+      publishedRevisionId?: string | null;
+      scheduledRevisionId?: string | null;
+      revisions?: LandingPageSection["revisions"];
     },
   ) => {
     setSections((current) =>
@@ -457,6 +527,9 @@ export default function AdminLandingPageClient({
           updatedAt: payload.updatedAt ?? entry.updatedAt,
           lastPublishedAt: payload.lastPublishedAt ?? entry.lastPublishedAt,
           scheduledPublishAt: payload.scheduledPublishAt ?? null,
+          publishedRevisionId: payload.publishedRevisionId ?? entry.publishedRevisionId,
+          scheduledRevisionId: payload.scheduledRevisionId ?? entry.scheduledRevisionId,
+          revisions: payload.revisions ?? entry.revisions,
         };
       }),
     );
@@ -496,6 +569,9 @@ export default function AdminLandingPageClient({
           updatedAt?: string | null;
           lastPublishedAt?: string | null;
           scheduledPublishAt?: string | null;
+          publishedRevisionId?: string | null;
+          scheduledRevisionId?: string | null;
+          revisions?: LandingPageSection["revisions"];
         };
       };
       if (!response.ok || !data.section) {
@@ -513,6 +589,11 @@ export default function AdminLandingPageClient({
                 scheduledPublishAt:
                   data.section?.scheduledPublishAt ?? entry.scheduledPublishAt,
                 lastPublishedAt: data.section?.lastPublishedAt ?? entry.lastPublishedAt,
+                publishedRevisionId:
+                  data.section?.publishedRevisionId ?? entry.publishedRevisionId,
+                scheduledRevisionId:
+                  data.section?.scheduledRevisionId ?? entry.scheduledRevisionId,
+                revisions: data.section?.revisions ?? entry.revisions,
               }
             : entry,
         ),
@@ -527,8 +608,14 @@ export default function AdminLandingPageClient({
 
   const runAction = async (
     key: string,
-    action: "publish_now" | "schedule" | "clear_schedule",
+    action:
+      | "publish_now"
+      | "schedule"
+      | "clear_schedule"
+      | "rollback_draft"
+      | "rollback_live",
     scheduledPublishAt?: string,
+    revisionId?: string,
   ) => {
     setActingKey(key);
     setMessage("");
@@ -544,6 +631,7 @@ export default function AdminLandingPageClient({
           scheduledPublishAt: scheduledPublishAt
             ? new Date(scheduledPublishAt).toISOString()
             : undefined,
+          revisionId,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -556,6 +644,9 @@ export default function AdminLandingPageClient({
           updatedAt?: string | null;
           lastPublishedAt?: string | null;
           scheduledPublishAt?: string | null;
+          publishedRevisionId?: string | null;
+          scheduledRevisionId?: string | null;
+          revisions?: LandingPageSection["revisions"];
         };
       };
       if (!response.ok || !data.section) {
@@ -588,6 +679,11 @@ export default function AdminLandingPageClient({
                 lastPublishedAt: data.section!.lastPublishedAt ?? entry.lastPublishedAt,
                 scheduledPublishAt:
                   data.section!.scheduledPublishAt ?? entry.scheduledPublishAt,
+                publishedRevisionId:
+                  data.section!.publishedRevisionId ?? entry.publishedRevisionId,
+                scheduledRevisionId:
+                  data.section!.scheduledRevisionId ?? entry.scheduledRevisionId,
+                revisions: data.section!.revisions ?? entry.revisions,
               }
             : entry,
         ),
@@ -759,6 +855,12 @@ export default function AdminLandingPageClient({
             onPublish={() => void runAction(section.key, "publish_now")}
             onSchedule={(value) => void runAction(section.key, "schedule", value)}
             onClearSchedule={() => void runAction(section.key, "clear_schedule")}
+            onRestoreDraft={(revisionId) =>
+              void runAction(section.key, "rollback_draft", undefined, revisionId)
+            }
+            onRestoreLive={(revisionId) =>
+              void runAction(section.key, "rollback_live", undefined, revisionId)
+            }
           />
         ))}
       </div>

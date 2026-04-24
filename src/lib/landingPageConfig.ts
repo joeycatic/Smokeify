@@ -49,8 +49,17 @@ export type LandingPageAdminSection = {
   updatedAt: string | null;
   lastPublishedAt: string | null;
   scheduledPublishAt: string | null;
+  publishedRevisionId: string | null;
+  scheduledRevisionId: string | null;
   products: LandingPageAdminProduct[];
   draftProducts: LandingPageAdminProduct[];
+  revisions: Array<{
+    id: string;
+    isManual: boolean;
+    productIds: string[];
+    createdAt: string;
+    createdByEmail: string | null;
+  }>;
 };
 
 type LandingPageSectionRow = {
@@ -60,6 +69,10 @@ type LandingPageSectionRow = {
   draftIsManual: boolean;
   draftProductIds: string[];
   scheduledPublishAt: Date | null;
+  publishedRevisionId: string | null;
+  scheduledRevisionId: string | null;
+  publishedRevision: { isManual: boolean; productIds: string[] } | null;
+  scheduledRevision: { isManual: boolean; productIds: string[] } | null;
 };
 
 const HERO_PRODUCT_HANDLES = [
@@ -100,14 +113,31 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
     draftIsManual: boolean;
     draftProductIds: string[];
     scheduledPublishAt: Date | null;
-    lastPublishedAt: Date | null;
     updatedAt: Date;
+    publishedRevisionId: string | null;
+    scheduledRevisionId: string | null;
+    publishedRevision: { isManual: boolean; productIds: string[] } | null;
+    scheduledRevision: { isManual: boolean; productIds: string[] } | null;
   }> = [];
   try {
     rows = await prisma.landingPageSection.findMany({
       where: {
         storefront,
         key: { in: [...SECTION_KEYS] },
+      },
+      include: {
+        publishedRevision: {
+          select: {
+            isManual: true,
+            productIds: true,
+          },
+        },
+        scheduledRevision: {
+          select: {
+            isManual: true,
+            productIds: true,
+          },
+        },
       },
     });
   } catch (error) {
@@ -129,6 +159,10 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
       draftIsManual: row.draftIsManual,
       draftProductIds: row.draftProductIds,
       scheduledPublishAt: row.scheduledPublishAt,
+      publishedRevisionId: row.publishedRevisionId,
+      scheduledRevisionId: row.scheduledRevisionId,
+      publishedRevision: row.publishedRevision,
+      scheduledRevision: row.scheduledRevision,
       updatedAt: row.updatedAt.toISOString(),
     });
   });
@@ -237,13 +271,17 @@ const resolveSectionProductIds = (
   if (options?.previewDraft && stored?.draftIsManual && stored.draftProductIds.length > 0) {
     return stored.draftProductIds;
   }
-  if (
-    stored?.scheduledPublishAt &&
-    stored.scheduledPublishAt <= new Date() &&
-    stored.draftIsManual &&
-    stored.draftProductIds.length > 0
-  ) {
-    return stored.draftProductIds;
+  if (stored?.scheduledPublishAt && stored.scheduledPublishAt <= new Date()) {
+    if (stored.scheduledRevision?.isManual && stored.scheduledRevision.productIds.length > 0) {
+      return stored.scheduledRevision.productIds;
+    }
+    return defaults[key];
+  }
+  if (stored?.publishedRevision) {
+    if (stored.publishedRevision.isManual && stored.publishedRevision.productIds.length > 0) {
+      return stored.publishedRevision.productIds;
+    }
+    return defaults[key];
   }
   if (stored?.isManual && stored.productIds.length > 0) {
     return stored.productIds;
@@ -298,12 +336,54 @@ export async function loadLandingPageAdminSections(
     scheduledPublishAt: Date | null;
     lastPublishedAt: Date | null;
     updatedAt: Date;
+    publishedRevisionId: string | null;
+    scheduledRevisionId: string | null;
+    publishedRevision: {
+      isManual: boolean;
+      productIds: string[];
+    } | null;
+    scheduledRevision: {
+      isManual: boolean;
+      productIds: string[];
+    } | null;
+    revisions: Array<{
+      id: string;
+      isManual: boolean;
+      productIds: string[];
+      createdAt: Date;
+      createdByEmail: string | null;
+    }>;
   }> = [];
   try {
     storedSections = await prisma.landingPageSection.findMany({
       where: {
         storefront,
         key: { in: [...SECTION_KEYS] },
+      },
+      include: {
+        publishedRevision: {
+          select: {
+            isManual: true,
+            productIds: true,
+          },
+        },
+        scheduledRevision: {
+          select: {
+            isManual: true,
+            productIds: true,
+          },
+        },
+        revisions: {
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: {
+            id: true,
+            isManual: true,
+            productIds: true,
+            createdAt: true,
+            createdByEmail: true,
+          },
+        },
       },
     });
   } catch (error) {
@@ -316,11 +396,25 @@ export async function loadLandingPageAdminSections(
       storedSections.flatMap((section) => [...section.productIds, ...section.draftProductIds]),
     ),
   );
+  const revisionProductIds = Array.from(
+    new Set(storedSections.flatMap((section) => section.revisions.flatMap((revision) => revision.productIds))),
+  );
+  const effectiveLiveIds = Array.from(
+    new Set(
+      storedSections.flatMap((section) =>
+        section.publishedRevision?.productIds ?? section.productIds,
+      ),
+    ),
+  );
 
-  const products: LandingPageAdminProduct[] = allConfiguredIds.length
+  const allReferencedIds = Array.from(
+    new Set([...allConfiguredIds, ...revisionProductIds, ...effectiveLiveIds]),
+  );
+
+  const products: LandingPageAdminProduct[] = allReferencedIds.length
     ? (
         await prisma.product.findMany({
-          where: { id: { in: allConfiguredIds } },
+          where: { id: { in: allReferencedIds } },
           select: {
             id: true,
             title: true,
@@ -352,6 +446,7 @@ export async function loadLandingPageAdminSections(
 
   return LANDING_PAGE_SECTION_DEFINITIONS.map((definition) => {
     const stored = storedByKey.get(definition.key);
+    const liveProductIds = stored?.publishedRevision?.productIds ?? stored?.productIds ?? [];
     return {
       ...definition,
       isManual: stored?.isManual ?? false,
@@ -359,12 +454,21 @@ export async function loadLandingPageAdminSections(
       updatedAt: stored?.updatedAt.toISOString() ?? null,
       lastPublishedAt: stored?.lastPublishedAt?.toISOString() ?? null,
       scheduledPublishAt: stored?.scheduledPublishAt?.toISOString() ?? null,
-      products: (stored?.productIds ?? [])
+      publishedRevisionId: stored?.publishedRevisionId ?? null,
+      scheduledRevisionId: stored?.scheduledRevisionId ?? null,
+      products: liveProductIds
         .map((id) => productsById.get(id))
         .filter((product): product is LandingPageAdminProduct => Boolean(product)),
       draftProducts: (stored?.draftProductIds ?? stored?.productIds ?? [])
         .map((id) => productsById.get(id))
         .filter((product): product is LandingPageAdminProduct => Boolean(product)),
+      revisions: (stored?.revisions ?? []).map((revision) => ({
+        id: revision.id,
+        isManual: revision.isManual,
+        productIds: revision.productIds,
+        createdAt: revision.createdAt.toISOString(),
+        createdByEmail: revision.createdByEmail,
+      })),
     };
   });
 }

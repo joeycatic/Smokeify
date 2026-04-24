@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { ensureReturnRequestSupportCase } from "@/lib/adminSupport";
 
 export type ReturnRequestSelectionInput = Array<{ id: string; quantity?: number }>;
 
@@ -119,6 +120,14 @@ export async function createReturnRequestForOrder(input: {
         submissionSource: input.submissionSource,
         items: selectedItems,
       },
+    },
+  });
+
+  await ensureReturnRequestSupportCase({
+    returnRequestId: created.id,
+    actor: {
+      id: input.order.userId,
+      email: input.requesterEmail?.trim() || input.order.customerEmail,
     },
   });
 
