@@ -97,15 +97,104 @@ const NON_HEADSHOP_WHERE = {
 
 const SECTION_KEYS = LANDING_PAGE_SECTION_DEFINITIONS.map((section) => section.key);
 
+type LandingPageSchemaMode = "full" | "legacy" | "missing";
+
+let landingPageSchemaModePromise: Promise<LandingPageSchemaMode> | null = null;
+
 const isMissingLandingPageSectionTableError = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
   error.code === "P2021" &&
   String(error.meta?.table ?? "").includes("LandingPageSection");
 
+const isMissingLandingPageRevisionTableError = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2021" &&
+  String(error.meta?.table ?? "").includes("LandingPageSectionRevision");
+
+const isMissingLandingPageRevisionColumnError = (error: unknown) => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2022") {
+    return false;
+  }
+
+  const missingColumn = String(error.meta?.column ?? "");
+  return (
+    missingColumn.includes("LandingPageSection.publishedRevisionId") ||
+    missingColumn.includes("LandingPageSection.scheduledRevisionId")
+  );
+};
+
+const isLegacyLandingPageRevisionSchemaError = (error: unknown) =>
+  isMissingLandingPageRevisionTableError(error) ||
+  isMissingLandingPageRevisionColumnError(error);
+
+export async function getLandingPageSchemaMode(): Promise<LandingPageSchemaMode> {
+  if (!landingPageSchemaModePromise) {
+    landingPageSchemaModePromise = (async () => {
+      try {
+        const [sectionTableRows, publishedColumnRows, scheduledColumnRows, revisionTableRows] =
+          await prisma.$transaction([
+            prisma.$queryRaw<Array<{ exists: boolean }>>`
+              SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_name = 'LandingPageSection'
+              ) AS "exists"
+            `,
+            prisma.$queryRaw<Array<{ exists: boolean }>>`
+              SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'LandingPageSection'
+                  AND column_name = 'publishedRevisionId'
+              ) AS "exists"
+            `,
+            prisma.$queryRaw<Array<{ exists: boolean }>>`
+              SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'LandingPageSection'
+                  AND column_name = 'scheduledRevisionId'
+              ) AS "exists"
+            `,
+            prisma.$queryRaw<Array<{ exists: boolean }>>`
+              SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_name = 'LandingPageSectionRevision'
+              ) AS "exists"
+            `,
+          ]);
+
+        const hasSectionTable = sectionTableRows[0]?.exists === true;
+        if (!hasSectionTable) {
+          return "missing";
+        }
+
+        const hasPublishedRevisionId = publishedColumnRows[0]?.exists === true;
+        const hasScheduledRevisionId = scheduledColumnRows[0]?.exists === true;
+        const hasRevisionTable = revisionTableRows[0]?.exists === true;
+
+        return hasPublishedRevisionId && hasScheduledRevisionId && hasRevisionTable
+          ? "full"
+          : "legacy";
+      } catch {
+        return "full";
+      }
+    })();
+  }
+
+  return landingPageSchemaModePromise;
+}
+
 export const getLandingPageSectionDefinition = (key: string) =>
   LANDING_PAGE_SECTION_DEFINITIONS.find((section) => section.key === key) ?? null;
 
 const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) => {
+  const schemaMode = await getLandingPageSchemaMode();
   let rows: Array<{
     key: string;
     isManual: boolean;
@@ -119,30 +208,84 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
     publishedRevision: { isManual: boolean; productIds: string[] } | null;
     scheduledRevision: { isManual: boolean; productIds: string[] } | null;
   }> = [];
-  try {
-    rows = await prisma.landingPageSection.findMany({
+  if (schemaMode === "missing") {
+    rows = [];
+  } else if (schemaMode === "legacy") {
+    const legacyRows = await prisma.landingPageSection.findMany({
       where: {
         storefront,
         key: { in: [...SECTION_KEYS] },
       },
-      include: {
-        publishedRevision: {
-          select: {
-            isManual: true,
-            productIds: true,
-          },
-        },
-        scheduledRevision: {
-          select: {
-            isManual: true,
-            productIds: true,
-          },
-        },
+      select: {
+        key: true,
+        isManual: true,
+        productIds: true,
+        draftIsManual: true,
+        draftProductIds: true,
+        scheduledPublishAt: true,
+        updatedAt: true,
       },
     });
-  } catch (error) {
-    if (!isMissingLandingPageSectionTableError(error)) {
-      throw error;
+
+    rows = legacyRows.map((row) => ({
+      ...row,
+      publishedRevisionId: null,
+      scheduledRevisionId: null,
+      publishedRevision: null,
+      scheduledRevision: null,
+    }));
+  } else {
+    try {
+      rows = await prisma.landingPageSection.findMany({
+        where: {
+          storefront,
+          key: { in: [...SECTION_KEYS] },
+        },
+        include: {
+          publishedRevision: {
+            select: {
+              isManual: true,
+              productIds: true,
+            },
+          },
+          scheduledRevision: {
+            select: {
+              isManual: true,
+              productIds: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (isMissingLandingPageSectionTableError(error)) {
+        rows = [];
+      } else if (isLegacyLandingPageRevisionSchemaError(error)) {
+        const legacyRows = await prisma.landingPageSection.findMany({
+          where: {
+            storefront,
+            key: { in: [...SECTION_KEYS] },
+          },
+          select: {
+            key: true,
+            isManual: true,
+            productIds: true,
+            draftIsManual: true,
+            draftProductIds: true,
+            scheduledPublishAt: true,
+            updatedAt: true,
+          },
+        });
+
+        rows = legacyRows.map((row) => ({
+          ...row,
+          publishedRevisionId: null,
+          scheduledRevisionId: null,
+          publishedRevision: null,
+          scheduledRevision: null,
+        }));
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -327,6 +470,7 @@ export async function resolveLandingPageProductSections(
 export async function loadLandingPageAdminSections(
   storefront: Storefront = DEFAULT_STOREFRONT,
 ): Promise<LandingPageAdminSection[]> {
+  const schemaMode = await getLandingPageSchemaMode();
   let storedSections: Array<{
     key: string;
     isManual: boolean;
@@ -354,41 +498,99 @@ export async function loadLandingPageAdminSections(
       createdByEmail: string | null;
     }>;
   }> = [];
-  try {
-    storedSections = await prisma.landingPageSection.findMany({
+  if (schemaMode === "missing") {
+    storedSections = [];
+  } else if (schemaMode === "legacy") {
+    const legacySections = await prisma.landingPageSection.findMany({
       where: {
         storefront,
         key: { in: [...SECTION_KEYS] },
       },
-      include: {
-        publishedRevision: {
-          select: {
-            isManual: true,
-            productIds: true,
-          },
-        },
-        scheduledRevision: {
-          select: {
-            isManual: true,
-            productIds: true,
-          },
-        },
-        revisions: {
-          orderBy: { createdAt: "desc" },
-          take: 8,
-          select: {
-            id: true,
-            isManual: true,
-            productIds: true,
-            createdAt: true,
-            createdByEmail: true,
-          },
-        },
+      select: {
+        key: true,
+        isManual: true,
+        productIds: true,
+        draftIsManual: true,
+        draftProductIds: true,
+        scheduledPublishAt: true,
+        lastPublishedAt: true,
+        updatedAt: true,
       },
     });
-  } catch (error) {
-    if (!isMissingLandingPageSectionTableError(error)) {
-      throw error;
+
+    storedSections = legacySections.map((section) => ({
+      ...section,
+      publishedRevisionId: null,
+      scheduledRevisionId: null,
+      publishedRevision: null,
+      scheduledRevision: null,
+      revisions: [],
+    }));
+  } else {
+    try {
+      storedSections = await prisma.landingPageSection.findMany({
+        where: {
+          storefront,
+          key: { in: [...SECTION_KEYS] },
+        },
+        include: {
+          publishedRevision: {
+            select: {
+              isManual: true,
+              productIds: true,
+            },
+          },
+          scheduledRevision: {
+            select: {
+              isManual: true,
+              productIds: true,
+            },
+          },
+          revisions: {
+            orderBy: { createdAt: "desc" },
+            take: 8,
+            select: {
+              id: true,
+              isManual: true,
+              productIds: true,
+              createdAt: true,
+              createdByEmail: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (isMissingLandingPageSectionTableError(error)) {
+        storedSections = [];
+      } else if (isLegacyLandingPageRevisionSchemaError(error)) {
+        const legacySections = await prisma.landingPageSection.findMany({
+          where: {
+            storefront,
+            key: { in: [...SECTION_KEYS] },
+          },
+          select: {
+            key: true,
+            isManual: true,
+            productIds: true,
+            draftIsManual: true,
+            draftProductIds: true,
+            scheduledPublishAt: true,
+            lastPublishedAt: true,
+            updatedAt: true,
+          },
+        });
+
+        storedSections = legacySections.map((section) => ({
+          ...section,
+          publishedRevisionId: null,
+          scheduledRevisionId: null,
+          publishedRevision: null,
+          scheduledRevision: null,
+          revisions: [],
+        }));
+      } else {
+        throw error;
+      }
     }
   }
   const allConfiguredIds = Array.from(
