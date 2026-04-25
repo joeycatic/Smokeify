@@ -43,55 +43,116 @@ async function createSectionRevision(input: {
 }
 
 async function serializeSection(sectionId: string) {
-  const section = await prisma.landingPageSection.findUniqueOrThrow({
-    where: { id: sectionId },
-    include: {
-      publishedRevision: {
-        select: {
-          id: true,
-          productIds: true,
+  try {
+    const section = await prisma.landingPageSection.findUniqueOrThrow({
+      where: { id: sectionId },
+      include: {
+        publishedRevision: {
+          select: {
+            id: true,
+            productIds: true,
+          },
+        },
+        revisions: {
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: {
+            id: true,
+            isManual: true,
+            productIds: true,
+            createdAt: true,
+            createdByEmail: true,
+          },
         },
       },
-      revisions: {
-        orderBy: { createdAt: "desc" },
-        take: 8,
-        select: {
-          id: true,
-          isManual: true,
-          productIds: true,
-          createdAt: true,
-          createdByEmail: true,
-        },
-      },
-    },
-  });
+    });
 
-  return {
-    id: section.id,
-    key: section.key,
-    isManual: section.isManual,
-    productIds: section.publishedRevision?.productIds ?? section.productIds,
-    draftIsManual: section.draftIsManual,
-    draftProductIds: section.draftProductIds,
-    scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
-    scheduledRevisionId: section.scheduledRevisionId,
-    publishedRevisionId: section.publishedRevisionId,
-    lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
-    updatedAt: section.updatedAt.toISOString(),
-    revisions: section.revisions.map((revision) => ({
-      id: revision.id,
-      isManual: revision.isManual,
-      productIds: revision.productIds,
-      createdAt: revision.createdAt.toISOString(),
-      createdByEmail: revision.createdByEmail,
-    })),
-  };
+    return {
+      id: section.id,
+      key: section.key,
+      isManual: section.isManual,
+      productIds: section.publishedRevision?.productIds ?? section.productIds,
+      draftIsManual: section.draftIsManual,
+      draftProductIds: section.draftProductIds,
+      scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
+      scheduledRevisionId: section.scheduledRevisionId,
+      publishedRevisionId: section.publishedRevisionId,
+      lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
+      updatedAt: section.updatedAt.toISOString(),
+      revisions: section.revisions.map((revision) => ({
+        id: revision.id,
+        isManual: revision.isManual,
+        productIds: revision.productIds,
+        createdAt: revision.createdAt.toISOString(),
+        createdByEmail: revision.createdByEmail,
+      })),
+    };
+  } catch (error) {
+    if (!isMissingLandingPageSchemaCapabilityError(error)) {
+      throw error;
+    }
+
+    const section = await prisma.landingPageSection.findUniqueOrThrow({
+      where: { id: sectionId },
+      select: {
+        id: true,
+        key: true,
+        isManual: true,
+        productIds: true,
+        draftIsManual: true,
+        draftProductIds: true,
+        scheduledPublishAt: true,
+        lastPublishedAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      id: section.id,
+      key: section.key,
+      isManual: section.isManual,
+      productIds: section.productIds,
+      draftIsManual: section.draftIsManual,
+      draftProductIds: section.draftProductIds,
+      scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
+      scheduledRevisionId: null,
+      publishedRevisionId: null,
+      lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
+      updatedAt: section.updatedAt.toISOString(),
+      revisions: [],
+    };
+  }
 }
 
 const isMissingLandingPageSectionTableError = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError &&
   error.code === "P2021" &&
   String(error.meta?.table ?? "").includes("LandingPageSection");
+
+const isMissingLandingPageRevisionTableError = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2021" &&
+  String(error.meta?.table ?? "").includes("LandingPageSectionRevision");
+
+const isMissingLandingPageRevisionColumnError = (error: unknown) => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2022") {
+    return false;
+  }
+
+  const missingColumn = String(error.meta?.column ?? "");
+  return (
+    missingColumn.includes("LandingPageSection.publishedRevisionId") ||
+    missingColumn.includes("LandingPageSection.scheduledRevisionId")
+  );
+};
+
+const isMissingLandingPageSchemaCapabilityError = (error: unknown) =>
+  isMissingLandingPageSectionTableError(error) ||
+  isMissingLandingPageRevisionTableError(error) ||
+  isMissingLandingPageRevisionColumnError(error);
+
+const LANDING_PAGE_SCHEMA_MESSAGE =
+  "Landing page overrides need the latest Prisma landing-page schema before revision controls are available.";
 
 export async function PUT(
   request: Request,
@@ -188,17 +249,23 @@ export async function PUT(
         draftProductIds: productIds,
       },
     });
-    await createSectionRevision({
-      sectionId: section.id,
-      storefront,
-      key: definition.key,
-      isManual: section.draftIsManual,
-      productIds: section.draftProductIds,
-      actor: {
-        id: session.user.id,
-        email: session.user.email ?? null,
-      },
-    });
+    try {
+      await createSectionRevision({
+        sectionId: section.id,
+        storefront,
+        key: definition.key,
+        isManual: section.draftIsManual,
+        productIds: section.draftProductIds,
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
+        },
+      });
+    } catch (error) {
+      if (!isMissingLandingPageSchemaCapabilityError(error)) {
+        throw error;
+      }
+    }
 
     await logAdminAction({
       actor: { id: session.user.id, email: session.user.email ?? null },
@@ -232,9 +299,9 @@ export async function PUT(
       section: await serializeSection(section.id),
     });
   } catch (error) {
-    if (isMissingLandingPageSectionTableError(error)) {
+    if (isMissingLandingPageSchemaCapabilityError(error)) {
       return NextResponse.json(
-        { error: "Landing page overrides are not available until the latest Prisma migration is applied." },
+        { error: LANDING_PAGE_SCHEMA_MESSAGE },
         { status: 503 },
       );
     }
@@ -467,9 +534,9 @@ export async function POST(
       section: await serializeSection(section.id),
     });
   } catch (error) {
-    if (isMissingLandingPageSectionTableError(error)) {
+    if (isMissingLandingPageSchemaCapabilityError(error)) {
       return NextResponse.json(
-        { error: "Landing page overrides are not available until the latest Prisma migration is applied." },
+        { error: LANDING_PAGE_SCHEMA_MESSAGE },
         { status: 503 },
       );
     }
