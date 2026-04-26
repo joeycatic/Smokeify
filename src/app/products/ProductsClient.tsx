@@ -371,31 +371,6 @@ export default function ProductsClient({
     });
   };
 
-  const toggleCategory = (handle: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      categories: (() => {
-        const hasParent = Boolean(categoryParam);
-        const childHandles = hasParent
-          ? categoryHierarchy.childrenByParent.get(categoryParam)?.keys() ?? []
-          : [];
-        const isChild =
-          hasParent && Array.from(childHandles).includes(handle);
-        if (prev.categories.includes(handle)) {
-          const next = prev.categories.filter((c) => c !== handle);
-          if (next.length === 0 && hasParent) {
-            return [categoryParam];
-          }
-          return next;
-        }
-        const withoutParent = isChild
-          ? prev.categories.filter((c) => c !== categoryParam)
-          : prev.categories;
-        return [...withoutParent, handle];
-      })(),
-    }));
-  };
-
   const activeChips = useMemo(() => {
     const chips: Array<{
       key: string;
@@ -482,22 +457,33 @@ export default function ProductsClient({
   };
 
   return (
-      <div className="w-full text-stone-800">
-        {/* Products Header */}
-        <div className="mt-3 rounded-3xl bg-[radial-gradient(120%_120%_at_70%_90%,#b8d39a_0%,#4f7b62_38%,#21443a_68%,#0f2924_100%)] px-6 py-10 text-white shadow-[0_30px_60px_rgba(10,25,20,0.35)] sm:px-10">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold sm:text-3xl">
-            {headerTitle}
-          </h1>
-          <div className="mx-auto mt-3 h-1 w-24 rounded-full bg-white/90" />
-          <p className="mt-4 text-sm text-white/85 sm:text-base">
-            {headerDescription}
-          </p>
+      <div className="w-full text-[var(--smk-text)]">
+        <div className="mt-3 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.14),transparent_24%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.14),transparent_26%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:px-10">
+        <div className="relative text-center">
+          <div className="absolute left-0 top-0 h-28 w-28 rounded-full bg-[rgba(233,188,116,0.12)] blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[rgba(217,119,69,0.12)] blur-3xl" />
+          <div className="relative">
+            <p className="smk-kicker">Kollektion</p>
+            <h1 className="smk-heading mt-4 text-4xl text-[var(--smk-text)] sm:text-5xl">
+              {headerTitle}
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--smk-text-muted)] sm:text-base">
+              {headerDescription}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <span className="smk-chip">{sortedProducts.length} Produkte</span>
+              {manufacturerParam && (
+                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-muted)]">
+                  {manufacturerParam}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-md">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#3a4b41]">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--smk-text-dim)]">
               <svg
                 aria-hidden="true"
                 viewBox="0 0 24 24"
@@ -519,14 +505,14 @@ export default function ProductsClient({
                 setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
               }
               placeholder="Produkte suchen..."
-              className="h-12 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-4 text-sm text-stone-700 shadow-[0_12px_30px_rgba(8,18,14,0.15)] outline-none focus:border-white/70 focus-visible:ring-2 focus-visible:ring-white/50"
+              className="smk-input h-12 w-full rounded-2xl pl-12 pr-4 text-sm shadow-[0_12px_30px_rgba(8,18,14,0.15)]"
             />
           </div>
           <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
             <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
-              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm sm:h-12 sm:w-40">
+              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] p-[6px] shadow-sm sm:h-12 sm:w-40">
               <span
-                className={`absolute top-[5px] bottom-[5px] rounded-full bg-[#254237] transition-all duration-200 ease-out ${
+                className={`absolute top-[5px] bottom-[5px] rounded-full bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-200 ease-out ${
                   layout === "grid"
                     ? "left-[5px] right-[calc(50%-1px)]"
                     : "left-[calc(50%+1px)] right-[5px]"
@@ -538,8 +524,8 @@ export default function ProductsClient({
                 onClick={() => setLayout("grid")}
                 className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
                   layout === "grid"
-                    ? "text-white"
-                    : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
                 }`}
               >
                 <Squares2X2Icon className="h-4 w-4" />
@@ -550,8 +536,8 @@ export default function ProductsClient({
                 onClick={() => setLayout("list")}
                 className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
                   layout === "list"
-                    ? "text-white"
-                    : "text-[#2f3e36] hover:bg-[#3a4b41]/10"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
                 }`}
               >
                 <Bars3BottomLeftIcon className="h-4 w-4" />
@@ -567,17 +553,17 @@ export default function ProductsClient({
               priceMaxBound={priceMaxBound}
               resultCount={sortedProducts.length}
               onReset={resetFilters}
-              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-white/40 bg-white/95 px-5 text-sm font-semibold text-black shadow-sm transition hover:border-white/70 sm:h-12 sm:w-auto sm:px-6"
-              triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-black"
+              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-5 text-sm font-semibold text-[#1a140f] shadow-sm transition hover:border-[var(--smk-border-strong)] sm:h-12 sm:w-auto sm:px-6"
+              triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-[#1a140f]"
             />
             </div>
             <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
-              <label className="inline-flex h-11 w-44 items-center rounded-full border border-white/40 bg-white/95 px-3 text-xs font-semibold text-stone-700 shadow-sm sm:h-12 sm:w-auto">
+              <label className="inline-flex h-11 w-44 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-3 text-xs font-semibold text-[#2f241d] shadow-sm sm:h-12 sm:w-auto">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortMode)}
                 aria-label="Sortierung"
-                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-stone-800 outline-none sm:w-auto sm:text-center"
+                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-[#1a140f] outline-none sm:w-auto sm:text-center"
               >
                 <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
                 <option value="price_asc">Preis aufsteigend</option>
@@ -590,13 +576,13 @@ export default function ProductsClient({
         </div>
       </div>
       {activeChips.length > 0 && (
-        <div className="mt-6 mb-8 flex flex-wrap items-center gap-2">
+        <div className="mb-8 mt-6 flex flex-wrap items-center gap-2">
           {activeChips.map((chip) => (
             <button
               key={chip.key}
               type="button"
               onClick={chip.onRemove}
-              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1 text-xs font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)]"
             >
               <span>{chip.label}</span>
               <span className="text-sm">x</span>
@@ -605,7 +591,7 @@ export default function ProductsClient({
           <button
             type="button"
             onClick={resetFilters}
-            className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+            className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
           >
             Clear all
           </button>
@@ -636,7 +622,7 @@ export default function ProductsClient({
           <button
             type="button"
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-            className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="smk-button-secondary inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold focus-visible:ring-offset-black"
           >
             Mehr laden ({Math.max(sortedProducts.length - visibleCount, 0)} verbleibend)
           </button>
@@ -644,9 +630,9 @@ export default function ProductsClient({
       )}
 
       {sortedProducts.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-gray-500 text-lg mb-2">Keine Produkte gefunden</p>
-          <p className="text-sm text-stone-500 mb-6">
+        <div className="py-16 text-center">
+          <p className="mb-2 text-lg text-[var(--smk-text-muted)]">Keine Produkte gefunden</p>
+          <p className="mb-6 text-sm text-[var(--smk-text-dim)]">
             Passe deine Auswahl an oder starte mit einer kuratierten Seite.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -656,7 +642,7 @@ export default function ProductsClient({
                 onClick={() =>
                   setFilters((prev) => ({ ...prev, searchQuery: "" }))
                 }
-                className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+                className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
               >
                 Suche löschen
               </button>
@@ -664,13 +650,13 @@ export default function ProductsClient({
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+              className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
             >
               Alle Filter zurücksetzen
             </button>
             <Link
               href="/bestseller"
-              className="inline-flex items-center justify-center rounded-full bg-[#254237] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
             >
               Zu den Bestsellern
             </Link>
@@ -679,24 +665,24 @@ export default function ProductsClient({
       )}
 
       {categoryFaq && categoryFaq.items.length > 0 && (
-        <div className="mt-10 rounded-3xl border border-black/10 bg-white px-6 py-6 shadow-sm sm:px-10">
+        <div className="smk-panel mt-10 rounded-[32px] px-6 py-6 sm:px-10">
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-lg font-semibold text-stone-900">
+            <h2 className="text-lg font-semibold text-[var(--smk-text)]">
               Häufige Fragen zu {categoryFaq.title}
             </h2>
             <div className="mt-4 space-y-3">
               {categoryFaq.items.map((item, index) => (
                 <details
                   key={`${item.question}-${index}`}
-                  className="group rounded-2xl border border-black/10 bg-white px-4 py-3"
+                  className="group rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3"
                 >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(241,198,132,0.32)] focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
                     <span>{item.question}</span>
-                    <span className="text-stone-400 transition group-open:rotate-45">
+                    <span className="text-[var(--smk-text-dim)] transition group-open:rotate-45">
                       +
                     </span>
                   </summary>
-                  <div className="mt-3 text-sm text-stone-600">
+                  <div className="mt-3 text-sm text-[var(--smk-text-muted)]">
                     {item.answer}
                   </div>
                 </details>

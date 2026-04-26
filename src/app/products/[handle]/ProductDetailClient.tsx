@@ -471,7 +471,7 @@ export default function ProductDetailClient({
 
   return (
     <>
-    <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">
+    <div className="rounded-[32px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 text-[var(--smk-text)] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
       {/* Sticky ATC bar */}
       <div
         className={`fixed inset-x-0 z-[45] transition-all duration-200 ${
@@ -482,7 +482,7 @@ export default function ProductDetailClient({
         style={{ top: navBottom }}
         aria-hidden={!showStickyBar}
       >
-        <div className="border-b border-black/10 bg-white/95 shadow-md backdrop-blur-sm">
+        <div className="border-b border-[var(--smk-border)] bg-[rgba(14,14,13,0.92)] shadow-md backdrop-blur-sm">
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6">
             {imageUrl && (
               <Image
@@ -494,18 +494,18 @@ export default function ProductDetailClient({
               />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-stone-900">
+              <p className="truncate text-sm font-semibold text-[var(--smk-text)]">
                 {product.title}
               </p>
               {selectedVariant && (
-                <p className="text-sm text-stone-500">{priceLabel}</p>
+                <p className="text-sm text-[var(--smk-text-muted)]">{priceLabel}</p>
               )}
             </div>
             {isAvailable && (
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-button-primary inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold focus-visible:ring-offset-black"
               >
                 <ShoppingBagIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">In den Warenkorb</span>
@@ -518,21 +518,21 @@ export default function ProductDetailClient({
       <div className="space-y-4">
         <div>
           {product.manufacturer && (
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-800">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--smk-text-dim)]">
               {product.manufacturer}
             </p>
           )}
-          <h1 className="mt-2 text-2xl font-semibold text-black sm:text-3xl">
+          <h1 className="smk-heading mt-2 text-3xl text-[var(--smk-text)] sm:text-4xl">
             {product.title}
           </h1>
           {selectedVariant && (
             <div className="mt-2 flex items-baseline gap-2">
               {compareAtLabel && (
-                <span className="text-base font-semibold text-amber-600 line-through">
+                <span className="text-base font-semibold text-[var(--smk-text-dim)] line-through">
                   {compareAtLabel}
                 </span>
               )}
-              <span className="text-lg font-semibold text-black sm:text-xl">
+              <span className="text-lg font-semibold text-[var(--smk-text)] sm:text-xl">
                 {priceLabel}
               </span>
             </div>
@@ -541,7 +541,7 @@ export default function ProductDetailClient({
 
         {groupOptions.length > 1 && (
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-black/80">Auswahl</p>
+            <p className="text-sm font-semibold text-[var(--smk-text)]">Auswahl</p>
             <select
               value={selectedGroupHandle}
               onChange={(e) => {
@@ -551,7 +551,7 @@ export default function ProductDetailClient({
                   router.push(`/products/${nextHandle}`);
                 }
               }}
-              className="h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="smk-input h-11 w-full rounded-2xl px-3 text-sm focus-visible:ring-offset-black"
             >
               {groupOptions.map((item) => (
                 <option key={item.id} value={item.handle}>
@@ -625,11 +625,11 @@ export default function ProductDetailClient({
 
         {variants.length > 1 && (
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-black/80">Variante</p>
+            <p className="text-sm font-semibold text-[var(--smk-text)]">Variante</p>
             <select
               value={selectedVariantId}
               onChange={(e) => setSelectedVariantId(e.target.value)}
-              className="h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="smk-input h-11 w-full rounded-2xl px-3 text-sm focus-visible:ring-offset-black"
             >
               {variants.map((v) => (
                 <option key={v.id} value={v.id} disabled={!v.availableForSale}>
@@ -641,9 +641,9 @@ export default function ProductDetailClient({
         )}
 
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-black/80">Menge</p>
+          <p className="text-sm font-semibold text-[var(--smk-text)]">Menge</p>
           <div ref={sentinelRef} className="flex flex-nowrap items-center gap-3">
-            <div className="inline-flex items-center rounded-lg border border-black/10 bg-white">
+            <div className="inline-flex items-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
               <button
                 type="button"
                 aria-label="Menge verringern"
@@ -652,13 +652,13 @@ export default function ProductDetailClient({
                   setQtyPulse("dec");
                   setTimeout(() => setQtyPulse(null), 160);
                 }}
-                className={`h-10 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
+                className={`h-10 w-9 text-base font-semibold text-[var(--smk-text)] transition-transform duration-150 ${
                   qtyPulse === "dec" ? "scale-95" : "scale-100"
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
               >
                 <span className="inline-block scale-x-125">-</span>
               </button>
-              <div className="grid h-10 w-10 place-items-center text-sm font-semibold text-black/80">
+              <div className="grid h-10 w-10 place-items-center text-sm font-semibold text-[var(--smk-text)]">
                 {quantity}
               </div>
               <button
@@ -669,9 +669,9 @@ export default function ProductDetailClient({
                   setQtyPulse("inc");
                   setTimeout(() => setQtyPulse(null), 160);
                 }}
-                className={`h-10 w-9 text-base font-semibold text-black/80 transition-transform duration-150 ${
+                className={`h-10 w-9 text-base font-semibold text-[var(--smk-text)] transition-transform duration-150 ${
                   qtyPulse === "inc" ? "scale-105" : "scale-100"
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
               >
                 +
               </button>
@@ -681,7 +681,7 @@ export default function ProductDetailClient({
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`smk-button-primary flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-4 text-sm font-semibold focus-visible:ring-offset-black ${
                   addedPulse ? "scale-[1.02]" : "scale-100"
                 }`}
               >
@@ -695,7 +695,7 @@ export default function ProductDetailClient({
               type="button"
               onClick={startCheckout}
               disabled={checkoutStatus === "loading"}
-              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-black/25 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="mt-1.5 inline-flex w-full items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.08)] px-6 py-3 text-sm font-semibold text-[var(--smk-text)] shadow-lg shadow-black/15 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.12)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
               {checkoutStatus === "loading" ? (
                 <span className="flex items-center gap-2">
@@ -717,7 +717,7 @@ export default function ProductDetailClient({
                 });
                 router.push(`/customizer?${params.toString()}`);
               }}
-              className="mt-1.5 inline-flex w-full items-center justify-center rounded-lg border border-emerald-900/30 bg-white px-6 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-900/50 hover:shadow-emerald-900/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="smk-button-secondary mt-1.5 inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold focus-visible:ring-offset-black"
             >
               Selber konfigurieren
             </button>
@@ -757,7 +757,7 @@ export default function ProductDetailClient({
 
         {!isAvailable ? (
           <form
-            className="space-y-2 rounded-md border border-black/10 bg-white/70 p-3"
+            className="space-y-2 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3"
             onSubmit={async (event) => {
               event.preventDefault();
               if (!selectedVariantId) {
@@ -804,7 +804,7 @@ export default function ProductDetailClient({
           >
             <label
               htmlFor="notify-email"
-              className="block text-xs font-semibold text-black/70"
+              className="block text-xs font-semibold text-[var(--smk-text-dim)]"
             >
               Email für Benachrichtigung
             </label>
@@ -815,13 +815,13 @@ export default function ProductDetailClient({
                 value={notifyEmail}
                 onChange={(event) => setNotifyEmail(event.target.value)}
                 placeholder="deine@email.de"
-                className="h-10 w-full rounded-md border border-black/15 px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-input h-10 w-full rounded-2xl px-3 text-sm focus-visible:ring-offset-black"
                 required
               />
               <button
                 type="submit"
                 disabled={notifyStatus === "loading"}
-                className="h-10 rounded-md border border-black/20 px-4 text-sm font-semibold text-black/70 hover:border-black/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-button-secondary h-10 rounded-full px-4 text-sm font-semibold disabled:opacity-50 focus-visible:ring-offset-black"
               >
                 {notifyStatus === "loading" ? (
                   <span className="inline-flex items-center gap-2">
@@ -857,17 +857,17 @@ export default function ProductDetailClient({
         )}
 
         {product.shortDescription ? (
-          <div className="rounded-xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4 shadow-sm">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
                   <BeakerIcon className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-emerald-900">
+                  <p className="text-sm font-semibold text-[var(--smk-text)]">
                     Produkt-Info
                   </p>
-                  <p className="mt-1 text-sm text-black/60">
+                  <p className="mt-1 text-sm text-[var(--smk-text-muted)]">
                     {product.shortDescription}
                   </p>
                 </div>
@@ -879,10 +879,10 @@ export default function ProductDetailClient({
 
         <div className="space-y-3">
           {product.technicalDetailsHtml ? (
-            <div className="rounded-xl border border-black/10 bg-white">
+            <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
               <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
                     <WrenchScrewdriverIcon className="h-5 w-5 text-black/60" />
                     Technische Details
                   </span>
@@ -901,30 +901,30 @@ export default function ProductDetailClient({
               </details>
             </div>
           ) : null}
-          <div className="rounded-xl border border-black/10 bg-white">
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
             <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
                   <TruckIcon className="h-5 w-5 text-black/60" />
                   Versand & Rücksendungen
                 </span>
                 <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
               </summary>
               <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
-                <div className="overflow-hidden px-5 pb-5 text-sm text-black/70">
+                <div className="overflow-hidden px-5 pb-5 text-sm text-[var(--smk-text-muted)]">
                   <p>
                     Lieferzeit in der Regel 2-5 Werktage nach Bestätigung der
                     Verfügbarkeit. Rücksendungen innerhalb von 14 Tagen möglich.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-black/70">
                     <Link
-                      className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="underline decoration-[var(--smk-text-dim)] underline-offset-4 hover:decoration-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       href="/pages/shipping"
                     >
                       Versanddetails
                     </Link>
                     <Link
-                      className="underline decoration-black/30 underline-offset-4 hover:decoration-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="underline decoration-[var(--smk-text-dim)] underline-offset-4 hover:decoration-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       href="/pages/return"
                     >
                       Rücksendungen
@@ -937,23 +937,23 @@ export default function ProductDetailClient({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-black/10 bg-white px-4 py-3 text-center">
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-black/80">
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-center">
+            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
               <TruckIcon className="h-4 w-4 text-emerald-700" />
               Schnelle Lieferung
             </div>
             <p className="mt-1 text-xs text-black/60">2-5 Werktage</p>
           </div>
-          <div className="rounded-xl border border-black/10 bg-white px-4 py-3 text-center">
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-black/80">
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-center">
+            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
               <ShieldCheckIcon className="h-4 w-4 text-emerald-700" />
               Sichere Zahlung
             </div>
             <p className="mt-1 text-xs text-black/60">Sicherheitsprüfungen</p>
           </div>
         </div>
-        <div className="rounded-xl border border-black/10 bg-white px-4 py-3 text-center">
-          <div className="flex items-center justify-center gap-2 text-sm font-semibold text-black/80">
+        <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-center">
+          <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
             <ArrowUturnLeftIcon className="h-4 w-4 text-emerald-700" />
             14 Tage Rückgabe
           </div>
@@ -962,10 +962,10 @@ export default function ProductDetailClient({
         <div className="no-scrollbar flex items-center justify-center gap-2 overflow-x-auto">
           <PaymentMethodLogos
             className="flex-nowrap justify-center gap-2"
-            pillClassName="h-8 px-3 border-black/10 bg-white"
+            pillClassName="h-8 border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3"
             logoClassName="h-5"
           />
-          <span className="inline-flex h-8 items-center rounded-full bg-white px-3">
+          <span className="inline-flex h-8 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3">
             <Image
               src="/shipping-provider-logos/dhl-logo.png"
               alt="DHL"
@@ -985,10 +985,10 @@ export default function ProductDetailClient({
           ))}
         </div>
         {product.descriptionHtml ? (
-          <div className="rounded-2xl border border-black/10 bg-white shadow-sm sm:hidden">
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] shadow-sm sm:hidden">
             <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
                   <InformationCircleIcon className="h-5 w-5 text-black/60" />
                   Produktbeschreibung
                 </span>

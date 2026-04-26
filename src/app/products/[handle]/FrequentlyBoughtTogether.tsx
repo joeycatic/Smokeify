@@ -62,8 +62,8 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-8 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-stone-900">Häufig zusammen gekauft</h2>
+    <section className="mt-8 rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-5 text-[var(--smk-text)] shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+      <h2 className="smk-heading text-lg font-semibold">Häufig zusammen gekauft</h2>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {[{ id: "current", imageUrl: currentProduct.imageUrl, title: currentProduct.title }, ...items]
@@ -76,20 +76,20 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
                   alt={item.title}
                   width={56}
                   height={56}
-                  className="h-14 w-14 rounded-md border border-black/10 object-cover"
+                  className="smk-white-well h-14 w-14 rounded-md border object-cover"
                 />
               ) : (
-                <div className="h-14 w-14 rounded-md border border-dashed border-black/10 bg-stone-50" />
+                <div className="smk-white-well h-14 w-14 rounded-md border border-dashed" />
               )}
               {index < arr.length - 1 ? (
-                <span className="text-sm font-semibold text-stone-400">+</span>
+                <span className="text-sm font-semibold text-[var(--smk-text-dim)]">+</span>
               ) : null}
             </div>
           ))}
       </div>
 
       <div className="mt-4 space-y-2">
-        <label className="flex items-center justify-between gap-4 rounded-md bg-stone-50 px-3 py-2 text-sm">
+        <label className="flex items-center justify-between gap-4 rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm">
           <span className="inline-flex items-center gap-3">
             <input type="checkbox" checked disabled />
             <span>{currentProduct.title}</span>
@@ -103,18 +103,20 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
                   Math.max(1, Math.min(10, Math.floor(Number(event.target.value) || 1)))
                 )
               }
-              className="h-8 w-16 rounded-md border border-black/15 bg-white px-2 text-xs"
+              className="smk-input h-8 w-16 rounded-md px-2 text-xs"
               aria-label="Menge Hauptprodukt"
             />
           </span>
-          <span className="font-semibold text-stone-800">{formatPrice(currentProduct.price)}</span>
+          <span className="font-semibold text-[var(--smk-text)]">{formatPrice(currentProduct.price)}</span>
         </label>
 
         {items.map((item) => (
           <label
             key={item.id}
-            className={`flex items-center justify-between gap-4 rounded-md px-3 py-2 text-sm ${
-              item.availableForSale ? "bg-stone-50" : "bg-stone-100 text-stone-500"
+            className={`flex items-center justify-between gap-4 rounded-[18px] border px-3 py-2 text-sm ${
+              item.availableForSale
+                ? "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]"
+                : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.02)] text-[var(--smk-text-dim)]"
             }`}
           >
             <span className="inline-flex items-center gap-2">
@@ -146,17 +148,17 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
                     )),
                   }))
                 }
-                className="h-8 w-16 rounded-md border border-black/15 bg-white px-2 text-xs"
+                className="smk-input h-8 w-16 rounded-md px-2 text-xs"
                 aria-label={`Menge ${item.title}`}
               />
             </span>
-            <span className="font-semibold text-stone-800">{formatPrice(item.price)}</span>
+            <span className="font-semibold text-[var(--smk-text)]">{formatPrice(item.price)}</span>
           </label>
         ))}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-700">
+        <p className="text-sm text-[var(--smk-text-muted)]">
           Gesamtpreis:{" "}
           <span className="font-semibold">
             {new Intl.NumberFormat("de-DE", {
@@ -194,14 +196,14 @@ export default function FrequentlyBoughtTogether({ currentProduct, items }: Prop
               setSubmitting(false);
             }
           }}
-          className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+          className="smk-button-primary h-10 rounded-full px-4 text-sm font-semibold disabled:opacity-60"
         >
           {submitting ? "Hinzufügen..." : "Bundle hinzufügen"}
         </button>
       </div>
 
       {message ? (
-        <p className="mt-2 text-xs text-stone-600">{message}</p>
+        <p className="mt-2 text-xs text-[var(--smk-text-muted)]">{message}</p>
       ) : null}
     </section>
   );

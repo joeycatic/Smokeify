@@ -12,11 +12,12 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
-  ShieldCheckIcon,
   ArrowRightIcon,
+  PhotoIcon,
+  ShieldCheckIcon,
   SparklesIcon,
   TruckIcon,
-  PhotoIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
@@ -28,6 +29,16 @@ export const metadata: Metadata = {
     },
   },
 };
+
+function formatMoney(amount?: string, currencyCode?: string) {
+  const value = Number(amount);
+  if (!Number.isFinite(value) || !currencyCode) return null;
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: 2,
+  }).format(value);
+}
 
 export default async function StorePage({
   searchParams,
@@ -42,13 +53,34 @@ export default async function StorePage({
   const canPreviewDraft = previewRequested && Boolean(await requireAdmin());
   const { result: homepageData } = await measureServerExecution(
     "page.home",
-    async () => resolveLandingPageProductSections("MAIN", { previewDraft: canPreviewDraft }),
+    async () =>
+      resolveLandingPageProductSections("MAIN", {
+        previewDraft: canPreviewDraft,
+      }),
   );
   const {
     bestSellerProducts: bestSellersFilled,
     tentProducts,
     heroProducts,
   } = homepageData;
+
+  const supportCards = [
+    {
+      title: "Schneller Versand",
+      copy: "Kurze Wege aus Deutschland, damit neue Setups nicht lange auf Teile warten.",
+      icon: TruckIcon,
+    },
+    {
+      title: "Marken mit Substanz",
+      copy: "Bewährte Hersteller für Licht, Luft und Zubehör ohne unnötigen Katalogballast.",
+      icon: ShieldCheckIcon,
+    },
+    {
+      title: "Kuratierte Auswahl",
+      copy: "Weniger Rauschen, mehr Orientierung für Einsteiger und fortgeschrittene Setups.",
+      icon: SparklesIcon,
+    },
+  ] as const;
 
   const brandCards = [
     {
@@ -57,7 +89,7 @@ export default async function StorePage({
       alt: "AC Infinity",
       label: "AC Infinity",
       note: "Lüftung & Klima",
-      cardClass: "border-black bg-black text-white shadow-black/20",
+      glow: "from-[#d6b16f]/36 via-[#3d4a34]/24 to-transparent",
       imageClass: "object-[50%_46%] scale-150",
     },
     {
@@ -66,7 +98,7 @@ export default async function StorePage({
       alt: "DiamondBox",
       label: "DiamondBox",
       note: "Growbox Klassiker",
-      cardClass: "border-black bg-black text-white shadow-black/20",
+      glow: "from-[#71563b]/40 via-[#2c2521]/18 to-transparent",
       imageClass: "object-[50%_46%] scale-130",
     },
     {
@@ -75,7 +107,7 @@ export default async function StorePage({
       alt: "SANlight",
       label: "SANlight",
       note: "Premium LED",
-      cardClass: "border-stone-200 bg-white text-stone-900 shadow-black/10",
+      glow: "from-[#a6b2a2]/30 via-[#2f342f]/18 to-transparent",
       imageClass: "object-[58%_38%] scale-125",
     },
     {
@@ -84,354 +116,318 @@ export default async function StorePage({
       alt: "Bloomstar",
       label: "Bloomstar",
       note: "Leistung & Effizienz",
-      cardClass: "border-stone-200 bg-white text-stone-900 shadow-black/10",
+      glow: "from-[#d58c4f]/28 via-[#33261d]/20 to-transparent",
       imageClass: "object-[50%_40%] scale-125",
     },
-  ];
+  ] as const;
 
   return (
     <CommerceShell>
-      <main className="bg-stone-50">
+      <main className="pb-16">
         <AnnouncementBar />
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
           {canPreviewDraft ? (
-            <div className="px-4 pt-4 text-sm sm:px-6">
-              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-cyan-900">
-                Homepage draft preview is active. Only admins can see this draft merchandising state.
+            <div className="pt-4">
+              <div className="rounded-[24px] border border-cyan-400/30 bg-cyan-400/12 px-4 py-3 text-sm text-cyan-100">
+                Homepage draft preview is active. Only admins can see this
+                draft merchandising state.
               </div>
             </div>
           ) : null}
-          <div className="px-0 sm:px-6">
-            <Suspense fallback={null}>
-              <Navbar />
-            </Suspense>
-          </div>
-          <div className="pt-3 sm:px-6 sm:pt-5">
-            <section className="reveal-up relative overflow-hidden bg-[#16382d] px-4 pb-6 pt-6 text-white shadow-[0_28px_80px_rgba(11,28,21,0.18)] sm:rounded-3xl sm:px-8 sm:pb-8 sm:pt-8">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(228,197,108,0.25),transparent_26%),radial-gradient(circle_at_82%_12%,rgba(120,164,143,0.24),transparent_30%),linear-gradient(135deg,#15372c_0%,#1f4336_35%,#355c4d_68%,#d3be8f_100%)]" />
-              <div className="absolute -right-10 top-10 h-40 w-40 rounded-full bg-[#e4c56c]/20 blur-3xl sm:h-56 sm:w-56" />
-              <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[#84a794]/20 blur-3xl sm:h-44 sm:w-44" />
 
-              <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-10">
-                <div className="max-w-3xl py-2 sm:py-4">
-                  <p className="inline-flex items-center gap-2 rounded-full border border-[#E4C56C]/35 bg-[#E4C56C]/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#f4e4b8] sm:text-xs">
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
+
+          <div className="space-y-8 sm:space-y-10">
+            <section className="relative overflow-hidden rounded-[36px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(23,20,18,0.98)_0%,rgba(38,30,26,0.98)_38%,rgba(15,15,14,0.99)_100%)] px-5 pb-6 pt-6 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:px-8 sm:pb-8 sm:pt-8 lg:px-10 lg:pb-10 lg:pt-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_16%,rgba(218,176,106,0.24),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(109,89,68,0.26),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_40%)]" />
+              <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-[rgba(207,167,96,0.16)] blur-3xl sm:h-52 sm:w-52" />
+              <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[rgba(94,75,57,0.24)] blur-3xl sm:h-60 sm:w-60" />
+
+              <div className="relative grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
+                <div className="max-w-3xl space-y-6">
+                  <span className="smk-chip">
                     <SparklesIcon className="h-4 w-4" />
-                    Smokeify Auswahl
-                  </p>
-                  <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[0.96] tracking-tight sm:text-5xl lg:text-6xl">
-                    Technik und Zubehör für Pflanzen, die nicht nach
-                    Zufall aussehen.
-                  </h1>
-                  <p className="mt-5 max-w-2xl text-sm leading-6 text-white/84 sm:text-base sm:leading-7">
-                    Entdecke kuratierte Zelte, starke LED-Systeme, saubere
-                    Abluftlösungen und sinnvolles Zubehör. Direkt sortiert nach
-                    Relevanz, Marken und echten Topsellern aus dem Shop.
-                  </p>
+                    Smokeify Selection
+                  </span>
+                  <div className="space-y-4">
+                    <h1 className="smk-heading max-w-4xl text-5xl leading-[0.9] tracking-[-0.06em] text-[var(--smk-text)] sm:text-6xl lg:text-7xl">
+                      Technik für Pflanzen,
+                      <br />
+                      <span className="smk-text-gradient">
+                        die sauber gedacht ist.
+                      </span>
+                    </h1>
+                    <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                      Zelte, Licht, Abluft und Zubehör in einer kuratierten
+                      Auswahl. Weniger Lärm, klarere Wege und direkte Einstiege
+                      in Shop, Analyzer und Konfigurator.
+                    </p>
+                  </div>
 
-                  <div className="mt-6 flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <Link
                       href="/products"
-                      className="inline-flex items-center justify-center rounded-xl bg-[#E4C56C] px-5 py-3 text-sm font-bold text-[#20342b] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-[#edd48f]"
+                      className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
-                      Jetzt Sortiment entdecken
+                      Sortiment entdecken
                     </Link>
                     <Link
                       href="/customizer"
-                      className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                      className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
                       Konfigurator öffnen
                     </Link>
                   </div>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                      <TruckIcon className="h-5 w-5 text-[#e4c56c]" />
-                      <p className="mt-2 text-sm font-semibold text-white">
-                        Schneller Versand
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-white/74">
-                        Zügige Lieferung aus Deutschland für einen schnellen
-                        Projektstart.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                      <ShieldCheckIcon className="h-5 w-5 text-[#e4c56c]" />
-                      <p className="mt-2 text-sm font-semibold text-white">
-                        Verlässliche Marken
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-white/74">
-                        Ausgewählte Hersteller mit sauberem Preis-Leistungs-Fokus.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                      <SparklesIcon className="h-5 w-5 text-[#e4c56c]" />
-                      <p className="mt-2 text-sm font-semibold text-white">
-                        Kuratierte Auswahl
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-white/74">
-                        Relevante Produkte statt überladener Massenlisten.
-                      </p>
-                    </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {supportCards.map((item) => (
+                      <div
+                        key={item.title}
+                        className="smk-surface rounded-[24px] p-4"
+                      >
+                        <item.icon className="h-5 w-5 text-[var(--smk-accent)]" />
+                        <p className="mt-3 text-sm font-semibold text-[var(--smk-text)]">
+                          {item.title}
+                        </p>
+                        <p className="mt-1 text-xs leading-6 text-[var(--smk-text-muted)]">
+                          {item.copy}
+                        </p>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="mt-6">
-                    <PaymentMethodLogos
-                      className="flex-wrap gap-2.5 sm:gap-3"
-                      pillClassName="border-white/12 bg-white/10"
-                      logoClassName="brightness-[1.02]"
-                    />
-                  </div>
+                  <PaymentMethodLogos
+                    className="flex-wrap gap-2.5"
+                    pillClassName="border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)]"
+                    logoClassName="brightness-[1.02]"
+                  />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:gap-5">
-                  {heroProducts.map((product, index) => (
-                    <Link
-                      key={product.id}
-                      href={`/products/${product.handle}`}
-                      className={`group relative overflow-hidden rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur transition hover:-translate-y-1 hover:bg-white/14 sm:p-5 ${
-                        index === 0 ? "lg:min-h-[204px]" : "lg:min-h-[168px]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4 lg:gap-5">
-                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.05))] sm:h-28 sm:w-28 lg:h-24 lg:w-24">
-                          {product.featuredImage ? (
-                            <Image
-                              src={product.featuredImage.url}
-                              alt={product.featuredImage.altText ?? product.title}
-                              fill
-                              sizes="112px"
-                              className="object-contain p-3 transition duration-300 group-hover:scale-105"
-                              priority={index === 0}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#e4c56c]">
-                            Empfohlen
-                          </p>
-                          {product.manufacturer ? (
-                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/58">
-                              {product.manufacturer}
+                <div className="grid gap-4 lg:grid-cols-1">
+                  {heroProducts.map((product, index) => {
+                    const formattedPrice = formatMoney(
+                      product.priceRange?.minVariantPrice.amount,
+                      product.priceRange?.minVariantPrice.currencyCode,
+                    );
+
+                    return (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.handle}`}
+                        className={`group relative overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] p-4 transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] sm:p-5 ${
+                          index === 0 ? "lg:min-h-[220px]" : "lg:min-h-[170px]"
+                        }`}
+                      >
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(214,177,111,0.16),transparent_34%)] opacity-80" />
+                        <div className="relative flex items-center gap-4">
+                          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] sm:h-28 sm:w-28">
+                            {product.featuredImage ? (
+                              <Image
+                                src={product.featuredImage.url}
+                                alt={product.featuredImage.altText ?? product.title}
+                                fill
+                                sizes="112px"
+                                className="object-contain p-3 transition duration-300 group-hover:scale-105"
+                                priority={index === 0}
+                              />
+                            ) : null}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="smk-kicker text-[var(--smk-accent)]">
+                              Smokeify Pick
                             </p>
-                          ) : null}
-                          <h2 className="mt-2 max-w-[22rem] text-lg font-bold leading-tight text-white lg:text-[1.75rem] lg:leading-[1.05]">
-                            {product.title}
-                          </h2>
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-white/92">
-                              {product.priceRange?.minVariantPrice.amount}{" "}
-                              {product.priceRange?.minVariantPrice.currencyCode}
-                            </p>
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/72 transition group-hover:text-white">
-                              Ansehen
-                              <ArrowRightIcon className="h-3.5 w-3.5" />
-                            </span>
+                            {product.manufacturer ? (
+                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                                {product.manufacturer}
+                              </p>
+                            ) : null}
+                            <h2 className="mt-2 text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
+                              {product.title}
+                            </h2>
+                            <div className="mt-4 flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-[var(--smk-text)]">
+                                {formattedPrice ?? "Preis aufrufen"}
+                              </p>
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-text-muted)] transition group-hover:text-[var(--smk-text)]">
+                                Ansehen
+                                <ArrowRightIcon className="h-3.5 w-3.5" />
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             </section>
-          </div>
-          <section className="px-0 pb-6 pt-6 sm:px-6">
-          <div className="pb-2">
-            <div className="space-y-10">
-              <section className="reveal-up rounded-[28px] border border-emerald-100 bg-[linear-gradient(135deg,#f7fbf9_0%,#ffffff_55%,#eef7f1_100%)] p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
-                <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                      Neu auf der Website
-                    </p>
-                    <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">
-                      Pflanzen Analyzer mit Foto-Upload und Shop-Empfehlungen
-                    </h2>
-                    <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
-                      Lade ein Foto hoch, erhalte 1–2 Problemschätzungen und
-                      sieh direkt passende Produkte und Guides aus dem Smokeify
-                      Shop.
-                    </p>
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <Link
-                        href="/pflanzen-analyzer"
-                        className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5"
-                      >
-                        Analyzer öffnen
-                      </Link>
-                      <Link
-                        href="/blog"
-                        className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-stone-800 transition hover:border-black/20"
-                      >
-                        Guides ansehen
-                      </Link>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
-                      <PhotoIcon className="h-5 w-5 text-emerald-700" />
-                      <p className="mt-2 text-sm font-semibold text-stone-900">
-                        Foto hochladen
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-stone-500">
-                        Schnelle Ersteinschätzung direkt auf der Website.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
-                      <SparklesIcon className="h-5 w-5 text-emerald-700" />
-                      <p className="mt-2 text-sm font-semibold text-stone-900">
-                        Problem schätzen
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-stone-500">
-                        1–2 wahrscheinliche Befunde mit konkreten nächsten
-                        Schritten.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
-                      <ArrowRightIcon className="h-5 w-5 text-emerald-700" />
-                      <p className="mt-2 text-sm font-semibold text-stone-900">
-                        Produkte finden
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-stone-500">
-                        Direkt weiter zu passenden Artikeln und Guides im Shop.
-                      </p>
-                    </div>
-                  </div>
+
+            <section className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
+              <div className="smk-panel rounded-[32px] p-6 sm:p-7">
+                <p className="smk-kicker">Analyzer</p>
+                <h2 className="smk-heading mt-4 text-3xl leading-[0.96] text-[var(--smk-text)] sm:text-4xl">
+                  Pflanzenprobleme fotografieren.
+                  <br />
+                  Produkte schneller finden.
+                </h2>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                  Foto hochladen, 1–2 wahrscheinliche Probleme schätzen und
+                  direkt mit passenden Shop-Artikeln und Guides weitergehen.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    href="/pflanzen-analyzer"
+                    className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
+                  >
+                    Analyzer öffnen
+                  </Link>
+                  <Link
+                    href="/blog"
+                    className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
+                  >
+                    Guides ansehen
+                  </Link>
                 </div>
-              </section>
+              </div>
 
-              <section className="space-y-4">
-                <header className="reveal-up space-y-2 px-2 sm:px-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-900/75">
-                    Deals
-                  </p>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">
-                    Top Growbox-Deals unter 120 €
-                  </h2>
-                  <p className="max-w-2xl text-sm text-stone-700 sm:text-base">
-                    Preisstark starten und sofort die passende Basis für dein
-                    Setup finden.
-                  </p>
-                </header>
-                <DisplayProducts
-                  products={tentProducts}
-                  cols={4}
-                  showManufacturer
-                  showGrowboxSize
-                  hideCartLabel
-                />
-              </section>
+              <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+                {[
+                  {
+                    title: "Foto hochladen",
+                    copy: "Schnelle Ersteinschätzung direkt auf der Website.",
+                    icon: PhotoIcon,
+                  },
+                  {
+                    title: "Problem schätzen",
+                    copy: "Wahrscheinliche Ursachen mit klaren nächsten Schritten.",
+                    icon: SparklesIcon,
+                  },
+                  {
+                    title: "Shop-Verbindung",
+                    copy: "Direkt weiter zu Produkten und Guides ohne Medienbruch.",
+                    icon: WrenchScrewdriverIcon,
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="smk-surface rounded-[24px] p-4">
+                    <item.icon className="h-5 w-5 text-[var(--smk-accent)]" />
+                    <p className="mt-3 text-sm font-semibold text-[var(--smk-text)]">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-6 text-[var(--smk-text-muted)]">
+                      {item.copy}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-              <section className="space-y-4">
-                <header className="reveal-up reveal-delay-1 space-y-2 px-2 sm:px-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-900/75">
-                    Markenwelt
-                  </p>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">
-                    Starke Brands für jeden Grow-Anspruch
-                  </h2>
-                </header>
-                <div className="grid gap-3 px-4 sm:gap-4 sm:px-0 sm:grid-cols-2 lg:grid-cols-4">
-                  {brandCards.map((brand, index) => (
-                    <Link
-                      key={brand.href}
-                      href={brand.href}
-                      className={`group interactive-lift reveal-up relative flex h-24 items-end overflow-hidden rounded-xl border p-2.5 shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-36 sm:rounded-2xl sm:p-3 ${
-                        brand.cardClass
-                      } ${index > 1 ? "reveal-delay-2" : "reveal-delay-1"}`}
-                      aria-label={`${brand.label} anzeigen`}
-                    >
-                      <Image
-                        src={brand.src}
-                        alt={brand.alt}
-                        fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.08] ${brand.imageClass}`}
-                        loading={index === 0 ? "eager" : "lazy"}
-                        priority={index === 0}
-                        quality={70}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                      <div className="relative z-10">
-                        <p className="text-xs font-bold tracking-wide text-white sm:text-sm">
-                          {brand.label}
-                        </p>
-                        <p className="text-[11px] text-white/85 sm:text-xs">{brand.note}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
+            <section className="space-y-5">
+              <header className="space-y-3">
+                <p className="smk-kicker">Curated Merch</p>
+                <h2 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
+                  Top Growbox-Deals unter 120 €
+                </h2>
+                <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                  Preisstarke Einstiege, um schnell eine sinnvolle Basis für
+                  das Setup zu bauen.
+                </p>
+              </header>
+              <DisplayProducts
+                products={tentProducts}
+                cols={4}
+                showManufacturer
+                showGrowboxSize
+                hideCartLabel
+              />
+            </section>
 
-              <section className="space-y-4">
-                <header className="reveal-up reveal-delay-2 space-y-2 px-2 sm:px-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-900/75">
-                    Meistgekauft
-                  </p>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">
-                    Bestseller aus dem Smokeify Shop
-                  </h2>
-                </header>
-                <DisplayProducts
-                  products={bestSellersFilled}
-                  cols={4}
-                  showManufacturer
-                  hideCartLabel
-                />
-              </section>
-            </div>
-          </div>
-        </section>
+            <section className="space-y-5">
+              <header className="space-y-3">
+                <p className="smk-kicker">Brand Discovery</p>
+                <h2 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
+                  Marken mit klarer Rolle im Setup
+                </h2>
+              </header>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {brandCards.map((brand, index) => (
+                  <Link
+                    key={brand.href}
+                    href={brand.href}
+                    className="group relative flex min-h-[180px] overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)]"
+                  >
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${brand.glow}`}
+                    />
+                    <Image
+                      src={brand.src}
+                      alt={brand.alt}
+                      fill
+                      sizes="(min-width: 1280px) 23vw, (min-width: 640px) 48vw, 100vw"
+                      className={`h-full w-full object-cover opacity-95 transition duration-500 group-hover:scale-[1.08] ${brand.imageClass}`}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      priority={index === 0}
+                      quality={72}
+                    />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.62))]" />
+                    <div className="relative z-10 mt-auto">
+                      <p className="text-lg font-semibold text-white">
+                        {brand.label}
+                      </p>
+                      <p className="mt-1 text-sm text-white/78">{brand.note}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
-          <section className="reveal-up reveal-delay-2 px-4 pb-8 sm:px-6">
-          <div className="grid gap-3 rounded-2xl border border-emerald-100/80 bg-white/85 p-4 shadow-lg shadow-emerald-900/5 backdrop-blur sm:grid-cols-3 sm:p-5">
-            <div className="interactive-lift rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-              <TruckIcon className="h-5 w-5 text-emerald-800" />
-              <p className="mt-2 text-sm font-semibold text-stone-900">
-                Schneller Versand
-              </p>
-              <p className="mt-1 text-xs text-stone-700">
-                Zügige Lieferung direkt aus Deutschland.
-              </p>
-            </div>
-            <div className="interactive-lift rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-              <ShieldCheckIcon className="h-5 w-5 text-emerald-800" />
-              <p className="mt-2 text-sm font-semibold text-stone-900">
-                Verifizierte Marken
-              </p>
-              <p className="mt-1 text-xs text-stone-700">
-                Ausgewählte Hersteller mit starkem Preis-Leistungs-Verhältnis.
-              </p>
-            </div>
-            <div className="interactive-lift rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-              <SparklesIcon className="h-5 w-5 text-emerald-800" />
-              <p className="mt-2 text-sm font-semibold text-stone-900">
-                Kuratierte Auswahl
-              </p>
-              <p className="mt-1 text-xs text-stone-700">
-                Handverlesene Produkte für Einsteiger und Profis.
-              </p>
-            </div>
-          </div>
-        </section>
+            <section className="space-y-5">
+              <header className="space-y-3">
+                <p className="smk-kicker">Bestsellers</p>
+                <h2 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
+                  Bestseller aus dem Smokeify Shop
+                </h2>
+              </header>
+              <DisplayProducts
+                products={bestSellersFilled}
+                cols={4}
+                showManufacturer
+                hideCartLabel
+              />
+            </section>
 
-          <div className="pb-16 text-center">
-          <div className="reveal-up reveal-delay-2 inline-flex flex-col items-center gap-3 sm:flex-row">
-            <Link
-              href="/products"
-              className="interactive-lift inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-10 py-4 text-base font-bold text-white shadow-lg shadow-emerald-900/15 transition-all hover:shadow-emerald-900/25"
-            >
-              Alle Produkte ansehen
-            </Link>
-            <Link
-              href="/bestseller"
-              className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white/90 px-6 py-4 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-black/20 hover:bg-white"
-            >
-              Zu den Bestsellern
-            </Link>
-          </div>
+            <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center rounded-[34px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(216,177,111,0.12),rgba(28,23,20,0.96)_26%,rgba(12,12,11,0.99)_100%)] px-6 py-7 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-8 sm:py-9">
+              <div>
+                <p className="smk-kicker text-[var(--smk-accent)]">
+                  Final Conversion
+                </p>
+                <h2 className="smk-heading mt-3 text-3xl text-[var(--smk-text)] sm:text-4xl">
+                  Kompletten Katalog durchsuchen
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                  Shoppen, Bestseller vergleichen oder direkt in die gesamte
+                  Auswahl springen, wenn das Setup schon klar ist.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 lg:justify-end">
+                <Link
+                  href="/products"
+                  className="smk-button-primary inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold"
+                >
+                  Alle Produkte ansehen
+                </Link>
+                <Link
+                  href="/bestseller"
+                  className="smk-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold"
+                >
+                  Zu den Bestsellern
+                </Link>
+              </div>
+            </section>
           </div>
         </div>
+
         <Footer />
       </main>
     </CommerceShell>

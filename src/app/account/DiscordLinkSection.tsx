@@ -73,24 +73,24 @@ export default function DiscordLinkSection() {
   };
 
   const inputClass =
-    "w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2.5 text-sm text-stone-800 outline-none transition-colors focus:border-[#44584c]/40 focus:bg-white focus:ring-2 focus:ring-[#44584c]/10";
+    "smk-input w-full rounded-xl px-3 py-2.5 text-sm";
   const labelClass =
-    "mb-1 block text-[11px] font-semibold tracking-wide text-stone-500";
+    "mb-1 block text-[11px] font-semibold tracking-wide text-[var(--smk-text-muted)]";
 
   return (
     <div>
-      <p className="mb-3 text-[11px] font-semibold tracking-widest text-stone-400">
+      <p className="mb-3 text-[11px] font-semibold tracking-widest text-[var(--smk-text-dim)]">
         DISCORD VERKNÜPFEN
       </p>
-      <div className="rounded-xl border border-black/8 bg-stone-50/70 p-4">
-        <p className="text-sm font-semibold text-stone-800">
+      <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
+        <p className="text-sm font-semibold text-[var(--smk-text)]">
           Temporärer Discord-Link
         </p>
-        <p className="mt-2 text-xs leading-5 text-stone-600">
+        <p className="mt-2 text-xs leading-5 text-[var(--smk-text-muted)]">
           Starte in Discord mit <span className="font-semibold">`/account connect provider:Smokeify`</span>,
           kopiere den Challenge-Code und trage ihn hier ein.
         </p>
-        <p className="mt-2 text-xs leading-5 text-stone-600">
+        <p className="mt-2 text-xs leading-5 text-[var(--smk-text-muted)]">
           Aktuell benötigt dieser manuelle Flow zusätzlich deine Discord User ID.
           Aktiviere dafür in Discord den Entwicklermodus und kopiere deine eigene User ID.
         </p>
@@ -139,26 +139,26 @@ export default function DiscordLinkSection() {
           )}
 
           {result && (
-            <div className="space-y-3 rounded-xl border border-emerald-200 bg-white p-3">
+            <div className="space-y-3 rounded-[22px] border border-[rgba(127,207,150,0.28)] bg-[rgba(22,52,39,0.82)] p-3">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 Token bereit
               </p>
               <textarea
                 readOnly
                 value={result.token}
-                className="min-h-28 w-full rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-xs text-stone-800 outline-none"
+                className="min-h-28 w-full rounded-xl border border-[rgba(127,207,150,0.22)] bg-[rgba(18,16,14,0.82)] px-3 py-2 text-xs text-[var(--smk-text)] outline-none"
               />
-              <p className="text-xs leading-5 text-stone-600">
+              <p className="text-xs leading-5 text-[var(--smk-text-muted)]">
                 {result.instruction}
               </p>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-[var(--smk-text-dim)]">
                 Läuft ab: {new Date(result.expiresAt).toLocaleString("de-DE")}
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={handleCopyToken}
-                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#44584c]"
+                  className="smk-button-primary inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold"
                 >
                   Token kopieren
                 </button>
@@ -179,7 +179,7 @@ export default function DiscordLinkSection() {
           <button
             type="submit"
             disabled={status === "submitting"}
-            className="h-11 w-full rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#44584c] disabled:opacity-60 sm:h-12 sm:w-auto sm:text-base"
+            className="smk-button-primary h-11 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-60 sm:h-12 sm:w-auto sm:text-base"
           >
             {status === "submitting" ? "Token wird erstellt..." : "Discord-Link Token erstellen"}
           </button>

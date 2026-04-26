@@ -87,9 +87,9 @@ export default function DisplayProducts({
           <article
             key={p.id}
             className="
-                      group flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white
+                      group flex h-full w-full flex-col rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))]
                       [content-visibility:auto] [contain-intrinsic-size:420px]
-                      transition overflow-hidden hover:shadow-lg hover:-translate-y-0.5
+                      transition overflow-hidden hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]
                   "
           >
               {/* Image */}
@@ -101,17 +101,17 @@ export default function DisplayProducts({
                 data-gtag-item-category={p.categories?.[0]?.title}
                 data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
                 data-gtag-item-index={index}
-                className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 <ProductImageCarousel
                   images={getProductImages(p)}
                   alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
-                  className="aspect-[9/8] overflow-hidden rounded-t-xl bg-white sm:aspect-square"
+                  className="aspect-[9/8] overflow-hidden rounded-t-[28px] bg-white sm:aspect-square"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
                 <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
                   {p.compareAtPrice && (
-                    <span className="rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow sm:px-3 sm:text-xs">
+                    <span className="rounded-full bg-[var(--smk-accent)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow sm:px-3 sm:text-xs">
                       {formatDiscountPercentage(
                         p.compareAtPrice,
                         p.priceRange?.minVariantPrice,
@@ -119,7 +119,7 @@ export default function DisplayProducts({
                     </span>
                   )}
                   {p.availableForSale && showLowStock && (
-                    <span className="rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3 sm:text-xs">
+                    <span className="rounded-full bg-[var(--smk-warning)]/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow sm:px-3 sm:text-xs">
                       {p.defaultVariantLowStockThreshold != null &&
                       p.defaultVariantAvailableQuantity != null
                         ? `Noch ${p.defaultVariantAvailableQuantity} verfügbar`
@@ -127,12 +127,12 @@ export default function DisplayProducts({
                     </span>
                   )}
                   {!p.compareAtPrice && p.bestsellerScore != null && p.bestsellerScore > 0 && (
-                    <span className="rounded-full bg-[#2f3e36] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow sm:px-3 sm:text-xs">
+                    <span className="rounded-full bg-[rgba(255,255,255,0.12)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text)] shadow sm:px-3 sm:text-xs">
                       Bestseller
                     </span>
                   )}
                   {p.createdAt && new Date(p.createdAt).getTime() > NEW_BADGE_CUTOFF_MS && (
-                    <span className="rounded-full bg-[#E4C56C] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2f3e36] shadow sm:px-3 sm:text-xs">
+                    <span className="rounded-full bg-[var(--smk-accent-2)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow sm:px-3 sm:text-xs">
                       Neu
                     </span>
                   )}
@@ -144,7 +144,7 @@ export default function DisplayProducts({
                     e.stopPropagation();
                     setQuickViewProduct(p);
                   }}
-                  className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 translate-y-1 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-stone-800 opacity-0 shadow-md transition-all duration-150 hover:bg-white group-hover:translate-y-0 group-hover:opacity-100"
+                  className="absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 translate-y-1 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(15,15,14,0.92)] px-3.5 py-1.5 text-xs font-semibold text-[var(--smk-text)] opacity-0 shadow-md transition-all duration-150 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(27,23,20,0.96)] group-hover:translate-y-0 group-hover:opacity-100"
                   aria-label={`Schnellansicht: ${p.title}`}
                 >
                   <EyeIcon className="h-3.5 w-3.5" />
@@ -155,12 +155,12 @@ export default function DisplayProducts({
               {/* Content */}
               <div className="flex flex-1 flex-col p-4">
                 {showManufacturer && p.manufacturer && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                     {p.manufacturer}
                   </p>
                 )}
                 {showSize && (
-                  <p className="mt-1 text-xs text-stone-600">
+                  <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
                     Größe: {p.growboxSize}
                   </p>
                 )}
@@ -173,11 +173,10 @@ export default function DisplayProducts({
                   data-gtag-item-category={p.categories?.[0]?.title}
                   data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
                   data-gtag-item-index={index}
-                  className="mt-1 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="mt-1 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
                   <h2
-                    className={`${titleClampClass} font-bold leading-snug`}
-                    style={{ color: "#000000ff" }}
+                    className={`${titleClampClass} font-bold leading-snug text-[var(--smk-text)]`}
                   >
                     {p.title}
                   </h2>
@@ -187,9 +186,9 @@ export default function DisplayProducts({
                     className={`mt-1 text-xs font-semibold ${
                       p.availableForSale
                         ? showLowStock
-                          ? "text-amber-700"
-                          : "text-green-700"
-                        : "text-red-600"
+                          ? "text-[var(--smk-warning)]"
+                          : "text-[var(--smk-success)]"
+                        : "text-[var(--smk-error)]"
                     }`}
                   >
                     {p.availableForSale
@@ -212,11 +211,11 @@ export default function DisplayProducts({
                 {/* Price */}
                 <div className="mt-2 flex items-baseline gap-2">
                   {p.compareAtPrice && (
-                    <span className="text-sm font-semibold text-yellow-600 line-through">
+                    <span className="text-sm font-semibold text-[var(--smk-text-dim)] line-through">
                       {formatPrice(p.compareAtPrice)}
                     </span>
                   )}
-                  <span className="text-base font-semibold text-stone-900">
+                  <span className="text-base font-semibold text-[var(--smk-text)]">
                     {formatPrice(p.priceRange?.minVariantPrice)}
                   </span>
                 </div>
@@ -290,7 +289,7 @@ export function DisplayProductsList({
         return (
           <article
             key={p.id}
-            className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row [content-visibility:auto] [contain-intrinsic-size:320px]"
+            className="flex flex-col gap-4 rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-[var(--smk-text)] sm:flex-row [content-visibility:auto] [contain-intrinsic-size:320px]"
           >
             <Link
               href={`/products/${p.handle}`}
@@ -300,24 +299,24 @@ export function DisplayProductsList({
               data-gtag-item-category={p.categories?.[0]?.title}
               data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
               data-gtag-item-index={index}
-              className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-56 md:w-64"
+              className="group block rounded-[22px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:w-56 md:w-64"
             >
               <div className="relative">
                 <ProductImageCarousel
                   images={getProductImages(p)}
                   alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
-                  className="aspect-square overflow-hidden rounded-lg bg-white"
+                  className="aspect-square overflow-hidden rounded-[22px] bg-white"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                 />
                 {(p.compareAtPrice || (p.availableForSale && showLowStock)) && (
                   <div className="absolute left-3 top-3 flex flex-col gap-2">
                     {p.compareAtPrice && (
-                      <span className="rounded-full bg-yellow-500 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-black shadow">
+                      <span className="rounded-full bg-[var(--smk-accent)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow">
                         Sale
                       </span>
                     )}
                     {p.availableForSale && showLowStock && (
-                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 shadow">
+                      <span className="rounded-full bg-[var(--smk-warning)]/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow">
                         Low stock
                       </span>
                     )}
@@ -329,19 +328,16 @@ export function DisplayProductsList({
             <div className="flex flex-1 flex-col gap-4">
               <div className="space-y-2">
                 {showManufacturer && p.manufacturer && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                     {p.manufacturer}
                   </p>
                 )}
                 {showSize && (
-                  <p className="text-xs text-stone-600">
+                  <p className="text-xs text-[var(--smk-text-muted)]">
                     Größe: {p.growboxSize}
                   </p>
                 )}
-                <h2
-                  className="text-lg font-bold"
-                  style={{ color: "#000000ff" }}
-                >
+                <h2 className="text-lg font-bold text-[var(--smk-text)]">
                   {p.title}
                 </h2>
                 {typeof p.availableForSale === "boolean" && (
@@ -349,9 +345,9 @@ export function DisplayProductsList({
                     className={`text-s font-semibold ${
                       p.availableForSale
                         ? showLowStock
-                          ? "text-amber-700"
-                          : "text-green-700"
-                        : "text-red-600"
+                          ? "text-[var(--smk-warning)]"
+                          : "text-[var(--smk-success)]"
+                        : "text-[var(--smk-error)]"
                     }`}
                   >
                     {p.availableForSale
@@ -368,17 +364,17 @@ export function DisplayProductsList({
                   />
                 )}
                 {descriptionText && (
-                  <p className="hidden text-sm leading-6 text-stone-600/90 line-clamp-3 sm:block">
+                  <p className="hidden text-sm leading-6 text-[var(--smk-text-muted)] line-clamp-3 sm:block">
                     {descriptionText}
                   </p>
                 )}
               </div>
 
               <div className="mt-auto space-y-2">
-                <div className="text-lg font-semibold text-stone-900">
+                <div className="text-lg font-semibold text-[var(--smk-text)]">
                   <div className="flex items-baseline gap-2">
                     {p.compareAtPrice && (
-                      <span className="text-sm font-semibold text-yellow-600 line-through">
+                      <span className="text-sm font-semibold text-[var(--smk-text-dim)] line-through">
                         {formatPrice(p.compareAtPrice)}
                       </span>
                     )}
@@ -420,7 +416,7 @@ export function DisplayProductsList({
                     data-gtag-item-category={p.categories?.[0]?.title}
                     data-gtag-item-price={p.priceRange?.minVariantPrice?.amount}
                     data-gtag-item-index={index}
-                    className="inline-flex items-center justify-center rounded-full border border-stone-200 p-3 text-stone-700 shadow-sm transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className="inline-flex items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3 text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                     aria-label="Zum Produkt"
                     title="Zum Produkt"
                   >
@@ -450,7 +446,7 @@ function ProductImageCarousel({
   const current = images[0];
   if (!current) return null;
   return (
-      <div className={`relative bg-white ${className ?? ""}`}>
+      <div className={`relative ${className ?? ""}`}>
         <Image
           src={current.url}
           alt={current.altText ?? alt}

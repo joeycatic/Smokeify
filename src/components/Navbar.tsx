@@ -21,6 +21,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
+import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
 import { getCategoryIcon } from "@/components/navbar/categoryIcons";
@@ -579,32 +580,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
       items: toCartItems(cart),
     });
     setCheckoutStatus("loading");
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          country: "DE",
-          discountCode: appliedDrawerDiscountCode || undefined,
-        }),
-      });
-      const data = (await res.json()) as { url?: string };
-      if (!res.ok || !data.url) {
-        setCheckoutStatus("error");
-        router.push("/cart");
-        return;
-      }
-      trackAnalyticsEvent("add_payment_info", {
-        currency: cart.cost.subtotalAmount.currencyCode,
-        value: Number(cart.cost.subtotalAmount.amount),
-        payment_type: "stripe_checkout",
-        items: toCartItems(cart),
-      });
-      window.location.assign(data.url);
-    } catch {
-      setCheckoutStatus("error");
-      router.push("/cart");
+    const checkoutStartUrl = buildCheckoutStartUrl({
+      country: "DE",
+      discountCode: appliedDrawerDiscountCode || undefined,
+    });
+    setCartOpen(false);
+    if (typeof window !== "undefined") {
+      window.location.assign(checkoutStartUrl);
+      return;
     }
+    router.push(checkoutStartUrl);
   };
 
   const startCheckout = async () => {
@@ -698,12 +683,19 @@ export function Navbar({ initialCategories }: NavbarProps) {
           category.name.toLowerCase().includes(categoryQuery.toLowerCase()),
         )
       : activeCategories;
+  const utilityIconButtonClass =
+    "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
+  const desktopNavLinkClass =
+    "cursor-pointer text-base font-semibold text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:text-lg";
 
   return (
     <>
-      <nav className="fixed top-10 left-0 z-40 w-full border-b border-black/10 bg-stone-100 isolate">
-        <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-6xl">
-          <div className="py-2 sm:py-2">
+      <nav
+        className="fixed left-0 top-0 z-40 isolate w-full border-b border-[var(--smk-border)] bg-[rgba(14,14,13,0.82)] shadow-[0_20px_56px_rgba(0,0,0,0.28)] backdrop-blur-2xl transition-transform duration-300"
+        style={{ transform: "translateY(var(--smk-announcement-offset))" }}
+      >
+        <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
+          <div className="py-3 sm:py-3">
             <div className="relative flex items-center justify-center sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
               {/* LEFT (spacer) */}
               <div className="absolute left-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0">
@@ -712,10 +704,10 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     type="button"
                     onClick={() => setMenuOpen((prev) => !prev)}
                     ref={menuTriggerRef}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-stone-100 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-[var(--smk-text)] shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 ${
                       menuOpen
-                        ? "border-emerald-700/40 bg-[#1a2721] shadow-lg shadow-black/20 focus-visible:ring-offset-[#18211d]"
-                        : "border-emerald-800/40 bg-[#18211d]/95 hover:border-emerald-700/45 hover:bg-[#1a2721] focus-visible:ring-offset-white"
+                        ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] shadow-lg shadow-black/30 focus-visible:ring-offset-black"
+                        : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:ring-offset-black"
                     }`}
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
@@ -730,7 +722,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   createPortal(
                     <div
                       ref={menuPopupRef}
-                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[24px] border border-emerald-800/40 bg-[#18211d]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl"
+                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[26px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
                       style={{
                         top: menuPopupStyle.top,
                         left: menuPopupStyle.left,
@@ -745,28 +737,28 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           setMenuOpen(false);
                           setProductsOpen(true);
                         }}
-                        className="block rounded-2xl border border-emerald-800/30 bg-emerald-900/25 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                        className="block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
                         Webshop
                       </Link>
                       <Link
                         href="/customizer"
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-emerald-800/30 bg-emerald-900/25 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                        className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
                         Konfigurator
                       </Link>
                       <Link
                         href="/pflanzen-analyzer"
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-emerald-800/30 bg-emerald-900/25 px-3 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/40 hover:bg-emerald-900/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                        className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
                         Pflanzen Analyse
                       </Link>
                     </div>,
                     document.body,
                   )}
-                <div className="hidden items-center gap-5 text-xs font-semibold text-stone-800 sm:flex sm:gap-8 sm:text-base">
+                <div className="hidden items-center gap-5 text-xs font-semibold text-[var(--smk-text-muted)] sm:flex sm:gap-8 sm:text-base">
                   {mounted ? (
                     <div className="relative" ref={productsRef}>
                       <button
@@ -781,10 +773,10 @@ export function Navbar({ initialCategories }: NavbarProps) {
                             return next;
                           })
                         }
-                        className={`inline-flex cursor-pointer items-center rounded-full border px-4 py-2 text-base font-semibold transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                        className={`inline-flex cursor-pointer items-center rounded-full border px-4 py-2 text-base font-semibold transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                           productsOpen
-                            ? "border-emerald-700/40 bg-[#1a2721] text-emerald-50 shadow-lg shadow-black/20"
-                            : "border-transparent text-[#2f3e36] hover:border-black/10 hover:bg-black/[0.04] hover:text-[#1f2a24]"
+                            ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] text-[var(--smk-text)] shadow-lg shadow-black/30"
+                            : "border-transparent text-[var(--smk-text-muted)] hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
                         }`}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
@@ -798,15 +790,15 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-emerald-800/40 bg-[#18211d]/96 p-3 text-sm text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl"
+                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
                               width: productsPopupStyle.width,
                             }}
                           >
-                            <div className="rounded-[22px] border border-emerald-800/28 bg-emerald-900/18 px-3 py-3">
-                              <div className="flex items-center justify-between border-b border-emerald-800/30 pb-3">
+                            <div className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-3">
+                              <div className="flex items-center justify-between border-b border-[var(--smk-border)] pb-3">
                                 {categoryStack.length > 0 ? (
                                   <button
                                     type="button"
@@ -815,12 +807,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                         prev.slice(0, -1),
                                       )
                                     }
-                                    className="cursor-pointer rounded-full border border-emerald-800/30 bg-emerald-900/30 px-3 py-1 text-sm font-semibold text-emerald-100 transition hover:border-emerald-700/45 hover:bg-emerald-900/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                                    className="cursor-pointer rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                   >
                                     ← Zurück
                                   </button>
                                 ) : (
-                                  <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300/65">
+                                  <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--smk-text-dim)]">
                                     Kategorien
                                   </span>
                                 )}
@@ -830,7 +822,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                     setProductsOpen(false);
                                     setCategoryStack([]);
                                   }}
-                                  className="cursor-pointer rounded-full border border-emerald-800/30 bg-emerald-900/34 px-4 py-1.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/45 hover:bg-emerald-900/44 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                                  className="cursor-pointer rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                 >
                                   Alle Produkte
                                 </Link>
@@ -843,7 +835,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                 )}
                                 {categoriesStatus === "idle" &&
                                   activeCategories.length === 0 && (
-                                    <div className="rounded-2xl border border-emerald-800/24 bg-emerald-900/18 px-3 py-2 text-xs text-emerald-100/70">
+                                    <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs text-[var(--smk-text-muted)]">
                                       Keine Kategorien gefunden.
                                     </div>
                                   )}
@@ -860,12 +852,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                         setProductsOpen(false);
                                         setCategoryStack([]);
                                       }}
-                                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-emerald-800/30 bg-emerald-900/30 px-4 py-3 text-left text-base font-semibold text-white transition hover:border-emerald-700/45 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                     >
                                       <span>
                                         Alle {activeParentCategory.name}
                                       </span>
-                                      <span className="text-sm text-emerald-200/70">
+                                      <span className="text-sm text-[var(--smk-text-dim)]">
                                         →
                                       </span>
                                     </button>
@@ -900,16 +892,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                             category.id,
                                           ]);
                                         }}
-                                        className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-emerald-800/24 bg-emerald-900/18 px-4 py-3 text-left text-base font-semibold text-stone-100 transition hover:border-emerald-700/35 hover:bg-emerald-900/28 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                                        className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                       >
                                         <span className="flex items-center gap-3">
-                                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-700/28 bg-emerald-900/34 text-emerald-100/90">
+                                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
                                             <CategoryIcon className="h-4 w-4" />
                                           </span>
                                           <span>{category.name}</span>
                                         </span>
-                                        <span className="flex items-center gap-2 text-sm text-emerald-100/65">
-                                          <span className="rounded-full border border-emerald-700/28 bg-emerald-900/32 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">
+                                        <span className="flex items-center gap-2 text-sm text-[var(--smk-text-dim)]">
+                                          <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
                                             {category.totalItemCount}
                                           </span>
                                           {!isLeaf && <span>›</span>}
@@ -926,20 +918,17 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   ) : (
                     <Link
                       href="/products"
-                      className="inline-flex cursor-pointer items-center text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className={desktopNavLinkClass}
                     >
                       Produkte
                     </Link>
                   )}
-                  <Link
-                    href="/customizer"
-                    className="cursor-pointer text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  >
+                  <Link href="/customizer" className={desktopNavLinkClass}>
                     Konfigurator
                   </Link>
                   <Link
                     href="/pflanzen-analyzer"
-                    className="cursor-pointer whitespace-nowrap text-base sm:text-lg font-semibold text-[#2f3e36] hover:text-[#1f2a24] hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className={`${desktopNavLinkClass} whitespace-nowrap`}
                   >
                     Pflanzen Analyse
                   </Link>
@@ -949,27 +938,27 @@ export function Navbar({ initialCategories }: NavbarProps) {
               {/* CENTER */}
               <div className="flex flex-wrap items-center justify-center gap-3 sm:col-start-2 sm:flex-nowrap sm:gap-6">
                 <div className="relative flex items-center gap-3 sm:gap-6">
-                  <Link href="/" className="flex items-center">
+                  <Link href="/" className="flex h-12 items-center overflow-visible sm:h-16">
                     <Image
-                      src="/images/smokeify2.png"
+                      src="/images/Logo.png"
                       alt="Smokeify Logo"
-                      className="h-12 w-auto object-contain sm:h-16"
+                      className="h-10 w-auto translate-y-1 scale-[1.65] object-contain sm:h-14 sm:translate-y-1.5 sm:scale-[1.82]"
                       priority
-                      width={180}
-                      height={64}
+                      width={320}
+                      height={110}
                     />
                   </Link>
                 </div>
               </div>
 
               {/* RIGHT */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0 text-stone-800 sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-2">
+              <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0 text-[var(--smk-text)] sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-2">
                 <div
                   ref={searchRef}
                   className="relative z-[60] hidden w-[240px] md:block lg:w-[300px] lg:-translate-x-2"
                 >
                   <div className="relative">
-                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
                     <input
                       type="search"
                       value={searchQuery}
@@ -989,7 +978,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         }
                       }}
                       placeholder="Produkte suchen..."
-                      className="h-10 w-full rounded-full border border-black/10 bg-white pl-9 pr-4 text-sm text-stone-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-600/20"
+                      className="smk-input h-10 w-full rounded-full pl-9 pr-4 text-sm"
                     />
                   </div>
                   {canPortal && (
@@ -1034,7 +1023,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       }
                       setCartOpen((prev) => !prev);
                     }}
-                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className={utilityIconButtonClass}
                     aria-expanded={cartOpen}
                     aria-haspopup="true"
                     aria-label="Warenkorb oeffnen"
@@ -1056,7 +1045,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     mobileAddedAnchor &&
                     createPortal(
                       <div
-                        className="fixed z-[90] w-64 rounded-xl border border-black/10 bg-white p-3 shadow-2xl"
+                        className="fixed z-[90] w-64 rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-3 text-[var(--smk-text)] shadow-2xl shadow-black/40"
                         style={{
                           top: mobileAddedAnchor.top,
                           right: mobileAddedAnchor.right,
@@ -1075,14 +1064,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
                             sizes="48px"
                           />
                         ) : (
-                          <div className="h-12 w-12 rounded-md bg-stone-100" />
+                          <div className="h-12 w-12 rounded-md bg-[rgba(255,255,255,0.06)]" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-stone-900">
+                          <p className="truncate text-sm font-semibold text-[var(--smk-text)]">
                             {mobileAddedItem.title}
                           </p>
                           {mobileAddedItem.price && (
-                            <p className="text-xs text-stone-600">
+                            <p className="text-xs text-[var(--smk-text-muted)]">
                               {formatPrice(
                                 mobileAddedItem.price.amount,
                                 mobileAddedItem.price.currencyCode,
@@ -1095,7 +1084,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         <Link
                           href="/cart"
                           onClick={() => setMobileAddedOpen(false)}
-                          className="block w-full rounded-lg border border-black/15 px-3 py-2 text-center text-stone-800 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          className="smk-button-secondary block w-full rounded-full px-3 py-2 text-center focus-visible:ring-offset-black"
                         >
                           Warenkorb ansehen
                         </Link>
@@ -1105,13 +1094,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
                             setMobileAddedOpen(false);
                             startCheckout();
                           }}
-                          className="block w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-3 py-2 text-center text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          className="smk-button-primary block w-full rounded-full px-3 py-2 text-center focus-visible:ring-offset-black"
                         >
                           Zur Kasse
                         </button>
                         <PaymentMethodLogos
                           className="justify-center gap-[2px] sm:gap-2"
-                          pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
+                          pillClassName="h-7 border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2 sm:h-8 sm:px-3"
                           logoClassName="h-4 sm:h-5"
                         />
                       </div>
@@ -1121,7 +1110,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                 </div>
                 <Link
                   href="/wishlist"
-                  className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className={utilityIconButtonClass}
                   aria-label="Wunschliste"
                 >
                   <HeartIcon className="h-6 w-6" />
@@ -1139,7 +1128,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   <button
                     type="button"
                     onClick={() => setAccountOpen((prev) => !prev)}
-                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className={utilityIconButtonClass}
                     aria-expanded={accountOpen}
                     aria-haspopup="true"
                     aria-label="Account"
@@ -1152,7 +1141,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     createPortal(
                       <div
                         ref={accountPopupRef}
-                        className="fixed z-[1005] mt-3 origin-top-right rounded-xl border border-black/10 bg-white p-4 text-sm shadow-xl"
+                        className="fixed z-[1005] mt-3 origin-top-right rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40"
                         style={{
                           top: accountPopupStyle.top,
                           left: accountPopupStyle.left,
@@ -1179,7 +1168,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
             ref={mobileSearchRef}
           >
             <div className="relative">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
               <input
                 type="search"
                 value={searchQuery}
@@ -1199,37 +1188,37 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   }
                 }}
                 placeholder="Produkte suchen..."
-                className="h-11 w-full rounded-full border border-black/10 bg-white pl-9 pr-4 text-sm text-stone-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-600/20"
+                className="smk-input h-11 w-full rounded-full pl-9 pr-4 text-sm"
               />
             </div>
           </div>
         )}
         {showCategoryBar && (
-          <div className="relative z-10 mt-2 hidden border-t border-black/5 bg-stone-100/95 shadow-sm backdrop-blur sm:block">
-            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-3 text-base text-stone-700 sm:px-6 lg:max-w-6xl">
+          <div className="relative z-10 mt-3 hidden border-t border-[var(--smk-border)] bg-[rgba(20,18,17,0.82)] backdrop-blur-xl sm:block">
+            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-3 text-base text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
               <Link
                 href="/bestseller"
                 onClick={() => {
                   setCategoryNavTarget("/bestseller");
                   setCategoryHoverLocked(true);
                 }}
-                className="flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-900"
+                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-transparent px-4 py-2 text-base font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
               >
                 <span>Bestseller</span>
                 {categoryNavTarget === "/bestseller" && (
                   <LoadingSpinner
                     size="sm"
-                    className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
+                    className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
                   />
                 )}
               </Link>
               {categoriesStatus === "error" && (
-                <span className="text-xs text-red-600">
+                <span className="text-xs text-[var(--smk-error)]">
                   Kategorien konnten nicht geladen werden.
                 </span>
               )}
               {categoriesStatus === "idle" && mainCategories.length === 0 && (
-                <span className="text-xs text-stone-500">
+                <span className="text-xs text-[var(--smk-text-dim)]">
                   Keine Kategorien gefunden.
                 </span>
               )}
@@ -1245,13 +1234,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         setCategoryNavTarget(category.href);
                         setCategoryHoverLocked(true);
                       }}
-                      className="flex items-center gap-2 whitespace-nowrap rounded-full border border-transparent px-3 py-1.5 text-base font-semibold text-stone-700 transition hover:border-black/10 hover:bg-black/[0.04] hover:text-stone-950"
+                      className="flex items-center gap-2 whitespace-nowrap rounded-full border border-transparent px-4 py-2 text-base font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
                     >
                       <span>{category.name}</span>
                       {categoryNavTarget === category.href && (
                         <LoadingSpinner
                           size="sm"
-                          className="h-3 w-3 border-2 border-stone-200 border-t-emerald-700"
+                          className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
                         />
                       )}
                     </Link>
@@ -1265,7 +1254,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           }`}
                         >
                           <div
-                            className="grid grid-flow-col auto-cols-max gap-2 rounded-[24px] border border-emerald-800/40 bg-[#18211d]/96 p-3 text-[15px] text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl"
+                            className="grid grid-flow-col auto-cols-max gap-2 rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-[15px] text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
                             style={{
                               gridTemplateRows: `repeat(${Math.max(
                                 1,
@@ -1288,9 +1277,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                       setCategoryNavTarget(child.href);
                                       setCategoryHoverLocked(true);
                                     }}
-                                    className="flex items-center gap-2 rounded-2xl border border-emerald-800/24 bg-emerald-900/18 px-3.5 py-3 font-semibold text-stone-100 transition hover:border-emerald-700/35 hover:bg-emerald-900/28"
+                                    className="flex items-center gap-2 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-3 font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
                                   >
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-700/28 bg-emerald-900/34 text-emerald-100/90">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
                                       <ChildIcon className="h-4.5 w-4.5" />
                                     </span>
                                     <span className="flex-1 whitespace-nowrap">
@@ -1299,7 +1288,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                     {categoryNavTarget === child.href && (
                                       <LoadingSpinner
                                         size="sm"
-                                        className="h-3 w-3 border-2 border-stone-500 border-t-white"
+                                        className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
                                       />
                                     )}
                                   </Link>
@@ -1339,7 +1328,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
       </nav>
       <div
         className={
-          showCategoryBar ? "h-[150px] sm:h-[184px]" : "h-[80px] sm:h-[113px]"
+          showCategoryBar
+            ? "h-[calc(var(--smk-announcement-offset)+110px)] sm:h-[calc(var(--smk-announcement-offset)+144px)]"
+            : "h-[calc(var(--smk-announcement-offset)+40px)] sm:h-[calc(var(--smk-announcement-offset)+73px)]"
         }
         aria-hidden="true"
       />
@@ -1392,7 +1383,10 @@ export function Navbar({ initialCategories }: NavbarProps) {
       {showCheckoutAuthModal ? (
         <CheckoutAuthModal
           open
-          returnTo="/checkout/start"
+          returnTo={buildCheckoutStartUrl({
+            country: "DE",
+            discountCode: appliedDrawerDiscountCode || undefined,
+          })}
           onClose={() => setShowCheckoutAuthModal(false)}
           onContinueAsGuest={() => {
             setShowCheckoutAuthModal(false);

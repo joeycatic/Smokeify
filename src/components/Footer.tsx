@@ -68,34 +68,34 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="mt-6 bg-[#2f3e36] text-white/90">
-      {/* Top */}
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Brand */}
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold tracking-tight text-white">
-                Smokeify
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/70 max-w-sm">
+    <footer className="mt-10 border-t border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(17,17,15,0),rgba(17,17,15,0.88)_10%,rgba(12,12,11,0.98)_100%)] text-[var(--smk-text)]">
+      <div className="mx-auto w-full px-4 py-10 sm:px-6 lg:max-w-[1280px] lg:px-8 lg:py-14">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)]">
+          <div className="smk-panel space-y-5 p-6">
+            <div className="space-y-3">
+              <p className="smk-kicker">Smokeify</p>
+              <h3 className="smk-heading text-3xl text-[var(--smk-text)]">
                 Damit nicht nur irgendwas wächst.
+              </h3>
+              <p className="max-w-sm text-sm leading-6 text-[var(--smk-text-muted)]">
+                Ausgewählte Produkte, klare Beratung und ein Storefront, die
+                sich auf das Wesentliche konzentriert.
               </p>
             </div>
 
-            <div className="space-y-1 text-sm text-white/75">
+            <div className="space-y-1 text-sm text-[var(--smk-text-muted)]">
               <p>{streetLine}</p>
               <p>{cityPostalLine}</p>
               <a
                 href={`mailto:${contactEmail}`}
-                className="block transition hover:text-white"
+                className="block transition hover:text-[var(--smk-text)]"
               >
                 {contactEmail}
               </a>
               {contactPhone ? (
                 <a
                   href={`tel:${contactPhone.replace(/\s+/g, "")}`}
-                  className="block transition hover:text-white"
+                  className="block transition hover:text-[var(--smk-text)]"
                 >
                   {contactPhone}
                 </a>
@@ -113,7 +113,7 @@ export default function Footer() {
                       aria-label={entry.label}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-white/70 hover:text-white transition"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--smk-text)]"
                     >
                       {entry.icon}
                     </a>
@@ -123,13 +123,12 @@ export default function Footer() {
             )}
           </div>
 
-          {/* Shop */}
-          <div>
-            <p className="text-sm font-semibold text-white">Shop</p>
-            <ul className="mt-4 space-y-2 text-sm">
+          <div className="smk-surface rounded-[28px] p-6">
+            <p className="smk-kicker">Shop</p>
+            <ul className="mt-5 space-y-3 text-sm">
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/products"
                 >
                   Alle Produkte
@@ -137,7 +136,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/neuheiten"
                 >
                   Neuheiten
@@ -145,7 +144,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/bestseller"
                 >
                   Bestseller
@@ -153,7 +152,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/pages/about"
                 >
                   Über uns
@@ -161,7 +160,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/blog"
                 >
                   Guides & Tipps
@@ -170,13 +169,12 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Hilfe */}
-          <div>
-            <p className="text-sm font-semibold text-white">Hilfe</p>
-            <ul className="mt-4 space-y-2 text-sm">
+          <div className="smk-surface rounded-[28px] p-6">
+            <p className="smk-kicker">Hilfe</p>
+            <ul className="mt-5 space-y-3 text-sm">
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/pages/shipping"
                 >
                   Versand & Zahlungsbedingungen
@@ -184,7 +182,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/pages/return"
                 >
                   Rückgabe
@@ -192,7 +190,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/pages/contact"
                 >
                   Kontakt
@@ -200,7 +198,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  className="text-white/70 hover:text-white transition"
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href="/pages/faq"
                 >
                   FAQ
@@ -209,14 +207,13 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Rechtliches + Newsletter */}
           <div className="space-y-5">
             <div>
-              <p className="text-sm font-semibold text-white">Rechtliches</p>
-              <ul className="mt-4 space-y-2 text-sm">
+              <p className="smk-kicker">Rechtliches</p>
+              <ul className="mt-5 space-y-3 text-sm">
                 <li>
                   <Link
-                    className="text-white/70 hover:text-white transition"
+                    className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                     href="/pages/privacy"
                   >
                     Datenschutz
@@ -224,7 +221,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    className="text-white/70 hover:text-white transition"
+                    className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                     href="/pages/agb"
                   >
                     AGB
@@ -232,7 +229,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    className="text-white/70 hover:text-white transition"
+                    className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                     href="/pages/refund"
                   >
                     Widerruf
@@ -240,7 +237,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    className="text-white/70 hover:text-white transition"
+                    className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                     href="/pages/imprint"
                   >
                     Impressum
@@ -253,17 +250,16 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom */}
-        <div className="mt-10 border-t border-white/10 pt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/70">
-            <span className="mr-1 text-xs font-semibold text-white/80">
+        <div className="mt-8 flex flex-col gap-4 border-t border-[var(--smk-border)] pt-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-[var(--smk-text-muted)]">
+            <span className="mr-1 text-xs font-semibold text-[var(--smk-text)]">
               Zahlungsarten:
             </span>
             <PaymentMethodLogos />
-            <span className="ml-1 mr-1 text-xs font-semibold text-white/80">
+            <span className="ml-1 mr-1 text-xs font-semibold text-[var(--smk-text)]">
               Versand:
             </span>
-            <span className="inline-flex h-8 items-center rounded-full border border-white/15 bg-white/5 px-3">
+            <span className="inline-flex h-9 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3">
               <Image
                 src="/shipping-provider-logos/dhl-logo.png"
                 alt="DHL"
@@ -274,25 +270,25 @@ export default function Footer() {
               />
             </span>
           </div>
-          <p className="text-xs text-white/60">
+          <p className="text-xs text-[var(--smk-text-dim)]">
             © {new Date().getFullYear()} Smokeify — Alle Rechte vorbehalten.
           </p>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
             <Link
-              className="text-white/60 hover:text-white transition"
+              className="text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
               href="/pages/privacy"
             >
               Datenschutz
             </Link>
             <Link
-              className="text-white/60 hover:text-white transition"
+              className="text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
               href="/pages/agb"
             >
               AGB
             </Link>
             <Link
-              className="text-white/60 hover:text-white transition"
+              className="text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
               href="/pages/imprint"
             >
               Impressum

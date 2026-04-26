@@ -62,15 +62,12 @@ export default function RecommendedProductsCarousel({ items }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-10 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
+    <section className="mt-10 overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--smk-border)] px-5 py-4">
         <div className="flex items-center gap-2.5">
-          <span
-            className="h-3.5 w-1 rounded-full"
-            style={{ background: "#E4C56C" }}
-          />
-          <h2 className="text-lg font-bold" style={{ color: "#2f3e36" }}>
+          <span className="h-3.5 w-1 rounded-full bg-[var(--smk-accent-2)]" />
+          <h2 className="smk-heading text-lg font-bold">
             Empfohlen für dich
           </h2>
         </div>
@@ -79,7 +76,7 @@ export default function RecommendedProductsCarousel({ items }: Props) {
             type="button"
             onClick={() => scrollTrack("left")}
             disabled={!canScrollPrev}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach links"
           >
             <ChevronLeftIcon className="h-4 w-4" />
@@ -88,28 +85,14 @@ export default function RecommendedProductsCarousel({ items }: Props) {
             type="button"
             onClick={() => scrollTrack("right")}
             disabled={!canScrollNext}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach rechts"
           >
             <ChevronRightIcon className="h-4 w-4" />
           </button>
           <Link
             href="/products"
-            className="ml-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition"
-            style={{
-              borderColor: "rgba(47,62,54,0.2)",
-              color: "#2f3e36",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "#2f3e36";
-              (e.currentTarget as HTMLAnchorElement).style.color = "#ffffff";
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2f3e36";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "";
-              (e.currentTarget as HTMLAnchorElement).style.color = "#2f3e36";
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(47,62,54,0.2)";
-            }}
+            className="ml-1.5 rounded-full border border-[var(--smk-border-strong)] bg-[rgba(233,188,116,0.12)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--smk-accent-2)] transition hover:bg-[rgba(233,188,116,0.18)]"
           >
             Alle Produkte
           </Link>
@@ -125,15 +108,12 @@ export default function RecommendedProductsCarousel({ items }: Props) {
           <Link
             key={item.id}
             href={`/products/${item.handle}`}
-            className="group relative w-[13rem] shrink-0 snap-start border-r border-black/[0.06] p-4 transition last:border-r-0 hover:bg-stone-50/70 sm:w-[15rem]"
+            className="group relative w-[13rem] shrink-0 snap-start border-r border-[var(--smk-border)] p-4 transition last:border-r-0 hover:bg-[rgba(255,255,255,0.03)] sm:w-[15rem]"
           >
             {/* Hover top accent */}
-            <span
-              className="absolute inset-x-0 top-0 h-0.5 scale-x-0 transition-transform duration-200 group-hover:scale-x-100"
-              style={{ background: "#E4C56C", transformOrigin: "left" }}
-            />
+            <span className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-[var(--smk-accent-2)] transition-transform duration-200 group-hover:scale-x-100" />
 
-            <div className="relative h-36 overflow-hidden rounded-xl bg-stone-50 sm:h-44">
+            <div className="smk-white-well relative h-36 overflow-hidden rounded-[20px] sm:h-44">
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}
@@ -149,14 +129,11 @@ export default function RecommendedProductsCarousel({ items }: Props) {
               )}
             </div>
 
-            <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-stone-800 transition group-hover:text-stone-900">
+            <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--smk-text)] transition group-hover:text-[var(--smk-accent-2)]">
               {item.title}
             </p>
             {item.price && (
-              <p
-                className="mt-1.5 text-sm font-bold"
-                style={{ color: "#2f3e36" }}
-              >
+              <p className="mt-1.5 text-sm font-bold text-[var(--smk-accent-2)]">
                 {formatPrice(item.price.amount, item.price.currencyCode)}
               </p>
             )}

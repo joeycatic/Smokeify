@@ -3,11 +3,18 @@
 import Link from "next/link";
 import Image from "next/image";
 import type React from "react";
-import { TruckIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
+import {
+  MinusIcon,
+  PlusIcon,
+  TrashIcon,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import { FREE_SHIPPING_THRESHOLD_EUR } from "@/lib/checkoutPolicy";
 import type { Cart } from "@/lib/cart";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useCart } from "@/components/CartProvider";
 
 type Props = {
   open: boolean;
@@ -60,10 +67,44 @@ export default function NavbarCartDrawer({
   onStartCheckout,
   panelRef,
 }: Props) {
+  const { updateLine, removeLines } = useCart();
+  const [pendingLineIds, setPendingLineIds] = useState<string[]>([]);
+
   if (!open) return null;
   const normalizedDiscountCode = discountCode.trim();
   const hasAppliedDiscount =
     appliedDiscountCode.trim().length > 0 && appliedDiscountAmount > 0;
+  const setLinePending = (lineId: string, pending: boolean) => {
+    setPendingLineIds((current) =>
+      pending
+        ? current.includes(lineId)
+          ? current
+          : [...current, lineId]
+        : current.filter((id) => id !== lineId),
+    );
+  };
+
+  const handleUpdateQuantity = async (lineId: string, quantity: number) => {
+    setLinePending(lineId, true);
+    try {
+      if (quantity <= 0) {
+        await removeLines([lineId]);
+      } else {
+        await updateLine(lineId, quantity);
+      }
+    } finally {
+      setLinePending(lineId, false);
+    }
+  };
+
+  const handleRemoveLine = async (lineId: string) => {
+    setLinePending(lineId, true);
+    try {
+      await removeLines([lineId]);
+    } finally {
+      setLinePending(lineId, false);
+    }
+  };
 
   return (
     <>
@@ -71,102 +112,143 @@ export default function NavbarCartDrawer({
         type="button"
         aria-label="Close cart"
         onClick={onClose}
-        className="fixed inset-0 z-40 cursor-pointer bg-black/35 cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        className="fixed inset-0 z-40 cursor-pointer bg-black/38 backdrop-blur-2xl cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
       />
       <aside
         ref={(node) => {
           if (panelRef) panelRef.current = node;
         }}
-        className="fixed right-0 top-0 z-50 h-dvh w-full max-w-sm bg-white shadow-xl cart-slide-in"
+        className="fixed right-0 top-0 z-50 flex h-dvh w-full max-w-sm flex-col overflow-hidden border-l border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(25,21,18,0.82),rgba(11,11,10,0.9))] text-[var(--smk-text)] shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-3xl cart-slide-in"
       >
-        <div className="h-14 px-5 border-b border-black/10 flex items-center justify-between">
-          <div className="text-sm font-semibold tracking-widest">WARENKORB</div>
+        <div className="flex h-16 items-center justify-between border-b border-[var(--smk-border)] px-5">
+          <div className="smk-kicker text-[var(--smk-text)]">Warenkorb</div>
           <button
             type="button"
             onClick={onClose}
-            className="text-xl cursor-pointer text-black/60 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-xl text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             aria-label="Close"
           >
             ×
           </button>
         </div>
         <div className="flex h-full flex-col">
-          <div className="no-scrollbar overflow-y-auto px-5 py-4 text-sm">
+          <div className="no-scrollbar overflow-y-auto px-5 py-5 text-sm">
             {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-3 py-2 text-xs text-[var(--smk-error)]">
                 <p>{error}</p>
               </div>
             ) : loading ? (
-              <div className="flex items-center gap-2 text-stone-500">
+              <div className="flex items-center gap-2 text-[var(--smk-text-muted)]">
                 <LoadingSpinner size="sm" />
                 <span>Warenkorb wird geladen...</span>
               </div>
             ) : !cart || cart.lines.length === 0 ? (
-              <p className="text-stone-500">Warenkorb ist leer.</p>
+              <p className="text-[var(--smk-text-muted)]">Warenkorb ist leer.</p>
             ) : (
               <div className="space-y-3">
-                {cart.lines.slice(0, 6).map((line) => {
+                {cart.lines.map((line) => {
+                  const isPending = pendingLineIds.includes(line.id);
                   const lineTotal = (
                     Number(line.merchandise.price.amount) * line.quantity
                   ).toFixed(2);
                   return (
-                    <div key={line.id} className="flex items-center gap-3">
-                      {line.merchandise.image?.url ? (
-                        <Image
-                          src={line.merchandise.image.url}
-                          alt={
-                            line.merchandise.image.altText ??
-                            line.merchandise.product.title
-                          }
-                          className="h-12 w-12 rounded-md object-cover"
-                          width={48}
-                          height={48}
-                          sizes="48px"
-                        />
-                      ) : (
-                        <div className="h-12 w-12 rounded-md bg-stone-100" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        {line.merchandise.product.manufacturer && (
-                          <p className="truncate text-[11px] uppercase tracking-wide text-stone-400">
-                            {line.merchandise.product.manufacturer}
-                          </p>
+                    <div
+                      key={line.id}
+                      className={`smk-surface rounded-[24px] p-3 transition-opacity ${
+                        isPending ? "opacity-70" : "opacity-100"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {line.merchandise.image?.url ? (
+                          <Image
+                            src={line.merchandise.image.url}
+                            alt={
+                              line.merchandise.image.altText ??
+                              line.merchandise.product.title
+                            }
+                            className="h-12 w-12 rounded-2xl object-cover"
+                            width={48}
+                            height={48}
+                            sizes="48px"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-2xl bg-[rgba(255,255,255,0.06)]" />
                         )}
-                        <p className="truncate text-sm font-semibold">
-                          {line.merchandise.product.title}
-                        </p>
-                        {line.merchandise.options &&
-                          line.merchandise.options.length > 0 && (
-                            <p className="truncate text-[11px] text-stone-500">
-                              {formatCartOptions(line.merchandise.options)}
+                        <div className="min-w-0 flex-1">
+                          {line.merchandise.product.manufacturer && (
+                            <p className="truncate text-[11px] uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
+                              {line.merchandise.product.manufacturer}
                             </p>
                           )}
-                        <p className="text-xs text-stone-500">
-                          {line.quantity} ×{" "}
+                          <p className="truncate text-sm font-semibold text-[var(--smk-text)]">
+                            {line.merchandise.product.title}
+                          </p>
+                          {line.merchandise.options &&
+                            line.merchandise.options.length > 0 && (
+                              <p className="truncate text-[11px] text-[var(--smk-text-muted)]">
+                                {formatCartOptions(line.merchandise.options)}
+                              </p>
+                            )}
+                          <p className="text-xs text-[var(--smk-text-muted)]">
+                            {formatPrice(
+                              line.merchandise.price.amount,
+                              line.merchandise.price.currencyCode,
+                            )}{" "}
+                            je Stück
+                          </p>
+                        </div>
+                        <div className="text-right text-xs font-semibold text-[var(--smk-text)]">
                           {formatPrice(
-                            line.merchandise.price.amount,
+                            lineTotal,
                             line.merchandise.price.currencyCode,
                           )}
-                        </p>
+                        </div>
                       </div>
-                      <div className="text-right text-xs font-semibold text-black/80">
-                        {formatPrice(
-                          lineTotal,
-                          line.merchandise.price.currencyCode,
-                        )}
+                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--smk-border)] pt-3">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleUpdateQuantity(line.id, line.quantity - 1)
+                            }
+                            disabled={isPending}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-accent)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                            aria-label="Menge verringern"
+                          >
+                            <MinusIcon className="h-4 w-4" />
+                          </button>
+                          <span className="min-w-6 text-center text-sm font-semibold text-[var(--smk-text)]">
+                            {line.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleUpdateQuantity(line.id, line.quantity + 1)
+                            }
+                            disabled={isPending}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-accent)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                            aria-label="Menge erhöhen"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleRemoveLine(line.id)}
+                          disabled={isPending}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--smk-error)]/35 bg-[rgba(120,30,30,0.16)] text-[var(--smk-error)] transition hover:border-[var(--smk-error)]/55 hover:bg-[rgba(120,30,30,0.22)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-error)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                          aria-label="Artikel entfernen"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   );
                 })}
-                {cart.lines.length > 6 && (
-                  <p className="text-xs text-stone-500">
-                    + {cart.lines.length - 6} weitere Artikel
-                  </p>
-                )}
               </div>
             )}
           </div>
-          <div className="border-t border-black/10 px-5 py-4 text-sm">
+          <div className="border-t border-[var(--smk-border)] px-5 py-4 text-sm">
             {!loading && cart && cart.lines.length > 0 && (() => {
               const subtotal = Number(cart.cost.subtotalAmount.amount);
               const total = Number(cart.cost.totalAmount.amount);
@@ -181,7 +263,7 @@ export default function NavbarCartDrawer({
               return (
                 <>
                   <div className="mb-3">
-                    <label className="block text-xs font-semibold text-stone-600">
+                    <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-[var(--smk-text-dim)]">
                       Rabattcode
                     </label>
                     <div className="mt-2 flex gap-2">
@@ -196,39 +278,39 @@ export default function NavbarCartDrawer({
                           }
                         }}
                         placeholder="Code eingeben"
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-black/10 px-3 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="smk-input h-10 min-w-0 flex-1 rounded-full px-4 text-sm focus-visible:ring-offset-black"
                       />
                       <button
                         type="button"
                         onClick={onApplyDiscountCode}
                         disabled={!normalizedDiscountCode}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b] disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="smk-button-primary inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-black"
                       >
                         Anwenden
                       </button>
                     </div>
                     {appliedDiscountCode && (
-                      <p className="mt-2 text-xs font-semibold text-emerald-700">
+                      <p className="mt-2 text-xs font-semibold text-[var(--smk-success)]">
                         Code angewendet: {appliedDiscountCode}
                       </p>
                     )}
                   </div>
                   {hasAppliedDiscount && (
-                    <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3">
+                    <div className="mb-3 rounded-[24px] border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--smk-error)]">
                             Rabatt aktiv
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-red-700">
+                          <p className="mt-1 text-sm font-semibold text-[var(--smk-error)]">
                             Du sparst sofort im Warenkorb.
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--smk-error)]">
                             Ersparnis
                           </p>
-                          <p className="text-lg font-bold text-red-700">
+                          <p className="text-lg font-bold text-[var(--smk-error)]">
                             -{formatPrice(
                               appliedDiscountAmount.toFixed(2),
                               cart.cost.totalAmount.currencyCode,
@@ -238,14 +320,14 @@ export default function NavbarCartDrawer({
                       </div>
                     </div>
                   )}
-                  <div className="mb-3 rounded-xl border border-black/10 bg-stone-50 px-3 py-3">
+                  <div className="smk-surface mb-3 rounded-[24px] px-3 py-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-stone-500">Gesamt</span>
+                      <span className="text-xs text-[var(--smk-text-muted)]">Gesamt</span>
                       <span
                         className={`text-sm font-semibold ${
                           hasAppliedDiscount
-                            ? "text-stone-400 line-through"
-                            : "text-black/80"
+                            ? "text-[var(--smk-text-dim)] line-through"
+                            : "text-[var(--smk-text)]"
                         }`}
                       >
                         {formatPrice(total.toFixed(2), currencyCode)}
@@ -254,21 +336,21 @@ export default function NavbarCartDrawer({
                     {hasAppliedDiscount && (
                       <>
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-red-600">
+                          <span className="text-xs font-semibold text-[var(--smk-error)]">
                             Rabattcode
                           </span>
-                          <span className="text-sm font-semibold text-red-600">
+                          <span className="text-sm font-semibold text-[var(--smk-error)]">
                             -{formatPrice(
                               appliedDiscountAmount.toFixed(2),
                               currencyCode,
                             )}
                           </span>
                         </div>
-                        <div className="mt-2 flex items-center justify-between border-t border-black/10 pt-2">
-                          <span className="text-xs font-semibold text-black/70">
+                        <div className="mt-2 flex items-center justify-between border-t border-[var(--smk-border)] pt-2">
+                          <span className="text-xs font-semibold text-[var(--smk-text-muted)]">
                             Neuer Gesamtbetrag
                           </span>
-                          <span className="text-base font-bold text-[#b91c1c]">
+                          <span className="text-base font-bold text-[var(--smk-accent)]">
                             {formatPrice(discountedTotal.toFixed(2), currencyCode)}
                           </span>
                         </div>
@@ -276,15 +358,17 @@ export default function NavbarCartDrawer({
                     )}
                   </div>
                   <div
-                    className={`mb-3 rounded-xl px-3 py-2.5 ${
+                    className={`mb-3 rounded-[24px] px-3 py-2.5 ${
                       reached
-                        ? "border border-emerald-200 bg-emerald-50"
-                        : "border border-stone-100 bg-stone-50"
+                        ? "border border-[var(--smk-success)]/35 bg-[rgba(34,197,94,0.12)]"
+                        : "border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)]"
                     }`}
                   >
                     <div
                       className={`flex items-center gap-1.5 text-xs font-semibold ${
-                        reached ? "text-emerald-700" : "text-stone-600"
+                        reached
+                          ? "text-[var(--smk-success)]"
+                          : "text-[var(--smk-text-muted)]"
                       }`}
                     >
                       <TruckIcon className="h-3.5 w-3.5 shrink-0" />
@@ -292,9 +376,9 @@ export default function NavbarCartDrawer({
                         ? "Kostenloser Versand aktiv!"
                         : `Noch ${formatPrice(remaining.toFixed(2), currencyCode)} bis zur versandkostenfreien Lieferung`}
                     </div>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                        className="h-full rounded-full bg-[linear-gradient(90deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-500"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -305,7 +389,7 @@ export default function NavbarCartDrawer({
             <div className="grid gap-2">
               <Link
                 href="/cart"
-                className="block w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-button-secondary block w-full rounded-full px-4 py-3 text-center text-sm font-semibold focus-visible:ring-offset-black"
               >
                 Warenkorb editieren
               </Link>
@@ -313,7 +397,7 @@ export default function NavbarCartDrawer({
                 type="button"
                 onClick={onStartCheckout}
                 disabled={!canCheckout}
-                className="block w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-button-primary block w-full rounded-full px-4 py-3 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-black"
               >
                 {checkoutStatus === "loading" ? "Weiterleitung..." : "Zur Kasse"}
               </button>

@@ -58,22 +58,22 @@ export default function NavbarMobileCategoriesSheet({
       />
       <div
         ref={mobileProductsRef}
-        className="absolute inset-0 bg-[#121915]/78 p-4 shadow-2xl"
+        className="absolute inset-0 bg-black/65 p-4 shadow-2xl backdrop-blur-sm"
       >
-        <div className="webshop-mobile-sheet-in mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-emerald-800/40 bg-[#18211d]/96 px-4 py-5 text-stone-100 shadow-2xl shadow-black/30 backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-emerald-800/30 px-1 pb-4">
+        <div className="webshop-mobile-sheet-in mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] px-4 py-5 text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-[var(--smk-border)] px-1 pb-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300/65">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--smk-text-dim)]">
                 Kategorien
               </p>
-              <p className="mt-1 text-xl font-semibold text-white">
+              <p className="mt-1 text-xl font-semibold text-[var(--smk-text)]">
                 {activeParentName}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-800/28 bg-emerald-900/30 text-3xl text-emerald-100 transition hover:border-emerald-700/45 hover:bg-emerald-900/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-3xl text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               aria-label="Schliessen"
             >
               ×
@@ -85,16 +85,16 @@ export default function NavbarMobileCategoriesSheet({
               value={categoryQuery}
               onChange={(event) => onCategoryQueryChange(event.target.value)}
               placeholder="Kategorien suchen ..."
-              className="h-11 w-full rounded-2xl border border-emerald-800/28 bg-emerald-900/20 px-4 text-sm text-stone-100 shadow-sm outline-none transition placeholder:text-emerald-100/35 focus:border-emerald-700/40 focus:bg-emerald-900/28 focus:ring-2 focus:ring-emerald-500/10"
+              className="smk-input h-11 w-full rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
             />
           </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-emerald-100/70">
+          <div className="flex items-center justify-between text-xs font-semibold text-[var(--smk-text-dim)]">
             <div className="flex flex-1 items-center gap-2">
               {hasCategoryStack && (
                 <button
                   type="button"
                   onClick={onBack}
-                  className="rounded-full border border-emerald-800/28 bg-emerald-900/30 px-4 py-1.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-700/45 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                  className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
                   ← Zurück
                 </button>
@@ -102,7 +102,7 @@ export default function NavbarMobileCategoriesSheet({
               <Link
                 href="/products"
                 onClick={onViewAllProducts}
-                className={`rounded-full border border-emerald-800/28 bg-emerald-900/34 px-4 py-1.5 text-sm font-semibold text-emerald-50 shadow-sm transition hover:border-emerald-700/45 hover:bg-emerald-900/44 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d] ${
+                className={`rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                   hasCategoryStack ? "ml-auto" : ""
                 }`}
               >
@@ -114,17 +114,17 @@ export default function NavbarMobileCategoriesSheet({
           <div className="no-scrollbar flex-1 overflow-y-auto pb-4">
             <div className="space-y-3">
               {categoriesStatus === "loading" && (
-                <div className="rounded-2xl border border-emerald-800/24 bg-emerald-900/18 px-3 py-2 text-sm text-emerald-100/70">
+                <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-[var(--smk-text-muted)]">
                   Laedt Kategorien...
                 </div>
               )}
               {categoriesStatus === "error" && (
-                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-3 py-2 text-sm text-[var(--smk-error)]">
                   Kategorien konnten nicht geladen werden.
                 </div>
               )}
               {categoriesStatus === "idle" && filteredCategories.length === 0 && (
-                <div className="rounded-2xl border border-emerald-800/24 bg-emerald-900/18 px-3 py-2 text-sm text-emerald-100/70">
+                <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-[var(--smk-text-muted)]">
                   Keine Kategorien gefunden.
                 </div>
               )}
@@ -132,10 +132,10 @@ export default function NavbarMobileCategoriesSheet({
                 <button
                   type="button"
                   onClick={onViewParentCategory}
-                  className="flex w-full items-center justify-between rounded-[24px] border border-emerald-800/28 bg-emerald-900/30 px-4 py-3 text-left text-base font-semibold text-white shadow-sm transition hover:border-emerald-700/45 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                  className="flex w-full items-center justify-between rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
                   <span>Alle {activeParentName}</span>
-                  <span className="text-sm text-emerald-200/70">→</span>
+                  <span className="text-sm text-[var(--smk-text-dim)]">→</span>
                 </button>
               )}
               {categoriesStatus === "idle" &&
@@ -148,16 +148,16 @@ export default function NavbarMobileCategoriesSheet({
                       key={category.id}
                       type="button"
                       onClick={() => onSelectCategory(category, isLeaf)}
-                      className="flex w-full items-center justify-between rounded-[24px] border border-emerald-800/24 bg-emerald-900/18 px-4 py-3 text-left text-base font-semibold text-stone-100 shadow-sm transition hover:border-emerald-700/35 hover:bg-emerald-900/28 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#18211d]"
+                      className="flex w-full items-center justify-between rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                     >
                       <span className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-700/28 bg-emerald-900/34 text-emerald-100/90 shadow-sm">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)] shadow-sm">
                           <CategoryIcon className="h-5 w-5" />
                         </span>
                         <span>{category.name}</span>
                       </span>
-                      <span className="flex items-center gap-2 text-sm text-emerald-100/65">
-                        <span className="rounded-full border border-emerald-700/28 bg-emerald-900/32 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">
+                      <span className="flex items-center gap-2 text-sm text-[var(--smk-text-dim)]">
+                        <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
                           {category.totalItemCount}
                         </span>
                         {!isLeaf && "›"}

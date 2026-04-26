@@ -178,10 +178,10 @@ export default function ProductCardActions({
             e.stopPropagation();
             toggle(productId);
           }}
-          className={`${buttonClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+          className={`${buttonClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
             wishlisted
-              ? "border-green-200 text-green-700"
-              : "border-stone-200 text-stone-700 hover:border-green-200 hover:text-green-700"
+              ? "border-[var(--smk-accent)]/40 bg-[rgba(255,255,255,0.06)] text-[var(--smk-accent)]"
+              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-accent)]/40 hover:text-[var(--smk-accent)]"
           }`}
         >
           {wishlisted ? (
@@ -230,9 +230,9 @@ export default function ProductCardActions({
           title="In den Warenkorb"
           className={`add-to-cart-sweep inline-flex items-center ${cartGapClass} rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
             available && !adding
-              ? "border-green-900 bg-green-800 text-white shadow-sm hover:bg-green-900"
-              : "border-stone-200 text-stone-400"
-          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+              ? "border-[var(--smk-border)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-sm hover:brightness-[1.02]"
+              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-dim)]"
+          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
         >
           <ShoppingCartIcon className={cartIconClass} />
           {hideCartLabel ? (
@@ -248,4 +248,3 @@ export default function ProductCardActions({
     </>
   );
 }
-

@@ -190,23 +190,23 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:max-w-2xl sm:rounded-2xl"
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] text-[var(--smk-text)] shadow-2xl shadow-black/40 sm:max-w-2xl sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-0">
-          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
             Schnellansicht
           </span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Schließen"
-            className="rounded-full p-1.5 text-stone-500 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="rounded-full p-1.5 text-[var(--smk-text-dim)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -215,7 +215,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
         {/* Body */}
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:gap-8 sm:p-6">
           {/* Image */}
-          <div className="relative aspect-square overflow-hidden rounded-xl bg-stone-50">
+          <div className="relative aspect-square overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03))]">
             {imageUrl ? (
               <Image
                 src={imageUrl}
@@ -226,24 +226,24 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
                 quality={80}
               />
             ) : (
-              <div className="h-full w-full bg-stone-100" />
+              <div className="h-full w-full bg-[rgba(255,255,255,0.06)]" />
             )}
           </div>
 
           {/* Details */}
           <div className="flex flex-col gap-3">
             {product.manufacturer && (
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                 {product.manufacturer}
               </p>
             )}
 
-            <h2 className="text-xl font-bold leading-snug text-stone-900">
+            <h2 className="text-xl font-bold leading-snug text-[var(--smk-text)]">
               {product.title}
             </h2>
 
             {product.reviewSummary && product.reviewSummary.count > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-stone-600">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--smk-text-muted)]">
                 <div className="flex items-center gap-0.5" aria-hidden="true">
                   {Array.from({ length: 5 }).map((_, i) =>
                     i < reviewRounded ? (
@@ -267,33 +267,33 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
             )}
 
             <p
-              className={`text-xs font-semibold ${isAvailable ? "text-green-700" : "text-red-600"}`}
+              className={`text-xs font-semibold ${isAvailable ? "text-[var(--smk-success)]" : "text-[var(--smk-error)]"}`}
             >
               {isAvailable ? "● Verfügbar" : "● Ausverkauft"}
             </p>
 
             <div className="flex items-baseline gap-2">
               {product.compareAtPrice && (
-                <span className="text-sm font-semibold text-yellow-600 line-through">
+                <span className="text-sm font-semibold text-[var(--smk-text-dim)] line-through">
                   {formatPrice(product.compareAtPrice)}
                 </span>
               )}
-              <span className="text-2xl font-bold text-stone-900">
+              <span className="text-2xl font-bold text-[var(--smk-text)]">
                 {formatPrice(product.priceRange?.minVariantPrice)}
               </span>
             </div>
 
             {descriptionText && (
-              <p className="line-clamp-3 text-sm leading-relaxed text-stone-600">
+              <p className="line-clamp-3 text-sm leading-relaxed text-[var(--smk-text-muted)]">
                 {descriptionText}
               </p>
             )}
 
-            <hr className="border-stone-200" />
+            <hr className="border-[var(--smk-border)]" />
 
             {/* Variant selector */}
             {variantsLoading && (
-              <div className="flex items-center gap-2 text-xs text-stone-500">
+              <div className="flex items-center gap-2 text-xs text-[var(--smk-text-muted)]">
                 <EyeIcon className="h-4 w-4 animate-pulse" />
                 Optionen werden geladen…
               </div>
@@ -303,7 +303,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               <div className="space-y-3">
                 {optionGroups.map((group) => (
                   <div key={group.name}>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                       {group.name}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -321,8 +321,8 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
                             }
                             className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
                               selected
-                                ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                                : "border-stone-200 bg-white text-stone-600 hover:border-emerald-300"
+                                ? "border-[var(--smk-accent)]/45 bg-[rgba(214,177,111,0.18)] text-[var(--smk-accent)]"
+                                : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-border-strong)]"
                             }`}
                           >
                             {value}
@@ -341,10 +341,10 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
                 type="button"
                 disabled={!isAvailable || adding}
                 onClick={handleAddToCart}
-                className={`inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                className={`inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                   isAvailable && !adding
-                    ? "bg-green-800 text-white shadow-sm hover:bg-green-900"
-                    : "cursor-not-allowed bg-stone-200 text-stone-400"
+                    ? "border border-[var(--smk-border)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-sm"
+                    : "cursor-not-allowed border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-dim)]"
                 }`}
               >
                 {adding ? "Wird hinzugefügt…" : "In den Warenkorb"}
@@ -353,7 +353,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               <Link
                 href={`/products/${product.handle}`}
                 onClick={onClose}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-stone-200 px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-black/20 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-5 py-2.5 text-sm font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                 Zum Produkt

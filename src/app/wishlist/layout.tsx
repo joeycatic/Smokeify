@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PageLayout from "@/components/PageLayout";
 
 export const metadata: Metadata = {
   robots: {
@@ -16,5 +17,5 @@ export default function WishlistLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <PageLayout commerce>{children}</PageLayout>;
 }

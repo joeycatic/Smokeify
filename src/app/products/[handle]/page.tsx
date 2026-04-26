@@ -288,32 +288,32 @@ export default async function ProductDetailPage({
     product.variants.find((variant) => variant.availableForSale) ?? product.variants[0] ?? null;
   return (
     <PageLayout commerce>
-      <main className="mx-auto w-full max-w-7xl px-0 sm:px-2 py-6">
-        <div className="rounded-[32px] border border-black/5 bg-[radial-gradient(120%_120%_at_50%_40%,rgba(38,62,52,0.6)_0%,rgba(32,52,45,0.45)_35%,rgba(120,150,130,0.25)_70%,rgba(255,255,255,0)_100%)] p-2 shadow-[0_20px_60px_rgba(15,23,42,0.12)] sm:p-4">
+      <main className="smk-storefront-legacy smk-pdp-scope mx-auto w-full max-w-7xl px-0 py-6 sm:px-2">
+        <div className="rounded-[32px] border border-[var(--smk-border)] bg-[radial-gradient(120%_120%_at_50%_20%,rgba(233,188,116,0.10)_0%,rgba(217,119,69,0.08)_30%,rgba(18,16,14,0.98)_72%,rgba(10,10,9,1)_100%)] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:p-4">
           <div className="grid grid-cols-1 gap-6 lg:items-start lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-6">
-              <div className="relative rounded-[18px] bg-white/80 p-2 shadow-sm">
+              <div className="relative rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-2 shadow-sm">
                 <ProductImageCarousel images={images} alt={product.title} />
                 {hasDiscount && (
-                  <span className="absolute left-6 top-6 rounded-full bg-yellow-500 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-black shadow">
+                  <span className="absolute left-6 top-6 rounded-full bg-[var(--smk-accent)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow">
                     Sale
                   </span>
                 )}
               </div>
               {product.description && (
-                <div className="hidden rounded-2xl border border-black/10 bg-white/85 shadow-sm sm:block">
+                <div className="hidden rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] shadow-sm sm:block">
                   <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white [&::-webkit-details-marker]:hidden">
-                      <span className="flex items-center gap-2 text-sm font-semibold text-black/80">
-                        <InformationCircleIcon className="h-5 w-5 text-black/60" />
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
+                        <InformationCircleIcon className="h-5 w-5 text-[var(--smk-text-muted)]" />
                         Produktbeschreibung
                       </span>
-                      <PlusIcon className="h-5 w-5 text-black/60 transition-transform duration-300 group-open:rotate-45" />
+                      <PlusIcon className="h-5 w-5 text-[var(--smk-text-muted)] transition-transform duration-300 group-open:rotate-45" />
                     </summary>
                     <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
                       <div className="overflow-hidden px-5 pb-5">
                         <div
-                          className="product-description product-description-compact text-xxs leading-6 text-black/60"
+                          className="product-description product-description-compact text-xxs leading-6 text-[var(--smk-text-muted)]"
                           dangerouslySetInnerHTML={{
                             __html: product.description,
                           }}

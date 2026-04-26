@@ -171,20 +171,22 @@ function CustomizerFaqAccordion() {
               onClick={() => setOpenIndex(isOpen ? null : index)}
               className="flex w-full items-center justify-between gap-4 py-4 text-left transition hover:opacity-80"
             >
-              <span className="text-[15px] font-semibold" style={{ color: "#1a2a22" }}>
+              <span className="text-[15px] font-semibold text-[var(--smk-text)]">
                 {item.question}
               </span>
               <span
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform duration-200"
                 style={{
-                  background: isOpen ? "#2f3e36" : "rgba(47,62,54,0.08)",
+                  background: isOpen
+                    ? "linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))"
+                    : "rgba(255,255,255,0.08)",
                   transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
                 }}
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path
                     d="M5 1v8M1 5h8"
-                    stroke={isOpen ? "#E4C56C" : "#2f3e36"}
+                    stroke={isOpen ? "#1a140f" : "#f6f0e8"}
                     strokeWidth="1.6"
                     strokeLinecap="round"
                   />
@@ -196,7 +198,7 @@ function CustomizerFaqAccordion() {
               style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
             >
               <div className="overflow-hidden">
-                <p className="pb-4 text-sm leading-relaxed text-stone-600">
+                <p className="pb-4 text-sm leading-relaxed text-[var(--smk-text-muted)]">
                   {item.answer}
                 </p>
               </div>
@@ -250,8 +252,6 @@ function StepHeader({
   });
   const progressCount = Math.min(completedSteps.size, STEPS.length);
   const stepDisplay = Math.max(1, progressCount);
-  const activeTone = "#7aa38f";
-
   useEffect(() => {
     const node = stepRefs.current[activeStep];
     if (!node) return;
@@ -263,36 +263,37 @@ function StepHeader({
   }, [activeStep]);
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <div className="smk-panel rounded-[28px] p-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-green-600">
+          <p className="smk-kicker">
             Konfigurator
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-neutral-900">
+          <h1 className="smk-heading mt-2 text-2xl sm:text-3xl">
             Pflanzenzelt-Konfigurator
           </h1>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="mt-2 text-sm text-[var(--smk-text-muted)]">
             Stelle dein Setup zusammen und prüfe Passform, Preis und Status.
           </p>
         </div>
         <div className="w-full max-w-xl">
-          <div className="flex items-center justify-between text-xs font-semibold text-neutral-500">
+          <div className="flex items-center justify-between text-xs font-semibold text-[var(--smk-text-dim)]">
             <span>Fortschritt</span>
             <span>
               Schritt {stepDisplay} / {STEPS.length}
             </span>
           </div>
-          <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+          <div className="mt-2 h-2 w-full rounded-full bg-[rgba(255,255,255,0.08)]">
             <div
               className="h-2 rounded-full transition-all"
               style={{
-                backgroundColor: activeTone,
+                background:
+                  "linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))",
                 width: `${(progressCount / STEPS.length) * 100}%`,
               }}
             />
           </div>
-          <div className="mt-4 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-2 shadow-inner overflow-hidden">
+          <div className="mt-4 overflow-hidden rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-2 shadow-inner">
             <div className="no-scrollbar flex w-full overflow-x-auto overflow-y-visible py-1 pl-3 pr-8 scroll-pl-3 scroll-pr-8">
               <div ref={listRef} className="flex w-max items-center gap-2">
                 {STEPS.map((step, index) => {
@@ -319,22 +320,22 @@ function StepHeader({
                         ref={(el) => {
                           stepRefs.current[step.id] = el;
                         }}
-                        className={`flex min-w-[96px] flex-col items-start justify-center rounded-full px-3 py-2 text-left transition sm:min-w-[120px] sm:px-4 sm:py-2.5 ${
+                        className={`flex min-w-[96px] flex-col items-start justify-center rounded-full border px-3 py-2 text-left transition sm:min-w-[120px] sm:px-4 sm:py-2.5 ${
                           isCompleted || isCheckComplete
-                            ? "border border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow"
-                            : "text-neutral-600"
-                        } ${isActive && !isCompleted ? "ring-1 ring-neutral-300" : ""} ${
+                            ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-[0_18px_36px_rgba(217,119,69,0.22)]"
+                            : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)]"
+                        } ${isActive && !isCompleted ? "ring-1 ring-[var(--smk-border-strong)]" : ""} ${
                           isLocked
                             ? "cursor-not-allowed opacity-50"
-                            : "hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-200 hover:text-neutral-900"
+                            : "hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)]"
                         }`}
                       >
                         <div className="flex items-center gap-1">
                           <span
                             className={`text-[10px] sm:text-[11px] ${
                               isCompleted || isCheckComplete
-                                ? "text-white/70"
-                                : "text-neutral-400"
+                                ? "text-[#1a140f]/65"
+                                : "text-[var(--smk-text-dim)]"
                             }`}
                           >
                             {index + 1}.
@@ -342,8 +343,8 @@ function StepHeader({
                           <span
                             className={`whitespace-nowrap text-[10px] font-semibold sm:text-[11px] ${
                               isCompleted || isCheckComplete
-                                ? "text-white"
-                                : "text-neutral-700"
+                                ? "text-[#1a140f]"
+                                : "text-[var(--smk-text)]"
                             }`}
                           >
                             {step.label}
@@ -353,8 +354,8 @@ function StepHeader({
                           <span
                             className={`text-[9px] sm:text-[10px] ${
                               isCompleted || isCheckComplete
-                                ? "text-white/70"
-                                : "text-neutral-400"
+                                ? "text-[#1a140f]/65"
+                                : "text-[var(--smk-text-dim)]"
                             }`}
                           >
                             {step.label}
@@ -362,7 +363,7 @@ function StepHeader({
                         )}
                       </button>
                       {index < STEPS.length - 1 && (
-                        <span className="hidden text-lg text-neutral-300 sm:inline">
+                        <span className="hidden text-lg text-[var(--smk-text-dim)] sm:inline">
                           ›
                         </span>
                       )}
@@ -388,11 +389,11 @@ function FiltersBar({
   onSearchChange,
 }: FiltersBarProps) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="smk-surface rounded-[24px] p-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-lg font-semibold text-neutral-900">{title}</p>
-          {subtitle && <p className="text-sm text-neutral-500">{subtitle}</p>}
+          <p className="text-lg font-semibold text-[var(--smk-text)]">{title}</p>
+          {subtitle && <p className="text-sm text-[var(--smk-text-muted)]">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {onSearchChange && (
@@ -402,7 +403,7 @@ function FiltersBar({
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="Suchen..."
-                className="h-10 w-52 rounded-full border border-neutral-200 bg-white px-4 text-sm text-neutral-700 outline-none transition focus:border-neutral-400"
+                className="smk-input h-10 w-52 rounded-full px-4 text-sm outline-none focus:border-[var(--smk-border-strong)]"
               />
             </div>
           )}
@@ -414,7 +415,7 @@ function FiltersBar({
             const active = chip.id === activeChipId;
             const hoverClasses = active
               ? ""
-              : "hover:-translate-y-0.5 hover:shadow-sm hover:bg-neutral-100 hover:border-neutral-300";
+              : "hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]";
             return (
               <button
                 key={chip.id}
@@ -422,8 +423,8 @@ function FiltersBar({
                 onClick={() => onChipSelect?.(chip.id)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${hoverClasses} ${
                   active
-                    ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-sm"
-                    : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                    ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-[0_16px_30px_rgba(217,119,69,0.18)]"
+                    : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-border-strong)]"
                 }`}
               >
                 {chip.label}
@@ -486,7 +487,7 @@ function ReasonPopover({ reason }: { reason?: string }) {
           event.stopPropagation();
           setOpen((prev) => !prev);
         }}
-        className="text-xs font-semibold text-neutral-500 underline decoration-dotted"
+        className="text-xs font-semibold text-[var(--smk-text-dim)] underline decoration-dotted"
         ref={triggerRef}
       >
         Warum?
@@ -499,38 +500,38 @@ function ReasonPopover({ reason }: { reason?: string }) {
               type="button"
               aria-label="Dialog schließen"
               onClick={() => setOpen(false)}
-              className="absolute inset-0 bg-black/40"
+              className="absolute inset-0 bg-black/55 backdrop-blur-sm"
             />
             <div
               role="dialog"
               aria-modal="true"
               ref={dialogRef}
-              className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-neutral-200 bg-white p-5 text-sm text-neutral-700 shadow-2xl"
+              className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-5 text-sm text-[var(--smk-text-muted)] shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-neutral-900">
+                  <p className="text-sm font-semibold text-[var(--smk-text)]">
                     Nicht kompatibel (nicht empfohlen)
                   </p>
-                  <p className="mt-2 text-sm text-neutral-600">
+                  <p className="mt-2 text-sm text-[var(--smk-text-muted)]">
                     Dieses Produkt passt nicht optimal zu deiner aktuellen
                     Auswahl (z. B. Zeltgröße/Leistung/Anschluss). Dadurch kann
                     es zu schlechterer Effizienz oder Problemen beim Setup
                     kommen.
                   </p>
-                  <p className="mt-3 text-sm text-neutral-600">
+                  <p className="mt-3 text-sm text-[var(--smk-text-muted)]">
                     Du kannst den Artikel trotzdem auswählen und kaufen – wir
                     empfehlen jedoch eine kompatible Alternative.
                   </p>
                   {reason && (
-                    <p className="mt-3 text-xs text-neutral-500">{reason}</p>
+                    <p className="mt-3 text-xs text-[var(--smk-text-dim)]">{reason}</p>
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-xl text-neutral-500"
+                  className="text-xl text-[var(--smk-text-dim)]"
                   aria-label="Schließen"
                 >
                   ×
@@ -540,7 +541,7 @@ function ReasonPopover({ reason }: { reason?: string }) {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-700 hover:shadow-sm"
+                  className="smk-button-secondary rounded-full px-4 py-2 text-xs font-semibold"
                 >
                   Verstanden
                 </button>
@@ -569,14 +570,17 @@ function ProductCard({
   onSelect,
 }: ProductCardProps) {
   const toneStyles: Record<CompatTone, string> = {
-    perfect: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    good: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    bad: "border-orange-200 bg-orange-50 text-orange-700",
+    perfect:
+      "border-[rgba(127,207,150,0.26)] bg-[rgba(127,207,150,0.12)] text-[#9fe3b2]",
+    good:
+      "border-[rgba(240,180,93,0.28)] bg-[rgba(240,180,93,0.12)] text-[#f4c87c]",
+    bad:
+      "border-[rgba(239,143,127,0.28)] bg-[rgba(239,143,127,0.12)] text-[#ef8f7f]",
   };
   const isDisabled = Boolean(outOfStock);
   const hoverStyles = selected
     ? ""
-    : "hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50 hover:-translate-y-0.5";
+    : "hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]";
 
   return (
     <div
@@ -590,10 +594,10 @@ function ProductCard({
           onSelect?.();
         }
       }}
-      className={`group relative flex h-full flex-col rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f3e36]/40 ${
+      className={`group relative flex h-full flex-col rounded-[26px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
         selected
-          ? "border-emerald-700 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 text-white shadow-md"
-          : "border-neutral-200 bg-white text-neutral-800"
+          ? "border-[var(--smk-border-strong)] bg-[linear-gradient(180deg,rgba(44,37,31,0.98),rgba(18,16,14,0.98))] text-[var(--smk-text)] shadow-[0_24px_52px_rgba(0,0,0,0.22)]"
+          : "border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] text-[var(--smk-text)] shadow-[0_18px_36px_rgba(0,0,0,0.16)]"
       } ${compatTone === "bad" ? "opacity-70" : "opacity-100"} ${
         isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
       } ${hoverStyles}`}
@@ -603,7 +607,7 @@ function ProductCard({
         (() => {
           return (
             <div
-              className={`relative mb-4 w-full overflow-hidden rounded-xl bg-white ${imageHeightClass}`}
+              className={`smk-white-well relative mb-4 w-full overflow-hidden rounded-xl ${imageHeightClass}`}
             >
               {lowStock && !outOfStock && (
                 <span className="absolute left-1 top-1 rounded-full bg-amber-500/90 px-4 py-2 text-[13px] font-semibold text-white shadow sm:px-2 sm:py-1 sm:text-[11px]">
@@ -623,21 +627,23 @@ function ProductCard({
         })()
       ) : (
         <div
-          className={`mb-4 w-full rounded-xl bg-white ${imageHeightClass}`}
+          className={`smk-white-well mb-4 w-full rounded-xl ${imageHeightClass}`}
         />
       )}
       <div className="flex-1">
         <div className="flex flex-wrap items-start gap-2">
           <p className="min-w-0 flex-1 text-sm font-semibold">{title}</p>
           {selected && (
-            <span className="whitespace-nowrap rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-white">
+            <span className="whitespace-nowrap rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--smk-text)]">
               Selected
             </span>
           )}
         </div>
         <p
           className={`mt-2 text-sm ${
-            selected ? "text-neutral-200" : "text-neutral-600"
+            selected
+              ? "text-[var(--smk-text-muted)]"
+              : "text-[var(--smk-text-muted)]"
           }`}
         >
           {formatPrice(price)}
@@ -649,8 +655,8 @@ function ProductCard({
                 key={badge}
                 className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                   selected
-                    ? "border-white/40 text-white/80"
-                    : "border-neutral-200 text-neutral-500"
+                    ? "border-white/20 text-[var(--smk-text-muted)]"
+                    : "border-[var(--smk-border)] text-[var(--smk-text-dim)]"
                 }`}
               >
                 {badge}
@@ -665,8 +671,8 @@ function ProductCard({
             <span
               className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                 selected
-                  ? "border-white/30 bg-white/10 text-white"
-                  : "border-red-200 bg-red-50 text-red-700"
+                  ? "border-white/20 bg-white/8 text-[var(--smk-text)]"
+                  : "border-[rgba(239,143,127,0.28)] bg-[rgba(239,143,127,0.12)] text-[#ef8f7f]"
               }`}
             >
               Ausverkauft
@@ -676,7 +682,7 @@ function ProductCard({
             <span
               className={`rounded-full border px-4 py-2 text-[13px] font-semibold sm:px-2 sm:py-1 sm:text-[11px] ${
                 selected
-                  ? "border-white/30 bg-white/10 text-white"
+                  ? "border-white/20 bg-white/8 text-[var(--smk-text)]"
                   : toneStyles[compatTone]
               }`}
             >
@@ -711,16 +717,19 @@ function SetupSidebar({
   cartActionMessage,
 }: SetupSidebarProps) {
   const toneStyles: Record<CompatTone, string> = {
-    perfect: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    good: "border-amber-200 bg-amber-50 text-amber-700",
-    bad: "border-rose-200 bg-rose-50 text-rose-700",
+    perfect:
+      "border-[rgba(127,207,150,0.26)] bg-[rgba(127,207,150,0.12)] text-[#9fe3b2]",
+    good:
+      "border-[rgba(240,180,93,0.28)] bg-[rgba(240,180,93,0.12)] text-[#f4c87c]",
+    bad:
+      "border-[rgba(239,143,127,0.28)] bg-[rgba(239,143,127,0.12)] text-[#ef8f7f]",
   };
   return (
-    <aside className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <aside className="smk-panel rounded-[28px] p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-lg font-semibold text-neutral-900">Dein Setup</p>
-          <p className="text-sm text-neutral-500">Status & Preis im Blick</p>
+          <p className="text-lg font-semibold text-[var(--smk-text)]">Dein Setup</p>
+          <p className="text-sm text-[var(--smk-text-muted)]">Status & Preis im Blick</p>
         </div>
         <span
           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -734,18 +743,18 @@ function SetupSidebar({
 
       <div className="mt-5 space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-500">
+          <div className="rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3 text-sm text-[var(--smk-text-muted)]">
             Noch keine Auswahl.
           </div>
         ) : (
           items.map((item) => (
             <div
               key={`${item.id}-${item.title}`}
-              className="w-full max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 p-3"
+              className="w-full max-w-full overflow-hidden rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3"
             >
               <div className="flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
                 <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                  <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
+                  <span className="smk-white-well flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border text-xs text-neutral-400">
                     {item.imageUrl ? (
                       <Image
                         src={item.imageUrl}
@@ -761,13 +770,13 @@ function SetupSidebar({
                   </span>
                   <div className="max-w-[11rem] min-w-0 flex-1 overflow-hidden">
                     <div
-                      className="max-w-[11rem] truncate text-sm font-semibold text-neutral-800 sm:max-w-[14rem]"
+                      className="max-w-[11rem] truncate text-sm font-semibold text-[var(--smk-text)] sm:max-w-[14rem]"
                       title={item.title}
                     >
                       {item.title}
                     </div>
                     {typeof item.price === "number" && (
-                      <div className="text-xs text-neutral-500">
+                      <div className="text-xs text-[var(--smk-text-muted)]">
                         {formatPrice(item.price)}
                       </div>
                     )}
@@ -776,7 +785,7 @@ function SetupSidebar({
                 <button
                   type="button"
                   onClick={() => onEdit(item.id)}
-                  className="flex-none text-xs font-semibold text-neutral-500 underline"
+                  className="flex-none text-xs font-semibold text-[var(--smk-text-dim)] underline"
                 >
                   Ändern
                 </button>
@@ -786,12 +795,12 @@ function SetupSidebar({
         )}
       </div>
 
-      <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-4">
-        <div className="flex items-center justify-between text-base font-semibold">
+      <div className="mt-6 rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-4">
+        <div className="flex items-center justify-between text-base font-semibold text-[var(--smk-text)]">
           <span>Zwischensumme</span>
           <span>{formatPrice(total)}</span>
         </div>
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-[var(--smk-text-muted)]">
           Preis ist eine Schätzung. Produkte werden später verknüpft.
         </p>
       </div>
@@ -801,24 +810,24 @@ function SetupSidebar({
           type="button"
           onClick={onPrimary}
           disabled={saving}
-          className="w-full rounded-xl bg-neutral-200 px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:bg-neutral-300 hover:shadow-sm disabled:opacity-60"
+          className="smk-button-secondary w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-60"
         >
           {saving ? "Speichern..." : saved ? "Gespeichert" : "Setup speichern"}
         </button>
         {saved && (
-          <p className="text-xs text-emerald-700">Setup gespeichert.</p>
+          <p className="text-xs text-[#9fe3b2]">Setup gespeichert.</p>
         )}
         <button
           type="button"
           onClick={onAddToCart}
-          className="w-full rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-black/70 hover:border-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="smk-button-secondary w-full rounded-full px-4 py-3 text-center text-sm font-semibold focus-visible:ring-offset-black"
         >
           In den Warenkorb
         </button>
         <button
           type="button"
           onClick={onCheckout}
-          className="w-full rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="smk-button-primary w-full rounded-full px-4 py-3 text-center text-sm font-semibold focus-visible:ring-offset-black"
         >
           Zur Kasse
         </button>
@@ -831,10 +840,10 @@ function SetupSidebar({
           <p
             className={`text-xs ${
               cartActionStatus === "error"
-                ? "text-red-600"
+                ? "text-[#ef8f7f]"
                 : cartActionStatus === "ok"
-                  ? "text-emerald-700"
-                  : "text-neutral-500"
+                  ? "text-[#9fe3b2]"
+                  : "text-[var(--smk-text-muted)]"
             }`}
           >
             {cartActionMessage}
@@ -851,11 +860,11 @@ function MobileSetupBottomBar({
   onOpen,
 }: MobileSetupBottomBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 z-40 w-full border-t border-neutral-200 bg-white px-4 py-3 shadow-lg lg:hidden">
+    <div className="fixed bottom-0 left-0 z-40 w-full border-t border-[var(--smk-border)] bg-[rgba(17,16,15,0.94)] px-4 py-3 shadow-lg backdrop-blur-xl lg:hidden">
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center justify-between rounded-full bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-emerald-900/25"
+        className="smk-button-primary flex w-full items-center justify-between rounded-full px-4 py-3 text-sm font-semibold"
       >
         <span>Setup ansehen ({selectedCount})</span>
         <span>{formatPrice(total)}</span>
@@ -1438,32 +1447,29 @@ export default function CustomizerPage() {
       previewExtras.reduce((sum, opt) => sum + opt.price, 0);
 
     return (
-      <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 py-12 text-stone-800">
-          <div className="rounded-2xl border border-[#E4C56C]/70 bg-white p-8 shadow-[0_20px_50px_rgba(58,75,65,0.18)]">
+      <div className="smk-storefront-legacy smk-customizer-scope mx-auto w-full max-w-7xl px-0.5 py-12 text-[var(--smk-text)] sm:px-1">
+          <div className="smk-panel rounded-[30px] p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
-                <p className="text-xs font-semibold tracking-widest text-[#2f3e36]">
+                <p className="smk-kicker">
                   CUSTOMIZER
                 </p>
-                <h1
-                  className="mt-2 text-4xl font-bold"
-                  style={{ color: "#2f3e36" }}
-                >
+                <h1 className="smk-heading mt-2 text-4xl font-bold">
                   Demnächst verfügbar
                 </h1>
-                <p className="mt-3 text-sm text-stone-600">
+                <p className="mt-3 text-sm text-[var(--smk-text-muted)]">
                   Unser interaktiver Setup-Builder ist bald live. Bis dahin
                   kannst du hier einen Ausblick auf die Konfiguration sehen.
                 </p>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#E4C56C] bg-[#E4C56C]/40 px-3 py-1 text-xs font-semibold text-[#2f3e36]">
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--smk-border-strong)] bg-[rgba(233,188,116,0.12)] px-3 py-1 text-xs font-semibold text-[var(--smk-accent-2)]">
                   Vorschau aktiv
                 </div>
               </div>
-              <div className="rounded-xl border border-[#E4C56C]/60 bg-[#f9f4dd] p-5">
-                <p className="text-xs font-semibold tracking-widest text-[#2f3e36]">
+              <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-5">
+                <p className="smk-kicker">
                   WAS KOMMT
                 </p>
-                <ul className="mt-3 space-y-2 text-sm text-stone-600">
+                <ul className="mt-3 space-y-2 text-sm text-[var(--smk-text-muted)]">
                   <li>Live-Preis-Updates</li>
                   <li>Setup speichern & teilen</li>
                   <li>Empfehlungen pro Raumgroesse</li>
@@ -1472,12 +1478,12 @@ export default function CustomizerPage() {
             </div>
           </div>
 
-          <div className="mt-10 rounded-2xl border border-[#E4C56C]/60 bg-white p-6 shadow-[0_18px_40px_rgba(58,75,65,0.16)]">
+          <div className="smk-panel mt-10 rounded-[30px] p-6">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-semibold tracking-widest text-[#2f3e36]">
+              <p className="smk-kicker text-sm">
                 PREVIEW
               </p>
-              <span className="text-xs font-semibold text-stone-500">
+              <span className="text-xs font-semibold text-[var(--smk-text-dim)]">
                 Nicht interaktiv
               </span>
             </div>
@@ -1485,8 +1491,8 @@ export default function CustomizerPage() {
             <div className="pointer-events-none select-none">
               <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
                 <div className="space-y-6">
-                  <section className="rounded-xl border border-black/10 bg-white p-5">
-                    <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+                  <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-5">
+                    <h2 className="mb-4 text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                       1. ZELT-GRÖSSE
                     </h2>
                     <div className="grid gap-3 sm:grid-cols-3">
@@ -1495,8 +1501,8 @@ export default function CustomizerPage() {
                           key={opt.id}
                           className={`rounded-lg border px-4 py-3 text-left ${
                             previewSize?.id === opt.id
-                              ? "border-[#E4C56C] bg-[#E4C56C] text-[#2f3e36]"
-                              : "border-black/10 bg-white"
+                              ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f]"
+                              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)]"
                           }`}
                         >
                           <div className="text-sm font-semibold">
@@ -1510,8 +1516,8 @@ export default function CustomizerPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-black/10 bg-white p-5">
-                    <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+                  <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-5">
+                    <h2 className="mb-4 text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                       2. LICHT
                     </h2>
                     <div className="grid gap-3 sm:grid-cols-3">
@@ -1520,8 +1526,8 @@ export default function CustomizerPage() {
                           key={opt.id}
                           className={`rounded-lg border px-4 py-3 text-left ${
                             previewLight?.id === opt.id
-                              ? "border-[#E4C56C] bg-[#E4C56C] text-[#2f3e36]"
-                              : "border-black/10 bg-white"
+                              ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f]"
+                              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)]"
                           }`}
                         >
                           <div className="text-sm font-semibold">
@@ -1535,8 +1541,8 @@ export default function CustomizerPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-black/10 bg-white p-5">
-                    <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+                  <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-5">
+                    <h2 className="mb-4 text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                       3. ABLUFT
                     </h2>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -1545,8 +1551,8 @@ export default function CustomizerPage() {
                           key={opt.id}
                           className={`rounded-lg border px-4 py-3 text-left ${
                             previewVent?.id === opt.id
-                              ? "border-[#E4C56C] bg-[#E4C56C] text-[#2f3e36]"
-                              : "border-black/10 bg-white"
+                              ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f]"
+                              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)]"
                           }`}
                         >
                           <div className="text-sm font-semibold">
@@ -1560,8 +1566,8 @@ export default function CustomizerPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-black/10 bg-white p-5">
-                    <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+                  <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-5">
+                    <h2 className="mb-4 text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                       4. EXTRAS
                     </h2>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1574,8 +1580,8 @@ export default function CustomizerPage() {
                             key={opt.id}
                             className={`rounded-lg border px-4 py-3 text-left ${
                               active
-                                ? "border-[#3a4b41] bg-[#E4C56C]/30 text-[#2f3e36]"
-                                : "border-black/10 bg-white"
+                                ? "border-[var(--smk-border-strong)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f]"
+                                : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)]"
                             }`}
                           >
                             <div className="text-sm font-semibold">
@@ -1591,11 +1597,11 @@ export default function CustomizerPage() {
                   </section>
                 </div>
 
-                <aside className="rounded-xl border border-black/10 bg-white p-6 h-fit">
-                  <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+                <aside className="h-fit rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-6">
+                  <h2 className="mb-4 text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                     DEIN SETUP
                   </h2>
-                  <div className="space-y-3 text-sm">
+                  <div className="space-y-3 text-sm text-[var(--smk-text)]">
                     <div className="flex justify-between">
                       <span>Zelt</span>
                       <span>{previewSize?.label ?? "-"}</span>
@@ -1614,12 +1620,12 @@ export default function CustomizerPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 border-t border-black/10 pt-4">
-                    <div className="flex items-center justify-between text-base font-semibold">
+                  <div className="mt-5 border-t border-[var(--smk-border)] pt-4">
+                    <div className="flex items-center justify-between text-base font-semibold text-[var(--smk-text)]">
                       <span>Gesamt</span>
                       <span>{formatPrice(previewTotal)}</span>
                     </div>
-                    <p className="mt-2 text-xs text-stone-500">
+                    <p className="mt-2 text-xs text-[var(--smk-text-muted)]">
                       Vorschau: Preise können später abweichen.
                     </p>
                   </div>
@@ -1663,8 +1669,8 @@ export default function CustomizerPage() {
   };
 
   return (
-    <>
-      <div className="mx-auto w-full max-w-7xl px-0.5 sm:px-1 pb-20 pt-8 text-stone-800">
+    <div className="smk-storefront-legacy smk-customizer-scope">
+      <div className="mx-auto w-full max-w-7xl px-0.5 pb-20 pt-8 text-[var(--smk-text)] sm:px-1">
         <StepHeader
           activeStep={activeStep}
           onStepChange={scrollToStep}
@@ -2202,8 +2208,8 @@ export default function CustomizerPage() {
       <section className="mt-6 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
         <div className="border-b border-black/[0.06] px-6 py-5 sm:px-8">
           <div className="flex items-center gap-2.5">
-            <span className="h-4 w-1 rounded-full" style={{ background: "#E4C56C" }} />
-            <h2 className="text-lg font-bold" style={{ color: "#2f3e36" }}>
+            <span className="h-4 w-1 rounded-full bg-[var(--smk-accent-2)]" />
+            <h2 className="smk-heading text-lg font-bold">
               FAQ zum Pflanzenzelt-Konfigurator
             </h2>
           </div>
@@ -2292,7 +2298,7 @@ export default function CustomizerPage() {
                 >
                   <div className="flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
                     <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white text-xs text-neutral-400">
+                      <span className="smk-white-well flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border text-xs text-neutral-400">
                         {item.imageUrl ? (
                           <Image
                             src={item.imageUrl}
@@ -2395,6 +2401,6 @@ export default function CustomizerPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
