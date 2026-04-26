@@ -37,6 +37,9 @@ type Profile = {
   postalCode: string;
   city: string;
   country: string;
+  shippingAddressType: string;
+  packstationNumber: string;
+  postNumber: string;
 };
 
 type Props = {
@@ -133,23 +136,23 @@ export default function AccountDashboardClient({
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr] lg:items-start lg:min-h-[calc(100vh-445px)]">
       {/* Sidebar */}
-      <aside className="rounded-xl border border-transparent bg-transparent p-0 lg:h-full lg:border-black/10 lg:bg-white lg:overflow-hidden">
+      <aside className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-0 shadow-[0_18px_40px_rgba(0,0,0,0.16)] lg:h-full lg:overflow-hidden">
         {/* Mobile dropdown */}
         <div className="sm:hidden">
           <div className="mb-4">
-            <p className="mb-2 text-xs font-semibold tracking-widest text-stone-500">
+            <p className="mb-2 text-xs font-semibold tracking-widest text-[var(--smk-text-dim)]">
               Bereich
             </p>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-stone-800 shadow-sm"
+                className="flex w-full items-center justify-between rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-sm font-semibold text-[var(--smk-text)] shadow-[0_14px_30px_rgba(0,0,0,0.16)]"
                 aria-haspopup="listbox"
                 aria-expanded={mobileMenuOpen}
               >
                 <span className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#2f3e36] p-1 text-white">
+                  <span className="rounded-full border border-[rgba(233,188,116,0.24)] bg-[rgba(233,188,116,0.12)] p-1 text-[var(--smk-accent-2)]">
                     {(() => {
                       const current = tabs.find((tab) => tab.id === activeTab);
                       const Icon = current?.icon ?? UserCircleIcon;
@@ -158,7 +161,7 @@ export default function AccountDashboardClient({
                   </span>
                   <span>{tabs.find((tab) => tab.id === activeTab)?.label}</span>
                 </span>
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-[var(--smk-text-dim)]">
                   {mobileMenuOpen ? "▲" : "▼"}
                 </span>
               </button>
@@ -171,7 +174,7 @@ export default function AccountDashboardClient({
                     className="fixed inset-0 z-30 bg-transparent"
                   />
                   <div
-                    className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-black/10 bg-white text-sm shadow-xl"
+                    className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-[20px] border border-[var(--smk-border)] bg-[rgba(18,16,14,0.98)] text-sm shadow-[0_20px_45px_rgba(0,0,0,0.28)]"
                     role="listbox"
                   >
                     {tabs.map((tab) => {
@@ -186,8 +189,8 @@ export default function AccountDashboardClient({
                           }}
                           className={`flex w-full items-center gap-3 px-4 py-3 text-left font-semibold transition ${
                             activeTab === tab.id
-                              ? "bg-[#2f3e36] text-white"
-                              : "text-stone-700 hover:bg-stone-50"
+                              ? "bg-[rgba(233,188,116,0.16)] text-[var(--smk-text)]"
+                              : "text-[var(--smk-text-muted)] hover:bg-[rgba(255,255,255,0.05)]"
                           }`}
                           role="option"
                           aria-selected={activeTab === tab.id}
@@ -195,8 +198,8 @@ export default function AccountDashboardClient({
                           <span
                             className={`rounded-full p-1 ${
                               activeTab === tab.id
-                                ? "bg-white/20 text-white"
-                                : "bg-stone-100 text-stone-600"
+                                ? "bg-[rgba(255,255,255,0.12)] text-[var(--smk-accent-2)]"
+                                : "bg-[rgba(255,255,255,0.06)] text-[var(--smk-text-dim)]"
                             }`}
                           >
                             <tab.icon className="h-4 w-4" aria-hidden="true" />
@@ -206,8 +209,8 @@ export default function AccountDashboardClient({
                             <span
                               className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-4 ${
                                 activeTab === tab.id
-                                  ? "bg-white/20 text-white"
-                                  : "bg-stone-200 text-stone-500"
+                                  ? "bg-[rgba(255,255,255,0.12)] text-[var(--smk-accent-2)]"
+                                  : "bg-[rgba(255,255,255,0.08)] text-[var(--smk-text-dim)]"
                               }`}
                             >
                               {badge}
@@ -226,7 +229,7 @@ export default function AccountDashboardClient({
         {/* Desktop sidebar nav */}
         <div className="hidden lg:block sm:block">
           {/* Sidebar accent bar */}
-          <div className="h-1 bg-gradient-to-r from-[#2f3e36] to-[#44584c] lg:block hidden" />
+          <div className="hidden h-1 bg-[linear-gradient(90deg,#f1c684_0%,#e9bc74_45%,#d97745_100%)] lg:block" />
           <nav className="lg:p-3 sm:p-0 space-y-1">
             {tabs.map((tab) => {
               const badge = tabMeta[tab.id as TabId];
@@ -237,8 +240,8 @@ export default function AccountDashboardClient({
                   onClick={() => setActiveTab(tab.id as TabId)}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-all ${
                     activeTab === tab.id
-                      ? "bg-[#E4C56C] text-[#2f3e36] shadow-sm"
-                      : "text-stone-600 hover:bg-stone-100 hover:text-stone-800"
+                      ? "bg-[linear-gradient(135deg,#f1c684_0%,#d97745_100%)] text-[#1c1510] shadow-[0_14px_26px_rgba(217,119,69,0.16)]"
+                      : "text-[var(--smk-text-muted)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--smk-text)]"
                   }`}
                 >
                   <tab.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -247,8 +250,8 @@ export default function AccountDashboardClient({
                     <span
                       className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-4 ${
                         activeTab === tab.id
-                          ? "bg-[#2f3e36]/15 text-[#2f3e36]"
-                          : "bg-stone-200 text-stone-500"
+                          ? "bg-[rgba(28,21,16,0.12)] text-[#1c1510]"
+                          : "bg-[rgba(255,255,255,0.08)] text-[var(--smk-text-dim)]"
                       }`}
                     >
                       {badge}
@@ -275,45 +278,48 @@ export default function AccountDashboardClient({
             initialPostalCode={profile.postalCode}
             initialCity={profile.city}
             initialCountry={profile.country}
+            initialShippingAddressType={profile.shippingAddressType}
+            initialPackstationNumber={profile.packstationNumber}
+            initialPostNumber={profile.postNumber}
           />
         )}
 
         {/* Orders */}
         {activeTab === "orders" && (
-          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6 lg:flex lg:h-full lg:flex-col">
+          <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-6 lg:flex lg:h-full lg:flex-col">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+              <h2 className="text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                 BESTELLUNGEN
               </h2>
               {orders.length > 0 && (
-                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
                   {orders.length}
                 </span>
               )}
             </div>
             {orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
-                  <ShoppingBagIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)]">
+                  <ShoppingBagIcon className="h-7 w-7 text-[var(--smk-text-dim)]" aria-hidden="true" />
                 </div>
-                <p className="text-sm font-semibold text-stone-600">
+                <p className="text-sm font-semibold text-[var(--smk-text)]">
                   Noch keine Bestellungen
                 </p>
-                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                <p className="mt-1 max-w-xs text-xs text-[var(--smk-text-muted)]">
                   Sobald du bestellst, erscheinen deine Bestellungen hier.
                 </p>
               </div>
             ) : (
               <div className="pretty-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
                 {reorderMessage && (
-                  <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  <p className="mb-3 rounded-lg border border-[rgba(127,207,150,0.26)] bg-[rgba(22,52,39,0.82)] px-3 py-2 text-xs text-[#9fe3b2]">
                     {reorderMessage}
                   </p>
                 )}
                 <ul className="space-y-3 text-sm">
                   {orders.map((order) => (
                     <li key={order.id}>
-                      <div className="rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 px-3 py-3 shadow-sm sm:px-4">
+                      <div className="rounded-[22px] border border-[var(--smk-border-strong)] bg-[radial-gradient(circle_at_top_right,rgba(233,188,116,0.14),transparent_34%),linear-gradient(180deg,rgba(27,23,20,0.98),rgba(15,14,13,0.98))] px-3 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:px-4">
                         <Link
                           href={`/account/orders/${order.id}`}
                           target="_blank"
@@ -339,10 +345,10 @@ export default function AccountDashboardClient({
                             </div>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full bg-white px-2 py-1 text-emerald-800">
+                            <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.08)] px-2 py-1 text-[var(--smk-text)]">
                               Status: {order.status}
                             </span>
-                            <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
+                            <span className="rounded-full border border-[rgba(240,180,93,0.26)] bg-[rgba(66,46,16,0.82)] px-2 py-1 text-[#f4c87c]">
                               Zahlung: {order.paymentStatus}
                             </span>
                           </div>
@@ -396,7 +402,7 @@ export default function AccountDashboardClient({
                                 setReorderBusyId(null);
                               }
                             }}
-                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                            className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.08)] px-3 text-xs font-semibold text-[var(--smk-text)] transition hover:bg-[rgba(255,255,255,0.12)] disabled:opacity-60"
                           >
                             {reorderBusyId === order.id ? (
                               <>
@@ -422,26 +428,26 @@ export default function AccountDashboardClient({
 
         {/* Wishlist */}
         {activeTab === "wishlist" && (
-          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
+          <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-6">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+              <h2 className="text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                 WUNSCHLISTE
               </h2>
               {wishlistCount > 0 && (
-                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
                   {wishlistCount} Artikel
                 </span>
               )}
             </div>
             {wishlistPreview.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
-                  <HeartIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)]">
+                  <HeartIcon className="h-7 w-7 text-[var(--smk-text-dim)]" aria-hidden="true" />
                 </div>
-                <p className="text-sm font-semibold text-stone-600">
+                <p className="text-sm font-semibold text-[var(--smk-text)]">
                   Noch keine Artikel
                 </p>
-                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                <p className="mt-1 max-w-xs text-xs text-[var(--smk-text-muted)]">
                   Füge Produkte zu deiner Wunschliste hinzu.
                 </p>
               </div>
@@ -451,9 +457,9 @@ export default function AccountDashboardClient({
                   <li key={item.id}>
                     <Link
                       href={`/products/${item.handle}`}
-                      className="flex items-center gap-3 rounded-xl border border-black/8 bg-stone-50/50 p-2.5 text-sm transition hover:border-black/15 hover:bg-white hover:shadow-sm"
+                      className="flex items-center gap-3 rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-2.5 text-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] hover:shadow-[0_14px_28px_rgba(0,0,0,0.16)]"
                     >
-                      <div className="relative h-14 w-14 flex-none overflow-hidden rounded-lg bg-stone-100">
+                      <div className="smk-white-well relative h-14 w-14 flex-none overflow-hidden rounded-lg border">
                         {item.featuredImage?.url ? (
                           <Image
                             src={item.featuredImage.url}
@@ -463,20 +469,20 @@ export default function AccountDashboardClient({
                             className="object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-stone-400">
+                          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
                             --
                           </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold text-stone-800">
+                        <div className="truncate font-semibold text-[var(--smk-text)]">
                           {item.title}
                         </div>
-                        <div className="mt-0.5 text-xs text-stone-500">
+                        <div className="mt-0.5 text-xs text-[var(--smk-text-muted)]">
                           {formatProductPrice(item.priceRange?.minVariantPrice)}
                         </div>
                       </div>
-                      <span className="shrink-0 text-xs text-stone-400">→</span>
+                      <span className="shrink-0 text-xs text-[var(--smk-text-dim)]">→</span>
                     </Link>
                   </li>
                 ))}
@@ -484,7 +490,7 @@ export default function AccountDashboardClient({
             )}
             <Link
               href="/wishlist"
-              className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-black/10 px-4 py-2.5 text-xs font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50 sm:w-auto"
+              className="smk-button-secondary mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-semibold sm:w-auto"
             >
               Zur Wunschliste →
             </Link>
@@ -493,31 +499,31 @@ export default function AccountDashboardClient({
 
         {/* Setups */}
         {activeTab === "setups" && (
-          <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
+          <section className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-6">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-widest text-black/70">
+              <h2 className="text-sm font-semibold tracking-widest text-[var(--smk-text-dim)]">
                 GESPEICHERTE KONFIGURATIONEN
               </h2>
               {setupItems.length > 0 && (
-                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
                   {setupItems.length}
                 </span>
               )}
             </div>
             {setupItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
-                  <AdjustmentsHorizontalIcon className="h-7 w-7 text-stone-400" aria-hidden="true" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)]">
+                  <AdjustmentsHorizontalIcon className="h-7 w-7 text-[var(--smk-text-dim)]" aria-hidden="true" />
                 </div>
-                <p className="text-sm font-semibold text-stone-600">
+                <p className="text-sm font-semibold text-[var(--smk-text)]">
                   Noch keine Setups
                 </p>
-                <p className="mt-1 max-w-xs text-xs text-stone-400">
+                <p className="mt-1 max-w-xs text-xs text-[var(--smk-text-muted)]">
                   Speichere dein erstes Setup im Customizer.
                 </p>
                 <Link
                   href="/customizer"
-                  className="mt-4 inline-flex items-center rounded-lg border border-black/10 px-4 py-2 text-xs font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50"
+                  className="smk-button-secondary mt-4 inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold"
                 >
                   Zum Customizer →
                 </Link>
@@ -531,9 +537,9 @@ export default function AccountDashboardClient({
                   return (
                     <li
                       key={setup.id}
-                      className="group relative overflow-hidden rounded-xl border border-emerald-800/60 bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 p-4 text-white shadow-md transition hover:border-emerald-700 hover:shadow-lg"
+                      className="group relative overflow-hidden rounded-[22px] border border-[var(--smk-border-strong)] bg-[radial-gradient(circle_at_top_right,rgba(233,188,116,0.16),transparent_34%),linear-gradient(180deg,rgba(27,23,20,0.98),rgba(15,14,13,0.98))] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition hover:border-[rgba(233,188,116,0.28)] hover:shadow-[0_22px_44px_rgba(0,0,0,0.22)]"
                     >
-                      <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-400/20 blur-2xl" />
+                      <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-[rgba(233,188,116,0.18)] blur-2xl" />
                       <div className="relative flex items-start justify-between gap-3">
                         <Link
                           href={buildSetupHref(setup)}
@@ -570,7 +576,7 @@ export default function AccountDashboardClient({
                             }
                           }}
                           disabled={setupBusyId === setup.id}
-                          className="shrink-0 rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:opacity-60"
+                          className="shrink-0 rounded-lg border border-[rgba(239,143,127,0.28)] bg-[rgba(62,26,24,0.82)] p-2 text-[#ef8f7f] transition hover:bg-[rgba(76,32,29,0.9)] disabled:opacity-60"
                           aria-label="Setup löschen"
                           title="Setup löschen"
                         >
@@ -599,7 +605,7 @@ export default function AccountDashboardClient({
               </ul>
             )}
             {setupMessage && (
-              <p className="mt-3 text-xs text-stone-600">{setupMessage}</p>
+              <p className="mt-3 text-xs text-[var(--smk-text-muted)]">{setupMessage}</p>
             )}
           </section>
         )}

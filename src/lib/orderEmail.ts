@@ -44,6 +44,7 @@ type EmailType =
 type OrderEmailOptions = {
   storefront?: StorefrontCode | null;
   fallbackOrigin?: string | null;
+  receiptUrl?: string;
 };
 
 const formatPrice = (amount: number, currency: string) =>
@@ -162,6 +163,7 @@ export function buildOrderEmail(
   const brand = getStorefrontEmailBrand(storefront);
   const links = getStorefrontLinks(storefront, options?.fallbackOrigin);
   const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const receiptUrl = storefront === "MAIN" ? options?.receiptUrl : undefined;
   const discountLabel = order.discountCode
     ? `Rabatt (${order.discountCode})`
     : "Rabatt";
@@ -256,6 +258,7 @@ export function buildOrderEmail(
         reviewInviteText ? `\n${reviewInviteText}` : "",
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
         invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
+        receiptUrl ? `Beleg herunterladen: ${receiptUrl}` : "",
       ].join("\n"),
       html: emailOuter(`
         ${emailHeader(headerTitle, headerSubtitle, {
@@ -328,10 +331,11 @@ export function buildOrderEmail(
             </div>
 
             ${
-              orderUrl || invoiceUrl
+              orderUrl || invoiceUrl || receiptUrl
                 ? `<div style="margin-top:28px;text-align:center;">
                 ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen", brand) : ""}
                 ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen", brand) : ""}
+                ${receiptUrl ? secondaryBtn(receiptUrl, "Beleg herunterladen", brand) : ""}
               </div>`
                 : ""
             }

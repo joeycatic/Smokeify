@@ -1,71 +1,53 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import type { ShippingCountry } from "@/lib/shippingPolicy";
+import CheckoutStartClient from "@/app/checkout/start/CheckoutStartClient";
 
-export default function CheckoutStartPage() {
-  const router = useRouter();
-  const startedRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+const toShippingCountry = (value?: string): ShippingCountry => {
+  const normalized = value?.trim().toUpperCase();
+  switch (normalized) {
+    case "AT":
+    case "CH":
+    case "DE":
+    case "EU":
+    case "OTHER":
+    case "UK":
+    case "US":
+      return normalized;
+    default:
+      return "DE";
+  }
+};
 
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-
-    const start = async () => {
-      try {
-        const res = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ country: "DE" }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | { url?: string; error?: string }
-          | null;
-        if (!res.ok || !data?.url) {
-          setError(data?.error ?? "Checkout konnte nicht gestartet werden.");
-          return;
-        }
-        window.location.assign(data.url);
-      } catch {
-        setError("Checkout konnte nicht gestartet werden.");
-      }
-    };
-
-    void start();
-  }, []);
+export default async function CheckoutStartPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const country = toShippingCountry(
+    Array.isArray(resolvedSearchParams.country)
+      ? resolvedSearchParams.country[0]
+      : resolvedSearchParams.country,
+  );
+  const discountCode = Array.isArray(resolvedSearchParams.discountCode)
+    ? resolvedSearchParams.discountCode[0] ?? ""
+    : resolvedSearchParams.discountCode ?? "";
+  const useLoyaltyPoints = Array.isArray(resolvedSearchParams.useLoyaltyPoints)
+    ? resolvedSearchParams.useLoyaltyPoints[0] === "1"
+    : resolvedSearchParams.useLoyaltyPoints === "1";
+  const publishableKey =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
+    process.env.STRIPE_PUBLISHABLE_KEY ??
+    "";
 
   return (
     <PageLayout commerce>
-      <div className="mx-auto flex min-h-[50vh] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
-        {error ? (
-          <>
-            <p className="text-lg font-semibold text-stone-900">
-              Checkout fehlgeschlagen
-            </p>
-            <p className="mt-2 text-sm text-stone-500">{error}</p>
-            <button
-              type="button"
-              onClick={() => router.push("/cart")}
-              className="mt-5 rounded-xl bg-[#2f3e36] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#24312b]"
-            >
-              Zum Warenkorb
-            </button>
-          </>
-        ) : (
-          <>
-            <LoadingSpinner
-              size="md"
-              className="border-[#2f3e36]/30 border-t-[#2f3e36]"
-            />
-            <p className="mt-4 text-sm font-medium text-stone-700">
-              Du wirst zum sicheren Checkout weitergeleitet...
-            </p>
-          </>
-        )}
-      </div>
+      <CheckoutStartClient
+        initialCountry={country}
+        initialDiscountCode={discountCode}
+        initialUseLoyaltyPoints={useLoyaltyPoints}
+        publishableKey={publishableKey}
+      />
     </PageLayout>
   );
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildRefundRequestEmail } from "@/lib/refundRequestEmail";
 import { buildRefundRequestUrl } from "@/lib/refundRequestLink";
+import { buildReceiptUrl } from "@/lib/receiptLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import {
   getStorefrontOrigin,
@@ -96,6 +97,10 @@ export async function sendAdminOrderEmailForOrder(input: {
     : guestOrderUrl ?? undefined;
   const invoiceUrl =
     input.type === "confirmation" ? buildInvoiceUrl(origin, input.order.id) : null;
+  const receiptUrl =
+    input.type === "confirmation" && storefront === "MAIN"
+      ? buildReceiptUrl(origin, input.order.id)
+      : null;
 
   const email =
     input.type === "refund_request"
@@ -121,7 +126,11 @@ export async function sendAdminOrderEmailForOrder(input: {
           input.order,
           orderUrl,
           invoiceUrl ?? undefined,
-          { storefront, fallbackOrigin: origin },
+          {
+            storefront,
+            fallbackOrigin: origin,
+            receiptUrl: receiptUrl ?? undefined,
+          },
         );
 
   await sendResendEmail({

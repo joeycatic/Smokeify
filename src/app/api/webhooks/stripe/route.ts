@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { buildReceiptUrl } from "@/lib/receiptLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { captureException } from "@/lib/sentry";
@@ -725,12 +726,18 @@ export const createOrderFromSession = async (
         ? `${origin}/account/orders/${created.id}`
           : guestOrderUrl ?? undefined;
       const invoiceUrl = buildInvoiceUrl(origin, created.id);
+      const receiptUrl =
+        storefront === "MAIN" ? buildReceiptUrl(origin, created.id) : null;
       const email = buildOrderEmail(
         "confirmation",
         created,
         orderUrl,
         invoiceUrl ?? undefined,
-        { storefront, fallbackOrigin: origin },
+        {
+          storefront,
+          fallbackOrigin: origin,
+          receiptUrl: receiptUrl ?? undefined,
+        },
       );
       await sendResendEmail({
         to: created.customerEmail,

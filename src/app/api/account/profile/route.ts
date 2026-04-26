@@ -4,6 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import {
+  normalizeShippingAddress,
+  validateShippingAddress,
+} from "@/lib/shippingAddress";
+import {
+  isMissingCheckoutAddressColumnError,
+  loadCheckoutUser,
+} from "@/lib/checkoutUser";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -11,22 +19,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      street: true,
-      houseNumber: true,
-      postalCode: true,
-      city: true,
-      country: true,
-      loyaltyPointsBalance: true,
-    },
-  });
+  const user = await loadCheckoutUser(session.user.id);
 
   return NextResponse.json({ user });
 }
@@ -62,6 +55,9 @@ export async function POST(request: Request) {
     postalCode?: string;
     city?: string;
     country?: string;
+    shippingAddressType?: string;
+    packstationNumber?: string;
+    postNumber?: string;
   };
 
   const email = body.email?.trim().toLowerCase() || undefined;
@@ -73,6 +69,11 @@ export async function POST(request: Request) {
       { error: "Vorname und Nachname sind erforderlich." },
       { status: 400 }
     );
+  }
+  const shippingAddress = normalizeShippingAddress(body);
+  const shippingAddressError = validateShippingAddress(shippingAddress);
+  if (shippingAddressError) {
+    return NextResponse.json({ error: shippingAddressError }, { status: 400 });
   }
   if (email && email !== session.user.email) {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -90,33 +91,81 @@ export async function POST(request: Request) {
     }
   }
 
-  const user = await prisma.user.update({
-    where: { id: session.user.id },
-    data: {
-      name,
-      email,
-      firstName,
-      lastName,
-      street: body.street?.trim() || undefined,
-      houseNumber: body.houseNumber?.trim() || undefined,
-      postalCode: body.postalCode?.trim() || undefined,
-      city: body.city?.trim() || undefined,
-      country: body.country?.trim() || undefined,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      street: true,
-      houseNumber: true,
-      postalCode: true,
-      city: true,
-      country: true,
-      loyaltyPointsBalance: true,
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        name,
+        email,
+        firstName,
+        lastName,
+        street: shippingAddress.street,
+        houseNumber: shippingAddress.houseNumber,
+        postalCode: shippingAddress.postalCode,
+        city: shippingAddress.city,
+        country: shippingAddress.country,
+        shippingAddressType: shippingAddress.shippingAddressType,
+        packstationNumber: shippingAddress.packstationNumber,
+        postNumber: shippingAddress.postNumber,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        street: true,
+        houseNumber: true,
+        postalCode: true,
+        city: true,
+        country: true,
+        shippingAddressType: true,
+        packstationNumber: true,
+        postNumber: true,
+        loyaltyPointsBalance: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingCheckoutAddressColumnError(error)) {
+      throw error;
+    }
+
+    const legacyUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        name,
+        email,
+        firstName,
+        lastName,
+        street: shippingAddress.street,
+        houseNumber: shippingAddress.houseNumber,
+        postalCode: shippingAddress.postalCode,
+        city: shippingAddress.city,
+        country: shippingAddress.country,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        street: true,
+        houseNumber: true,
+        postalCode: true,
+        city: true,
+        country: true,
+        loyaltyPointsBalance: true,
+      },
+    });
+
+    user = {
+      ...legacyUser,
+      shippingAddressType: null,
+      packstationNumber: null,
+      postNumber: null,
+    };
+  }
 
   return NextResponse.json({ user });
 }

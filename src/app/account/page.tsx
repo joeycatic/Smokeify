@@ -11,6 +11,7 @@ import {
   formatRedeemRateLabel,
   getLoyaltyPointsPerEuro,
 } from "@/lib/loyalty";
+import { loadCheckoutUser } from "@/lib/checkoutUser";
 
 type LoyaltyTransactionRow = {
   id: string;
@@ -21,6 +22,7 @@ type LoyaltyTransactionRow = {
 };
 
 type AccountUserRow = {
+  id: string;
   name: string | null;
   email: string | null;
   firstName: string | null;
@@ -30,6 +32,10 @@ type AccountUserRow = {
   postalCode: string | null;
   city: string | null;
   country: string | null;
+  shippingAddressType: string | null;
+  packstationNumber: string | null;
+  postNumber: string | null;
+  loyaltyPointsBalance: number;
 };
 
 const isMissingRelationError = (error: unknown, relation: string) =>
@@ -46,20 +52,17 @@ export default async function AccountPage() {
   if (!session?.user?.id) {
     return (
       <PageLayout commerce>
-        <div className="mx-auto max-w-4xl px-6 py-12 text-stone-800">
-          <h1
-            className="text-2xl font-bold mb-4 sm:text-3xl"
-            style={{ color: "#2f3e36" }}
-          >
+        <div className="smk-storefront-legacy mx-auto max-w-4xl px-6 py-12 text-[var(--smk-text)]">
+          <h1 className="smk-heading mb-4 text-2xl sm:text-3xl">
             Account
           </h1>
-          <p className="text-stone-600 mb-6">
+          <p className="mb-6 text-[var(--smk-text-muted)]">
             Melde dich an, um Setups zu speichern, Wunschlisten zu verwalten und
             Bestellungen einzusehen.
           </p>
           <Link
             href="/api/auth/signin"
-            className="inline-flex w-full justify-center rounded-md bg-black px-4 py-2 text-sm font-semibold text-white sm:w-auto"
+            className="smk-button-primary inline-flex w-full justify-center rounded-full px-5 py-3 text-sm font-semibold sm:w-auto"
           >
             Sign in
           </Link>
@@ -84,20 +87,7 @@ export default async function AccountPage() {
         take: 4,
         select: { productId: true },
       }),
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          name: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          street: true,
-          houseNumber: true,
-          postalCode: true,
-          city: true,
-          country: true,
-        },
-      }),
+      loadCheckoutUser(session.user.id),
       (async () => {
         try {
           return await prisma.$queryRaw<Array<{ loyaltyPointsBalance: number }>>`
@@ -211,27 +201,27 @@ export default async function AccountPage() {
 
   return (
     <PageLayout commerce>
-      <div className="mx-auto max-w-5xl px-6 py-8 text-stone-800">
+      <div className="smk-storefront-legacy smk-account-scope mx-auto max-w-5xl px-6 py-8 text-[var(--smk-text)]">
         {/* User hero card */}
-        <div className="mb-7 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-          <div className="h-2 w-full bg-gradient-to-r from-[#2f3e36] via-[#44584c] to-[#2f3e36]" />
+        <div className="mb-7 overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+          <div className="h-2 w-full bg-[linear-gradient(90deg,#f1c684_0%,#e9bc74_45%,#d97745_100%)]" />
           <div className="flex flex-wrap items-center gap-4 px-5 py-5 sm:px-6">
             <div
-              className="flex shrink-0 items-center justify-center rounded-full bg-[#2f3e36] text-xl font-bold text-[#E4C56C] ring-4 ring-[#E4C56C]/20"
+              className="flex shrink-0 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)] text-xl font-bold text-[var(--smk-accent-2)] ring-4 ring-[rgba(233,188,116,0.12)]"
               style={{ height: 54, width: 54 }}
             >
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold text-stone-900">
+              <p className="truncate text-base font-semibold text-[var(--smk-text)]">
                 {displayName}
               </p>
-              <p className="truncate text-sm text-stone-500">
+              <p className="truncate text-sm text-[var(--smk-text-muted)]">
                 {session.user.email}
               </p>
             </div>
             {session.user.role === "ADMIN" && (
-              <span className="shrink-0 rounded-full bg-[#2f3e36] px-3 py-1 text-xs font-semibold text-[#E4C56C]">
+              <span className="shrink-0 rounded-full border border-[var(--smk-border-strong)] bg-[rgba(233,188,116,0.12)] px-3 py-1 text-xs font-semibold text-[var(--smk-accent-2)]">
                 Admin
               </span>
             )}
@@ -249,6 +239,9 @@ export default async function AccountPage() {
             postalCode: user?.postalCode ?? "",
             city: user?.city ?? "",
             country: user?.country ?? "",
+            shippingAddressType: user?.shippingAddressType ?? "STREET",
+            packstationNumber: user?.packstationNumber ?? "",
+            postNumber: user?.postNumber ?? "",
           }}
           wishlistCount={wishlistCount}
           wishlistPreview={wishlistPreview}
@@ -256,22 +249,22 @@ export default async function AccountPage() {
           orders={orderItems}
         />
 
-        <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 sm:p-5">
-          <p className="mb-3 text-[11px] font-semibold tracking-widest text-black/40">
+        <div className="mt-6 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
+          <p className="mb-3 text-[11px] font-semibold tracking-widest text-[var(--smk-text-dim)]">
             SMOKEIFY PUNKTE
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-[var(--smk-text-muted)]">
               Aktueller Stand
             </p>
-            <p className="text-2xl font-bold text-[#2f3e36]">
+            <p className="text-2xl font-bold text-[var(--smk-accent-2)]">
               {loyaltyPointsBalance}
             </p>
           </div>
-          <p className="mt-1 text-xs text-stone-500">
+          <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
             Smokeify Punkte sind dein Shop-Guthaben für spätere Bestellungen.
           </p>
-          <p className="mt-1 text-xs text-stone-500">
+          <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
             Du erhältst standardmäßig {loyaltyPointsPerEuro} Smokeify Punkt{loyaltyPointsPerEuro === 1 ? "" : "e"} pro 1,00 EUR Warenwert. Beim Einlösen wird dein Warenkorb direkt günstiger: {formatRedeemRateLabel()}.
           </p>
           {loyaltyTransactions.length > 0 && (
@@ -284,9 +277,9 @@ export default async function AccountPage() {
               }) => (
                 <li
                   key={entry.id}
-                  className="flex items-center justify-between rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-xs"
+                  className="flex items-center justify-between rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs"
                 >
-                  <span className="text-stone-600">
+                  <span className="text-[var(--smk-text-muted)]">
                     {entry.reason === "order_paid"
                       ? "Bestellung bezahlt"
                       : entry.reason.startsWith("loyalty_hold:")
@@ -299,7 +292,7 @@ export default async function AccountPage() {
                     · {new Date(entry.createdAt).toLocaleDateString("de-DE")}
                   </span>
                   <span
-                    className={`font-semibold ${entry.pointsDelta >= 0 ? "text-emerald-700" : "text-amber-700"}`}
+                    className={`font-semibold ${entry.pointsDelta >= 0 ? "text-[#9fe3b2]" : "text-[#f4c87c]"}`}
                   >
                     {entry.pointsDelta > 0 ? "+" : ""}
                     {entry.pointsDelta}
@@ -311,8 +304,8 @@ export default async function AccountPage() {
         </div>
 
         {/* Konto-Aktionen */}
-        <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 sm:p-5">
-          <p className="mb-3 text-[11px] font-semibold tracking-widest text-black/40">
+        <div className="mt-6 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
+          <p className="mb-3 text-[11px] font-semibold tracking-widest text-[var(--smk-text-dim)]">
             KONTO-AKTIONEN
           </p>
           <div className="flex flex-wrap items-center gap-3">
@@ -321,7 +314,7 @@ export default async function AccountPage() {
             {session.user.role === "ADMIN" && (
               <Link
                 href="/admin"
-                className="inline-flex h-11 w-full items-center justify-center rounded-md border border-black/10 bg-white px-5 text-sm font-semibold text-stone-700 transition hover:border-black/20 sm:h-12 sm:w-auto sm:text-base"
+                className="smk-button-secondary inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold sm:h-12 sm:w-auto sm:text-base"
               >
                 Zum Admin Panel
               </Link>

@@ -5,6 +5,7 @@ import { logAdminAction } from "@/lib/adminAuditLog";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
+import { buildReceiptUrl } from "@/lib/receiptLink";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
@@ -249,6 +250,10 @@ export async function POST(request: Request) {
   const origin = emailOrigin;
   const invoiceUrl =
     type === "confirmation" ? buildInvoiceUrl(origin, order.id) : null;
+  const receiptUrl =
+    type === "confirmation" && storefront === "MAIN"
+      ? buildReceiptUrl(origin, order.id)
+      : null;
   const email = buildOrderEmail(
     type,
     {
@@ -269,7 +274,11 @@ export async function POST(request: Request) {
     },
     undefined,
     invoiceUrl ?? undefined,
-    { storefront, fallbackOrigin: origin }
+    {
+      storefront,
+      fallbackOrigin: origin,
+      receiptUrl: receiptUrl ?? undefined,
+    }
   );
 
   try {

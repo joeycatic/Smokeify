@@ -37,12 +37,16 @@ describe("orderEmail", () => {
       sampleOrder,
       "https://smokeify.test/account/orders/ord_test_12345678",
       "https://smokeify.test/api/orders/ord_test_12345678/invoice",
-      { fallbackOrigin: "https://smokeify.test" },
+      {
+        fallbackOrigin: "https://smokeify.test",
+        receiptUrl: "https://smokeify.test/api/orders/ord_test_12345678/receipt",
+      },
     );
 
     expect(email.html).toContain("Smokeify");
     expect(email.html).toContain("https://smokeify.test/products");
     expect(email.text).toContain("bei Smokeify");
+    expect(email.html).toContain("Beleg herunterladen");
   });
 
   it("renders GrowVault branding when storefront is GROW", () => {

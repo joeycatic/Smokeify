@@ -311,6 +311,9 @@ model User {
   postalCode                      String?
   city                            String?
   country                         String?
+  shippingAddressType             String?
+  packstationNumber               String?
+  postNumber                      String?
   birthDate                       DateTime?
   email                           String?                    @unique
   emailVerified                   DateTime?

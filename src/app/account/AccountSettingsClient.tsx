@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import DiscordLinkSection from "./DiscordLinkSection";
+import { SHIPPING_ADDRESS_TYPES } from "@/lib/shippingAddress";
 
 type Props = {
   initialName: string;
@@ -14,6 +15,9 @@ type Props = {
   initialPostalCode: string;
   initialCity: string;
   initialCountry: string;
+  initialShippingAddressType: string;
+  initialPackstationNumber: string;
+  initialPostNumber: string;
 };
 
 export default function AccountSettingsClient({
@@ -26,6 +30,9 @@ export default function AccountSettingsClient({
   initialPostalCode,
   initialCity,
   initialCountry,
+  initialShippingAddressType,
+  initialPackstationNumber,
+  initialPostNumber,
 }: Props) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
@@ -36,6 +43,13 @@ export default function AccountSettingsClient({
   const [postalCode, setPostalCode] = useState(initialPostalCode);
   const [city, setCity] = useState(initialCity);
   const [country, setCountry] = useState(initialCountry);
+  const [shippingAddressType, setShippingAddressType] = useState(
+    initialShippingAddressType === "PACKSTATION" ? "PACKSTATION" : "STREET",
+  );
+  const [packstationNumber, setPackstationNumber] = useState(
+    initialPackstationNumber,
+  );
+  const [postNumber, setPostNumber] = useState(initialPostNumber);
   const [profileStatus, setProfileStatus] = useState<
     "idle" | "saving" | "ok" | "error"
   >("idle");
@@ -63,6 +77,9 @@ export default function AccountSettingsClient({
           postalCode,
           city,
           country,
+          shippingAddressType,
+          packstationNumber,
+          postNumber,
         }),
       });
       if (!res.ok) {
@@ -147,24 +164,87 @@ export default function AccountSettingsClient({
             LIEFERADRESSE
           </p>
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className={labelClass}>Straße</label>
-              <input
-                type="text"
-                value={street}
-                onChange={(event) => setStreet(event.target.value)}
-                className={inputClass}
-              />
+            <div className="md:col-span-2">
+              <label className={labelClass}>Adressart</label>
+              <div className="grid gap-3 md:grid-cols-2">
+                {SHIPPING_ADDRESS_TYPES.map((value) => {
+                  const active = shippingAddressType === value;
+                  const title =
+                    value === "PACKSTATION"
+                      ? "DHL Packstation"
+                      : "Straßenadresse";
+                  const description =
+                    value === "PACKSTATION"
+                      ? "Packstation + Postnummer für DHL in Deutschland."
+                      : "Klassische Lieferadresse mit Straße und Hausnummer.";
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setShippingAddressType(value);
+                        if (value === "PACKSTATION") {
+                          setCountry("DE");
+                        }
+                      }}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        active
+                          ? "border-[#44584c]/30 bg-[#44584c]/8"
+                          : "border-black/10 bg-stone-50 hover:border-black/20 hover:bg-white"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-stone-900">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                        {description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div>
-              <label className={labelClass}>Hausnummer</label>
-              <input
-                type="text"
-                value={houseNumber}
-                onChange={(event) => setHouseNumber(event.target.value)}
-                className={inputClass}
-              />
-            </div>
+            {shippingAddressType === "PACKSTATION" ? (
+              <>
+                <div>
+                  <label className={labelClass}>Packstation</label>
+                  <input
+                    type="text"
+                    value={packstationNumber}
+                    onChange={(event) => setPackstationNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Postnummer</label>
+                  <input
+                    type="text"
+                    value={postNumber}
+                    onChange={(event) => setPostNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className={labelClass}>Straße</label>
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(event) => setStreet(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Hausnummer</label>
+                  <input
+                    type="text"
+                    value={houseNumber}
+                    onChange={(event) => setHouseNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className={labelClass}>Postleitzahl</label>
               <input
@@ -189,9 +269,24 @@ export default function AccountSettingsClient({
                 type="text"
                 value={country}
                 onChange={(event) => setCountry(event.target.value)}
+                disabled={shippingAddressType === "PACKSTATION"}
                 className={inputClass}
               />
             </div>
+            {shippingAddressType === "PACKSTATION" && (
+              <p className="md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Für Packstationen wird im Checkout automatisch
+                {" "}
+                <span className="font-semibold">
+                  Packstation {packstationNumber || "..."}
+                </span>
+                {" "}und{" "}
+                <span className="font-semibold">
+                  Postnummer {postNumber || "..."}
+                </span>
+                {" "}an Stripe übergeben.
+              </p>
+            )}
           </div>
         </div>
 

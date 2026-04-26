@@ -3,9 +3,12 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { verifyGuestCheckoutAccess } from "@/lib/checkoutAccess";
+import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { buildReceiptUrl } from "@/lib/receiptLink";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { getAppOrigin } from "@/lib/appOrigin";
 import {
   calculateVatComponentsFromGross,
   canApplyDefaultVatFallback,
@@ -160,6 +163,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
+    const origin = getAppOrigin(request);
     const items = await enrichItemsWithManufacturer(
       existing.items.map((item) => ({
         ...item,
@@ -187,6 +191,8 @@ export async function POST(request: Request) {
         shippingPostalCode: existing.shippingPostalCode,
         shippingCity: existing.shippingCity,
         shippingCountry: existing.shippingCountry,
+        invoiceUrl: buildInvoiceUrl(origin, existing.id),
+        receiptUrl: buildReceiptUrl(origin, existing.id),
         items,
       },
     });
