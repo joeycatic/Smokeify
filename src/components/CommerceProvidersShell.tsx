@@ -1,7 +1,5 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
-import CommerceProviders from "@/components/CommerceProviders";
 import NewsletterOfferPopup from "@/components/NewsletterOfferPopup";
 import {
   NavbarCategoriesProvider,
@@ -16,12 +14,9 @@ export default function CommerceProvidersShell({
   initialNavbarCategories: NavbarCategory[];
 }) {
   return (
-    <SessionProvider>
-      <NavbarCategoriesProvider categories={initialNavbarCategories}>
-        <CommerceProviders>{children}</CommerceProviders>
-      </NavbarCategoriesProvider>
+    <NavbarCategoriesProvider categories={initialNavbarCategories}>
+      {children}
       <NewsletterOfferPopup />
-    </SessionProvider>
+    </NavbarCategoriesProvider>
   );
 }
-

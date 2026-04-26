@@ -17,7 +17,7 @@ type LayoutSectionProps = {
 
 function PageShell({ children }: LayoutSectionProps) {
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col">
+    <main className="smk-shell flex min-h-screen flex-col">
       {children}
     </main>
   );
@@ -25,7 +25,7 @@ function PageShell({ children }: LayoutSectionProps) {
 
 function PageContainer({ children }: LayoutSectionProps) {
   return (
-    <div className="mx-auto w-full flex-1 px-3 sm:px-4 lg:max-w-6xl">
+    <div className="mx-auto w-full flex-1 px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
       {children}
     </div>
   );

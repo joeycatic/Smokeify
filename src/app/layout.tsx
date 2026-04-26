@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
-import { Manrope } from "next/font/google";
+import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 
 const siteUrl =
@@ -10,6 +10,13 @@ const siteUrl =
 const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-fraunces",
 });
 
 export const metadata: Metadata = {
@@ -71,7 +78,9 @@ export default async function RootLayout({
   return (
     <html lang="de">
       <head />
-      <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
+      <body
+        className={`${manrope.variable} ${fraunces.variable} min-h-screen bg-[var(--smk-bg)] font-[family:var(--font-manrope)] text-[var(--smk-text)] antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
