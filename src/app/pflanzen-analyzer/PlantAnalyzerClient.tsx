@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { prepareAnalyzerImageFile } from "@/app/pflanzen-analyzer/clientImageUpload";
+import { useCart } from "@/components/CartProvider";
 import {
   detectPreferredLocale,
   getLoadingSteps,
@@ -21,6 +22,11 @@ import type {
   HistoryReportDetail,
   Locale,
 } from "@/app/pflanzen-analyzer/types";
+import type { PlantAnalyzerAnalysisContext } from "@/lib/plantAnalyzerTypes";
+import type {
+  PlantAnalyzerFeedbackClassification,
+  PlantAnalyzerFeedbackOutcome,
+} from "@/lib/plantAnalyzerRemediationTypes";
 
 const FREE_ANALYSIS_LIMIT = 3;
 const FREE_ANALYSIS_WINDOW_HOURS = 24;
@@ -36,6 +42,10 @@ export default function PlantAnalyzerClient() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageName, setImageName] = useState("");
   const [notes, setNotes] = useState("");
+  const [analysisContext, setAnalysisContext] =
+    useState<PlantAnalyzerAnalysisContext>({});
+  const [recheckBaseline, setRecheckBaseline] =
+    useState<AnalysisHistoryEntry | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -52,11 +62,24 @@ export default function PlantAnalyzerClient() {
   const [selectedHistoryDetailStatus, setSelectedHistoryDetailStatus] =
     useState<AsyncStatus>("idle");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState<AsyncStatus>("idle");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [shoppingListStatus, setShoppingListStatus] = useState<AsyncStatus>("idle");
+  const [shoppingListMessage, setShoppingListMessage] = useState<string | null>(null);
+  const [historyFeedbackStatus, setHistoryFeedbackStatus] =
+    useState<AsyncStatus>("idle");
+  const [historyFeedbackMessage, setHistoryFeedbackMessage] =
+    useState<string | null>(null);
+  const [historyShoppingListStatus, setHistoryShoppingListStatus] =
+    useState<AsyncStatus>("idle");
+  const [historyShoppingListMessage, setHistoryShoppingListMessage] =
+    useState<string | null>(null);
   const analysisSectionRef = useRef<HTMLElement | null>(null);
   const shouldAutoScrollToAnalysisRef = useRef(false);
   const previewUrlRef = useRef<string | null>(null);
   const prepareRequestRef = useRef(0);
   const analyzeAbortRef = useRef<AbortController | null>(null);
+  const { addManyToCart } = useCart();
   const effectiveSessionStatus = hasHydrated ? sessionStatus : "loading";
   const isAuthenticated = effectiveSessionStatus === "authenticated";
   const userRole = hasHydrated ? (session?.user?.role ?? "USER") : "USER";
@@ -72,6 +95,13 @@ export default function PlantAnalyzerClient() {
     : Math.max(0, FREE_ANALYSIS_LIMIT - recentAnalysisCount);
   const freeAnalysisUsed = !isPrivilegedUser && freeAnalysesRemaining <= 0;
   const loadingSteps = getLoadingSteps(locale);
+  const previousAnalysis =
+    result?.followUp.previousAnalysisId
+      ? history.find((entry) => entry.id === result.followUp.previousAnalysisId) ??
+        null
+      : result?.analysisId
+        ? history.find((entry) => entry.id !== result.analysisId) ?? null
+        : null;
 
   const clearPreviewUrl = () => {
     if (!previewUrlRef.current) return;
@@ -212,6 +242,83 @@ export default function PlantAnalyzerClient() {
     setError("");
     setStatus("idle");
     setResult(null);
+    setFeedbackMessage(null);
+    setShoppingListMessage(null);
+  };
+
+  const postFeedback = async ({
+    analysisId,
+    helpful,
+    feedbackType,
+    successMessage,
+    setStatus,
+    setMessage,
+    outcome,
+    onStored,
+  }: {
+    analysisId: string;
+    helpful: boolean;
+    feedbackType: PlantAnalyzerFeedbackClassification;
+    successMessage: string;
+    setStatus: (value: AsyncStatus) => void;
+    setMessage: (value: string | null) => void;
+    outcome?: PlantAnalyzerFeedbackOutcome;
+    onStored?: () => void;
+  }) => {
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const res = await fetch("/api/plant-analyzer/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysisId,
+          isCorrect: helpful,
+          feedbackType,
+          outcome,
+        }),
+      });
+      if (!res.ok) {
+        setStatus("error");
+        setMessage(
+          locale === "de"
+            ? "Feedback konnte nicht gespeichert werden."
+            : "Feedback could not be saved.",
+        );
+        return;
+      }
+      setStatus("idle");
+      setMessage(successMessage);
+      onStored?.();
+    } catch {
+      setStatus("error");
+      setMessage(
+        locale === "de"
+          ? "Feedback konnte nicht gespeichert werden."
+          : "Feedback could not be saved.",
+      );
+    }
+  };
+
+  const resolveSuggestedCartItems = async (
+    productSuggestions: AnalyzerResponse["productSuggestions"],
+  ) => {
+    const variants = await Promise.all(
+      productSuggestions.map(async (product) => {
+        const res = await fetch(
+          `/api/products/handle/${encodeURIComponent(product.handle)}/variants`,
+        );
+        if (!res.ok) return null;
+        const data = (await res.json()) as {
+          variants?: Array<{ id: string; available: boolean }>;
+        };
+        return data.variants?.find((variant) => variant.available)?.id ?? null;
+      }),
+    );
+
+    return variants
+      .filter((variantId): variantId is string => Boolean(variantId))
+      .map((variantId) => ({ variantId, quantity: 1 }));
   };
 
   const handleFileChange = async (file: File | null) => {
@@ -304,6 +411,10 @@ export default function PlantAnalyzerClient() {
     shouldAutoScrollToAnalysisRef.current = true;
     setStatus("loading");
     setError("");
+    setFeedbackStatus("idle");
+    setFeedbackMessage(null);
+    setShoppingListStatus("idle");
+    setShoppingListMessage(null);
     const controller = new AbortController();
     analyzeAbortRef.current = controller;
 
@@ -313,6 +424,27 @@ export default function PlantAnalyzerClient() {
       if (notes.trim()) {
         formData.set("notes", notes.trim());
       }
+      if (recheckBaseline?.id) {
+        formData.set("previousAnalysisId", recheckBaseline.id);
+      }
+      (
+        [
+          "medium",
+          "growthStage",
+          "wateringCadence",
+          "ph",
+          "ec",
+          "temperatureC",
+          "humidityPercent",
+          "lightDistanceCm",
+          "lightType",
+          "tentOrRoomSize",
+        ] as const
+      ).forEach((key) => {
+        const value = analysisContext[key];
+        if (value === undefined || value === null || value === "") return;
+        formData.set(key, String(value));
+      });
 
       const res = await fetch("/api/plant-analyzer", {
         method: "POST",
@@ -330,8 +462,17 @@ export default function PlantAnalyzerClient() {
       }
       setResult(data);
       setStatus("success");
-      setHistoryRequested(true);
-      void loadHistory();
+      if (data.storageWarning) {
+        setFeedbackMessage(
+          locale === "de"
+            ? "Die Analyse wurde berechnet, konnte aber nicht im Verlauf gespeichert werden."
+            : "The analysis completed, but it could not be saved to history.",
+        );
+      }
+      if (data.analysisId) {
+        setHistoryRequested(true);
+        void loadHistory();
+      }
     } catch (fetchError) {
       if ((fetchError as Error).name === "AbortError") {
         setStatus("idle");
@@ -346,10 +487,90 @@ export default function PlantAnalyzerClient() {
     }
   };
 
+  const submitFeedback = async ({
+    helpful,
+    feedbackType,
+    successMessage,
+  }: {
+    helpful: boolean;
+    feedbackType: PlantAnalyzerFeedbackClassification;
+    successMessage: string;
+  }) => {
+    if (!result?.analysisId) return;
+    await postFeedback({
+      analysisId: result.analysisId,
+      helpful,
+      feedbackType,
+      successMessage,
+      setStatus: setFeedbackStatus,
+      setMessage: setFeedbackMessage,
+      onStored: () => {
+        setResult((current) =>
+          current
+            ? {
+                ...current,
+                lastFeedback: {
+                  helpful,
+                  classification: feedbackType,
+                  recordedAt: new Date().toISOString(),
+                },
+              }
+            : current,
+        );
+      },
+    });
+  };
+
+  const addSuggestedProductsToCart = async () => {
+    if (!result?.productSuggestions?.length) return;
+    setShoppingListStatus("loading");
+    setShoppingListMessage(null);
+    try {
+      const items = await resolveSuggestedCartItems(
+        result.remediation.productBundle.optionalProducts.length > 0 ||
+          result.remediation.productBundle.setupHelpers.length > 0
+          ? [
+              ...result.remediation.productBundle.optionalProducts,
+              ...result.remediation.productBundle.setupHelpers,
+            ]
+          : result.productSuggestions,
+      );
+
+      if (items.length === 0) {
+        setShoppingListStatus("error");
+        setShoppingListMessage(
+          locale === "de"
+            ? "Keine kaufbaren Empfehlungen gefunden."
+            : "No purchasable recommendations were found.",
+        );
+        return;
+      }
+
+      await addManyToCart(items);
+      setShoppingListStatus("idle");
+      setShoppingListMessage(
+        locale === "de"
+          ? `${result.remediation.productBundle.name} wurde als Checkliste in den Warenkorb gelegt.`
+          : `${result.remediation.productBundle.name} was added to the cart as a checklist.`,
+      );
+    } catch {
+      setShoppingListStatus("error");
+      setShoppingListMessage(
+        locale === "de"
+          ? "Empfohlene Produkte konnten nicht in den Warenkorb gelegt werden."
+          : "Recommended products could not be added to the cart.",
+      );
+    }
+  };
+
   const openHistoryReport = async (entry: AnalysisHistoryEntry) => {
     setSelectedHistoryEntry(entry);
     setSelectedHistoryDetail(null);
     setSelectedHistoryDetailStatus("loading");
+    setHistoryFeedbackStatus("idle");
+    setHistoryFeedbackMessage(null);
+    setHistoryShoppingListStatus("idle");
+    setHistoryShoppingListMessage(null);
 
     try {
       const res = await fetch(`/api/plant-analyzer/history/${entry.id}`, {
@@ -371,6 +592,90 @@ export default function PlantAnalyzerClient() {
     setSelectedHistoryEntry(null);
     setSelectedHistoryDetail(null);
     setSelectedHistoryDetailStatus("idle");
+    setHistoryFeedbackStatus("idle");
+    setHistoryFeedbackMessage(null);
+    setHistoryShoppingListStatus("idle");
+    setHistoryShoppingListMessage(null);
+  };
+
+  const submitHistoryFeedback = async ({
+    helpful,
+    feedbackType,
+    outcome,
+    successMessage,
+  }: {
+    helpful: boolean;
+    feedbackType: PlantAnalyzerFeedbackClassification;
+    outcome?: PlantAnalyzerFeedbackOutcome;
+    successMessage: string;
+  }) => {
+    if (!selectedHistoryEntry?.id) return;
+    await postFeedback({
+      analysisId: selectedHistoryEntry.id,
+      helpful,
+      feedbackType,
+      outcome,
+      successMessage,
+      setStatus: setHistoryFeedbackStatus,
+      setMessage: setHistoryFeedbackMessage,
+      onStored: () => {
+        setSelectedHistoryDetail((current) =>
+          current
+            ? {
+                ...current,
+                lastFeedback: {
+                  helpful,
+                  classification: feedbackType,
+                  outcome: outcome ?? null,
+                  recordedAt: new Date().toISOString(),
+                },
+              }
+            : current,
+        );
+      },
+    });
+  };
+
+  const addHistorySuggestedProductsToCart = async () => {
+    if (!selectedHistoryDetail?.productSuggestions?.length) return;
+    setHistoryShoppingListStatus("loading");
+    setHistoryShoppingListMessage(null);
+    try {
+      const items = await resolveSuggestedCartItems(
+        selectedHistoryDetail.remediation.productBundle.optionalProducts.length > 0 ||
+          selectedHistoryDetail.remediation.productBundle.setupHelpers.length > 0
+          ? [
+              ...selectedHistoryDetail.remediation.productBundle.optionalProducts,
+              ...selectedHistoryDetail.remediation.productBundle.setupHelpers,
+            ]
+          : selectedHistoryDetail.productSuggestions,
+      );
+
+      if (items.length === 0) {
+        setHistoryShoppingListStatus("error");
+        setHistoryShoppingListMessage(
+          locale === "de"
+            ? "Keine kaufbaren Empfehlungen gefunden."
+            : "No purchasable recommendations were found.",
+        );
+        return;
+      }
+
+      await addManyToCart(items);
+      setHistoryShoppingListStatus("idle");
+      setHistoryShoppingListMessage(
+        locale === "de"
+          ? `${selectedHistoryDetail.remediation.productBundle.name} wurde als Checkliste in den Warenkorb gelegt.`
+          : `${selectedHistoryDetail.remediation.productBundle.name} was added to the cart as a checklist.`,
+      );
+    } catch {
+      setHistoryShoppingListStatus("error");
+      setHistoryShoppingListMessage(
+        locale === "de"
+          ? "Empfohlene Produkte konnten nicht in den Warenkorb gelegt werden."
+          : "Recommended products could not be added to the cart.",
+      );
+    }
   };
 
   return (
@@ -387,6 +692,8 @@ export default function PlantAnalyzerClient() {
           isDraggingFile={isDraggingFile}
           isPreparingImage={isPreparingImage}
           notes={notes}
+          analysisContext={analysisContext}
+          recheckBaseline={recheckBaseline}
           status={status}
           error={error}
           isAuthenticated={isAuthenticated}
@@ -400,6 +707,18 @@ export default function PlantAnalyzerClient() {
           }}
           onClearImage={clearSelectedImage}
           onNotesChange={setNotes}
+          onContextChange={(field, value) =>
+            setAnalysisContext((current) => {
+              const next = { ...current } as Record<string, unknown>;
+              if (value === undefined || value === null || value === "") {
+                delete next[field];
+              } else {
+                next[field] = value;
+              }
+              return next as PlantAnalyzerAnalysisContext;
+            })
+          }
+          onClearRecheckBaseline={() => setRecheckBaseline(null)}
           onAnalyze={() => {
             void analyzeImage();
           }}
@@ -414,10 +733,48 @@ export default function PlantAnalyzerClient() {
           locale={locale}
           status={status}
           result={result}
+          comparisonEntry={previousAnalysis}
           imagePreview={imagePreview}
           loadingSteps={loadingSteps}
           loadingStepIndex={loadingStepIndex}
           onCancelAnalysis={cancelAnalysis}
+          feedbackStatus={feedbackStatus}
+          feedbackMessage={feedbackMessage}
+          shoppingListStatus={shoppingListStatus}
+          shoppingListMessage={shoppingListMessage}
+          onHelpful={() => {
+            void submitFeedback({
+              helpful: true,
+              feedbackType: "helpful",
+              successMessage:
+                locale === "de"
+                  ? "Danke. Die Einschätzung wurde als hilfreich markiert."
+                  : "Thanks. The result was marked as helpful.",
+            });
+          }}
+          onIssueGuessWrong={() => {
+            void submitFeedback({
+              helpful: false,
+              feedbackType: "issue_guess_wrong",
+              successMessage:
+                locale === "de"
+                  ? "Danke. Die Problemschätzung wurde für die Nachprüfung markiert."
+                  : "Thanks. The issue estimate was flagged for review.",
+            });
+          }}
+          onProductSuggestionOff={() => {
+            void submitFeedback({
+              helpful: false,
+              feedbackType: "product_suggestion_off",
+              successMessage:
+                locale === "de"
+                  ? "Danke. Die Produkthinweise wurden als unpassend markiert."
+                  : "Thanks. The product suggestions were flagged as off.",
+            });
+          }}
+          onAddShoppingList={() => {
+            void addSuggestedProductsToCart();
+          }}
         />
 
         <PlantAnalyzerHistorySection
@@ -431,6 +788,7 @@ export default function PlantAnalyzerClient() {
           history={history}
           onLoadHistory={() => {
             setHistoryRequested(true);
+            void loadHistory();
           }}
           onOpenHistoryReport={(entry) => {
             void openHistoryReport(entry);
@@ -452,6 +810,39 @@ export default function PlantAnalyzerClient() {
           entry={selectedHistoryEntry}
           detail={selectedHistoryDetail}
           detailStatus={selectedHistoryDetailStatus}
+          feedbackStatus={historyFeedbackStatus}
+          feedbackMessage={historyFeedbackMessage}
+          shoppingListStatus={historyShoppingListStatus}
+          shoppingListMessage={historyShoppingListMessage}
+          onAddShoppingList={() => {
+            void addHistorySuggestedProductsToCart();
+          }}
+          onFollowUpImproved={() => {
+            void submitHistoryFeedback({
+              helpful: true,
+              feedbackType: "follow_up_improved",
+              outcome: "improved",
+              successMessage:
+                locale === "de"
+                  ? "Danke. Dieser Verlauf wurde als verbessert markiert."
+                  : "Thanks. This follow-up was marked as improved.",
+            });
+          }}
+          onFollowUpWorsened={() => {
+            void submitHistoryFeedback({
+              helpful: false,
+              feedbackType: "follow_up_worsened",
+              outcome: "worsened",
+              successMessage:
+                locale === "de"
+                  ? "Danke. Dieser Verlauf wurde als verschlechtert markiert."
+                  : "Thanks. This follow-up was marked as worsened.",
+            });
+          }}
+          onUseAsRecheckBaseline={() => {
+            setRecheckBaseline(selectedHistoryEntry);
+            closeHistoryReport();
+          }}
           onClose={closeHistoryReport}
         />
       ) : null}

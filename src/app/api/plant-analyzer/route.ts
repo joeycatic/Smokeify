@@ -16,6 +16,14 @@ const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
 const ALLOWED_ANALYZER_IMAGE_FORMATS = new Set(["jpeg", "png", "webp"]);
 
+function parseFormNumber(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export async function POST(request: Request) {
   const startedAt = getNow();
   if (!isSameOrigin(request)) {
@@ -60,6 +68,37 @@ export async function POST(request: Request) {
     typeof formData?.get("notes") === "string"
       ? formData.get("notes")?.toString().trim() ?? ""
       : "";
+  const previousAnalysisId =
+    typeof formData?.get("previousAnalysisId") === "string"
+      ? formData.get("previousAnalysisId")?.toString().trim() || null
+      : null;
+  const analysisContext = {
+    medium:
+      typeof formData?.get("medium") === "string"
+        ? formData.get("medium")?.toString().trim() || undefined
+        : undefined,
+    growthStage:
+      typeof formData?.get("growthStage") === "string"
+        ? formData.get("growthStage")?.toString().trim() || undefined
+        : undefined,
+    wateringCadence:
+      typeof formData?.get("wateringCadence") === "string"
+        ? formData.get("wateringCadence")?.toString().trim() || undefined
+        : undefined,
+    ph: parseFormNumber(formData?.get("ph") ?? null),
+    ec: parseFormNumber(formData?.get("ec") ?? null),
+    temperatureC: parseFormNumber(formData?.get("temperatureC") ?? null),
+    humidityPercent: parseFormNumber(formData?.get("humidityPercent") ?? null),
+    lightDistanceCm: parseFormNumber(formData?.get("lightDistanceCm") ?? null),
+    lightType:
+      typeof formData?.get("lightType") === "string"
+        ? formData.get("lightType")?.toString().trim() || undefined
+        : undefined,
+    tentOrRoomSize:
+      typeof formData?.get("tentOrRoomSize") === "string"
+        ? formData.get("tentOrRoomSize")?.toString().trim() || undefined
+        : undefined,
+  };
 
   if (!(file instanceof File)) {
     return attachServerTiming(
@@ -127,12 +166,15 @@ export async function POST(request: Request) {
       imageHash,
       imageMime: detectedImage.mime,
       notes,
+      analysisContext,
+      previousAnalysisId,
       userId: session.user.id,
     });
     const analyzeDuration = getNow() - analyzeStartedAt;
 
     return attachServerTiming(
       NextResponse.json({
+        analysisId: result.persisted ? result.id : null,
         diagnosis: {
           healthStatus: result.healthStatus,
           species: result.species,
@@ -140,8 +182,29 @@ export async function POST(request: Request) {
           issues: result.issues.slice(0, 2),
           recommendations: result.recommendations.slice(0, 3),
         },
+        summary: result.summary,
+        observedSymptoms: result.observedSymptoms,
+        possibleCauses: result.possibleCauses,
+        verificationChecks: result.verificationChecks,
+        immediateActions: result.immediateActions,
+        deferActions: result.deferActions,
+        environmentConsiderations: result.environmentConsiderations,
+        uncertaintyNote: result.uncertaintyNote,
+        confidenceBand: result.confidenceBand,
+        needsHumanReview: result.needsHumanReview,
+        analysisContext: result.analysisContext,
+        contextUsed: result.contextUsed,
+        promptVersion: result.promptVersion,
+        reasoningVersion: result.reasoningVersion,
+        followUp: result.followUp,
         productSuggestions: result.productSuggestions,
         guideSuggestions: result.guideSuggestions,
+        remediation: result.remediationPlan,
+        lastFeedback: null,
+        reviewedCase: null,
+        storageWarning: result.persisted
+          ? null
+          : "Analysis completed, but the report could not be saved.",
       }),
       [
         { name: "analyzer_upload", durationMs: uploadDuration, description: "upload" },

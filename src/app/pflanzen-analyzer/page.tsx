@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function PlantAnalyzerPage() {
   return (
     <PageLayout>
-      <div className="brand-page-bg overflow-x-clip">
+      <div className="smk-storefront-legacy smk-analyzer-scope brand-page-bg overflow-x-clip">
         <div className="mx-auto max-w-7xl px-3 pb-10 pt-4 sm:px-6 sm:pb-12 sm:pt-6">
           <PlantAnalyzerClient />
         </div>

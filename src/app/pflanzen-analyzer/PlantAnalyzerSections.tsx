@@ -24,7 +24,15 @@ import type {
   LoadingStep,
   Locale,
 } from "@/app/pflanzen-analyzer/types";
-import type { PlantAnalyzerHealthStatus } from "@/lib/plantAnalyzerTypes";
+import type {
+  PlantAnalyzerAnalysisContext,
+  PlantAnalyzerHealthStatus,
+} from "@/lib/plantAnalyzerTypes";
+import type {
+  PlantAnalyzerFeedbackClassification,
+  PlantAnalyzerRemediationPlan,
+  PlantAnalyzerStoredFeedback,
+} from "@/lib/plantAnalyzerRemediationTypes";
 
 const formatDate = (value: string, locale: Locale) =>
   new Date(value).toLocaleString(locale === "de" ? "de-DE" : "en-US", {
@@ -39,6 +47,12 @@ const lightFocusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f5a45] focus-visible:ring-offset-2";
 const darkFocusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E4C56C] focus-visible:ring-offset-2 focus-visible:ring-offset-[#16382d]";
+const smokeifyPanelClass =
+  "rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-5 shadow-[0_14px_32px_rgba(0,0,0,0.18)] sm:px-5";
+const smokeifyInsetCardClass =
+  "rounded-2xl border border-[var(--smk-border)] bg-[rgba(0,0,0,0.18)] px-4 py-3";
+const smokeifyMutedCopyClass = "text-[var(--smk-text-muted)]";
+const smokeifyBodyCopyClass = "text-[var(--smk-text)]";
 
 export function detectPreferredLocale(): Locale {
   if (typeof window !== "undefined") {
@@ -121,6 +135,58 @@ function confidenceLabel(value: number) {
   return `${Math.round(value * 100)} %`;
 }
 
+function confidenceBandLabel(value: AnalyzerResponse["confidenceBand"], locale: Locale) {
+  if (value === "high") return locale === "de" ? "hoch" : "high";
+  if (value === "low") return locale === "de" ? "niedrig" : "low";
+  return locale === "de" ? "mittel" : "medium";
+}
+
+function renderContextSummary(
+  context: PlantAnalyzerAnalysisContext | null,
+  locale: Locale,
+) {
+  if (!context) return [];
+
+  const items: string[] = [];
+  if (context.medium && context.medium !== "unknown") {
+    items.push(`${locale === "de" ? "Medium" : "Medium"}: ${context.medium}`);
+  }
+  if (context.growthStage && context.growthStage !== "unknown") {
+    items.push(`${locale === "de" ? "Phase" : "Stage"}: ${context.growthStage}`);
+  }
+  if (typeof context.ph === "number") items.push(`pH: ${context.ph}`);
+  if (typeof context.ec === "number") items.push(`EC: ${context.ec}`);
+  if (typeof context.temperatureC === "number") {
+    items.push(
+      `${locale === "de" ? "Temperatur" : "Temperature"}: ${context.temperatureC} C`,
+    );
+  }
+  if (typeof context.humidityPercent === "number") {
+    items.push(
+      `${locale === "de" ? "Luftfeuchte" : "Humidity"}: ${context.humidityPercent}%`,
+    );
+  }
+  if (typeof context.lightDistanceCm === "number") {
+    items.push(
+      `${locale === "de" ? "Lichtabstand" : "Light distance"}: ${context.lightDistanceCm} cm`,
+    );
+  }
+  if (context.lightType) {
+    items.push(`${locale === "de" ? "Lichttyp" : "Light"}: ${context.lightType}`);
+  }
+  if (context.tentOrRoomSize) {
+    items.push(
+      `${locale === "de" ? "Raum / Zelt" : "Space"}: ${context.tentOrRoomSize}`,
+    );
+  }
+  if (context.wateringCadence) {
+    items.push(
+      `${locale === "de" ? "Gießrhythmus" : "Watering"}: ${context.wateringCadence}`,
+    );
+  }
+  return items;
+}
+
 function healthStatusLabel(value: PlantAnalyzerHealthStatus, locale: Locale) {
   if (value === "healthy") {
     return locale === "de" ? "Eher unkritisch" : "Mostly fine";
@@ -160,12 +226,73 @@ function severityLabel(
 
 function severityCardClasses(value: PlantAnalyzerHealthStatus) {
   if (value === "critical") {
-    return "border-red-200 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)]";
+    return "border-[rgba(239,143,127,0.28)] bg-[linear-gradient(135deg,rgba(82,30,25,0.72)_0%,rgba(26,20,18,0.96)_100%)]";
   }
   if (value === "healthy") {
-    return "border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#ffffff_100%)]";
+    return "border-[rgba(127,207,150,0.22)] bg-[linear-gradient(135deg,rgba(24,63,44,0.72)_0%,rgba(26,20,18,0.96)_100%)]";
   }
-  return "border-amber-200 bg-[linear-gradient(135deg,#fffbeb_0%,#ffffff_100%)]";
+  return "border-[rgba(228,197,108,0.24)] bg-[linear-gradient(135deg,rgba(79,58,24,0.72)_0%,rgba(26,20,18,0.96)_100%)]";
+}
+
+function urgencyLabel(
+  value: PlantAnalyzerRemediationPlan["urgency"],
+  locale: Locale,
+) {
+  if (value === "high") {
+    return locale === "de" ? "Heute priorisieren" : "Prioritize today";
+  }
+  if (value === "medium") {
+    return locale === "de" ? "Zeitnah prüfen" : "Check soon";
+  }
+  return locale === "de" ? "Ruhig beobachten" : "Monitor calmly";
+}
+
+function resultHeroClasses(value: PlantAnalyzerHealthStatus) {
+  if (value === "critical") {
+    return "border-[rgba(239,143,127,0.32)] bg-[linear-gradient(135deg,rgba(78,24,20,0.96)_0%,rgba(31,23,20,0.98)_56%,rgba(16,14,13,1)_100%)] text-[var(--smk-text)] shadow-[0_28px_70px_rgba(0,0,0,0.28)]";
+  }
+  if (value === "healthy") {
+    return "border-[rgba(127,207,150,0.24)] bg-[linear-gradient(135deg,rgba(23,58,41,0.96)_0%,rgba(31,23,20,0.98)_56%,rgba(16,14,13,1)_100%)] text-[var(--smk-text)] shadow-[0_28px_70px_rgba(0,0,0,0.24)]";
+  }
+  return "border-[rgba(228,197,108,0.28)] bg-[linear-gradient(135deg,rgba(82,64,31,0.96)_0%,rgba(31,23,20,0.98)_56%,rgba(16,14,13,1)_100%)] text-[var(--smk-text)] shadow-[0_28px_70px_rgba(0,0,0,0.24)]";
+}
+
+function resultHeroAccentClasses(value: PlantAnalyzerHealthStatus) {
+  if (value === "critical") {
+    return "text-[#f6b5a8]";
+  }
+  if (value === "healthy") {
+    return "text-[#b8efc8]";
+  }
+  return "text-[#f5df9a]";
+}
+
+function feedbackLabel(
+  feedback: PlantAnalyzerStoredFeedback,
+  locale: Locale,
+) {
+  const labels: Record<PlantAnalyzerFeedbackClassification, string> =
+    locale === "de"
+      ? {
+          helpful: "Als hilfreich markiert",
+          issue_guess_wrong: "Problemschätzung wirkt falsch",
+          product_suggestion_off: "Produkthinweise wirken unpassend",
+          recommendation_relevant: "Empfehlung war relevant",
+          follow_up_improved: "Verlauf später verbessert",
+          follow_up_worsened: "Verlauf später verschlechtert",
+          needs_recheck: "Erneute Prüfung angefragt",
+        }
+      : {
+          helpful: "Marked as helpful",
+          issue_guess_wrong: "Issue estimate seems wrong",
+          product_suggestion_off: "Product hints seem off",
+          recommendation_relevant: "Recommendation was relevant",
+          follow_up_improved: "Marked as improved later",
+          follow_up_worsened: "Marked as worsened later",
+          needs_recheck: "Requested a recheck",
+        };
+
+  return labels[feedback.classification];
 }
 
 function SeverityIcon({
@@ -231,7 +358,7 @@ function ProductSuggestionGrid({
 }) {
   if (productSuggestions.length === 0) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+      <div className={`${smokeifyInsetCardClass} text-sm ${smokeifyMutedCopyClass}`}>
         {locale === "de"
           ? "Keine Produktempfehlungen verfügbar."
           : "No product recommendations available."}
@@ -245,10 +372,10 @@ function ProductSuggestionGrid({
         <Link
           key={product.id}
           href={`/products/${product.handle}`}
-          className={`group rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-3 transition hover:border-emerald-300 hover:bg-emerald-50/40 ${lightFocusRing}`}
+          className={`group rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] ${lightFocusRing}`}
         >
           <div className="flex flex-col gap-3 min-[420px]:flex-row">
-            <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-2xl bg-white min-[420px]:h-20 min-[420px]:w-20">
+            <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-2xl bg-[rgba(0,0,0,0.2)] min-[420px]:h-20 min-[420px]:w-20">
               {product.imageUrl ? (
                 <Image
                   src={product.imageUrl}
@@ -258,20 +385,20 @@ function ProductSuggestionGrid({
                   className="object-cover"
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-stone-300">
+                <div className="flex h-full items-center justify-center text-[var(--smk-text-dim)]">
                   <PhotoIcon className="h-8 w-8" />
                 </div>
               )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              <p className="line-clamp-2 break-words text-base font-semibold leading-6 text-stone-900 sm:text-[1.05rem]">
+              <p className="line-clamp-2 break-words text-base font-semibold leading-6 text-[var(--smk-text)] sm:text-[1.05rem]">
                 {product.title}
               </p>
-              <p className="mt-2 break-words text-xs leading-5 text-stone-500">
+              <p className="mt-2 break-words text-xs leading-5 text-[var(--smk-text-muted)]">
                 {product.reason}
               </p>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-lg font-bold tracking-tight text-emerald-800">
+                <p className="text-lg font-bold tracking-tight text-[#a9e8bc]">
                   {product.price
                     ? formatPrice(
                         product.price.amount,
@@ -280,7 +407,7 @@ function ProductSuggestionGrid({
                       )
                     : ""}
                 </p>
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-sm transition group-hover:translate-x-0.5 group-hover:border-emerald-300 group-hover:bg-emerald-50">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(0,0,0,0.2)] text-[#a9e8bc] shadow-sm transition group-hover:translate-x-0.5 group-hover:border-[var(--smk-border-strong)] group-hover:bg-[rgba(255,255,255,0.08)]">
                   <ArrowUpRightIcon className="h-4 w-4" />
                 </span>
               </div>
@@ -301,7 +428,7 @@ function GuideSuggestionList({
 }) {
   if (guideSuggestions.length === 0) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+      <div className={`${smokeifyInsetCardClass} text-sm ${smokeifyMutedCopyClass}`}>
         {locale === "de"
           ? "Keine weiterführenden Guides verfügbar."
           : "No further guides available."}
@@ -315,10 +442,10 @@ function GuideSuggestionList({
         <Link
           key={guide.slug}
           href={guide.href}
-          className={`rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-emerald-300 hover:bg-emerald-50/40 ${lightFocusRing}`}
+          className={`rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] ${lightFocusRing}`}
         >
-          <p className="break-words text-sm font-semibold text-stone-900">{guide.title}</p>
-          <p className="mt-2 break-words text-sm leading-6 text-stone-500">
+          <p className="break-words text-sm font-semibold text-[var(--smk-text)]">{guide.title}</p>
+          <p className="mt-2 break-words text-sm leading-6 text-[var(--smk-text-muted)]">
             {guide.description}
           </p>
         </Link>
@@ -392,13 +519,13 @@ export function PlantAnalyzerHero({
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <a
             href="#plant-analyzer-upload"
-            className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[#E4C56C] px-4 py-2.5 text-sm font-semibold text-[#20342b] shadow-[0_10px_24px_rgba(228,197,108,0.22)] transition hover:bg-[#edd48f] sm:w-auto ${lightFocusRing}`}
+            className={`smk-button-primary inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
           >
             {isGerman ? "Jetzt Foto hochladen" : "Upload photo now"}
           </a>
           <Link
             href="/products"
-            className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#20342b] bg-[#eef3f0] px-4 py-2.5 text-sm font-semibold text-[#20342b] transition hover:bg-[#e3ebe6] sm:w-auto ${lightFocusRing}`}
+            className={`smk-button-secondary inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
           >
             {isGerman ? "Produkte ansehen" : "View products"}
           </Link>
@@ -417,6 +544,8 @@ export function PlantAnalyzerUploadSection({
   isDraggingFile,
   isPreparingImage,
   notes,
+  analysisContext,
+  recheckBaseline,
   status,
   error,
   isAuthenticated,
@@ -428,6 +557,8 @@ export function PlantAnalyzerUploadSection({
   onFileChange,
   onClearImage,
   onNotesChange,
+  onContextChange,
+  onClearRecheckBaseline,
   onAnalyze,
   onCancelAnalysis,
   onDragOver,
@@ -442,6 +573,8 @@ export function PlantAnalyzerUploadSection({
   isDraggingFile: boolean;
   isPreparingImage: boolean;
   notes: string;
+  analysisContext: PlantAnalyzerAnalysisContext;
+  recheckBaseline: AnalysisHistoryEntry | null;
   status: AnalyzerStatus;
   error: string;
   isAuthenticated: boolean;
@@ -453,6 +586,11 @@ export function PlantAnalyzerUploadSection({
   onFileChange: (file: File | null) => void;
   onClearImage: () => void;
   onNotesChange: (value: string) => void;
+  onContextChange: (
+    field: keyof PlantAnalyzerAnalysisContext,
+    value: string | number | null,
+  ) => void;
+  onClearRecheckBaseline: () => void;
   onAnalyze: () => void;
   onCancelAnalysis: () => void;
   onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;
@@ -629,14 +767,14 @@ export function PlantAnalyzerUploadSection({
       ) : null}
 
       <div
-        className="mt-4 w-full rounded-[28px] border border-[#244136] p-4 text-white shadow-[0_18px_36px_rgba(15,23,42,0.14)] sm:p-5"
-        style={{ backgroundColor: "#16382d", color: "#ffffff" }}
+        className="mt-4 w-full rounded-[28px] border border-[#4a3428] p-4 text-white shadow-[0_18px_36px_rgba(15,23,42,0.14)] sm:p-5"
+        style={{ backgroundColor: "#2a1d17", color: "#f6f0e8" }}
       >
         <div
           className="flex min-h-[220px] flex-col items-start gap-4 rounded-[24px] border border-white/8 px-4 py-4 sm:flex-row sm:px-5"
-          style={{ backgroundColor: "#143428" }}
+          style={{ backgroundColor: "#201511" }}
         >
-          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-[#f4cf8f] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <BeakerIcon className="h-5 w-5" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
@@ -653,9 +791,70 @@ export function PlantAnalyzerUploadSection({
               }
               rows={5}
               className="mt-3 min-h-[124px] w-full flex-1 resize-y rounded-[20px] border border-white/10 px-4 py-3 text-sm leading-6 text-white [color-scheme:dark] [-webkit-text-fill-color:#ffffff] caret-white outline-none transition placeholder:text-white/38 focus:border-[#E4C56C]/55 focus-visible:ring-2 focus-visible:ring-[#E4C56C]/18"
-              style={{ backgroundColor: "#0f2b22", color: "#ffffff" }}
+              style={{ backgroundColor: "#120d0a", color: "#f6f0e8" }}
             />
             <div className="mt-4 flex flex-col gap-3 border-t border-white/8 pt-3">
+              {recheckBaseline ? (
+                <div className="rounded-[18px] border border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.05)] px-3.5 py-3 text-sm text-[var(--smk-text)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-accent-2)]">
+                        {isGerman ? "Recheck-Basis aktiv" : "Recheck baseline active"}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--smk-text-muted)]">
+                        {isGerman
+                          ? `Vergleich mit Bericht vom ${formatDate(recheckBaseline.analyzedAt, locale)}`
+                          : `Comparing against report from ${formatDate(recheckBaseline.analyzedAt, locale)}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onClearRecheckBaseline}
+                      className={`inline-flex min-h-10 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] ${darkFocusRing}`}
+                    >
+                      {isGerman ? "Basis entfernen" : "Clear baseline"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  value={analysisContext.medium ?? ""}
+                  onChange={(event) => onContextChange("medium", event.target.value)}
+                  placeholder={isGerman ? "Medium: soil / coco / hydro" : "Medium: soil / coco / hydro"}
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+                <input
+                  value={analysisContext.growthStage ?? ""}
+                  onChange={(event) => onContextChange("growthStage", event.target.value)}
+                  placeholder={isGerman ? "Phase: seedling / veg / flower" : "Stage: seedling / veg / flower"}
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+                <input
+                  value={analysisContext.ph ?? ""}
+                  onChange={(event) => onContextChange("ph", event.target.value)}
+                  placeholder="pH"
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+                <input
+                  value={analysisContext.ec ?? ""}
+                  onChange={(event) => onContextChange("ec", event.target.value)}
+                  placeholder="EC"
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+                <input
+                  value={analysisContext.temperatureC ?? ""}
+                  onChange={(event) => onContextChange("temperatureC", event.target.value)}
+                  placeholder={isGerman ? "Temperatur C" : "Temperature C"}
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+                <input
+                  value={analysisContext.humidityPercent ?? ""}
+                  onChange={(event) => onContextChange("humidityPercent", event.target.value)}
+                  placeholder={isGerman ? "Luftfeuchte %" : "Humidity %"}
+                  className="smk-input h-11 rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
+                />
+              </div>
               <p className="rounded-full bg-white/6 px-3 py-2 text-xs leading-5 text-white/92">
                 {isGerman
                   ? "Optional, aber hilfreich: Temperatur, pH, Luftfeuchtigkeit, Medium oder kurze Beobachtungen."
@@ -812,19 +1011,37 @@ export function PlantAnalyzerResultSection({
   locale,
   status,
   result,
+  comparisonEntry,
   imagePreview,
   loadingSteps,
   loadingStepIndex,
   onCancelAnalysis,
+  feedbackStatus,
+  feedbackMessage,
+  shoppingListStatus,
+  shoppingListMessage,
+  onHelpful,
+  onIssueGuessWrong,
+  onProductSuggestionOff,
+  onAddShoppingList,
 }: {
   sectionRef: React.RefObject<HTMLElement | null>;
   locale: Locale;
   status: AnalyzerStatus;
   result: AnalyzerResponse | null;
+  comparisonEntry: AnalysisHistoryEntry | null;
   imagePreview: string | null;
   loadingSteps: LoadingStep[];
   loadingStepIndex: number;
   onCancelAnalysis: () => void;
+  feedbackStatus: AsyncStatus;
+  feedbackMessage: string | null;
+  shoppingListStatus: AsyncStatus;
+  shoppingListMessage: string | null;
+  onHelpful: () => void;
+  onIssueGuessWrong: () => void;
+  onProductSuggestionOff: () => void;
+  onAddShoppingList: () => void;
 }) {
   const isGerman = locale === "de";
   const showAnalysisPanel = status === "loading" || result !== null;
@@ -836,39 +1053,34 @@ export function PlantAnalyzerResultSection({
   return (
     <section
       ref={sectionRef}
-      className="w-full overflow-hidden rounded-[28px] border border-[#d4dbd2] bg-[linear-gradient(180deg,#ffffff_0%,#f4f5ef_100%)] p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-5"
+      className="w-full overflow-hidden rounded-[32px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(26,22,19,0.98),rgba(12,11,10,1))] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.26)] sm:p-5"
     >
       {status === "loading" ? (
-        <div className="relative isolate overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(135deg,#16382d_0%,#23483b_45%,#d3be8f_100%)] px-4 py-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:px-6 sm:py-8">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-16 top-8 h-36 w-36 rounded-full bg-[#E4C56C]/16 blur-3xl animate-pulse" />
-            <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-emerald-200/12 blur-3xl animate-[pulse_5s_ease-in-out_infinite]" />
-            <div className="absolute bottom-0 right-24 h-32 w-32 rounded-full bg-white/8 blur-3xl animate-[pulse_4s_ease-in-out_infinite]" />
-          </div>
-          <div className="relative z-10 mb-4 inline-flex items-center rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#f5e8bc] backdrop-blur-sm">
+        <div className="rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(72,58,28,0.34)_0%,rgba(26,22,19,0.98)_34%,rgba(16,14,13,1)_100%)] px-4 py-6 text-[var(--smk-text)] shadow-[0_24px_60px_rgba(0,0,0,0.24)] sm:px-6 sm:py-8">
+          <div className="mb-4 inline-flex items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1.5 text-xs font-semibold text-[var(--smk-accent-2)] backdrop-blur-sm">
             {isGerman ? "Live-Analyse" : "Live analysis"}
           </div>
-          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f5e8bc]">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--smk-accent-2)]">
                 {isGerman ? "Analyse läuft" : "Analysis running"}
               </p>
-              <h3 className="mt-2 text-2xl font-bold">
+              <h3 className="mt-2 text-3xl font-bold tracking-[-0.04em]">
                 {isGerman
-                  ? "Wir prüfen gerade dein Pflanzenfoto"
-                  : "We are checking your plant photo"}
+                  ? "Wir lesen gerade das Foto und bauen den Bericht auf"
+                  : "We are reading the photo and building the report"}
               </h3>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-white/85">
+              <p className={`mt-3 max-w-xl text-sm leading-6 ${smokeifyMutedCopyClass}`}>
                 {isGerman
-                  ? "Das Bild wird ausgewertet, Probleme werden geschätzt und passende Schritte sowie Produkthinweise werden vorbereitet."
+                  ? "Danach bekommst du direkt Problemschätzung, Sicherheit, konkrete Checks und nur passende Produkthinweise."
                   : "The image is being reviewed, likely issues are being estimated and next steps plus product hints are being prepared."}
               </p>
             </div>
-            <div className="w-fit rounded-2xl border border-white/10 bg-white/10 p-3 text-[#f5e8bc] shadow-[0_12px_30px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+            <div className="w-fit rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] p-3 text-[var(--smk-accent-2)] shadow-[0_12px_30px_rgba(0,0,0,0.12)] backdrop-blur-sm">
               <BeakerIcon className="h-7 w-7 animate-pulse" />
             </div>
           </div>
-          <div className="relative z-10 mt-6 grid gap-3">
+          <div className="mt-6 grid gap-3">
             {loadingSteps.map((step, index) => {
               const isActive = loadingStepIndex === index;
 
@@ -877,8 +1089,8 @@ export function PlantAnalyzerResultSection({
                   key={step.title}
                   className={`rounded-2xl border px-4 py-4 transition duration-500 ${
                     isActive
-                      ? "translate-y-[-2px] border-white/20 bg-white/16 shadow-[0_12px_28px_rgba(15,23,42,0.16)]"
-                      : "border-white/10 bg-white/10"
+                      ? "translate-y-[-2px] border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.07)] shadow-[0_12px_28px_rgba(0,0,0,0.16)]"
+                      : "border-[var(--smk-border)] bg-[rgba(0,0,0,0.16)]"
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-3">
@@ -898,8 +1110,8 @@ export function PlantAnalyzerResultSection({
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] sm:ml-auto ${
                         isActive
-                          ? "bg-white/16 text-[#f5e8bc]"
-                          : "bg-white/8 text-white/55"
+                          ? "bg-[rgba(255,255,255,0.08)] text-[var(--smk-accent-2)]"
+                          : "bg-[rgba(255,255,255,0.05)] text-[var(--smk-text-dim)]"
                       }`}
                     >
                       {index < loadingStepIndex
@@ -915,24 +1127,24 @@ export function PlantAnalyzerResultSection({
                             : "Queued"}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-white/72">
+                  <p className={`mt-2 text-sm leading-6 ${smokeifyMutedCopyClass}`}>
                     {step.detail}
                   </p>
                 </div>
               );
             })}
           </div>
-          <div className="relative z-10 mt-6">
-            <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+          <div className="mt-6">
+            <div className={`mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] ${smokeifyMutedCopyClass}`}>
               <span>{isGerman ? "Fortschritt" : "Progress"}</span>
               <span>
                 {Math.round(((loadingStepIndex + 1) / loadingSteps.length) * 100)}
                 %
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/15">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.08)]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#E4C56C] via-[#f5e8bc] to-[#E4C56C] shadow-[0_0_18px_rgba(228,197,108,0.45)] transition-all duration-700"
+                className="h-full rounded-full bg-gradient-to-r from-[#E4C56C] via-[#f5e8bc] to-[#d97745] shadow-[0_0_18px_rgba(228,197,108,0.35)] transition-all duration-700"
                 style={{
                   width: `${((loadingStepIndex + 1) / loadingSteps.length) * 100}%`,
                 }}
@@ -942,7 +1154,7 @@ export function PlantAnalyzerResultSection({
           <button
             type="button"
             onClick={onCancelAnalysis}
-            className={`relative z-10 mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/12 sm:w-auto ${darkFocusRing}`}
+            className={`mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-sm font-semibold text-[var(--smk-text)] transition hover:bg-[rgba(255,255,255,0.09)] sm:w-auto ${darkFocusRing}`}
           >
             <XMarkIcon className="mr-2 h-4 w-4" />
             {isGerman ? "Analyse abbrechen" : "Cancel analysis"}
@@ -951,70 +1163,59 @@ export function PlantAnalyzerResultSection({
       ) : result ? (
         <div className="space-y-5 sm:space-y-6">
           <div
-            className={`rounded-[24px] border px-4 py-4 sm:px-5 ${healthStatusClasses(
+            className={`rounded-[26px] border px-4 py-4 sm:px-5 ${resultHeroClasses(
               result.diagnosis.healthStatus,
             )}`}
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
               <div className="flex flex-col gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em]">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
                     {isGerman ? "Analyse" : "Analysis"}
                   </p>
                   <h3
-                    className={`mt-2 text-[1.9rem] font-bold tracking-tight sm:text-3xl ${
-                      result.diagnosis.issues.length > 0
-                        ? "text-red-700"
-                        : "text-emerald-800"
-                    }`}
+                    className={`mt-2 text-[1.9rem] font-bold tracking-tight sm:text-3xl ${resultHeroAccentClasses(
+                      result.diagnosis.healthStatus,
+                    )}`}
                   >
                     {healthStatusLabel(result.diagnosis.healthStatus, locale)}
                   </h3>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-white/78">
+                    {result.summary}
+                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                        result.diagnosis.issues.length > 0
-                          ? "bg-white/70 text-red-700"
-                          : "bg-white/70 text-stone-800"
-                      }`}
-                    >
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-sm font-semibold text-white">
                       {isGerman ? "Erkannt" : "Detected"}:{" "}
                       {result.diagnosis.species || (isGerman ? "Unbekannt" : "Unknown")}
                     </span>
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                        result.diagnosis.issues.length > 0
-                          ? "bg-white/70 text-red-700"
-                          : "bg-white/70 text-stone-800"
-                      }`}
-                    >
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-sm font-semibold text-white">
                       {isGerman ? "Sicherheit" : "Confidence"}{" "}
                       {confidenceLabel(result.diagnosis.confidence)}
                     </span>
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-sm font-semibold text-white">
+                      {isGerman ? "Band" : "Band"} {confidenceBandLabel(result.confidenceBand, locale)}
+                    </span>
+                    <span className="rounded-full border border-white/12 bg-black/20 px-3 py-1.5 text-sm font-semibold text-white">
+                      {urgencyLabel(result.remediation.urgency, locale)}
+                    </span>
                   </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white/70 px-3 py-3 text-center">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                      {isGerman ? "Befunde" : "Findings"}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-stone-900">
-                      {result.diagnosis.issues.length}
-                    </p>
+                {result.analysisContext ? (
+                  <div className="flex flex-wrap gap-2">
+                    {renderContextSummary(result.analysisContext, locale).map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-medium text-white/78"
+                      >
+                        {item}
+                      </span>
+                    ))}
                   </div>
-                  <div className="rounded-2xl bg-white/70 px-3 py-3 text-center">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                      {isGerman ? "Schritte" : "Steps"}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-stone-900">
-                      {result.diagnosis.recommendations.length}
-                    </p>
-                  </div>
-                </div>
+                ) : null}
               </div>
-              <div className="flex justify-center overflow-hidden rounded-[22px] border border-white/70 bg-white/70 p-3 sm:p-4">
+              <div className="flex justify-center overflow-hidden rounded-[22px] border border-white/10 bg-black/18 p-3 sm:p-4">
                 {imagePreview ? (
-                  <div className="aspect-square w-full max-w-[220px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100">
+                  <div className="aspect-square w-full max-w-[220px] overflow-hidden rounded-[18px] border border-white/10 bg-[rgba(255,255,255,0.05)]">
                     <UploadedPlantImage
                       src={imagePreview}
                       alt={
@@ -1026,13 +1227,26 @@ export function PlantAnalyzerResultSection({
                     />
                   </div>
                 ) : (
-                  <div className="flex aspect-square w-full max-w-[220px] items-center justify-center rounded-[18px] border border-stone-200 bg-stone-100 text-stone-400">
+                  <div className="flex aspect-square w-full max-w-[220px] items-center justify-center rounded-[18px] border border-white/10 bg-[rgba(255,255,255,0.05)] text-white/40">
                     <PhotoIcon className="h-8 w-8" />
                   </div>
                 )}
               </div>
             </div>
           </div>
+
+          {comparisonEntry ? (
+            <div className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4 text-sm text-[var(--smk-text)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                {isGerman ? "Vergleich mit letztem Check" : "Compared with last check"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
+                {isGerman
+                  ? `Vorheriger Bericht vom ${formatDate(comparisonEntry.analyzedAt, locale)} ist als Vergleich verfügbar.`
+                  : `Previous report from ${formatDate(comparisonEntry.analyzedAt, locale)} is available for comparison.`}
+              </p>
+            </div>
+          ) : null}
 
           <div className="grid gap-3">
             {result.diagnosis.issues.length > 0 ? (
@@ -1057,23 +1271,23 @@ export function PlantAnalyzerResultSection({
                         <SeverityIcon severity={issue.severity} />
                       </span>
                       <div className="min-w-0">
-                        <p className="break-words text-base font-semibold text-stone-900">
+                        <p className="break-words text-base font-semibold text-[var(--smk-text)]">
                           {issue.label}
                         </p>
-                        <p className="mt-1 text-sm text-stone-500">
+                        <p className={`mt-1 text-sm ${smokeifyMutedCopyClass}`}>
                           {isGerman ? "Wahrscheinlichkeit" : "Likelihood"}{" "}
                           {confidenceLabel(issue.confidence)}
                         </p>
                       </div>
                     </div>
-                    <span className="self-start rounded-full bg-white px-3 py-1 text-xs font-semibold text-stone-700">
+                    <span className="self-start rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-[var(--smk-text)]">
                       {severityLabel(issue.severity, locale)}
                     </span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-black/10 bg-stone-50 px-4 py-4 text-sm text-stone-600">
+              <div className={`${smokeifyInsetCardClass} text-sm ${smokeifyMutedCopyClass}`}>
                 {isGerman
                   ? "Kein klarer Befund erkannt."
                   : "No clear finding detected."}
@@ -1081,41 +1295,123 @@ export function PlantAnalyzerResultSection({
             )}
           </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
-            <h3 className="text-lg font-semibold text-stone-900">
-              {isGerman ? "Konkrete nächste Schritte" : "Concrete next steps"}
-            </h3>
-            <ul className="mt-3 space-y-3 text-sm leading-6 text-stone-700">
-              {result.diagnosis.recommendations.map((entry, index) => (
-                <li
-                  key={entry}
-                  className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3"
-                >
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
-                    {index + 1}
-                  </span>
-                  <span className="pt-1">{entry}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className={smokeifyPanelClass}>
+              <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+                {isGerman ? "Konkrete nächste Schritte" : "Concrete next steps"}
+              </h3>
+              <ul className={`mt-3 space-y-3 text-sm leading-6 ${smokeifyBodyCopyClass}`}>
+                {result.immediateActions.map((entry, index) => (
+                  <li
+                    key={entry}
+                    className={`flex items-start gap-3 ${smokeifyInsetCardClass}`}
+                  >
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                      {index + 1}
+                    </span>
+                    <span className="pt-1">{entry}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
-            <h3 className="text-lg font-semibold text-stone-900">
-              {isGerman
-                ? "Passende Produkte aus dem Shop"
-                : "Relevant products from the shop"}
-            </h3>
-            <div className="mt-4">
-              <ProductSuggestionGrid
-                locale={locale}
-                productSuggestions={result.productSuggestions}
-              />
+            <div className={smokeifyPanelClass}>
+              <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+                {isGerman ? "Mögliche Ursachen" : "Possible causes"}
+              </h3>
+              <div className="mt-3 grid gap-3">
+                {result.possibleCauses.map((cause) => (
+                  <div key={cause.label} className={smokeifyInsetCardClass}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className={`text-sm font-semibold ${smokeifyBodyCopyClass}`}>{cause.label}</p>
+                      <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text)]">
+                        {confidenceLabel(cause.confidence)}
+                      </span>
+                    </div>
+                    <p className={`mt-2 text-sm leading-6 ${smokeifyMutedCopyClass}`}>{cause.whyThisFits}</p>
+                    <p className={`mt-2 text-xs leading-5 ${smokeifyMutedCopyClass}`}>{cause.whatCouldAlsoExplainIt}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={smokeifyPanelClass}>
+              <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+                {isGerman ? "Checks zur Verifikation" : "Verification checks"}
+              </h3>
+              <div className="mt-3 grid gap-3">
+                {result.verificationChecks.map((check) => (
+                  <div key={check.id} className={smokeifyInsetCardClass}>
+                    <p className={`text-sm font-semibold ${smokeifyBodyCopyClass}`}>{check.title}</p>
+                    <p className={`mt-2 text-sm leading-6 ${smokeifyMutedCopyClass}`}>{check.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={smokeifyPanelClass}>
+              <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+                {isGerman ? "Recheck und Umfeld" : "Recheck and environment"}
+              </h3>
+              <div className="mt-3 grid gap-3">
+                {[...result.deferActions, ...result.environmentConsiderations].map((item) => (
+                  <div key={item} className={`${smokeifyInsetCardClass} text-sm leading-6 ${smokeifyBodyCopyClass}`}>
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-2xl border border-[rgba(228,197,108,0.24)] bg-[rgba(101,74,25,0.24)] px-4 py-3 text-sm text-[#f4cf8f]">
+                {result.uncertaintyNote}
+              </div>
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-[#d7ddd4] bg-white/90 px-4 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:px-5">
-            <h3 className="text-lg font-semibold text-stone-900">
+          <div className={smokeifyPanelClass}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+                {isGerman
+                  ? "Passende Produkte aus dem Shop"
+                  : "Relevant products from the shop"}
+              </h3>
+              <button
+                type="button"
+                onClick={onAddShoppingList}
+                disabled={shoppingListStatus === "loading" || result.productSuggestions.length === 0}
+                className={`smk-button-primary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+              >
+                {shoppingListStatus === "loading"
+                  ? isGerman
+                    ? "Wird hinzugefügt ..."
+                    : "Adding ..."
+                  : isGerman
+                    ? "Checkliste in Warenkorb"
+                    : "Add checklist to cart"}
+              </button>
+            </div>
+            <p className={`mt-3 text-sm leading-6 ${smokeifyMutedCopyClass}`}>
+              {result.remediation.productBundle.summary}
+            </p>
+            <div className="mt-4">
+              <ProductSuggestionGrid
+                locale={locale}
+                productSuggestions={
+                  result.remediation.productBundle.optionalProducts.length > 0 ||
+                  result.remediation.productBundle.setupHelpers.length > 0
+                    ? [
+                        ...result.remediation.productBundle.optionalProducts,
+                        ...result.remediation.productBundle.setupHelpers,
+                      ]
+                    : result.productSuggestions
+                }
+              />
+            </div>
+            {shoppingListMessage ? (
+              <p className={`mt-3 text-sm ${smokeifyMutedCopyClass}`}>{shoppingListMessage}</p>
+            ) : null}
+          </div>
+
+          <div className={smokeifyPanelClass}>
+            <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
               {isGerman ? "Weiterführende Guides" : "Further guides"}
             </h3>
             <div className="mt-4">
@@ -1124,6 +1420,46 @@ export function PlantAnalyzerResultSection({
                 guideSuggestions={result.guideSuggestions}
               />
             </div>
+          </div>
+
+          <div className={smokeifyPanelClass}>
+            <h3 className={`text-lg font-semibold ${smokeifyBodyCopyClass}`}>
+              {isGerman ? "Feedback zur Einschätzung" : "Feedback on this assessment"}
+            </h3>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onHelpful}
+                disabled={feedbackStatus === "loading"}
+                className={`smk-button-primary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+              >
+                {isGerman ? "Hilfreich" : "Helpful"}
+              </button>
+              <button
+                type="button"
+                onClick={onIssueGuessWrong}
+                disabled={feedbackStatus === "loading"}
+                className={`smk-button-secondary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+              >
+                {isGerman ? "Problemschätzung unpassend" : "Issue estimate off"}
+              </button>
+              <button
+                type="button"
+                onClick={onProductSuggestionOff}
+                disabled={feedbackStatus === "loading"}
+                className={`smk-button-secondary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+              >
+                {isGerman ? "Produkthinweise unpassend" : "Product hints off"}
+              </button>
+            </div>
+            {result.lastFeedback ? (
+              <p className={`mt-3 text-sm ${smokeifyMutedCopyClass}`}>
+                {feedbackLabel(result.lastFeedback, locale)}
+              </p>
+            ) : null}
+            {feedbackMessage ? (
+              <p className={`mt-3 text-sm ${smokeifyMutedCopyClass}`}>{feedbackMessage}</p>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1157,39 +1493,39 @@ export function PlantAnalyzerHistorySection({
   const isGerman = locale === "de";
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-[#d4dbd2] bg-[linear-gradient(180deg,#ffffff_0%,#f6f4ec_100%)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
-      <div className="flex flex-col gap-3 rounded-[24px] border border-[#d8dfd4] bg-white/80 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+    <section className="overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(24,20,18,0.98),rgba(14,12,11,0.99))] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] sm:p-6">
+      <div className="flex flex-col gap-3 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
             {isGerman ? "Analyseverlauf" : "Analysis history"}
           </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-stone-900">
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-[var(--smk-text)]">
             {isGerman
               ? "Dein persönliches Pflanzenjournal"
               : "Your personal plant journal"}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+          <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
             {isGerman
               ? "Frühere Analysen bleiben sichtbar, damit du Symptome, Trends und Empfehlungen später ruhiger vergleichen kannst."
               : "Earlier analyses stay visible so you can compare symptoms, trends and recommendations more calmly later on."}
           </p>
         </div>
-        <div className="w-fit self-start rounded-2xl border border-[#d8dfd4] bg-stone-50 p-3 text-stone-700 sm:self-auto">
+        <div className="w-fit self-start rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] p-3 text-[var(--smk-accent-2)] sm:self-auto">
           <ClockIcon className="h-6 w-6" />
         </div>
       </div>
 
       {!hasHydrated || effectiveSessionStatus === "loading" ? (
-        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-4 py-8 text-sm text-stone-500 sm:px-6">
+        <div className="mt-6 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-8 text-sm text-[var(--smk-text-muted)] sm:px-6">
           {isGerman ? "Verlauf wird geladen ..." : "Loading history ..."}
         </div>
       ) : !isAuthenticated ? (
-        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-4 py-10 text-center sm:px-6">
-          <UserCircleIcon className="mx-auto h-8 w-8 text-stone-400" />
-          <p className="mt-4 text-base font-semibold text-stone-800">
+        <div className="mt-6 rounded-[24px] border border-dashed border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.03)] px-4 py-10 text-center sm:px-6">
+          <UserCircleIcon className="mx-auto h-8 w-8 text-[var(--smk-text-dim)]" />
+          <p className="mt-4 text-base font-semibold text-[var(--smk-text)]">
             {isGerman ? "Verlauf nach Login verfügbar" : "History after login"}
           </p>
-          <p className="mt-2 text-sm leading-6 text-stone-500">
+          <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
             {isGerman
               ? "Melde dich an oder registriere dich, damit neue Analysen in deinem Verlauf gespeichert werden."
               : "Sign in or create an account so new analyses are saved to your history."}
@@ -1197,26 +1533,26 @@ export function PlantAnalyzerHistorySection({
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link
               href={`/auth/signin?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-              className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[#2f3e36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#24312b] sm:w-auto ${lightFocusRing}`}
+              className={`smk-button-primary inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
             >
               {isGerman ? "Anmelden" : "Sign in"}
             </Link>
             <Link
               href={`/auth/register?returnTo=${encodeURIComponent(pathname || "/pflanzen-analyzer")}`}
-              className={`inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-stone-800 transition hover:border-black/20 hover:bg-stone-50 sm:w-auto ${lightFocusRing}`}
+              className={`smk-button-secondary inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
             >
               {isGerman ? "Registrieren" : "Register"}
             </Link>
           </div>
         </div>
       ) : !historyRequested ? (
-        <div className="mt-6 rounded-[24px] border border-stone-200 bg-white px-4 py-8 text-center shadow-[0_12px_30px_rgba(15,23,42,0.05)] sm:px-6">
-          <p className="text-base font-semibold text-stone-900">
+        <div className="mt-6 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.16)] sm:px-6">
+          <p className="text-base font-semibold text-[var(--smk-text)]">
             {isGerman
               ? "Verlauf bei Bedarf laden"
               : "Load your history when you need it"}
           </p>
-          <p className="mt-2 text-sm leading-6 text-stone-500">
+          <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
             {isGerman
               ? "Der Verlauf wird nicht mehr direkt beim Seitenaufruf geladen. Öffne ihn erst, wenn du frühere Berichte vergleichen willst."
               : "History is no longer loaded on initial page view. Open it only when you want to compare previous reports."}
@@ -1224,18 +1560,18 @@ export function PlantAnalyzerHistorySection({
           <button
             type="button"
             onClick={onLoadHistory}
-            className={`mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#184a39] bg-[#1f5a45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(31,90,69,0.18)] transition hover:bg-[#184a39] sm:w-auto ${lightFocusRing}`}
+            className={`smk-button-primary mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
           >
             {isGerman ? "Verlauf laden" : "Load history"}
           </button>
         </div>
       ) : historyStatus === "loading" ? (
-        <div className="mt-6 rounded-[24px] border border-black/10 bg-stone-50 px-4 py-8 text-sm text-stone-500 sm:px-6">
+        <div className="mt-6 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-8 text-sm text-[var(--smk-text-muted)] sm:px-6">
           {isGerman ? "Verlauf wird geladen ..." : "Loading history ..."}
         </div>
       ) : historyStatus === "error" ? (
-        <div className="mt-6 rounded-[24px] border border-red-200 bg-red-50 px-4 py-8 text-center sm:px-6">
-          <p className="text-base font-semibold text-red-900">
+        <div className="mt-6 rounded-[24px] border border-[rgba(239,143,127,0.28)] bg-[rgba(62,26,24,0.82)] px-4 py-8 text-center sm:px-6">
+          <p className="text-base font-semibold text-[#f1a395]">
             {isGerman
               ? "Verlauf konnte nicht geladen werden"
               : "History could not be loaded"}
@@ -1243,20 +1579,20 @@ export function PlantAnalyzerHistorySection({
           <button
             type="button"
             onClick={onLoadHistory}
-            className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 sm:w-auto ${lightFocusRing}`}
+            className={`smk-button-secondary mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold sm:w-auto ${darkFocusRing}`}
           >
             {isGerman ? "Erneut versuchen" : "Try again"}
           </button>
         </div>
       ) : history.length === 0 ? (
-        <div className="mt-6 rounded-[24px] border border-dashed border-[#b8c7ba] bg-[linear-gradient(180deg,#fffef9_0%,#f3f5ef_100%)] px-4 py-10 text-center sm:px-6">
-          <ClockIcon className="mx-auto h-8 w-8 text-stone-400" />
-          <p className="mt-4 text-base font-semibold text-stone-800">
+        <div className="mt-6 rounded-[24px] border border-dashed border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.03)] px-4 py-10 text-center sm:px-6">
+          <ClockIcon className="mx-auto h-8 w-8 text-[var(--smk-text-dim)]" />
+          <p className="mt-4 text-base font-semibold text-[var(--smk-text)]">
             {isGerman
               ? "Noch keine gespeicherten Analysen"
               : "No saved analyses yet"}
           </p>
-          <p className="mt-2 text-sm leading-6 text-stone-500">
+          <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
             {isGerman
               ? "Sobald du ein Bild analysierst, erscheint es hier in deinem Verlauf."
               : "As soon as you analyze an image, it will appear here in your history."}
@@ -1267,10 +1603,10 @@ export function PlantAnalyzerHistorySection({
           {history.map((entry) => (
             <div
               key={entry.id}
-              className="rounded-[26px] border border-[#d8dfd4] bg-[linear-gradient(180deg,#ffffff_0%,#fafaf7_100%)] p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] sm:p-5"
+              className="rounded-[26px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(31,27,24,0.98),rgba(18,16,14,0.99))] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.2)] sm:p-5"
             >
               <div className="flex flex-col gap-5 sm:flex-row">
-                <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-[22px] border border-stone-200 bg-stone-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)] sm:h-28 sm:w-28">
+                <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] shadow-[0_10px_24px_rgba(0,0,0,0.08)] sm:h-28 sm:w-28">
                   {entry.imageUri ? (
                     <UploadedPlantImage
                       src={entry.imageUri}
@@ -1282,7 +1618,7 @@ export function PlantAnalyzerHistorySection({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-stone-300">
+                    <div className="flex h-full items-center justify-center text-[var(--smk-text-dim)]">
                       <PhotoIcon className="h-8 w-8" />
                     </div>
                   )}
@@ -1290,10 +1626,10 @@ export function PlantAnalyzerHistorySection({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-lg font-semibold tracking-tight text-stone-950">
+                      <p className="text-lg font-semibold tracking-tight text-[var(--smk-text)]">
                         {entry.species || (isGerman ? "Unbekannt" : "Unknown")}
                       </p>
-                      <p className="mt-1 text-sm text-stone-500">
+                      <p className="mt-1 text-sm text-[var(--smk-text-muted)]">
                         {formatDate(entry.analyzedAt, locale)}
                       </p>
                     </div>
@@ -1309,19 +1645,19 @@ export function PlantAnalyzerHistorySection({
                     {entry.issues.slice(0, 2).map((issue) => (
                       <div
                         key={issue.id}
-                        className="rounded-[18px] border border-stone-200 bg-white px-3 py-3"
+                        className="rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-3"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="break-words text-sm font-semibold text-stone-900">
+                            <p className="break-words text-sm font-semibold text-[var(--smk-text)]">
                               {issue.label}
                             </p>
-                            <p className="mt-1 text-xs text-stone-500">
+                            <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
                               {isGerman ? "Wahrscheinlichkeit" : "Likelihood"}{" "}
                               {confidenceLabel(issue.confidence)}
                             </p>
                           </div>
-                          <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-700">
+                          <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-2.5 py-1 text-[11px] font-semibold text-[var(--smk-text)]">
                             {severityLabel(issue.severity, locale)}
                           </span>
                         </div>
@@ -1329,11 +1665,11 @@ export function PlantAnalyzerHistorySection({
                     ))}
                   </div>
                   {entry.recommendations[0] ? (
-                    <div className="mt-4 rounded-[18px] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-800">
+                    <div className="mt-4 rounded-[18px] border border-[rgba(127,207,150,0.2)] bg-[rgba(127,207,150,0.12)] px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a9e8bc]">
                         {isGerman ? "Erster Schritt" : "First step"}
                       </p>
-                      <p className="mt-1 text-sm leading-6 text-emerald-950/85">
+                      <p className="mt-1 text-sm leading-6 text-[var(--smk-text)]">
                         {entry.recommendations[0]}
                       </p>
                     </div>
@@ -1381,7 +1717,7 @@ export function PlantAnalyzerAuthModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative w-full max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] overflow-y-auto rounded-[28px] border border-[#d8dfd4] bg-[linear-gradient(180deg,#fffef9_0%,#ffffff_100%)] p-5 shadow-[0_30px_80px_rgba(15,23,42,0.30)] sm:rounded-3xl sm:p-6"
+        className="relative w-full max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] overflow-y-auto rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(28,24,21,0.98),rgba(12,11,10,1))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.34)] sm:rounded-3xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
@@ -1441,12 +1777,28 @@ export function PlantAnalyzerHistoryModal({
   entry,
   detail,
   detailStatus,
+  feedbackStatus,
+  feedbackMessage,
+  shoppingListStatus,
+  shoppingListMessage,
+  onAddShoppingList,
+  onFollowUpImproved,
+  onFollowUpWorsened,
+  onUseAsRecheckBaseline,
   onClose,
 }: {
   locale: Locale;
   entry: AnalysisHistoryEntry;
   detail: HistoryReportDetail | null;
   detailStatus: AsyncStatus;
+  feedbackStatus: AsyncStatus;
+  feedbackMessage: string | null;
+  shoppingListStatus: AsyncStatus;
+  shoppingListMessage: string | null;
+  onAddShoppingList: () => void;
+  onFollowUpImproved: () => void;
+  onFollowUpWorsened: () => void;
+  onUseAsRecheckBaseline: () => void;
   onClose: () => void;
 }) {
   const isGerman = locale === "de";
@@ -1461,7 +1813,7 @@ export function PlantAnalyzerHistoryModal({
         aria-label={isGerman ? "Schließen" : "Close"}
       />
       <div
-        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white p-4 shadow-[0_22px_50px_rgba(15,23,42,0.20)] sm:my-6 sm:rounded-3xl sm:p-6"
+        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(28,24,21,0.98),rgba(12,11,10,1))] p-4 shadow-[0_22px_50px_rgba(0,0,0,0.26)] sm:my-6 sm:rounded-3xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
@@ -1523,17 +1875,17 @@ export function PlantAnalyzerHistoryModal({
 
         <div className="mt-6 space-y-6 overflow-y-auto pr-1">
           {detail?.imageUri ? (
-            <div className="rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4">
+            <div className="rounded-[26px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                   {isGerman ? "Analysiertes Foto" : "Analyzed photo"}
                 </h4>
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-[var(--smk-text-dim)]">
                   {isGerman ? "Gespeichert im Bericht" : "Saved in report"}
                 </span>
               </div>
               <div className="mt-3 flex justify-center p-2">
-                <div className="aspect-square w-full max-w-[320px] overflow-hidden rounded-[18px] border border-stone-200 bg-stone-100">
+                <div className="aspect-square w-full max-w-[320px] overflow-hidden rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)]">
                   <UploadedPlantImage
                     src={detail.imageUri}
                     alt={
@@ -1549,7 +1901,7 @@ export function PlantAnalyzerHistoryModal({
           ) : null}
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
+            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
               {isGerman ? "Problemschätzungen" : "Issue estimates"}
             </h4>
             <div className="mt-3 grid gap-3">
@@ -1574,16 +1926,16 @@ export function PlantAnalyzerHistoryModal({
                         <SeverityIcon severity={issue.severity} />
                       </span>
                       <div className="min-w-0">
-                        <p className="break-words text-base font-semibold text-stone-900">
+                        <p className="break-words text-base font-semibold text-[var(--smk-text)]">
                           {issue.label}
                         </p>
-                        <p className="mt-1 text-sm text-stone-500">
+                        <p className="mt-1 text-sm text-[var(--smk-text-muted)]">
                           {isGerman ? "Wahrscheinlichkeit" : "Likelihood"}{" "}
                           {confidenceLabel(issue.confidence)}
                         </p>
                       </div>
                     </div>
-                    <span className="self-start rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold text-stone-700">
+                    <span className="self-start rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-[var(--smk-text)]">
                       {severityLabel(issue.severity, locale)}
                     </span>
                   </div>
@@ -1592,20 +1944,23 @@ export function PlantAnalyzerHistoryModal({
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4">
-            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-              {isGerman ? "Empfehlungen" : "Recommendations"}
+          <div className={smokeifyPanelClass}>
+            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+              {isGerman ? "Zusammenfassung und nächste Schritte" : "Summary and next steps"}
             </h4>
+            {detail ? (
+              <p className="mt-3 text-sm leading-6 text-[var(--smk-text-muted)]">{detail.summary}</p>
+            ) : null}
             <ul className="mt-3 grid gap-3">
-              {entry.recommendations.map((recommendation, index) => (
+              {(detail?.immediateActions ?? entry.recommendations).map((recommendation, index) => (
                 <li
                   key={recommendation}
-                  className="flex gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm"
+                  className={`flex gap-3 ${smokeifyInsetCardClass} shadow-sm`}
                 >
                   <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
                     {index + 1}
                   </span>
-                  <span className="pt-1 text-sm leading-6 text-stone-700">
+                  <span className="pt-1 text-sm leading-6 text-[var(--smk-text)]">
                     {recommendation}
                   </span>
                 </li>
@@ -1613,24 +1968,66 @@ export function PlantAnalyzerHistoryModal({
             </ul>
           </div>
 
-          <div className="rounded-[26px] border border-stone-200 bg-white p-4">
-            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
+          {detail ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className={smokeifyPanelClass}>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                  {isGerman ? "Mögliche Ursachen" : "Possible causes"}
+                </h4>
+                <div className="mt-3 grid gap-3">
+                  {detail.possibleCauses.map((cause) => (
+                    <div key={cause.label} className={smokeifyInsetCardClass}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-[var(--smk-text)]">{cause.label}</p>
+                        <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text)]">
+                          {confidenceLabel(cause.confidence)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">{cause.whyThisFits}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={smokeifyPanelClass}>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                  {isGerman ? "Verifikation" : "Verification"}
+                </h4>
+                <div className="mt-3 grid gap-3">
+                  {detail.verificationChecks.map((check) => (
+                    <div key={check.id} className={smokeifyInsetCardClass}>
+                      <p className="text-sm font-semibold text-[var(--smk-text)]">{check.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">{check.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={smokeifyPanelClass}>
+            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
               {isGerman ? "Produktempfehlungen" : "Product recommendations"}
             </h4>
+            {detail ? (
+              <p className="mt-3 text-sm leading-6 text-[var(--smk-text-muted)]">
+                {detail.remediation.productBundle.summary}
+              </p>
+            ) : null}
             <div className="mt-3">
               {detailStatus === "loading" ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[0, 1].map((index) => (
                     <div
                       key={index}
-                      className="rounded-[22px] border border-stone-200 bg-stone-50 p-3"
+                      className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3"
                     >
                       <div className="flex gap-3">
-                        <div className="h-20 w-20 rounded-2xl bg-stone-200 animate-pulse" />
+                        <div className="h-20 w-20 rounded-2xl bg-[rgba(255,255,255,0.08)] animate-pulse" />
                         <div className="flex-1 space-y-2 pt-1">
-                          <div className="h-4 w-3/4 rounded bg-stone-200 animate-pulse" />
-                          <div className="h-3 w-full rounded bg-stone-100 animate-pulse" />
-                          <div className="h-3 w-1/2 rounded bg-stone-100 animate-pulse" />
+                          <div className="h-4 w-3/4 rounded bg-[rgba(255,255,255,0.08)] animate-pulse" />
+                          <div className="h-3 w-full rounded bg-[rgba(255,255,255,0.05)] animate-pulse" />
+                          <div className="h-3 w-1/2 rounded bg-[rgba(255,255,255,0.05)] animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -1645,14 +2042,41 @@ export function PlantAnalyzerHistoryModal({
               ) : (
                 <ProductSuggestionGrid
                   locale={locale}
-                  productSuggestions={detail?.productSuggestions ?? []}
+                  productSuggestions={
+                    detail?.remediation.productBundle.optionalProducts.length ||
+                    detail?.remediation.productBundle.setupHelpers.length
+                      ? [
+                          ...(detail?.remediation.productBundle.optionalProducts ?? []),
+                          ...(detail?.remediation.productBundle.setupHelpers ?? []),
+                        ]
+                      : detail?.productSuggestions ?? []
+                  }
                 />
               )}
             </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onAddShoppingList}
+                disabled={shoppingListStatus === "loading" || !detail?.productSuggestions.length}
+                className={`smk-button-primary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+              >
+                {shoppingListStatus === "loading"
+                  ? isGerman
+                    ? "Wird hinzugefügt ..."
+                    : "Adding ..."
+                  : isGerman
+                    ? "Checkliste in Warenkorb"
+                    : "Add checklist to cart"}
+              </button>
+            </div>
+            {shoppingListMessage ? (
+              <p className="mt-3 text-sm text-[var(--smk-text-muted)]">{shoppingListMessage}</p>
+            ) : null}
           </div>
 
-          <div className="rounded-[26px] border border-stone-200 bg-white p-4">
-            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
+          <div className={smokeifyPanelClass}>
+            <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
               {isGerman ? "Weiterführende Guides" : "Further guides"}
             </h4>
             <div className="mt-3">
@@ -1662,6 +2086,79 @@ export function PlantAnalyzerHistoryModal({
               />
             </div>
           </div>
+
+          {detail ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className={smokeifyPanelClass}>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                  {isGerman ? "Recheck und Verlauf" : "Recheck and trend"}
+                </h4>
+                <p className="mt-3 text-sm leading-6 text-[var(--smk-text-muted)]">
+                  {detail.followUp.previousAnalysisId
+                    ? isGerman
+                      ? "Dieser Bericht ist bereits mit einem früheren Check verknüpft."
+                      : "This report is already linked to an earlier check."
+                    : isGerman
+                      ? "Nutze diesen Bericht als Basis für einen neuen Recheck."
+                    : "Use this report as a baseline for a new recheck."}
+                </p>
+                {detail.followUp.trendSummary ? (
+                  <div className="mt-3 rounded-2xl border border-[var(--smk-border)] bg-[rgba(0,0,0,0.18)] px-4 py-3 text-sm text-[var(--smk-text)]">
+                    {isGerman ? "Confidence-Differenz" : "Confidence delta"}:{" "}
+                    {detail.followUp.trendSummary.confidenceDelta === null
+                      ? "—"
+                      : `${Math.round(detail.followUp.trendSummary.confidenceDelta * 100)}%`}
+                  </div>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={onUseAsRecheckBaseline}
+                    className={`smk-button-secondary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+                  >
+                    {isGerman ? "Als Recheck-Basis nutzen" : "Use as recheck baseline"}
+                  </button>
+                </div>
+              </div>
+
+              <div className={smokeifyPanelClass}>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                  {isGerman ? "Follow-up Feedback" : "Follow-up feedback"}
+                </h4>
+                <p className="mt-3 text-sm leading-6 text-[var(--smk-text-muted)]">
+                  {isGerman
+                    ? "Wenn du die Schritte ausprobiert hast, markiere hier, ob der Zustand später besser oder schlechter wurde."
+                    : "Once you have tried the steps, mark whether the plant later improved or worsened."}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={onFollowUpImproved}
+                    disabled={feedbackStatus === "loading"}
+                    className={`smk-button-primary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+                  >
+                    {isGerman ? "Später verbessert" : "Improved later"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onFollowUpWorsened}
+                    disabled={feedbackStatus === "loading"}
+                    className={`smk-button-secondary inline-flex min-h-11 items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold ${darkFocusRing}`}
+                  >
+                    {isGerman ? "Später verschlechtert" : "Worsened later"}
+                  </button>
+                </div>
+                {detail.lastFeedback ? (
+                  <p className="mt-3 text-sm text-[var(--smk-text-muted)]">
+                    {feedbackLabel(detail.lastFeedback, locale)}
+                  </p>
+                ) : null}
+                {feedbackMessage ? (
+                  <p className="mt-3 text-sm text-[var(--smk-text-muted)]">{feedbackMessage}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 flex justify-end">
