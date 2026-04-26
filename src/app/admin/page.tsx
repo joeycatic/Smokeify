@@ -28,6 +28,7 @@ import {
   parseAdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { isMissingProcessedWebhookStorageError } from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "refunded", "partially_refunded"]);
@@ -419,6 +420,17 @@ const ADMIN_INBOX_PRIORITY_CLASS: Record<AdminInboxPriority, string> = {
   medium: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
 };
 
+async function getFailedWebhookCount() {
+  try {
+    return await prisma.processedWebhookEvent.count({ where: { status: "failed" } });
+  } catch (error) {
+    if (!isMissingProcessedWebhookStorageError(error)) {
+      throw error;
+    }
+    return 0;
+  }
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -447,7 +459,7 @@ export default async function AdminPage({
     financeData,
     vatData,
   ] = await Promise.all([
-    prisma.processedWebhookEvent.count({ where: { status: "failed" } }),
+    getFailedWebhookCount(),
     prisma.returnRequest.count({ where: { status: "PENDING" } }),
     prisma.variant.findMany({
       orderBy: { updatedAt: "desc" },

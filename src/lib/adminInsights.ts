@@ -1,6 +1,11 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import {
+  isMissingAdminAuditStorageError,
+  isMissingAnalyticsStorageError,
+  isMissingProcessedWebhookStorageError,
+} from "@/lib/adminStorageGuards";
 import { ACTIVE_ANALYTICS_WINDOW_MINUTES } from "@/lib/analyticsShared";
 
 export const PAID_ORDER_STATUSES = ["paid", "succeeded", "refunded", "partially_refunded"];
@@ -84,22 +89,38 @@ const formatTrafficSourceLabel = (
 const getDateKey = (value: Date) => value.toISOString().slice(0, 10);
 
 export async function getActiveSessionSnapshot() {
-  const activeSessions = await prisma.analyticsSession.findMany({
-    where: {
-      lastSeenAt: {
-        gte: getActiveWindowStart(),
+  let activeSessions: Array<{
+    id: string;
+    lastPath: string | null;
+    lastPageType: string | null;
+    utmSource: string | null;
+    utmMedium: string | null;
+    utmCampaign: string | null;
+    lastSeenAt: Date;
+  }> = [];
+
+  try {
+    activeSessions = await prisma.analyticsSession.findMany({
+      where: {
+        lastSeenAt: {
+          gte: getActiveWindowStart(),
+        },
       },
-    },
-    select: {
-      id: true,
-      lastPath: true,
-      lastPageType: true,
-      utmSource: true,
-      utmMedium: true,
-      utmCampaign: true,
-      lastSeenAt: true,
-    },
-  });
+      select: {
+        id: true,
+        lastPath: true,
+        lastPageType: true,
+        utmSource: true,
+        utmMedium: true,
+        utmCampaign: true,
+        lastSeenAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+  }
 
   const topPages = new Map<
     string,
@@ -145,47 +166,59 @@ export async function getActiveSessionSnapshot() {
 
 async function getFunnelSnapshotForRange(start: Date, end?: Date): Promise<FunnelSnapshot> {
   const createdAtFilter = end ? { gte: start, lt: end } : { gte: start };
-  const [
-    sessionStarts,
-    productViews,
-    addToCart,
-    beginCheckout,
-    purchaseSessions,
-    paidOrders,
-  ] = await Promise.all([
-    prisma.analyticsEvent.groupBy({
-      by: ["sessionId"],
-      where: { createdAt: createdAtFilter, eventName: "page_view" },
-    }),
-    prisma.analyticsEvent.groupBy({
-      by: ["sessionId"],
-      where: { createdAt: createdAtFilter, eventName: "view_item" },
-    }),
-    prisma.analyticsEvent.groupBy({
-      by: ["sessionId"],
-      where: { createdAt: createdAtFilter, eventName: "add_to_cart" },
-    }),
-    prisma.analyticsEvent.groupBy({
-      by: ["sessionId"],
-      where: { createdAt: createdAtFilter, eventName: "begin_checkout" },
-    }),
-    prisma.analyticsEvent.groupBy({
-      by: ["sessionId"],
-      where: { createdAt: createdAtFilter, eventName: "purchase" },
-    }),
-    prisma.order.count({
+  const funnelEventNames = [
+    "page_view",
+    "view_item",
+    "add_to_cart",
+    "begin_checkout",
+    "purchase",
+  ] as const;
+  const paidOrdersPromise = prisma.order.count({
+    where: {
+      createdAt: createdAtFilter,
+      paymentStatus: { in: PAID_ORDER_STATUSES },
+    },
+  });
+
+  let analyticsEvents: Array<{ sessionId: string; eventName: string }> = [];
+
+  try {
+    analyticsEvents = await prisma.analyticsEvent.findMany({
       where: {
         createdAt: createdAtFilter,
-        paymentStatus: { in: PAID_ORDER_STATUSES },
+        eventName: { in: [...funnelEventNames] },
       },
-    }),
-  ]);
+      select: {
+        sessionId: true,
+        eventName: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+  }
 
-  const sessionCount = sessionStarts.length;
-  const productViewCount = productViews.length;
-  const addToCartCount = addToCart.length;
-  const beginCheckoutCount = beginCheckout.length;
-  const purchaseSessionCount = purchaseSessions.length;
+  const paidOrders = await paidOrdersPromise;
+  const sessionStarts = new Set<string>();
+  const productViews = new Set<string>();
+  const addToCart = new Set<string>();
+  const beginCheckout = new Set<string>();
+  const purchaseSessions = new Set<string>();
+
+  for (const event of analyticsEvents) {
+    if (event.eventName === "page_view") sessionStarts.add(event.sessionId);
+    if (event.eventName === "view_item") productViews.add(event.sessionId);
+    if (event.eventName === "add_to_cart") addToCart.add(event.sessionId);
+    if (event.eventName === "begin_checkout") beginCheckout.add(event.sessionId);
+    if (event.eventName === "purchase") purchaseSessions.add(event.sessionId);
+  }
+
+  const sessionCount = sessionStarts.size;
+  const productViewCount = productViews.size;
+  const addToCartCount = addToCart.size;
+  const beginCheckoutCount = beginCheckout.size;
+  const purchaseSessionCount = purchaseSessions.size;
   const effectiveCompletedCount = purchaseSessionCount > 0 ? purchaseSessionCount : paidOrders;
 
   return {
@@ -245,8 +278,20 @@ export async function getFunnelComparison(days = 30) {
 
 export async function getFunnelTrend(days = 14): Promise<FunnelTrendPoint[]> {
   const since = getDateDaysAgo(days - 1);
-  const [events, paidOrders] = await Promise.all([
-    prisma.analyticsEvent.findMany({
+  const paidOrdersPromise = prisma.order.findMany({
+    where: {
+      createdAt: { gte: since },
+      paymentStatus: { in: PAID_ORDER_STATUSES },
+    },
+    select: {
+      createdAt: true,
+      amountTotal: true,
+    },
+  });
+  let events: Array<{ createdAt: Date; eventName: string; sessionId: string }> = [];
+
+  try {
+    events = await prisma.analyticsEvent.findMany({
       where: {
         createdAt: { gte: since },
         eventName: { in: ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"] },
@@ -256,18 +301,14 @@ export async function getFunnelTrend(days = 14): Promise<FunnelTrendPoint[]> {
         eventName: true,
         sessionId: true,
       },
-    }),
-    prisma.order.findMany({
-      where: {
-        createdAt: { gte: since },
-        paymentStatus: { in: PAID_ORDER_STATUSES },
-      },
-      select: {
-        createdAt: true,
-        amountTotal: true,
-      },
-    }),
-  ]);
+    });
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+  }
+
+  const paidOrders = await paidOrdersPromise;
 
   const buckets = Array.from({ length: days }, (_, index) => {
     const date = new Date(since);
@@ -469,33 +510,45 @@ export async function getCustomerRevenueMix(days = 30) {
 
 export async function getProductPerformance(days = 30) {
   const since = getDateDaysAgo(days - 1);
-  const [eventGroups, salesGroups] = await Promise.all([
-    prisma.analyticsEvent.groupBy({
-      by: ["variantId", "eventName"],
+  const performanceEventNames = ["view_item", "add_to_cart", "begin_checkout"] as const;
+  const salesGroupsPromise = prisma.orderItem.groupBy({
+    by: ["variantId", "productId", "name"] as const,
+    where: {
+      variantId: { not: null },
+      order: {
+        createdAt: { gte: since },
+        paymentStatus: { in: PAID_ORDER_STATUSES },
+      },
+    },
+    _sum: {
+      quantity: true,
+      totalAmount: true,
+      adjustedCostAmount: true,
+      baseCostAmount: true,
+    },
+  });
+
+  let eventGroups: Array<{ variantId: string | null; eventName: string }> = [];
+
+  try {
+    eventGroups = await prisma.analyticsEvent.findMany({
       where: {
         createdAt: { gte: since },
         variantId: { not: null },
-        eventName: { in: ["view_item", "add_to_cart", "begin_checkout"] },
+        eventName: { in: [...performanceEventNames] },
       },
-      _count: { _all: true },
-    }),
-    prisma.orderItem.groupBy({
-      by: ["variantId", "productId", "name"],
-      where: {
-        variantId: { not: null },
-        order: {
-          createdAt: { gte: since },
-          paymentStatus: { in: PAID_ORDER_STATUSES },
-        },
+      select: {
+        variantId: true,
+        eventName: true,
       },
-      _sum: {
-        quantity: true,
-        totalAmount: true,
-        adjustedCostAmount: true,
-        baseCostAmount: true,
-      },
-    }),
-  ]);
+    });
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+  }
+
+  const salesGroups = await salesGroupsPromise;
 
   const variantMetrics = new Map<
     string,
@@ -522,9 +575,9 @@ export async function getProductPerformance(days = 30) {
       revenueCents: 0,
       costCents: 0,
     };
-    if (group.eventName === "view_item") entry.views += group._count._all;
-    if (group.eventName === "add_to_cart") entry.addToCart += group._count._all;
-    if (group.eventName === "begin_checkout") entry.beginCheckout += group._count._all;
+    if (group.eventName === "view_item") entry.views += 1;
+    if (group.eventName === "add_to_cart") entry.addToCart += 1;
+    if (group.eventName === "begin_checkout") entry.beginCheckout += 1;
     variantMetrics.set(variantId, entry);
   }
 
@@ -607,7 +660,7 @@ export async function getProductPerformance(days = 30) {
 export async function getStockCoverageMap(days = 30) {
   const since = getDateDaysAgo(days - 1);
   const salesGroups = await prisma.orderItem.groupBy({
-    by: ["variantId"],
+    by: ["variantId"] as const,
     where: {
       variantId: { not: null },
       order: {
@@ -635,8 +688,8 @@ export async function getStockCoverageMap(days = 30) {
 }
 
 export async function getActivityFeed(limit = 12) {
-  const [auditLogs, recentOrders, recentReturns, webhookFailures] = await Promise.all([
-    prisma.adminAuditLog.findMany({
+  const auditLogsPromise = prisma.adminAuditLog
+    .findMany({
       orderBy: { createdAt: "desc" },
       take: limit,
       select: {
@@ -646,7 +699,33 @@ export async function getActivityFeed(limit = 12) {
         actorEmail: true,
         createdAt: true,
       },
-    }),
+    })
+    .catch((error) => {
+      if (isMissingAdminAuditStorageError(error)) {
+        return [];
+      }
+      throw error;
+    });
+  const webhookFailuresPromise = prisma.processedWebhookEvent
+    .findMany({
+      where: { status: "failed" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        eventId: true,
+        type: true,
+        createdAt: true,
+      },
+    })
+    .catch((error) => {
+      if (isMissingProcessedWebhookStorageError(error)) {
+        return [];
+      }
+      throw error;
+    });
+  const [auditLogs, recentOrders, recentReturns, webhookFailures] = await Promise.all([
+    auditLogsPromise,
     prisma.order.findMany({
       where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
       orderBy: { createdAt: "desc" },
@@ -672,17 +751,7 @@ export async function getActivityFeed(limit = 12) {
         order: { select: { orderNumber: true, customerEmail: true } },
       },
     }),
-    prisma.processedWebhookEvent.findMany({
-      where: { status: "failed" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        eventId: true,
-        type: true,
-        createdAt: true,
-      },
-    }),
+    webhookFailuresPromise,
   ]);
 
   return [
