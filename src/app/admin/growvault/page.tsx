@@ -204,7 +204,16 @@ export default async function AdminGrowvaultPage({
           }
         />
 
-        {!insights.firstTaggedEventAt ? (
+        {!insights.storefrontAnalyticsAvailable ? (
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            Die Analytics-Storefront-Migration f&uuml;r GrowVault fehlt in der aktuellen
+            Datenbank. Funnel-, Live-Session- und Warenkorb-Stufen bleiben deshalb leer, bis
+            `20260424120000_add_storefront_to_analytics` angewendet wurde. Bezahlte Orders
+            basieren weiterhin auf `sourceStorefront = GROW`.
+          </div>
+        ) : null}
+
+        {insights.storefrontAnalyticsAvailable && !insights.firstTaggedEventAt ? (
           <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
             Für GrowVault existieren noch keine storefront-getaggten Analytics-Events. Der
             Funnel bleibt leer, bis neue Events mit `storefront = GROW` eingehen. Order-Zahlen
@@ -291,7 +300,6 @@ export default async function AdminGrowvaultPage({
                   label: source.label,
                   value: source.count,
                 }))}
-                valueFormatter={(value) => `${value}`}
               />
             </div>
           </AdminPanel>

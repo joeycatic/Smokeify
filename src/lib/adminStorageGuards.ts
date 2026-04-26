@@ -7,6 +7,15 @@ type PrismaLikeError = {
 const ANALYTICS_STORAGE_IDENTIFIERS = ["AnalyticsEvent", "AnalyticsSession"];
 const PROCESSED_WEBHOOK_STORAGE_IDENTIFIERS = ["ProcessedWebhookEvent"];
 const ADMIN_AUDIT_STORAGE_IDENTIFIERS = ["AdminAuditLog"];
+const ADMIN_JOB_RUN_STORAGE_IDENTIFIERS = ["AdminJobRun"];
+const INVENTORY_STORAGE_IDENTIFIERS = ["InventoryAdjustment", "VariantInventory"];
+const PROCUREMENT_STORAGE_IDENTIFIERS = [
+  "PurchaseOrder",
+  "PurchaseOrderItem",
+  "PurchaseOrderReceipt",
+  "PurchaseOrderReceiptItem",
+  "PurchaseOrderEvent",
+];
 
 function readPrismaMetaString(error: PrismaLikeError, key: "table" | "column") {
   if (!error.meta || typeof error.meta !== "object" || !(key in error.meta)) {
@@ -63,4 +72,16 @@ export function isMissingProcessedWebhookStorageError(error: unknown) {
 
 export function isMissingAdminAuditStorageError(error: unknown) {
   return isMissingStorageError(error, ADMIN_AUDIT_STORAGE_IDENTIFIERS);
+}
+
+export function isMissingAdminJobRunStorageError(error: unknown) {
+  return isMissingStorageError(error, ADMIN_JOB_RUN_STORAGE_IDENTIFIERS);
+}
+
+export function isMissingInventoryStorageError(error: unknown) {
+  return isMissingStorageError(error, INVENTORY_STORAGE_IDENTIFIERS);
+}
+
+export function isMissingProcurementStorageError(error: unknown) {
+  return isMissingStorageError(error, PROCUREMENT_STORAGE_IDENTIFIERS);
 }

@@ -310,6 +310,8 @@ export default function AdminCustomersClient({
     () => customers.find((customer) => getCustomerKey(customer) === selectedKey) ?? customers[0] ?? null,
     [customers, selectedKey],
   );
+  const selectedRegisteredCustomerId =
+    selectedCustomer?.type === "registered" ? selectedCustomer.id : null;
 
   useEffect(() => {
     if (selectedCustomer?.type === "registered") {
@@ -338,6 +340,7 @@ export default function AdminCustomersClient({
   }, [selectedCustomer]);
 
   const loadTasks = useEffectEvent(async (customerId: string) => {
+    setTasks([]);
     setTasksLoading(true);
     try {
       const response = await fetch(
@@ -361,12 +364,9 @@ export default function AdminCustomersClient({
   });
 
   useEffect(() => {
-    if (!selectedCustomer || selectedCustomer.type !== "registered" || !canWriteCrm) {
-      setTasks([]);
-      return;
-    }
-    void loadTasks(selectedCustomer.id);
-  }, [canWriteCrm, loadTasks, selectedCustomer]);
+    if (!selectedRegisteredCustomerId || !canWriteCrm) return;
+    void loadTasks(selectedRegisteredCustomerId);
+  }, [canWriteCrm, selectedRegisteredCustomerId]);
 
   const actionSummary = useMemo(() => {
     if (!selectedCustomer) return null;

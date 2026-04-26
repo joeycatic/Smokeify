@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ACTIVE_ANALYTICS_WINDOW_MINUTES } from "@/lib/analyticsShared";
+import { isMissingAnalyticsStorageError } from "@/lib/adminStorageGuards";
 import { buildAdminTimeBuckets, getAdminTimeWindowStart, type AdminTimeRangeDays } from "@/lib/adminTimeRange";
 import { PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
@@ -79,11 +80,14 @@ export type GrowvaultInsights = {
   funnel: GrowvaultFunnelSnapshot;
   live: GrowvaultLiveSnapshot;
   rangeStart: string;
+  storefrontAnalyticsAvailable: boolean;
   topProducts: GrowvaultProductPerformanceRow[];
   trend: GrowvaultFunnelTrendPoint[];
   underperformingProducts: GrowvaultProductPerformanceRow[];
   warningStartsAt: string | null;
 };
+
+let analyticsStorefrontSchemaPromise: Promise<boolean> | null = null;
 
 const buildStageRate = (current: number, previous: number) =>
   previous > 0 ? current / previous : 0;
@@ -105,6 +109,47 @@ const getActiveWindowStart = () => {
   date.setMinutes(date.getMinutes() - ACTIVE_ANALYTICS_WINDOW_MINUTES);
   return date;
 };
+
+const buildEmptyLiveSnapshot = (): GrowvaultLiveSnapshot => ({
+  activeVisitorCount: 0,
+  topPages: [],
+  trafficSources: [],
+});
+
+async function hasAnalyticsStorefrontSchema() {
+  if (!analyticsStorefrontSchemaPromise) {
+    analyticsStorefrontSchemaPromise = (async () => {
+      try {
+        const [sessionRows, eventRows] = await prisma.$transaction([
+          prisma.$queryRaw<Array<{ exists: boolean }>>`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = current_schema()
+                AND table_name = 'AnalyticsSession'
+                AND column_name = 'storefront'
+            ) AS "exists"
+          `,
+          prisma.$queryRaw<Array<{ exists: boolean }>>`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = current_schema()
+                AND table_name = 'AnalyticsEvent'
+                AND column_name = 'storefront'
+            ) AS "exists"
+          `,
+        ]);
+
+        return sessionRows[0]?.exists === true && eventRows[0]?.exists === true;
+      } catch {
+        return true;
+      }
+    })();
+  }
+
+  return analyticsStorefrontSchemaPromise;
+}
 
 export function buildGrowvaultFunnelSnapshot(
   input: FunnelCountsInput,
@@ -164,33 +209,67 @@ function resolveTrendBucketKey(
 async function countDistinctSessionsForEvent(
   eventName: string,
   rangeStart: Date,
+  storefrontAnalyticsAvailable: boolean,
 ) {
-  const rows = await prisma.analyticsEvent.groupBy({
-    by: ["sessionId"],
-    where: {
-      storefront: GROW_STOREFRONT,
-      createdAt: { gte: rangeStart },
-      eventName,
-    },
-  });
+  if (!storefrontAnalyticsAvailable) {
+    return 0;
+  }
 
-  return rows.length;
+  try {
+    return (
+      await prisma.analyticsEvent.groupBy({
+        by: ["sessionId"],
+        where: {
+          storefront: GROW_STOREFRONT,
+          createdAt: { gte: rangeStart },
+          eventName,
+        },
+      })
+    ).length;
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+  }
+
+  return 0;
 }
 
-async function getGrowvaultLiveSnapshot(): Promise<GrowvaultLiveSnapshot> {
-  const activeSessions = await prisma.analyticsSession.findMany({
-    where: {
-      storefront: GROW_STOREFRONT,
-      lastSeenAt: { gte: getActiveWindowStart() },
-    },
-    select: {
-      lastPath: true,
-      lastPageType: true,
-      lastSeenAt: true,
-      utmSource: true,
-      utmMedium: true,
-    },
-  });
+async function getGrowvaultLiveSnapshot(
+  storefrontAnalyticsAvailable: boolean,
+): Promise<GrowvaultLiveSnapshot> {
+  if (!storefrontAnalyticsAvailable) {
+    return buildEmptyLiveSnapshot();
+  }
+
+  let activeSessions: Array<{
+    lastPath: string | null;
+    lastPageType: string | null;
+    lastSeenAt: Date;
+    utmSource: string | null;
+    utmMedium: string | null;
+  }> = [];
+
+  try {
+    activeSessions = await prisma.analyticsSession.findMany({
+      where: {
+        storefront: GROW_STOREFRONT,
+        lastSeenAt: { gte: getActiveWindowStart() },
+      },
+      select: {
+        lastPath: true,
+        lastPageType: true,
+        lastSeenAt: true,
+        utmSource: true,
+        utmMedium: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingAnalyticsStorageError(error)) {
+      throw error;
+    }
+    return buildEmptyLiveSnapshot();
+  }
 
   const topPages = new Map<
     string,
@@ -237,6 +316,7 @@ async function getGrowvaultLiveSnapshot(): Promise<GrowvaultLiveSnapshot> {
 
 async function getGrowvaultTrend(
   days: AdminTimeRangeDays,
+  storefrontAnalyticsAvailable: boolean,
 ): Promise<GrowvaultFunnelTrendPoint[]> {
   const rangeStart = getAdminTimeWindowStart(days);
   const buckets = buildAdminTimeBuckets(days, DEFAULT_LOCALE).map((bucket) => ({
@@ -250,38 +330,49 @@ async function getGrowvaultTrend(
   }));
   const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
 
-  const [events, paidOrders] = await Promise.all([
-    prisma.analyticsEvent.findMany({
-      where: {
-        storefront: GROW_STOREFRONT,
-        createdAt: { gte: rangeStart },
-        eventName: {
-          in: [
-            GROWVAULT_FUNNEL_EVENTS.addToCart,
-            GROWVAULT_FUNNEL_EVENTS.beginCheckout,
-            GROWVAULT_FUNNEL_EVENTS.shippingSubmitted,
-            GROWVAULT_FUNNEL_EVENTS.paymentStarted,
-            GROWVAULT_FUNNEL_EVENTS.purchase,
-          ],
+  const paidOrdersPromise = prisma.order.findMany({
+    where: {
+      createdAt: { gte: rangeStart },
+      sourceStorefront: GROW_STOREFRONT,
+      paymentStatus: { in: PAID_ORDER_STATUSES },
+    },
+    select: {
+      createdAt: true,
+    },
+  });
+
+  let events: Array<{ createdAt: Date; eventName: string; sessionId: string }> = [];
+
+  if (storefrontAnalyticsAvailable) {
+    try {
+      events = await prisma.analyticsEvent.findMany({
+        where: {
+          storefront: GROW_STOREFRONT,
+          createdAt: { gte: rangeStart },
+          eventName: {
+            in: [
+              GROWVAULT_FUNNEL_EVENTS.addToCart,
+              GROWVAULT_FUNNEL_EVENTS.beginCheckout,
+              GROWVAULT_FUNNEL_EVENTS.shippingSubmitted,
+              GROWVAULT_FUNNEL_EVENTS.paymentStarted,
+              GROWVAULT_FUNNEL_EVENTS.purchase,
+            ],
+          },
         },
-      },
-      select: {
-        createdAt: true,
-        eventName: true,
-        sessionId: true,
-      },
-    }),
-    prisma.order.findMany({
-      where: {
-        createdAt: { gte: rangeStart },
-        sourceStorefront: GROW_STOREFRONT,
-        paymentStatus: { in: PAID_ORDER_STATUSES },
-      },
-      select: {
-        createdAt: true,
-      },
-    }),
-  ]);
+        select: {
+          createdAt: true,
+          eventName: true,
+          sessionId: true,
+        },
+      });
+    } catch (error) {
+      if (!isMissingAnalyticsStorageError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  const paidOrders = await paidOrdersPromise;
 
   for (const event of events) {
     const bucketKey = resolveTrendBucketKey(event.createdAt, buckets);
@@ -328,41 +419,52 @@ async function getGrowvaultTrend(
 
 async function getGrowvaultProductPerformance(
   days: AdminTimeRangeDays,
+  storefrontAnalyticsAvailable: boolean,
 ): Promise<GrowvaultProductPerformanceRow[]> {
   const rangeStart = getAdminTimeWindowStart(days);
-  const [eventGroups, salesGroups] = await Promise.all([
-    prisma.analyticsEvent.groupBy({
-      by: ["variantId", "eventName"],
-      where: {
-        storefront: GROW_STOREFRONT,
+  const salesGroupsPromise = prisma.orderItem.groupBy({
+    by: ["variantId", "productId", "name"],
+    where: {
+      variantId: { not: null },
+      order: {
         createdAt: { gte: rangeStart },
-        variantId: { not: null },
-        eventName: {
-          in: [
-            GROWVAULT_FUNNEL_EVENTS.addToCart,
-            GROWVAULT_FUNNEL_EVENTS.beginCheckout,
-            GROWVAULT_FUNNEL_EVENTS.paymentStarted,
-          ],
-        },
+        sourceStorefront: GROW_STOREFRONT,
+        paymentStatus: { in: PAID_ORDER_STATUSES },
       },
-      _count: { _all: true },
-    }),
-    prisma.orderItem.groupBy({
-      by: ["variantId", "productId", "name"],
-      where: {
-        variantId: { not: null },
-        order: {
+    },
+    _sum: {
+      quantity: true,
+      totalAmount: true,
+    },
+  });
+
+  const eventGroups = storefrontAnalyticsAvailable
+    ? await prisma.analyticsEvent
+        .groupBy({
+        by: ["variantId", "eventName"],
+        where: {
+          storefront: GROW_STOREFRONT,
           createdAt: { gte: rangeStart },
-          sourceStorefront: GROW_STOREFRONT,
-          paymentStatus: { in: PAID_ORDER_STATUSES },
+          variantId: { not: null },
+          eventName: {
+            in: [
+              GROWVAULT_FUNNEL_EVENTS.addToCart,
+              GROWVAULT_FUNNEL_EVENTS.beginCheckout,
+              GROWVAULT_FUNNEL_EVENTS.paymentStarted,
+            ],
+          },
         },
-      },
-      _sum: {
-        quantity: true,
-        totalAmount: true,
-      },
-    }),
-  ]);
+        _count: { _all: true },
+        })
+        .catch((error) => {
+          if (!isMissingAnalyticsStorageError(error)) {
+            throw error;
+          }
+          return [];
+        })
+    : [];
+
+  const salesGroups = await salesGroupsPromise;
 
   const variantMetrics = new Map<
     string,
@@ -478,9 +580,25 @@ export async function getGrowvaultInsights(
   days: AdminTimeRangeDays,
 ): Promise<GrowvaultInsights> {
   const rangeStart = getAdminTimeWindowStart(days);
+  let storefrontAnalyticsAvailable = await hasAnalyticsStorefrontSchema();
+  let firstTaggedEvent: { createdAt: Date } | null = null;
+
+  if (storefrontAnalyticsAvailable) {
+    try {
+      firstTaggedEvent = await prisma.analyticsEvent.findFirst({
+        where: { storefront: GROW_STOREFRONT },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      });
+    } catch (error) {
+      if (!isMissingAnalyticsStorageError(error)) {
+        throw error;
+      }
+      storefrontAnalyticsAvailable = false;
+    }
+  }
 
   const [
-    firstTaggedEvent,
     live,
     addToCart,
     beginCheckout,
@@ -491,26 +609,32 @@ export async function getGrowvaultInsights(
     trend,
     productRows,
   ] = await Promise.all([
-    prisma.analyticsEvent.findFirst({
-      where: { storefront: GROW_STOREFRONT },
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
-    }),
-    getGrowvaultLiveSnapshot(),
-    countDistinctSessionsForEvent(GROWVAULT_FUNNEL_EVENTS.addToCart, rangeStart),
+    getGrowvaultLiveSnapshot(storefrontAnalyticsAvailable),
+    countDistinctSessionsForEvent(
+      GROWVAULT_FUNNEL_EVENTS.addToCart,
+      rangeStart,
+      storefrontAnalyticsAvailable,
+    ),
     countDistinctSessionsForEvent(
       GROWVAULT_FUNNEL_EVENTS.beginCheckout,
       rangeStart,
+      storefrontAnalyticsAvailable,
     ),
     countDistinctSessionsForEvent(
       GROWVAULT_FUNNEL_EVENTS.shippingSubmitted,
       rangeStart,
+      storefrontAnalyticsAvailable,
     ),
     countDistinctSessionsForEvent(
       GROWVAULT_FUNNEL_EVENTS.paymentStarted,
       rangeStart,
+      storefrontAnalyticsAvailable,
     ),
-    countDistinctSessionsForEvent(GROWVAULT_FUNNEL_EVENTS.purchase, rangeStart),
+    countDistinctSessionsForEvent(
+      GROWVAULT_FUNNEL_EVENTS.purchase,
+      rangeStart,
+      storefrontAnalyticsAvailable,
+    ),
     prisma.order.count({
       where: {
         createdAt: { gte: rangeStart },
@@ -518,8 +642,8 @@ export async function getGrowvaultInsights(
         paymentStatus: { in: PAID_ORDER_STATUSES },
       },
     }),
-    getGrowvaultTrend(days),
-    getGrowvaultProductPerformance(days),
+    getGrowvaultTrend(days, storefrontAnalyticsAvailable),
+    getGrowvaultProductPerformance(days, storefrontAnalyticsAvailable),
   ]);
 
   const topProducts = productRows.slice(0, 6);
@@ -555,6 +679,7 @@ export async function getGrowvaultInsights(
     }),
     live,
     rangeStart: rangeStart.toISOString(),
+    storefrontAnalyticsAvailable,
     topProducts,
     trend,
     underperformingProducts,

@@ -406,6 +406,9 @@ export async function POST(
           lastPublishedAt: new Date(),
         },
       });
+      if (!jobRun) {
+        throw new Error("Landing page publish job run could not be created.");
+      }
       await finishAdminJobRun({
         id: jobRun.id,
         status: "SUCCEEDED",

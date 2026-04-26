@@ -3,9 +3,49 @@ import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { requireAdminScope } from "@/lib/adminCatalog";
+import {
+  isMissingInventoryStorageError,
+  isMissingProcurementStorageError,
+} from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
 
 const PAGE_SIZE = 50;
+
+const inventoryAdjustmentInclude = Prisma.validator<Prisma.InventoryAdjustmentInclude>()({
+  product: {
+    select: {
+      id: true,
+      title: true,
+      manufacturer: true,
+      supplierId: true,
+      supplierRef: { select: { name: true } },
+    },
+  },
+  variant: { select: { title: true, sku: true } },
+  order: { select: { id: true, orderNumber: true } },
+});
+
+const purchaseOrderReceiptInclude =
+  Prisma.validator<Prisma.PurchaseOrderReceiptInclude>()({
+    purchaseOrder: {
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
+  });
+
+type InventoryAdjustmentRow = Prisma.InventoryAdjustmentGetPayload<{
+  include: typeof inventoryAdjustmentInclude;
+}>;
+
+type PurchaseOrderReceiptRow = Prisma.PurchaseOrderReceiptGetPayload<{
+  include: typeof purchaseOrderReceiptInclude;
+}>;
 
 const formatDate = (value: Date | string | null) =>
   value
@@ -40,141 +80,148 @@ export default async function AdminInventoryAdjustmentsPage({
   const sourceType = getParam(resolvedSearchParams, "sourceType").trim();
   const supplierId = getParam(resolvedSearchParams, "supplierId").trim();
   const reference = getParam(resolvedSearchParams, "reference").trim();
+  let inventoryStorageAvailable = true;
 
   const suppliers = await prisma.supplier.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
 
-  const referenceNumeric = Number(reference);
-  const orderIdsForReference =
-    reference && Number.isFinite(referenceNumeric)
-      ? (
-          await prisma.order.findMany({
-            where: { orderNumber: Math.floor(referenceNumeric) },
-            select: { id: true },
-          })
-        ).map((order) => order.id)
-      : [];
-  const purchaseReceiptIdsForReference =
-    reference && Number.isFinite(referenceNumeric)
+  let totalCount = 0;
+  let adjustments: InventoryAdjustmentRow[] = [];
+  let purchaseReceipts: PurchaseOrderReceiptRow[] = [];
+
+  try {
+    const referenceNumeric = Number(reference);
+    const orderIdsForReference =
+      reference && Number.isFinite(referenceNumeric)
+        ? (
+            await prisma.order.findMany({
+              where: { orderNumber: Math.floor(referenceNumeric) },
+              select: { id: true },
+            })
+          ).map((order) => order.id)
+        : [];
+    const purchaseReceiptIdsForReference =
+      reference && Number.isFinite(referenceNumeric)
+        ? (
+            await prisma.purchaseOrderReceipt.findMany({
+              where: {
+                purchaseOrder: {
+                  purchaseOrderNumber: Math.floor(referenceNumeric),
+                },
+              },
+              select: { id: true },
+            })
+          ).map((receipt) => receipt.id)
+        : [];
+    const purchaseReceiptIdsForSupplier = supplierId
       ? (
           await prisma.purchaseOrderReceipt.findMany({
             where: {
               purchaseOrder: {
-                purchaseOrderNumber: Math.floor(referenceNumeric),
+                supplierId,
               },
             },
             select: { id: true },
           })
         ).map((receipt) => receipt.id)
       : [];
-  const purchaseReceiptIdsForSupplier = supplierId
-    ? (
-        await prisma.purchaseOrderReceipt.findMany({
-          where: {
-            purchaseOrder: {
-              supplierId,
+
+    const whereClauses: Prisma.InventoryAdjustmentWhereInput[] = [];
+
+    if (query) {
+      whereClauses.push({
+        OR: [
+          { product: { title: { contains: query, mode: "insensitive" } } },
+          { product: { manufacturer: { contains: query, mode: "insensitive" } } },
+          { variant: { title: { contains: query, mode: "insensitive" } } },
+          { variant: { sku: { contains: query, mode: "insensitive" } } },
+        ],
+      });
+    }
+
+    if (sourceType === "ORDER") {
+      whereClauses.push({
+        OR: [{ sourceType: "ORDER" }, { orderId: { not: null } }],
+      });
+    } else if (sourceType === "PURCHASE_ORDER_RECEIPT") {
+      whereClauses.push({ sourceType: "PURCHASE_ORDER_RECEIPT" });
+    }
+
+    if (supplierId) {
+      whereClauses.push({
+        OR: [
+          { product: { supplierId } },
+          {
+            sourceId: {
+              in: purchaseReceiptIdsForSupplier.length
+                ? purchaseReceiptIdsForSupplier
+                : ["__none__"],
             },
           },
-          select: { id: true },
+        ],
+      });
+    }
+
+    if (reference) {
+      whereClauses.push({
+        OR: [
+          {
+            orderId: { in: orderIdsForReference.length ? orderIdsForReference : ["__none__"] },
+          },
+          {
+            sourceId: {
+              in: purchaseReceiptIdsForReference.length
+                ? purchaseReceiptIdsForReference
+                : ["__none__"],
+            },
+          },
+        ],
+      });
+    }
+
+    const where: Prisma.InventoryAdjustmentWhereInput =
+      whereClauses.length > 0 ? { AND: whereClauses } : {};
+
+    [totalCount, adjustments] = await Promise.all([
+      prisma.inventoryAdjustment.count({ where }),
+      prisma.inventoryAdjustment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        include: inventoryAdjustmentInclude,
+      }),
+    ]);
+
+    const purchaseReceiptIds = Array.from(
+      new Set(
+        adjustments
+          .filter(
+            (adjustment) =>
+              adjustment.sourceType === "PURCHASE_ORDER_RECEIPT" && adjustment.sourceId,
+          )
+          .map((adjustment) => adjustment.sourceId as string),
+      ),
+    );
+    purchaseReceipts = purchaseReceiptIds.length
+      ? await prisma.purchaseOrderReceipt.findMany({
+          where: { id: { in: purchaseReceiptIds } },
+          include: purchaseOrderReceiptInclude,
         })
-      ).map((receipt) => receipt.id)
-    : [];
+      : [];
+  } catch (error) {
+    if (
+      !isMissingInventoryStorageError(error) &&
+      !isMissingProcurementStorageError(error)
+    ) {
+      throw error;
+    }
 
-  const whereClauses: Prisma.InventoryAdjustmentWhereInput[] = [];
-
-  if (query) {
-    whereClauses.push({
-      OR: [
-        { product: { title: { contains: query, mode: "insensitive" } } },
-        { product: { manufacturer: { contains: query, mode: "insensitive" } } },
-        { variant: { title: { contains: query, mode: "insensitive" } } },
-        { variant: { sku: { contains: query, mode: "insensitive" } } },
-      ],
-    });
+    inventoryStorageAvailable = false;
   }
 
-  if (sourceType === "ORDER") {
-    whereClauses.push({
-      OR: [{ sourceType: "ORDER" }, { orderId: { not: null } }],
-    });
-  } else if (sourceType === "PURCHASE_ORDER_RECEIPT") {
-    whereClauses.push({ sourceType: "PURCHASE_ORDER_RECEIPT" });
-  }
-
-  if (supplierId) {
-    whereClauses.push({
-      OR: [
-        { product: { supplierId } },
-        { sourceId: { in: purchaseReceiptIdsForSupplier.length ? purchaseReceiptIdsForSupplier : ["__none__"] } },
-      ],
-    });
-  }
-
-  if (reference) {
-    whereClauses.push({
-      OR: [
-        { orderId: { in: orderIdsForReference.length ? orderIdsForReference : ["__none__"] } },
-        {
-          sourceId: {
-            in: purchaseReceiptIdsForReference.length ? purchaseReceiptIdsForReference : ["__none__"],
-          },
-        },
-      ],
-    });
-  }
-
-  const where: Prisma.InventoryAdjustmentWhereInput =
-    whereClauses.length > 0 ? { AND: whereClauses } : {};
-
-  const [totalCount, adjustments] = await Promise.all([
-    prisma.inventoryAdjustment.count({ where }),
-    prisma.inventoryAdjustment.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: {
-        product: {
-          select: {
-            id: true,
-            title: true,
-            manufacturer: true,
-            supplierId: true,
-            supplierRef: { select: { name: true } },
-          },
-        },
-        variant: { select: { title: true, sku: true } },
-        order: { select: { id: true, orderNumber: true } },
-      },
-    }),
-  ]);
-
-  const purchaseReceiptIds = Array.from(
-    new Set(
-      adjustments
-        .filter((adjustment) => adjustment.sourceType === "PURCHASE_ORDER_RECEIPT" && adjustment.sourceId)
-        .map((adjustment) => adjustment.sourceId as string),
-    ),
-  );
-  const purchaseReceipts = purchaseReceiptIds.length
-    ? await prisma.purchaseOrderReceipt.findMany({
-        where: { id: { in: purchaseReceiptIds } },
-        include: {
-          purchaseOrder: {
-            include: {
-              supplier: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      })
-    : [];
   const purchaseReceiptById = new Map(purchaseReceipts.map((receipt) => [receipt.id, receipt]));
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -190,6 +237,15 @@ export default async function AdminInventoryAdjustmentsPage({
 
   return (
     <div className="admin-legacy-page space-y-6">
+      {!inventoryStorageAvailable ? (
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+          Inventory-Ledger-Storage ist in der aktuellen Datenbank nicht vollst&auml;ndig
+          verf&uuml;gbar. Bewegungen mit Purchase-Order-Referenzen und neuere Ledger-Felder
+          bleiben leer, bis die fehlenden Inventory- und Procurement-Migrationen angewendet
+          wurden.
+        </div>
+      ) : null}
+
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
