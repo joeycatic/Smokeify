@@ -1,6 +1,6 @@
 import { isAdminRole } from "@/lib/adminPermissions";
 
-const DEFAULT_ADMIN_REAUTH_TTL_MINUTES = 120;
+const DEFAULT_ADMIN_REAUTH_TTL_MINUTES = 90;
 
 function parsePositiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);

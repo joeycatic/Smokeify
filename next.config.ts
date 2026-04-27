@@ -22,6 +22,22 @@ const securityHeaders = [
       "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()",
   },
   {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin-allow-popups",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-site",
+  },
+  {
+    key: "Origin-Agent-Cluster",
+    value: "?1",
+  },
+  {
+    key: "X-Permitted-Cross-Domain-Policies",
+    value: "none",
+  },
+  {
     key: "X-DNS-Prefetch-Control",
     value: "on",
   },
@@ -29,14 +45,20 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value:
       "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
+      "form-action 'self' https://checkout.stripe.com; " +
+      "manifest-src 'self'; " +
       "object-src 'none'; " +
+      "script-src-attr 'none'; " +
       "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
       "script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com; " +
+      "worker-src 'self' blob:; " +
       "style-src 'self' 'unsafe-inline'; " +
+      "style-src-attr 'unsafe-inline'; " +
       "font-src 'self' data:; " +
       "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
       "frame-src https://js.stripe.com https://*.stripe.com; " +
-      "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;",
+      "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
+      (isProd ? " upgrade-insecure-requests;" : ""),
   },
   ...(isProd
     ? [

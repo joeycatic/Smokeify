@@ -10,6 +10,15 @@ import {
 
 const MAINTENANCE_FLAG = "1";
 
+function applySensitiveHeaders(response: NextResponse) {
+  response.headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  response.headers.set("Vary", "Cookie");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
 function buildAdminLoginUrl(request: NextRequest) {
   const url = request.nextUrl.clone();
   const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -53,14 +62,14 @@ export async function middleware(request: NextRequest) {
         const requestedTarget = request.nextUrl.searchParams.get("returnTo");
         const target =
           requestedTarget && requestedTarget.startsWith("/") ? requestedTarget : "/admin";
-        return NextResponse.redirect(new URL(target, request.url));
+        return applySensitiveHeaders(NextResponse.redirect(new URL(target, request.url)));
       }
-      return NextResponse.next();
+      return applySensitiveHeaders(NextResponse.next());
     }
 
     if (isAdminPage) {
       if (!hasVerifiedAdminAccess) {
-        return NextResponse.redirect(buildAdminLoginUrl(request));
+        return applySensitiveHeaders(NextResponse.redirect(buildAdminLoginUrl(request)));
       }
       const requiredScope = getRequiredAdminPageScope(pathname);
       if (requiredScope && !hasAdminScope(role, requiredScope)) {
@@ -75,22 +84,26 @@ export async function middleware(request: NextRequest) {
         requestHeaders.set("x-admin-required-scope", requiredScope);
       }
 
-      return NextResponse.next({
+      return applySensitiveHeaders(NextResponse.next({
         request: {
           headers: requestHeaders,
         },
-      });
+      }));
     }
 
     if (isAdminApi) {
       if (!hasVerifiedAdminAccess) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return applySensitiveHeaders(
+          NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+        );
       }
       const requiredScope = getRequiredAdminApiScope(pathname, request.method);
       if (requiredScope && !hasAdminScope(role, requiredScope)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return applySensitiveHeaders(
+          NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+        );
       }
-      return NextResponse.next();
+      return applySensitiveHeaders(NextResponse.next());
     }
 
     if (pathname.startsWith("/maintenance")) {
@@ -98,9 +111,9 @@ export async function middleware(request: NextRequest) {
       if (!isAdmin) {
         const url = request.nextUrl.clone();
         url.pathname = "/";
-        return NextResponse.redirect(url);
+        return applySensitiveHeaders(NextResponse.redirect(url));
       }
-      return NextResponse.next();
+      return applySensitiveHeaders(NextResponse.next());
     }
   }
 

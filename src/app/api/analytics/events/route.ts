@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma, type Storefront } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { hasJsonContentType, jsonApi } from "@/lib/apiRoute";
 
 type AnalyticsIngestBody = {
   sessionId?: unknown;
@@ -80,103 +80,143 @@ const getDeviceType = (userAgent: string | null) => {
   return "desktop";
 };
 
+const normalizeBody = (body: unknown) => {
+  if (Array.isArray(body)) {
+    return body.slice(0, 20) as AnalyticsIngestBody[];
+  }
+  return body ? [body as AnalyticsIngestBody] : [];
+};
+
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonApi({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!hasJsonContentType(request)) {
+    return jsonApi({ error: "Expected application/json" }, { status: 415 });
   }
 
   const ip = getClientIp(request.headers);
+  const limit = 300;
   const rateLimit = await checkRateLimit({
     key: `analytics-events:${ip}`,
-    limit: 300,
+    limit,
     windowMs: 60 * 1000,
   });
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    return jsonApi(
+      { error: "Too many requests" },
+      { status: 429 },
+      { rateLimit: { limit, remaining: rateLimit.remaining, resetAt: rateLimit.resetAt } },
+    );
   }
 
-  const body = (await request.json().catch(() => null)) as AnalyticsIngestBody | null;
-  if (!body) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  const rawBody = await request.json().catch(() => null);
+  const payloads = normalizeBody(rawBody);
+  if (payloads.length === 0) {
+    return jsonApi(
+      { error: "Invalid payload" },
+      { status: 400 },
+      { rateLimit: { limit, remaining: rateLimit.remaining, resetAt: rateLimit.resetAt } },
+    );
   }
-
-  const sessionId = trimString(body.sessionId, 120);
-  const storefront = normalizeStorefront(body.storefront);
-  const eventName = trimString(body.eventName, 80);
-  if (!sessionId || !eventName) {
-    return NextResponse.json({ error: "sessionId and eventName are required" }, { status: 400 });
-  }
-
-  const pagePath = normalizePath(body.pagePath);
-  const pageType = trimString(body.pageType, 50);
-  const referrer = trimString(body.referrer, 500);
-  const utmSource = trimString(body.utmSource, 120);
-  const utmMedium = trimString(body.utmMedium, 120);
-  const utmCampaign = trimString(body.utmCampaign, 160);
-  const currency = trimString(body.currency, 12);
-  const valueCents = normalizeInteger(body.valueCents);
-  const quantity = normalizeInteger(body.quantity);
-  const productId = trimString(body.productId, 120);
-  const variantId = trimString(body.variantId, 120);
-  const orderId = trimString(body.orderId, 120);
-  const metadata = toJsonValue(body.metadata);
   const now = new Date();
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? undefined;
   const deviceType = getDeviceType(request.headers.get("user-agent"));
-  const isHeartbeat = eventName === "session_heartbeat";
+  const normalizedPayloads = payloads
+    .map((body) => {
+      const sessionId = trimString(body.sessionId, 120);
+      const storefront = normalizeStorefront(body.storefront);
+      const eventName = trimString(body.eventName, 80);
+      if (!sessionId || !eventName) {
+        return null;
+      }
 
-  await prisma.analyticsSession.upsert({
-    where: { id: sessionId },
-    create: {
-      id: sessionId,
-      userId,
-      storefront,
-      firstPath: pagePath,
-      lastPath: pagePath,
-      firstPageType: pageType,
-      lastPageType: pageType,
-      firstReferrer: referrer,
-      utmSource,
-      utmMedium,
-      utmCampaign,
-      deviceType,
-      startedAt: now,
-      lastSeenAt: now,
-    },
-    update: {
-      lastSeenAt: now,
-      lastPath: pagePath,
-      lastPageType: pageType,
-      deviceType,
-      ...(userId ? { userId } : {}),
-      ...(storefront ? { storefront } : {}),
-    },
-  });
-
-  if (!isHeartbeat) {
-    await prisma.analyticsEvent.create({
-      data: {
+      return {
         sessionId,
-        userId,
         storefront,
         eventName,
-        pagePath,
-        pageType,
-        referrer,
-        utmSource,
-        utmMedium,
-        utmCampaign,
-        currency,
-        valueCents,
-        quantity,
-        productId,
-        variantId,
-        orderId,
-        metadata,
-      },
-    });
+        pagePath: normalizePath(body.pagePath),
+        pageType: trimString(body.pageType, 50),
+        referrer: trimString(body.referrer, 500),
+        utmSource: trimString(body.utmSource, 120),
+        utmMedium: trimString(body.utmMedium, 120),
+        utmCampaign: trimString(body.utmCampaign, 160),
+        currency: trimString(body.currency, 12),
+        valueCents: normalizeInteger(body.valueCents),
+        quantity: normalizeInteger(body.quantity),
+        productId: trimString(body.productId, 120),
+        variantId: trimString(body.variantId, 120),
+        orderId: trimString(body.orderId, 120),
+        metadata: toJsonValue(body.metadata),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  if (normalizedPayloads.length === 0) {
+    return jsonApi(
+      { error: "sessionId and eventName are required" },
+      { status: 400 },
+      { rateLimit: { limit, remaining: rateLimit.remaining, resetAt: rateLimit.resetAt } },
+    );
   }
 
-  return NextResponse.json({ ok: true });
+  const sessionRows = Array.from(
+    new Map(normalizedPayloads.map((entry) => [entry.sessionId, entry])).values(),
+  );
+  const eventRows = normalizedPayloads
+    .filter((entry) => entry.eventName !== "session_heartbeat")
+    .map((entry) => ({
+      ...entry,
+      userId,
+    }));
+
+  await prisma.$transaction([
+    ...sessionRows.map((entry) =>
+      prisma.analyticsSession.upsert({
+        where: { id: entry.sessionId },
+        create: {
+          id: entry.sessionId,
+          userId,
+          storefront: entry.storefront,
+          firstPath: entry.pagePath,
+          lastPath: entry.pagePath,
+          firstPageType: entry.pageType,
+          lastPageType: entry.pageType,
+          firstReferrer: entry.referrer,
+          utmSource: entry.utmSource,
+          utmMedium: entry.utmMedium,
+          utmCampaign: entry.utmCampaign,
+          deviceType,
+          startedAt: now,
+          lastSeenAt: now,
+        },
+        update: {
+          lastSeenAt: now,
+          lastPath: entry.pagePath,
+          lastPageType: entry.pageType,
+          deviceType,
+          ...(userId ? { userId } : {}),
+          ...(entry.storefront ? { storefront: entry.storefront } : {}),
+        },
+      }),
+    ),
+    ...(eventRows.length > 0
+      ? [
+          prisma.analyticsEvent.createMany({
+            data: eventRows,
+          }),
+        ]
+      : []),
+  ]);
+
+  return jsonApi(
+    {
+      ok: true,
+      ingested: eventRows.length,
+    },
+    undefined,
+    { rateLimit: { limit, remaining: rateLimit.remaining, resetAt: rateLimit.resetAt } },
+  );
 }
