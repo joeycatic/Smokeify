@@ -37,6 +37,10 @@ type AnalyticsEventPayload = {
 };
 
 const ANALYTICS_STOREFRONT = "MAIN" as const;
+const ANALYTICS_FLUSH_DELAY_MS = 1200;
+const analyticsQueue: AnalyticsEventPayload[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let flushListenersRegistered = false;
 
 const readCookieValue = (key: string): string | null => {
   if (typeof document === "undefined") return null;
@@ -248,10 +252,16 @@ const buildPayload = (
   };
 };
 
-const postAnalyticsPayload = (payload: AnalyticsEventPayload) => {
+const flushAnalyticsQueue = () => {
   if (typeof window === "undefined") return;
+  if (flushTimer) {
+    window.clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (analyticsQueue.length === 0) return;
 
-  const body = JSON.stringify(payload);
+  const batch = analyticsQueue.splice(0, analyticsQueue.length);
+  const body = JSON.stringify(batch);
   if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
     const blob = new Blob([body], { type: "application/json" });
     const sent = navigator.sendBeacon("/api/analytics/events", blob);
@@ -266,6 +276,30 @@ const postAnalyticsPayload = (payload: AnalyticsEventPayload) => {
   }).catch(() => {
     // Ignore analytics transport failures.
   });
+};
+
+const ensureFlushListeners = () => {
+  if (typeof window === "undefined" || flushListenersRegistered) return;
+  flushListenersRegistered = true;
+
+  const flushOnExit = () => {
+    if (document.visibilityState === "hidden") {
+      flushAnalyticsQueue();
+    }
+  };
+
+  window.addEventListener("pagehide", flushAnalyticsQueue);
+  document.addEventListener("visibilitychange", flushOnExit);
+};
+
+const postAnalyticsPayload = (payload: AnalyticsEventPayload) => {
+  if (typeof window === "undefined") return;
+  ensureFlushListeners();
+  analyticsQueue.push(payload);
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushAnalyticsQueue();
+  }, ANALYTICS_FLUSH_DELAY_MS);
 };
 
 export const trackAnalyticsEvent = (

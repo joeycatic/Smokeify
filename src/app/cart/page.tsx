@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { TrashIcon, TruckIcon } from "@heroicons/react/24/outline";
-import { Pixelify_Sans } from "next/font/google";
 import { useCart } from "@/components/CartProvider";
 import {
   FREE_SHIPPING_THRESHOLD_EUR,
@@ -26,11 +25,6 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 import { formatRedeemRateLabel } from "@/lib/loyalty";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
-
-const pixelNavFont = Pixelify_Sans({
-  weight: "400",
-  subsets: ["latin"],
-});
 
 function formatPrice(amount: string | number, currencyCode: string) {
   const value = Number(amount);
@@ -544,7 +538,7 @@ export default function CartPage() {
             <div className="space-y-4 text-right">
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Zwischensumme
                 </p>
@@ -559,7 +553,7 @@ export default function CartPage() {
               </div>
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Versand (Schätzung)
                 </p>
@@ -581,7 +575,7 @@ export default function CartPage() {
               </div>
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Gesamt (Schätzung)
                 </p>

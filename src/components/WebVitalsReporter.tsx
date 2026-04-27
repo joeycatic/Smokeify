@@ -26,8 +26,16 @@ type PerfPayload =
     };
 
 const PERF_ENDPOINT = "/api/monitoring/perf";
+const isPerfReportingEnabled = () => {
+  if (typeof window === "undefined") return false;
+  const explicit = process.env.NEXT_PUBLIC_PERF_MONITORING_ENABLED;
+  if (explicit === "0" || explicit === "false") return false;
+  if (explicit === "1" || explicit === "true") return true;
+  return process.env.NODE_ENV === "production";
+};
 
 function sendPayload(payload: PerfPayload) {
+  if (!isPerfReportingEnabled()) return;
   const body = JSON.stringify(payload);
   if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
     const blob = new Blob([body], { type: "application/json" });
@@ -44,6 +52,7 @@ function sendPayload(payload: PerfPayload) {
 }
 
 function reportPageResources(path: string) {
+  if (!isPerfReportingEnabled() || typeof window === "undefined") return;
   if (typeof performance === "undefined") return;
 
   const navigationEntries = performance.getEntriesByType(
@@ -91,6 +100,7 @@ export default function WebVitalsReporter() {
   const lastReportedPathRef = useRef<string | null>(null);
 
   useReportWebVitals((metric) => {
+    if (!isPerfReportingEnabled()) return;
     sendPayload({
       kind: "web-vital",
       id: metric.id,
@@ -116,4 +126,3 @@ export default function WebVitalsReporter() {
 
   return null;
 }
-
