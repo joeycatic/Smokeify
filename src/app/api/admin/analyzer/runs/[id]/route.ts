@@ -12,6 +12,7 @@ import type { PlantAnalyzerReviewedCase } from "@/lib/plantAnalyzerTypes";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { recordAutomationEvent } from "@/lib/automationEvents";
 
 const safetyFlagSet = new Set<string>(PLANT_ANALYSIS_SAFETY_FLAGS);
 const reviewStatusSet = new Set<string>(PLANT_ANALYSIS_REVIEW_STATUSES);
@@ -267,6 +268,22 @@ export async function PATCH(
       fromStatus: existing.reviewStatus,
       toStatus: nextStatus,
       safetyFlags: nextSafetyFlags,
+    },
+  });
+
+  await recordAutomationEvent({
+    eventType:
+      nextStatus === "REVIEWED_OK" && nextSafetyFlags.length === 0
+        ? "analyzer.reviewed"
+        : "analyzer.flagged",
+    aggregateType: "plant_analysis_run",
+    aggregateId: id,
+    storefront: "GROW",
+    dedupeKey: `analyzer-review::${id}::${updated.reviewedAt?.toISOString() ?? Date.now()}`,
+    payload: {
+      reviewStatus: nextStatus,
+      safetyFlags: nextSafetyFlags,
+      reviewedAt: updated.reviewedAt?.toISOString() ?? null,
     },
   });
 

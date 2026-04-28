@@ -32,6 +32,7 @@ import {
   resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
+import { recordAutomationEvent } from "@/lib/automationEvents";
 
 export const runtime = "nodejs";
 
@@ -637,6 +638,19 @@ export const createOrderFromSession = async (
           : checkoutSession.payment_intent?.id ?? null,
       status: created.status,
       paymentStatus: created.paymentStatus,
+    },
+  });
+  await recordAutomationEvent({
+    eventType: "order.paid",
+    aggregateType: "order",
+    aggregateId: created.id,
+    storefront: created.sourceStorefront ?? null,
+    dedupeKey: `order-paid::${created.id}`,
+    payload: {
+      orderId: created.id,
+      orderNumber: created.orderNumber,
+      amountTotal: created.amountTotal,
+      customerEmail: created.customerEmail,
     },
   });
   const variantCounts = new Map<string, number>();

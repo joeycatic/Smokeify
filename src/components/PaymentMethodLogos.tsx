@@ -62,6 +62,7 @@ export default function PaymentMethodLogos({
               width={56}
               height={20}
               className={`h-5 w-auto object-contain ${logoClassName}`}
+              style={{ width: "auto" }}
               loading="lazy"
               quality={70}
             />

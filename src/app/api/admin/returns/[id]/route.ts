@@ -18,6 +18,7 @@ import {
   ensureReturnRequestSupportCase,
   updateAdminSupportCase,
 } from "@/lib/adminSupport";
+import { recordAutomationEvent } from "@/lib/automationEvents";
 
 export async function PATCH(
   request: Request,
@@ -235,6 +236,19 @@ export async function PATCH(
           status: true,
         },
       },
+    },
+  });
+
+  await recordAutomationEvent({
+    eventType: "return_request.updated",
+    aggregateType: "return_request",
+    aggregateId: requestRow.id,
+    dedupeKey: `return-request-updated::${requestRow.id}::${body.status}`,
+    payload: {
+      orderId: requestRow.orderId,
+      status: body.status,
+      requestedResolution: requestRow.requestedResolution,
+      returnAmountCents,
     },
   });
 

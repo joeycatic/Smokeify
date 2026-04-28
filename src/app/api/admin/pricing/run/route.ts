@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
 import type { PricingRunMode } from "@/lib/adminPricingIntegration";
-import { runAdminPricingAutomation } from "@/lib/adminPricingServer";
+import { runAutomationJobNow } from "@/lib/automationQueue";
 import { withAdminRoute } from "@/lib/adminRoute";
 
 export const POST = withAdminRoute(
@@ -22,8 +22,10 @@ export const POST = withAdminRoute(
     }
 
     try {
-      const result = await runAdminPricingAutomation(
-        {
+      const automation = await runAutomationJobNow({
+        handler: "pricing.reprice",
+        scheduleKey: "pricing-reprice",
+        payload: {
           mode: body.mode === "PREVIEW" ? "PREVIEW" : "APPLY",
           limit:
             typeof body.limit === "number" &&
@@ -36,15 +38,27 @@ export const POST = withAdminRoute(
           marketReportPath:
             typeof body.marketReportPath === "string" ? body.marketReportPath : null,
         },
-        {
-          actor: {
-            id: session.user.id,
-            email: session.user.email ?? null,
-          },
+        actor: {
+          id: session.user.id,
+          email: session.user.email ?? null,
         },
-      );
+        workerId: `admin-pricing-${session.user.id}`,
+      });
 
-      return adminJson(result);
+      if (!automation.result) {
+        return adminJson(
+          {
+            error: automation.error ?? "Preislauf konnte nicht gestartet werden.",
+            job: automation.job,
+          },
+          { status: 502 },
+        );
+      }
+
+      return adminJson({
+        summary: automation.result.data ?? {},
+        job: automation.job,
+      });
     } catch (error) {
       return adminJson(
         {

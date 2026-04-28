@@ -2,6 +2,15 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(isProd ? [] : ["'unsafe-eval'"]),
+  "https://js.stripe.com",
+  "https://www.googletagmanager.com",
+  "https://googleads.g.doubleclick.net",
+  "https://www.google.com",
+].join(" ");
 
 const securityHeaders = [
   {
@@ -50,7 +59,7 @@ const securityHeaders = [
       "object-src 'none'; " +
       "script-src-attr 'none'; " +
       "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com; " +
+      `script-src ${scriptSrc}; ` +
       "worker-src 'self' blob:; " +
       "style-src 'self' 'unsafe-inline'; " +
       "style-src-attr 'unsafe-inline'; " +
@@ -72,7 +81,7 @@ const securityHeaders = [
 
 const nextConfig = {
   images: {
-    qualities: [70, 75],
+    qualities: [70, 72, 75],
     remotePatterns: [
       {
         protocol: "https",

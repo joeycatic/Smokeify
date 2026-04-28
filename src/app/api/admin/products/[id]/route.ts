@@ -15,6 +15,7 @@ import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 import {
   PRODUCT_COMPLIANCE_STATUSES,
   collectProductComplianceBlockers,
+  getProductComplianceEligibility,
   normalizeProductComplianceStatus,
   type ProductComplianceStatus,
 } from "@/lib/productCompliance";
@@ -48,6 +49,9 @@ const normalizeStringList = (value: unknown) =>
 const normalizeCountryList = (value: unknown) =>
   normalizeStringList(value).map((entry) => entry.toUpperCase());
 
+const GROW_STOREFRONT = "GROW" as const;
+const GROW_SETS_SUFFIX = "-sets";
+
 const parseComplianceStatusInput = (value: unknown): ProductComplianceStatus | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
@@ -65,6 +69,30 @@ const serializeComplianceBlockersForJson = (
     reason: blocker.reason,
     ...(blocker.match ? { match: blocker.match } : {}),
   }));
+
+const includesGrowStorefront = (storefronts?: readonly string[] | null) =>
+  Array.isArray(storefronts) && storefronts.includes(GROW_STOREFRONT);
+
+const isAssignedGrowCategory = (
+  category?:
+    | {
+        handle?: string | null;
+        storefronts?: string[] | null;
+        parent?: { storefronts?: string[] | null } | null;
+      }
+    | null,
+) => {
+  if (!category) return false;
+  if (includesGrowStorefront(category.storefronts)) {
+    return true;
+  }
+
+  return (
+    typeof category.handle === "string" &&
+    category.handle.toLowerCase().endsWith(GROW_SETS_SUFFIX) &&
+    includesGrowStorefront(category.parent?.storefronts)
+  );
+};
 
 export async function GET(
   request: NextRequest,
@@ -637,6 +665,19 @@ export async function PATCH(
   const complianceBlockers = collectProductComplianceBlockers(nextComplianceSnapshot);
   const serializedComplianceBlockers =
     serializeComplianceBlockersForJson(complianceBlockers);
+  const assignedToGrow = includesGrowStorefront(nextComplianceSnapshot.storefronts);
+  const hasAssignedGrowCategory =
+    isAssignedGrowCategory(nextComplianceSnapshot.mainCategory) ||
+    nextComplianceSnapshot.categories.some((entry) =>
+      isAssignedGrowCategory(entry.category),
+    );
+  const growStorefrontCompliance = getProductComplianceEligibility(
+    nextComplianceSnapshot,
+    {
+      storefront: "GROW",
+      surface: "STOREFRONT",
+    },
+  );
 
   if (
     updates.complianceStatus === "APPROVED" &&
@@ -649,6 +690,27 @@ export async function PATCH(
         error:
           "Approval requires a compliance note when automated or manual blockers are present.",
         complianceBlockers,
+      },
+      { status: 400 },
+    );
+  }
+
+  if (assignedToGrow && !hasAssignedGrowCategory) {
+    return NextResponse.json(
+      {
+        error:
+          "GrowVault assignments require at least one category that is also assigned to the GROW storefront.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (assignedToGrow && !growStorefrontCompliance.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          "GrowVault assignments are blocked until the product passes GrowVault compliance checks.",
+        complianceBlockers: growStorefrontCompliance.blockers,
       },
       { status: 400 },
     );

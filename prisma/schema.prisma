@@ -199,6 +199,56 @@ enum AdminReportDeliveryFrequency {
   WEEKLY
 }
 
+enum AutomationJobStatus {
+  QUEUED
+  LEASED
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+  CANCELED
+}
+
+enum AutomationJobAttemptStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum AutomationScheduleStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum AutomationEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum AutomationEffectStatus {
+  APPLIED
+  SKIPPED
+  FAILED
+}
+
+enum CustomizerPresetSlot {
+  SIZE
+  LIGHT
+  VENT
+}
+
+enum CustomizerPresetPriceBias {
+  BUDGET
+  BALANCED
+  PREMIUM
+}
+
+enum CustomizerPresetDiameterBias {
+  SMALLEST
+  LARGEST
+}
+
 enum TaxRegime {
   NORMAL
   KLEINUNTERNEHMER
@@ -1457,6 +1507,204 @@ model AdminJobRun {
 
   @@index([jobType, startedAt])
   @@index([status, startedAt])
+}
+
+model AutomationSchedule {
+  id             String                   @id @default(cuid())
+  key            String                   @unique
+  label          String
+  handler        String
+  status         AutomationScheduleStatus @default(ACTIVE)
+  cronExpression String?
+  nextRunAt      DateTime?
+  lastEnqueuedAt DateTime?
+  lastSucceededAt DateTime?
+  lastFailedAt   DateTime?
+  lastError      String?
+  payload        Json?
+  maxAttempts    Int                      @default(3)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  jobs AutomationJob[]
+
+  @@index([status, nextRunAt])
+}
+
+model AutomationJob {
+  id             String              @id @default(cuid())
+  scheduleId     String?
+  status         AutomationJobStatus @default(QUEUED)
+  handler        String
+  payload        Json
+  dedupeKey      String?
+  maxAttempts    Int                 @default(3)
+  attemptCount   Int                 @default(0)
+  runAfter       DateTime            @default(now())
+  leasedAt       DateTime?
+  leaseExpiresAt DateTime?
+  leasedBy       String?
+  lastError      String?
+  lastResult     Json?
+  completedAt    DateTime?
+  canceledAt     DateTime?
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  schedule AutomationSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  attempts AutomationJobAttempt[]
+
+  @@index([status, runAfter])
+  @@index([dedupeKey])
+  @@index([scheduleId, createdAt])
+}
+
+model AutomationJobAttempt {
+  id            String                     @id @default(cuid())
+  jobId         String
+  attemptNumber Int
+  status        AutomationJobAttemptStatus @default(STARTED)
+  workerId      String?
+  startedAt     DateTime                   @default(now())
+  finishedAt    DateTime?
+  errorMessage  String?
+  result        Json?
+
+  job AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, attemptNumber])
+  @@index([jobId, startedAt])
+}
+
+model AutomationEvent {
+  id            String                @id @default(cuid())
+  eventType     String
+  dedupeKey     String?
+  aggregateType String
+  aggregateId   String
+  storefront    Storefront?
+  payload       Json
+  status        AutomationEventStatus @default(PENDING)
+  processedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  effects AutomationEffect[]
+
+  @@index([eventType, createdAt])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AutomationEffect {
+  id        String                 @id @default(cuid())
+  eventId   String
+  effectType String
+  dedupeKey String                 @unique
+  targetType String
+  targetId  String?
+  status    AutomationEffectStatus @default(APPLIED)
+  payload   Json?
+  lastError String?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  event AutomationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model AnalyzerRecommendationProfile {
+  id                String   @id @default(cuid())
+  issueKey          String
+  aliases           String[] @default([])
+  reason            String
+  categoryHandles   String[] @default([])
+  titleTerms        String[] @default([])
+  handleTerms       String[] @default([])
+  manufacturers     String[] @default([])
+  excludeTitleTerms String[] @default([])
+  excludeHandleTerms String[] @default([])
+  skip              Boolean  @default(false)
+  priority          Int      @default(0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([issueKey, isActive, priority])
+}
+
+model AnalyzerGuideProfile {
+  id        String   @id @default(cuid())
+  issueKey  String
+  aliases   String[] @default([])
+  blogSlugs String[] @default([])
+  priority  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([issueKey, isActive, priority])
+}
+
+model CustomizerPreset {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  title             String
+  summary           String
+  description       String
+  explainer         String
+  supportedSizeKeys String[] @default([])
+  defaultSizeKey    String
+  reasonLabels      String[] @default([])
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  slotRules  CustomizerPresetSlotRule[]
+  extraRules CustomizerPresetExtraRule[]
+}
+
+model CustomizerPresetSlotRule {
+  id                String                        @id @default(cuid())
+  presetId          String
+  slot              CustomizerPresetSlot
+  reason            String
+  reasonLabels      String[]                      @default([])
+  preferredKeywords String[]                      @default([])
+  avoidKeywords     String[]                      @default([])
+  priceBias         CustomizerPresetPriceBias     @default(BALANCED)
+  requireSet        Boolean                       @default(false)
+  preferredDiameter CustomizerPresetDiameterBias?
+  sortOrder         Int                           @default(0)
+
+  preset CustomizerPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  @@unique([presetId, slot])
+  @@index([slot, sortOrder])
+}
+
+model CustomizerPresetExtraRule {
+  id                String                        @id @default(cuid())
+  presetId          String
+  key               String
+  reason            String
+  reasonLabels      String[]                      @default([])
+  preferredKeywords String[]                      @default([])
+  avoidKeywords     String[]                      @default([])
+  priceBias         CustomizerPresetPriceBias     @default(BALANCED)
+  requireSet        Boolean                       @default(false)
+  preferredDiameter CustomizerPresetDiameterBias?
+  sortOrder         Int                           @default(0)
+
+  preset CustomizerPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  @@unique([presetId, key])
+  @@index([presetId, sortOrder])
 }
 
 model LandingPageSectionRevision {

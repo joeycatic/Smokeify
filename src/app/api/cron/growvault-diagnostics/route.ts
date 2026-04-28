@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { syncAdminAlerts } from "@/lib/adminAlerts";
 import { isCronRequestAuthorized } from "@/lib/cronAuth";
-import {
-  buildGrowvaultDiagnosticAlerts,
-  getGrowvaultSharedDiagnosticsFeed,
-} from "@/lib/growvaultSharedStorefront";
+import { runAutomationJobNow } from "@/lib/automationQueue";
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -22,13 +18,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const diagnostics = await getGrowvaultSharedDiagnosticsFeed();
-  const alerts = buildGrowvaultDiagnosticAlerts(diagnostics.statuses);
-  await syncAdminAlerts(alerts);
+  const automation = await runAutomationJobNow({
+    handler: "growvault.diagnostics.sync",
+    scheduleKey: "growvault-diagnostics",
+    dedupeKey: `growvault-diagnostics::${new Date().toISOString().slice(0, 13)}`,
+    workerId: "cron-growvault-diagnostics",
+  });
+
+  if (!automation.result) {
+    return NextResponse.json(
+      {
+        error: automation.error ?? "Growvault diagnostics sync failed.",
+        job: automation.job,
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
-    generatedAt: diagnostics.generatedAt,
-    alertsSynced: alerts.length,
+    job: automation.job,
+    ...automation.result.data,
   });
 }

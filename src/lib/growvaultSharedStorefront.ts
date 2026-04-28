@@ -1,6 +1,6 @@
 import "server-only";
 
-import { AdminAlertStatus } from "@prisma/client";
+import { AdminAlertStatus, Prisma } from "@prisma/client";
 import type { DerivedAdminAlert } from "@/lib/adminAlerts";
 import { prisma } from "@/lib/prisma";
 import { resolveLandingPageProductSections } from "@/lib/landingPageConfig";
@@ -45,6 +45,25 @@ export type SharedMerchandisingSlot = {
 
 const GROW_STOREFRONT = "GROW" as const;
 const CATALOG_STALE_HOURS = 72;
+const GROW_SETS_SUFFIX = "-sets";
+const RESTRICTED_GROW_CATEGORY_HANDLES = [
+  "headshop",
+  "aschenbecher",
+  "aufbewahrung",
+  "bongs",
+  "feuerzeuge",
+  "filter",
+  "grinder",
+  "kraeuterschale",
+  "hash-bowl",
+  "papers",
+  "pipes",
+  "rolling-tray",
+  "tubes",
+  "vaporizer",
+  "waagen",
+  "seeds",
+] as const;
 
 function buildAdminUrl(pathname: string) {
   return new URL(pathname, "https://www.smokeify.de").toString();
@@ -82,6 +101,37 @@ function getAnalyzerQueueStatus(reviewStatus: string) {
   return "new" as const;
 }
 
+const growAssignedCategoryFilter: Prisma.CategoryWhereInput = {
+  OR: [
+    { storefronts: { has: GROW_STOREFRONT } },
+    {
+      AND: [
+        { handle: { endsWith: GROW_SETS_SUFFIX } },
+        {
+          parent: {
+            is: {
+              storefronts: { has: GROW_STOREFRONT },
+            },
+          },
+        },
+      ],
+    },
+  ],
+};
+
+const restrictedGrowCategoryFilter: Prisma.CategoryWhereInput = {
+  OR: [
+    { handle: { in: [...RESTRICTED_GROW_CATEGORY_HANDLES] } },
+    {
+      parent: {
+        is: {
+          handle: { in: [...RESTRICTED_GROW_CATEGORY_HANDLES] },
+        },
+      },
+    },
+  ],
+};
+
 export async function getGrowvaultSharedDiagnosticsFeed() {
   const now = new Date();
   const [
@@ -91,6 +141,11 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
     analyzerBacklog,
     reviewedAnalyzerCases,
     activeAlertCount,
+    growProductsWithoutAssignedCategory,
+    growProductsBlockedByCompliance,
+    emptyGrowCategories,
+    productCategoryMismatchCount,
+    mainCategoryMismatchCount,
   ] = await Promise.all([
     prisma.product.count({ where: { storefronts: { has: GROW_STOREFRONT } } }),
     prisma.product.count({
@@ -129,12 +184,106 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         status: { not: AdminAlertStatus.RESOLVED },
       },
     }),
+    prisma.product.count({
+      where: {
+        storefronts: { has: GROW_STOREFRONT },
+        NOT: {
+          OR: [
+            { mainCategory: { is: growAssignedCategoryFilter } },
+            {
+              categories: {
+                some: {
+                  category: growAssignedCategoryFilter,
+                },
+              },
+            },
+          ],
+        },
+      },
+    }),
+    prisma.product.count({
+      where: {
+        storefronts: { has: GROW_STOREFRONT },
+        OR: [
+          { complianceStatus: { not: "APPROVED" } },
+          { NOT: { complianceManualBlockers: { isEmpty: true } } },
+          { mainCategory: { is: restrictedGrowCategoryFilter } },
+          {
+            categories: {
+              some: {
+                category: restrictedGrowCategoryFilter,
+              },
+            },
+          },
+        ],
+      },
+    }),
+    prisma.category.count({
+      where: {
+        storefronts: { has: GROW_STOREFRONT },
+        mainCategoryProducts: {
+          none: {
+            storefronts: { has: GROW_STOREFRONT },
+          },
+        },
+        products: {
+          none: {
+            product: {
+              storefronts: { has: GROW_STOREFRONT },
+            },
+          },
+        },
+      },
+    }),
+    prisma.productCategory.count({
+      where: {
+        OR: [
+          {
+            product: { storefronts: { has: GROW_STOREFRONT } },
+            NOT: {
+              category: growAssignedCategoryFilter,
+            },
+          },
+          {
+            category: { storefronts: { has: GROW_STOREFRONT } },
+            product: {
+              NOT: {
+                storefronts: { has: GROW_STOREFRONT },
+              },
+            },
+          },
+        ],
+      },
+    }),
+    prisma.product.count({
+      where: {
+        OR: [
+          {
+            storefronts: { has: GROW_STOREFRONT },
+            NOT: {
+              mainCategory: { is: growAssignedCategoryFilter },
+            },
+          },
+          {
+            NOT: {
+              storefronts: { has: GROW_STOREFRONT },
+            },
+            mainCategory: {
+              is: {
+                storefronts: { has: GROW_STOREFRONT },
+              },
+            },
+          },
+        ],
+      },
+    }),
   ]);
 
   const latestAgeHours = latestGrowProduct?.updatedAt
     ? (Date.now() - latestGrowProduct.updatedAt.getTime()) / (60 * 60 * 1000)
     : Number.POSITIVE_INFINITY;
   const collectionCoverage = growProducts > 0 ? growProductsWithCollections / growProducts : 0;
+  const categoryMismatchCount = productCategoryMismatchCount + mainCategoryMismatchCount;
 
   const statuses: SharedDiagnosticsStatusEntry[] = [
     toStatusEntry(
@@ -156,6 +305,50 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
       growProducts === 0
         ? "No GROW storefront products are currently assigned."
         : `${growProductsWithCollections}/${growProducts} GROW products have at least one collection assignment.`,
+      now,
+      buildAdminUrl("/admin/catalog?storefront=GROW"),
+    ),
+    toStatusEntry(
+      "smokeify.growvault.assignment.category_required",
+      growProductsWithoutAssignedCategory === 0
+        ? "ok"
+        : growProductsWithoutAssignedCategory <= 10
+          ? "warn"
+          : "fail",
+      growProductsWithoutAssignedCategory === 0
+        ? "Every GROW-assigned product has a matching GROW category assignment."
+        : `${growProductsWithoutAssignedCategory} GROW-assigned products are missing a matching GROW category assignment.`,
+      now,
+      buildAdminUrl("/admin/catalog?storefront=GROW"),
+    ),
+    toStatusEntry(
+      "smokeify.growvault.assignment.compliance_blocked",
+      growProductsBlockedByCompliance === 0
+        ? "ok"
+        : growProductsBlockedByCompliance <= 10
+          ? "warn"
+          : "fail",
+      growProductsBlockedByCompliance === 0
+        ? "No GROW-assigned products are blocked by compliance or restricted-category checks."
+        : `${growProductsBlockedByCompliance} GROW-assigned products are still blocked by compliance or restricted-category checks.`,
+      now,
+      buildAdminUrl("/admin/compliance"),
+    ),
+    toStatusEntry(
+      "smokeify.growvault.assignment.empty_categories",
+      emptyGrowCategories === 0 ? "ok" : emptyGrowCategories <= 10 ? "warn" : "fail",
+      emptyGrowCategories === 0
+        ? "Every GROW-assigned category contains at least one GROW-assigned product."
+        : `${emptyGrowCategories} GROW-assigned categories do not currently contain any GROW-assigned products.`,
+      now,
+      buildAdminUrl("/admin/categories"),
+    ),
+    toStatusEntry(
+      "smokeify.growvault.assignment.category_product_mismatch",
+      categoryMismatchCount === 0 ? "ok" : categoryMismatchCount <= 20 ? "warn" : "fail",
+      categoryMismatchCount === 0
+        ? "No category/product storefront mismatches were detected."
+        : `${categoryMismatchCount} category/product storefront mismatches were detected across main and secondary category assignments.`,
       now,
       buildAdminUrl("/admin/catalog?storefront=GROW"),
     ),

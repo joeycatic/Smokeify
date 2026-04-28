@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isCronRequestAuthorized } from "@/lib/cronAuth";
-import { prisma } from "@/lib/prisma";
+import { runAutomationJobNow } from "@/lib/automationQueue";
 
 export const runtime = "nodejs";
 
@@ -25,19 +25,29 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { runSupplierSync } = await import("@/lib/supplierStockSync.mjs");
-    const result = await runSupplierSync({ prisma });
+    const automation = await runAutomationJobNow({
+      handler: "supplier.stock.sync",
+      scheduleKey: "supplier-stock-sync",
+      dedupeKey: `supplier-stock-sync::${new Date().toISOString().slice(0, 13)}`,
+      workerId: "cron-supplier-stock-sync",
+    });
+    if (!automation.result) {
+      return NextResponse.json(
+        {
+          error: automation.error ?? "Supplier sync failed.",
+          job: automation.job,
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
-      updated: result.updated,
-      skipped: result.skipped,
-      failed: result.failed,
-      processed: result.processed,
-      timedOut: result.timedOut,
-      durationMs: result.durationMs,
+      job: automation.job,
+      ...automation.result.data,
     });
   } catch (err) {
-    console.error("[cron/sync-supplier] runSupplierSync failed:", err);
+    console.error("[cron/sync-supplier] automation failed:", err);
     return NextResponse.json(
       { error: "Supplier sync failed.", details: err instanceof Error ? err.message : String(err) },
       { status: 500 },

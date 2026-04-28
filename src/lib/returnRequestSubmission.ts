@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { ensureReturnRequestSupportCase } from "@/lib/adminSupport";
+import { recordAutomationEvent } from "@/lib/automationEvents";
 
 export type ReturnRequestSelectionInput = Array<{ id: string; quantity?: number }>;
 
@@ -128,6 +129,18 @@ export async function createReturnRequestForOrder(input: {
     actor: {
       id: input.order.userId,
       email: input.requesterEmail?.trim() || input.order.customerEmail,
+    },
+  });
+
+  await recordAutomationEvent({
+    eventType: "return_request.created",
+    aggregateType: "return_request",
+    aggregateId: created.id,
+    dedupeKey: `return-request-created::${created.id}`,
+    payload: {
+      orderId: input.order.id,
+      requestedResolution,
+      submissionSource: input.submissionSource,
     },
   });
 
