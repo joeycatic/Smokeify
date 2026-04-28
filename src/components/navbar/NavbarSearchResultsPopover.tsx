@@ -7,6 +7,7 @@ import type { MutableRefObject } from "react";
 
 export type NavbarSearchResult = {
   id: string;
+  defaultVariantId: string | null;
   title: string;
   handle: string;
   imageUrl: string | null;

@@ -1,56 +1,93 @@
 # Smokeify
 
-Smokeify is a production-oriented e-commerce platform built with Next.js, TypeScript, Prisma, PostgreSQL, and Stripe. The repository combines a customer storefront, authenticated account area, admin operations workspace, supplier/catalog tooling, and payment-aware order workflows in a single codebase.
+Smokeify is a production-oriented commerce platform for indoor gardening products. It combines a public storefront, authenticated customer accounts, Stripe checkout, operational admin tools, supplier/catalog automation, and AI-assisted plant analysis in one Next.js codebase.
 
-This is an open repository, so environment values, credentials, and deployment-specific secrets are intentionally excluded. The goal of this README is to make the project understandable to outside readers while still being useful for local development.
+The project is built to demonstrate the kind of engineering needed behind a real online shop: trustworthy payment handling, auditable order state, catalog operations, admin workflows, and maintainable full-stack application structure.
 
-## Why this project is interesting
+## Highlights
 
-- Full-stack commerce application with real business constraints, not a toy storefront
-- Server-side pricing, payment, and order-state logic designed for auditability
-- Admin tooling for catalog management, reports, order operations, and content control
-- Operational scripts for supplier imports, repricing, market research, and stock sync
-- Multi-storefront groundwork, including Smokeify and GrowVault source attribution
+- Full-stack storefront with product browsing, collections, search, cart, wishlist, account, checkout, and post-purchase flows.
+- Stripe Checkout integration with webhook-confirmed order handling instead of relying on client redirects.
+- Admin workspace for orders, catalog, suppliers, pricing, analytics, returns, reports, expenses, users, alerts, and content controls.
+- Prisma/PostgreSQL data model covering commerce, inventory, tax, returns, reviews, supplier data, pricing automation, analytics, and governance workflows.
+- Operational scripts for supplier imports, stock sync, market price checks, pricing overrides, test order seeding, and backfills.
+- AI plant analyzer flow with upload validation, history, feedback, review status, and admin governance hooks.
+- Multi-storefront groundwork for Smokeify and GrowVault source attribution.
 
-## What it demonstrates
+## Tech Stack
 
-- App Router architecture in a large Next.js application
-- Type-safe server and database workflows with Prisma
-- Stripe Checkout and webhook-driven order fulfillment flows
-- Separation of presentational UI from business-critical server logic
-- Operational thinking around inventory, pricing, reporting, and repeatable scripts
-
-## Stack
-
-- Next.js 16
+- Next.js 16 App Router
 - React 19
 - TypeScript
 - Tailwind CSS 4
-- Prisma
+- Prisma 6
 - PostgreSQL
 - Stripe
 - NextAuth
 - Vitest
 - ESLint
+- Vercel Blob and Sentry integration points
 
-## Core product areas
+## Product Areas
 
-- Storefront browsing with collections, product detail pages, cart, and checkout initiation
-- Customer account flows for orders, profile management, and related post-purchase actions
-- Admin workspace for orders, reports, suppliers, catalog management, landing page controls, and governance features
-- Payment and fulfillment flows built around Stripe sessions and webhook-confirmed payment state
-- Supplier and pricing scripts for catalog imports, margin updates, stock sync, and market comparisons
-- Supporting product features such as wishlist, blog/content pages, analytics hooks, and AI-assisted plant analysis
+### Customer Experience
 
-## Architecture notes
+- Landing page merchandising and curated product sections
+- Product listing, filters, collections, SEO routes, and product detail pages
+- Cart, checkout start, hosted payment flow, and order confirmation
+- Customer account dashboard, order history, password management, returns, wishlist, and Discord account linking
+- Blog/content pages, newsletter flows, contact forms, and policy pages
 
-- UI components are primarily presentational; business rules stay server-side
-- Order totals, discounts, taxes, and payment state are computed from backend sources
-- Webhooks are treated as the source of truth for final payment status
-- Prisma models preserve order snapshots and operational traceability
-- Scripts are organized by domain so supplier, catalog, market, and order operations remain reviewable
+### Commerce Operations
 
-## Local development
+- Order management with payment state, tax snapshots, refunds, returns, and operational documents
+- Catalog management for products, variants, categories, collections, media, cross-sells, and compliance metadata
+- Supplier management, purchase orders, stock sync, inventory adjustments, and procurement workflows
+- Pricing automation with recommendation history, review queues, margin inputs, and audit trails
+- Admin analytics, finance, VAT, profitability, reports, alerts, audit logs, customer tasks, and support cases
+
+### Automation and Integrations
+
+- Stripe sessions and webhooks for payment-aware order workflows
+- Supplier scraping/import scripts for catalog and cost data
+- Market comparison scripts for price monitoring
+- Scheduled routes for checkout recovery, admin reports, rate-limit cleanup, supplier sync, and diagnostics
+- Email-oriented flows for newsletters, orders, refunds, and storefront notifications
+
+## Architecture Notes
+
+Smokeify keeps business-critical decisions on the server. Checkout, pricing, discounts, tax handling, payment state, inventory movement, admin access, and compliance checks are handled through backend routes, shared domain helpers, and Prisma-backed persistence.
+
+Key patterns:
+
+- Client UI is separated from server-side commerce rules.
+- Stripe webhooks are treated as the authoritative payment signal.
+- Order and payment workflows preserve snapshots for later audit and reconciliation.
+- Admin features are organized as first-class workflows rather than one-off database edits.
+- Operational scripts are explicit, reviewable, and dry-run oriented where practical.
+- Tests focus on shared domain logic such as checkout policy, tax, payment fees, order updates, uploads, security, reports, and pricing automation.
+
+## Repository Structure
+
+```text
+src/
+  app/          Next.js pages, layouts, route handlers, admin routes, and API routes
+  components/   Shared storefront, checkout, navigation, and admin UI components
+  content/      Blog/content source files
+  data/         Static and curated data inputs
+  hooks/        Reusable React hooks
+  lib/          Domain logic, service functions, integrations, guards, and tests
+  types/        Shared TypeScript declarations
+
+prisma/         Prisma schema and migrations
+scripts/        Supplier, catalog, pricing, market, order, and maintenance scripts
+public/         Static assets, logos, uploads, favicons, and storefront media
+remotion/       Video/banner rendering workspace
+```
+
+## Getting Started
+
+This repository intentionally excludes production credentials, supplier credentials, and deployment-specific secrets. Some flows require external services before they run end to end.
 
 ### 1. Install dependencies
 
@@ -60,90 +97,64 @@ npm install
 
 ### 2. Configure environment variables
 
-Copy the template and fill in the values you need:
-
 ```bash
 cp .env.example .env
 ```
 
-On PowerShell, use:
+PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-At minimum, local development usually needs:
+Common local values include:
 
 - `DATABASE_URL`
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
+- `NEXT_PUBLIC_APP_URL`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_APP_URL`
 
-If you are working with the GrowVault storefront source detection locally, also set:
-
-- `NEXT_PUBLIC_GROW_APP_URL`
-- `GROW_STOREFRONT_HOSTS`
-
-Other variables in `.env.example` are grouped by concern:
-
-- admin security
-- checkout and payments
-- account/token security
-- loyalty and incentives
-- public storefront routing
-- email and messaging
-- AI features
-- jobs and operations
-- supplier sync and repricing
-- storage and observability
-
-Pricing automation now runs directly in Smokeify. The pricing engine, recommendation history, review queue, and price change audit data all live in this repo and use the `PRICING_AUTOMATION_*` environment values documented in `.env.example`.
+Optional feature groups in `.env.example` cover admin security, email, checkout, loyalty, public storefront routing, AI features, jobs, supplier sync, pricing automation, storage, observability, and GrowVault storefront attribution.
 
 ### 3. Prepare the database
-
-Generate the Prisma client and apply your local schema:
 
 ```bash
 npx prisma generate
 npx prisma migrate dev
 ```
 
-If you already have a database and only need the client:
+If the database schema is already prepared and you only need the generated client:
 
 ```bash
 npx prisma generate
 ```
 
-### 4. Start the app
+### 4. Run locally
 
 ```bash
 npm run dev
 ```
 
-The local dev server runs on [http://localhost:3900](http://localhost:3900).
+The dev server runs at [http://localhost:3900](http://localhost:3900).
 
-## Stripe webhooks for local testing
+## Stripe Webhook Testing
 
-To test checkout completion and order creation locally:
+To test checkout completion locally:
 
 ```bash
 stripe listen --forward-to http://localhost:3900/api/webhooks/stripe
 ```
 
-Then copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
-
-Useful test command:
+Copy the generated signing secret into `STRIPE_WEBHOOK_SECRET`, then trigger a sample event:
 
 ```bash
 stripe trigger checkout.session.completed
 ```
 
-## Useful commands
-
-### App quality
+## Useful Commands
 
 ```bash
 npm run dev
@@ -151,9 +162,10 @@ npm run build
 npm run start
 npm run lint
 npm test
+npm run test:coverage
 ```
 
-### Catalog and supplier operations
+Operational scripts:
 
 ```bash
 npm run bloomtech:scrape-preview
@@ -162,68 +174,45 @@ npm run bloomtech:override-pricing
 npm run b2b-headshop:scrape-preview
 npm run b2b-headshop:override-pricing
 npm run suppliers:sync-stock
-```
-
-### Orders and backfills
-
-```bash
 npm run orders:backfill-payment-fees
 npm run orders:backfill-sources
 npm run testing:seed-orders
 ```
 
-Additional operational script notes live in [`scripts/README.md`](./scripts/README.md).
+Additional script notes are documented in [scripts/README.md](./scripts/README.md).
 
-## Repository structure
+## Example Checkout Flow
 
-```text
-src/
-  app/           Next.js routes, pages, route handlers, and admin UI
-  components/    Shared UI building blocks
-  content/       Content and content-adjacent source files
-  data/          Static or curated data inputs
-  hooks/         Reusable React hooks
-  lib/           Domain logic, services, helpers, and tests
-  types/         Shared TypeScript types
+1. A customer adds products to the cart and starts checkout.
+2. The server rebuilds prices, discounts, shipping, tax, and order context from trusted backend data.
+3. A Stripe Checkout Session is created with order metadata and storefront source attribution.
+4. Stripe hosts the payment flow.
+5. The webhook confirms payment completion.
+6. The backend creates or updates the order, records payment state, and continues post-purchase workflows from server-side events.
 
-prisma/          Prisma schema and migrations
-scripts/         Operational and supplier automation scripts
-public/          Public assets
-docs/            Supporting internal documentation
-```
+## Security and Correctness Principles
 
-## Example end-to-end commerce flow
+- Payment completion is never trusted from a browser redirect alone.
+- Sensitive pricing, tax, discount, and order calculations stay server-side.
+- Admin routes use explicit access checks and governance-oriented workflows.
+- Upload, auth, token, and request-security helpers are covered by focused tests.
+- Secrets and deployment-specific credentials are kept out of the repository.
+- Operational scripts favor explicit inputs and reviewable output before writes.
 
-1. A customer adds products to cart and starts checkout.
-2. The server rebuilds pricing and shipping from trusted backend data.
-3. A Stripe Checkout Session is created with source metadata and order context.
-4. Stripe redirects the customer through the hosted checkout flow.
-5. The webhook confirms completion and the backend creates or updates the order.
-6. Inventory, payment state, and post-purchase communication are handled from server-side events.
+## Suggested Review Path
 
-## Security and correctness principles
+For interviewers or reviewers, these files provide a useful cross-section of the codebase:
 
-- Payment status is never trusted from client redirects alone
-- Sensitive pricing and order calculations stay on the server
-- Payment, inventory, and order transitions are designed to fail loudly when data is incomplete
-- Environment secrets are never committed to the repository
-- Admin and script workflows are structured to be explicit and reviewable
+- [src/app/api/checkout/route.ts](./src/app/api/checkout/route.ts) - checkout session creation and server-side commerce validation
+- [src/app/api/webhooks/stripe/route.ts](./src/app/api/webhooks/stripe/route.ts) - webhook-driven payment/order handling
+- [src/lib/checkoutPolicy.ts](./src/lib/checkoutPolicy.ts) - checkout rules and constraints
+- [src/lib/adminOrders.ts](./src/lib/adminOrders.ts) - admin order domain logic
+- [src/lib/pricingAutomationEngine.ts](./src/lib/pricingAutomationEngine.ts) - pricing recommendation logic
+- [src/lib/adminFinance.ts](./src/lib/adminFinance.ts) - finance/admin reporting logic
+- [src/lib/plantAnalyzer.ts](./src/lib/plantAnalyzer.ts) - AI-assisted plant analysis integration
+- [prisma/schema.prisma](./prisma/schema.prisma) - data model and domain breadth
+- [scripts/README.md](./scripts/README.md) - operational automation overview
 
-## Notes for outside readers
+## Notes for Outside Readers
 
-- This codebase is actively shaped around business correctness, not tutorial simplicity
-- Some features depend on third-party services or private operational credentials and will need local configuration before they run end-to-end
-- The open repository intentionally omits production secrets, supplier credentials, and deployment-specific values
-
-## Recruiter summary
-
-If you are reviewing this repository as a portfolio project, the strongest places to inspect are:
-
-- [`src/app/api/checkout/route.ts`](./src/app/api/checkout/route.ts)
-- [`src/app/api/webhooks/stripe/route.ts`](./src/app/api/webhooks/stripe/route.ts)
-- [`src/lib/orderSource.ts`](./src/lib/orderSource.ts)
-- [`src/lib/adminOrders.ts`](./src/lib/adminOrders.ts)
-- [`prisma/schema.prisma`](./prisma/schema.prisma)
-- [`scripts/README.md`](./scripts/README.md)
-
-Those files give a good view of how the project handles commerce logic, data modeling, operational tooling, and the tradeoffs of maintaining a real application over time.
+Smokeify is not a tutorial storefront. It is an evolving application shaped around commerce correctness, operational tooling, and practical business constraints. Running every feature locally requires configured third-party services, but the codebase is structured so the main application architecture, domain modeling, and workflow design can be reviewed directly from the repository.

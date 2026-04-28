@@ -517,6 +517,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
         const data = (await res.json()) as {
           results?: Array<{
             id: string;
+            defaultVariantId: string | null;
             title: string;
             handle: string;
             imageUrl: string | null;
@@ -686,7 +687,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const utilityIconButtonClass =
     "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
   const desktopNavLinkClass =
-    "cursor-pointer text-base font-semibold text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:text-lg";
+    "inline-flex cursor-pointer items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-1.5 text-base font-semibold text-[var(--smk-text-muted)] shadow-sm shadow-black/10 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:text-lg";
 
   return (
     <>
@@ -695,7 +696,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
         style={{ transform: "translateY(var(--smk-announcement-offset))" }}
       >
         <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
-          <div className="py-3 sm:py-3">
+          <div className="py-2 sm:py-2">
             <div className="relative flex items-center justify-center sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
               {/* LEFT (spacer) */}
               <div className="absolute left-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0">
@@ -773,10 +774,10 @@ export function Navbar({ initialCategories }: NavbarProps) {
                             return next;
                           })
                         }
-                        className={`inline-flex cursor-pointer items-center rounded-full border px-4 py-2 text-base font-semibold transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                        className={`inline-flex cursor-pointer items-center rounded-full border px-3.5 py-1.5 text-base font-semibold shadow-sm shadow-black/10 transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                           productsOpen
                             ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] text-[var(--smk-text)] shadow-lg shadow-black/30"
-                            : "border-transparent text-[var(--smk-text-muted)] hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
+                            : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)]"
                         }`}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
@@ -996,7 +997,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           item_list_name: "search",
                           items: [
                             {
-                              item_id: item.id,
+                              item_id: item.defaultVariantId ?? item.id,
                               item_name: item.title,
                               price: item.price
                                 ? Number(item.price.amount)

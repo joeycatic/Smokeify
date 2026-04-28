@@ -1,104 +1,107 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { attachServerTiming, getNow } from "@/lib/perf";
+import {
+  buildProductSearchTermGroups,
+  getProductSearchScore,
+} from "@/lib/productSearch";
+import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { buildStorefrontProductWhere } from "@/lib/storefronts";
 
 const CURRENCY_CODE = "EUR";
-const MAX_DB_CANDIDATES = 60;
+const MAIN_STOREFRONT = "MAIN" as const;
 const MAX_RESULTS = 8;
-const MAX_TOKENS = 4;
-const MAX_TERMS = 8;
-const MAX_FUZZY_TERMS = 3;
+const MAX_DB_CANDIDATES = 40;
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
-const SEARCH_SYNONYMS: Record<string, string[]> = {
-  aktivkohle: ["carbon", "kohle"],
-  filter: ["filters", "filtration"],
-  bong: ["wasserpfeife", "waterpipe"],
-  grinder: ["muehle", "muhle"],
-  vaporizer: ["vape", "verdampfer"],
-  growbox: ["grow", "zelt", "box"],
-  duenger: ["duenger", "dunger", "fertilizer", "naehrstoff", "nahrung"],
-  luefter: ["lufter", "fan", "abluft"],
+const getAvailability = (quantityOnHand: number | null, reserved: number | null) => {
+  const onHand = quantityOnHand ?? 0;
+  const held = reserved ?? 0;
+  return Math.max(0, onHand - held);
 };
 
-const normalizeSearch = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const tokenize = (value: string) =>
-  normalizeSearch(value)
-    .split(" ")
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 2);
-
-const toDeleteDistanceOne = (token: string) => {
-  if (token.length < 4) return [];
-  const variants: string[] = [];
-  for (let i = 0; i < token.length; i += 1) {
-    variants.push(token.slice(0, i) + token.slice(i + 1));
-  }
-  return variants;
-};
-
-const buildSearchTerms = (query: string) => {
-  const tokens = tokenize(query).slice(0, MAX_TOKENS);
-  const terms = new Set<string>(tokens);
-  const fuzzyBaseToken = [...tokens]
-    .sort((a, b) => b.length - a.length)[0];
-
-  for (const token of tokens) {
-    const synonyms = SEARCH_SYNONYMS[token] ?? [];
-    for (const synonym of synonyms) {
-      terms.add(normalizeSearch(synonym));
-    }
-    if (token === fuzzyBaseToken) {
-      for (const fuzzy of toDeleteDistanceOne(token).slice(0, MAX_FUZZY_TERMS)) {
-        terms.add(fuzzy);
-      }
-    }
-  }
-
-  const normalizedQuery = normalizeSearch(query);
-  if (normalizedQuery) terms.add(normalizedQuery);
-
-  return Array.from(terms).filter((term) => term.length >= 2).slice(0, MAX_TERMS);
-};
-
-const getRelevanceScore = (
-  input: { title: string; handle: string; manufacturer: string | null; tags: string[] },
-  rawQuery: string,
-  terms: string[]
-) => {
-  const title = normalizeSearch(input.title);
-  const handle = normalizeSearch(input.handle);
-  const manufacturer = normalizeSearch(input.manufacturer ?? "");
-  const tags = input.tags.map((tag) => normalizeSearch(tag));
-  const query = normalizeSearch(rawQuery);
-
-  let score = 0;
-  if (title === query) score += 150;
-  if (handle === query) score += 140;
-  if (title.startsWith(query)) score += 90;
-  if (handle.startsWith(query)) score += 85;
-  if (manufacturer.startsWith(query)) score += 60;
-
-  for (const term of terms) {
-    if (title.includes(term)) score += 22;
-    if (handle.includes(term)) score += 20;
-    if (manufacturer.includes(term)) score += 12;
-    if (tags.some((tag) => tag.includes(term))) score += 10;
-  }
-
-  return score;
-};
+const buildTermConditions = (term: string): Prisma.ProductWhereInput[] => [
+  { title: { contains: term, mode: "insensitive" } },
+  { handle: { contains: term, mode: "insensitive" } },
+  { manufacturer: { contains: term, mode: "insensitive" } },
+  { shortDescription: { contains: term, mode: "insensitive" } },
+  { description: { contains: term, mode: "insensitive" } },
+  { technicalDetails: { contains: term, mode: "insensitive" } },
+  { growboxSize: { contains: term, mode: "insensitive" } },
+  { lightSize: { contains: term, mode: "insensitive" } },
+  { productGroup: { contains: term, mode: "insensitive" } },
+  { tags: { has: term } },
+  {
+    mainCategory: {
+      is: {
+        storefronts: { has: MAIN_STOREFRONT },
+        OR: [
+          { name: { contains: term, mode: "insensitive" } },
+          { handle: { contains: term, mode: "insensitive" } },
+          {
+            parent: {
+              is: {
+                storefronts: { has: MAIN_STOREFRONT },
+                OR: [
+                  { name: { contains: term, mode: "insensitive" } },
+                  { handle: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    },
+  },
+  {
+    categories: {
+      some: {
+        category: {
+          storefronts: { has: MAIN_STOREFRONT },
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { handle: { contains: term, mode: "insensitive" } },
+            {
+              parent: {
+                is: {
+                  storefronts: { has: MAIN_STOREFRONT },
+                  OR: [
+                    { name: { contains: term, mode: "insensitive" } },
+                    { handle: { contains: term, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    collections: {
+      some: {
+        collection: {
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { handle: { contains: term, mode: "insensitive" } },
+          ],
+        },
+      },
+    },
+  },
+  {
+    variants: {
+      some: {
+        OR: [
+          { title: { contains: term, mode: "insensitive" } },
+          { sku: { contains: term, mode: "insensitive" } },
+        ],
+      },
+    },
+  },
+];
 
 export async function GET(request: Request) {
   const startedAt = getNow();
@@ -114,6 +117,7 @@ export async function GET(request: Request) {
       [{ name: "search", durationMs: getNow() - startedAt, description: "navbar-search" }],
     );
   }
+
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") ?? "";
   const query = rawQuery.trim();
@@ -122,67 +126,129 @@ export async function GET(request: Request) {
       { name: "search", durationMs: getNow() - startedAt, description: "navbar-search" },
     ]);
   }
-  const terms = buildSearchTerms(query);
-  const queryForDb = normalizeSearch(query);
-  const rawQueryForDb = query;
 
-  const products = await prisma.product.findMany({
-    where: {
-      status: "ACTIVE",
-      OR: [
-        { title: { contains: rawQueryForDb, mode: "insensitive" } },
-        { handle: { contains: rawQueryForDb, mode: "insensitive" } },
-        { manufacturer: { contains: rawQueryForDb, mode: "insensitive" } },
-        { title: { contains: queryForDb, mode: "insensitive" } },
-        { handle: { contains: queryForDb, mode: "insensitive" } },
-        { manufacturer: { contains: queryForDb, mode: "insensitive" } },
-        ...terms.flatMap((term) => [
-          { title: { contains: term, mode: "insensitive" as const } },
-          { handle: { contains: term, mode: "insensitive" as const } },
-          { manufacturer: { contains: term, mode: "insensitive" as const } },
-          { tags: { has: term } },
-        ]),
-      ],
-    },
-    orderBy: { updatedAt: "desc" },
+  const termGroups = buildProductSearchTermGroups(query);
+  if (termGroups.length === 0) {
+    return attachServerTiming(NextResponse.json({ results: [] }), [
+      { name: "search", durationMs: getNow() - startedAt, description: "navbar-search" },
+    ]);
+  }
+
+  const searchCandidates = await prisma.product.findMany({
+    where: buildStorefrontProductWhere(MAIN_STOREFRONT, {
+      AND: termGroups.map((group) => ({
+        OR: group.flatMap((term) => buildTermConditions(term)),
+      })),
+    }),
+    orderBy: [
+      { bestsellerScore: { sort: "desc", nulls: "last" } },
+      { updatedAt: "desc" },
+    ],
     take: MAX_DB_CANDIDATES,
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
-      variants: { orderBy: { position: "asc" }, select: { priceCents: true } },
+      variants: {
+        orderBy: { position: "asc" },
+        include: { inventory: true },
+      },
+      mainCategory: {
+        include: {
+          parent: true,
+        },
+      },
+      categories: {
+        include: {
+          category: {
+            include: {
+              parent: true,
+            },
+          },
+        },
+      },
+      collections: {
+        include: {
+          collection: true,
+        },
+      },
     },
   });
 
-  const ranked = products
-    .map((product) => {
-      const score = getRelevanceScore(
+  const ranked = searchCandidates
+    .map((candidate) => {
+      const score = getProductSearchScore(
         {
-          title: product.title,
-          handle: product.handle,
-          manufacturer: product.manufacturer ?? null,
-          tags: product.tags ?? [],
+          title: candidate.title,
+          handle: candidate.handle,
+          manufacturer: candidate.manufacturer,
+          shortDescription: candidate.shortDescription ?? "",
+          description: candidate.description ?? "",
+          technicalDetails: candidate.technicalDetails ?? "",
+          tags: candidate.tags,
+          categories: [
+            candidate.mainCategory?.name ?? "",
+            candidate.mainCategory?.handle ?? "",
+            candidate.mainCategory?.parent?.name ?? "",
+            candidate.mainCategory?.parent?.handle ?? "",
+            ...candidate.categories.flatMap((entry) => [
+              entry.category.name,
+              entry.category.handle,
+              entry.category.parent?.name ?? "",
+              entry.category.parent?.handle ?? "",
+            ]),
+          ],
+          collections: candidate.collections.flatMap((entry) => [
+            entry.collection.name,
+            entry.collection.handle,
+          ]),
+          variantTitles: candidate.variants.map((variant) => variant.title),
+          variantSkus: candidate.variants.map((variant) => variant.sku ?? ""),
+          extra: [
+            candidate.growboxSize ?? "",
+            candidate.lightSize ?? "",
+            candidate.productGroup ?? "",
+          ],
         },
         query,
-        terms
       );
-      return { product, score };
+      const availableForSale = candidate.variants.some(
+        (variant) =>
+          getAvailability(
+            variant.inventory?.quantityOnHand ?? 0,
+            variant.inventory?.reserved ?? 0,
+          ) > 0,
+      );
+
+      return { product: candidate, score, availableForSale };
     })
-    .sort((a, b) => b.score - a.score)
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return (
+        Number(right.availableForSale) - Number(left.availableForSale) ||
+        left.product.title.localeCompare(right.product.title)
+      );
+    })
     .slice(0, MAX_RESULTS);
 
   const results = ranked.map(({ product }) => {
     const prices = product.variants.map((variant) => variant.priceCents);
-    const minPrice =
-      prices.length > 0 ? Math.min(...prices) : null;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : null;
     const image = product.images[0] ?? null;
+
     return {
       id: product.id,
+      defaultVariantId: product.variants[0]?.id ?? null,
       title: product.title,
       handle: product.handle,
       imageUrl: image?.url ?? null,
       imageAlt: image?.altText ?? product.title,
-      price: minPrice !== null
-        ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
-        : null,
+      price:
+        minPrice !== null
+          ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
+          : null,
     };
   });
 

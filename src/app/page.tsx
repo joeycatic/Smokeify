@@ -66,18 +66,18 @@ export default async function StorePage({
 
   const supportCards = [
     {
-      title: "Schneller Versand",
-      copy: "Kurze Wege aus Deutschland, damit neue Setups nicht lange auf Teile warten.",
+      title: "Schnell startklar",
+      copy: "Verfügbare Ausrüstung, kurze Wege und klare Produktauswahl für dein nächstes Setup.",
       icon: TruckIcon,
     },
     {
-      title: "Marken mit Substanz",
-      copy: "Bewährte Hersteller für Licht, Luft und Zubehör ohne unnötigen Katalogballast.",
+      title: "Bewährte Marken",
+      copy: "Licht, Klima und Zubehör von Herstellern, die sich in echten Setups bewährt haben.",
       icon: ShieldCheckIcon,
     },
     {
-      title: "Kuratierte Auswahl",
-      copy: "Weniger Rauschen, mehr Orientierung für Einsteiger und fortgeschrittene Setups.",
+      title: "Klar ausgewählt",
+      copy: "Weniger Suchen, bessere Entscheidungen und passende Wege vom Einstieg bis zum Upgrade.",
       icon: SparklesIcon,
     },
   ] as const;
@@ -153,16 +153,16 @@ export default async function StorePage({
                   </span>
                   <div className="space-y-4">
                     <h1 className="smk-heading max-w-4xl text-5xl leading-[0.9] tracking-[-0.06em] text-[var(--smk-text)] sm:text-6xl lg:text-7xl">
-                      Technik für Pflanzen,
+                      Indoor-Growing,
                       <br />
                       <span className="smk-text-gradient">
-                        die sauber gedacht ist.
+                        das direkt Sinn ergibt.
                       </span>
                     </h1>
                     <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                      Zelte, Licht, Abluft und Zubehör in einer kuratierten
-                      Auswahl. Weniger Lärm, klarere Wege und direkte Einstiege
-                      in Shop, Analyzer und Konfigurator.
+                      Entdecke Growboxen, LED-Licht, Abluft und Zubehör, die
+                      wirklich zusammenpassen. Kuratiert für saubere Setups,
+                      bessere Orientierung und einen Start ohne Rätselraten.
                     </p>
                   </div>
 
