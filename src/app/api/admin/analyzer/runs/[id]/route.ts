@@ -7,6 +7,7 @@ import {
   normalizePlantAnalysisReviewStatus,
   type PlantAnalysisSafetyFlag,
 } from "@/lib/adminPlantAnalysis";
+import { fetchGrowvaultAnalyzerAdminJson } from "@/lib/growvaultAnalyzerAdminBridge";
 import { mergePlantAnalyzerStoredOutput } from "@/lib/plantAnalyzerOutput";
 import type { PlantAnalyzerReviewedCase } from "@/lib/plantAnalyzerTypes";
 import { prisma } from "@/lib/prisma";
@@ -40,6 +41,14 @@ export async function GET(
   }
 
   const { id } = await context.params;
+  const bridge = await fetchGrowvaultAnalyzerAdminJson<{
+    run?: Record<string, unknown>;
+    error?: string;
+  }>(`/api/internal/admin/analyzer/runs/${id}`);
+  if (bridge?.ok) {
+    return NextResponse.json(bridge.payload);
+  }
+
   const run = await prisma.plantAnalysisRun.findUnique({
     where: { id },
     include: {
@@ -104,7 +113,23 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as {
+  const rawBody = await request.text();
+  const bridge = await fetchGrowvaultAnalyzerAdminJson<{
+    run?: Record<string, unknown>;
+    error?: string;
+  }>(`/api/internal/admin/analyzer/runs/${id}`, "", {
+    method: "PATCH",
+    body: rawBody,
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
+    },
+  });
+  if (bridge?.ok || bridge?.status === 400 || bridge?.status === 404) {
+    return NextResponse.json(bridge.payload, { status: bridge?.status ?? 200 });
+  }
+
+  const body = ((): {
     reviewStatus?: string;
     safetyFlags?: string[];
     reviewNotes?: string | null;
@@ -123,7 +148,32 @@ export async function PATCH(
       price: { amount: string; currencyCode: "EUR" } | null;
       reason: string;
     }> | null;
-  };
+  } => {
+    try {
+      return JSON.parse(rawBody || "{}") as {
+        reviewStatus?: string;
+        safetyFlags?: string[];
+        reviewNotes?: string | null;
+        overrideDiagnosis?: {
+          species?: string;
+          confidence?: number;
+          healthStatus?: "healthy" | "warning" | "critical";
+          recommendations?: string[];
+        } | null;
+        overrideProductSuggestions?: Array<{
+          id: string;
+          title: string;
+          handle: string;
+          imageUrl: string | null;
+          imageAlt: string;
+          price: { amount: string; currencyCode: "EUR" } | null;
+          reason: string;
+        }> | null;
+      };
+    } catch {
+      return {};
+    }
+  })();
 
   const existing = await prisma.plantAnalysisRun.findUnique({
     where: { id },
