@@ -19,6 +19,7 @@ import {
   TruckIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
+import { buildGrowvaultPublicUrl } from "@/lib/growvaultPublicStorefront";
 
 export const metadata: Metadata = {
   alternates: {
@@ -174,7 +175,7 @@ export default async function StorePage({
                       Sortiment entdecken
                     </Link>
                     <Link
-                      href="/customizer"
+                      href={buildGrowvaultPublicUrl("/customizer")}
                       className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
                       Konfigurator öffnen
@@ -266,28 +267,29 @@ export default async function StorePage({
 
             <section className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
               <div className="smk-panel rounded-[32px] p-6 sm:p-7">
-                <p className="smk-kicker">Analyzer</p>
+                <p className="smk-kicker">Growvault</p>
                 <h2 className="smk-heading mt-4 text-3xl leading-[0.96] text-[var(--smk-text)] sm:text-4xl">
-                  Pflanzenprobleme fotografieren.
+                  Grow-Themen laufen jetzt
                   <br />
-                  Produkte schneller finden.
+                  in Growvault weiter.
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Foto hochladen, 1–2 wahrscheinliche Probleme schätzen und
-                  direkt mit passenden Shop-Artikeln und Guides weitergehen.
+                  Analyzer, Konfigurator und das kuratierte Grow-Sortiment leben
+                  jetzt im dedizierten Growvault-Storefront. Smokeify bleibt der
+                  gemeinsame Operations- und Admin-Backbone im Hintergrund.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    href="/pflanzen-analyzer"
+                    href={buildGrowvaultPublicUrl("/")}
                     className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Analyzer öffnen
+                    Growvault öffnen
                   </Link>
                   <Link
-                    href="/blog"
+                    href={buildGrowvaultPublicUrl("/pflanzen-analyse")}
                     className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Guides ansehen
+                    Analyzer bei Growvault
                   </Link>
                 </div>
               </div>
@@ -295,18 +297,18 @@ export default async function StorePage({
               <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
                 {[
                   {
-                    title: "Foto hochladen",
-                    copy: "Schnelle Ersteinschätzung direkt auf der Website.",
+                    title: "Eigenes Grow-Storefront",
+                    copy: "Growvault ist jetzt die einzige öffentliche Oberfläche für Analyzer, Konfigurator und Grow-Katalog.",
                     icon: PhotoIcon,
                   },
                   {
-                    title: "Problem schätzen",
-                    copy: "Wahrscheinliche Ursachen mit klaren nächsten Schritten.",
+                    title: "Ein Runtime-Owner",
+                    copy: "Neue Analyzer- und Konfigurator-Features landen nur noch in Growvault statt parallel in zwei Repos.",
                     icon: SparklesIcon,
                   },
                   {
-                    title: "Shop-Verbindung",
-                    copy: "Direkt weiter zu Produkten und Guides ohne Medienbruch.",
+                    title: "Smokeify im Hintergrund",
+                    copy: "Review, QA, Empfehlungen und Admin-Workflows bleiben im gemeinsamen Control Plane erhalten.",
                     icon: WrenchScrewdriverIcon,
                   },
                 ].map((item) => (

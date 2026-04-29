@@ -107,7 +107,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: toUrl("/"), lastModified: now },
     { url: toUrl("/products"), lastModified: now },
     { url: toUrl("/blog"), lastModified: now },
-    { url: toUrl("/customizer"), lastModified: now },
     { url: toUrl("/bestseller"), lastModified: now },
     { url: toUrl("/neuheiten"), lastModified: now },
     ...blogUrls,
