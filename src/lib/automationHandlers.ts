@@ -18,6 +18,7 @@ import {
   serializeAdminReportFilters,
 } from "@/lib/adminReports";
 import { sendResendEmail } from "@/lib/resend";
+import { sendSupplierSyncDailyReport } from "@/lib/supplierSyncDailyReport";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import type { AutomationHandler } from "@/lib/automationPolicy";
 
@@ -64,6 +65,27 @@ async function runSupplierStockSync() {
       durationMs: result.durationMs,
       lowStockCount: risky.length,
       lowStockVariantIds: risky.slice(0, 25).map((variant) => variant.id),
+    },
+  } satisfies AutomationHandlerResult;
+}
+
+async function runSupplierStockDailyReport() {
+  const result = await sendSupplierSyncDailyReport({ prisma });
+
+  return {
+    summary: `Supplier stock daily report sent for ${result.totalRuns} sync runs.`,
+    data: {
+      totalRuns: result.totalRuns,
+      successfulRuns: result.successfulRuns,
+      failedRuns: result.failedRuns,
+      processed: result.processed,
+      updated: result.updated,
+      skipped: result.skipped,
+      failed: result.failed,
+      timedOutRuns: result.timedOutRuns,
+      durationMs: result.durationMs,
+      windowStart: result.windowStart.toISOString(),
+      windowEnd: result.windowEnd.toISOString(),
     },
   } satisfies AutomationHandlerResult;
 }
@@ -271,6 +293,8 @@ export async function executeAutomationHandler(input: {
     }
     case "supplier.stock.sync":
       return runSupplierStockSync();
+    case "supplier.stock.daily_report":
+      return runSupplierStockDailyReport();
     case "supplier.pricing.sync": {
       const { result } = await runApprovedAdminScriptById({
         scriptId: "pricing:seed-bloomtech-profiles",

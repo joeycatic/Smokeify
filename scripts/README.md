@@ -38,6 +38,7 @@
 
 ## `scripts/suppliers`
 - `syncSupplierStock.mjs`: sync stock quantities from supplier product pages.
+  - routine runs no longer send Telegram directly; the Vercel cron sends one daily summary report at 12:00 Europe/Berlin
 - `overrideGtinsFromPreview.mjs`: sync GTIN into product `technicalDetails` for Bloomtech + B2B Headshop (`--source live` default via stored `sellerUrl`, optional `--source preview`/`--source auto`, dry-run by default, `--apply` to write).
 
 ## `scripts/orders`

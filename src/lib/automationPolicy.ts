@@ -3,6 +3,7 @@ import "server-only";
 export const AUTOMATION_HANDLERS = [
   "admin.script.run",
   "supplier.stock.sync",
+  "supplier.stock.daily_report",
   "supplier.pricing.sync",
   "pricing.reprice",
   "growvault.diagnostics.sync",
@@ -48,6 +49,13 @@ export const AUTOMATION_SCHEDULE_DEFAULTS = [
     key: "supplier-stock-sync",
     label: "Supplier stock sync",
     handler: "supplier.stock.sync" as AutomationHandler,
+    cronExpression: "manual-cron",
+    maxAttempts: 3,
+  },
+  {
+    key: "supplier-stock-daily-report",
+    label: "Supplier stock daily report",
+    handler: "supplier.stock.daily_report" as AutomationHandler,
     cronExpression: "manual-cron",
     maxAttempts: 3,
   },

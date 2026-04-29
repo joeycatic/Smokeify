@@ -51,7 +51,7 @@ The project is built to demonstrate the kind of engineering needed behind a real
 - Stripe sessions and webhooks for payment-aware order workflows
 - Supplier scraping/import scripts for catalog and cost data
 - Market comparison scripts for price monitoring
-- Scheduled routes for checkout recovery, admin reports, rate-limit cleanup, supplier sync, and diagnostics
+- Scheduled routes for checkout recovery, admin reports, rate-limit cleanup, supplier sync, a daily supplier sync Telegram report, and diagnostics
 - Email-oriented flows for newsletters, orders, refunds, and storefront notifications
 
 ## Architecture Notes

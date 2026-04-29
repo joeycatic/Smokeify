@@ -218,6 +218,7 @@ const updateProductStock = async ({ prisma, product, quantity, isDryRun }) => {
  *     $transaction: Function;
  *   };
  *   isDryRun?: boolean;
+ *   sendTelegramReport?: boolean;
  *   logger?: { info: (message: string) => void; warn: (message: string) => void };
  *   env?: NodeJS.ProcessEnv;
  * }} options
@@ -225,6 +226,7 @@ const updateProductStock = async ({ prisma, product, quantity, isDryRun }) => {
 export async function runSupplierSync({
   prisma,
   isDryRun = false,
+  sendTelegramReport = false,
   logger,
   env = process.env,
 } = {}) {
@@ -379,7 +381,7 @@ export async function runSupplierSync({
     `Supplier sync done. updated=${updated} skipped=${skipped} failed=${failed} duration=${elapsedSeconds}s`,
   );
 
-  if (!isDryRun) {
+  if (!isDryRun && sendTelegramReport) {
     const changeLines = changes.map(formatSupplierSyncChangeLine);
     const changeText =
       changeLines.length > 0

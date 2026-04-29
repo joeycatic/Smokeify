@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/sync-supplier",
       "schedule": "0 */3 * * *"
+    },
+    {
+      "path": "/api/cron/supplier-sync-report",
+      "schedule": "0 * * * *"
     }
   ]
 }
