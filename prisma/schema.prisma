@@ -249,6 +249,50 @@ enum CustomizerPresetDiameterBias {
   LARGEST
 }
 
+enum SetupComponentSlot {
+  SIZE
+  LIGHT
+  VENT
+  EXTRA
+}
+
+enum ShipmentStatus {
+  PENDING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+enum ReturnItemDisposition {
+  PENDING_INSPECTION
+  RESTOCK_SELLABLE
+  RESTOCK_QUARANTINE
+  DAMAGED
+  REFURBISHABLE
+  RETURN_TO_VENDOR
+  DISCARDED
+}
+
+enum OrderRiskStatus {
+  CLEAR
+  REVIEW
+  HOLD
+  APPROVED
+  BLOCKED
+}
+
+enum PlantJournalEntryType {
+  NOTE
+  OBSERVATION
+  WATER
+  FEED
+  TRAINING
+  PRUNE
+  ANALYSIS
+  PHOTO
+}
+
 enum TaxRegime {
   NORMAL
   KLEINUNTERNEHMER
@@ -415,6 +459,14 @@ model User {
   crmCreatedTasks                 AdminCustomerTask[]        @relation("AdminCustomerTaskCreatedBy")
   crmCustomerTasks                AdminCustomerTask[]        @relation("AdminCustomerTaskCustomer")
   supportCases                    SupportCase[]              @relation("SupportCaseCustomer")
+  processedReturnItems            ReturnItem[]               @relation("ReturnItemProcessedBy")
+  orderRiskReviews                Order[]                    @relation("OrderRiskReviewedBy")
+  orderRiskEvents                 OrderRiskEvent[]           @relation("OrderRiskEventActor")
+  createdShipments                Shipment[]                 @relation("ShipmentCreatedBy")
+  updatedShipments                Shipment[]                 @relation("ShipmentUpdatedBy")
+  growTents                       GrowTent[]
+  plants                          Plant[]
+  plantJournalEntries             PlantJournalEntry[]
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
 }
@@ -518,6 +570,32 @@ model SavedSetup {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SearchSynonymGroup {
+  id          String       @id @default(cuid())
+  label       String?
+  terms       String[]     @default([])
+  storefronts Storefront[] @default([])
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model SearchBoostRule {
+  id          String       @id @default(cuid())
+  query       String
+  productId   String
+  boostScore  Int          @default(100)
+  storefronts Storefront[] @default([])
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([query, isActive])
+  @@index([productId, isActive])
 }
 
 model BackInStockRequest {
@@ -702,6 +780,7 @@ model Product {
   complianceEvents          ProductComplianceEvent[]
   purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemProduct")
   purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemProduct")
+  searchBoostRules          SearchBoostRule[]
 
   @@index([status])
   @@index([supplierId])
@@ -768,6 +847,7 @@ model Variant {
   pricingChangeAudits       PricingChangeAudit[]
   purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemVariant")
   purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemVariant")
+  setupComponentProfile     SetupComponentProfile?
 
   @@index([productId, position])
 }
@@ -807,9 +887,10 @@ model InventoryAdjustment {
   reason        String
   createdAt     DateTime @default(now())
 
-  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  variant             Variant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  product             Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order               Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  restockedReturnItem ReturnItem? @relation("ReturnItemRestockAdjustment")
 
   @@index([variantId])
   @@index([productId])
@@ -909,6 +990,11 @@ model Order {
   shippingEmailSentAt      DateTime?
   refundEmailSentAt        DateTime?
   refundRequestEmailSentAt DateTime?
+  riskStatus               OrderRiskStatus   @default(CLEAR)
+  riskScore                Int?
+  riskReviewedAt           DateTime?
+  riskReviewedById         String?
+  riskNotes                String?
   taxRegime                TaxRegime         @default(NORMAL)
   germanVatRate            GermanVatRate     @default(UNKNOWN)
   taxClassification        TaxClassification @default(UNKNOWN)
@@ -925,6 +1011,10 @@ model Order {
   loyaltyPointTransaction  LoyaltyPointTransaction?
   storeCreditTransactions  StoreCreditTransaction[]
   supportCases             SupportCase[]
+  shipments                Shipment[]
+  setupSnapshots           OrderSetupSnapshot[]
+  riskEvents               OrderRiskEvent[]
+  riskReviewedBy           User?                    @relation("OrderRiskReviewedBy", fields: [riskReviewedById], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdAt])
@@ -1090,24 +1180,35 @@ model OrderItem {
   variantId          String?
   options            Json?
 
-  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  returnItems ReturnItem[]
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnItems   ReturnItem[]
+  shipmentItems ShipmentItem[]
 
   @@index([orderId])
 }
 
 model ReturnItem {
-  id              String @id @default(cuid())
-  returnRequestId String
-  orderItemId     String
-  quantity        Int    @default(1)
+  id                  String                @id @default(cuid())
+  returnRequestId     String
+  orderItemId         String
+  quantity            Int                   @default(1)
+  disposition         ReturnItemDisposition @default(PENDING_INSPECTION)
+  receivedQuantity    Int                   @default(0)
+  processedAt         DateTime?
+  processedById       String?
+  dispositionNotes    String?
+  restockAdjustmentId String?               @unique
 
-  request   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
-  orderItem OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  request           ReturnRequest        @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem         OrderItem            @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  processedBy       User?                @relation("ReturnItemProcessedBy", fields: [processedById], references: [id], onDelete: SetNull)
+  restockAdjustment InventoryAdjustment? @relation("ReturnItemRestockAdjustment", fields: [restockAdjustmentId], references: [id], onDelete: SetNull)
 
   @@unique([returnRequestId, orderItemId])
   @@index([returnRequestId])
   @@index([orderItemId])
+  @@index([processedById])
+  @@index([disposition, processedAt])
 }
 
 model Review {
@@ -1510,21 +1611,21 @@ model AdminJobRun {
 }
 
 model AutomationSchedule {
-  id             String                   @id @default(cuid())
-  key            String                   @unique
-  label          String
-  handler        String
-  status         AutomationScheduleStatus @default(ACTIVE)
-  cronExpression String?
-  nextRunAt      DateTime?
-  lastEnqueuedAt DateTime?
+  id              String                   @id @default(cuid())
+  key             String                   @unique
+  label           String
+  handler         String
+  status          AutomationScheduleStatus @default(ACTIVE)
+  cronExpression  String?
+  nextRunAt       DateTime?
+  lastEnqueuedAt  DateTime?
   lastSucceededAt DateTime?
-  lastFailedAt   DateTime?
-  lastError      String?
-  payload        Json?
-  maxAttempts    Int                      @default(3)
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
+  lastFailedAt    DateTime?
+  lastError       String?
+  payload         Json?
+  maxAttempts     Int                      @default(3)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
 
   jobs AutomationJob[]
 
@@ -1553,7 +1654,7 @@ model AutomationJob {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  schedule AutomationSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  schedule AutomationSchedule?    @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   attempts AutomationJobAttempt[]
 
   @@index([status, runAfter])
@@ -1600,17 +1701,17 @@ model AutomationEvent {
 }
 
 model AutomationEffect {
-  id        String                 @id @default(cuid())
-  eventId   String
+  id         String                 @id @default(cuid())
+  eventId    String
   effectType String
-  dedupeKey String                 @unique
+  dedupeKey  String                 @unique
   targetType String
-  targetId  String?
-  status    AutomationEffectStatus @default(APPLIED)
-  payload   Json?
-  lastError String?
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  targetId   String?
+  status     AutomationEffectStatus @default(APPLIED)
+  payload    Json?
+  lastError  String?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
 
   event AutomationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1619,21 +1720,21 @@ model AutomationEffect {
 }
 
 model AnalyzerRecommendationProfile {
-  id                String   @id @default(cuid())
-  issueKey          String
-  aliases           String[] @default([])
-  reason            String
-  categoryHandles   String[] @default([])
-  titleTerms        String[] @default([])
-  handleTerms       String[] @default([])
-  manufacturers     String[] @default([])
-  excludeTitleTerms String[] @default([])
+  id                 String   @id @default(cuid())
+  issueKey           String
+  aliases            String[] @default([])
+  reason             String
+  categoryHandles    String[] @default([])
+  titleTerms         String[] @default([])
+  handleTerms        String[] @default([])
+  manufacturers      String[] @default([])
+  excludeTitleTerms  String[] @default([])
   excludeHandleTerms String[] @default([])
-  skip              Boolean  @default(false)
-  priority          Int      @default(0)
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  skip               Boolean  @default(false)
+  priority           Int      @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([issueKey, isActive, priority])
 }
@@ -1667,6 +1768,7 @@ model CustomizerPreset {
 
   slotRules  CustomizerPresetSlotRule[]
   extraRules CustomizerPresetExtraRule[]
+  versions   CustomizerPresetVersion[]
 }
 
 model CustomizerPresetSlotRule {
@@ -1705,6 +1807,134 @@ model CustomizerPresetExtraRule {
 
   @@unique([presetId, key])
   @@index([presetId, sortOrder])
+}
+
+model CustomizerPresetVersion {
+  id                String    @id @default(cuid())
+  presetId          String
+  version           Int
+  title             String
+  summary           String
+  description       String
+  explainer         String
+  supportedSizeKeys String[]  @default([])
+  defaultSizeKey    String
+  reasonLabels      String[]  @default([])
+  definition        Json
+  isPublished       Boolean   @default(false)
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  preset              CustomizerPreset     @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  orderSetupSnapshots OrderSetupSnapshot[]
+
+  @@unique([presetId, version])
+  @@index([presetId, isPublished, createdAt])
+}
+
+model SetupComponentProfile {
+  id                  String             @id @default(cuid())
+  variantId           String             @unique
+  slot                SetupComponentSlot
+  key                 String?
+  footprintKey        String?
+  diameterMm          Int?
+  diameterOptionsMm   Int[]              @default([])
+  requiresCompleteSet Boolean            @default(false)
+  powerWatts          Int?
+  noiseDb             Float?
+  compatibilityTags   String[]           @default([])
+  matchTerms          String[]           @default([])
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([slot, key])
+  @@index([footprintKey])
+}
+
+model OrderSetupSnapshot {
+  id                 String   @id @default(cuid())
+  orderId            String
+  presetSlug         String
+  presetTitle        String
+  presetVersionId    String?
+  selectedSizeKey    String?
+  reasonLabels       String[] @default([])
+  componentSummary   Json
+  pricingSummary     Json?
+  selectedVariantIds String[] @default([])
+  createdAt          DateTime @default(now())
+
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  presetVersion CustomizerPresetVersion? @relation(fields: [presetVersionId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([presetSlug, createdAt])
+  @@index([presetVersionId])
+}
+
+model Shipment {
+  id             String         @id @default(cuid())
+  orderId        String
+  status         ShipmentStatus @default(PENDING)
+  carrier        String?
+  trackingNumber String?
+  trackingUrl    String?
+  note           String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items     ShipmentItem[]
+  createdBy User?          @relation("ShipmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("ShipmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([status, createdAt])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model ShipmentItem {
+  id          String   @id @default(cuid())
+  shipmentId  String
+  orderItemId String
+  quantity    Int
+  createdAt   DateTime @default(now())
+
+  shipment  Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([shipmentId, orderItemId])
+  @@index([shipmentId])
+  @@index([orderItemId])
+}
+
+model OrderRiskEvent {
+  id          String           @id @default(cuid())
+  orderId     String
+  actorId     String?
+  actorEmail  String?
+  fromStatus  OrderRiskStatus?
+  toStatus    OrderRiskStatus?
+  reasonCodes String[]         @default([])
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("OrderRiskEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([toStatus, createdAt])
 }
 
 model LandingPageSectionRevision {
@@ -1872,6 +2102,72 @@ model RecommendationRule {
   @@index([targetType, targetValue, isActive])
 }
 
+model GrowTent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  sizeKey   String?
+  location  String?
+  notes     String?
+  payload   Json?
+  source    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plants  Plant[]
+  entries PlantJournalEntry[]
+
+  @@index([userId, updatedAt])
+}
+
+model Plant {
+  id         String    @id @default(cuid())
+  userId     String
+  tentId     String?
+  name       String
+  cultivar   String?
+  stage      String?
+  notes      String?
+  payload    Json?
+  source     String?
+  plantedAt  DateTime?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tent           GrowTent?           @relation(fields: [tentId], references: [id], onDelete: SetNull)
+  analyses       PlantAnalysisRun[]
+  journalEntries PlantJournalEntry[]
+
+  @@index([userId, updatedAt])
+  @@index([tentId, updatedAt])
+}
+
+model PlantJournalEntry {
+  id         String                @id @default(cuid())
+  userId     String
+  plantId    String
+  tentId     String?
+  entryType  PlantJournalEntryType @default(NOTE)
+  title      String?
+  notes      String?
+  payload    Json?
+  observedAt DateTime              @default(now())
+  source     String?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plant Plant     @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  tent  GrowTent? @relation(fields: [tentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, observedAt])
+  @@index([plantId, observedAt])
+  @@index([tentId, observedAt])
+}
+
 model PlantAnalysisRun {
   id                  String                    @id @default(cuid())
   userId              String?
@@ -1897,12 +2193,14 @@ model PlantAnalysisRun {
   createdAt           DateTime                  @default(now())
 
   user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  plant        Plant?                     @relation(fields: [plantId], references: [id], onDelete: SetNull)
   reviewedBy   User?                      @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   issues       PlantAnalysisIssue[]
   feedback     PlantAnalysisFeedback[]
   reviewEvents PlantAnalysisReviewEvent[]
 
   @@index([userId, createdAt])
+  @@index([plantId, createdAt])
   @@index([healthStatus, createdAt])
   @@index([reviewStatus, createdAt])
   @@index([reviewedById, createdAt])

@@ -13,11 +13,13 @@ type ProductSearchDocument = {
   extra?: Array<string | null | undefined>;
 };
 
+export type ProductSearchSynonymMap = Record<string, string[]>;
+
 const MAX_QUERY_TOKENS = 6;
 const MAX_GROUP_TERMS = 8;
 const MAX_FUZZY_TERMS = 3;
 
-const SEARCH_SYNONYMS: Record<string, string[]> = {
+const DEFAULT_SEARCH_SYNONYMS: ProductSearchSynonymMap = {
   growbox: ["growzelt", "pflanzenzelt", "zelt", "tent", "box"],
   growzelt: ["growbox", "pflanzenzelt", "zelt", "tent"],
   pflanzenzelt: ["growbox", "growzelt", "zelt", "tent"],
@@ -64,6 +66,27 @@ export const normalizeProductSearchText = (value: string) =>
 
 const compactSearchText = (value: string) =>
   normalizeProductSearchText(value).replace(/\s+/g, "");
+
+const buildSynonymMap = (synonyms?: ProductSearchSynonymMap) => {
+  if (!synonyms) return DEFAULT_SEARCH_SYNONYMS;
+
+  const merged: ProductSearchSynonymMap = { ...DEFAULT_SEARCH_SYNONYMS };
+  for (const [key, values] of Object.entries(synonyms)) {
+    const normalizedKey = normalizeProductSearchText(key);
+    if (!normalizedKey) continue;
+
+    const mergedValues = new Set(merged[normalizedKey] ?? []);
+    for (const value of values ?? []) {
+      const normalizedValue = normalizeProductSearchText(value);
+      if (normalizedValue) {
+        mergedValues.add(normalizedValue);
+      }
+    }
+    merged[normalizedKey] = Array.from(mergedValues);
+  }
+
+  return merged;
+};
 
 const toDeleteDistanceOne = (token: string) => {
   if (token.length < 5) return [];
@@ -202,7 +225,11 @@ const buildSearchIndex = (document: ProductSearchDocument) => {
   };
 };
 
-export const buildProductSearchTermGroups = (query: string) => {
+export const buildProductSearchTermGroups = (
+  query: string,
+  options?: { synonyms?: ProductSearchSynonymMap },
+) => {
+  const synonymMap = buildSynonymMap(options?.synonyms);
   const tokens = normalizeProductSearchText(query)
     .split(" ")
     .map((token) => token.trim())
@@ -230,7 +257,7 @@ export const buildProductSearchTermGroups = (query: string) => {
 
       addTerm(token);
 
-      for (const synonym of SEARCH_SYNONYMS[token] ?? []) {
+      for (const synonym of synonymMap[token] ?? []) {
         addTerm(synonym);
       }
 
@@ -252,12 +279,13 @@ export const buildProductSearchTermGroups = (query: string) => {
 export const getProductSearchScore = (
   document: ProductSearchDocument,
   query: string,
+  options?: { synonyms?: ProductSearchSynonymMap },
 ) => {
   const normalizedQuery = normalizeProductSearchText(query);
   if (!normalizedQuery) return 0;
 
   const searchIndex = buildSearchIndex(document);
-  const groups = buildProductSearchTermGroups(query);
+  const groups = buildProductSearchTermGroups(query, options);
   const allGroupsMatched =
     groups.length > 0 &&
     groups.every((group) =>
