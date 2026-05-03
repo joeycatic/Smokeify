@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Prisma, ReviewStatus } from "@prisma/client";
-import { AdminMetricCard, AdminPanel } from "@/components/admin/AdminInsightPrimitives";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { AdminMetricCard, AdminPanel } from "@/components/admin/AdminWorkspace";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminReviewsClient, { type AdminReviewListItem } from "./AdminReviewsClient";
 
@@ -30,7 +30,7 @@ export default async function AdminReviewsPage({
     storefront?: string | string[];
   }>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("catalog.write"))) notFound();
 
   const resolvedSearchParams = await searchParams;
   const query = getParam(resolvedSearchParams?.q).trim();

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import AdminUserEditClient from "./AdminUserEditClient";
 
 export default async function AdminUserPage({
@@ -8,7 +8,7 @@ export default async function AdminUserPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireAdmin();
+  const session = await requireAdminScope("users.manage");
   if (!session) notFound();
 
   const { id } = await params;

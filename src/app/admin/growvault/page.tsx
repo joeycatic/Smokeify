@@ -10,17 +10,17 @@ import {
   AdminEmptyState,
   AdminMetricCard,
   AdminTimeRangeTabs,
-} from "@/components/admin/AdminInsightPrimitives";
-import { AdminPageIntro, AdminPanel } from "@/components/admin/AdminWorkspace";
-import { requireAdmin } from "@/lib/adminCatalog";
+  AdminPageIntro,
+  AdminPanel,
+} from "@/components/admin/AdminWorkspace";
+import { requireAdminScope } from "@/lib/adminCatalog";
+import { formatAdminPercent as formatPercent } from "@/lib/adminFormatting";
 import { getGrowvaultInsights } from "@/lib/adminGrowvaultInsights";
 import {
   getGrowvaultSharedDiagnosticsFeed,
   getGrowvaultSharedMerchandisingFeed,
 } from "@/lib/growvaultSharedStorefront";
 import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
-
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("de-DE", {
@@ -78,7 +78,7 @@ export default async function AdminGrowvaultPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("analytics.read"))) notFound();
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);

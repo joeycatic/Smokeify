@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AdminEmptyState, AdminMetricCard, AdminPanel } from "@/components/admin/AdminInsightPrimitives";
-import { AdminInput, AdminSelect } from "@/components/admin/AdminWorkspace";
+import {
+  AdminEmptyState,
+  AdminInput,
+  AdminMetricCard,
+  AdminPanel,
+  AdminSelect,
+} from "@/components/admin/AdminWorkspace";
 import type { AdminAlertAssignee, AdminAlertQueueItem } from "@/lib/adminAlerts";
 
 type Props = {

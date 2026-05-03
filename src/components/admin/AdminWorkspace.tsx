@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -7,6 +8,11 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import {
+  ADMIN_TIME_RANGE_OPTIONS,
+  buildAdminSearchHref,
+  type AdminTimeRangeDays,
+} from "@/lib/adminTimeRange";
 
 export function AdminPageIntro({
   eyebrow,
@@ -86,18 +92,85 @@ export function AdminMetricCard({
   label,
   value,
   detail,
+  footnote,
+  detailBadgeClassName = "orders-kpi-badge-slate",
+  tone = "slate",
 }: {
   label: string;
   value: string;
   detail?: string;
+  footnote?: string;
+  detailBadgeClassName?: string;
+  tone?: "slate" | "emerald" | "violet" | "amber";
+}) {
+  const toneClassName =
+    tone === "emerald"
+      ? "orders-kpi-card-emerald"
+      : tone === "violet"
+        ? "orders-kpi-card-violet"
+        : tone === "amber"
+          ? "orders-kpi-card-amber"
+          : "orders-kpi-card-slate";
+  return (
+    <div
+      className={`admin-lift orders-kpi-card rounded-2xl border border-white/10 bg-white/[0.04] p-4 ${toneClassName}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="max-w-[14ch] break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:tracking-[0.22em]">
+          {label}
+        </p>
+        {detail ? (
+          <span
+            className={`orders-kpi-badge shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.18em] ${detailBadgeClassName}`}
+          >
+            {detail}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-5 text-2xl font-semibold text-white sm:text-3xl">{value}</p>
+      {footnote ? <p className="mt-2 text-sm text-slate-400">{footnote}</p> : null}
+    </div>
+  );
+}
+
+export function AdminCompactMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
 }) {
   return (
-    <div className="admin-lift rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      {detail ? <p className="mt-2 text-xs text-slate-500">{detail}</p> : null}
+      <div className="mt-2 text-lg font-semibold text-white">{value}</div>
+    </div>
+  );
+}
+
+export function AdminDeltaRow({
+  label,
+  value,
+  delta,
+  deltaToneClassName = "text-cyan-300",
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  deltaToneClassName?: string;
+}) {
+  return (
+    <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-slate-100">{label}</div>
+        <div className="text-xs text-slate-500">vs previous comparable window</div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-semibold text-white">{value}</div>
+        <div className={`text-xs font-medium ${deltaToneClassName}`}>{delta}</div>
+      </div>
     </div>
   );
 }
@@ -288,16 +361,62 @@ export function AdminDrawer({
 }
 
 export function AdminEmptyState({
+  copy,
   title,
   description,
 }: {
-  title: string;
-  description: string;
+  copy?: string;
+  title?: string;
+  description?: string;
 }) {
+  if (copy) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+        {copy}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center">
-      <div className="text-sm font-semibold text-slate-200">{title}</div>
-      <div className="mt-2 text-sm text-slate-500">{description}</div>
+      <div className="text-sm font-semibold text-slate-200">{title ?? "No data available"}</div>
+      <div className="mt-2 text-sm text-slate-500">{description ?? "Nothing is available yet."}</div>
+    </div>
+  );
+}
+
+export function AdminTimeRangeTabs({
+  pathname,
+  activeDays,
+  extraParams,
+  className = "",
+}: {
+  pathname: string;
+  activeDays: AdminTimeRangeDays;
+  extraParams?: Record<string, string | undefined>;
+  className?: string;
+}) {
+  return (
+    <div className={`admin-scroll-x -mx-1 flex gap-2 px-1 text-xs font-semibold sm:mx-0 sm:flex-wrap sm:px-0 ${className}`}>
+      {ADMIN_TIME_RANGE_OPTIONS.map((option) => {
+        const active = option.value === activeDays;
+        return (
+          <Link
+            key={option.value}
+            href={buildAdminSearchHref(pathname, {
+              ...extraParams,
+              days: String(option.value),
+            })}
+            className={`shrink-0 rounded-full border px-3 py-2 transition sm:shrink ${
+              active
+                ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+            }`}
+          >
+            {option.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }

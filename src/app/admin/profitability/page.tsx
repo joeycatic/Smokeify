@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { type Storefront } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { getProfitabilityPageData } from "@/lib/adminAddonData";
+import { requireAdminScope } from "@/lib/adminCatalog";
+import {
+  formatAdminMoney as formatMoney,
+  formatAdminPercent as formatPercent,
+} from "@/lib/adminFormatting";
 import {
   AdminTimeRangeTabs,
   AdminEmptyState,
   AdminMetricCard,
   AdminPanel,
-} from "@/components/admin/AdminInsightPrimitives";
-import { getProfitabilityPageData } from "@/lib/adminAddonData";
-import { requireAdmin } from "@/lib/adminCatalog";
+} from "@/components/admin/AdminWorkspace";
 import {
   getAdminTimeRangeOption,
   parseAdminTimeRangeDays,
@@ -18,15 +22,6 @@ import { STOREFRONT_LABELS } from "@/lib/storefronts";
 type ProfitabilityPageData = Awaited<ReturnType<typeof getProfitabilityPageData>>;
 type ProfitabilityRow = ProfitabilityPageData["rows"][number];
 type StorefrontSummary = ProfitabilityPageData["storefronts"][number];
-
-const formatMoney = (amountCents: number, currency = "EUR") =>
-  new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amountCents / 100);
-
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 const getStorefrontBadgeClassName = (storefront: Storefront) =>
   storefront === "GROW"
@@ -172,7 +167,7 @@ export default async function AdminProfitabilityPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("finance.read"))) notFound();
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);

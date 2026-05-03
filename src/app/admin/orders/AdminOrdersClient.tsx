@@ -2,7 +2,6 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import {
   AdminButton,
   AdminEmptyState,
@@ -318,7 +317,6 @@ export default function AdminOrdersClient({
         eyebrow="Admin Orders"
         title="Order queue"
         description={`Compact operator view for ${activeStorefrontLabel}. The main queue now focuses on fulfillment and payment triage; refunds, customer actions, and line-item detail stay in the dedicated order view.`}
-        actions={<AdminThemeToggle />}
         metrics={
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminMetricCard

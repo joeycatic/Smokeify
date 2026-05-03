@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AdminTimeRangeTabs,
-  AdminCompactMetric,
-  AdminDeltaRow,
-  AdminEmptyState,
-  AdminMetricCard,
-  AdminPanel,
-} from "@/components/admin/AdminInsightPrimitives";
 import { getFinancePageData } from "@/lib/adminAddonData";
+import { requireAdminScope } from "@/lib/adminCatalog";
+import {
+  formatAdminMoney as formatMoney,
+  formatAdminPercent as formatPercent,
+} from "@/lib/adminFormatting";
 import { formatExpenseCategoryLabel, type ExpenseCategory } from "@/lib/adminExpenses";
 import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import {
@@ -16,16 +13,14 @@ import {
   parseAdminStorefrontScope,
   storefrontScopeToStorefront,
 } from "@/lib/storefronts";
-import { requireAdmin } from "@/lib/adminCatalog";
-
-const formatMoney = (amountCents: number, currency = "EUR") =>
-  new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amountCents / 100);
-
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+import {
+  AdminTimeRangeTabs,
+  AdminCompactMetric,
+  AdminDeltaRow,
+  AdminEmptyState,
+  AdminMetricCard,
+  AdminPanel,
+} from "@/components/admin/AdminWorkspace";
 const formatDate = (value: Date) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",
@@ -44,7 +39,7 @@ export default async function AdminFinancePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("finance.read"))) notFound();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams?.storefront);

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import {
   isMissingInventoryStorageError,
@@ -258,7 +257,6 @@ export default async function AdminInventoryAdjustmentsPage({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
             <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-slate-300">
               {totalCount} adjustments
             </div>

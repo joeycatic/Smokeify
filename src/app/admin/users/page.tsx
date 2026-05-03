@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
-import AdminUsersClient from "../AdminUsersClient";
+import AdminUsersClient from "./AdminUsersClient";
 
 const PAGE_SIZE = 20;
 
@@ -13,7 +13,7 @@ export default async function AdminUsersPage({
     q?: string | string[];
   }>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("users.manage"))) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminEmptyState } from "@/components/admin/AdminInsightPrimitives";
+import { AdminEmptyState } from "@/components/admin/AdminWorkspace";
 
 type ReviewStatus = "APPROVED" | "PENDING" | "REJECTED";
 

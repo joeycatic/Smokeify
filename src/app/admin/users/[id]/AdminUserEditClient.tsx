@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 
 type CustomerGroup = "NORMAL" | "VIP" | "WHOLESALE" | "BLOCKED";
 
@@ -310,7 +309,6 @@ export default function AdminUserEditClient({
             </span>
           </div>
         </div>
-        <AdminThemeToggle />
       </div>
 
       {/* User header card */}

@@ -5,18 +5,13 @@ import {
   AdminEmptyState,
   AdminMetricCard,
   AdminPanel,
-} from "@/components/admin/AdminInsightPrimitives";
+} from "@/components/admin/AdminWorkspace";
 import { getVatPageData } from "@/lib/adminAddonData";
-import { requireAdmin } from "@/lib/adminCatalog";
-
-const formatMoney = (amountCents: number, currency = "EUR") =>
-  new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amountCents / 100);
-
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+import { requireAdminScope } from "@/lib/adminCatalog";
+import {
+  formatAdminMoney as formatMoney,
+  formatAdminPercent as formatPercent,
+} from "@/lib/adminFormatting";
 
 const formatVatStatus = (value: "estimated" | "review_required" | "ready_for_handover") => {
   if (value === "ready_for_handover") return "Bereit zur Übergabe";
@@ -46,7 +41,7 @@ function VatMobileValue({
 }
 
 export default async function AdminVatPage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("tax.review"))) notFound();
 
   const { current, monthly, ustva, deadline, expenseMigrationRequired } = await getVatPageData(6);
   const currency = "EUR";

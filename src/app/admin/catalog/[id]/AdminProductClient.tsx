@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import type { VariantPricingProfileRecord } from "@/lib/adminPricingIntegration";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import AdminVariantPricingProfiles from "./AdminVariantPricingProfiles";
 import {
@@ -1682,7 +1681,6 @@ export default function AdminProductClient({
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
-            <AdminThemeToggle />
             <Link
               href="/admin/catalog"
               className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
