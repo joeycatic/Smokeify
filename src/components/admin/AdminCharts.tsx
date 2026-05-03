@@ -377,12 +377,16 @@ export function FunnelChart({
               setInternalSelectedLabel(stage.label);
               onSelect?.(stage.label);
             }}
-            className={`block w-full space-y-2 rounded-2xl border px-3 py-3 text-left transition ${
+            className={`relative block w-full space-y-2 overflow-hidden rounded-[22px] border px-3 py-3 text-left transition ${
               active
-                ? "border-cyan-400/25 bg-cyan-400/10"
+                ? "border-cyan-400/25 bg-white/[0.04] shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
                 : "border-white/10 bg-transparent hover:border-white/15 hover:bg-white/[0.03]"
             }`}
           >
+            <div
+              className="absolute inset-y-0 left-0 w-1"
+              style={{ backgroundColor: stage.color }}
+            />
             <div className="flex items-end justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-slate-100">{stage.label}</div>
@@ -458,8 +462,10 @@ export function MultiSeriesTrendChart({
       .join(" ");
 
   return (
-    <div className={`admin-lift rounded-2xl border border-white/10 bg-white/[0.02] p-4 ${className}`}>
-      <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+    <div
+      className={`admin-lift overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-4 ${className}`}
+    >
+      <div className="mb-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
           {labels[boundedActiveIndex] ?? "Trend point"}
         </div>
@@ -556,7 +562,7 @@ export function MultiSeriesTrendChart({
           return (
             <div
               key={entry.label}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+              className="rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3"
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 <span

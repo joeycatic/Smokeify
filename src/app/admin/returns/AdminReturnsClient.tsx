@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
 import { DonutChart } from "@/components/admin/AdminCharts";
 import { calculateReturnRequestAmountCents } from "@/lib/adminReturns";
 
@@ -255,7 +254,6 @@ export default function AdminReturnsClient({ requests }: Props) {
             </div>
             <div className="relative flex w-full max-w-md flex-col gap-3">
               <div className="flex justify-end">
-                <AdminThemeToggle />
               </div>
               <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-inner shadow-black/30">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">

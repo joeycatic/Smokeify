@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   DonutChart,
+  FunnelChart,
+  MultiSeriesTrendChart,
   SparklineChart,
   type AdminChartPoint,
 } from "@/components/admin/AdminCharts";
@@ -11,13 +13,14 @@ import {
   AdminEmptyState,
   AdminMetricCard,
   AdminPanel,
-} from "@/components/admin/AdminInsightPrimitives";
+} from "@/components/admin/AdminWorkspace";
 import { getFinancePageData, getVatPageData } from "@/lib/adminAddonData";
 import {
   getActiveSessionSnapshot,
   getActivityFeed,
   getCustomerRevenueMix,
   getFunnelSnapshot,
+  getFunnelTrend,
   getOrderComparisons,
   getProductPerformance,
   getStockCoverageMap,
@@ -27,7 +30,7 @@ import {
   getAdminTimeWindowStart,
   parseAdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { isMissingProcessedWebhookStorageError } from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
 
@@ -436,13 +439,96 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("dashboard.read"))) notFound();
   const resolvedSearchParams = await searchParams;
   const language = resolveAdminLanguage(resolvedSearchParams?.lang);
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
   const locale = ADMIN_LOCALE[language];
   const copy = ADMIN_PAGE_COPY[language];
   const salesWindowStart = getAdminTimeWindowStart(days);
+  const paceTrendDays = days >= 365 ? 30 : days >= 90 ? 21 : 14;
+  const visualCopy =
+    language === "de"
+      ? {
+          deckEyebrow: "Signaldeck",
+          deckTitle: "Handelslage im Blick",
+          deckDescription:
+            "Die Übersicht priorisiert Nachfrage, Checkout-Druck, Zahlungsqualität und operative Risiken in einem Scan.",
+          revenuePulse: "Umsatztempo",
+          demandPulse: "Nachfragefluss",
+          queuePressure: "Offene Signale",
+          funnelRecovery: "Checkout zu bezahlt",
+          paceEyebrow: "Pace",
+          paceTitle: "Commerce-Fluss",
+          paceDescription: `${paceTrendDays}-Tage-Puls für Sessions, Checkouts und bezahlte Bestellungen.`,
+          funnelEyebrow: "Funnel",
+          funnelTitle: "Verluststellen im Kaufpfad",
+          funnelDescription:
+            "Jede Stufe zeigt, wie viel Volumen im aktuellen Fenster in den nächsten Schritt übergeht.",
+          funnelStages: {
+            sessions: "Sessions",
+            views: "Produktansichten",
+            cart: "Warenkörbe",
+            checkout: "Checkouts",
+            paid: "Bezahlte Bestellungen",
+          },
+          funnelRates: {
+            viewToCart: "View zu Cart",
+            cartToCheckout: "Cart zu Checkout",
+            checkoutToPaid: "Checkout zu bezahlt",
+          },
+          moduleEyebrow: "Sprünge",
+          moduleTitle: "Module mit klarer nächster Frage",
+          moduleDescription:
+            "Jede Zeile fasst den wichtigsten Druckpunkt des Moduls zusammen, damit der nächste Klick bewusst ist.",
+          pulseEyebrow: "Pulse",
+          pulseTitle: "Order Mix und Betriebszustand",
+          pulseDescription:
+            "Bestellstruktur und Kernsignale nebeneinander, damit Volumen und Qualität zusammen gelesen werden.",
+          actionPressure: "Druck",
+          activityNow: "Live Feed",
+          queueHint: "Direkter Einstieg",
+        }
+      : {
+          deckEyebrow: "Signal deck",
+          deckTitle: "The operating picture at a glance",
+          deckDescription:
+            "The overview keeps demand, checkout pressure, payment quality, and operational risk in one scan.",
+          revenuePulse: "Revenue pace",
+          demandPulse: "Demand flow",
+          queuePressure: "Open signals",
+          funnelRecovery: "Checkout to paid",
+          paceEyebrow: "Pace",
+          paceTitle: "Commerce flow",
+          paceDescription: `${paceTrendDays}-day pulse across sessions, checkouts, and paid orders.`,
+          funnelEyebrow: "Funnel",
+          funnelTitle: "Where the buying journey leaks",
+          funnelDescription:
+            "Each stage shows how much volume survives into the next step inside the current window.",
+          funnelStages: {
+            sessions: "Sessions",
+            views: "Product views",
+            cart: "Add to cart",
+            checkout: "Checkouts",
+            paid: "Paid orders",
+          },
+          funnelRates: {
+            viewToCart: "View to cart",
+            cartToCheckout: "Cart to checkout",
+            checkoutToPaid: "Checkout to paid",
+          },
+          moduleEyebrow: "Jumps",
+          moduleTitle: "Modules with a clear next question",
+          moduleDescription:
+            "Each row reduces a module to the one pressure point that should determine the next click.",
+          pulseEyebrow: "Pulse",
+          pulseTitle: "Order mix and operating state",
+          pulseDescription:
+            "Order structure and core operating signals side by side so volume and quality read together.",
+          actionPressure: "Pressure",
+          activityNow: "Live feed",
+          queueHint: "Direct jump",
+        };
 
   const [
     failedWebhookCount,
@@ -451,6 +537,7 @@ export default async function AdminPage({
     recentOrders,
     liveSnapshot,
     funnelSnapshot,
+    funnelTrend,
     orderComparisons,
     customerRevenueMix,
     productPerformance,
@@ -482,6 +569,7 @@ export default async function AdminPage({
     }),
     getActiveSessionSnapshot(),
     getFunnelSnapshot(days),
+    getFunnelTrend(paceTrendDays),
     getOrderComparisons(days),
     getCustomerRevenueMix(days),
     getProductPerformance(days),
@@ -563,6 +651,67 @@ export default async function AdminPage({
   const strongestProfitProduct = [...productPerformance]
     .sort((left, right) => right.marginCents - left.marginCents)
     .at(0);
+  const countFormatter = new Intl.NumberFormat(locale);
+  const demandSeries = [
+    {
+      label: visualCopy.funnelStages.sessions,
+      color: "#38bdf8",
+      values: funnelTrend.map((point) => point.sessions),
+    },
+    {
+      label: visualCopy.funnelStages.checkout,
+      color: "#f59e0b",
+      values: funnelTrend.map((point) => point.beginCheckout),
+    },
+    {
+      label: visualCopy.funnelStages.paid,
+      color: "#34d399",
+      values: funnelTrend.map((point) => point.paidOrders),
+    },
+  ];
+  const funnelStages = [
+    {
+      label: visualCopy.funnelStages.sessions,
+      value: funnelSnapshot.sessions,
+      helper: countFormatter.format(funnelSnapshot.sessions),
+      color: "#38bdf8",
+    },
+    {
+      label: visualCopy.funnelStages.views,
+      value: funnelSnapshot.productViews,
+      helper:
+        language === "de"
+          ? `${formatPercent(
+              funnelSnapshot.sessions > 0
+                ? funnelSnapshot.productViews / funnelSnapshot.sessions
+                : 0,
+            )} der Sessions`
+          : `${formatPercent(
+              funnelSnapshot.sessions > 0
+                ? funnelSnapshot.productViews / funnelSnapshot.sessions
+                : 0,
+            )} of sessions`,
+      color: "#818cf8",
+    },
+    {
+      label: visualCopy.funnelStages.cart,
+      value: funnelSnapshot.addToCart,
+      helper: `${formatPercent(funnelSnapshot.viewToCartRate)} ${visualCopy.funnelRates.viewToCart}`,
+      color: "#c084fc",
+    },
+    {
+      label: visualCopy.funnelStages.checkout,
+      value: funnelSnapshot.beginCheckout,
+      helper: `${formatPercent(funnelSnapshot.cartToCheckoutRate)} ${visualCopy.funnelRates.cartToCheckout}`,
+      color: "#f59e0b",
+    },
+    {
+      label: visualCopy.funnelStages.paid,
+      value: funnelSnapshot.paidOrders,
+      helper: `${formatPercent(funnelSnapshot.checkoutToPaidRate)} ${visualCopy.funnelRates.checkoutToPaid}`,
+      color: "#34d399",
+    },
+  ];
 
   const primaryActionCandidates: Array<AdminInboxAction | null> = [
     failedWebhookCount > 0
@@ -679,6 +828,8 @@ export default async function AdminPage({
       detail: copy.modules.finance.detail(
         formatPercent(financeData.currentFinance.contributionMarginRatio),
       ),
+      accentClassName: "from-emerald-400/60 via-emerald-300/15 to-transparent",
+      valueClassName: "text-emerald-100",
     },
     {
       href: "/admin/vat",
@@ -687,6 +838,8 @@ export default async function AdminPage({
       detail: copy.modules.vat.detail(
         formatVatStatus(vatData.current?.status ?? "estimated", language),
       ),
+      accentClassName: "from-amber-400/60 via-amber-300/15 to-transparent",
+      valueClassName: "text-amber-100",
     },
     {
       href: "/admin/profitability",
@@ -697,12 +850,16 @@ export default async function AdminPage({
       detail: strongestProfitProduct
         ? copy.modules.profitability.lead(strongestProfitProduct.productTitle)
         : copy.modules.profitability.empty,
+      accentClassName: "from-fuchsia-400/60 via-fuchsia-300/15 to-transparent",
+      valueClassName: "text-fuchsia-100",
     },
     {
       href: "/admin/analytics",
       title: copy.modules.analytics.title,
       value: formatPercent(funnelSnapshot.sessionToOrderRate),
       detail: copy.modules.analytics.detail(liveSnapshot.activeVisitorCount),
+      accentClassName: "from-sky-400/60 via-sky-300/15 to-transparent",
+      valueClassName: "text-sky-100",
     },
     {
       href: "/admin/orders",
@@ -711,60 +868,172 @@ export default async function AdminPage({
       detail: copy.modules.orders.detail(
         formatDelta(orderComparisons.paidOrders.deltaRatio, copy.noBaseline),
       ),
+      accentClassName: "from-violet-400/60 via-violet-300/15 to-transparent",
+      valueClassName: "text-violet-100",
     },
     {
       href: "/admin/customers",
       title: copy.modules.customers.title,
       value: formatMoney(customerRevenueMix.returningRevenueCents, locale, dashboardCurrency),
       detail: copy.modules.customers.detail(customerRevenueMix.returningCustomerCount),
+      accentClassName: "from-cyan-400/60 via-cyan-300/15 to-transparent",
+      valueClassName: "text-cyan-100",
     },
     {
       href: "/admin/catalog",
       title: copy.modules.catalog.title,
       value: String(lowStockCount),
       detail: copy.modules.catalog.detail(outOfStockCount),
+      accentClassName: "from-orange-400/60 via-orange-300/15 to-transparent",
+      valueClassName: "text-orange-100",
     },
     {
       href: "/admin/alerts",
       title: copy.modules.alerts.title,
       value: String(primaryAction.length),
       detail: copy.modules.alerts.detail,
+      accentClassName: "from-rose-400/60 via-rose-300/15 to-transparent",
+      valueClassName: "text-rose-100",
+    },
+  ];
+  const heroSignals = [
+    {
+      label: visualCopy.revenuePulse,
+      value: formatMoney(orderComparisons.revenue.current, locale, dashboardCurrency),
+      detail: formatDelta(orderComparisons.revenue.deltaRatio, copy.noBaseline),
+      accentClassName: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+    },
+    {
+      label: visualCopy.demandPulse,
+      value: countFormatter.format(funnelSnapshot.sessions),
+      detail: `${countFormatter.format(funnelSnapshot.beginCheckout)} ${visualCopy.funnelStages.checkout.toLowerCase()}`,
+      accentClassName: "border-sky-400/20 bg-sky-400/10 text-sky-200",
+    },
+    {
+      label: visualCopy.queuePressure,
+      value: countFormatter.format(primaryAction.length),
+      detail:
+        primaryAction[0]?.title ??
+        (language === "de" ? "Keine unmittelbare Eskalation" : "No immediate escalation"),
+      accentClassName: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+    },
+    {
+      label: visualCopy.funnelRecovery,
+      value: formatPercent(funnelSnapshot.checkoutToPaidRate),
+      detail: `${countFormatter.format(funnelSnapshot.paidOrders)} ${visualCopy.funnelStages.paid.toLowerCase()}`,
+      accentClassName: "border-amber-400/20 bg-amber-400/10 text-amber-200",
     },
   ];
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#060b14] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(129,140,248,0.18),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
-        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-          <div className="max-w-3xl min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
+      <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#060b14] p-5 shadow-[0_36px_90px_rgba(0,0,0,0.38)] sm:p-6">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_32%),radial-gradient(circle_at_78%_14%,_rgba(251,191,36,0.16),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(244,63,94,0.14),_transparent_28%),linear-gradient(140deg,_rgba(7,12,22,0.98),_rgba(11,18,30,0.94)_48%,_rgba(15,21,35,0.92))]" />
+        <div className="absolute inset-y-0 right-0 w-[46%] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)] opacity-70" />
+        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_430px] xl:items-start">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-cyan-200/70">
               {copy.hero.eyebrow}
             </p>
-            <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{copy.hero.title}</h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              {copy.hero.description}
+            <h1 className="mt-4 max-w-4xl text-3xl font-semibold leading-tight text-white sm:text-4xl">
+              {copy.hero.title}
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
+              {visualCopy.deckDescription}
             </p>
-          </div>
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-3 backdrop-blur sm:p-4 lg:max-w-sm lg:justify-self-end">
-            <AdminTimeRangeTabs
-              pathname="/admin"
-              activeDays={days}
-              extraParams={{ lang: language }}
-              className="sm:flex-nowrap lg:flex-wrap"
-            />
-            <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-semibold sm:grid-cols-3 lg:grid-cols-1">
-              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-center text-slate-100">
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold text-slate-100">
                 {copy.hero.liveVisitors(liveSnapshot.activeVisitorCount)}
               </span>
-              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-center text-cyan-200">
+              <span className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200">
                 {copy.hero.keyActions(primaryAction.length)}
               </span>
-              <span className="inline-flex min-w-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-center text-amber-200">
+              <span className="inline-flex items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">
                 {copy.hero.vatBadge(
                   formatVatStatus(vatData.current?.status ?? "estimated", language),
                 )}
               </span>
+            </div>
+            <div className="mt-6 max-w-xl">
+              <AdminTimeRangeTabs
+                pathname="/admin"
+                activeDays={days}
+                extraParams={{ lang: language }}
+                className="sm:flex-nowrap"
+              />
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {heroSignals.map((signal) => (
+                <div
+                  key={signal.label}
+                  className="rounded-[24px] border border-white/10 bg-black/20 px-4 py-4 backdrop-blur"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {signal.label}
+                    </p>
+                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${signal.accentClassName}`}>
+                      {visualCopy.deckEyebrow}
+                    </span>
+                  </div>
+                  <div className="mt-4 text-2xl font-semibold text-white">{signal.value}</div>
+                  <div className="mt-2 text-sm text-slate-400">{signal.detail}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-[28px] border border-white/10 bg-black/20 p-4 backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  {visualCopy.deckEyebrow}
+                </p>
+                <h2 className="mt-2 text-lg font-semibold text-white">{visualCopy.deckTitle}</h2>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                {paceTrendDays}d
+              </span>
+            </div>
+            <div className="mt-4">
+              <SparklineChart
+                data={salesTrend}
+                className="border-white/10 bg-white/[0.03]"
+                strokeClassName="stroke-emerald-300"
+                fillClassName="fill-emerald-400/10"
+              />
+            </div>
+            <div className="mt-4 space-y-3">
+              {primaryAction.slice(0, 3).map((item) => (
+                <Link
+                  key={`${item.title}-${item.href}`}
+                  href={item.href}
+                  className="group block rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${ADMIN_INBOX_PRIORITY_CLASS[item.priority]}`}
+                        >
+                          {copy.panels.actions.priority[item.priority]}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                          {item.category}
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-white">{item.title}</div>
+                      <div className="mt-1 text-sm text-slate-400">{item.detail}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        {visualCopy.actionPressure}
+                      </div>
+                      <div className="mt-2 text-xl font-semibold text-white">{item.score}</div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {primaryAction.length === 0 ? <AdminEmptyState copy={copy.panels.actions.empty} /> : null}
             </div>
           </div>
         </div>
@@ -804,69 +1073,101 @@ export default async function AdminPage({
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminPanel
-          eyebrow={copy.panels.performance.eyebrow}
-          title={copy.panels.performance.title}
-          description={copy.panels.performance.description}
+          eyebrow={visualCopy.paceEyebrow}
+          title={visualCopy.paceTitle}
+          description={visualCopy.paceDescription}
+          className="bg-[linear-gradient(180deg,rgba(10,18,30,0.95),rgba(7,12,20,0.92))]"
         >
-          <SparklineChart data={salesTrend} />
+          <MultiSeriesTrendChart
+            labels={funnelTrend.map((point) => point.label)}
+            series={demandSeries}
+          />
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <AdminCompactMetric
+              label={copy.metrics.sessionCvr.label}
+              value={formatPercent(funnelSnapshot.sessionToOrderRate)}
+            />
+            <AdminCompactMetric
+              label={visualCopy.funnelRates.checkoutToPaid}
+              value={formatPercent(funnelSnapshot.checkoutToPaidRate)}
+            />
+            <AdminCompactMetric
+              label={copy.health.checkoutAbandon}
+              value={formatPercent(funnelSnapshot.checkoutAbandonmentRate)}
+            />
+          </div>
         </AdminPanel>
         <AdminPanel
-          eyebrow={copy.panels.orders.eyebrow}
-          title={copy.panels.orders.title}
-          description={copy.panels.orders.description}
+          eyebrow={visualCopy.funnelEyebrow}
+          title={visualCopy.funnelTitle}
+          description={visualCopy.funnelDescription}
+          className="bg-[linear-gradient(180deg,rgba(20,14,10,0.95),rgba(10,9,12,0.92))]"
         >
-          <DonutChart
-            data={statusMix}
-            totalLabel={copy.statusMix.totalLabel}
-            totalValue={String(recentOrders.length)}
-          />
+          <FunnelChart stages={funnelStages} />
         </AdminPanel>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <AdminPanel
-          eyebrow={copy.panels.modules.eyebrow}
-          title={copy.panels.modules.title}
-          description={copy.panels.modules.description}
+          eyebrow={visualCopy.moduleEyebrow}
+          title={visualCopy.moduleTitle}
+          description={visualCopy.moduleDescription}
         >
           <div className="grid gap-3 md:grid-cols-2">
             {moduleCards.map((card) => (
               <Link
                 key={card.href}
                 href={card.href}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-cyan-400/20 hover:bg-cyan-400/5"
+                className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.05]"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  {card.title}
+                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accentClassName} opacity-70`} />
+                <div className="relative flex h-full flex-col justify-between gap-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                      {card.title}
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                      {visualCopy.queueHint}
+                    </span>
+                  </div>
+                  <div>
+                    <div className={`text-2xl font-semibold ${card.valueClassName}`}>{card.value}</div>
+                    <div className="mt-2 text-sm text-slate-300">{card.detail}</div>
+                  </div>
                 </div>
-                <div className="mt-3 text-xl font-semibold text-white">{card.value}</div>
-                <div className="mt-2 text-sm text-slate-400">{card.detail}</div>
               </Link>
             ))}
           </div>
         </AdminPanel>
         <AdminPanel
-          eyebrow={copy.panels.health.eyebrow}
-          title={copy.panels.health.title}
-          description={copy.panels.health.description}
+          eyebrow={visualCopy.pulseEyebrow}
+          title={visualCopy.pulseTitle}
+          description={visualCopy.pulseDescription}
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AdminCompactMetric
-              label={copy.health.liveVisitors}
-              value={String(liveSnapshot.activeVisitorCount)}
+          <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+            <DonutChart
+              data={statusMix}
+              totalLabel={copy.statusMix.totalLabel}
+              totalValue={String(recentOrders.length)}
             />
-            <AdminCompactMetric
-              label={copy.health.checkoutAbandon}
-              value={formatPercent(funnelSnapshot.checkoutAbandonmentRate)}
-            />
-            <AdminCompactMetric
-              label={copy.health.vatDeadline}
-              value={copy.health.days(vatData.deadline.daysUntilDue)}
-            />
-            <AdminCompactMetric
-              label={copy.health.returningRevenue}
-              value={formatMoney(customerRevenueMix.returningRevenueCents, locale, dashboardCurrency)}
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AdminCompactMetric
+                label={copy.health.liveVisitors}
+                value={String(liveSnapshot.activeVisitorCount)}
+              />
+              <AdminCompactMetric
+                label={copy.health.checkoutAbandon}
+                value={formatPercent(funnelSnapshot.checkoutAbandonmentRate)}
+              />
+              <AdminCompactMetric
+                label={copy.health.vatDeadline}
+                value={copy.health.days(vatData.deadline.daysUntilDue)}
+              />
+              <AdminCompactMetric
+                label={copy.health.returningRevenue}
+                value={formatMoney(customerRevenueMix.returningRevenueCents, locale, dashboardCurrency)}
+              />
+            </div>
           </div>
         </AdminPanel>
       </section>
@@ -884,8 +1185,17 @@ export default async function AdminPage({
               {primaryAction.map((item) => (
                 <div
                   key={`${item.title}-${item.href}`}
-                  className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.02] px-4 py-4"
                 >
+                  <div
+                    className={`absolute inset-y-0 left-0 w-1 ${
+                      item.priority === "critical"
+                        ? "bg-rose-400"
+                        : item.priority === "high"
+                          ? "bg-amber-400"
+                          : "bg-cyan-400"
+                    }`}
+                  />
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${ADMIN_INBOX_PRIORITY_CLASS[item.priority]}`}
@@ -896,14 +1206,24 @@ export default async function AdminPage({
                       {item.category}
                     </span>
                   </div>
-                  <div className="mt-3 text-sm font-semibold text-white">{item.title}</div>
-                  <div className="mt-1 text-sm text-slate-400">{item.detail}</div>
-                  <Link
-                    href={item.href}
-                    className="mt-3 inline-flex text-xs font-semibold text-cyan-200 transition hover:text-cyan-100"
-                  >
-                    {item.hrefLabel}
-                  </Link>
+                  <div className="mt-3 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-white">{item.title}</div>
+                      <div className="mt-1 text-sm text-slate-400">{item.detail}</div>
+                      <Link
+                        href={item.href}
+                        className="mt-3 inline-flex text-xs font-semibold text-cyan-200 transition hover:text-cyan-100"
+                      >
+                        {item.hrefLabel}
+                      </Link>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        {visualCopy.actionPressure}
+                      </div>
+                      <div className="mt-2 text-xl font-semibold text-white">{item.score}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -932,23 +1252,26 @@ function ActivityFeed({
 }) {
   if (items.length === 0) return <AdminEmptyState copy={emptyLabel} />;
   return (
-    <div className="space-y-3">
-      {items.map((entry) => (
-        <div
-          key={entry.id}
-          className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-100">{entry.title}</p>
-              <p className="truncate text-xs text-slate-500">{entry.subtitle}</p>
+    <div className="space-y-4">
+      {items.map((entry, index) => (
+        <div key={entry.id} className="relative pl-6">
+          {index < items.length - 1 ? (
+            <div className="absolute left-[9px] top-7 bottom-[-18px] w-px bg-gradient-to-b from-cyan-400/40 to-transparent" />
+          ) : null}
+          <div className="absolute left-0 top-2.5 h-[18px] w-[18px] rounded-full border border-cyan-400/20 bg-cyan-400/15 shadow-[0_0_18px_rgba(56,189,248,0.25)]" />
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.02] px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-100">{entry.title}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">{entry.subtitle}</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                {new Date(entry.createdAt).toLocaleTimeString(locale, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
-              {new Date(entry.createdAt).toLocaleTimeString(locale, {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
           </div>
         </div>
       ))}
