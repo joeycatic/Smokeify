@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminRecommendationsClient from "./AdminRecommendationsClient";
 
 export default async function AdminRecommendationsPage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("pricing.review"))) notFound();
 
   const [rules, categories, products] = await Promise.all([
     prisma.recommendationRule.findMany({

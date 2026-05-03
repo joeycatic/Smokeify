@@ -1,52 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, slugify } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { slugify } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
   });
 
   return NextResponse.json({ categories });
-}
+});
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-categories:ip:${ip}`,
-    limit: 60,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = (await request.json()) as {
-    name?: string;
-    handle?: string;
-    description?: string | null;
-    parentId?: string | null;
-    storefronts?: string[];
-  };
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      handle?: string;
+      description?: string | null;
+      parentId?: string | null;
+      storefronts?: string[];
+    };
 
   const name = body.name?.trim();
   if (!name) {
@@ -92,5 +67,13 @@ export async function POST(request: Request) {
     summary: `Created category ${category.name}`,
   });
 
-  return NextResponse.json({ category });
-}
+    return NextResponse.json({ category });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-categories",
+      limit: 60,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

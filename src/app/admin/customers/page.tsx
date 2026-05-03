@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import AdminCustomersClient from "./AdminCustomersClient";
 
 export default async function AdminCustomersPage({
@@ -7,7 +7,7 @@ export default async function AdminCustomersPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("customers.read"))) notFound();
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialSearchQuery = Array.isArray(resolvedSearchParams.query)
     ? resolvedSearchParams.query[0] ?? ""

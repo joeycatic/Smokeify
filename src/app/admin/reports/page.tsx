@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { getAdminReportSnapshot, parseAdminReportFilters } from "@/lib/adminReports";
 import { parseAdminStorefrontScope, storefrontScopeToStorefront } from "@/lib/storefronts";
 import AdminReportsClient from "./AdminReportsClient";
@@ -9,7 +9,7 @@ export default async function AdminReportsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("finance.read"))) notFound();
   const resolvedSearchParams = await searchParams;
   const filters = parseAdminReportFilters(resolvedSearchParams);
   if (filters.sourceStorefront === "ALL") {

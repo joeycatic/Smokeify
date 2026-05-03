@@ -1,76 +1,36 @@
-import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { logOrderTimelineEvent } from "@/lib/orderTimeline";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
 import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
 import { adminJson } from "@/lib/adminApi";
-import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
 import {
   buildOrderEmailSentAtUpdate,
   sendAdminOrderEmailForOrder,
 } from "@/lib/adminOrderEmail";
 import { getAppOrigin } from "@/lib/appOrigin";
+import { withAdminRoute } from "@/lib/adminRoute";
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await context.params;
-  const detail = await loadAdminOrderDetail(id);
+export const GET = withAdminRoute(async ({ params }) => {
+  const detail = await loadAdminOrderDetail(params.id);
   if (!detail) {
     return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
   return adminJson(detail);
-}
+});
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  if (!isSameOrigin(request)) {
-    return adminJson({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-order-update:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return adminJson(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!canAdminPerformAction(session.user.role, "order.fulfillment.update")) {
-    return adminJson(
-      { error: "You do not have permission to update fulfillment state." },
-      { status: 403 },
-    );
-  }
-
-  const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as {
-    status?: string;
-    paymentStatus?: string;
-    trackingCarrier?: string;
-    trackingNumber?: string;
-    trackingUrl?: string;
-    expectedUpdatedAt?: string;
-  };
+export const PATCH = withAdminRoute(
+  async ({ request, params, session }) => {
+    const { id } = params;
+    const body = (await request.json().catch(() => ({}))) as {
+      status?: string;
+      paymentStatus?: string;
+      trackingCarrier?: string;
+      trackingNumber?: string;
+      trackingUrl?: string;
+      expectedUpdatedAt?: string;
+    };
 
   let updates: ReturnType<typeof buildAdminOrderPatch>["updates"];
   let changedFields: string[];
@@ -207,62 +167,53 @@ export async function PATCH(
       },
     });
   }
-  return adminJson({ order: updated, warning });
-}
+    return adminJson({ order: updated, warning });
+  },
+  {
+    action: "order.fulfillment.update",
+    rateLimit: {
+      keyPrefix: "admin-order-update",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);
 
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  if (!isSameOrigin(request)) {
-    return adminJson({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-order-delete:ip:${ip}`,
-    limit: 20,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return adminJson(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withAdminRoute(
+  async ({ request, params, session }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      confirmation?: string;
+    };
+    if (body.confirmation !== "DELETE") {
+      return adminJson({ error: 'Bestätigung fehlt. Bitte "DELETE" eingeben.' }, { status: 400 });
+    }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    confirmation?: string;
-  };
-  if (body.confirmation !== "DELETE") {
-    return adminJson(
-      { error: 'Bestätigung fehlt. Bitte "DELETE" eingeben.' },
-      { status: 400 }
-    );
-  }
+    const existing = await prisma.order.findUnique({
+      where: { id: params.id },
+      select: { id: true, orderNumber: true },
+    });
+    if (!existing) {
+      return adminJson({ error: "Order not found" }, { status: 404 });
+    }
 
-  const { id } = await context.params;
-  const existing = await prisma.order.findUnique({
-    where: { id },
-    select: { id: true, orderNumber: true },
-  });
-  if (!existing) {
-    return adminJson({ error: "Order not found" }, { status: 404 });
-  }
+    await prisma.order.delete({ where: { id: params.id } });
 
-  await prisma.order.delete({ where: { id } });
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "order.delete",
+      targetType: "order",
+      targetId: params.id,
+      summary: `Deleted order #${existing.orderNumber}`,
+      metadata: { orderNumber: existing.orderNumber },
+    });
 
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "order.delete",
-    targetType: "order",
-    targetId: id,
-    summary: `Deleted order #${existing.orderNumber}`,
-    metadata: { orderNumber: existing.orderNumber },
-  });
-
-  return adminJson({ ok: true });
-}
+    return adminJson({ ok: true });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-order-delete",
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import {
   calculateReturnRequestAmountCents,
   getReturnOrderStatus,
@@ -20,36 +18,14 @@ import {
 } from "@/lib/adminSupport";
 import { recordAutomationEvent } from "@/lib/automationEvents";
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-returns:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte spater erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as {
-    status?: "APPROVED" | "REJECTED";
-    adminNote?: string;
-    adminPassword?: string;
-  };
+export const PATCH = withAdminRoute(
+  async ({ request, params, session }) => {
+    const { id } = params;
+    const body = (await request.json().catch(() => ({}))) as {
+      status?: "APPROVED" | "REJECTED";
+      adminNote?: string;
+      adminPassword?: string;
+    };
 
   if (!body.status) {
     return NextResponse.json({ error: "Missing status" }, { status: 400 });
@@ -252,5 +228,13 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({ request: updated });
-}
+    return NextResponse.json({ request: updated });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-returns",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

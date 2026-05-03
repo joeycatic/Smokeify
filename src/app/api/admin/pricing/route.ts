@@ -1,14 +1,8 @@
-import { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
-import { requireAdmin } from "@/lib/adminCatalog";
 import { getAdminPricingOverview } from "@/lib/adminPricingServer";
+import { withAdminRoute } from "@/lib/adminRoute";
 
-export async function GET(_request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   try {
     const snapshot = await getAdminPricingOverview();
     return adminJson(snapshot);
@@ -23,4 +17,4 @@ export async function GET(_request: NextRequest) {
       { status: 502 }
     );
   }
-}
+});

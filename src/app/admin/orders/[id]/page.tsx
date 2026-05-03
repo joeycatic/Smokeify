@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { getOrderAdminActionPermissions, hasAdminScope } from "@/lib/adminPermissions";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
 import AdminOrderDetailClient from "./AdminOrderDetailClient";
@@ -9,7 +9,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireAdmin();
+  const session = await requireAdminScope("orders.read");
   if (!session) notFound();
 
   const { id } = await params;

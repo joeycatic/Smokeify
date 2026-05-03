@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { getExpensesPageData } from "@/lib/adminAddonData";
 import AdminExpensesClient from "./AdminExpensesClient";
 
 export default async function AdminExpensesPage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("tax.review"))) notFound();
 
   const data = await getExpensesPageData(120);
 

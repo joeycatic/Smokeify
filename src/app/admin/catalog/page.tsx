@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { getProductPerformance, getStockCoverageMap } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
 import { parseStorefront } from "@/lib/storefronts";
@@ -25,7 +25,7 @@ export default async function AdminCatalogPage({
     collection?: string | string[];
   }>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("catalog.read"))) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawQuery = Array.isArray(resolvedSearchParams?.q)
@@ -110,37 +110,7 @@ export default async function AdminCatalogPage({
   const totalCount = await prisma.product.count({ where });
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
-
-  if (sortKey === "category") {
-    const candidates = await prisma.product.findMany({
-      where: { mainCategoryId: null, categories: { some: {} } },
-      select: {
-        id: true,
-        categories: {
-          orderBy: { position: "asc" },
-          select: { categoryId: true, category: { select: { parentId: true } } },
-        },
-      },
-    });
-    const updates = candidates
-      .map((product) => {
-        const parentEntry = product.categories.find(
-          (entry) => entry.category.parentId === null
-        );
-        return { id: product.id, categoryId: parentEntry?.categoryId ?? null };
-      })
-      .filter((entry) => entry.categoryId);
-    if (updates.length > 0) {
-      await prisma.$transaction(
-        updates.map((entry) =>
-          prisma.product.update({
-            where: { id: entry.id },
-            data: { mainCategoryId: entry.categoryId },
-          })
-        )
-      );
-    }
-  }
+  const sortCategoryInMemory = sortKey === "category";
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
@@ -158,9 +128,13 @@ export default async function AdminCatalogPage({
   ] = await Promise.all([
     prisma.product.findMany({
       where,
-      orderBy,
-      take: PAGE_SIZE,
-      skip: (currentPage - 1) * PAGE_SIZE,
+      orderBy: sortCategoryInMemory ? [{ updatedAt: "desc" }] : orderBy,
+      ...(sortCategoryInMemory
+        ? {}
+        : {
+            take: PAGE_SIZE,
+            skip: (currentPage - 1) * PAGE_SIZE,
+          }),
       include: {
         _count: { select: { variants: true, images: true } },
         images: {
@@ -216,6 +190,25 @@ export default async function AdminCatalogPage({
 
   const performance30dMap = new Map(performance30d.map((row) => [row.productId, row]));
   const performance7dMap = new Map(performance7d.map((row) => [row.productId, row]));
+  const visibleProducts = sortCategoryInMemory
+    ? [...products]
+        .sort((left, right) => {
+          const leftCategoryName =
+            left.mainCategory?.name ??
+            left.categories.find((entry) => entry.category.parentId === null)?.category.name ??
+            "";
+          const rightCategoryName =
+            right.mainCategory?.name ??
+            right.categories.find((entry) => entry.category.parentId === null)?.category.name ??
+            "";
+          const byCategory = leftCategoryName.localeCompare(rightCategoryName, "de");
+          if (byCategory !== 0) {
+            return sortDirection === "asc" ? byCategory : -byCategory;
+          }
+          return right.updatedAt.getTime() - left.updatedAt.getTime();
+        })
+        .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    : products;
   const returnedUnitsByProductId = new Map<string, number>();
   for (const item of returnItems) {
     const productId = item.orderItem.productId;
@@ -226,7 +219,7 @@ export default async function AdminCatalogPage({
   return (
     <div className="mx-auto max-w-screen-2xl px-2 py-2 text-slate-100">
       <AdminCatalogClient
-        initialProducts={products.map((product) => {
+        initialProducts={visibleProducts.map((product) => {
           const {
             variants,
             supplierRef,

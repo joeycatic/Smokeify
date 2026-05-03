@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { loadAdminOrders } from "@/lib/adminOrders";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,7 +14,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("orders.read"))) notFound();
   const resolvedSearchParams = (await searchParams) ?? {};
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams.storefront);
   const storefront = storefrontScopeToStorefront(storefrontScope);

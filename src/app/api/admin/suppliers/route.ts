@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { listAdminProcurementSuppliers } from "@/lib/adminProcurement";
 
 const normalizeWebsite = (value?: string | null) => {
@@ -21,12 +19,7 @@ const normalizeWebsite = (value?: string | null) => {
   }
 };
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const suppliers = await prisma.supplier.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -94,38 +87,19 @@ export async function GET() {
       };
     }),
   });
-}
+});
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-suppliers:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = (await request.json()) as {
-    name?: string;
-    contactName?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    website?: string | null;
-    notes?: string | null;
-    leadTimeDays?: number | null;
-  };
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      contactName?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      website?: string | null;
+      notes?: string | null;
+      leadTimeDays?: number | null;
+    };
 
   const name = body.name?.trim();
   if (!name) {
@@ -178,5 +152,13 @@ export async function POST(request: Request) {
     summary: `Created supplier ${supplier.name}`,
   });
 
-  return NextResponse.json({ supplier });
-}
+    return NextResponse.json({ supplier });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-suppliers",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

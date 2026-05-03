@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { collectProductComplianceBlockers } from "@/lib/productCompliance";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminCompliancePage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("catalog.write"))) notFound();
 
   const products = await prisma.product.findMany({
     where: {

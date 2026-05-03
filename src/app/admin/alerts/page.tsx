@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import AdminAlertsClient from "./AdminAlertsClient";
 import { getAlertsPageData } from "@/lib/adminAddonData";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 
 export default async function AdminAlertsPage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("alerts.read"))) notFound();
 
   const { alerts, assignees } = await getAlertsPageData();
 

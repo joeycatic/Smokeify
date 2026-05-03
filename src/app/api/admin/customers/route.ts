@@ -1,4 +1,3 @@
-import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import {
@@ -16,16 +15,12 @@ import {
 } from "@/lib/adminCustomers";
 import { adminJson } from "@/lib/adminApi";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { parseAdminStorefrontScope, storefrontScopeToStorefront } from "@/lib/storefronts";
 
 const PAGE_SIZE = 40;
 
-export async function GET(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return adminJson({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async ({ request, session }) => {
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q")?.trim() ?? "";
   const tabParam = searchParams.get("tab");
@@ -355,4 +350,4 @@ export async function GET(request: Request) {
       canWriteCrm: canAdminPerformAction(session.user.role, "crm.write"),
     },
   });
-}
+});

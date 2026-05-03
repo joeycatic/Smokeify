@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { getAdminProductVariantPricingProfilesSafe } from "@/lib/adminPricingServer";
 import { getStockCoverageMap, PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +11,7 @@ export default async function AdminProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("catalog.read"))) notFound();
 
   const product = await prisma.product.findUnique({
     where: { id },

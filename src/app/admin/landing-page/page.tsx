@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { loadLandingPageAdminSections } from "@/lib/landingPageConfig";
 import { parseStorefront } from "@/lib/storefronts";
 import AdminLandingPageClient from "./AdminLandingPageClient";
@@ -11,7 +11,7 @@ export default async function AdminLandingPage({
     storefront?: string | string[];
   }>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("content.landing.manage"))) notFound();
 
   const resolvedSearchParams = await searchParams;
   const rawStorefront = Array.isArray(resolvedSearchParams?.storefront)

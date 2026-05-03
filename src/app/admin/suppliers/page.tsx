@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import AdminSuppliersClient from "./AdminSuppliersClient";
 
 export default async function AdminSuppliersPage({
@@ -7,7 +7,7 @@ export default async function AdminSuppliersPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("suppliers.read"))) notFound();
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialSearchQuery = Array.isArray(resolvedSearchParams.query)
     ? resolvedSearchParams.query[0] ?? ""

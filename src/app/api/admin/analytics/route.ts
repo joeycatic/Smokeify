@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { buildExpenseSummary } from "@/lib/adminExpenses";
 import { buildFinanceRollup, buildVatSummary } from "@/lib/adminFinance";
 import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
@@ -28,12 +28,7 @@ const getDateDaysAgo = (daysAgo: number) => {
   return date;
 };
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const now = new Date();
   const last14DaysStart = getDateDaysAgo(13);
   const last30DaysStart = getDateDaysAgo(29);
@@ -416,7 +411,7 @@ export async function GET() {
     missingExpenseSupplierCount: expenseSummary.missingSupplierCount,
   });
 
-  return NextResponse.json({
+  return adminJson({
     live: activeSnapshot,
     funnel: {
       ...funnelSnapshot,
@@ -491,4 +486,4 @@ export async function GET() {
       })),
     },
   });
-}
+});

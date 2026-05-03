@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminCatalog";
 import {
   exportAdminReportOrdersCsv,
   parseAdminReportFilters,
 } from "@/lib/adminReports";
+import { withAdminRoute } from "@/lib/adminRoute";
 
 const escapeCsv = (value: string | number | null) => {
   if (value === null) return "";
@@ -14,12 +14,7 @@ const escapeCsv = (value: string | number | null) => {
   return stringValue;
 };
 
-export async function GET(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async ({ request }) => {
   const url = new URL(request.url);
   const filters = parseAdminReportFilters({
     reportType: url.searchParams.get("reportType") ?? undefined,
@@ -67,4 +62,4 @@ export async function GET(request: Request) {
       "Cache-Control": "no-store",
     },
   });
-}
+});

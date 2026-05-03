@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminReturnsClient from "./AdminReturnsClient";
 
 export default async function AdminReturnsPage() {
-  if (!(await requireAdmin())) notFound();
+  if (!(await requireAdminScope("returns.read"))) notFound();
 
   const requests = await prisma.returnRequest.findMany({
     orderBy: { createdAt: "desc" },
