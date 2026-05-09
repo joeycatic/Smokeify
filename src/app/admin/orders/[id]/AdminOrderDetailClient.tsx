@@ -700,9 +700,9 @@ export default function AdminOrderDetailClient({
 
   return (
     <div className="space-y-6 text-slate-100">
-      <section className="relative overflow-hidden rounded-[34px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0d1723_48%,#0a1220_100%)] p-6 shadow-[0_28px_80px_rgba(2,6,23,0.4)]">
+      <section className="relative overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0d1723_48%,#0a1220_100%)] p-4 shadow-[0_28px_80px_rgba(2,6,23,0.4)] sm:rounded-[34px] sm:p-5 lg:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_78%_16%,rgba(34,211,238,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_55%)]" />
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_360px]">
+        <div className="relative grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_360px]">
           <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-3">
               <Link href="/admin/orders" className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]">Back to orders</Link>
@@ -711,7 +711,7 @@ export default function AdminOrderDetailClient({
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-400">Admin / Orders / Detail</p>
               <div className="mt-4 flex flex-wrap items-end gap-4">
-                <h1 className="text-[clamp(2.3rem,4vw,4rem)] font-semibold leading-none tracking-tight text-white">#{order.orderNumber}</h1>
+                <h1 className="text-[clamp(2rem,8vw,4rem)] font-semibold leading-none tracking-tight text-white">#{order.orderNumber}</h1>
                 <div className="flex flex-wrap gap-2">
                   <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{sourceLabel}</span>
                   <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
@@ -766,7 +766,7 @@ export default function AdminOrderDetailClient({
           <button
             type="button"
             onClick={discardLocalDraft}
-            className="ml-auto inline-flex h-9 items-center rounded-full border border-amber-200/20 bg-black/20 px-4 text-xs font-semibold text-amber-100 transition hover:bg-black/30"
+            className="inline-flex h-9 w-full items-center justify-center rounded-full border border-amber-200/20 bg-black/20 px-4 text-xs font-semibold text-amber-100 transition hover:bg-black/30 sm:ml-auto sm:w-auto"
           >
             Discard local draft
           </button>
@@ -937,9 +937,9 @@ function OrderTabBar({
   };
 
   return (
-    <div className="sticky top-[4.75rem] z-20 sm:top-24">
-      <div className="rounded-[22px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur sm:rounded-[28px]">
-        <div className="admin-scroll-x flex gap-1 sm:grid sm:grid-cols-5" role="tablist" aria-label="Order workspace sections">
+    <div className="z-20 md:sticky md:top-[5.5rem] xl:top-[7.25rem]">
+      <div className="rounded-[20px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur sm:rounded-[28px]">
+        <div className="admin-scroll-x flex gap-1 pb-1 sm:grid sm:grid-cols-5 sm:pb-0" role="tablist" aria-label="Order workspace sections">
           {ORDER_TABS.map((tab, index) => {
             const active = tab.id === activeTab;
             const isDirty = Boolean(dirtyTabs[tab.id]);
@@ -952,7 +952,7 @@ function OrderTabBar({
                 ref={(node) => {
                   tabButtonRefs.current[index] = node;
                 }}
-                className="group relative min-w-[7.75rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
+                className="group relative min-w-[7rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
                 id={getOrderTabButtonId(tab.id)}
                 role="tab"
                 aria-selected={active}
@@ -1007,7 +1007,7 @@ function OverviewTab({
   onReplayWebhook: (eventId: string) => void | Promise<void>;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_390px]">
+    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.45fr)_390px]">
       <div className="space-y-6">
         <Panel className={LIGHT_PANEL} eyebrow="Status" title="Order overview">
           <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
@@ -1023,7 +1023,7 @@ function OverviewTab({
             <DataCard label="Gross order" value={formatPrice(financeBreakdown.grossOrderCents, order.currency)} detail="Customer-facing total before refunds." />
             <DataCard label="Collected after refunds" value={formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)} detail="Net cash collected after refund activity." />
           </div>
-          <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
             <DarkRow label="Net revenue" value={formatPrice(financeBreakdown.netRevenueCents, order.currency)} />
             <DarkRow label="Output VAT" value={formatPrice(financeBreakdown.outputVatCents, order.currency)} />
             <DarkRow label="COGS" value={formatPrice(financeBreakdown.cogsCents, order.currency)} />
@@ -1052,7 +1052,7 @@ function OverviewTab({
         </Panel>
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+      <div className="space-y-6 2xl:sticky 2xl:top-[7.75rem] 2xl:self-start">
         <Panel className={DARK_PANEL} eyebrow="Snapshot" title="Key metadata" dark>
           <div className="space-y-3">
             <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
@@ -1069,6 +1069,9 @@ function OverviewTab({
               <div key={event.id} className="rounded-[22px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
                 <p className="text-sm font-semibold text-rose-100">{event.type}</p>
                 <p className="mt-1 break-all text-xs leading-5 text-rose-100/80">{event.eventId}</p>
+                {event.errorMessage ? (
+                  <p className="mt-2 text-xs leading-5 text-rose-100/80">{event.errorMessage}</p>
+                ) : null}
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
                 {canReplayWebhooks && canReplayWebhookEvent(event.type) ? (
                   <button
@@ -1234,9 +1237,9 @@ function RefundsTab({
 }) {
   return (
     <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Stripe refund confirmation step.</p>
-        <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2">
+        <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 lg:max-w-md">
           <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
           <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
         </div>
@@ -1249,7 +1252,7 @@ function RefundsTab({
           const contributionAmount = item.totalAmount - item.adjustedCostAmount;
           return (
             <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] lg:items-center">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] xl:items-center">
                 <div className="flex min-w-0 items-start gap-4">
                   <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} disabled={!canProcessRefund} aria-label={`Select ${itemName} for refund`} /></label>
                   {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-2xl border border-white/10 object-cover" /> : <div className="h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.05]" />}
@@ -1266,13 +1269,15 @@ function RefundsTab({
                     </div>
                   </div>
                 </div>
-                <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Qty</p><p className="text-sm font-semibold text-white">{item.quantity}</p></div>
-                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Tax</p><p className="text-sm font-semibold text-white">{formatPrice(item.taxAmount, item.currency)}</p></div>
-                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
-                <div className="text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
-                <div className="flex items-center justify-end gap-2 lg:block">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 lg:mb-2 lg:text-right">Refund</p>
-                  <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} disabled={!canProcessRefund} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 lg:ml-auto" />
+                <div className="grid gap-3 sm:grid-cols-2 xl:contents">
+                  <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Qty</p><p className="text-sm font-semibold text-white xl:text-left">{item.quantity}</p></div>
+                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Tax</p><p className="text-sm font-semibold text-white">{formatPrice(item.taxAmount, item.currency)}</p></div>
+                  <div className="xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
+                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
+                  <div className="flex items-center justify-between gap-2 sm:justify-end xl:block">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:mb-2 xl:text-right">Refund</p>
+                    <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} disabled={!canProcessRefund} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 xl:ml-auto" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1320,7 +1325,7 @@ function CustomerTab({
   sourceLabel: string;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
+    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.1fr)_390px]">
       <Panel className={LIGHT_PANEL} eyebrow="Customer dossier" title="Customer and shipping">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void copyCustomerValue("email", "Email", customerEmail)} className={SECONDARY_BUTTON}>{copiedCustomerField === "email" ? "Copied email" : "Copy email"}</button>
@@ -1374,7 +1379,7 @@ function TimelineTab({
   setEmailReason: Dispatch<SetStateAction<string>>;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_390px]">
+    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.1fr)_390px]">
       <div className="space-y-6">
         <Panel className={LIGHT_PANEL} eyebrow="Timeline" title="Order events">
           <ol className="space-y-4">
@@ -1408,7 +1413,7 @@ function TimelineTab({
         </Panel>
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-[7.75rem] xl:self-start">
+      <div className="space-y-6 2xl:sticky 2xl:top-[7.75rem] 2xl:self-start">
         <Panel className={DARK_PANEL} eyebrow="Customer comms" title="Email actions" dark>
           <div className="space-y-2">
             {emailStatuses.map((entry) => (

@@ -927,10 +927,10 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#060b14] p-5 shadow-[0_36px_90px_rgba(0,0,0,0.38)] sm:p-6">
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#060b14] p-4 shadow-[0_36px_90px_rgba(0,0,0,0.38)] sm:rounded-[36px] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_32%),radial-gradient(circle_at_78%_14%,_rgba(251,191,36,0.16),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(244,63,94,0.14),_transparent_28%),linear-gradient(140deg,_rgba(7,12,22,0.98),_rgba(11,18,30,0.94)_48%,_rgba(15,21,35,0.92))]" />
         <div className="absolute inset-y-0 right-0 w-[46%] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)] opacity-70" />
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_430px] xl:items-start">
+        <div className="relative grid gap-6 2xl:grid-cols-[minmax(0,1.15fr)_430px] 2xl:items-start">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-cyan-200/70">
               {copy.hero.eyebrow}

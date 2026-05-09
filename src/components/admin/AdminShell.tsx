@@ -346,16 +346,16 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   <h2 className="truncate text-lg font-semibold text-white">
                     {currentTitle}
                   </h2>
-                  <span className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 sm:inline-flex">
+                  <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
                     {currentStorefrontLabel}
                   </span>
-                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 sm:inline-flex">
+                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 md:inline-flex">
                     Capability-scoped workspace
                   </span>
                 </div>
               </div>
 
-              <div className="admin-header-controls -mx-3 flex w-[calc(100%+1.5rem)] min-w-0 items-center gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:w-auto sm:pb-0 lg:ml-auto lg:flex-nowrap lg:justify-end lg:overflow-visible lg:px-0">
+              <div className="admin-header-controls flex w-full min-w-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center lg:ml-auto lg:justify-end">
                 <AdminCommandBar
                   key={pathname}
                   groups={visibleNavGroups}
@@ -363,13 +363,13 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   currentStorefrontScope={currentStorefrontScope}
                 />
 
-                <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                <div className="grid w-full shrink-0 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center">
                   {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
                     <Link
                       key={scope}
                       href={storefrontHref(scope)}
                       aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
-                      className={`inline-flex h-10 min-w-[3.25rem] items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition sm:tracking-[0.18em] ${
+                      className={`inline-flex h-10 min-w-0 items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition sm:min-w-[3.25rem] sm:tracking-[0.18em] ${
                         currentStorefrontScope === scope
                           ? "bg-cyan-300/90 text-slate-950"
                           : "text-slate-300 hover:bg-white/[0.08] hover:text-white"

@@ -41,6 +41,7 @@ export default async function AdminOrdersPage({
           type: event.type,
           status: event.status,
           createdAt: event.createdAt.toISOString(),
+          errorMessage: event.errorMessage ?? null,
         }))}
         orders={orders}
       />

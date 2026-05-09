@@ -115,13 +115,13 @@ export function AdminMetricCard({
     <div
       className={`admin-lift orders-kpi-card rounded-2xl border border-white/10 bg-white/[0.04] p-4 ${toneClassName}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <p className="max-w-[14ch] break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:tracking-[0.22em]">
           {label}
         </p>
         {detail ? (
           <span
-            className={`orders-kpi-badge shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.18em] ${detailBadgeClassName}`}
+            className={`orders-kpi-badge max-w-full rounded-2xl border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] whitespace-normal break-words sm:rounded-full sm:tracking-[0.18em] ${detailBadgeClassName}`}
           >
             {detail}
           </span>

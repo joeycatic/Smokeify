@@ -244,6 +244,9 @@ function WebhookFailureRow({ failure }: { failure: AdminOrderWebhookFailure }) {
         <div className="mt-1 text-xs text-slate-500">
           Event {failure.eventId} · {failure.status}
         </div>
+        {failure.errorMessage ? (
+          <div className="mt-2 text-xs text-rose-200">{failure.errorMessage}</div>
+        ) : null}
       </div>
       <div className="text-xs text-slate-500">{formatDateTime(failure.createdAt)}</div>
     </div>
