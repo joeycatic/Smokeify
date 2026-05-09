@@ -79,6 +79,7 @@ export type AdminOrderWebhookFailure = {
   type: string;
   status: string;
   createdAt: string;
+  errorMessage?: string | null;
 };
 
 export type AdminOrderReturnRequest = {
@@ -262,6 +263,7 @@ export async function loadAdminOrderDetail(orderId: string): Promise<AdminOrderD
       type: entry.type,
       status: entry.status,
       createdAt: entry.createdAt.toISOString(),
+      errorMessage: entry.errorMessage ?? null,
     })),
     returnRequests: order.returnRequests.map((request) => ({
       id: request.id,

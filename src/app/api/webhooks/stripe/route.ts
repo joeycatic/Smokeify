@@ -48,6 +48,13 @@ type SessionWithDiscounts = Stripe.Checkout.Session & {
   }>;
 };
 
+type WebhookFailureContext = {
+  objectId?: string | null;
+  paymentIntentId?: string | null;
+  clientReferenceId?: string | null;
+  customerEmail?: string | null;
+};
+
 const getDiscountDetails = (session: Stripe.Checkout.Session) => {
   const discountTotal = session.total_details?.amount_discount ?? 0;
   let discountCode = session.metadata?.discountCode ?? undefined;
@@ -57,6 +64,62 @@ const getDiscountDetails = (session: Stripe.Checkout.Session) => {
     discountCode = promotion.code;
   }
   return { discountTotal, discountCode };
+};
+
+const getWebhookErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Unknown webhook failure";
+
+const getFailureContextFromCheckoutSession = (
+  session: Stripe.Checkout.Session,
+): WebhookFailureContext => ({
+  objectId: session.id ?? null,
+  paymentIntentId:
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null,
+  clientReferenceId: session.client_reference_id ?? null,
+  customerEmail:
+    session.customer_details?.email?.trim().toLowerCase() ??
+    session.customer_email?.trim().toLowerCase() ??
+    null,
+});
+
+const getFailureContextFromStripeEvent = (
+  event: Stripe.Event,
+): WebhookFailureContext | null => {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded" ||
+    event.type === "checkout.session.async_payment_failed" ||
+    event.type === "checkout.session.expired"
+  ) {
+    return getFailureContextFromCheckoutSession(
+      event.data.object as Stripe.Checkout.Session,
+    );
+  }
+
+  if (event.type === "payment_intent.payment_failed") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    return {
+      objectId: intent.id,
+      paymentIntentId: intent.id,
+      customerEmail: intent.receipt_email?.trim().toLowerCase() ?? null,
+    };
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    return {
+      objectId: charge.id,
+      paymentIntentId:
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id ?? null,
+      customerEmail: charge.billing_details?.email?.trim().toLowerCase() ?? null,
+    };
+  }
+
+  return null;
 };
 
 const formatAmountWithComma = (amountMinor: number, currency: string) => {
@@ -372,6 +435,37 @@ const listAllCheckoutSessionLineItems = async (
   return items;
 };
 
+const resolveOrderUserId = async (checkoutSession: Stripe.Checkout.Session) => {
+  const rawUserId = checkoutSession.client_reference_id?.trim();
+  if (!rawUserId) {
+    return null;
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { id: rawUserId },
+    select: { id: true },
+  });
+  if (existingUser) {
+    return existingUser.id;
+  }
+
+  const context = getFailureContextFromCheckoutSession(checkoutSession);
+  const error = new Error("Checkout session referenced a missing user.");
+  captureException(error, {
+    context: "resolveOrderUserId",
+    ...context,
+    requestedUserId: rawUserId,
+  });
+  console.warn(
+    "[stripe webhook] Checkout session referenced a missing user; creating guest order instead.",
+    {
+      ...context,
+      requestedUserId: rawUserId,
+    },
+  );
+  return null;
+};
+
 const getVariantCountsForSession = async (
   stripe: Stripe,
   sessionId: string
@@ -451,7 +545,7 @@ export const createOrderFromSession = async (
     });
     return;
   }
-  const userId = checkoutSession.client_reference_id ?? undefined;
+  const userId = await resolveOrderUserId(checkoutSession);
 
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
@@ -821,7 +915,13 @@ export const createOrderFromSession = async (
 const beginWebhookEvent = async (eventId: string, type: string) => {
   try {
     await prisma.processedWebhookEvent.create({
-      data: { eventId, type, status: "processing" },
+      data: {
+        eventId,
+        type,
+        status: "processing",
+        errorMessage: null,
+        errorContext: Prisma.JsonNull,
+      },
     });
     return true;
   } catch (error) {
@@ -835,7 +935,11 @@ const beginWebhookEvent = async (eventId: string, type: string) => {
       if (existing?.status === "failed") {
         await prisma.processedWebhookEvent.update({
           where: { eventId },
-          data: { status: "processing" },
+          data: {
+            status: "processing",
+            errorMessage: null,
+            errorContext: Prisma.JsonNull,
+          },
         });
         return true;
       }
@@ -848,7 +952,27 @@ const beginWebhookEvent = async (eventId: string, type: string) => {
 const finalizeWebhookEvent = async (eventId: string) => {
   await prisma.processedWebhookEvent.update({
     where: { eventId },
-    data: { status: "processed", processedAt: new Date() },
+    data: {
+      status: "processed",
+      processedAt: new Date(),
+      errorMessage: null,
+      errorContext: Prisma.JsonNull,
+    },
+  });
+};
+
+const failWebhookEvent = async (
+  eventId: string,
+  error: unknown,
+  context?: WebhookFailureContext | null,
+) => {
+  await prisma.processedWebhookEvent.update({
+    where: { eventId },
+    data: {
+      status: "failed",
+      errorMessage: getWebhookErrorMessage(error),
+      errorContext: context ?? Prisma.JsonNull,
+    },
   });
 };
 
@@ -1111,10 +1235,7 @@ export async function POST(request: Request) {
           ? { message: error.message, stack: error.stack }
           : error,
     });
-    await prisma.processedWebhookEvent.update({
-      where: { eventId },
-      data: { status: "failed" },
-    });
+    await failWebhookEvent(eventId, error, getFailureContextFromStripeEvent(event));
     return NextResponse.json(
       { error: "Webhook handling failed." },
       { status: 500 }

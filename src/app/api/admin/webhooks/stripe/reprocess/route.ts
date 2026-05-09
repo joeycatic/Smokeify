@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { requireAdmin } from "@/lib/adminCatalog";
@@ -13,6 +14,60 @@ import {
 import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 
 export const runtime = "nodejs";
+
+const getWebhookErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Unknown webhook failure";
+
+const getFailureContextFromCheckoutSession = (
+  session: Stripe.Checkout.Session,
+) => ({
+  objectId: session.id ?? null,
+  paymentIntentId:
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null,
+  clientReferenceId: session.client_reference_id ?? null,
+  customerEmail:
+    session.customer_details?.email?.trim().toLowerCase() ??
+    session.customer_email?.trim().toLowerCase() ??
+    null,
+});
+
+const getFailureContextFromEvent = (event: Stripe.Event) => {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded" ||
+    event.type === "checkout.session.async_payment_failed" ||
+    event.type === "checkout.session.expired"
+  ) {
+    return getFailureContextFromCheckoutSession(
+      event.data.object as Stripe.Checkout.Session,
+    );
+  }
+
+  if (event.type === "payment_intent.payment_failed") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    return {
+      objectId: intent.id,
+      paymentIntentId: intent.id,
+      customerEmail: intent.receipt_email?.trim().toLowerCase() ?? null,
+    };
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    return {
+      objectId: charge.id,
+      paymentIntentId:
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id ?? null,
+      customerEmail: charge.billing_details?.email?.trim().toLowerCase() ?? null,
+    };
+  }
+
+  return null;
+};
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -75,7 +130,11 @@ export async function POST(request: Request) {
 
   await prisma.processedWebhookEvent.update({
     where: { eventId },
-    data: { status: "processing" },
+    data: {
+      status: "processing",
+      errorMessage: null,
+      errorContext: Prisma.JsonNull,
+    },
   });
 
   try {
@@ -222,7 +281,11 @@ export async function POST(request: Request) {
   } catch (error) {
     await prisma.processedWebhookEvent.update({
       where: { eventId },
-      data: { status: "failed" },
+      data: {
+        status: "failed",
+        errorMessage: getWebhookErrorMessage(error),
+        errorContext: getFailureContextFromEvent(event) ?? Prisma.JsonNull,
+      },
     });
     await logAdminAction({
       actor: { id: session.user.id, email: session.user.email ?? null },
@@ -244,7 +307,12 @@ export async function POST(request: Request) {
 
   await prisma.processedWebhookEvent.update({
     where: { eventId },
-    data: { status: "processed", processedAt: new Date() },
+    data: {
+      status: "processed",
+      processedAt: new Date(),
+      errorMessage: null,
+      errorContext: Prisma.JsonNull,
+    },
   });
 
   await logAdminAction({
