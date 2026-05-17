@@ -454,6 +454,7 @@ model User {
   pricingRecommendationsReviewed  PricingRecommendation[]    @relation("PricingRecommendationReviewedBy")
   pricingChangeAudits             PricingChangeAudit[]       @relation("PricingChangeActor")
   productsComplianceReviewed      Product[]                  @relation("ProductComplianceReviewedBy")
+  productsComplianceOwned         Product[]                  @relation("ProductComplianceOwner")
   productComplianceEvents         ProductComplianceEvent[]   @relation("ProductComplianceEventActor")
   crmOwnedTasks                   AdminCustomerTask[]        @relation("AdminCustomerTaskOwner")
   crmCreatedTasks                 AdminCustomerTask[]        @relation("AdminCustomerTaskCreatedBy")
@@ -747,6 +748,8 @@ model Product {
   complianceStatus               ProductComplianceStatus @default(DRAFT_REVIEW)
   complianceReviewedAt           DateTime?
   complianceReviewedById         String?
+  complianceOwnerId              String?
+  complianceOwnerEmail           String?
   complianceNotes                String?
   complianceCountryAllowlist     String[]                @default([])
   complianceCountryDenylist      String[]                @default([])
@@ -777,6 +780,7 @@ model Product {
   pricingRecommendations    PricingRecommendation[]
   pricingChangeAudits       PricingChangeAudit[]
   complianceReviewedBy      User?                      @relation("ProductComplianceReviewedBy", fields: [complianceReviewedById], references: [id], onDelete: SetNull)
+  complianceOwner           User?                      @relation("ProductComplianceOwner", fields: [complianceOwnerId], references: [id], onDelete: SetNull)
   complianceEvents          ProductComplianceEvent[]
   purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemProduct")
   purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemProduct")
@@ -788,6 +792,9 @@ model Product {
   @@index([productGroup])
   @@index([complianceStatus])
   @@index([complianceReviewedById])
+  @@index([complianceOwnerId])
+  @@index([complianceFeedEligible, updatedAt])
+  @@index([complianceAdsEligible, updatedAt])
   @@index([bestsellerScore])
   @@index([status, bestsellerScore])
 }
@@ -1141,6 +1148,7 @@ model ReturnRequest {
 
   @@index([orderId])
   @@index([userId])
+  @@index([status, updatedAt])
 }
 
 model StoreCreditTransaction {
@@ -1252,6 +1260,7 @@ model ProcessedWebhookEvent {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+  @@index([status, createdAt])
 }
 
 model AdminAuditLog {
@@ -1268,6 +1277,22 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+}
+
+model AdminSavedView {
+  id              String   @id @default(cuid())
+  ownerId         String?
+  ownerEmail      String?
+  route           String
+  label           String
+  filters         Json
+  storefrontScope String?
+  pinned          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ownerId, route, updatedAt])
+  @@index([route, pinned])
 }
 
 model AdminAlert {
