@@ -93,6 +93,11 @@ type ProductDetail = {
   merchantCertificationName: string | null;
   merchantCertificationCode: string | null;
   merchantCertificationValue: string | null;
+  complianceStatus: "DRAFT_REVIEW" | "APPROVED" | "NEEDS_CHANGES" | "BLOCKED";
+  complianceOwnerEmail: string | null;
+  complianceFeedEligible: boolean;
+  complianceAdsEligible: boolean;
+  complianceManualBlockers: string[];
   tags: string[];
   storefronts: StorefrontCode[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -626,13 +631,6 @@ export default function AdminProductClient({
     categoryIds.has(item.id)
   ).length;
   const selectedCollectionCount = collectionIds.size;
-  const selectedSupplierName = useMemo(
-    () =>
-      suppliers.find((supplier) => supplier.id === details.supplierId)?.name ??
-      product.supplier ??
-      "No supplier",
-    [details.supplierId, product.supplier, suppliers]
-  );
   const totalAvailableInventory = useMemo(
     () =>
       variants.reduce(
@@ -657,7 +655,6 @@ export default function AdminProductClient({
       ).length,
     [variants]
   );
-  const mediaCoverageRatio = `${images.length} image${images.length === 1 ? "" : "s"}`;
   const trendLabel =
     insights.trendDirection === "trending"
       ? "Trending"
@@ -1678,6 +1675,12 @@ export default function AdminProductClient({
                   Synced
                 </span>
               )}
+              <Link
+                href={`/admin/compliance?q=${encodeURIComponent(product.handle)}`}
+                className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 font-semibold text-sky-100 hover:bg-sky-300/15"
+              >
+                Compliance {product.complianceStatus.replace("_", " ")}
+              </Link>
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
@@ -1742,17 +1745,15 @@ export default function AdminProductClient({
           </div>
           <div className="admin-product-stat admin-lift rounded-2xl border border-white/10 bg-white/[0.06] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
-              Coverage
+              Compliance
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">
-              {typeof insights.stockCoverDays === "number"
-                ? `${Math.round(insights.stockCoverDays)}d`
-                : mediaCoverageRatio}
+            <div className="mt-3 text-2xl font-semibold text-white">
+              {product.complianceStatus.replace("_", " ")}
             </div>
             <div className="mt-1 text-sm text-slate-300/75">
-              {typeof insights.stockCoverDays === "number"
-                ? `${trendLabel} demand · Supplier ${selectedSupplierName}`
-                : `Supplier: ${selectedSupplierName}`}
+              Feed {product.complianceFeedEligible ? "on" : "off"} · Ads{" "}
+              {product.complianceAdsEligible ? "on" : "off"} ·{" "}
+              {product.complianceOwnerEmail ?? "Unassigned"}
             </div>
           </div>
         </div>
