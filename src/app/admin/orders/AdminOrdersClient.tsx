@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AdminButton,
   AdminEmptyState,
@@ -11,7 +12,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
-import type { AdminOrderRecord, AdminOrderWebhookFailure } from "@/lib/adminOrders";
+import type { AdminOrderListPage, AdminOrderRecord, AdminOrderWebhookFailure } from "@/lib/adminOrders";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   type AdminStorefrontScope,
@@ -37,7 +38,7 @@ import {
 type Props = {
   activeStorefrontScope: AdminStorefrontScope;
   initialSearchQuery?: string;
-  orders: AdminOrderRecord[];
+  orderPage: AdminOrderListPage;
   webhookFailures: AdminOrderWebhookFailure[];
 };
 
@@ -276,13 +277,17 @@ function buildOrdersScopeHref(
 export default function AdminOrdersClient({
   activeStorefrontScope,
   initialSearchQuery = "",
-  orders,
+  orderPage,
   webhookFailures,
 }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const deferredQuery = useDeferredValue(searchQuery);
   const activeStorefrontLabel =
     ADMIN_STOREFRONT_SCOPE_LABELS[activeStorefrontScope];
+  const orders = orderPage.orders;
 
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderSearch(order, deferredQuery)),
@@ -336,6 +341,34 @@ export default function AdminOrdersClient({
 
   const dashboardCurrency = filteredOrders[0]?.currency ?? orders[0]?.currency ?? "EUR";
 
+  const applyQueryState = (nextSearchQuery: string) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const trimmed = nextSearchQuery.trim();
+    if (trimmed) {
+      params.set("customer", trimmed);
+    } else {
+      params.delete("customer");
+    }
+    params.delete("page");
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const changePage = (nextPage: number) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (nextPage <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
+
   return (
     <div className="space-y-6 text-slate-100">
       <AdminPageIntro
@@ -363,9 +396,9 @@ export default function AdminOrdersClient({
         metrics={
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminMetricCard
-              label="Active queue"
-              value={String(activeOrders.length)}
-              detail="Orders still requiring payment or fulfillment handling."
+              label="Result set"
+              value={String(orderPage.totalCount)}
+              detail={`Page ${orderPage.currentPage} of ${orderPage.totalPages}.`}
             />
             <AdminMetricCard
               label="Needs action"
@@ -380,7 +413,7 @@ export default function AdminOrdersClient({
             <AdminMetricCard
               label="Paid revenue"
               value={formatPrice(paidRevenue, dashboardCurrency)}
-              detail={`${filteredOrders.length} orders shown${deferredQuery.trim() ? " after search filtering" : ""}.`}
+              detail={`${filteredOrders.length} orders shown on this page${orderPage.totalCount > filteredOrders.length ? ` out of ${orderPage.totalCount}` : ""}.`}
             />
           </div>
         }
@@ -391,7 +424,13 @@ export default function AdminOrdersClient({
         description="Search by order number, customer, email, tracking, source, city, discount code, or item name."
         actions={
           searchQuery.trim() ? (
-            <AdminButton tone="secondary" onClick={() => setSearchQuery("")}>
+            <AdminButton
+              tone="secondary"
+              onClick={() => {
+                setSearchQuery("");
+                applyQueryState("");
+              }}
+            >
               Clear search
             </AdminButton>
           ) : null
@@ -401,6 +440,11 @@ export default function AdminOrdersClient({
           <AdminInput
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
+            onBlur={() => applyQueryState(searchQuery)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              applyQueryState(searchQuery);
+            }}
             placeholder="Search orders"
           />
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
@@ -479,6 +523,35 @@ export default function AdminOrdersClient({
           </div>
         )}
       </AdminPanel>
+
+      {orderPage.totalPages > 1 ? (
+        <AdminPanel
+          title="Pagination"
+          description="Server-framed order pages keep the first load small while preserving storefront and search scope."
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-slate-400">
+              Showing page {orderPage.currentPage} of {orderPage.totalPages} for {orderPage.totalCount} matching orders.
+            </div>
+            <div className="flex gap-2">
+              <AdminButton
+                tone="secondary"
+                disabled={orderPage.currentPage <= 1}
+                onClick={() => changePage(orderPage.currentPage - 1)}
+              >
+                Previous
+              </AdminButton>
+              <AdminButton
+                tone="secondary"
+                disabled={orderPage.currentPage >= orderPage.totalPages}
+                onClick={() => changePage(orderPage.currentPage + 1)}
+              >
+                Next
+              </AdminButton>
+            </div>
+          </div>
+        </AdminPanel>
+      ) : null}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { HorizontalBarsChart } from "@/components/admin/AdminCharts";
 import type {
   Customer,
@@ -11,6 +11,8 @@ import type {
   CustomerSummary,
   RegisteredCustomer,
 } from "@/lib/adminCustomers";
+import type { AdminCustomersPagePayload } from "@/lib/adminCustomersPageData";
+import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   type AdminStorefrontScope,
@@ -207,31 +209,44 @@ const getTaskStatusTone = (value: AdminCustomerTaskStatus) => {
 };
 
 export default function AdminCustomersClient({
+  initialData,
+  initialSegmentFilter = "all",
   initialSearchQuery = "",
   initialStorefrontScope,
+  initialTab = "all",
 }: {
+  initialData: AdminCustomersPagePayload;
+  initialSegmentFilter?: string;
   initialSearchQuery?: string;
   initialStorefrontScope: AdminStorefrontScope;
+  initialTab?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>(initialData.customers);
   const [cohorts, setCohorts] = useState<CustomerCohort[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState(initialSearchQuery);
   const deferredQuery = useDeferredValue(query);
-  const [tab, setTab] = useState<"all" | "registered" | "guest">("all");
-  const [segmentFilter, setSegmentFilter] = useState<Segment | "all">("all");
+  const [tab, setTab] = useState<"all" | "registered" | "guest">(
+    initialTab === "registered" || initialTab === "guest" ? initialTab : "all",
+  );
+  const [segmentFilter, setSegmentFilter] = useState<Segment | "all">(
+    initialSegmentFilter && SEGMENT_META[initialSegmentFilter as Segment]
+      ? (initialSegmentFilter as Segment)
+      : "all",
+  );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [summary, setSummary] = useState<CustomerSummary>(EMPTY_SUMMARY);
+  const [page, setPage] = useState(initialData.currentPage);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [totalPages, setTotalPages] = useState(initialData.totalPages);
+  const [summary, setSummary] = useState<CustomerSummary>(initialData.summary);
   const [owners, setOwners] = useState<TaskOwner[]>([]);
-  const [canWriteCrm, setCanWriteCrm] = useState(false);
+  const [canWriteCrm, setCanWriteCrm] = useState(initialData.capabilities.canWriteCrm);
   const [tasks, setTasks] = useState<CustomerTask[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -253,6 +268,7 @@ export default function AdminCustomersClient({
     initialStorefrontScope,
   );
   const storefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope];
+  const hasSkippedInitialLoadRef = useRef(false);
 
   useEffect(() => {
     setStorefrontScope(initialStorefrontScope);
@@ -268,30 +284,23 @@ export default function AdminCustomersClient({
       if (tab !== "all") params.set("tab", tab);
       if (segmentFilter !== "all") params.set("segment", segmentFilter);
       params.set("storefront", storefrontScope);
-      const res = await fetch(`/api/admin/customers?${params.toString()}`, {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
+      const { response, data } = await fetchAdminJson<AdminCustomersPagePayload & { error?: string }>(
+        `/api/admin/customers?${params.toString()}`,
+        {
+          method: "GET",
+          cache: "no-store",
+          slowThresholdMs: 4_500,
+          slowMessage: "Customer refresh is taking longer than usual.",
+          slowDetail: "The first page is still loading. Wait for the summary cards to settle before retrying.",
+          failureMessage: "Customer refresh failed.",
+          failureDetail: "Refresh the customers workspace before retrying CRM changes.",
+        },
+      );
+      if (!response.ok) {
         setError(data.error ?? "Failed to load customers.");
         return;
       }
-      const data = (await res.json()) as {
-        customers?: Customer[];
-        cohorts?: CustomerCohort[];
-        owners?: TaskOwner[];
-        currentPage?: number;
-        totalCount?: number;
-        totalPages?: number;
-        summary?: CustomerSummary;
-        capabilities?: {
-          canWriteCrm?: boolean;
-        };
-      };
       setCustomers(data.customers ?? []);
-      setCohorts(data.cohorts ?? []);
-      setOwners(data.owners ?? []);
       setPage(data.currentPage ?? page);
       setTotalCount(data.totalCount ?? 0);
       setTotalPages(data.totalPages ?? 1);
@@ -305,8 +314,41 @@ export default function AdminCustomersClient({
   });
 
   useEffect(() => {
+    if (!hasSkippedInitialLoadRef.current) {
+      hasSkippedInitialLoadRef.current = true;
+      return;
+    }
     void loadCustomers();
   }, [deferredQuery, page, refreshNonce, segmentFilter, storefrontScope, tab]);
+
+  const loadSidebarData = useEffectEvent(async () => {
+    if (!canWriteCrm) return;
+    setSidebarLoading(true);
+    try {
+      const { response, data } = await fetchAdminJson<{
+        cohorts?: CustomerCohort[];
+        owners?: TaskOwner[];
+      }>("/api/admin/customers/cohorts", {
+        method: "GET",
+        cache: "no-store",
+        slowThresholdMs: 3_500,
+        slowMessage: "CRM sidebar is still loading.",
+        slowDetail: "Customer details are ready, but cohorts and task owners are still syncing.",
+      });
+      if (!response.ok) {
+        return;
+      }
+      setCohorts(data.cohorts ?? []);
+      setOwners(data.owners ?? []);
+    } finally {
+      setSidebarLoading(false);
+    }
+  });
+
+  useEffect(() => {
+    if (!canWriteCrm) return;
+    void loadSidebarData();
+  }, [canWriteCrm, refreshNonce]);
 
   useEffect(() => {
     if (!customers.length) {
@@ -356,16 +398,18 @@ export default function AdminCustomersClient({
     setTasks([]);
     setTasksLoading(true);
     try {
-      const response = await fetch(
+      const { response, data } = await fetchAdminJson<{
+        tasks?: CustomerTask[];
+      }>(
         `/api/admin/customer-tasks?customerId=${encodeURIComponent(customerId)}`,
         {
           method: "GET",
           cache: "no-store",
+          slowThresholdMs: 3_000,
+          slowMessage: "CRM tasks are still loading.",
+          slowDetail: "The selected customer is ready, but task history is still being fetched.",
         },
       );
-      const data = (await response.json().catch(() => ({}))) as {
-        tasks?: CustomerTask[];
-      };
       if (!response.ok) {
         setTasks([]);
         return;
@@ -405,18 +449,58 @@ export default function AdminCustomersClient({
     );
   };
 
-  const updateStorefrontScope = (nextScope: AdminStorefrontScope) => {
-    setStorefrontScope(nextScope);
-    setPage(1);
+  const replaceRouteState = ({
+    nextPage = page,
+    nextQuery = query,
+    nextSegment = segmentFilter,
+    nextStorefront = storefrontScope,
+    nextTab = tab,
+  }: {
+    nextPage?: number;
+    nextQuery?: string;
+    nextSegment?: Segment | "all";
+    nextStorefront?: AdminStorefrontScope;
+    nextTab?: "all" | "registered" | "guest";
+  }) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
-    if (nextScope === "ALL") {
+    const trimmedQuery = nextQuery.trim();
+    if (trimmedQuery) {
+      params.set("query", trimmedQuery);
+    } else {
+      params.delete("query");
+    }
+    if (nextTab === "all") {
+      params.delete("tab");
+    } else {
+      params.set("tab", nextTab);
+    }
+    if (nextSegment === "all") {
+      params.delete("segment");
+    } else {
+      params.set("segment", nextSegment);
+    }
+    if (nextPage <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
+    if (nextStorefront === "ALL") {
       params.delete("storefront");
     } else {
-      params.set("storefront", nextScope);
+      params.set("storefront", nextStorefront);
     }
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
       scroll: false,
+    });
+  };
+
+  const updateStorefrontScope = (nextScope: AdminStorefrontScope) => {
+    setStorefrontScope(nextScope);
+    setPage(1);
+    replaceRouteState({
+      nextPage: 1,
+      nextStorefront: nextScope,
     });
   };
 
@@ -738,6 +822,10 @@ export default function AdminCustomersClient({
               setQuery(customer.email);
               setPage(1);
               setSelectedKey(getCustomerKey(customer));
+              replaceRouteState({
+                nextPage: 1,
+                nextQuery: customer.email,
+              });
             }}
           />
         </Panel>
@@ -753,6 +841,10 @@ export default function AdminCustomersClient({
               setQuery(customer.email);
               setPage(1);
               setSelectedKey(getCustomerKey(customer));
+              replaceRouteState({
+                nextPage: 1,
+                nextQuery: customer.email,
+              });
             }}
           />
         </Panel>
@@ -787,6 +879,11 @@ export default function AdminCustomersClient({
             {customerMutationId === "cohort" ? "Saving..." : "Save current cohort"}
           </button>
         </div>
+        {sidebarLoading ? (
+          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+            CRM cohorts and owners are still loading for this workspace.
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-3 xl:grid-cols-3">
           {cohorts.length === 0 ? (
             <EmptyPanelCopy message="No saved cohorts yet." />
@@ -800,6 +897,12 @@ export default function AdminCustomersClient({
                   setTab(cohort.filters.tab ?? "all");
                   setSegmentFilter(cohort.filters.segment ?? "all");
                   setPage(1);
+                  replaceRouteState({
+                    nextPage: 1,
+                    nextQuery: cohort.filters.q ?? "",
+                    nextTab: cohort.filters.tab ?? "all",
+                    nextSegment: cohort.filters.segment ?? "all",
+                  });
                 }}
                 className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 text-left transition hover:bg-white/[0.05]"
               >
@@ -879,6 +982,10 @@ export default function AdminCustomersClient({
                   onClick={() => {
                     setTab(value);
                     setPage(1);
+                    replaceRouteState({
+                      nextPage: 1,
+                      nextTab: value,
+                    });
                   }}
                   className={`px-4 py-2 transition ${
                     tab === value
@@ -898,6 +1005,10 @@ export default function AdminCustomersClient({
                 onClick={() => {
                   setSegmentFilter("all");
                   setPage(1);
+                  replaceRouteState({
+                    nextPage: 1,
+                    nextSegment: "all",
+                  });
                 }}
               />
               {(Object.keys(SEGMENT_META) as Segment[]).map((segment) => (
@@ -908,6 +1019,10 @@ export default function AdminCustomersClient({
                   onClick={() => {
                     setSegmentFilter(segment);
                     setPage(1);
+                    replaceRouteState({
+                      nextPage: 1,
+                      nextSegment: segment,
+                    });
                   }}
                 />
               ))}
@@ -921,6 +1036,17 @@ export default function AdminCustomersClient({
                   setQuery(event.target.value);
                   setPage(1);
                 }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  replaceRouteState({
+                    nextPage: 1,
+                  });
+                }}
+                onBlur={() =>
+                  replaceRouteState({
+                    nextPage: 1,
+                  })
+                }
                 placeholder="Search by email, name, segment, group..."
                 className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[240px]"
               />
@@ -1062,7 +1188,11 @@ export default function AdminCustomersClient({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    const nextPage = Math.max(1, page - 1);
+                    setPage(nextPage);
+                    replaceRouteState({ nextPage });
+                  }}
                   disabled={page <= 1}
                   className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
                 >
@@ -1070,7 +1200,11 @@ export default function AdminCustomersClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  onClick={() => {
+                    const nextPage = Math.min(totalPages, page + 1);
+                    setPage(nextPage);
+                    replaceRouteState({ nextPage });
+                  }}
                   disabled={page >= totalPages}
                   className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
                 >

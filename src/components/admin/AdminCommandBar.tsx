@@ -1,9 +1,10 @@
 "use client";
 
 import type { ComponentProps, ComponentType, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
   adminPathSupportsStorefrontScope,
   type AdminStorefrontScope,
@@ -55,6 +56,14 @@ type AdminCommandBarProps = {
   currentStorefrontScope: AdminStorefrontScope;
 };
 
+type SearchCacheEntry = {
+  results: CommandSearchResult[];
+  createdAt: number;
+};
+
+const COMMAND_SEARCH_CACHE_TTL_MS = 30_000;
+const commandSearchCache = new Map<string, SearchCacheEntry>();
+
 function buildHref(href: string, currentStorefrontScope: AdminStorefrontScope) {
   if (!adminPathSupportsStorefrontScope(href)) {
     return href;
@@ -82,6 +91,7 @@ export default function AdminCommandBar({
   const [activeIndex, setActiveIndex] = useState(0);
   const [entityResults, setEntityResults] = useState<CommandSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const deferredQuery = useDeferredValue(query);
 
   const commands = useMemo<FlattenedCommand[]>(
     () =>
@@ -102,7 +112,7 @@ export default function AdminCommandBar({
     if (!normalizedQuery) return commands;
     return commands.filter((item) => item.searchValue.includes(normalizedQuery));
   }, [commands, query]);
-  const normalizedQuery = query.trim();
+  const normalizedQuery = deferredQuery.trim();
   const displayCommands = useMemo<DisplayCommand[]>(() => {
     const pageResults = filteredCommands.map((item) => ({
       ...item,
@@ -138,18 +148,37 @@ export default function AdminCommandBar({
 
     let active = true;
     const controller = new AbortController();
+    const cacheKey = normalizedQuery.toLowerCase();
+    const cached = commandSearchCache.get(cacheKey);
+    if (cached && Date.now() - cached.createdAt <= COMMAND_SEARCH_CACHE_TTL_MS) {
+      setEntityResults(cached.results);
+      setSearchLoading(false);
+      return () => {
+        active = false;
+        controller.abort();
+      };
+    }
 
     const runSearch = async () => {
       setSearchLoading(true);
       try {
-        const response = await fetch(`/api/admin/search?q=${encodeURIComponent(normalizedQuery)}`, {
-          signal: controller.signal,
-        });
-        const data = (await response.json().catch(() => ({}))) as {
+        const { response, data } = await fetchAdminJson<{
           results?: CommandSearchResult[];
-        };
+        }>(`/api/admin/search?q=${encodeURIComponent(normalizedQuery)}`, {
+          signal: controller.signal,
+          slowThresholdMs: 4_000,
+          slowMessage: "Admin search was slow.",
+          slowDetail: "Search results may be delayed while the admin index catches up.",
+          failureMessage: "Admin search failed.",
+          failureDetail: "Reconnect and retry the command search.",
+        });
         if (active) {
-          setEntityResults(data.results ?? []);
+          const results = response.ok ? (data.results ?? []) : [];
+          commandSearchCache.set(cacheKey, {
+            results,
+            createdAt: Date.now(),
+          });
+          setEntityResults(results);
         }
       } catch {
         if (active) {
@@ -162,10 +191,13 @@ export default function AdminCommandBar({
       }
     };
 
-    void runSearch();
+    const timeoutId = window.setTimeout(() => {
+      void runSearch();
+    }, 180);
 
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
       controller.abort();
     };
   }, [normalizedQuery, open]);

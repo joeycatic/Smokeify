@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  subscribeAdminRequestStatus,
+  type AdminRequestStatusDetail,
+} from "@/lib/adminClientRequestStatus";
 
 type NetworkInformation = EventTarget & {
   downlink?: number;
@@ -13,6 +17,7 @@ type ConnectionProblem = {
   id: number;
   message: string;
   detail: string;
+  tone: "warning" | "error";
 };
 
 function getConnection() {
@@ -75,28 +80,6 @@ function getServerNetworkSnapshot() {
   return "1\n0\n";
 }
 
-function isAdminRequest(input: Parameters<typeof fetch>[0]) {
-  const rawUrl =
-    typeof input === "string"
-      ? input
-      : input instanceof Request
-        ? input.url
-        : input instanceof URL
-          ? input.toString()
-          : "";
-  if (!rawUrl) return false;
-  try {
-    const url = new URL(rawUrl, window.location.origin);
-    return url.pathname.startsWith("/api/admin");
-  } catch {
-    return rawUrl.startsWith("/api/admin");
-  }
-}
-
-function getRequestMethod(input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1]) {
-  return (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-}
-
 export default function AdminConnectionStatus() {
   const [problem, setProblem] = useState<ConnectionProblem | null>(null);
   const [dismissedProblemId, setDismissedProblemId] = useState<number | null>(null);
@@ -110,46 +93,14 @@ export default function AdminConnectionStatus() {
   const slowConnection = slowConnectionValue === "1";
 
   useEffect(() => {
-    const originalFetch = window.fetch;
-    const wrappedFetch: typeof window.fetch = async (input, init) => {
-      const adminRequest = isAdminRequest(input);
-      const method = getRequestMethod(input, init);
-      const mutating = !["GET", "HEAD", "OPTIONS"].includes(method);
-      const startedAt = performance.now();
-
-      try {
-        const response = await originalFetch(input, init);
-        const elapsedMs = performance.now() - startedAt;
-        if (adminRequest && elapsedMs >= 8000) {
-          setProblem({
-            id: Date.now(),
-            message: "Admin request was slow.",
-            detail: mutating
-              ? "Wait for the saved state to appear before repeating this action."
-              : "The page may be showing delayed operational data.",
-          });
-        }
-        return response;
-      } catch (error) {
-        if (adminRequest) {
-          setProblem({
-            id: Date.now(),
-            message: mutating ? "Admin change did not reach the server." : "Admin data request failed.",
-            detail: mutating
-              ? "Keep this tab open, reconnect, then refresh the record before retrying."
-              : "Reconnect and reload this workspace if the data looks stale.",
-          });
-        }
-        throw error;
-      }
-    };
-
-    window.fetch = wrappedFetch;
-    return () => {
-      if (window.fetch === wrappedFetch) {
-        window.fetch = originalFetch;
-      }
-    };
+    return subscribeAdminRequestStatus((detail: AdminRequestStatusDetail) => {
+      setProblem({
+        id: Date.now(),
+        message: detail.message,
+        detail: detail.detail,
+        tone: detail.kind,
+      });
+    });
   }, []);
 
   const visibleProblem = problem && problem.id !== dismissedProblemId ? problem : null;
@@ -163,7 +114,7 @@ export default function AdminConnectionStatus() {
     }
     if (visibleProblem) {
       return {
-        tone: "warning",
+        tone: visibleProblem.tone,
         title: visibleProblem.message,
         detail: visibleProblem.detail,
       };
@@ -181,7 +132,7 @@ export default function AdminConnectionStatus() {
   if (!state) return null;
 
   const toneClass =
-    state.tone === "critical"
+    state.tone === "critical" || state.tone === "error"
       ? "border-rose-400/25 bg-rose-500/15 text-rose-100"
       : "border-amber-400/25 bg-amber-400/15 text-amber-100";
 

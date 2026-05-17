@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -29,7 +30,6 @@ import {
   UsersIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import AdminCommandBar from "@/components/admin/AdminCommandBar";
 import {
   hasAdminScope,
   type AdminScope,
@@ -40,7 +40,16 @@ import {
   parseAdminStorefrontScope,
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
-import AdminConnectionStatus from "@/components/admin/AdminConnectionStatus";
+
+const AdminCommandBar = dynamic(() => import("@/components/admin/AdminCommandBar"), {
+  ssr: false,
+});
+const AdminConnectionStatus = dynamic(
+  () => import("@/components/admin/AdminConnectionStatus"),
+  {
+    ssr: false,
+  },
+);
 
 type AdminShellProps = {
   children: React.ReactNode;

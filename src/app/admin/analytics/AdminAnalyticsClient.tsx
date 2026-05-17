@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import LoadingSpinner from "@/components/LoadingSpinner";
 import {
   type AdminChartPoint,
   DonutChart,
@@ -10,6 +9,7 @@ import {
   MultiSeriesTrendChart,
   SparklineChart,
 } from "@/components/admin/AdminCharts";
+import { fetchAdminJson } from "@/lib/adminClientFetch";
 
 type ComparisonMetric = {
   current: number;
@@ -101,12 +101,6 @@ type Revenue = {
   last30DaysCents: number;
   newRevenueCents: number;
   returningRevenueCents: number;
-};
-
-type InventorySummary = {
-  stockoutCount: number;
-  lowStockCount: number;
-  trackedVariants: number;
 };
 
 type Trends = {
@@ -396,19 +390,52 @@ const initialVatSummary: VatSummary = {
   notes: [],
 };
 
-export default function AdminAnalyticsClient() {
-  const [loading, setLoading] = useState(true);
+type AdminAnalyticsOverviewPayload = {
+  live?: LiveSnapshot;
+  funnel?: Funnel;
+  funnelComparison?: FunnelComparison;
+  funnelTrend?: FunnelTrendPoint[];
+  revenue?: Revenue;
+  trends?: Trends;
+  periodComparison?: PeriodComparison;
+  finance?: FinanceSummary;
+  previousFinance?: FinanceSummary;
+  vat?: VatSummary;
+};
+
+type AdminAnalyticsSecondaryPayload = {
+  topProducts?: ProductPerformance[];
+  underperformingProducts?: ProductPerformance[];
+  stockouts?: Stockout[];
+  customers?: CustomerSummary;
+  trafficSources?: TrafficSource[];
+  discountAnalysis?: DiscountInsight[];
+  paymentAnalysis?: PaymentInsight[];
+  retention?: Retention;
+  aiQuality?: AiQuality;
+};
+
+export default function AdminAnalyticsClient({
+  initialOverview,
+}: {
+  initialOverview: AdminAnalyticsOverviewPayload;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [error, setError] = useState("");
-  const [live, setLive] = useState<LiveSnapshot>(initialLive);
-  const [funnel, setFunnel] = useState<Funnel>(initialFunnel);
+  const [secondaryError, setSecondaryError] = useState("");
+  const [live, setLive] = useState<LiveSnapshot>(initialOverview.live ?? initialLive);
+  const [funnel, setFunnel] = useState<Funnel>(initialOverview.funnel ?? initialFunnel);
   const [topProducts, setTopProducts] = useState<ProductPerformance[]>([]);
   const [underperformingProducts, setUnderperformingProducts] = useState<ProductPerformance[]>([]);
   const [stockouts, setStockouts] = useState<Stockout[]>([]);
-  const [revenue, setRevenue] = useState<Revenue>(initialRevenue);
-  const [trends, setTrends] = useState<Trends>(emptyTrends);
-  const [funnelTrend, setFunnelTrend] = useState<FunnelTrendPoint[]>([]);
+  const [revenue, setRevenue] = useState<Revenue>(initialOverview.revenue ?? initialRevenue);
+  const [trends, setTrends] = useState<Trends>(initialOverview.trends ?? emptyTrends);
+  const [funnelTrend, setFunnelTrend] = useState<FunnelTrendPoint[]>(
+    initialOverview.funnelTrend ?? [],
+  );
   const [funnelComparison, setFunnelComparison] = useState<FunnelComparison>(
-    initialFunnelComparison,
+    initialOverview.funnelComparison ?? initialFunnelComparison,
   );
   const [customers, setCustomers] = useState<CustomerSummary>(initialCustomers);
   const [aiQuality, setAiQuality] = useState<AiQuality>(initialAiQuality);
@@ -417,75 +444,116 @@ export default function AdminAnalyticsClient() {
   const [paymentAnalysis, setPaymentAnalysis] = useState<PaymentInsight[]>([]);
   const [retention, setRetention] = useState<Retention>(initialRetention);
   const [periodComparison, setPeriodComparison] = useState<PeriodComparison>(
-    initialPeriodComparison,
+    initialOverview.periodComparison ?? initialPeriodComparison,
   );
-  const [finance, setFinance] = useState<FinanceSummary>(initialFinanceSummary);
+  const [finance, setFinance] = useState<FinanceSummary>(
+    initialOverview.finance ?? initialFinanceSummary,
+  );
   const [previousFinance, setPreviousFinance] = useState<FinanceSummary>(
-    initialFinanceSummary,
+    initialOverview.previousFinance ?? initialFinanceSummary,
   );
-  const [vat, setVat] = useState<VatSummary>(initialVatSummary);
+  const [vat, setVat] = useState<VatSummary>(initialOverview.vat ?? initialVatSummary);
 
-  const loadAnalytics = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/admin/analytics");
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Failed to load analytics.");
-        return;
-      }
-      const data = (await res.json()) as {
-        live?: LiveSnapshot;
-        funnel?: Funnel;
-        funnelComparison?: FunnelComparison;
-        funnelTrend?: FunnelTrendPoint[];
-        revenue?: Revenue;
-        topProducts?: ProductPerformance[];
-        underperformingProducts?: ProductPerformance[];
-        stockouts?: Stockout[];
-        inventory?: InventorySummary;
-        trends?: Trends;
-        customers?: CustomerSummary;
-        trafficSources?: TrafficSource[];
-        discountAnalysis?: DiscountInsight[];
-        paymentAnalysis?: PaymentInsight[];
-        retention?: Retention;
-        periodComparison?: PeriodComparison;
-        finance?: FinanceSummary;
-        previousFinance?: FinanceSummary;
-        vat?: VatSummary;
-        aiQuality?: AiQuality;
-      };
-      setLive(data.live ?? initialLive);
-      setFunnel(data.funnel ?? initialFunnel);
-      setRevenue(data.revenue ?? initialRevenue);
-      setTopProducts(data.topProducts ?? []);
-      setUnderperformingProducts(data.underperformingProducts ?? []);
-      setStockouts(data.stockouts ?? []);
-      setTrends(data.trends ?? emptyTrends);
-      setFunnelTrend(data.funnelTrend ?? []);
-      setFunnelComparison(data.funnelComparison ?? initialFunnelComparison);
-      setCustomers(data.customers ?? initialCustomers);
-      setTrafficSources(data.trafficSources ?? []);
-      setDiscountAnalysis(data.discountAnalysis ?? []);
-      setPaymentAnalysis(data.paymentAnalysis ?? []);
-      setRetention(data.retention ?? initialRetention);
-      setPeriodComparison(data.periodComparison ?? initialPeriodComparison);
-      setFinance(data.finance ?? initialFinanceSummary);
-      setPreviousFinance(data.previousFinance ?? initialFinanceSummary);
-      setVat(data.vat ?? initialVatSummary);
-      setAiQuality(data.aiQuality ?? initialAiQuality);
-    } catch {
-      setError("Failed to load analytics.");
-    } finally {
-      setLoading(false);
+  const applyOverviewData = (data: Partial<AdminAnalyticsOverviewPayload>) => {
+    setLive(data.live ?? initialLive);
+    setFunnel(data.funnel ?? initialFunnel);
+    setRevenue(data.revenue ?? initialRevenue);
+    setTrends(data.trends ?? emptyTrends);
+    setFunnelTrend(data.funnelTrend ?? []);
+    setFunnelComparison(data.funnelComparison ?? initialFunnelComparison);
+    setPeriodComparison(data.periodComparison ?? initialPeriodComparison);
+    setFinance(data.finance ?? initialFinanceSummary);
+    setPreviousFinance(data.previousFinance ?? initialFinanceSummary);
+    setVat(data.vat ?? initialVatSummary);
+  };
+
+  const applySecondaryData = (data: Partial<AdminAnalyticsSecondaryPayload>) => {
+    setTopProducts(data.topProducts ?? []);
+    setUnderperformingProducts(data.underperformingProducts ?? []);
+    setStockouts(data.stockouts ?? []);
+    setCustomers(data.customers ?? initialCustomers);
+    setTrafficSources(data.trafficSources ?? []);
+    setDiscountAnalysis(data.discountAnalysis ?? []);
+    setPaymentAnalysis(data.paymentAnalysis ?? []);
+    setRetention(data.retention ?? initialRetention);
+    setAiQuality(data.aiQuality ?? initialAiQuality);
+  };
+
+  const loadOverview = useCallback(async () => {
+    const { response, data } = await fetchAdminJson<
+      AdminAnalyticsOverviewPayload & { error?: string }
+    >("/api/admin/analytics?section=overview", {
+      method: "GET",
+      cache: "no-store",
+      slowThresholdMs: 4_500,
+      slowMessage: "Analytics overview is still refreshing.",
+      slowDetail: "The finance and funnel snapshot are taking longer than usual to recalculate.",
+      failureMessage: "Analytics overview refresh failed.",
+      failureDetail: "The top summary may be stale until the next successful refresh.",
+    });
+    if (!response.ok) {
+      throw new Error(data.error ?? "Failed to load analytics overview.");
     }
+    applyOverviewData(data);
   }, []);
 
+  const loadSecondary = useCallback(async () => {
+    const { response, data } = await fetchAdminJson<
+      AdminAnalyticsSecondaryPayload & { error?: string }
+    >("/api/admin/analytics?section=secondary", {
+      method: "GET",
+      cache: "no-store",
+      slowThresholdMs: 5_500,
+      slowMessage: "Secondary analytics are still loading.",
+      slowDetail: "Product, retention, discount, and AI quality datasets are still being assembled.",
+      failureMessage: "Secondary analytics failed to load.",
+      failureDetail: "Overview metrics are still available while the slower sections retry.",
+    });
+    if (!response.ok) {
+      throw new Error(data.error ?? "Failed to load secondary analytics.");
+    }
+    applySecondaryData(data);
+  }, []);
+
+  const refreshAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setSecondaryError("");
+    try {
+      await Promise.all([loadOverview(), loadSecondary()]);
+    } catch (refreshError) {
+      const message =
+        refreshError instanceof Error
+          ? refreshError.message
+          : "Failed to load analytics.";
+      setError(message);
+    } finally {
+      setLoading(false);
+      setSecondaryLoading(false);
+    }
+  }, [loadOverview, loadSecondary]);
+
   useEffect(() => {
-    void loadAnalytics();
-  }, [loadAnalytics]);
+    let cancelled = false;
+    setSecondaryLoading(true);
+    setSecondaryError("");
+    void loadSecondary()
+      .catch((secondaryLoadError) => {
+        if (cancelled) return;
+        setSecondaryError(
+          secondaryLoadError instanceof Error
+            ? secondaryLoadError.message
+            : "Failed to load secondary analytics.",
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setSecondaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSecondary]);
 
   const revenueTrend = useMemo<AdminChartPoint[]>(
     () =>
@@ -784,7 +852,7 @@ export default function AdminAnalyticsClient() {
               </div>
               <button
                 type="button"
-                onClick={() => void loadAnalytics()}
+                onClick={() => void refreshAnalytics()}
                 className="inline-flex h-11 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/20 hover:bg-cyan-300/10"
                 disabled={loading}
               >
@@ -925,15 +993,19 @@ export default function AdminAnalyticsClient() {
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="flex min-h-[18rem] items-center justify-center rounded-[28px] border border-white/10 bg-white/[0.03]">
-          <div className="flex items-center gap-3 text-slate-300">
-            <LoadingSpinner size="lg" />
-            <span className="text-sm font-semibold">Loading analytics...</span>
-          </div>
+      {secondaryError ? (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {secondaryError}
         </div>
-      ) : (
-        <>
+      ) : null}
+
+      {secondaryLoading ? (
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+          Secondary analytics are still loading. Overview, funnel, finance, and VAT are ready; product, retention, payment, and AI-quality sections will fill in next.
+        </div>
+      ) : null}
+
+      <>
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <Panel
               eyebrow="Trends"
@@ -1524,8 +1596,7 @@ export default function AdminAnalyticsClient() {
               <HorizontalBarsChart data={issueBars} colorClassName="bg-amber-400" />
             </Panel>
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
