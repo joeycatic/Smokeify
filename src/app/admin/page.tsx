@@ -556,6 +556,7 @@ export default async function AdminPage({
     measureServerExecution("admin.dashboard.activeVariants", () =>
       prisma.variant.findMany({
         orderBy: { updatedAt: "desc" },
+        take: 250,
         include: {
           inventory: true,
           product: { select: { id: true, title: true, status: true } },

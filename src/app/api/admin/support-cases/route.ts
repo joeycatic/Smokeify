@@ -3,11 +3,14 @@ import { adminJson } from "@/lib/adminApi";
 import {
   createManualSupportCase,
   listAdminSupportCases,
+  parseAdminSupportCaseFilters,
 } from "@/lib/adminSupport";
 import { withAdminRoute } from "@/lib/adminRoute";
 
-export const GET = withAdminRoute(async () => {
-  const supportCases = await listAdminSupportCases();
+export const GET = withAdminRoute(async ({ request }) => {
+  const supportCases = await listAdminSupportCases(
+    parseAdminSupportCaseFilters(Object.fromEntries(request.nextUrl.searchParams.entries())),
+  );
   return adminJson({ supportCases });
 });
 
