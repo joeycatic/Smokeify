@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   AdminButton,
   AdminInput,
@@ -13,6 +15,7 @@ import {
 
 type AnalyzerRunRecord = {
   id: string;
+  userId?: string | null;
   userEmail: string | null;
   provider: string;
   model: string;
@@ -66,7 +69,41 @@ const REVIEW_STATUS_OPTIONS = [
   "PRIVACY_REVIEW",
 ] as const;
 
+type AnalyzerView = "shared" | "smokeify";
+
+const formatAnalyzerTimestamp = (value: string) =>
+  new Date(value).toLocaleString("de-DE");
+
+const getAnalyzerCustomerKey = (
+  run: Pick<AnalyzerRunRecord, "id" | "userId" | "userEmail">,
+) => run.userId ?? run.userEmail?.trim().toLowerCase() ?? run.id;
+
+const getAnalyzerNextAction = (run: AnalyzerRunRecord) => {
+  if ((run.incorrectFeedbackCount ?? 0) > 0) return "Resolve disputed result";
+  if (run.publicationStatus === "SUBMITTED") return "Review before publication";
+  if (run.reviewStatus === "PRIVACY_REVIEW") return "Check privacy and image handling";
+  if (run.reviewStatus === "REVIEWED_UNSAFE") return "Correct unsafe guidance";
+  if (run.reviewStatus === "NEEDS_PROMPT_FIX") return "Adjust analyzer prompt";
+  if (run.reviewStatus === "NEEDS_RECOMMENDATION_FIX") return "Fix recommendation output";
+  if (run.needsHumanReview) return "Manual review needed";
+  if (run.reviewStatus === "UNREVIEWED") return "Complete first review";
+  return "Review queue item";
+};
+
+const getAnalyzerReasonSummary = (run: AnalyzerRunRecord) => {
+  const reasons: string[] = [];
+
+  if ((run.incorrectFeedbackCount ?? 0) > 0) reasons.push("disputed by the user");
+  if (run.publicationStatus === "SUBMITTED") reasons.push("awaiting publication review");
+  if (run.needsHumanReview) reasons.push("marked for manual review");
+  if (run.confidence < 0.65) reasons.push("low confidence");
+  if (run.healthStatus === "CRITICAL") reasons.push("health-critical");
+
+  return reasons.length > 0 ? reasons.join(", ") : "queued for reviewer confirmation";
+};
+
 export default function AdminAnalyzerClient() {
+  const searchParams = useSearchParams();
   const [runs, setRuns] = useState<AnalyzerRunRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,21 +121,82 @@ export default function AdminAnalyzerClient() {
   const [query, setQuery] = useState("");
   const [includeResolved, setIncludeResolved] = useState(false);
   const [reviewStatus, setReviewStatus] = useState("");
-  const [sortMode, setSortMode] = useState("attention");
+  const [sortMode, setSortMode] = useState("newest");
   const [reviewNotes, setReviewNotes] = useState("");
   const [overrideRecommendations, setOverrideRecommendations] = useState("");
+  const activeView: AnalyzerView =
+    searchParams?.get("view")?.trim().toLowerCase() === "smokeify"
+      ? "smokeify"
+      : "shared";
+  const requestedStorefront = activeView === "smokeify" ? "MAIN" : "ALL";
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.id === selectedId) ?? null,
     [runs, selectedId],
   );
 
+  const viewTabs = useMemo(
+    () =>
+      [
+        {
+          id: "shared" as const,
+          label: "Shared queue",
+          description: "Unified Smokeify and Growvault analyzer review stream",
+        },
+        {
+          id: "smokeify" as const,
+          label: "Smokeify",
+          description: "Smokeify-local analyzer runs, notes, and overrides",
+        },
+      ].map((tab) => {
+        const params = new URLSearchParams(searchParams?.toString() ?? "");
+        params.delete("storefront");
+        if (tab.id === "shared") {
+          params.delete("view");
+        } else {
+          params.set("view", tab.id);
+        }
+        const queryString = params.toString();
+        return {
+          ...tab,
+          href: queryString ? `/admin/analyzer?${queryString}` : "/admin/analyzer",
+          active: activeView === tab.id,
+        };
+      }),
+    [activeView, searchParams],
+  );
+
+  const pageCopy = useMemo(() => {
+    if (activeView === "smokeify") {
+      return {
+        title: "Smokeify analyzer workspace",
+        description:
+          "Smokeify-local analyzer runs that need review, correction, or storefront-specific guidance updates.",
+        queueDescription:
+          "Smokeify-local runs only. Use this tab when the review outcome depends on Smokeify-specific notes or overrides.",
+        detailDescription:
+          "Review the local Smokeify record and save queue, audit, and guidance changes without the shared Growvault queue mixed in.",
+      };
+    }
+
+    return {
+      title: "Analyzer governance",
+      description:
+        "Unified analyzer queue across Smokeify and Growvault, with one shared review flow and a separate Smokeify-local workspace only when needed.",
+      queueDescription:
+        "Shared queue first. Review newest analyzer cases across both storefronts without switching scope.",
+      detailDescription:
+        "Evidence comes first. The action fields below are separated so it is clear which input affects queue status, audit notes, or customer-facing guidance.",
+    };
+  }, [activeView]);
+
   const loadRuns = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      params.set("limit", "40");
+      params.set("limit", "250");
+      params.set("storefront", requestedStorefront);
       if (includeResolved) params.set("includeResolved", "true");
       if (reviewStatus) params.set("reviewStatus", reviewStatus);
       const response = await fetch(`/api/admin/analyzer/runs?${params.toString()}`);
@@ -134,7 +232,7 @@ export default function AdminAnalyzerClient() {
     } finally {
       setLoading(false);
     }
-  }, [includeResolved, reviewStatus]);
+  }, [includeResolved, requestedStorefront, reviewStatus]);
 
   useEffect(() => {
     void loadRuns();
@@ -151,6 +249,7 @@ export default function AdminAnalyzerClient() {
     return runs.filter((run) => {
       return [
         run.id,
+        run.userId ?? "",
         run.userEmail ?? "",
         run.species,
         run.reviewStatus,
@@ -197,6 +296,15 @@ export default function AdminAnalyzerClient() {
     return nextRuns;
   }, [filteredRuns, sortMode]);
 
+  const selectedUserRuns = useMemo(() => {
+    if (!selectedRun) return [];
+
+    const customerKey = getAnalyzerCustomerKey(selectedRun);
+    return [...runs]
+      .filter((run) => getAnalyzerCustomerKey(run) === customerKey)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }, [runs, selectedRun]);
+
   const saveReview = async () => {
     if (!selectedRun) return;
     setSaving(true);
@@ -235,8 +343,28 @@ export default function AdminAnalyzerClient() {
     <div className="space-y-5">
       <AdminPageIntro
         eyebrow="Analyzer"
-        title="Growvault analyzer governance"
-      description="Review plant-analysis cases, capture remediation notes, and publish reviewed recommendation updates back into the shared storefront record."
+        title={pageCopy.title}
+        description={pageCopy.description}
+        actions={
+          <div className="admin-scroll-x -mx-1 flex gap-2 px-1 text-xs font-semibold sm:mx-0 sm:flex-wrap sm:px-0">
+            {viewTabs.map((tab) => (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={`shrink-0 rounded-full border px-3 py-2 transition sm:shrink ${
+                  tab.active
+                    ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                    : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+                }`}
+              >
+                <span className="block">{tab.label}</span>
+                <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-slate-400">
+                  {tab.description}
+                </span>
+              </Link>
+            ))}
+          </div>
+        }
         metrics={
           <div className="grid gap-3 sm:grid-cols-5">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -279,10 +407,42 @@ export default function AdminAnalyzerClient() {
         }
       />
 
+      <AdminPanel
+        title="Workflow"
+        description="Work from left to right so the queue, review trail, and storefront override stay distinct."
+      >
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              1. Pick the case
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              The queue explains why a run is here and what action is expected next.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              2. Check evidence
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              Review the image, detected issues, latest feedback, and recent activity from the same user before changing status.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              3. Save in the right field
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              Review status updates the queue. Review notes explain the decision. Recommendation override replaces storefront-facing guidance.
+            </p>
+          </div>
+        </div>
+      </AdminPanel>
+
       <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
         <AdminPanel
           title="Queue"
-          description="Highest-priority analyzer cases waiting for review."
+          description={pageCopy.queueDescription}
         >
           <div className="grid gap-3 sm:grid-cols-3">
             <AdminInput
@@ -317,6 +477,16 @@ export default function AdminAnalyzerClient() {
             />
             Include resolved
           </label>
+          <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-xs text-slate-400">
+            {sortedRuns.length} visible cases · sorted by{" "}
+            {sortMode === "attention"
+              ? "attention"
+              : sortMode === "feedback"
+                ? "user feedback"
+                : sortMode === "lowest-confidence"
+                  ? "lowest confidence"
+                  : sortMode}
+          </div>
           <div className="mt-4 space-y-3">
             {loading ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-8 text-sm text-slate-400">
@@ -362,9 +532,12 @@ export default function AdminAnalyzerClient() {
                   <p className="mt-3 text-sm font-semibold text-white">
                     {(run.issues[0]?.label ?? run.species) || "Analyzer case"}
                   </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">
+                    {getAnalyzerNextAction(run)}
+                  </p>
                   <p className="mt-1 text-xs text-slate-400">
                     {run.userEmail ?? "Unknown user"} · {Math.round(run.confidence * 100)}% ·{" "}
-                    {new Date(run.createdAt).toLocaleString("de-DE")}
+                    {formatAnalyzerTimestamp(run.createdAt)}
                   </p>
                   {run.lastFeedback ? (
                     <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
@@ -387,7 +560,7 @@ export default function AdminAnalyzerClient() {
 
         <AdminPanel
           title="Case detail"
-          description="Update the shared reviewed case record used by Growvault history and follow-up views."
+          description={pageCopy.detailDescription}
           actions={
             <AdminButton onClick={() => void loadRuns()} tone="secondary">
               Refresh
@@ -456,12 +629,65 @@ export default function AdminAnalyzerClient() {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Library
+                      Publication state
                     </p>
                     <p className="mt-2 text-sm text-white">
                       {selectedRun.publicationStatus ?? "Not submitted"}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Queue reason
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-white">
+                    {getAnalyzerNextAction(selectedRun)}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Priority P{selectedRun.priority}. Review this run because it is{" "}
+                    {getAnalyzerReasonSummary(selectedRun)}.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Recent user activity
+                  </p>
+                  {selectedUserRuns.length <= 1 ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      No other loaded analyzer runs are linked to this user in the current queue snapshot.
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {selectedUserRuns.slice(0, 4).map((run) => (
+                        <button
+                          key={run.id}
+                          type="button"
+                          onClick={() => setSelectedId(run.id)}
+                          className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                            run.id === selectedRun.id
+                              ? "border-cyan-400/40 bg-cyan-400/10"
+                              : "border-white/10 bg-black/20 hover:border-white/20"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+                              {run.reviewStatus}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {formatAnalyzerTimestamp(run.createdAt)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-white">
+                            {(run.issues[0]?.label ?? run.species) || "Analyzer case"}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -490,7 +716,7 @@ export default function AdminAnalyzerClient() {
                     {(selectedRun.lastFeedback.label ?? selectedRun.lastFeedback.source).replaceAll("_", " ")}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {new Date(selectedRun.lastFeedback.createdAt).toLocaleString("de-DE")} ·{" "}
+                    {formatAnalyzerTimestamp(selectedRun.lastFeedback.createdAt)} ·{" "}
                     {selectedRun.lastFeedback.isCorrect ? "helpful" : "disputed"}
                   </p>
                   {selectedRun.lastFeedback.comment ? (
@@ -529,6 +755,9 @@ export default function AdminAnalyzerClient() {
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Suggested recommendation override
                   </p>
+                  <p className="mb-2 text-sm text-slate-400">
+                    Use this only when the diagnosis needs different storefront guidance. Do not use it just to explain your review decision.
+                  </p>
                   <AdminTextarea
                     rows={6}
                     value={overrideRecommendations}
@@ -541,6 +770,9 @@ export default function AdminAnalyzerClient() {
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Review notes
+                </p>
+                <p className="mb-2 text-sm text-slate-400">
+                  These notes stay with the audit trail. Put reviewer reasoning here, not customer-facing recommendation copy.
                 </p>
                 <AdminTextarea
                   rows={6}
