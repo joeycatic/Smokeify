@@ -36,6 +36,7 @@ import {
 } from "@/lib/adminPermissions";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
+  adminPathSupportsStorefrontScope,
   parseAdminStorefrontScope,
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
@@ -188,8 +189,13 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const currentStorefrontScope = parseAdminStorefrontScope(searchParams?.get("storefront"));
-  const currentStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope];
+  const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
+  const currentStorefrontScope = supportsStorefrontScope
+    ? parseAdminStorefrontScope(searchParams?.get("storefront"))
+    : "ALL";
+  const currentStorefrontLabel = supportsStorefrontScope
+    ? ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope]
+    : "Shared workspace";
   const visibleNavGroups = useMemo(
     () =>
       NAV_GROUPS.map((group) => ({
@@ -214,6 +220,9 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   }, [pathname, visibleNavGroups]);
 
   const navHref = (href: string) => {
+    if (!adminPathSupportsStorefrontScope(href)) {
+      return href;
+    }
     const params = new URLSearchParams();
     params.set("storefront", currentStorefrontScope);
     const query = params.toString();
@@ -255,7 +264,11 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-                {currentStorefrontScope === "ALL" ? "Shared admin" : currentStorefrontLabel}
+                {supportsStorefrontScope
+                  ? currentStorefrontScope === "ALL"
+                    ? "Shared admin"
+                    : currentStorefrontLabel
+                  : "Shared admin"}
               </p>
               <h1 className="mt-2 text-lg font-semibold text-white">Admin</h1>
             </div>
@@ -273,13 +286,19 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Access
+                  {supportsStorefrontScope ? "Access" : "Workspace"}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">{currentStorefrontLabel}</p>
               </div>
-              <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
-                {currentStorefrontScope}
-              </span>
+              {supportsStorefrontScope ? (
+                <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                  {currentStorefrontScope}
+                </span>
+              ) : (
+                <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                  SHARED
+                </span>
+              )}
             </div>
             <div className="mt-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -346,7 +365,13 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   <h2 className="truncate text-lg font-semibold text-white">
                     {currentTitle}
                   </h2>
-                  <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      supportsStorefrontScope
+                        ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                        : "border border-white/10 bg-white/[0.04] text-slate-300"
+                    }`}
+                  >
                     {currentStorefrontLabel}
                   </span>
                   <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 md:inline-flex">
@@ -363,22 +388,24 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   currentStorefrontScope={currentStorefrontScope}
                 />
 
-                <div className="grid w-full shrink-0 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center">
-                  {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
-                    <Link
-                      key={scope}
-                      href={storefrontHref(scope)}
-                      aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
-                      className={`inline-flex h-10 min-w-0 items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition sm:min-w-[3.25rem] sm:tracking-[0.18em] ${
-                        currentStorefrontScope === scope
-                          ? "bg-cyan-300/90 text-slate-950"
-                          : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                      }`}
-                    >
-                      {scope === "ALL" ? "All" : scope}
-                    </Link>
-                  ))}
-                </div>
+                {supportsStorefrontScope ? (
+                  <div className="grid w-full shrink-0 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center">
+                    {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+                      <Link
+                        key={scope}
+                        href={storefrontHref(scope)}
+                        aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
+                        className={`inline-flex h-10 min-w-0 items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition sm:min-w-[3.25rem] sm:tracking-[0.18em] ${
+                          currentStorefrontScope === scope
+                            ? "bg-cyan-300/90 text-slate-950"
+                            : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                        }`}
+                      >
+                        {scope === "ALL" ? "All" : scope}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
             <AdminConnectionStatus />

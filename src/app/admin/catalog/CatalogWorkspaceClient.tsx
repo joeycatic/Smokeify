@@ -36,6 +36,7 @@ import {
 import {
   STOREFRONT_ASSIGNMENT_OPTIONS,
   STOREFRONT_LABELS,
+  type StorefrontCode,
   parseStorefrontAssignmentValue,
 } from "@/lib/storefronts";
 
@@ -139,6 +140,9 @@ export default function CatalogWorkspaceClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
+  const storefrontScopeLabel = storefrontFilter
+    ? STOREFRONT_LABELS[storefrontFilter as StorefrontCode]
+    : "Shared catalog";
 
   useEffect(() => {
     try {
@@ -885,12 +889,13 @@ export default function CatalogWorkspaceClient({
       <AdminPageIntro
         eyebrow="Admin / Catalog"
         title="Commerce catalog"
-        description="A quieter, more product-first catalog view with restrained color cues for state and stock, faster scanning, and clearer access to each product editor."
+        description={`A quieter, more product-first catalog view for ${storefrontScopeLabel.toLowerCase()} with restrained color cues for state and stock, faster scanning, and clearer access to each product editor.`}
         actions={
           <>
             <Link
-              href="/admin/catalog"
+              href={buildPageHref(currentPage)}
               className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+              scroll={false}
             >
               Refresh
             </Link>
@@ -982,6 +987,47 @@ export default function CatalogWorkspaceClient({
 
       <CatalogErrorNotice error={error} />
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-[#0b1016] p-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Catalog scope
+          </p>
+          <p className="mt-2 text-sm text-slate-300">
+            Keep the catalog shared by default and only narrow to a storefront when the
+            merchandising view actually needs it.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setStorefrontFilter("")}
+            className={`rounded-xl px-3 py-2 transition ${
+              storefrontFilter === ""
+                ? "bg-white text-[#05070a]"
+                : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+            }`}
+          >
+            Shared
+          </button>
+          {(Object.entries(STOREFRONT_LABELS) as Array<[StorefrontCode, string]>).map(
+            ([storefront, label]) => (
+              <button
+                key={storefront}
+                type="button"
+                onClick={() => setStorefrontFilter(storefront)}
+                className={`rounded-xl px-3 py-2 transition ${
+                  storefrontFilter === storefront
+                    ? "bg-white text-[#05070a]"
+                    : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+                }`}
+              >
+                {label}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+
       <CatalogTablePanel
         products={products}
         totalCount={totalCount}
@@ -994,8 +1040,6 @@ export default function CatalogWorkspaceClient({
           <CatalogToolbar
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
-            storefrontFilter={storefrontFilter}
-            onStorefrontFilterChange={setStorefrontFilter}
             supplierFilter={supplierFilter}
             onSupplierFilterChange={setSupplierFilter}
             categoryFilter={categoryFilter}

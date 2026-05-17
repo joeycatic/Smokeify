@@ -36,13 +36,10 @@ import {
   getStatusTone,
   getTrendTone,
 } from "./catalogShared";
-import { STOREFRONT_LABELS, STOREFRONT_OPTION_ROWS } from "@/lib/storefronts";
 
 type ToolbarProps = {
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
-  storefrontFilter: string;
-  onStorefrontFilterChange: (value: string) => void;
   supplierFilter: string;
   onSupplierFilterChange: (value: string) => void;
   categoryFilter: string;
@@ -70,8 +67,6 @@ type ToolbarProps = {
 export function CatalogToolbar({
   searchTerm,
   onSearchTermChange,
-  storefrontFilter,
-  onStorefrontFilterChange,
   supplierFilter,
   onSupplierFilterChange,
   categoryFilter,
@@ -116,7 +111,7 @@ export function CatalogToolbar({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_repeat(5,minmax(0,1fr))]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_repeat(4,minmax(0,1fr))]">
         <AdminField label="Search">
           <AdminInput
             type="search"
@@ -124,19 +119,6 @@ export function CatalogToolbar({
             onChange={(event) => onSearchTermChange(event.target.value)}
             placeholder="Search title or handle"
           />
-        </AdminField>
-        <AdminField label="Storefront">
-          <AdminSelect
-            value={storefrontFilter}
-            onChange={(event) => onStorefrontFilterChange(event.target.value)}
-          >
-            <option value="">All storefronts</option>
-            {STOREFRONT_OPTION_ROWS.map((storefront) => (
-              <option key={storefront.value} value={storefront.value}>
-                {STOREFRONT_LABELS[storefront.value]}
-              </option>
-            ))}
-          </AdminSelect>
         </AdminField>
         <AdminField label="Supplier">
           <AdminSelect

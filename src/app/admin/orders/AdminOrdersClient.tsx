@@ -13,6 +13,10 @@ import {
 } from "@/components/admin/AdminWorkspace";
 import type { AdminOrderRecord, AdminOrderWebhookFailure } from "@/lib/adminOrders";
 import {
+  ADMIN_STOREFRONT_SCOPE_LABELS,
+  type AdminStorefrontScope,
+} from "@/lib/storefronts";
+import {
   getOrderCustomerLabel,
   getOrderCustomerSecondary,
   getOrderItemSummary,
@@ -31,7 +35,7 @@ import {
 } from "@/lib/adminOrderQueue";
 
 type Props = {
-  activeStorefrontLabel: string;
+  activeStorefrontScope: AdminStorefrontScope;
   initialSearchQuery?: string;
   orders: AdminOrderRecord[];
   webhookFailures: AdminOrderWebhookFailure[];
@@ -253,14 +257,32 @@ function WebhookFailureRow({ failure }: { failure: AdminOrderWebhookFailure }) {
   );
 }
 
+function buildOrdersScopeHref(
+  storefrontScope: AdminStorefrontScope,
+  initialSearchQuery: string,
+) {
+  const params = new URLSearchParams();
+  if (storefrontScope !== "ALL") {
+    params.set("storefront", storefrontScope);
+  }
+  const trimmedQuery = initialSearchQuery.trim();
+  if (trimmedQuery) {
+    params.set("customer", trimmedQuery);
+  }
+  const queryString = params.toString();
+  return queryString ? `/admin/orders?${queryString}` : "/admin/orders";
+}
+
 export default function AdminOrdersClient({
-  activeStorefrontLabel,
+  activeStorefrontScope,
   initialSearchQuery = "",
   orders,
   webhookFailures,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const deferredQuery = useDeferredValue(searchQuery);
+  const activeStorefrontLabel =
+    ADMIN_STOREFRONT_SCOPE_LABELS[activeStorefrontScope];
 
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderSearch(order, deferredQuery)),
@@ -320,6 +342,24 @@ export default function AdminOrdersClient({
         eyebrow="Admin Orders"
         title="Order queue"
         description={`Compact operator view for ${activeStorefrontLabel}. The main queue now focuses on fulfillment and payment triage; refunds, customer actions, and line-item detail stay in the dedicated order view.`}
+        actions={
+          <div className="grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+            {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+              <Link
+                key={scope}
+                href={buildOrdersScopeHref(scope, initialSearchQuery)}
+                scroll={false}
+                className={`inline-flex h-10 min-w-[5.5rem] items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                  activeStorefrontScope === scope
+                    ? "bg-cyan-300/90 text-slate-950"
+                    : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                }`}
+              >
+                {scope === "ALL" ? "Shared" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
+              </Link>
+            ))}
+          </div>
+        }
         metrics={
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminMetricCard
@@ -365,7 +405,7 @@ export default function AdminOrdersClient({
           />
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Storefront
+              Scope
             </div>
             <div className="mt-2 text-sm text-slate-200">{activeStorefrontLabel}</div>
           </div>

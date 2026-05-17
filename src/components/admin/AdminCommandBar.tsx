@@ -4,7 +4,10 @@ import type { ComponentProps, ComponentType, KeyboardEvent as ReactKeyboardEvent
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import type { AdminStorefrontScope } from "@/lib/storefronts";
+import {
+  adminPathSupportsStorefrontScope,
+  type AdminStorefrontScope,
+} from "@/lib/storefronts";
 
 type CommandNavItem = {
   href: string;
@@ -53,6 +56,9 @@ type AdminCommandBarProps = {
 };
 
 function buildHref(href: string, currentStorefrontScope: AdminStorefrontScope) {
+  if (!adminPathSupportsStorefrontScope(href)) {
+    return href;
+  }
   const params = new URLSearchParams();
   params.set("storefront", currentStorefrontScope);
   const query = params.toString();

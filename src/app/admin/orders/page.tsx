@@ -3,7 +3,6 @@ import { requireAdminScope } from "@/lib/adminCatalog";
 import { loadAdminOrders } from "@/lib/adminOrders";
 import { prisma } from "@/lib/prisma";
 import {
-  ADMIN_STOREFRONT_SCOPE_LABELS,
   parseAdminStorefrontScope,
   storefrontScopeToStorefront,
 } from "@/lib/storefronts";
@@ -29,7 +28,7 @@ export default async function AdminOrdersPage({
   return (
     <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
       <AdminOrdersClient
-        activeStorefrontLabel={ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}
+        activeStorefrontScope={storefrontScope}
         initialSearchQuery={
           Array.isArray(resolvedSearchParams.customer)
             ? resolvedSearchParams.customer[0] ?? ""

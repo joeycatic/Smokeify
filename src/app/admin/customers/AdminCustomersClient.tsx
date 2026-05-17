@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { HorizontalBarsChart } from "@/components/admin/AdminCharts";
 import type {
@@ -11,7 +11,10 @@ import type {
   CustomerSummary,
   RegisteredCustomer,
 } from "@/lib/adminCustomers";
-import { ADMIN_STOREFRONT_SCOPE_LABELS, parseAdminStorefrontScope } from "@/lib/storefronts";
+import {
+  ADMIN_STOREFRONT_SCOPE_LABELS,
+  type AdminStorefrontScope,
+} from "@/lib/storefronts";
 
 const SEGMENT_META: Record<
   Segment,
@@ -205,9 +208,13 @@ const getTaskStatusTone = (value: AdminCustomerTaskStatus) => {
 
 export default function AdminCustomersClient({
   initialSearchQuery = "",
+  initialStorefrontScope,
 }: {
   initialSearchQuery?: string;
+  initialStorefrontScope: AdminStorefrontScope;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cohorts, setCohorts] = useState<CustomerCohort[]>([]);
@@ -242,8 +249,14 @@ export default function AdminCustomersClient({
   const [storeCreditAmount, setStoreCreditAmount] = useState("");
   const [storeCreditReason, setStoreCreditReason] = useState("");
   const [storeCreditPassword, setStoreCreditPassword] = useState("");
-  const storefrontScope = parseAdminStorefrontScope(searchParams?.get("storefront"));
+  const [storefrontScope, setStorefrontScope] = useState<AdminStorefrontScope>(
+    initialStorefrontScope,
+  );
   const storefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope];
+
+  useEffect(() => {
+    setStorefrontScope(initialStorefrontScope);
+  }, [initialStorefrontScope]);
 
   const loadCustomers = useEffectEvent(async () => {
     setLoading(true);
@@ -390,6 +403,21 @@ export default function AdminCustomersClient({
         return updater(customer);
       }),
     );
+  };
+
+  const updateStorefrontScope = (nextScope: AdminStorefrontScope) => {
+    setStorefrontScope(nextScope);
+    setPage(1);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (nextScope === "ALL") {
+      params.delete("storefront");
+    } else {
+      params.set("storefront", nextScope);
+    }
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   };
 
   const saveCustomerCrm = async () => {
@@ -634,8 +662,26 @@ export default function AdminCustomersClient({
               CLV, churn risk, discount dependence, loyalty balance, and direct actions for the
               existing CRM without rebuilding the underlying customer system.
             </p>
-            <div className="mt-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
-              {storefrontLabel}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
+                {storefrontLabel}
+              </div>
+              <div className="grid grid-cols-3 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs font-semibold">
+                {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+                  <button
+                    key={scope}
+                    type="button"
+                    onClick={() => updateStorefrontScope(scope)}
+                    className={`rounded-full px-3 py-2 transition ${
+                      storefrontScope === scope
+                        ? "bg-white text-[#05070a]"
+                        : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+                    }`}
+                  >
+                    {scope === "ALL" ? "Shared" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <button

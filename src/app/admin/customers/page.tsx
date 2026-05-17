@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAdminScope } from "@/lib/adminCatalog";
+import { parseAdminStorefrontScope } from "@/lib/storefronts";
 import AdminCustomersClient from "./AdminCustomersClient";
 
 export default async function AdminCustomersPage({
@@ -12,10 +13,16 @@ export default async function AdminCustomersPage({
   const initialSearchQuery = Array.isArray(resolvedSearchParams.query)
     ? resolvedSearchParams.query[0] ?? ""
     : resolvedSearchParams.query ?? "";
+  const initialStorefrontScope = parseAdminStorefrontScope(
+    resolvedSearchParams.storefront,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
-      <AdminCustomersClient initialSearchQuery={initialSearchQuery} />
+      <AdminCustomersClient
+        initialSearchQuery={initialSearchQuery}
+        initialStorefrontScope={initialStorefrontScope}
+      />
     </div>
   );
 }
