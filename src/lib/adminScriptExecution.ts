@@ -1,8 +1,8 @@
 import "server-only";
 
 import { spawn } from "node:child_process";
-import type { AdminScriptDefinition } from "@/lib/adminScripts";
 import { getAdminScriptDefinition } from "@/lib/adminScripts";
+import { buildAdminScriptExecution } from "@/lib/adminScriptInputs";
 import type { BloomtechPreviewPayload } from "@/lib/bloomtechAdminPreviewStore";
 import {
   loadLatestBloomtechPreviewPayload,
@@ -22,94 +22,6 @@ function appendOutputLine(current: string, line: string) {
   const next = current ? `${current}\n${line}` : line;
   if (next.length <= OUTPUT_LIMIT) return next;
   return next.slice(-OUTPUT_LIMIT);
-}
-
-export function normalizeAdminScriptInputs(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {} as Record<string, string>;
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([key, rawValue]) =>
-      typeof rawValue === "string" ? [[key, rawValue]] : [],
-    ),
-  );
-}
-
-function normalizeHttpUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return null;
-    }
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
-export function buildAdminScriptExecution(
-  definition: AdminScriptDefinition,
-  rawInputs: Record<string, string>,
-) {
-  switch (definition.id) {
-    case "bloomtech:scrape-preview":
-    case "bloomtech:scrape-category-preview":
-    case "bloomtech:scrape-product-preview": {
-      const rawSourceUrl = rawInputs.sourceUrl?.trim() ?? "";
-      if (!rawSourceUrl) {
-        return {
-          scriptArgs: [] as string[],
-          normalizedInputs: {} as Record<string, string>,
-        };
-      }
-
-      const sourceUrl = normalizeHttpUrl(rawSourceUrl);
-      if (!sourceUrl) {
-        return {
-          error: "Bloomtech link must be a valid http or https URL.",
-        };
-      }
-
-      const hostname = new URL(sourceUrl).hostname.toLowerCase();
-      if (hostname !== "bloomtech.de" && hostname !== "www.bloomtech.de") {
-        return {
-          error: "Bloomtech link must point to bloomtech.de.",
-        };
-      }
-
-      return {
-        scriptArgs: ["--url", sourceUrl],
-        normalizedInputs: { sourceUrl },
-      };
-    }
-    case "bloomtech:import-preview":
-      return {
-        scriptArgs: ["--apply"],
-        envOverrides: {
-          BLOOMTECH_IMPORT_ALLOW_WRITE: "1",
-        } as Record<string, string>,
-        normalizedInputs: {} as Record<string, string>,
-      };
-    case "pricing:seed-bloomtech-profiles":
-      return {
-        scriptArgs: ["--apply"],
-        envOverrides: {
-          PRICING_PROFILE_SEED_ALLOW_WRITE: "1",
-        } as Record<string, string>,
-        normalizedInputs: {} as Record<string, string>,
-      };
-    default:
-      return {
-        scriptArgs: [] as string[],
-        envOverrides: {} as Record<string, string>,
-        normalizedInputs: {} as Record<string, string>,
-      };
-  }
 }
 
 function escapeWindowsCmdArg(value: string) {
@@ -160,7 +72,6 @@ async function executeScript({
   }>((resolve, reject) => {
     const command = getScriptCommand(scriptId, scriptArgs);
     const child = spawn(command.command, command.args, {
-      cwd: process.cwd(),
       env: {
         ...process.env,
         ...envOverrides,
@@ -223,7 +134,9 @@ async function executeInternalSupplierSync() {
   let stdout = "";
   let stderr = "";
 
-  const { runSupplierSync } = await import("@/lib/supplierStockSync.mjs");
+  const { runSupplierSync } = await import(
+    /* turbopackIgnore: true */ "./supplierStockSync.mjs"
+  );
   const result = await runSupplierSync({
     prisma,
     logger: {
@@ -276,7 +189,7 @@ async function executeInternalBloomtechPreview({
     scriptId === "bloomtech:scrape-product-preview" ? "product" : "category";
   const { logger, getResult } = createBufferedLogger();
   const bloomtechModule = await import(
-    "../../scripts/bloomtech/scrapeSupplierPreview.mjs"
+    /* turbopackIgnore: true */ "../../scripts/bloomtech/scrapeSupplierPreview.mjs"
   );
   const runBloomtechSupplierPreview = bloomtechModule.runBloomtechSupplierPreview as (
     options: Record<string, unknown>
@@ -316,7 +229,7 @@ async function executeInternalBloomtechImportPreview() {
 
   const { logger, getResult } = createBufferedLogger();
   const bloomtechModule = await import(
-    "../../scripts/bloomtech/importPreviewToCatalog.mjs"
+    /* turbopackIgnore: true */ "../../scripts/bloomtech/importPreviewToCatalog.mjs"
   );
   const runBloomtechImportPreview = bloomtechModule.runBloomtechImportPreview as (
     options: Record<string, unknown>

@@ -1,10 +1,8 @@
 import "server-only";
 
-import type { Storefront } from "@prisma/client";
 import { buildGrowvaultDiagnosticAlerts, getGrowvaultSharedDiagnosticsFeed } from "@/lib/growvaultSharedStorefront";
 import { syncAdminAlerts } from "@/lib/adminAlerts";
 import { prisma } from "@/lib/prisma";
-import { runApprovedAdminScriptById } from "@/lib/adminScriptExecution";
 import { runAdminPricingAutomation } from "@/lib/adminPricingServer";
 import {
   buildAdminReportDeliveryEmail,
@@ -259,6 +257,7 @@ export async function executeAutomationHandler(input: {
 }) {
   switch (input.handler) {
     case "admin.script.run": {
+      const { runApprovedAdminScriptById } = await import("@/lib/adminScriptExecution");
       const scriptId =
         typeof input.payload.scriptId === "string" ? input.payload.scriptId : "";
       if (!scriptId) {
@@ -296,6 +295,7 @@ export async function executeAutomationHandler(input: {
     case "supplier.stock.daily_report":
       return runSupplierStockDailyReport();
     case "supplier.pricing.sync": {
+      const { runApprovedAdminScriptById } = await import("@/lib/adminScriptExecution");
       const { result } = await runApprovedAdminScriptById({
         scriptId: "pricing:seed-bloomtech-profiles",
       });

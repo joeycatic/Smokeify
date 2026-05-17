@@ -154,7 +154,14 @@ export async function importMarketReportCompetitorData(
 ) {
   const resolvedPath = path.isAbsolute(reportPath)
     ? reportPath
-    : path.resolve(process.cwd(), reportPath);
+    : reportPath.startsWith("scripts/market/")
+      ? path.join(
+          process.cwd(),
+          "scripts",
+          "market",
+          reportPath.slice("scripts/market/".length)
+        )
+      : path.join(/* turbopackIgnore: true */ process.cwd(), reportPath);
   const raw = await fs.readFile(resolvedPath, "utf8");
   const parsed = JSON.parse(raw) as {
     generatedAt?: string;

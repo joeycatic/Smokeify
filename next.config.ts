@@ -11,6 +11,30 @@ const scriptSrc = [
   "https://googleads.g.doubleclick.net",
   "https://www.google.com",
 ].join(" ");
+const adminReportOnlyScriptSrc = [
+  "'self'",
+  ...(isProd ? [] : ["'unsafe-eval'"]),
+  "https://js.stripe.com",
+  "https://www.googletagmanager.com",
+  "https://googleads.g.doubleclick.net",
+  "https://www.google.com",
+].join(" ");
+const adminReportOnlyCsp =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
+  "form-action 'self' https://checkout.stripe.com; " +
+  "manifest-src 'self'; " +
+  "object-src 'none'; " +
+  "script-src-attr 'none'; " +
+  "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
+  `script-src ${adminReportOnlyScriptSrc}; ` +
+  "worker-src 'self' blob:; " +
+  "style-src 'self'; " +
+  "style-src-attr 'none'; " +
+  "font-src 'self' data:; " +
+  "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
+  "frame-src https://js.stripe.com https://*.stripe.com; " +
+  "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
+  (isProd ? " upgrade-insecure-requests;" : "");
 
 const securityHeaders = [
   {
@@ -80,6 +104,9 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     qualities: [70, 72, 75],
     remotePatterns: [
@@ -110,6 +137,15 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/admin/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: adminReportOnlyCsp,
+          },
+        ],
       },
       {
         source: "/_next/static/:path*",
