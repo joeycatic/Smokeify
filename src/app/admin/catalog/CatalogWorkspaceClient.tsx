@@ -77,15 +77,18 @@ export default function CatalogWorkspaceClient({
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
+    id?: string;
+    ids?: string[];
     type: "product" | "category" | "collection";
     label?: string;
   } | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
-  const [deletePasswordError, setDeletePasswordError] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteConfirmError, setDeleteConfirmError] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<ProductRow["status"] | "">("");
   const [bulkPriceMode, setBulkPriceMode] = useState<"percent" | "fixed">(
     "percent",
@@ -616,14 +619,18 @@ export default function CatalogWorkspaceClient({
     }
   };
 
-  const deleteProduct = async (id: string, adminPassword: string) => {
+  const deleteProduct = async (
+    id: string,
+    adminPassword: string,
+    reason: string,
+  ) => {
     setError("");
     setDeletingId(id);
     try {
       const response = await fetch(`/api/admin/products/${id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword }),
+        body: JSON.stringify({ adminPassword, reason }),
       });
       if (!response.ok) {
         const data = (await response.json()) as { error?: string };
@@ -637,6 +644,37 @@ export default function CatalogWorkspaceClient({
       setError("Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const deleteSelectedProducts = async (
+    productIds: string[],
+    adminPassword: string,
+    reason: string,
+  ) => {
+    setError("");
+    setBulkDeleting(true);
+    try {
+      const response = await fetch("/api/admin/products/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productIds, adminPassword, reason }),
+      });
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        setError(data.error ?? "Bulk delete failed");
+        return;
+      }
+      setProducts((previous) =>
+        previous.filter((product) => !productIds.includes(product.id)),
+      );
+      setSelectedIds([]);
+      setBulkOpen(false);
+      setTotalCount((previous) => Math.max(0, previous - productIds.length));
+    } catch {
+      setError("Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -884,6 +922,19 @@ export default function CatalogWorkspaceClient({
     return type === "category" ? data.category ?? null : data.collection ?? null;
   };
 
+  const resetDeleteDialog = () => {
+    setDeleteTarget(null);
+    setDeletePassword("");
+    setDeleteReason("");
+    setDeleteConfirmError("");
+  };
+
+  const productDeleteIds =
+    deleteTarget?.type === "product"
+      ? deleteTarget.ids ?? (deleteTarget.id ? [deleteTarget.id] : [])
+      : [];
+  const isBulkProductDelete = productDeleteIds.length > 1;
+
   return (
     <div className="space-y-6 pb-36">
       <AdminPageIntro
@@ -919,67 +970,42 @@ export default function CatalogWorkspaceClient({
           </>
         }
         metrics={
-          <div className="grid gap-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.45fr)]">
-            <AdminMetricCard
-              label="Products"
-              value={String(totalCount)}
-              detail={`${products.length} loaded on this page`}
-            />
-            <AdminMetricCard
-              label="30d Revenue"
-              value={new Intl.NumberFormat("de-DE", {
-                style: "currency",
-                currency: "EUR",
-              }).format(performanceSummary.revenue30dCents / 100)}
-              detail="Revenue represented by the visible catalog slice"
-            />
-            <AdminMetricCard
-              label="Trending"
-              value={String(performanceSummary.trendingCount)}
-              detail="Products with accelerating 7-day demand"
-            />
-            <AdminMetricCard
-              label="Weak CVR"
-              value={String(performanceSummary.weakConversionCount)}
-              detail="High-view products converting below 2%"
-            />
-            <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Merchandising Focus
-                  </p>
-                  <p className="mt-2 text-sm text-slate-300">
-                    This view now combines product maintenance with demand, conversion, margin, and
-                    stock pressure signals on the same row.
-                  </p>
-                </div>
-                <div className="text-right text-xs text-slate-500">
-                  <div>{supplierCoverage} suppliers live</div>
-                  <div>{performanceSummary.lowCoverCount} low-cover products</div>
-                </div>
-              </div>
-              <div className="mt-4 space-y-4">
-                <SignalBar
-                  label="Status distribution"
-                  total={products.length}
-                  segments={[
-                    { count: statusCounts.active, className: "bg-cyan-400" },
-                    { count: statusCounts.draft, className: "bg-amber-400" },
-                    { count: statusCounts.archived, className: "bg-slate-500" },
-                  ]}
-                />
-                <SignalBar
-                  label="Inventory health"
-                  total={products.length}
-                  rightLabel={`${inventoryCounts.healthy} healthy`}
-                  segments={[
-                    { count: inventoryCounts.healthy, className: "bg-emerald-400" },
-                    { count: inventoryCounts.low, className: "bg-amber-400" },
-                    { count: inventoryCounts.outOfStock, className: "bg-red-400" },
-                  ]}
-                />
-              </div>
+          <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <AdminMetricCard
+                label="Products"
+                value={String(totalCount)}
+                footnote={`${products.length} shown on this page`}
+              />
+              <AdminMetricCard
+                label="30d Revenue"
+                value={new Intl.NumberFormat("de-DE", {
+                  style: "currency",
+                  currency: "EUR",
+                }).format(performanceSummary.revenue30dCents / 100)}
+                footnote="Visible page only"
+              />
+              <AdminMetricCard
+                label="Trending"
+                value={String(performanceSummary.trendingCount)}
+                footnote="7-day demand accelerating"
+              />
+              <AdminMetricCard
+                label="Weak CVR"
+                value={String(performanceSummary.weakConversionCount)}
+                footnote="20+ views and under 2% conversion"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                {supplierCoverage} suppliers in view
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                {performanceSummary.lowCoverCount} low-cover products
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                {inventoryCounts.outOfStock} out of stock
+              </span>
             </div>
           </div>
         }
@@ -1087,8 +1113,9 @@ export default function CatalogWorkspaceClient({
         onDuplicate={duplicateProduct}
         onPrepareDelete={(id, label) => {
           setDeletePassword("");
-          setDeletePasswordError("");
-          setDeleteTarget({ id, type: "product", label });
+          setDeleteReason("");
+          setDeleteConfirmError("");
+          setDeleteTarget({ id, ids: [id], type: "product", label });
         }}
         duplicatingId={duplicatingId}
         deletingId={deletingId}
@@ -1100,8 +1127,20 @@ export default function CatalogWorkspaceClient({
         bulkOpen={bulkOpen}
         onBulkOpenToggle={() => setBulkOpen((previous) => !previous)}
         onClearSelection={() => setSelectedIds([])}
+        onPrepareBulkDelete={() => {
+          if (!selectedIds.length) return;
+          setDeletePassword("");
+          setDeleteReason("");
+          setDeleteConfirmError("");
+          setDeleteTarget({
+            ids: selectedIds,
+            type: "product",
+            label: `${selectedIds.length} selected products`,
+          });
+        }}
         onApply={applyBulkEdit}
         bulkSaving={bulkSaving}
+        bulkDeleting={bulkDeleting}
         bulkStatus={bulkStatus}
         onBulkStatusChange={setBulkStatus}
         bulkPriceDirection={bulkPriceDirection}
@@ -1175,7 +1214,8 @@ export default function CatalogWorkspaceClient({
         onPrepareDeleteCategory={() => {
           if (!selectedCategory) return;
           setDeletePassword("");
-          setDeletePasswordError("");
+          setDeleteReason("");
+          setDeleteConfirmError("");
           setDeleteTarget({
             id: selectedCategory.id,
             type: "category",
@@ -1217,7 +1257,8 @@ export default function CatalogWorkspaceClient({
         onPrepareDeleteCollection={() => {
           if (!selectedCollection) return;
           setDeletePassword("");
-          setDeletePasswordError("");
+          setDeleteReason("");
+          setDeleteConfirmError("");
           setDeleteTarget({
             id: selectedCollection.id,
             type: "collection",
@@ -1313,16 +1354,22 @@ export default function CatalogWorkspaceClient({
         open={Boolean(deleteTarget)}
         title={
           deleteTarget?.type === "product"
-            ? "Delete product?"
+            ? isBulkProductDelete
+              ? "Delete selected products?"
+              : "Delete product?"
             : deleteTarget?.type === "category"
             ? "Delete category?"
             : "Delete collection?"
         }
-        description="This action is permanent. Confirm with the admin password to proceed."
-        onClose={() => setDeleteTarget(null)}
+        description={
+          deleteTarget?.type === "product"
+            ? "This action is permanent. Add a reason for the audit log and confirm with the admin password."
+            : "This action is permanent. Confirm with the admin password to proceed."
+        }
+        onClose={resetDeleteDialog}
         footer={
           <>
-            <AdminButton type="button" tone="secondary" onClick={() => setDeleteTarget(null)}>
+            <AdminButton type="button" tone="secondary" onClick={resetDeleteDialog}>
               Cancel
             </AdminButton>
             <AdminButton
@@ -1331,22 +1378,31 @@ export default function CatalogWorkspaceClient({
               onClick={async () => {
                 const adminPassword = deletePassword.trim();
                 if (!adminPassword) {
-                  setDeletePasswordError("Enter the admin password.");
+                  setDeleteConfirmError("Enter the admin password.");
                   return;
                 }
+                const reason = deleteReason.trim();
                 const target = deleteTarget;
-                setDeleteTarget(null);
-                setDeletePassword("");
-                setDeletePasswordError("");
                 if (!target) return;
-                if (target.type === "product") {
-                  await deleteProduct(target.id, adminPassword);
+                if (target.type === "product" && !reason) {
+                  setDeleteConfirmError("Enter a reason for deleting the product.");
                   return;
                 }
+                resetDeleteDialog();
+                if (target.type === "product") {
+                  if (target.ids && target.ids.length > 1) {
+                    await deleteSelectedProducts(target.ids, adminPassword, reason);
+                    return;
+                  }
+                  if (!target.id) return;
+                  await deleteProduct(target.id, adminPassword, reason);
+                  return;
+                }
+                if (!target.id) return;
                 await deleteLabel(target.id, target.type, adminPassword);
               }}
             >
-              Delete
+              {isBulkProductDelete ? "Delete products" : "Delete"}
             </AdminButton>
           </>
         }
@@ -1357,54 +1413,39 @@ export default function CatalogWorkspaceClient({
               {deleteTarget.label}
             </div>
           ) : null}
+          {deleteTarget?.type === "product" ? (
+            <AdminField label="Delete reason" optional="Required for audit log">
+              <AdminInput
+                type="text"
+                value={deleteReason}
+                onChange={(event) => {
+                  setDeleteReason(event.target.value);
+                  if (deleteConfirmError) {
+                    setDeleteConfirmError("");
+                  }
+                }}
+                placeholder="Why is this product being removed?"
+              />
+            </AdminField>
+          ) : null}
           <AdminField label="Admin password">
             <AdminInput
               type="password"
               value={deletePassword}
               onChange={(event) => {
                 setDeletePassword(event.target.value);
-                if (deletePasswordError) {
-                  setDeletePasswordError("");
+                if (deleteConfirmError) {
+                  setDeleteConfirmError("");
                 }
               }}
               placeholder="Enter password"
             />
           </AdminField>
-          {deletePasswordError ? (
-            <AdminNotice tone="error">{deletePasswordError}</AdminNotice>
+          {deleteConfirmError ? (
+            <AdminNotice tone="error">{deleteConfirmError}</AdminNotice>
           ) : null}
         </div>
       </AdminDialog>
-    </div>
-  );
-}
-
-function SignalBar({
-  label,
-  total,
-  segments,
-  rightLabel,
-}: {
-  label: string;
-  total: number;
-  segments: { count: number; className: string }[];
-  rightLabel?: string;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-        <span>{label}</span>
-        <span>{rightLabel ?? `${total} items`}</span>
-      </div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-white/[0.05]">
-        {segments.map((segment, index) => (
-          <div
-            key={`${segment.className}-${index}`}
-            className={`${segment.className} transition-[width]`}
-            style={{ width: `${total ? (segment.count / total) * 100 : 0}%` }}
-          />
-        ))}
-      </div>
     </div>
   );
 }

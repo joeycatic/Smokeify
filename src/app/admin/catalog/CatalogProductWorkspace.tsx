@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, WheelEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -282,6 +282,28 @@ type TableProps = {
   searchTerm: string;
 };
 
+function handleTableWheelScroll(event: WheelEvent<HTMLDivElement>) {
+  if (event.ctrlKey) return;
+
+  const container = event.currentTarget;
+  const maxScrollLeft = container.scrollWidth - container.clientWidth;
+  if (maxScrollLeft <= 0) return;
+
+  const horizontalDelta =
+    Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  if (horizontalDelta === 0) return;
+
+  const nextScrollLeft = Math.min(
+    Math.max(container.scrollLeft + horizontalDelta, 0),
+    maxScrollLeft,
+  );
+
+  if (nextScrollLeft === container.scrollLeft) return;
+
+  event.preventDefault();
+  container.scrollLeft = nextScrollLeft;
+}
+
 export function CatalogTablePanel({
   products,
   totalCount,
@@ -307,7 +329,7 @@ export function CatalogTablePanel({
     <AdminPanel
       eyebrow="Products"
       title="Product index"
-      description="A cleaner, more readable list with stronger color cues for state, stock, and action priority."
+      description="Focused product rows with horizontal access to the full merchandising dataset on desktop."
       actions={
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <span>
@@ -374,8 +396,13 @@ export function CatalogTablePanel({
         ) : null}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-[26px] border border-white/10 bg-[#05080d] md:block">
-        <table className="min-w-full text-left text-sm">
+      <div
+        className="hidden overflow-x-auto overscroll-x-contain rounded-[26px] border border-white/10 bg-[#05080d] pb-2 md:block"
+        onWheel={handleTableWheelScroll}
+        tabIndex={0}
+        aria-label="Scrollable product table"
+      >
+        <table className="min-w-[1380px] text-left text-sm xl:min-w-[1480px]">
           <thead className="sticky top-0 z-10 bg-[#0a1017]/95 text-[11px] uppercase tracking-[0.22em] text-slate-500 backdrop-blur">
             <tr>
               <th className="px-4 py-4">
@@ -702,8 +729,10 @@ type BulkTrayProps = {
   bulkOpen: boolean;
   onBulkOpenToggle: () => void;
   onClearSelection: () => void;
+  onPrepareBulkDelete: () => void;
   onApply: () => void;
   bulkSaving: boolean;
+  bulkDeleting: boolean;
   bulkStatus: ProductRow["status"] | "";
   onBulkStatusChange: (value: ProductRow["status"] | "") => void;
   bulkPriceDirection: "increase" | "decrease";
@@ -739,8 +768,10 @@ export function CatalogBulkTray({
   bulkOpen,
   onBulkOpenToggle,
   onClearSelection,
+  onPrepareBulkDelete,
   onApply,
   bulkSaving,
+  bulkDeleting,
   bulkStatus,
   onBulkStatusChange,
   bulkPriceDirection,
@@ -775,31 +806,50 @@ export function CatalogBulkTray({
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-6 sm:px-4 sm:pb-0">
       <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[28px]">
-        <div className="flex flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              Sticky Selection Bar
-            </p>
-            <div className="mt-1 text-sm text-slate-200">
-              {selectedIds.length} products staged for bulk updates
+        <div className="flex flex-col items-start justify-between gap-4 px-4 py-4 sm:px-5">
+          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Bulk selection
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                <span>{selectedIds.length} selected</span>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                  Ready for bulk actions
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-            <AdminButton type="button" tone="secondary" onClick={onClearSelection}>
-              Clear selection
-            </AdminButton>
-            <AdminButton type="button" tone="secondary" onClick={onBulkOpenToggle}>
-              {bulkOpen ? "Hide controls" : "Show controls"}
-            </AdminButton>
-            <AdminButton type="button" onClick={onApply} disabled={bulkSaving}>
-              {bulkSaving ? "Applying..." : "Apply bulk changes"}
-            </AdminButton>
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
+              <AdminButton type="button" tone="secondary" className="whitespace-nowrap" onClick={onClearSelection}>
+                Clear
+              </AdminButton>
+              <AdminButton
+                type="button"
+                tone="danger"
+                className="whitespace-nowrap"
+                onClick={onPrepareBulkDelete}
+                disabled={bulkSaving || bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting..." : "Delete selected"}
+              </AdminButton>
+              <AdminButton type="button" tone="secondary" className="whitespace-nowrap" onClick={onBulkOpenToggle}>
+                {bulkOpen ? "Hide options" : "Edit options"}
+              </AdminButton>
+              <AdminButton
+                type="button"
+                className="whitespace-nowrap"
+                onClick={onApply}
+                disabled={bulkSaving || bulkDeleting}
+              >
+                {bulkSaving ? "Applying..." : "Apply changes"}
+              </AdminButton>
+            </div>
           </div>
         </div>
 
         {bulkOpen ? (
           <div className="max-h-[min(70dvh,38rem)] overflow-y-auto border-t border-white/10 px-4 py-4 sm:px-5 sm:py-5">
-            <div className="grid gap-4 xl:grid-cols-4">
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
               <AdminField label="Status">
                 <AdminSelect
                   value={bulkStatus}
@@ -815,8 +865,8 @@ export function CatalogBulkTray({
                   ))}
                 </AdminSelect>
               </AdminField>
-              <AdminField label="Price direction">
-                <div className="grid gap-2 sm:grid-cols-3">
+              <AdminField label="Price change">
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(9rem,1.1fr)]">
                   <AdminSelect
                     value={bulkPriceDirection}
                     onChange={(event) =>
@@ -825,8 +875,8 @@ export function CatalogBulkTray({
                       )
                     }
                   >
-                    <option value="increase">Increase</option>
-                    <option value="decrease">Decrease</option>
+                    <option value="increase">Raise</option>
+                    <option value="decrease">Lower</option>
                   </AdminSelect>
                   <AdminSelect
                     value={bulkPriceMode}
@@ -835,7 +885,7 @@ export function CatalogBulkTray({
                     }
                   >
                     <option value="percent">Percent</option>
-                    <option value="fixed">Fixed</option>
+                    <option value="fixed">Amount</option>
                   </AdminSelect>
                   <AdminInput
                     type="number"
@@ -1156,9 +1206,9 @@ function MetricBar({
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
         <span>{label}</span>
-        <span>{value}</span>
+        <span className="shrink-0">{value}</span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]">
         <div

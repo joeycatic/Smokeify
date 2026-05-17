@@ -8,6 +8,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
 import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
+import bcrypt from "bcryptjs";
 
 type BulkPayload = {
   productIds?: string[];
@@ -30,6 +31,20 @@ type BulkPayload = {
   supplierId?: string | null;
   storefronts?: string[];
 };
+
+type BulkDeletePayload = {
+  productIds?: string[];
+  adminPassword?: string;
+  reason?: string;
+};
+
+function getUniqueProductIds(productIds: string[] | undefined) {
+  if (!Array.isArray(productIds)) return [];
+
+  return Array.from(
+    new Set(productIds.filter((productId): productId is string => Boolean(productId))),
+  );
+}
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -59,9 +74,7 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as BulkPayload;
-  const productIds = Array.isArray(body.productIds)
-    ? body.productIds.filter(Boolean)
-    : [];
+  const productIds = getUniqueProductIds(body.productIds);
 
   if (!productIds.length) {
     return NextResponse.json({ error: "No products selected" }, { status: 400 });
@@ -250,4 +263,103 @@ export async function POST(request: Request) {
     metadata: { productIds },
   });
   return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-products-bulk-delete:ip:${ip}`,
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to delete catalog products." },
+      { status: 403 }
+    );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as BulkDeletePayload;
+  const productIds = getUniqueProductIds(body.productIds);
+  if (!productIds.length) {
+    return NextResponse.json({ error: "No products selected" }, { status: 400 });
+  }
+
+  const adminPassword = body.adminPassword?.trim();
+  if (!adminPassword) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+
+  const reason = sanitizePlainText(body.reason);
+  if (!reason) {
+    return NextResponse.json(
+      { error: "Grund für das Löschen erforderlich." },
+      { status: 400 }
+    );
+  }
+
+  const admin = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
+  if (!admin?.passwordHash) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+
+  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+  if (!validPassword) {
+    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
+  }
+
+  const existingProducts = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, title: true },
+  });
+  if (existingProducts.length !== productIds.length) {
+    return NextResponse.json(
+      { error: "One or more selected products no longer exist." },
+      { status: 404 }
+    );
+  }
+
+  await prisma.$transaction(
+    existingProducts.map((product) =>
+      prisma.product.delete({
+        where: { id: product.id },
+      }),
+    ),
+  );
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.bulk.delete",
+    targetType: "product",
+    summary: `Deleted ${productIds.length} products (${reason})`,
+    metadata: {
+      productIds,
+      productTitles: existingProducts.map((product) => product.title),
+      reason,
+    },
+  });
+
+  return NextResponse.json({ ok: true, deletedCount: productIds.length });
 }
