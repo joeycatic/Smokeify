@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAdminScope } from "@/lib/adminCatalog";
-import { loadAdminOrders } from "@/lib/adminOrders";
+import { loadAdminOrdersPage } from "@/lib/adminOrders";
+import { measureServerExecution } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import {
   parseAdminStorefrontScope,
@@ -17,23 +18,38 @@ export default async function AdminOrdersPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams.storefront);
   const storefront = storefrontScopeToStorefront(storefrontScope);
+  const initialSearchQuery = Array.isArray(resolvedSearchParams.customer)
+    ? resolvedSearchParams.customer[0] ?? ""
+    : resolvedSearchParams.customer ?? "";
+  const page = Number(
+    Array.isArray(resolvedSearchParams.page)
+      ? resolvedSearchParams.page[0] ?? "1"
+      : resolvedSearchParams.page ?? "1",
+  );
 
-  const orders = await loadAdminOrders(storefront);
-  const webhookFailures = await prisma.processedWebhookEvent.findMany({
-    where: { status: "failed" },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
+  const [{ result: orderPage }, { result: webhookFailures }] = await Promise.all([
+    measureServerExecution(`admin.orders.list.${storefrontScope.toLowerCase()}`, () =>
+      loadAdminOrdersPage({
+        storefront,
+        searchQuery: initialSearchQuery,
+        page,
+      }),
+    ),
+    measureServerExecution("admin.orders.webhookFailures", () =>
+      prisma.processedWebhookEvent.findMany({
+        where: { status: "failed" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+    ),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
       <AdminOrdersClient
         activeStorefrontScope={storefrontScope}
-        initialSearchQuery={
-          Array.isArray(resolvedSearchParams.customer)
-            ? resolvedSearchParams.customer[0] ?? ""
-            : resolvedSearchParams.customer ?? ""
-        }
+        initialSearchQuery={initialSearchQuery}
+        orderPage={orderPage}
         webhookFailures={webhookFailures.map((event) => ({
           id: event.id,
           eventId: event.eventId,
@@ -42,7 +58,6 @@ export default async function AdminOrdersPage({
           createdAt: event.createdAt.toISOString(),
           errorMessage: event.errorMessage ?? null,
         }))}
-        orders={orders}
       />
     </div>
   );

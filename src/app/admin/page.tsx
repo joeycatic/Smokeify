@@ -31,6 +31,7 @@ import {
   parseAdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
 import { requireAdminScope } from "@/lib/adminCatalog";
+import { measureServerExecution } from "@/lib/perf";
 import { isMissingProcessedWebhookStorageError } from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
 
@@ -546,37 +547,65 @@ export default async function AdminPage({
     financeData,
     vatData,
   ] = await Promise.all([
-    getFailedWebhookCount(),
-    prisma.returnRequest.count({ where: { status: "PENDING" } }),
-    prisma.variant.findMany({
-      orderBy: { updatedAt: "desc" },
-      include: {
-        inventory: true,
-        product: { select: { id: true, title: true, status: true } },
-      },
-      where: { product: { status: "ACTIVE" } },
-    }),
-    prisma.order.findMany({
-      where: { createdAt: { gte: salesWindowStart } },
-      orderBy: { createdAt: "asc" },
-      select: {
-        createdAt: true,
-        amountTotal: true,
-        currency: true,
-        paymentStatus: true,
-        status: true,
-      },
-    }),
-    getActiveSessionSnapshot(),
-    getFunnelSnapshot(days),
-    getFunnelTrend(paceTrendDays),
-    getOrderComparisons(days),
-    getCustomerRevenueMix(days),
-    getProductPerformance(days),
-    getActivityFeed(6),
-    getStockCoverageMap(days),
-    getFinancePageData(days),
-    getVatPageData(6),
+    measureServerExecution("admin.dashboard.failedWebhookCount", () =>
+      getFailedWebhookCount(),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.pendingReturns", () =>
+      prisma.returnRequest.count({ where: { status: "PENDING" } }),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.activeVariants", () =>
+      prisma.variant.findMany({
+        orderBy: { updatedAt: "desc" },
+        include: {
+          inventory: true,
+          product: { select: { id: true, title: true, status: true } },
+        },
+        where: { product: { status: "ACTIVE" } },
+      }),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.recentOrders", () =>
+      prisma.order.findMany({
+        where: { createdAt: { gte: salesWindowStart } },
+        orderBy: { createdAt: "asc" },
+        select: {
+          createdAt: true,
+          amountTotal: true,
+          currency: true,
+          paymentStatus: true,
+          status: true,
+        },
+      }),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.liveSessions", () =>
+      getActiveSessionSnapshot(),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.funnelSnapshot", () =>
+      getFunnelSnapshot(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.funnelTrend", () =>
+      getFunnelTrend(paceTrendDays),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.orderComparisons", () =>
+      getOrderComparisons(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.customerRevenueMix", () =>
+      getCustomerRevenueMix(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.productPerformance", () =>
+      getProductPerformance(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.activityFeed", () =>
+      getActivityFeed(6),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.stockCoverage", () =>
+      getStockCoverageMap(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.finance", () =>
+      getFinancePageData(days),
+    ).then(({ result }) => result),
+    measureServerExecution("admin.dashboard.vat", () => getVatPageData(6)).then(
+      ({ result }) => result,
+    ),
   ]);
 
   const lowStockVariants = variants

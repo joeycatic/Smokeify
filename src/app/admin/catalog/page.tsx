@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import { getProductPerformance, getStockCoverageMap } from "@/lib/adminInsights";
+import { measureServerExecution } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { parseStorefront } from "@/lib/storefronts";
 import AdminCatalogClient from "./AdminCatalogClient";
@@ -107,7 +108,9 @@ export default async function AdminCatalogPage({
     }
   })();
 
-  const totalCount = await prisma.product.count({ where });
+  const { result: totalCount } = await measureServerExecution("admin.catalog.count", () =>
+    prisma.product.count({ where }),
+  );
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
   const sortCategoryInMemory = sortKey === "category";
@@ -117,75 +120,85 @@ export default async function AdminCatalogPage({
   thirtyDaysAgo.setHours(0, 0, 0, 0);
 
   const [
-    products,
-    categories,
-    collections,
-    suppliers,
-    performance30d,
-    performance7d,
-    returnItems,
-    stockCoverageMap,
+    { result: products },
+    { result: categories },
+    { result: collections },
+    { result: suppliers },
+    { result: performance30d },
+    { result: performance7d },
+    { result: returnItems },
+    { result: stockCoverageMap },
   ] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      orderBy: sortCategoryInMemory ? [{ updatedAt: "desc" }] : orderBy,
-      ...(sortCategoryInMemory
-        ? {}
-        : {
-            take: PAGE_SIZE,
-            skip: (currentPage - 1) * PAGE_SIZE,
-          }),
-      include: {
-        _count: { select: { variants: true, images: true } },
-        images: {
-          take: 1,
-          orderBy: { position: "asc" },
-          select: { url: true, altText: true },
-        },
-        mainCategory: { select: { id: true, name: true, handle: true } },
-        supplierRef: { select: { id: true, name: true } },
-        categories: {
-          orderBy: { position: "asc" },
-          select: {
-            categoryId: true,
-            category: { select: { id: true, name: true, handle: true, parentId: true } },
+    measureServerExecution("admin.catalog.products", () =>
+      prisma.product.findMany({
+        where,
+        orderBy: sortCategoryInMemory ? [{ updatedAt: "desc" }] : orderBy,
+        ...(sortCategoryInMemory
+          ? {}
+          : {
+              take: PAGE_SIZE,
+              skip: (currentPage - 1) * PAGE_SIZE,
+            }),
+        include: {
+          _count: { select: { variants: true, images: true } },
+          images: {
+            take: 1,
+            orderBy: { position: "asc" },
+            select: { url: true, altText: true },
+          },
+          mainCategory: { select: { id: true, name: true, handle: true } },
+          supplierRef: { select: { id: true, name: true } },
+          categories: {
+            orderBy: { position: "asc" },
+            select: {
+              categoryId: true,
+              category: { select: { id: true, name: true, handle: true, parentId: true } },
+            },
+          },
+          collections: {
+            orderBy: { position: "asc" },
+            select: {
+              collectionId: true,
+              collection: { select: { id: true, name: true, handle: true } },
+            },
+          },
+          variants: {
+            select: {
+              id: true,
+              inventory: { select: { quantityOnHand: true, reserved: true } },
+            },
           },
         },
-        collections: {
-          orderBy: { position: "asc" },
-          select: {
-            collectionId: true,
-            collection: { select: { id: true, name: true, handle: true } },
+      }),
+    ),
+    measureServerExecution("admin.catalog.categories", () =>
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+    ),
+    measureServerExecution("admin.catalog.collections", () =>
+      prisma.collection.findMany({ orderBy: { name: "asc" } }),
+    ),
+    measureServerExecution("admin.catalog.suppliers", () =>
+      prisma.supplier.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, leadTimeDays: true },
+      }),
+    ),
+    measureServerExecution("admin.catalog.performance30d", () => getProductPerformance(30)),
+    measureServerExecution("admin.catalog.performance7d", () => getProductPerformance(7)),
+    measureServerExecution("admin.catalog.returns30d", () =>
+      prisma.returnItem.findMany({
+        where: {
+          request: {
+            createdAt: { gte: thirtyDaysAgo },
           },
         },
-        variants: {
-          select: {
-            id: true,
-            inventory: { select: { quantityOnHand: true, reserved: true } },
-          },
+        select: {
+          quantity: true,
+          orderItem: { select: { productId: true } },
         },
-      },
-    }),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
-    prisma.collection.findMany({ orderBy: { name: "asc" } }),
-    prisma.supplier.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, leadTimeDays: true },
-    }),
-    getProductPerformance(30),
-    getProductPerformance(7),
-    prisma.returnItem.findMany({
-      where: {
-        request: {
-          createdAt: { gte: thirtyDaysAgo },
-        },
-      },
-      select: {
-        quantity: true,
-        orderItem: { select: { productId: true } },
-      },
-    }),
-    getStockCoverageMap(30),
+      }),
+    ),
+    measureServerExecution("admin.catalog.stockCoverage", () => getStockCoverageMap(30)),
   ]);
 
   const performance30dMap = new Map(performance30d.map((row) => [row.productId, row]));

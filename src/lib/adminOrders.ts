@@ -106,6 +106,17 @@ export type AdminOrderDetail = {
   returnRequests: AdminOrderReturnRequest[];
 };
 
+export type AdminOrderListPage = {
+  orders: AdminOrderRecord[];
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  searchQuery: string;
+};
+
+export const ADMIN_ORDER_LIST_PAGE_SIZE = 24;
+
 export function normalizeOrderItemOptions(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
@@ -201,6 +212,104 @@ export async function loadAdminOrders(storefront: Storefront | null = null) {
   const manufacturerByProductId = await getManufacturerByProductId(productIds);
 
   return orders.map((order) => serializeAdminOrder(order, manufacturerByProductId));
+}
+
+function buildAdminOrderListWhere(
+  storefront: Storefront | null,
+  rawSearchQuery: string,
+): Prisma.OrderWhereInput {
+  const searchQuery = rawSearchQuery.trim();
+  const normalizedWhere: Prisma.OrderWhereInput = storefront
+    ? { sourceStorefront: storefront }
+    : {};
+
+  if (!searchQuery) {
+    return normalizedWhere;
+  }
+
+  const numericOrderNumber = Number(searchQuery.replace(/^#/, ""));
+  const searchFilters: Prisma.OrderWhereInput[] = [
+    { id: { contains: searchQuery, mode: "insensitive" } },
+    { status: { contains: searchQuery, mode: "insensitive" } },
+    { paymentStatus: { contains: searchQuery, mode: "insensitive" } },
+    { paymentMethod: { contains: searchQuery, mode: "insensitive" } },
+    { customerEmail: { contains: searchQuery, mode: "insensitive" } },
+    { shippingName: { contains: searchQuery, mode: "insensitive" } },
+    { trackingCarrier: { contains: searchQuery, mode: "insensitive" } },
+    { trackingNumber: { contains: searchQuery, mode: "insensitive" } },
+    { discountCode: { contains: searchQuery, mode: "insensitive" } },
+    { shippingCity: { contains: searchQuery, mode: "insensitive" } },
+    { shippingCountry: { contains: searchQuery, mode: "insensitive" } },
+    { sourceHost: { contains: searchQuery, mode: "insensitive" } },
+    { sourceOrigin: { contains: searchQuery, mode: "insensitive" } },
+    { items: { some: { name: { contains: searchQuery, mode: "insensitive" } } } },
+    {
+      user: {
+        is: {
+          OR: [
+            { email: { contains: searchQuery, mode: "insensitive" } },
+            { name: { contains: searchQuery, mode: "insensitive" } },
+          ],
+        },
+      },
+    },
+  ];
+
+  if (Number.isFinite(numericOrderNumber) && numericOrderNumber > 0) {
+    searchFilters.push({ orderNumber: Math.floor(numericOrderNumber) });
+  }
+
+  return {
+    ...normalizedWhere,
+    OR: searchFilters,
+  };
+}
+
+export async function loadAdminOrdersPage(input: {
+  storefront?: Storefront | null;
+  searchQuery?: string | null;
+  page?: number | null;
+}): Promise<AdminOrderListPage> {
+  const searchQuery = input.searchQuery?.trim() ?? "";
+  const requestedPage =
+    typeof input.page === "number" && Number.isFinite(input.page) && input.page > 0
+      ? Math.floor(input.page)
+      : 1;
+  const where = buildAdminOrderListWhere(input.storefront ?? null, searchQuery);
+
+  const totalCount = await prisma.order.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalCount / ADMIN_ORDER_LIST_PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+
+  const orders = await prisma.order.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    skip: (currentPage - 1) * ADMIN_ORDER_LIST_PAGE_SIZE,
+    take: ADMIN_ORDER_LIST_PAGE_SIZE,
+    include: {
+      items: true,
+      user: { select: { email: true, name: true } },
+    },
+  });
+  const productIds = Array.from(
+    new Set(
+      orders.flatMap((order) =>
+        order.items
+          .map((item) => item.productId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ),
+  );
+  const manufacturerByProductId = await getManufacturerByProductId(productIds);
+
+  return {
+    orders: orders.map((order) => serializeAdminOrder(order, manufacturerByProductId)),
+    currentPage,
+    pageSize: ADMIN_ORDER_LIST_PAGE_SIZE,
+    totalCount,
+    totalPages,
+    searchQuery,
+  };
 }
 
 export async function loadAdminOrderDetail(orderId: string): Promise<AdminOrderDetail | null> {

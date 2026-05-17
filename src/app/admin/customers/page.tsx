@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireAdminScope } from "@/lib/adminCatalog";
+import { requireAdmin } from "@/lib/adminCatalog";
+import type { AdminRole } from "@/lib/adminPermissions";
+import { loadAdminCustomersPageData } from "@/lib/adminCustomersPageData";
 import { parseAdminStorefrontScope } from "@/lib/storefronts";
 import AdminCustomersClient from "./AdminCustomersClient";
 
@@ -8,7 +10,8 @@ export default async function AdminCustomersPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdminScope("customers.read"))) notFound();
+  const session = await requireAdmin("customers.read");
+  if (!session) notFound();
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialSearchQuery = Array.isArray(resolvedSearchParams.query)
     ? resolvedSearchParams.query[0] ?? ""
@@ -16,12 +19,35 @@ export default async function AdminCustomersPage({
   const initialStorefrontScope = parseAdminStorefrontScope(
     resolvedSearchParams.storefront,
   );
+  const initialTab = Array.isArray(resolvedSearchParams.tab)
+    ? resolvedSearchParams.tab[0] ?? "all"
+    : resolvedSearchParams.tab ?? "all";
+  const initialSegment = Array.isArray(resolvedSearchParams.segment)
+    ? resolvedSearchParams.segment[0] ?? "all"
+    : resolvedSearchParams.segment ?? "all";
+  const initialData = await loadAdminCustomersPageData({
+    role: session.user.role as AdminRole,
+    query: initialSearchQuery,
+    tab: initialTab,
+    segment: initialSegment,
+    page: Number(
+      Array.isArray(resolvedSearchParams.page)
+        ? resolvedSearchParams.page[0] ?? "1"
+        : resolvedSearchParams.page ?? "1",
+    ),
+    storefront: Array.isArray(resolvedSearchParams.storefront)
+      ? resolvedSearchParams.storefront[0] ?? null
+      : resolvedSearchParams.storefront ?? null,
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
       <AdminCustomersClient
+        initialData={initialData}
+        initialSegmentFilter={initialSegment}
         initialSearchQuery={initialSearchQuery}
         initialStorefrontScope={initialStorefrontScope}
+        initialTab={initialTab}
       />
     </div>
   );
