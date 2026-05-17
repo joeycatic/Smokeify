@@ -1,11 +1,9 @@
 import Stripe from "stripe";
-import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { adminJson } from "@/lib/adminApi";
 import { logAdminAction } from "@/lib/adminAuditLog";
-import { requireAdmin } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { withAdminRoute } from "@/lib/adminRoute";
 import {
   createOrderFromSession,
   getStripe,
@@ -69,33 +67,13 @@ const getFailureContextFromEvent = (event: Stripe.Event) => {
   return null;
 };
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-webhooks-reprocess:ip:${ip}`,
-    limit: 20,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminRoute(
+async ({ request, session }) => {
   const stripe = getStripe();
   if (!stripe) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Stripe secret key not configured." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -104,28 +82,28 @@ export async function POST(request: Request) {
   };
   const eventId = body.eventId?.trim();
   if (!eventId) {
-    return NextResponse.json({ error: "Missing event id." }, { status: 400 });
+    return adminJson({ error: "Missing event id." }, { status: 400 });
   }
 
   const tracked = await prisma.processedWebhookEvent.findUnique({
     where: { eventId },
   });
   if (!tracked) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Webhook event not found in processedWebhookEvents." },
-      { status: 404 }
+      { status: 404 },
     );
   }
   if (tracked.status !== "failed") {
-    return NextResponse.json(
+    return adminJson(
       { error: "Only failed webhook events can be reprocessed." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const event = await stripe.events.retrieve(eventId);
   if (!event) {
-    return NextResponse.json({ error: "Stripe event not found." }, { status: 404 });
+    return adminJson({ error: "Stripe event not found." }, { status: 404 });
   }
 
   await prisma.processedWebhookEvent.update({
@@ -273,9 +251,9 @@ export async function POST(request: Request) {
           eventType: event.type,
         },
       });
-      return NextResponse.json(
+      return adminJson(
         { error: `Unsupported event type for manual reprocess: ${event.type}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
@@ -302,7 +280,7 @@ export async function POST(request: Request) {
     });
     const message =
       error instanceof Error ? error.message : "Reprocess failed unexpectedly.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return adminJson({ error: message }, { status: 500 });
   }
 
   await prisma.processedWebhookEvent.update({
@@ -328,5 +306,13 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ ok: true });
-}
+  return adminJson({ ok: true });
+},
+{
+  rateLimit: {
+    keyPrefix: "admin-webhooks-reprocess",
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+    message: "Zu viele Anfragen. Bitte später erneut versuchen.",
+  },
+});

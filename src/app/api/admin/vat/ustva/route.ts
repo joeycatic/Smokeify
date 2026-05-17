@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ADMIN_NO_STORE_HEADERS, adminJson } from "@/lib/adminApi";
+import { adminAttachmentHeaders, adminJson } from "@/lib/adminApi";
 import { getVatPageData } from "@/lib/adminAddonData";
 import { buildUstvaPreparation } from "@/lib/adminUstva";
 import { withAdminRoute } from "@/lib/adminRoute";
@@ -68,14 +68,15 @@ export const GET = withAdminRoute(
 
     return new Response(lines.join("\n"), {
       status: 200,
-      headers: {
-        ...ADMIN_NO_STORE_HEADERS,
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="ustva-vorbereitung-${ustva.monthKey}.csv"`,
-      },
+      headers: adminAttachmentHeaders(
+        `ustva-vorbereitung-${ustva.monthKey}.csv`,
+        "text/csv; charset=utf-8",
+      ),
     });
   },
   {
+    // CSV export is intentionally allowed without origin enforcement because
+    // admins often open it directly in a new tab. Scope and session still gate it.
     sameOrigin: false,
     action: "tax.review",
   },

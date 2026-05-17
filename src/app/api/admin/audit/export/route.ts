@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminAttachmentHeaders } from "@/lib/adminApi";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { prisma } from "@/lib/prisma";
 import {
   buildAdminAuditWhere,
@@ -7,12 +7,7 @@ import {
   serializeAdminAuditCsv,
 } from "@/lib/adminAudit";
 
-export async function GET(request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
+export const GET = withAdminRoute(async ({ request }) => {
   const filters = parseAdminAuditFilters(
     Object.fromEntries(request.nextUrl.searchParams.entries())
   );
@@ -37,10 +32,6 @@ export async function GET(request: NextRequest) {
 
   return new Response(csv, {
     status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="admin-audit-export.csv"',
-      "Cache-Control": "no-store",
-    },
+    headers: adminAttachmentHeaders("admin-audit-export.csv", "text/csv; charset=utf-8"),
   });
-}
+});

@@ -1,27 +1,13 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOnly } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { adminJson } from "@/lib/adminApi";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import {
   ensureAnotherEnabledAdminExists,
   verifyAdminPassword,
 } from "@/lib/adminUserGovernance";
-import { canAdminPerformAction } from "@/lib/adminPermissions";
 
-export async function GET() {
-  const session = await requireAdminOnly();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!canAdminPerformAction(session.user.role, "user.manage")) {
-    return NextResponse.json(
-      { error: "You do not have permission to manage users." },
-      { status: 403 }
-    );
-  }
-
+export const GET = withAdminRoute(async () => {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -38,7 +24,7 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({
+  return adminJson({
     users: users.map((user) => ({
       id: user.id,
       email: user.email,
@@ -52,118 +38,109 @@ export async function GET() {
       createdAt: user.createdAt.toISOString(),
     })),
   });
-}
+}, { action: "user.manage" });
 
-export async function PATCH(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-users:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdminOnly();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as {
+      id?: string;
+      role?: string;
+      adminPassword?: string;
+      reason?: string;
+    };
+    if (!body.id || !body.role) {
+      return adminJson({ error: "Missing fields" }, { status: 400 });
+    }
 
-  const body = (await request.json()) as {
-    id?: string;
-    role?: string;
-    adminPassword?: string;
-    reason?: string;
-  };
-  if (!body.id || !body.role) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-  }
+    const adminPassword = body.adminPassword?.trim() ?? "";
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!adminPassword) {
+      return adminJson(
+        { error: "Passwort erforderlich." },
+        { status: 400 }
+      );
+    }
+    if (!reason) {
+      return adminJson(
+        { error: "Eine kurze Begründung ist erforderlich." },
+        { status: 400 }
+      );
+    }
+    const validPassword = await verifyAdminPassword(session.user.id, adminPassword);
+    if (!validPassword) {
+      return adminJson({ error: "Passwort ist falsch." }, { status: 401 });
+    }
 
-  const adminPassword = body.adminPassword?.trim() ?? "";
-  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-  if (!adminPassword) {
-    return NextResponse.json(
-      { error: "Passwort erforderlich." },
-      { status: 400 }
-    );
-  }
-  if (!reason) {
-    return NextResponse.json(
-      { error: "Eine kurze Begründung ist erforderlich." },
-      { status: 400 }
-    );
-  }
-  const validPassword = await verifyAdminPassword(session.user.id, adminPassword);
-  if (!validPassword) {
-    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
-  }
+    const role = body.role.toUpperCase();
+    if (!["USER", "ADMIN", "STAFF"].includes(role)) {
+      return adminJson({ error: "Invalid role" }, { status: 400 });
+    }
 
-  const role = body.role.toUpperCase();
-  if (!["USER", "ADMIN", "STAFF"].includes(role)) {
-    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-  }
+    const existingUser = await prisma.user.findUnique({
+      where: { id: body.id },
+      select: { id: true, role: true, adminAccessDisabledAt: true },
+    });
+    if (!existingUser) {
+      return adminJson({ error: "User not found" }, { status: 404 });
+    }
 
-  const existingUser = await prisma.user.findUnique({
-    where: { id: body.id },
-    select: { id: true, role: true, adminAccessDisabledAt: true },
-  });
-  if (!existingUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+    if (
+      existingUser.role === "ADMIN" &&
+      role !== "ADMIN" &&
+      !existingUser.adminAccessDisabledAt &&
+      !(await ensureAnotherEnabledAdminExists(existingUser.id))
+    ) {
+      return adminJson(
+        { error: "At least one enabled admin account must remain." },
+        { status: 409 }
+      );
+    }
 
-  if (
-    existingUser.role === "ADMIN" &&
-    role !== "ADMIN" &&
-    !existingUser.adminAccessDisabledAt &&
-    !(await ensureAnotherEnabledAdminExists(existingUser.id))
-  ) {
-    return NextResponse.json(
-      { error: "At least one enabled admin account must remain." },
-      { status: 409 }
-    );
-  }
+    const updated = await prisma.user.update({
+      where: { id: body.id },
+      data: { role: role as "USER" | "ADMIN" | "STAFF" },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        adminTotpEnabledAt: true,
+        adminTotpPendingSecretEncrypted: true,
+        adminAccessDisabledAt: true,
+        sessions: { select: { id: true } },
+        devices: { select: { id: true } },
+      },
+    });
 
-  const updated = await prisma.user.update({
-    where: { id: body.id },
-    data: { role: role as "USER" | "ADMIN" | "STAFF" },
-    select: {
-      id: true,
-      role: true,
-      email: true,
-      adminTotpEnabledAt: true,
-      adminTotpPendingSecretEncrypted: true,
-      adminAccessDisabledAt: true,
-      sessions: { select: { id: true } },
-      devices: { select: { id: true } },
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "user.role.update",
+      targetType: "user",
+      targetId: updated.id,
+      summary: `Set role to ${updated.role}`,
+      metadata: { role: updated.role, email: updated.email, reason },
+    });
+
+    return adminJson({
+      ok: true,
+      user: {
+        id: updated.id,
+        role: updated.role,
+        email: updated.email,
+        adminTotpEnabled: Boolean(updated.adminTotpEnabledAt),
+        adminTotpPending: Boolean(updated.adminTotpPendingSecretEncrypted),
+        adminAccessDisabledAt: updated.adminAccessDisabledAt?.toISOString() ?? null,
+        sessionCount: updated.sessions.length,
+        deviceCount: updated.devices.length,
+      },
+    });
+  },
+  {
+    action: "user.manage",
+    rateLimit: {
+      keyPrefix: "admin-users",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte später erneut versuchen.",
     },
-  });
-
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "user.role.update",
-    targetType: "user",
-    targetId: updated.id,
-    summary: `Set role to ${updated.role}`,
-    metadata: { role: updated.role, email: updated.email, reason },
-  });
-
-  return NextResponse.json({
-    ok: true,
-    user: {
-      id: updated.id,
-      role: updated.role,
-      email: updated.email,
-      adminTotpEnabled: Boolean(updated.adminTotpEnabledAt),
-      adminTotpPending: Boolean(updated.adminTotpPendingSecretEncrypted),
-      adminAccessDisabledAt: updated.adminAccessDisabledAt?.toISOString() ?? null,
-      sessionCount: updated.sessions.length,
-      deviceCount: updated.devices.length,
-    },
-  });
-}
+  },
+);

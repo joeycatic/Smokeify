@@ -1,18 +1,13 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { getProductRecommendations } from "@/lib/recommendations";
 
-export async function GET(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async ({ request }) => {
   const { searchParams } = new URL(request.url);
   const productId = searchParams.get("productId")?.trim();
   if (!productId) {
-    return NextResponse.json({ error: "Missing product id." }, { status: 400 });
+    return adminJson({ error: "Missing product id." }, { status: 400 });
   }
 
   const product = await prisma.product.findUnique({
@@ -32,7 +27,7 @@ export async function GET(request: Request) {
     },
   });
   if (!product) {
-    return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    return adminJson({ error: "Product not found." }, { status: 404 });
   }
 
   const result = await getProductRecommendations({
@@ -41,10 +36,13 @@ export async function GET(request: Request) {
     limit: 12,
   });
   if (!result) {
-    return NextResponse.json({ error: "Recommendation context unavailable." }, { status: 404 });
+    return adminJson(
+      { error: "Recommendation context unavailable." },
+      { status: 404 },
+    );
   }
 
-  return NextResponse.json({
+  return adminJson({
     product: result.product,
     matchedRules: result.matchedRules,
     legacyManualOverrides: product.crossSells.map((row) => ({
@@ -55,4 +53,4 @@ export async function GET(request: Request) {
     })),
     recommendations: result.recommendations,
   });
-}
+});

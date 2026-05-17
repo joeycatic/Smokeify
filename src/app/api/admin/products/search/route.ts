@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { parseStorefront } from "@/lib/storefronts";
 
-export async function GET(request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async ({ request }) => {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim() ?? "";
   const storefront = parseStorefront(searchParams.get("storefront"));
@@ -17,9 +12,7 @@ export async function GET(request: NextRequest) {
     where: {
       status: "ACTIVE",
       ...(storefront ? { storefronts: { has: storefront } } : {}),
-      ...(q
-        ? { title: { contains: q, mode: "insensitive" } }
-        : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
     },
     orderBy: { title: "asc" },
     take: 10,
@@ -33,14 +26,14 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(
-    products.map((p) => ({
-      id: p.id,
-      title: p.title,
-      handle: p.handle,
-      manufacturer: p.manufacturer,
-      storefronts: p.storefronts,
-      imageUrl: p.images[0]?.url ?? null,
-    }))
+  return adminJson(
+    products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      handle: product.handle,
+      manufacturer: product.manufacturer,
+      storefronts: product.storefronts,
+      imageUrl: product.images[0]?.url ?? null,
+    })),
   );
-}
+});

@@ -19,6 +19,8 @@ export const GET = withAdminRoute(
     return adminJson(data);
   },
   {
+    // Read-only task lists can be requested from export/reporting surfaces
+    // without requiring an origin header. Authorization still happens here.
     sameOrigin: false,
     action: "crm.write",
   },

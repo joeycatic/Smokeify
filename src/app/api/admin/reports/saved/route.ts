@@ -1,25 +1,15 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
 import {
   parseAdminReportPaymentState,
   parseAdminReportStorefront,
   parseAdminReportType,
 } from "@/lib/adminReports";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
-import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminRoute(async ({ request, session }) => {
   const body = (await request.json().catch(() => ({}))) as {
     name?: unknown;
     reportType?: unknown;
@@ -30,7 +20,7 @@ export async function POST(request: Request) {
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) {
-    return NextResponse.json({ error: "Report name is required." }, { status: 400 });
+    return adminJson({ error: "Report name is required." }, { status: 400 });
   }
   const sourceStorefront = parseAdminReportStorefront(
     body.sourceStorefront as string | undefined,
@@ -62,5 +52,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ id: report.id });
-}
+  return adminJson({ id: report.id });
+});

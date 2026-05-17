@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { adminAttachmentHeaders } from "@/lib/adminApi";
 import {
   exportAdminReportOrdersCsv,
   parseAdminReportFilters,
@@ -56,10 +57,9 @@ export const GET = withAdminRoute(async ({ request }) => {
   const csv = rows.map((row) => row.map((cell) => escapeCsv(cell)).join(",")).join("\n");
 
   return new NextResponse(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="smokeify-report-${filters.reportType}-${filters.days}d.csv"`,
-      "Cache-Control": "no-store",
-    },
+    headers: adminAttachmentHeaders(
+      `smokeify-report-${filters.reportType}-${filters.days}d.csv`,
+      "text/csv; charset=utf-8",
+    ),
   });
 });

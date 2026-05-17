@@ -1,14 +1,11 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { requireAdmin } from "@/lib/adminCatalog";
-import { sanitizePlainText } from "@/lib/sanitizeHtml";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
-import { logAdminAction } from "@/lib/adminAuditLog";
-import { canAdminPerformAction } from "@/lib/adminPermissions";
-import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 import bcrypt from "bcryptjs";
+import { adminJson } from "@/lib/adminApi";
+import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
+import { prisma } from "@/lib/prisma";
+import { sanitizePlainText } from "@/lib/sanitizeHtml";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 type BulkPayload = {
   productIds?: string[];
@@ -46,320 +43,275 @@ function getUniqueProductIds(productIds: string[] | undefined) {
   );
 }
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-products-bulk:ip:${ip}`,
-    limit: 20,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
-    return NextResponse.json(
-      { error: "You do not have permission to run bulk catalog updates." },
-      { status: 403 }
-    );
-  }
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as BulkPayload;
+    const productIds = getUniqueProductIds(body.productIds);
 
-  const body = (await request.json()) as BulkPayload;
-  const productIds = getUniqueProductIds(body.productIds);
-
-  if (!productIds.length) {
-    return NextResponse.json({ error: "No products selected" }, { status: 400 });
-  }
-
-  const operations: Prisma.PrismaPromise<unknown>[] = [];
-
-  if (body.status) {
-    operations.push(
-      prisma.product.updateMany({
-        where: { id: { in: productIds } },
-        data: { status: body.status },
-      })
-    );
-  }
-
-  if (typeof body.productGroup !== "undefined") {
-    const nextGroup =
-      body.productGroup === null
-        ? null
-        : sanitizePlainText(body.productGroup);
-    operations.push(
-      prisma.product.updateMany({
-        where: { id: { in: productIds } },
-        data: { productGroup: nextGroup },
-      })
-    );
-  }
-
-  if (typeof body.lowStockThreshold === "number") {
-    const threshold = Math.max(0, Math.floor(body.lowStockThreshold));
-    operations.push(
-      prisma.variant.updateMany({
-        where: { productId: { in: productIds } },
-        data: { lowStockThreshold: threshold },
-      })
-    );
-  }
-
-  if (body.category?.categoryId) {
-    const categoryId = body.category.categoryId;
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-      select: { parentId: true },
-    });
-    const isParentCategory = category?.parentId === null;
-    if (body.category.action === "add") {
-      operations.push(
-        prisma.productCategory.createMany({
-          data: productIds.map((productId, index) => ({
-            productId,
-            categoryId,
-            position: index,
-          })),
-          skipDuplicates: true,
-        })
-      );
-      if (isParentCategory) {
-        operations.push(
-          prisma.product.updateMany({
-            where: { id: { in: productIds }, mainCategoryId: null },
-            data: { mainCategoryId: categoryId },
-          })
-        );
-      }
-    } else {
-      operations.push(
-        prisma.productCategory.deleteMany({
-          where: { productId: { in: productIds }, categoryId },
-        })
-      );
-      if (isParentCategory) {
-        operations.push(
-          prisma.product.updateMany({
-            where: { id: { in: productIds }, mainCategoryId: categoryId },
-            data: { mainCategoryId: null },
-          })
-        );
-      }
+    if (!productIds.length) {
+      return adminJson({ error: "No products selected" }, { status: 400 });
     }
-  }
 
-  if (typeof body.supplierId !== "undefined") {
-    if (body.supplierId === null) {
+    const operations: Prisma.PrismaPromise<unknown>[] = [];
+
+    if (body.status) {
       operations.push(
         prisma.product.updateMany({
           where: { id: { in: productIds } },
-          data: { supplierId: null, supplier: null },
-        })
+          data: { status: body.status },
+        }),
       );
-    } else {
-      const supplier = await prisma.supplier.findUnique({
-        where: { id: body.supplierId },
-        select: { id: true, name: true },
-      });
-      if (!supplier) {
-        return NextResponse.json(
-          { error: "Supplier not found" },
-          { status: 400 }
-        );
-      }
+    }
+
+    if (typeof body.productGroup !== "undefined") {
+      const nextGroup = body.productGroup === null ? null : sanitizePlainText(body.productGroup);
       operations.push(
         prisma.product.updateMany({
           where: { id: { in: productIds } },
-          data: { supplierId: supplier.id, supplier: supplier.name },
-        })
+          data: { productGroup: nextGroup },
+        }),
       );
     }
-  }
 
-  if (typeof body.storefronts !== "undefined") {
-    operations.push(
-      prisma.product.updateMany({
-        where: { id: { in: productIds } },
-        data: { storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts)) },
-      })
-    );
-  }
-
-  if (body.tags?.add || body.tags?.remove) {
-    const addTags = Array.isArray(body.tags?.add)
-      ? body.tags?.add.map((tag) => tag.trim()).filter(Boolean)
-      : [];
-    const removeTags = Array.isArray(body.tags?.remove)
-      ? body.tags?.remove.map((tag) => tag.trim()).filter(Boolean)
-      : [];
-
-    if (addTags.length || removeTags.length) {
-      const products = await prisma.product.findMany({
-        where: { id: { in: productIds } },
-        select: { id: true, tags: true },
-      });
-      products.forEach((product) => {
-        const nextTags = new Set(product.tags ?? []);
-        addTags.forEach((tag) => nextTags.add(tag));
-        removeTags.forEach((tag) => nextTags.delete(tag));
-        operations.push(
-          prisma.product.update({
-            where: { id: product.id },
-            data: { tags: Array.from(nextTags) },
-          })
-        );
-      });
+    if (typeof body.lowStockThreshold === "number") {
+      const threshold = Math.max(0, Math.floor(body.lowStockThreshold));
+      operations.push(
+        prisma.variant.updateMany({
+          where: { productId: { in: productIds } },
+          data: { lowStockThreshold: threshold },
+        }),
+      );
     }
-  }
 
-  if (body.priceAdjust) {
-    const { type, direction, value } = body.priceAdjust;
-    if (Number.isFinite(value) && value > 0) {
-      const multiplier = direction === "decrease" ? -1 : 1;
-      const variants = await prisma.variant.findMany({
-        where: { productId: { in: productIds } },
-        select: { id: true, priceCents: true },
+    if (body.category?.categoryId) {
+      const categoryId = body.category.categoryId;
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { parentId: true },
       });
-      variants.forEach((variant) => {
-        let nextPrice = variant.priceCents;
-        if (type === "percent") {
-          nextPrice = Math.round(
-            variant.priceCents * (1 + (multiplier * value) / 100)
+      const isParentCategory = category?.parentId === null;
+      if (body.category.action === "add") {
+        operations.push(
+          prisma.productCategory.createMany({
+            data: productIds.map((productId, index) => ({
+              productId,
+              categoryId,
+              position: index,
+            })),
+            skipDuplicates: true,
+          }),
+        );
+        if (isParentCategory) {
+          operations.push(
+            prisma.product.updateMany({
+              where: { id: { in: productIds }, mainCategoryId: null },
+              data: { mainCategoryId: categoryId },
+            }),
           );
-        } else {
-          const delta = Math.round(value * 100) * multiplier;
-          nextPrice = variant.priceCents + delta;
         }
-        nextPrice = Math.max(0, nextPrice);
+      } else {
         operations.push(
-          prisma.variant.update({
-            where: { id: variant.id },
-            data: { priceCents: nextPrice },
-          })
+          prisma.productCategory.deleteMany({
+            where: { productId: { in: productIds }, categoryId },
+          }),
         );
-      });
+        if (isParentCategory) {
+          operations.push(
+            prisma.product.updateMany({
+              where: { id: { in: productIds }, mainCategoryId: categoryId },
+              data: { mainCategoryId: null },
+            }),
+          );
+        }
+      }
     }
-  }
 
-  if (!operations.length) {
-    return NextResponse.json({ error: "No changes provided" }, { status: 400 });
-  }
+    if (typeof body.supplierId !== "undefined") {
+      if (body.supplierId === null) {
+        operations.push(
+          prisma.product.updateMany({
+            where: { id: { in: productIds } },
+            data: { supplierId: null, supplier: null },
+          }),
+        );
+      } else {
+        const supplier = await prisma.supplier.findUnique({
+          where: { id: body.supplierId },
+          select: { id: true, name: true },
+        });
+        if (!supplier) {
+          return adminJson({ error: "Supplier not found" }, { status: 400 });
+        }
+        operations.push(
+          prisma.product.updateMany({
+            where: { id: { in: productIds } },
+            data: { supplierId: supplier.id, supplier: supplier.name },
+          }),
+        );
+      }
+    }
 
-  await prisma.$transaction(operations);
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "product.bulk.update",
-    targetType: "product",
-    summary: `Bulk updated ${productIds.length} products`,
-    metadata: { productIds },
-  });
-  return NextResponse.json({ ok: true });
-}
+    if (typeof body.storefronts !== "undefined") {
+      operations.push(
+        prisma.product.updateMany({
+          where: { id: { in: productIds } },
+          data: { storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts)) },
+        }),
+      );
+    }
 
-export async function DELETE(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-products-bulk-delete:ip:${ip}`,
-    limit: 10,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
-    return NextResponse.json(
-      { error: "You do not have permission to delete catalog products." },
-      { status: 403 }
-    );
-  }
+    if (body.tags?.add || body.tags?.remove) {
+      const addTags = Array.isArray(body.tags?.add)
+        ? body.tags?.add.map((tag) => tag.trim()).filter(Boolean)
+        : [];
+      const removeTags = Array.isArray(body.tags?.remove)
+        ? body.tags?.remove.map((tag) => tag.trim()).filter(Boolean)
+        : [];
 
-  const body = (await request.json().catch(() => ({}))) as BulkDeletePayload;
-  const productIds = getUniqueProductIds(body.productIds);
-  if (!productIds.length) {
-    return NextResponse.json({ error: "No products selected" }, { status: 400 });
-  }
+      if (addTags.length || removeTags.length) {
+        const products = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, tags: true },
+        });
+        products.forEach((product) => {
+          const nextTags = new Set(product.tags ?? []);
+          addTags.forEach((tag) => nextTags.add(tag));
+          removeTags.forEach((tag) => nextTags.delete(tag));
+          operations.push(
+            prisma.product.update({
+              where: { id: product.id },
+              data: { tags: Array.from(nextTags) },
+            }),
+          );
+        });
+      }
+    }
 
-  const adminPassword = body.adminPassword?.trim();
-  if (!adminPassword) {
-    return NextResponse.json(
-      { error: "Passwort erforderlich." },
-      { status: 400 }
-    );
-  }
+    if (body.priceAdjust) {
+      const { type, direction, value } = body.priceAdjust;
+      if (Number.isFinite(value) && value > 0) {
+        const multiplier = direction === "decrease" ? -1 : 1;
+        const variants = await prisma.variant.findMany({
+          where: { productId: { in: productIds } },
+          select: { id: true, priceCents: true },
+        });
+        variants.forEach((variant) => {
+          let nextPrice = variant.priceCents;
+          if (type === "percent") {
+            nextPrice = Math.round(
+              variant.priceCents * (1 + (multiplier * value) / 100),
+            );
+          } else {
+            const delta = Math.round(value * 100) * multiplier;
+            nextPrice = variant.priceCents + delta;
+          }
+          nextPrice = Math.max(0, nextPrice);
+          operations.push(
+            prisma.variant.update({
+              where: { id: variant.id },
+              data: { priceCents: nextPrice },
+            }),
+          );
+        });
+      }
+    }
 
-  const reason = sanitizePlainText(body.reason);
-  if (!reason) {
-    return NextResponse.json(
-      { error: "Grund für das Löschen erforderlich." },
-      { status: 400 }
-    );
-  }
+    if (!operations.length) {
+      return adminJson({ error: "No changes provided" }, { status: 400 });
+    }
 
-  const admin = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { passwordHash: true },
-  });
-  if (!admin?.passwordHash) {
-    return NextResponse.json(
-      { error: "Passwort erforderlich." },
-      { status: 400 }
-    );
-  }
-
-  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
-  if (!validPassword) {
-    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
-  }
-
-  const existingProducts = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true, title: true },
-  });
-  if (existingProducts.length !== productIds.length) {
-    return NextResponse.json(
-      { error: "One or more selected products no longer exist." },
-      { status: 404 }
-    );
-  }
-
-  await prisma.$transaction(
-    existingProducts.map((product) =>
-      prisma.product.delete({
-        where: { id: product.id },
-      }),
-    ),
-  );
-
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "product.bulk.delete",
-    targetType: "product",
-    summary: `Deleted ${productIds.length} products (${reason})`,
-    metadata: {
-      productIds,
-      productTitles: existingProducts.map((product) => product.title),
-      reason,
+    await prisma.$transaction(operations);
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "product.bulk.update",
+      targetType: "product",
+      summary: `Bulk updated ${productIds.length} products`,
+      metadata: { productIds },
+    });
+    return adminJson({ ok: true });
+  },
+  {
+    action: "catalog.product.write",
+    rateLimit: {
+      keyPrefix: "admin-products-bulk",
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte später erneut versuchen.",
     },
-  });
+  },
+);
 
-  return NextResponse.json({ ok: true, deletedCount: productIds.length });
-}
+export const DELETE = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json().catch(() => ({}))) as BulkDeletePayload;
+    const productIds = getUniqueProductIds(body.productIds);
+    if (!productIds.length) {
+      return adminJson({ error: "No products selected" }, { status: 400 });
+    }
+
+    const adminPassword = body.adminPassword?.trim();
+    if (!adminPassword) {
+      return adminJson({ error: "Passwort erforderlich." }, { status: 400 });
+    }
+
+    const reason = sanitizePlainText(body.reason);
+    if (!reason) {
+      return adminJson({ error: "Grund für das Löschen erforderlich." }, { status: 400 });
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { passwordHash: true },
+    });
+    if (!admin?.passwordHash) {
+      return adminJson({ error: "Passwort erforderlich." }, { status: 400 });
+    }
+
+    const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+    if (!validPassword) {
+      return adminJson({ error: "Passwort ist falsch." }, { status: 401 });
+    }
+
+    const existingProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, title: true },
+    });
+    if (existingProducts.length !== productIds.length) {
+      return adminJson(
+        { error: "One or more selected products no longer exist." },
+        { status: 404 },
+      );
+    }
+
+    await prisma.$transaction(
+      existingProducts.map((product) =>
+        prisma.product.delete({
+          where: { id: product.id },
+        }),
+      ),
+    );
+
+    await logAdminAction({
+      actor: { id: session.user.id, email: session.user.email ?? null },
+      action: "product.bulk.delete",
+      targetType: "product",
+      summary: `Deleted ${productIds.length} products (${reason})`,
+      metadata: {
+        productIds,
+        productTitles: existingProducts.map((product) => product.title),
+        reason,
+      },
+    });
+
+    return adminJson({ ok: true, deletedCount: productIds.length });
+  },
+  {
+    action: "catalog.product.write",
+    rateLimit: {
+      keyPrefix: "admin-products-bulk-delete",
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte später erneut versuchen.",
+    },
+  },
+);

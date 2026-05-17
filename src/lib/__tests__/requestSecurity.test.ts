@@ -70,4 +70,52 @@ describe("requestSecurity", () => {
 
     expect(isSameOrigin(request)).toBe(true);
   });
+
+  it("rejects forged origins that are not part of the configured host set", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    delete process.env.MAIN_STOREFRONT_HOSTS;
+    delete process.env.GROW_STOREFRONT_HOSTS;
+
+    const request = new Request("https://www.smokeify.de/api/admin/orders/test/email", {
+      method: "POST",
+      headers: {
+        origin: "https://evil.example",
+      },
+    });
+
+    expect(isSameOrigin(request)).toBe(false);
+  });
+
+  it("rejects forged referers that are not part of the configured host set", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    delete process.env.MAIN_STOREFRONT_HOSTS;
+    delete process.env.GROW_STOREFRONT_HOSTS;
+
+    const request = new Request("https://www.smokeify.de/api/admin/orders/test/email", {
+      method: "POST",
+      headers: {
+        referer: "https://evil.example/admin",
+      },
+    });
+
+    expect(isSameOrigin(request)).toBe(false);
+  });
+
+  it("rejects requests when forwarded or host headers conflict with the request URL host", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+
+    const request = new Request("https://www.smokeify.de/api/admin/orders/test/email", {
+      method: "POST",
+      headers: {
+        origin: "https://www.smokeify.de",
+        host: "www.smokeify.de",
+        "x-forwarded-host": "growvault.de",
+      },
+    });
+
+    expect(isSameOrigin(request)).toBe(false);
+  });
 });

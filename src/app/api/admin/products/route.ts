@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { adminJson } from "@/lib/adminApi";
+import { parseStatus, slugify } from "@/lib/adminCatalog";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import {
   sanitizePlainText,
   sanitizeProductDescription,
@@ -26,12 +25,7 @@ const normalizeSellerUrl = (value?: string | null) => {
   }
 };
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   // Select only list-view fields — description/technicalDetails can be
   // several KB of HTML each and are fetched by the individual product editor.
   const products = await prisma.product.findMany({
@@ -63,36 +57,17 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({
+  return adminJson({
     products: products.map((product) => ({
       ...product,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     })),
   });
-}
+});
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-products:ip:${ip}`,
-    limit: 60,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
   const body = (await request.json()) as {
     title?: string;
     handle?: string;
@@ -117,12 +92,12 @@ export async function POST(request: Request) {
 
   const title = body.title?.trim();
   if (!title) {
-    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    return adminJson({ error: "Title is required" }, { status: 400 });
   }
 
   const sellerUrlResult = normalizeSellerUrl(body.sellerUrl);
   if (!sellerUrlResult.ok) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Seller URL must be a valid http(s) link" },
       { status: 400 }
     );
@@ -134,7 +109,7 @@ export async function POST(request: Request) {
       !Number.isFinite(body.leadTimeDays) ||
       body.leadTimeDays < 0)
   ) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Lead time must be a non-negative number" },
       { status: 400 }
     );
@@ -148,7 +123,7 @@ export async function POST(request: Request) {
     baseHandle === "product" &&
     handleInput.toLowerCase() !== "product"
   ) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Handle must include letters or numbers" },
       { status: 400 }
     );
@@ -159,7 +134,7 @@ export async function POST(request: Request) {
     const existing = await prisma.product.findUnique({ where: { handle } });
     if (!existing) break;
     if (handleInput) {
-      return NextResponse.json(
+      return adminJson(
         { error: "Handle already exists" },
         { status: 409 }
       );
@@ -178,7 +153,7 @@ export async function POST(request: Request) {
       select: { name: true, leadTimeDays: true },
     });
     if (!supplier) {
-      return NextResponse.json(
+      return adminJson(
         { error: "Supplier not found" },
         { status: 400 }
       );
@@ -211,7 +186,7 @@ export async function POST(request: Request) {
   });
 
   if (violations.length > 0) {
-    return NextResponse.json(
+    return adminJson(
       {
         error:
           "Product text includes terms that imply medical claims or illegal use. Please revise wording.",
@@ -272,11 +247,21 @@ export async function POST(request: Request) {
     summary: `Created product ${product.title}`,
   });
 
-  return NextResponse.json({
+  return adminJson({
     product: {
       ...product,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     },
   });
-}
+  },
+  {
+    action: "catalog.product.write",
+    rateLimit: {
+      keyPrefix: "admin-products",
+      limit: 60,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte spater erneut versuchen.",
+    },
+  },
+);

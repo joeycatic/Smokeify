@@ -1,36 +1,22 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
-import { isSameOrigin } from "@/lib/requestSecurity";
+import { adminJson } from "@/lib/adminApi";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { parseRecommendationRuleInput } from "@/lib/recommendationRules";
+import { withAdminRoute } from "@/lib/adminRoute";
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const rules = await prisma.recommendationRule.findMany({
     orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
   });
 
-  return NextResponse.json({ rules });
-}
+  return adminJson({ rules });
+});
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminRoute(async ({ request, session }) => {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const parsed = parseRecommendationRuleInput(body);
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return adminJson({ error: parsed.error }, { status: 400 });
   }
 
   const rule = await prisma.recommendationRule.create({
@@ -52,5 +38,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ rule });
-}
+  return adminJson({ rule });
+});

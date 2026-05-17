@@ -1,21 +1,17 @@
-import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import { sendResendEmail } from "@/lib/resend";
 import { buildOrderEmail } from "@/lib/orderEmail";
 import { buildInvoiceUrl } from "@/lib/invoiceLink";
 import { buildReceiptUrl } from "@/lib/receiptLink";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
 import {
   buildNewsletterCampaignEmail,
   buildNewsletterConfirmationEmail,
 } from "@/lib/newsletterEmail";
-import {
-  getStorefrontOrigin,
-} from "@/lib/storefrontEmailBrand";
+import { getStorefrontOrigin } from "@/lib/storefrontEmailBrand";
 import {
   buildBackInStockEmail,
   buildCheckoutRecoveryEmail,
@@ -111,73 +107,54 @@ const sanitizeOrder = (input: OrderInput): OrderInput => ({
     : [],
 });
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const ip = getClientIp(request.headers);
-  const ipLimit = await checkRateLimit({
-    key: `admin-email-testing:ip:${ip}`,
-    limit: 40,
-    windowMs: 10 * 60 * 1000,
-  });
-  if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
-    );
-  }
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const logEmailTestingAction = async (
+      type: EmailType,
+      recipient: string,
+      metadata?: Record<string, unknown>,
+    ) => {
+      await logAdminAction({
+        actor: { id: session.user.id, email: session.user.email ?? null },
+        action: "email.test.send",
+        targetType: "email",
+        targetId: recipient,
+        summary: `Sent ${type} test email to ${recipient}`,
+        metadata: { emailType: type, recipient, ...metadata },
+      });
+    };
 
-  const logEmailTestingAction = async (
-    type: EmailType,
-    recipient: string,
-    metadata?: Record<string, unknown>,
-  ) => {
-    await logAdminAction({
-      actor: { id: session.user.id, email: session.user.email ?? null },
-      action: "email.test.send",
-      targetType: "email",
-      targetId: recipient,
-      summary: `Sent ${type} test email to ${recipient}`,
-      metadata: { emailType: type, recipient, ...metadata },
-    });
-  };
+    const body = (await request.json().catch(() => ({}))) as {
+      type?: EmailType;
+      to?: string;
+      order?: OrderInput;
+      newsletter?: NewsletterInput;
+      subject?: string;
+      body?: string;
+      storefront?: string;
+      productTitle?: string;
+      variantTitle?: string;
+      sessionId?: string;
+    };
 
-  const body = (await request.json().catch(() => ({}))) as {
-    type?: EmailType;
-    to?: string;
-    order?: OrderInput;
-    newsletter?: NewsletterInput;
-    subject?: string;
-    body?: string;
-    storefront?: string;
-    productTitle?: string;
-    variantTitle?: string;
-    sessionId?: string;
-  };
+    const type = body.type;
+    const recipient = toSafeString(body.to);
+    if (!type) {
+      return adminJson({ error: "Missing email type" }, { status: 400 });
+    }
+    if (!recipient) {
+      return adminJson({ error: "Missing recipient email" }, { status: 400 });
+    }
 
-  const type = body.type;
-  const recipient = toSafeString(body.to);
-  if (!type) {
-    return NextResponse.json({ error: "Missing email type" }, { status: 400 });
-  }
-  if (!recipient) {
-    return NextResponse.json({ error: "Missing recipient email" }, { status: 400 });
-  }
-
-  const storefront = parseStorefront(body.storefront) ?? "MAIN";
-  const appOrigin = getAppOrigin(request);
-  const emailOrigin = getStorefrontOrigin(storefront, appOrigin);
+    const storefront = parseStorefront(body.storefront) ?? "MAIN";
+    const appOrigin = getAppOrigin(request);
+    const emailOrigin = getStorefrontOrigin(storefront, appOrigin);
 
   if (type === "newsletter") {
     const subject = toSafeString(body.newsletter?.subject ?? body.subject);
     const message = toSafeString(body.newsletter?.body ?? body.body);
     if (!subject || !message) {
-      return NextResponse.json(
+      return adminJson(
         { error: "Newsletter subject and body are required" },
         { status: 400 }
       );
@@ -191,9 +168,9 @@ export async function POST(request: Request) {
       fallbackOrigin: emailOrigin,
     });
 
-    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return adminJson({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { subject, storefront });
-    return NextResponse.json({ ok: true });
+    return adminJson({ ok: true });
   }
 
   if (type === "newsletter_confirmation") {
@@ -202,9 +179,9 @@ export async function POST(request: Request) {
       recipientEmail: recipient,
       fallbackOrigin: emailOrigin,
     });
-    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return adminJson({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { storefront });
-    return NextResponse.json({ ok: true });
+    return adminJson({ ok: true });
   }
 
   if (type === "back_in_stock") {
@@ -217,9 +194,9 @@ export async function POST(request: Request) {
       variantTitle,
       fallbackOrigin: emailOrigin,
     });
-    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return adminJson({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { productTitle, variantTitle, storefront });
-    return NextResponse.json({ ok: true });
+    return adminJson({ ok: true });
   }
 
   if (type === "checkout_recovery") {
@@ -230,18 +207,18 @@ export async function POST(request: Request) {
       sessionId,
       fallbackOrigin: emailOrigin,
     });
-    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
+    try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return adminJson({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
     await logEmailTestingAction(type, recipient, { sessionId, storefront });
-    return NextResponse.json({ ok: true });
+    return adminJson({ ok: true });
   }
 
   if (!body.order) {
-    return NextResponse.json({ error: "Missing order payload" }, { status: 400 });
+    return adminJson({ error: "Missing order payload" }, { status: 400 });
   }
 
   const order = sanitizeOrder(body.order);
   if (order.items.length === 0) {
-    return NextResponse.json(
+    return adminJson(
       { error: "At least one order item is required" },
       { status: 400 }
     );
@@ -290,7 +267,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return adminJson({ error: message }, { status: 500 });
   }
 
   await logEmailTestingAction(type, recipient, {
@@ -298,5 +275,14 @@ export async function POST(request: Request) {
     itemCount: order.items.length,
     storefront,
   });
-  return NextResponse.json({ ok: true });
-}
+  return adminJson({ ok: true });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-email-testing",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte später erneut versuchen.",
+    },
+  },
+);
