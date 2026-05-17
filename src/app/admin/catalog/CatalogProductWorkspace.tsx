@@ -289,8 +289,11 @@ function handleTableWheelScroll(event: WheelEvent<HTMLDivElement>) {
   const maxScrollLeft = container.scrollWidth - container.clientWidth;
   if (maxScrollLeft <= 0) return;
 
-  const horizontalDelta =
-    Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  const hasHorizontalGesture = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+  const usesShiftWheel = event.shiftKey && event.deltaY !== 0;
+  if (!hasHorizontalGesture && !usesShiftWheel) return;
+
+  const horizontalDelta = hasHorizontalGesture ? event.deltaX : event.deltaY;
   if (horizontalDelta === 0) return;
 
   const nextScrollLeft = Math.min(
@@ -335,6 +338,9 @@ export function CatalogTablePanel({
           <span>
             Showing <span className="text-slate-200">{products.length}</span> of{" "}
             <span className="text-slate-200">{totalCount}</span>
+          </span>
+          <span className="rounded-full border border-white/10 px-3 py-1">
+            Shift + wheel for sideways scroll
           </span>
           <span className="rounded-full border border-white/10 px-3 py-1">
             Page {currentPage} / {totalPages}
