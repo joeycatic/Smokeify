@@ -35,11 +35,13 @@ type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timelin
 type TrackingDraft = { carrier: string; number: string; url: string };
 type AdminEmailAction = "confirmation" | "shipping" | "refund" | "refund_request";
 type PersistedOrderDraft = {
-  version: 1;
+  version: 2;
   baseUpdatedAt: string;
   activeTab: OrderTabId;
   statusDraft: string;
   trackingDraft: TrackingDraft;
+  notifyCustomer: boolean;
+  fulfillmentEmailReason: string;
   refundSelection: Record<string, number>;
   refundIncludeShipping: boolean;
   refundMode: "full" | "items" | null;
@@ -158,6 +160,7 @@ const getFulfillmentOutcome = (
   order: AdminOrderRecord,
   statusDraft: string,
   trackingDraft: TrackingDraft,
+  notifyCustomer: boolean,
 ) => {
   const hasTrackingDraft = Boolean(trackingDraft.number.trim() || trackingDraft.url.trim());
   const normalizedExistingStatus = normalizeStatus(order.status);
@@ -171,47 +174,67 @@ const getFulfillmentOutcome = (
   if (order.shippingEmailSentAt) {
     return {
       tone: "info" as const,
-      title: "Shipping email already sent",
-      detail: `Sent ${formatDateTime(order.shippingEmailSentAt)}. Saving will not auto-send another shipping email.`,
+      title: "Shipping email already recorded",
+      detail: `Sent ${formatDateTime(order.shippingEmailSentAt)}. This save path can still update fulfillment data, but it will not send another shipping email.`,
+    };
+  }
+
+  if (!notifyCustomer) {
+    if (!hasTrackingDraft) {
+      return {
+        tone: "info" as const,
+        title: "Saving will not notify the customer",
+        detail: "Add tracking, then enable Notify customer if this save should also send the shipping email.",
+      };
+    }
+
+    if (willAutoMarkShipped) {
+      return {
+        tone: "info" as const,
+        title: "Saving will update fulfillment only",
+        detail: "Tracking can still auto-mark the order as shipped, but customer notification remains off unless you explicitly enable it below.",
+      };
+    }
+
+    return {
+      tone: "info" as const,
+      title: "Saving will not notify the customer",
+      detail: "Fulfillment changes will save, and the shipping email remains a separate explicit action.",
     };
   }
 
   if (!hasTrackingDraft) {
     return {
       tone: "warning" as const,
-      title: "No shipping email will be sent on save",
-      detail: "Tracking number or tracking URL is required before the system can send the shipping email automatically.",
+      title: "Tracking is required before customer notification",
+      detail: "Add a tracking number or tracking URL before saving with Notify customer enabled.",
     };
   }
 
-  if (willAutoMarkShipped) {
-    return {
-      tone: "success" as const,
-      title: "Saving will auto-mark shipped and send the shipping email once",
-      detail: "When tracking is added without a blocking status change, the backend resolves the order to shipped.",
-    };
-  }
+  const resultingStatus = willAutoMarkShipped ? "shipped" : normalizedDraftStatus;
 
-  if (normalizedDraftStatus === "shipped") {
+  if (resultingStatus === "shipped") {
     return {
       tone: "success" as const,
       title: "Saving will send the shipping email once",
-      detail: "Tracking is present and the resulting status will be shipped.",
+      detail: willAutoMarkShipped
+        ? "Tracking will auto-mark the order as shipped, and the customer will be notified in the same save."
+        : "Tracking is present and the resulting status will be shipped.",
     };
   }
 
-  if (normalizedDraftStatus === "fulfilled") {
+  if (resultingStatus === "fulfilled") {
     return {
-      tone: "warning" as const,
-      title: "Fulfilled does not send the shipping email",
-      detail: "If the customer should be notified, use the shipped path or send the shipping email manually from the timeline tab.",
+      tone: "success" as const,
+      title: "Saving will send the shipping email once",
+      detail: "Tracking is present and the resulting status will be fulfilled, which is also eligible for customer notification.",
     };
   }
 
   return {
-    tone: "info" as const,
-    title: "Tracking will save, but the email stays manual",
-    detail: "The current fulfillment path does not meet the automatic shipping-email rule.",
+    tone: "warning" as const,
+    title: "The current status cannot notify the customer",
+    detail: "Set the resulting status to shipped or fulfilled before saving with Notify customer enabled.",
   };
 };
 
@@ -242,6 +265,8 @@ export default function AdminOrderDetailClient({
   const [refundMode, setRefundMode] = useState<"full" | "items" | null>(null);
   const [refunding, setRefunding] = useState(false);
   const [emailReason, setEmailReason] = useState("");
+  const [notifyCustomer, setNotifyCustomer] = useState(false);
+  const [fulfillmentEmailReason, setFulfillmentEmailReason] = useState("");
   const [copiedCustomerField, setCopiedCustomerField] = useState<"email" | "customer" | null>(
     null,
   );
@@ -316,14 +341,17 @@ export default function AdminOrderDetailClient({
     { label: "Refund", sentAt: order.refundEmailSentAt },
   ];
   const fulfillmentOutcome = useMemo(
-    () => getFulfillmentOutcome(order, statusDraft, trackingDraft),
-    [order, statusDraft, trackingDraft],
+    () => getFulfillmentOutcome(order, statusDraft, trackingDraft, notifyCustomer),
+    [notifyCustomer, order, statusDraft, trackingDraft],
   );
-  const fulfillmentDirty =
+  const fulfillmentFieldDirty =
     normalizeStatus(statusDraft) !== normalizeStatus(order.status) ||
     trackingDraft.carrier.trim() !== (order.trackingCarrier ?? "").trim() ||
     trackingDraft.number.trim() !== (order.trackingNumber ?? "").trim() ||
     trackingDraft.url.trim() !== (order.trackingUrl ?? "").trim();
+  const fulfillmentNotifyDirty = notifyCustomer || Boolean(fulfillmentEmailReason.trim());
+  const fulfillmentDirty = fulfillmentFieldDirty || fulfillmentNotifyDirty;
+  const canSaveFulfillment = fulfillmentFieldDirty || notifyCustomer;
   const refundsDirty =
     Object.values(refundSelection).some((value) => value > 0) ||
     refundIncludeShipping ||
@@ -383,6 +411,10 @@ export default function AdminOrderDetailClient({
           url: typeof parsed.trackingDraft.url === "string" ? parsed.trackingDraft.url : "",
         });
       }
+      setNotifyCustomer(parsed.notifyCustomer === true);
+      setFulfillmentEmailReason(
+        typeof parsed.fulfillmentEmailReason === "string" ? parsed.fulfillmentEmailReason : "",
+      );
       setRefundSelection(
         Object.fromEntries(
           Object.entries(parsed.refundSelection ?? {}).map(([itemId, value]) => [
@@ -409,11 +441,13 @@ export default function AdminOrderDetailClient({
     }
 
     const draft: PersistedOrderDraft = {
-      version: 1,
+      version: 2,
       baseUpdatedAt: order.updatedAt,
       activeTab,
       statusDraft,
       trackingDraft,
+      notifyCustomer,
+      fulfillmentEmailReason,
       refundSelection,
       refundIncludeShipping,
       refundMode,
@@ -422,7 +456,9 @@ export default function AdminOrderDetailClient({
   }, [
     activeTab,
     draftStorageKey,
+    fulfillmentEmailReason,
     hasUnsavedChanges,
+    notifyCustomer,
     order.updatedAt,
     refundIncludeShipping,
     refundMode,
@@ -515,6 +551,10 @@ export default function AdminOrderDetailClient({
       setError("You do not have permission to update fulfillment state.");
       return;
     }
+    if (notifyCustomer && !fulfillmentEmailReason.trim()) {
+      setError("A short reason is required before notifying the customer.");
+      return;
+    }
     setError("");
     setNotice("");
     setSaving(true);
@@ -527,6 +567,8 @@ export default function AdminOrderDetailClient({
           trackingCarrier: trackingDraft.carrier || undefined,
           trackingNumber: trackingDraft.number || undefined,
           trackingUrl: trackingDraft.url || undefined,
+          notifyCustomer,
+          emailReason: notifyCustomer ? fulfillmentEmailReason.trim() : undefined,
           expectedUpdatedAt: order.updatedAt,
         }),
       });
@@ -550,6 +592,8 @@ export default function AdminOrderDetailClient({
           updatedAt: new Date().toISOString(),
         },
       );
+      setNotifyCustomer(false);
+      setFulfillmentEmailReason("");
       setNotice(data.warning ?? "Order workspace updated.");
     } catch {
       setError("Failed to save order.");
@@ -679,6 +723,8 @@ export default function AdminOrderDetailClient({
       number: order.trackingNumber ?? "",
       url: order.trackingUrl ?? "",
     });
+    setNotifyCustomer(false);
+    setFulfillmentEmailReason("");
     setRefundSelection({});
     setRefundIncludeShipping(false);
     setRefundPassword("");
@@ -808,9 +854,14 @@ export default function AdminOrderDetailClient({
             setTrackingDraft={setTrackingDraft}
             saving={saving}
             fulfillmentDirty={fulfillmentDirty}
+            canSaveFulfillment={canSaveFulfillment}
             saveOrder={saveOrder}
             fulfillmentOutcome={fulfillmentOutcome}
             canUpdateFulfillment={actionPermissions.canUpdateFulfillment}
+            notifyCustomer={notifyCustomer}
+            setNotifyCustomer={setNotifyCustomer}
+            fulfillmentEmailReason={fulfillmentEmailReason}
+            setFulfillmentEmailReason={setFulfillmentEmailReason}
           />
         ) : null}
         {activeTab === "refunds" ? (
@@ -1100,9 +1151,14 @@ function FulfillmentTab({
   setTrackingDraft,
   saving,
   fulfillmentDirty,
+  canSaveFulfillment,
   saveOrder,
   fulfillmentOutcome,
   canUpdateFulfillment,
+  notifyCustomer,
+  setNotifyCustomer,
+  fulfillmentEmailReason,
+  setFulfillmentEmailReason,
 }: {
   order: AdminOrderRecord;
   statusDraft: string;
@@ -1111,10 +1167,19 @@ function FulfillmentTab({
   setTrackingDraft: Dispatch<SetStateAction<TrackingDraft>>;
   saving: boolean;
   fulfillmentDirty: boolean;
+  canSaveFulfillment: boolean;
   saveOrder: () => Promise<void>;
   fulfillmentOutcome: ReturnType<typeof getFulfillmentOutcome>;
   canUpdateFulfillment: boolean;
+  notifyCustomer: boolean;
+  setNotifyCustomer: Dispatch<SetStateAction<boolean>>;
+  fulfillmentEmailReason: string;
+  setFulfillmentEmailReason: Dispatch<SetStateAction<string>>;
 }) {
+  const hasTrackingDraft = Boolean(trackingDraft.number.trim() || trackingDraft.url.trim());
+  const notifyToggleDisabled =
+    !canUpdateFulfillment || !hasTrackingDraft || Boolean(order.shippingEmailSentAt);
+
   return (
     <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_390px]">
       <div className="space-y-6">
@@ -1156,6 +1221,45 @@ function FulfillmentTab({
               </div>
 
               <OutcomeCard tone={fulfillmentOutcome.tone} eyebrow="Save outcome" title={fulfillmentOutcome.title} detail={fulfillmentOutcome.detail} />
+              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={notifyCustomer}
+                    onChange={(event) => setNotifyCustomer(event.target.checked)}
+                    disabled={notifyToggleDisabled}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Notify customer on save</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                      Shipping emails only send from this save path when you explicitly enable notification.
+                    </p>
+                  </div>
+                </label>
+                {!hasTrackingDraft ? (
+                  <p className="mt-3 text-sm text-amber-200">
+                    Add a tracking number or tracking URL before customer notification becomes available.
+                  </p>
+                ) : null}
+                {order.shippingEmailSentAt ? (
+                  <p className="mt-3 text-sm text-slate-300">
+                    The shipping email was already recorded on {formatDateTime(order.shippingEmailSentAt)}.
+                  </p>
+                ) : null}
+                <label className="mt-4 block">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Reason for shipping email
+                  </span>
+                  <textarea
+                    value={fulfillmentEmailReason}
+                    onChange={(event) => setFulfillmentEmailReason(event.target.value)}
+                    className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
+                    placeholder="Explain why this save should notify the customer."
+                    disabled={!canUpdateFulfillment || !notifyCustomer || Boolean(order.shippingEmailSentAt)}
+                  />
+                </label>
+              </div>
               {!canUpdateFulfillment ? (
                 <OutcomeCard
                   tone="warning"
@@ -1168,7 +1272,7 @@ function FulfillmentTab({
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Rules</p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Tracking can auto-mark open orders as shipped. Shipping email auto-sends once from that path.
+                  Tracking can still auto-mark open orders as shipped. Customer notification only happens when Notify customer is enabled and the resulting status is shipped or fulfilled.
                 </p>
               </div>
             </div>
@@ -1180,7 +1284,7 @@ function FulfillmentTab({
             </p>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Unsaved fulfillment draft</span> : null}
-              <button type="button" onClick={() => void saveOrder()} disabled={!canUpdateFulfillment || !fulfillmentDirty || saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
+              <button type="button" onClick={() => void saveOrder()} disabled={!canUpdateFulfillment || !canSaveFulfillment || saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
             </div>
           </div>
         </Panel>
@@ -1195,6 +1299,7 @@ function FulfillmentTab({
             <DraftRow label="Pending tracking number" value={trackingDraft.number || "—"} emphasis />
             <DraftRow label="Saved tracking URL" value={order.trackingUrl ?? "—"} mono />
             <DraftRow label="Pending tracking URL" value={trackingDraft.url || "—"} mono emphasis />
+            <DraftRow label="Notify customer" value={notifyCustomer ? "Yes" : "No"} emphasis={notifyCustomer} />
           </div>
         </Panel>
       </div>

@@ -12,6 +12,7 @@ import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
 } from "@/lib/expenseTableGuard";
+import { buildAllocationUpsertData } from "@/lib/expenseAllocations";
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -51,8 +52,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { allocations, ...expenseData } = parsed.data;
     const expense = await prisma.recurringExpense.create({
-      data: parsed.data,
+      data: {
+        ...expenseData,
+        allocations:
+          allocations.length > 0
+            ? {
+                create: buildAllocationUpsertData(allocations),
+              }
+            : undefined,
+      },
       include: {
         supplier: {
           select: {
@@ -60,6 +70,7 @@ export async function POST(request: Request) {
             name: true,
           },
         },
+        allocations: true,
       },
     });
 

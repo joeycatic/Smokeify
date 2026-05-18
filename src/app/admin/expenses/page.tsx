@@ -51,6 +51,17 @@ export default async function AdminExpensesPage() {
           documentDate: expense.documentDate.toISOString(),
           paidAt: expense.paidAt ? expense.paidAt.toISOString() : null,
           documentStatus: expense.documentStatus,
+          allocations: expense.allocations ?? [],
+          allocationSummary: {
+            totalPercent: expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0),
+            isFullyAllocated:
+              expense.allocations.length > 0 &&
+              expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0) === 100,
+            missingPercent: Math.max(
+              0,
+              100 - expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0),
+            ),
+          },
           createdAt: expense.createdAt.toISOString(),
           updatedAt: expense.updatedAt.toISOString(),
         }))}
@@ -70,6 +81,17 @@ export default async function AdminExpensesPage() {
           interval: expense.interval,
           nextDueDate: expense.nextDueDate.toISOString(),
           isActive: expense.isActive,
+          allocations: expense.allocations ?? [],
+          allocationSummary: {
+            totalPercent: expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0),
+            isFullyAllocated:
+              expense.allocations.length > 0 &&
+              expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0) === 100,
+            missingPercent: Math.max(
+              0,
+              100 - expense.allocations.reduce((sum, allocation) => sum + allocation.percent, 0),
+            ),
+          },
           createdAt: expense.createdAt.toISOString(),
           updatedAt: expense.updatedAt.toISOString(),
         }))}

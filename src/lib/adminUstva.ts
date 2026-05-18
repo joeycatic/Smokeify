@@ -14,6 +14,7 @@ export type AdminUstvaPreparationInput = {
   missingExpenseDocumentCount: number;
   missingExpenseVatCount: number;
   missingExpenseSupplierCount: number;
+  missingExpenseAllocationCount?: number;
   reviewRequiredExpenseCount?: number;
   blockedExpenseCount?: number;
   reverseChargeExpenseCount?: number;
@@ -152,6 +153,11 @@ export function buildUstvaPreparation(
   if ((input.reviewRequiredExpenseCount ?? 0) > 0) {
     blockers.push(
       `${input.reviewRequiredExpenseCount} Ausgabenposition(en) stehen noch auf Prüfung erforderlich.`,
+    );
+  }
+  if ((input.missingExpenseAllocationCount ?? 0) > 0) {
+    blockers.push(
+      `${input.missingExpenseAllocationCount} Ausgabenposition(en) fehlen noch vollständige Storefront-Zuordnungen.`,
     );
   }
 

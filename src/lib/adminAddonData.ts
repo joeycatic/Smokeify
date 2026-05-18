@@ -1,11 +1,13 @@
 import "server-only";
 
-import { type Storefront } from "@prisma/client";
+import { Prisma, type Storefront } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   buildExpenseSummary,
   buildRecurringExpenseSummary,
   getVatDeadlineInfo,
+  getRecurringExpenseMonthlyAmountCents,
+  type ExpenseCategory,
 } from "@/lib/adminExpenses";
 import {
   buildFinanceRollup,
@@ -30,11 +32,16 @@ import {
   getStockCoverageMap,
 } from "@/lib/adminInsights";
 import {
+  getAllocatedAmountCents,
+  summarizeStorefrontAllocations,
+  type StorefrontAllocationInput,
+} from "@/lib/expenseAllocations";
+import {
   buildAdminTimeBuckets,
   getAdminTimeWindowStart,
   type AdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
-import { STOREFRONT_LABELS } from "@/lib/storefronts";
+import { STOREFRONT_LABELS, STOREFRONTS, type StorefrontCode } from "@/lib/storefronts";
 
 const getDateDaysAgo = (daysAgo: number) => {
   const date = new Date();
@@ -59,7 +66,77 @@ const buildVatOptionsFromExpenses = (
   missingExpenseVatCount: summary.missingVatCount,
   missingExpenseDocumentCount: summary.missingDocumentCount,
   missingExpenseSupplierCount: summary.missingSupplierCount,
+  missingExpenseAllocationCount: summary.missingAllocationCount,
 });
+
+const expenseWithRelationsInclude = Prisma.validator<Prisma.ExpenseInclude>()({
+  supplier: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  allocations: {
+    select: {
+      storefront: true,
+      percent: true,
+    },
+  },
+});
+
+const recurringExpenseWithRelationsInclude =
+  Prisma.validator<Prisma.RecurringExpenseInclude>()({
+    supplier: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+    allocations: {
+      select: {
+        storefront: true,
+        percent: true,
+      },
+    },
+  });
+
+type ExpenseWithRelations = Prisma.ExpenseGetPayload<{
+  include: typeof expenseWithRelationsInclude;
+}>;
+
+type RecurringExpenseWithRelations = Prisma.RecurringExpenseGetPayload<{
+  include: typeof recurringExpenseWithRelationsInclude;
+}>;
+
+function getExpenseAllocations(
+  expense: { allocations?: Array<{ storefront: string; percent: number }> },
+): StorefrontAllocationInput[] {
+  return summarizeStorefrontAllocations(expense.allocations ?? []).allocations;
+}
+
+function hasCompleteExpenseAllocation(
+  expense: { allocations?: Array<{ storefront: string; percent: number }> },
+) {
+  return summarizeStorefrontAllocations(expense.allocations ?? []).isFullyAllocated;
+}
+
+function allocateExpenseToStorefront<
+  T extends {
+    grossAmount: number;
+    netAmount: number;
+    vatAmount: number;
+    allocations?: Array<{ storefront: string; percent: number }>;
+  },
+>(expense: T, storefront: StorefrontCode) {
+  const allocations = getExpenseAllocations(expense);
+  return {
+    ...expense,
+    grossAmount: getAllocatedAmountCents(expense.grossAmount, allocations, storefront),
+    netAmount: getAllocatedAmountCents(expense.netAmount, allocations, storefront),
+    vatAmount: getAllocatedAmountCents(expense.vatAmount, allocations, storefront),
+    allocations,
+  };
+}
 
 export async function getFinanceOrdersSince(since: Date) {
   return prisma.order.findMany({
@@ -134,14 +211,7 @@ async function queryExpensesSince(since: Date) {
     const expenses = await prisma.expense.findMany({
       where: { documentDate: { gte: since } },
       orderBy: [{ documentDate: "desc" }, { createdAt: "desc" }],
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      include: expenseWithRelationsInclude,
     });
     return {
       expenses,
@@ -150,7 +220,7 @@ async function queryExpensesSince(since: Date) {
   } catch (error) {
     if (isMissingExpenseTableError(error)) {
       return {
-        expenses: [],
+        expenses: [] as ExpenseWithRelations[],
         migrationRequired: true,
       };
     }
@@ -162,14 +232,7 @@ async function queryRecurringExpenses() {
   try {
     const recurringExpenses = await prisma.recurringExpense.findMany({
       orderBy: [{ isActive: "desc" }, { nextDueDate: "asc" }, { createdAt: "desc" }],
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      include: recurringExpenseWithRelationsInclude,
     });
     return {
       recurringExpenses,
@@ -178,7 +241,7 @@ async function queryRecurringExpenses() {
   } catch (error) {
     if (isMissingExpenseTableError(error)) {
       return {
-        recurringExpenses: [],
+        recurringExpenses: [] as RecurringExpenseWithRelations[],
         migrationRequired: true,
       };
     }
@@ -214,16 +277,32 @@ export async function getFinancePageData(
       },
     }),
   ]);
-  const expenses = storefront ? [] : expenseQuery.expenses;
+  const expenses = storefront
+    ? expenseQuery.expenses
+        .filter((expense) => hasCompleteExpenseAllocation(expense))
+        .map((expense) => allocateExpenseToStorefront(expense, storefront as StorefrontCode))
+        .filter((expense) => expense.grossAmount > 0 || expense.vatAmount > 0)
+    : expenseQuery.expenses;
   const currency = orders[0]?.currency ?? expenses[0]?.currency ?? "EUR";
   const currentOrders = orders.filter((order) => order.createdAt >= currentStart);
   const previousOrders = orders.filter((order) => order.createdAt < currentStart);
   const currentExpenses = expenses.filter((expense) => expense.documentDate >= currentStart);
   const previousExpenses = expenses.filter((expense) => expense.documentDate < currentStart);
+  const allCurrentExpenses = expenseQuery.expenses.filter(
+    (expense) => expense.documentDate >= currentStart,
+  );
   const currentFinance = buildFinanceRollup(currentOrders, currency);
   const previousFinance = buildFinanceRollup(previousOrders, currency);
   const currentExpenseSummary = buildExpenseSummary(currentExpenses, currency);
   const previousExpenseSummary = buildExpenseSummary(previousExpenses, currency);
+  const scopedBlockers = {
+    unallocatedExpenseCount: storefront
+      ? allCurrentExpenses.filter((expense) => !hasCompleteExpenseAllocation(expense)).length
+      : currentExpenseSummary.missingAllocationCount,
+    allocatedExpensesMissingVatCount: currentExpenses.filter(
+      (expense) => expense.isDeductible && expense.vatAmount <= 0,
+    ).length,
+  };
   const vatSummary = buildVatSummary(
     currentOrders,
     new Date(),
@@ -296,6 +375,14 @@ export async function getFinancePageData(
     currentExpenseSummary,
     previousExpenseSummary,
     vatSummary,
+    scopeCoverage: {
+      storefront,
+      unallocatedExpenseCount: scopedBlockers.unallocatedExpenseCount,
+      allocatedExpensesMissingVatCount: scopedBlockers.allocatedExpensesMissingVatCount,
+      isComplete:
+        scopedBlockers.unallocatedExpenseCount === 0 &&
+        scopedBlockers.allocatedExpensesMissingVatCount === 0,
+    },
     trend,
     expenseByCategory,
     expenseMigrationRequired: expenseQuery.migrationRequired,
@@ -357,6 +444,7 @@ export async function getVatPageData(months = 6) {
       missingExpenseDocumentCount: expenseSummary.missingDocumentCount,
       missingExpenseVatCount: expenseSummary.missingVatCount,
       missingExpenseSupplierCount: expenseSummary.missingSupplierCount,
+      missingExpenseAllocationCount: expenseSummary.missingAllocationCount,
       reviewRequiredExpenseCount: expenseSummary.reviewRequiredCount,
       blockedExpenseCount: expenseSummary.blockedCount,
       reverseChargeExpenseCount: monthExpenses.filter(
@@ -393,6 +481,7 @@ export async function getVatPageData(months = 6) {
           missingExpenseDocumentCount: current.missingExpenseDocumentCount,
           missingExpenseVatCount: current.missingExpenseVatCount,
           missingExpenseSupplierCount: current.missingExpenseSupplierCount,
+          missingExpenseAllocationCount: current.missingExpenseAllocationCount,
           reviewRequiredExpenseCount: current.reviewRequiredExpenseCount,
           blockedExpenseCount: current.blockedExpenseCount,
           reverseChargeExpenseCount: current.reverseChargeExpenseCount,
@@ -462,6 +551,7 @@ export async function getExpensesPageData(days = 120) {
 }
 
 export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
+  const currentStart = getAdminTimeWindowStart(days);
   const [
     productPerformance,
     allFinanceData,
@@ -471,6 +561,9 @@ export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
     mainExclusiveCatalogCount,
     growCatalogCount,
     growExclusiveCatalogCount,
+    expenseQuery,
+    recurringExpenseQuery,
+    storefrontOrderItems,
   ] = await Promise.all([
     getProductPerformance(days),
     getFinancePageData(days),
@@ -496,6 +589,28 @@ export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
         NOT: { storefronts: { has: "MAIN" } },
       },
     }),
+    queryExpensesSince(currentStart),
+    queryRecurringExpenses(),
+    prisma.orderItem.findMany({
+      where: {
+        productId: { not: null },
+        order: {
+          createdAt: { gte: currentStart },
+          paymentStatus: { in: [...RECOGNIZED_PAYMENT_STATUSES] },
+          sourceStorefront: { not: null },
+        },
+      },
+      select: {
+        productId: true,
+        totalAmount: true,
+        taxAmount: true,
+        order: {
+          select: {
+            sourceStorefront: true,
+          },
+        },
+      },
+    }),
   ]);
   const productIds = productPerformance.map((item) => item.productId);
   const products = productIds.length
@@ -512,15 +627,124 @@ export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
     : [];
   const productMap = new Map(products.map((product) => [product.id, product]));
 
+  const storefrontRevenueTotals: Record<
+    StorefrontCode,
+    { grossRevenueCents: number; netRevenueCents: number }
+  > = {
+    MAIN: { grossRevenueCents: 0, netRevenueCents: 0 },
+    GROW: { grossRevenueCents: 0, netRevenueCents: 0 },
+  };
+  const storefrontRevenueByProduct = new Map<
+    string,
+    Record<StorefrontCode, { grossRevenueCents: number; netRevenueCents: number }>
+  >();
+
+  for (const item of storefrontOrderItems) {
+    const storefront = item.order.sourceStorefront as StorefrontCode | null;
+    const productId = item.productId;
+    if (!storefront || !productId) continue;
+    const grossRevenueCents = Math.max(item.totalAmount, 0);
+    const netRevenueCents = Math.max(item.totalAmount - Math.max(item.taxAmount, 0), 0);
+    storefrontRevenueTotals[storefront].grossRevenueCents += grossRevenueCents;
+    storefrontRevenueTotals[storefront].netRevenueCents += netRevenueCents;
+    const current =
+      storefrontRevenueByProduct.get(productId) ??
+      {
+        MAIN: { grossRevenueCents: 0, netRevenueCents: 0 },
+        GROW: { grossRevenueCents: 0, netRevenueCents: 0 },
+      };
+    current[storefront].grossRevenueCents += grossRevenueCents;
+    current[storefront].netRevenueCents += netRevenueCents;
+    storefrontRevenueByProduct.set(productId, current);
+  }
+
+  const allocatedExpensePools: Record<
+    StorefrontCode,
+    { revenueShareOverheadCents: number; netShareOverheadCents: number }
+  > = {
+    MAIN: { revenueShareOverheadCents: 0, netShareOverheadCents: 0 },
+    GROW: { revenueShareOverheadCents: 0, netShareOverheadCents: 0 },
+  };
+
+  const allocateExpenseIntoPools = (expense: {
+    category: ExpenseCategory;
+    netAmount: number;
+    allocations?: Array<{ storefront: string; percent: number }>;
+  }) => {
+    const allocations = getExpenseAllocations(expense);
+    for (const storefront of STOREFRONTS as readonly StorefrontCode[]) {
+      const amountCents = getAllocatedAmountCents(expense.netAmount, allocations, storefront);
+      if (amountCents <= 0) continue;
+      if (expense.category === "SHIPPING" || expense.category === "OPERATIONS") {
+        allocatedExpensePools[storefront].revenueShareOverheadCents += amountCents;
+        continue;
+      }
+      if (expense.category === "INVENTORY") {
+        continue;
+      }
+      allocatedExpensePools[storefront].netShareOverheadCents += amountCents;
+    }
+  };
+
+  for (const expense of expenseQuery.expenses.filter(
+    (expense) => expense.documentDate >= currentStart && hasCompleteExpenseAllocation(expense),
+  )) {
+    allocateExpenseIntoPools(expense);
+  }
+
+  for (const recurringExpense of recurringExpenseQuery.recurringExpenses.filter(
+    (expense) => expense.isActive && hasCompleteExpenseAllocation(expense),
+  )) {
+    allocateExpenseIntoPools({
+      category: recurringExpense.category,
+      netAmount: getRecurringExpenseMonthlyAmountCents(
+        recurringExpense.netAmount,
+        recurringExpense.interval,
+      ),
+      allocations: recurringExpense.allocations,
+    });
+  }
+
   const rows = productPerformance
     .map((item) => {
       const product = productMap.get(item.productId);
+      const storefrontRevenue =
+        storefrontRevenueByProduct.get(item.productId) ??
+        {
+          MAIN: { grossRevenueCents: 0, netRevenueCents: 0 },
+          GROW: { grossRevenueCents: 0, netRevenueCents: 0 },
+        };
+      const allocatedOverheadCents = (STOREFRONTS as readonly StorefrontCode[]).reduce(
+        (sum: number, storefront: StorefrontCode) => {
+          const storefrontGross = storefrontRevenue[storefront].grossRevenueCents;
+          const storefrontNet = storefrontRevenue[storefront].netRevenueCents;
+        const grossShare =
+          storefrontRevenueTotals[storefront].grossRevenueCents > 0
+            ? storefrontGross / storefrontRevenueTotals[storefront].grossRevenueCents
+            : 0;
+        const netShare =
+          storefrontRevenueTotals[storefront].netRevenueCents > 0
+            ? storefrontNet / storefrontRevenueTotals[storefront].netRevenueCents
+            : grossShare;
+          return (
+            sum +
+            Math.round(allocatedExpensePools[storefront].revenueShareOverheadCents * grossShare) +
+            Math.round(allocatedExpensePools[storefront].netShareOverheadCents * netShare)
+          );
+        },
+        0,
+      );
+      const allocatedProfitCents = item.marginCents - allocatedOverheadCents;
       return {
         ...item,
         storefronts: product?.storefronts ?? ["MAIN"],
         categoryName: product?.mainCategory?.name ?? "Uncategorized",
         supplierName: product?.supplierRef?.name ?? "Unknown supplier",
         marginRate: item.revenueCents > 0 ? item.marginCents / item.revenueCents : 0,
+        allocatedOverheadCents,
+        allocatedProfitCents,
+        allocatedProfitRate:
+          item.revenueCents > 0 ? allocatedProfitCents / item.revenueCents : 0,
       };
     })
     .sort((left, right) => right.marginCents - left.marginCents);
@@ -543,6 +767,20 @@ export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
       netRevenueCents: financeData.currentFinance.netRevenueCents,
       contributionMarginCents: financeData.currentFinance.contributionMarginCents,
       contributionMarginRatio: financeData.currentFinance.contributionMarginRatio,
+      allocatedOverheadCents:
+        allocatedExpensePools[storefront].revenueShareOverheadCents +
+        allocatedExpensePools[storefront].netShareOverheadCents,
+      allocatedProfitCents:
+        financeData.currentFinance.contributionMarginCents -
+        allocatedExpensePools[storefront].revenueShareOverheadCents -
+        allocatedExpensePools[storefront].netShareOverheadCents,
+      allocatedProfitRatio:
+        financeData.currentFinance.netRevenueCents > 0
+          ? (financeData.currentFinance.contributionMarginCents -
+              allocatedExpensePools[storefront].revenueShareOverheadCents -
+              allocatedExpensePools[storefront].netShareOverheadCents) /
+            financeData.currentFinance.netRevenueCents
+          : 0,
       averageOrderValueCents:
         paidOrderCount > 0
           ? Math.round(financeData.currentFinance.grossRevenueCents / paidOrderCount)
@@ -653,6 +891,13 @@ export async function getProfitabilityPageData(days: AdminTimeRangeDays = 30) {
       currency: allFinanceData.currentFinance.currency,
       unattributedPaidOrders,
       unattributedContributionCents,
+      unallocatedExpenseCount: allFinanceData.scopeCoverage.unallocatedExpenseCount,
+      allocatedOverheadCents:
+        allocatedExpensePools.MAIN.revenueShareOverheadCents +
+        allocatedExpensePools.MAIN.netShareOverheadCents +
+        allocatedExpensePools.GROW.revenueShareOverheadCents +
+        allocatedExpensePools.GROW.netShareOverheadCents,
+      missingExpenseVatCount: allFinanceData.scopeCoverage.allocatedExpensesMissingVatCount,
     },
   };
 }

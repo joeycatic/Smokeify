@@ -12,6 +12,7 @@ import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
 } from "@/lib/expenseTableGuard";
+import { buildAllocationUpsertData } from "@/lib/expenseAllocations";
 
 export async function PATCH(
   request: NextRequest,
@@ -55,17 +56,32 @@ export async function PATCH(
   }
 
   try {
-    const expense = await prisma.recurringExpense.update({
-      where: { id },
-      data: parsed.data,
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-          },
+    const { allocations, ...expenseData } = parsed.data;
+    const expense = await prisma.$transaction(async (tx) => {
+      await tx.recurringExpenseStorefrontAllocation.deleteMany({
+        where: { recurringExpenseId: id },
+      });
+      return tx.recurringExpense.update({
+        where: { id },
+        data: {
+          ...expenseData,
+          allocations:
+            allocations.length > 0
+              ? {
+                  create: buildAllocationUpsertData(allocations),
+                }
+              : undefined,
         },
-      },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          allocations: true,
+        },
+      });
     });
 
     await logAdminAction({

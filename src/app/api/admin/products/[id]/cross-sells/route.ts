@@ -61,8 +61,15 @@ export async function PUT(
   }
   const { id } = await context.params;
 
-  const body = (await request.json()) as { crossSellIds?: string[] };
+  const body = (await request.json()) as {
+    crossSellIds?: string[];
+    source?: string;
+  };
   const crossSellIds = Array.isArray(body.crossSellIds) ? body.crossSellIds : [];
+  const source =
+    typeof body.source === "string" && body.source.trim()
+      ? body.source.trim()
+      : "admin.product_editor";
 
   // Validate that the product exists
   const product = await prisma.product.findUnique({ where: { id }, select: { id: true } });
@@ -115,6 +122,7 @@ export async function PUT(
     metadata: {
       crossSellIds: filtered,
       count: filtered.length,
+      source,
     },
   });
 

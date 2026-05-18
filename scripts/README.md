@@ -43,6 +43,7 @@
 
 ## `scripts/orders`
 - `backfillOrderPaymentFees.mjs`: backfill Stripe payment fee data on historical orders.
+- `backfillOrderAttribution.mjs`: dry-run or apply exact storefront attribution repairs for unresolved historical orders.
 
 ## `scripts/market`
 - `shop-sources.json`: curated grow/headshop source list for direct search scraping. Use `{query}` in each URL template.

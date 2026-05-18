@@ -19,6 +19,11 @@ import {
   classifyGermanTaxContext,
   type InvoiceValidationStatus,
 } from "@/lib/germanTax";
+import {
+  normalizeStorefrontAllocations,
+  summarizeStorefrontAllocations,
+  type StorefrontAllocationInput,
+} from "@/lib/expenseAllocations";
 
 type ParsedExpensePayload = {
   supplierId: string | null;
@@ -47,6 +52,7 @@ type ParsedExpensePayload = {
   documentDate: Date;
   paidAt: Date | null;
   documentStatus: ExpenseDocumentStatus;
+  allocations: StorefrontAllocationInput[];
 };
 
 type ParseResult =
@@ -67,6 +73,7 @@ type ParsedRecurringExpensePayload = {
   interval: RecurringExpenseInterval;
   nextDueDate: Date;
   isActive: boolean;
+  allocations: StorefrontAllocationInput[];
 };
 
 type RecurringParseResult =
@@ -95,6 +102,8 @@ const parseOptionalString = (value: unknown) =>
 export function parseExpensePayload(body: unknown): ParseResult {
   const input = typeof body === "object" && body ? (body as Record<string, unknown>) : null;
   if (!input) return { ok: false, error: "Invalid payload." };
+  const parsedAllocations = normalizeStorefrontAllocations(input.allocations);
+  if (!parsedAllocations.ok) return { ok: false, error: parsedAllocations.error };
 
   const title = typeof input.title === "string" ? input.title.trim() : "";
   if (!title) return { ok: false, error: "Title is required." };
@@ -220,6 +229,7 @@ export function parseExpensePayload(body: unknown): ParseResult {
       documentDate,
       paidAt,
       documentStatus,
+      allocations: parsedAllocations.allocations,
     },
   };
 }
@@ -227,6 +237,8 @@ export function parseExpensePayload(body: unknown): ParseResult {
 export function parseRecurringExpensePayload(body: unknown): RecurringParseResult {
   const input = typeof body === "object" && body ? (body as Record<string, unknown>) : null;
   if (!input) return { ok: false, error: "Invalid payload." };
+  const parsedAllocations = normalizeStorefrontAllocations(input.allocations);
+  if (!parsedAllocations.ok) return { ok: false, error: parsedAllocations.error };
 
   const title = typeof input.title === "string" ? input.title.trim() : "";
   if (!title) return { ok: false, error: "Title is required." };
@@ -296,6 +308,7 @@ export function parseRecurringExpensePayload(body: unknown): RecurringParseResul
       interval,
       nextDueDate,
       isActive: input.isActive,
+      allocations: parsedAllocations.allocations,
     },
   };
 }
@@ -332,8 +345,10 @@ export function serializeExpenseRecord<
     createdAt: Date;
     updatedAt: Date;
     supplier?: { id: string; name: string } | null;
+    allocations?: Array<{ storefront: string; percent: number }>;
   },
 >(expense: T) {
+  const allocationSummary = summarizeStorefrontAllocations(expense.allocations ?? []);
   return {
     id: expense.id,
     supplierId: expense.supplierId,
@@ -363,6 +378,12 @@ export function serializeExpenseRecord<
     documentDate: expense.documentDate.toISOString(),
     paidAt: expense.paidAt ? expense.paidAt.toISOString() : null,
     documentStatus: expense.documentStatus,
+    allocations: allocationSummary.allocations,
+    allocationSummary: {
+      totalPercent: allocationSummary.totalPercent,
+      isFullyAllocated: allocationSummary.isFullyAllocated,
+      missingPercent: allocationSummary.missingPercent,
+    },
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
   };
@@ -387,8 +408,10 @@ export function serializeRecurringExpenseRecord<
     createdAt: Date;
     updatedAt: Date;
     supplier?: { id: string; name: string } | null;
+    allocations?: Array<{ storefront: string; percent: number }>;
   },
 >(expense: T) {
+  const allocationSummary = summarizeStorefrontAllocations(expense.allocations ?? []);
   return {
     id: expense.id,
     supplierId: expense.supplierId,
@@ -405,6 +428,12 @@ export function serializeRecurringExpenseRecord<
     interval: expense.interval,
     nextDueDate: expense.nextDueDate.toISOString(),
     isActive: expense.isActive,
+    allocations: allocationSummary.allocations,
+    allocationSummary: {
+      totalPercent: allocationSummary.totalPercent,
+      isFullyAllocated: allocationSummary.isFullyAllocated,
+      missingPercent: allocationSummary.missingPercent,
+    },
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
   };

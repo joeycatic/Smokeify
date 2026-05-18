@@ -49,6 +49,13 @@ type ProductSearchResult = {
   imageUrl: string | null;
 };
 
+type ManualOverrideRow = {
+  id: string;
+  title: string;
+  handle: string;
+  sortOrder: number;
+};
+
 type ExplainResponse = {
   product: {
     id: string;
@@ -139,6 +146,11 @@ export default function AdminRecommendationsClient({
   const [explainData, setExplainData] = useState<ExplainResponse | null>(null);
   const [explaining, setExplaining] = useState(false);
   const [explainError, setExplainError] = useState("");
+  const [overrideSearch, setOverrideSearch] = useState("");
+  const [overrideSearchResults, setOverrideSearchResults] = useState<ProductSearchResult[]>([]);
+  const [overrideSearching, setOverrideSearching] = useState(false);
+  const [manualOverrides, setManualOverrides] = useState<ManualOverrideRow[]>([]);
+  const [savingOverrides, setSavingOverrides] = useState(false);
 
   const activeRuleCount = rules.filter((rule) => rule.isActive).length;
 
@@ -188,6 +200,42 @@ export default function AdminRecommendationsClient({
     };
   }, [search]);
 
+  useEffect(() => {
+    if (!overrideSearch.trim()) {
+      setOverrideSearchResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setOverrideSearching(true);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/products/search?q=${encodeURIComponent(overrideSearch.trim())}`,
+          {
+            signal: controller.signal,
+          },
+        );
+        const data = (await response.json()) as ProductSearchResult[];
+        setOverrideSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        if (!controller.signal.aborted) {
+          setOverrideSearchResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setOverrideSearching(false);
+        }
+      }
+    }, 200);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [overrideSearch]);
+
   const loadExplanation = async (product: ProductSearchResult) => {
     setSelectedProduct(product);
     setExplainData(null);
@@ -204,10 +252,81 @@ export default function AdminRecommendationsClient({
         return;
       }
       setExplainData(data);
+      setManualOverrides(data.legacyManualOverrides);
     } catch {
       setExplainError("Failed to load recommendation explanation.");
     } finally {
       setExplaining(false);
+    }
+  };
+
+  const moveManualOverride = (index: number, direction: -1 | 1) => {
+    setManualOverrides((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      next.splice(nextIndex, 0, item);
+      return next.map((entry, position) => ({ ...entry, sortOrder: position }));
+    });
+  };
+
+  const addManualOverride = (product: ProductSearchResult) => {
+    setManualOverrides((current) => {
+      if (
+        current.some((entry) => entry.id === product.id) ||
+        product.id === selectedProduct?.id ||
+        current.length >= 3
+      ) {
+        return current;
+      }
+      return [
+        ...current,
+        {
+          id: product.id,
+          title: product.title,
+          handle: product.handle,
+          sortOrder: current.length,
+        },
+      ];
+    });
+    setOverrideSearch("");
+    setOverrideSearchResults([]);
+  };
+
+  const removeManualOverride = (productId: string) => {
+    setManualOverrides((current) =>
+      current
+        .filter((entry) => entry.id !== productId)
+        .map((entry, index) => ({ ...entry, sortOrder: index })),
+    );
+  };
+
+  const saveManualOverrides = async () => {
+    if (!selectedProduct) return;
+    setSavingOverrides(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/products/${selectedProduct.id}/cross-sells`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          crossSellIds: manualOverrides.map((entry) => entry.id),
+          source: "admin.recommendations",
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(data.error ?? "Failed to save manual overrides.");
+        return;
+      }
+      setMessage("Manual recommendation overrides saved.");
+      await loadExplanation(selectedProduct);
+    } catch {
+      setError("Failed to save manual overrides.");
+    } finally {
+      setSavingOverrides(false);
     }
   };
 
@@ -555,8 +674,115 @@ export default function AdminRecommendationsClient({
             title="Per-product overrides"
             description="Legacy product cross-sells remain the manual override layer. Use them only for exceptions or hero products, not for broad recommendation maintenance."
           >
-            <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4 text-sm text-slate-400">
-              Edit manual overrides from the existing product editor in the <strong className="text-slate-200">Cross-sells</strong> section. The centralized rule engine reads those first and then fills the remaining slots from matching rules.
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
+              <div className="text-sm text-slate-400">
+                This workspace now edits the same legacy cross-sell rows that the product editor
+                uses. The centralized rule engine reads these overrides first and then fills the
+                remaining slots from matching rules.
+              </div>
+
+              {selectedProduct ? (
+                <>
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Add override product
+                    <div className="mt-2">
+                      <AdminInput
+                        value={overrideSearch}
+                        onChange={(event) => setOverrideSearch(event.target.value)}
+                        placeholder="Search products to pin as manual overrides"
+                      />
+                    </div>
+                  </label>
+
+                  {overrideSearching ? <p className="text-sm text-slate-500">Searching override products...</p> : null}
+
+                  {overrideSearchResults.length > 0 ? (
+                    <div className="space-y-2">
+                      {overrideSearchResults
+                        .filter(
+                          (result) =>
+                            result.id !== selectedProduct.id &&
+                            !manualOverrides.some((entry) => entry.id === result.id),
+                        )
+                        .slice(0, 6)
+                        .map((result) => (
+                          <button
+                            key={result.id}
+                            type="button"
+                            onClick={() => addManualOverride(result)}
+                            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left hover:border-cyan-400/20 hover:bg-cyan-400/5"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-white">{result.title}</div>
+                              <div className="truncate text-xs text-slate-500">/{result.handle}</div>
+                            </div>
+                            <span className="text-xs font-semibold text-cyan-200">Add</span>
+                          </button>
+                        ))}
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    {manualOverrides.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                      >
+                        <div>
+                          <div className="text-sm font-semibold text-white">{item.title}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            /{item.handle} | Position {index + 1}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <AdminButton
+                            tone="secondary"
+                            onClick={() => moveManualOverride(index, -1)}
+                            disabled={index === 0 || savingOverrides}
+                          >
+                            Up
+                          </AdminButton>
+                          <AdminButton
+                            tone="secondary"
+                            onClick={() => moveManualOverride(index, 1)}
+                            disabled={index === manualOverrides.length - 1 || savingOverrides}
+                          >
+                            Down
+                          </AdminButton>
+                          <AdminButton
+                            tone="secondary"
+                            onClick={() => removeManualOverride(item.id)}
+                            disabled={savingOverrides}
+                          >
+                            Remove
+                          </AdminButton>
+                        </div>
+                      </div>
+                    ))}
+                    {manualOverrides.length === 0 ? (
+                      <div className="text-sm text-slate-500">
+                        No manual overrides configured for the selected product.
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <AdminButton onClick={() => void saveManualOverrides()} disabled={savingOverrides}>
+                      {savingOverrides ? "Saving..." : "Save manual overrides"}
+                    </AdminButton>
+                    <Link
+                      href={`/admin/catalog/${selectedProduct.id}#cross-sells`}
+                      className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
+                    >
+                      Open legacy editor
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-slate-400">
+                  Select a product in the recommendation explorer to edit its manual overrides here.
+                </div>
+              )}
             </div>
           </AdminPanel>
         </div>

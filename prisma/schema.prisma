@@ -671,6 +671,7 @@ model Expense {
 
   supplier      Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  allocations   ExpenseStorefrontAllocation[]
 
   @@index([supplierId])
   @@index([purchaseOrderId])
@@ -701,7 +702,8 @@ model RecurringExpense {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier    Supplier?                           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  allocations RecurringExpenseStorefrontAllocation[]
 
   @@index([supplierId])
   @@index([nextDueDate])
@@ -890,6 +892,7 @@ model InventoryAdjustment {
   sourceId      String?
   actorId       String?
   note          String?
+  sourceReference String?
   quantityDelta Int
   reason        String
   createdAt     DateTime @default(now())
@@ -903,7 +906,36 @@ model InventoryAdjustment {
   @@index([productId])
   @@index([orderId])
   @@index([sourceType, sourceId])
+  @@index([sourceType, createdAt])
   @@index([createdAt])
+}
+
+model ExpenseStorefrontAllocation {
+  id        String     @id @default(cuid())
+  expenseId String
+  storefront Storefront
+  percent   Int
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, storefront])
+  @@index([storefront, expenseId])
+}
+
+model RecurringExpenseStorefrontAllocation {
+  id                 String     @id @default(cuid())
+  recurringExpenseId String
+  storefront         Storefront
+  percent            Int
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  recurringExpense RecurringExpense @relation(fields: [recurringExpenseId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringExpenseId, storefront])
+  @@index([storefront, recurringExpenseId])
 }
 
 model Category {

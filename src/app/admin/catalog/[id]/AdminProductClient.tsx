@@ -3689,6 +3689,12 @@ export default function AdminProductClient({
               Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
             </p>
           </div>
+          <Link
+            href="/admin/recommendations"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-400/15"
+          >
+            Open Recommendation Center
+          </Link>
         </div>
 
         <div className="mt-4 space-y-3">

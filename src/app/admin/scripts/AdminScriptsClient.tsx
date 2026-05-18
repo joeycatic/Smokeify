@@ -28,7 +28,12 @@ type RunState = {
   message: string;
 };
 
-const CATEGORY_ORDER: readonly AdminScriptCategory[] = ["Suppliers", "Catalog", "Orders"];
+const CATEGORY_ORDER: readonly AdminScriptCategory[] = [
+  "Suppliers",
+  "Catalog",
+  "Orders",
+  "Operations",
+];
 
 const formatDuration = (durationMs: number) => {
   if (durationMs < 1000) return `${durationMs} ms`;

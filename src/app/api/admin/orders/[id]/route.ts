@@ -29,144 +29,192 @@ export const PATCH = withAdminRoute(
       trackingCarrier?: string;
       trackingNumber?: string;
       trackingUrl?: string;
+      notifyCustomer?: boolean;
+      emailReason?: string | null;
       expectedUpdatedAt?: string;
     };
 
-  let updates: ReturnType<typeof buildAdminOrderPatch>["updates"];
-  let changedFields: string[];
+    let updates: ReturnType<typeof buildAdminOrderPatch>["updates"];
+    let changedFields: string[];
 
-  const existing = await prisma.order.findUnique({
-    where: { id },
-    include: { items: true },
-  });
-  if (!existing) {
-    return adminJson({ error: "Order not found" }, { status: 404 });
-  }
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!existing) {
+      return adminJson({ error: "Order not found" }, { status: 404 });
+    }
 
-  try {
-    const patch = buildAdminOrderPatch(body, { currentStatus: existing.status });
-    updates = patch.updates;
-    changedFields = patch.changedFields;
-  } catch (error) {
-    return adminJson(
-      {
-        error:
-          error instanceof Error ? error.message : "Invalid order update payload.",
-      },
-      { status: 400 },
-    );
-  }
-
-  if (!Object.keys(updates).length) {
-    return adminJson({ error: "No updates provided" }, { status: 400 });
-  }
-
-  if (
-    body.expectedUpdatedAt &&
-    existing.updatedAt.toISOString() !== body.expectedUpdatedAt
-  ) {
-    return adminJson(
-      {
-        error:
-          "This order was updated by another admin. Refresh the latest order before saving again.",
-        currentUpdatedAt: existing.updatedAt.toISOString(),
-      },
-      { status: 409 }
-    );
-  }
-
-  const nextTrackingNumber =
-    typeof updates.trackingNumber !== "undefined"
-      ? updates.trackingNumber
-      : existing.trackingNumber;
-  const nextTrackingUrl =
-    typeof updates.trackingUrl !== "undefined"
-      ? updates.trackingUrl
-      : existing.trackingUrl;
-  const hasTrackingAfterUpdate = Boolean(
-    nextTrackingNumber?.trim() || nextTrackingUrl?.trim(),
-  );
-  const normalizedExistingStatus = existing.status.trim().toLowerCase();
-  const normalizedNextStatus = (updates.status ?? existing.status).trim().toLowerCase();
-
-  const shouldAutoMarkShipped =
-    !updates.status &&
-    hasTrackingAfterUpdate &&
-    !["shipped", "fulfilled", "refunded", "canceled", "cancelled", "failed"].includes(
-      normalizedExistingStatus,
-    );
-
-  if (shouldAutoMarkShipped) {
-    updates.status = "shipped";
-    changedFields.push("status");
-  }
-
-  const updated = await prisma.order.update({
-    where: { id },
-    data: updates,
-    include: { items: true },
-  });
-
-  let warning: string | undefined;
-  const shouldSendShippingEmail =
-    !existing.shippingEmailSentAt &&
-    hasTrackingAfterUpdate &&
-    (updates.status === "shipped" || normalizedNextStatus === "shipped");
-
-  if (shouldSendShippingEmail) {
     try {
-      const emailResult = await sendAdminOrderEmailForOrder({
-        order: updated,
-        type: "shipping",
-        requestOrigin: getAppOrigin(request),
-      });
-      await prisma.order.update({
-        where: { id },
-        data: buildOrderEmailSentAtUpdate("shipping"),
-      });
-      updated.shippingEmailSentAt = new Date();
+      const patch = buildAdminOrderPatch(body, { currentStatus: existing.status });
+      updates = patch.updates;
+      changedFields = patch.changedFields;
+    } catch (error) {
+      return adminJson(
+        {
+          error:
+            error instanceof Error ? error.message : "Invalid order update payload.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (
+      body.expectedUpdatedAt &&
+      existing.updatedAt.toISOString() !== body.expectedUpdatedAt
+    ) {
+      return adminJson(
+        {
+          error:
+            "This order was updated by another admin. Refresh the latest order before saving again.",
+          currentUpdatedAt: existing.updatedAt.toISOString(),
+        },
+        { status: 409 },
+      );
+    }
+
+    const notifyCustomer = body.notifyCustomer === true;
+    const emailReason =
+      typeof body.emailReason === "string" ? body.emailReason.trim() : "";
+    const nextTrackingNumber =
+      typeof updates.trackingNumber !== "undefined"
+        ? updates.trackingNumber
+        : existing.trackingNumber;
+    const nextTrackingUrl =
+      typeof updates.trackingUrl !== "undefined"
+        ? updates.trackingUrl
+        : existing.trackingUrl;
+    const hasTrackingAfterUpdate = Boolean(
+      nextTrackingNumber?.trim() || nextTrackingUrl?.trim(),
+    );
+    const normalizedExistingStatus = existing.status.trim().toLowerCase();
+    const shouldAutoMarkShipped =
+      !updates.status &&
+      hasTrackingAfterUpdate &&
+      !["shipped", "fulfilled", "refunded", "canceled", "cancelled", "failed"].includes(
+        normalizedExistingStatus,
+      );
+
+    if (shouldAutoMarkShipped) {
+      updates.status = "shipped";
+      if (!changedFields.includes("status")) {
+        changedFields.push("status");
+      }
+    }
+
+    const resultingStatus = (updates.status ?? existing.status).trim().toLowerCase();
+    const hasOrderUpdates = Object.keys(updates).length > 0;
+
+    if (notifyCustomer) {
+      if (!hasTrackingAfterUpdate) {
+        return adminJson(
+          {
+            error:
+              "Tracking number or tracking URL is required before notifying the customer.",
+          },
+          { status: 400 },
+        );
+      }
+      if (resultingStatus !== "shipped" && resultingStatus !== "fulfilled") {
+        return adminJson(
+          {
+            error:
+              "Customer notification is only available for shipped or fulfilled orders.",
+          },
+          { status: 400 },
+        );
+      }
+      if (!emailReason) {
+        return adminJson(
+          { error: "A short reason is required before sending the shipping email." },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (!hasOrderUpdates && !notifyCustomer) {
+      return adminJson({ error: "No updates provided" }, { status: 400 });
+    }
+
+    if (!hasOrderUpdates && notifyCustomer && existing.shippingEmailSentAt) {
+      return adminJson(
+        { error: "The shipping email was already recorded for this order." },
+        { status: 400 },
+      );
+    }
+
+    const updated = hasOrderUpdates
+      ? await prisma.order.update({
+          where: { id },
+          data: updates,
+          include: { items: true },
+        })
+      : existing;
+
+    let warning: string | undefined;
+
+    if (notifyCustomer) {
+      if (existing.shippingEmailSentAt) {
+        warning = "Order saved, but the shipping email was already recorded earlier.";
+      } else {
+        try {
+          const emailResult = await sendAdminOrderEmailForOrder({
+            order: updated,
+            type: "shipping",
+            requestOrigin: getAppOrigin(request),
+          });
+          await prisma.order.update({
+            where: { id },
+            data: buildOrderEmailSentAtUpdate("shipping"),
+          });
+          updated.shippingEmailSentAt = new Date();
+          await logAdminAction({
+            actor: { id: session.user.id, email: session.user.email ?? null },
+            action: "order.email.send",
+            targetType: "order",
+            targetId: id,
+            summary: `Sent shipping email for order #${updated.orderNumber}`,
+            metadata: {
+              emailType: "shipping",
+              recipient: emailResult.recipient,
+              orderNumber: updated.orderNumber,
+              source: "admin.orders.patch",
+              reason: emailReason,
+            },
+          });
+        } catch (error) {
+          warning =
+            error instanceof Error
+              ? `Order saved, but the shipping email could not be sent: ${error.message}`
+              : "Order saved, but the shipping email could not be sent.";
+        }
+      }
+    }
+
+    if (hasOrderUpdates) {
       await logAdminAction({
         actor: { id: session.user.id, email: session.user.email ?? null },
-        action: "order.email.send",
+        action: "order.update",
         targetType: "order",
         targetId: id,
-        summary: `Sent shipping email for order #${updated.orderNumber}`,
-        metadata: {
-          emailType: "shipping",
-          recipient: emailResult.recipient,
-          orderNumber: updated.orderNumber,
-          source: "admin.orders.patch",
-        },
+        summary: `Updated order fields: ${changedFields.join(", ")}`,
+        metadata: { updates, notifyCustomer, emailReason: emailReason || null },
       });
-    } catch (error) {
-      warning =
-        error instanceof Error
-          ? `Order saved, but the shipping email could not be sent: ${error.message}`
-          : "Order saved, but the shipping email could not be sent.";
+      if (typeof updates.status === "string" && updates.status !== existing.status) {
+        await logOrderTimelineEvent({
+          actor: { id: session.user.id, email: session.user.email ?? null },
+          orderId: id,
+          action: "order.lifecycle.status_changed",
+          summary: `Status changed: ${existing.status} -> ${updates.status}`,
+          metadata: {
+            previousStatus: existing.status,
+            nextStatus: updates.status,
+            source: "admin.orders.patch",
+          },
+        });
+      }
     }
-  }
 
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "order.update",
-    targetType: "order",
-    targetId: id,
-    summary: `Updated order fields: ${changedFields.join(", ")}`,
-    metadata: { updates },
-  });
-  if (typeof updates.status === "string" && updates.status !== existing.status) {
-    await logOrderTimelineEvent({
-      actor: { id: session.user.id, email: session.user.email ?? null },
-      orderId: id,
-      action: "order.lifecycle.status_changed",
-      summary: `Status changed: ${existing.status} -> ${updates.status}`,
-      metadata: {
-        previousStatus: existing.status,
-        nextStatus: updates.status,
-        source: "admin.orders.patch",
-      },
-    });
-  }
     return adminJson({ order: updated, warning });
   },
   {

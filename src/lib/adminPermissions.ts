@@ -10,6 +10,7 @@ export type AdminAction =
   | "crm.write"
   | "tax.review"
   | "admin.script.execute"
+  | "inventory.adjust"
   | "user.manage";
 
 export type AdminRole = "ADMIN" | "STAFF";
@@ -45,6 +46,7 @@ export type AdminScope =
   | "procurement.read"
   | "procurement.write"
   | "inventory.read"
+  | "inventory.write"
   | "support.read"
   | "support.write"
   | "ops.read"
@@ -73,6 +75,7 @@ const STAFF_SCOPES: AdminScope[] = [
   "procurement.read",
   "procurement.write",
   "inventory.read",
+  "inventory.write",
   "support.read",
   "support.write",
 ];
@@ -108,6 +111,7 @@ const ALL_SCOPES: AdminScope[] = [
   "procurement.read",
   "procurement.write",
   "inventory.read",
+  "inventory.write",
   "support.read",
   "support.write",
   "ops.read",
@@ -131,6 +135,7 @@ const ACTION_SCOPE_MAP: Record<AdminAction, AdminScope> = {
   "crm.write": "crm.write",
   "tax.review": "tax.review",
   "admin.script.execute": "scripts.execute",
+  "inventory.adjust": "inventory.write",
   "user.manage": "users.manage",
 };
 
@@ -147,6 +152,7 @@ const ADMIN_PAGE_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/admin/orders", scope: "orders.read" },
   { prefix: "/admin/returns", scope: "returns.read" },
   { prefix: "/admin/inventory-adjustments", scope: "inventory.read" },
+  { prefix: "/admin/attribution", scope: "ops.read" },
   { prefix: "/admin/customers", scope: "customers.read" },
   { prefix: "/admin/users", scope: "users.manage" },
   { prefix: "/admin/suppliers", scope: "suppliers.read" },
@@ -191,6 +197,10 @@ const ADMIN_API_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/api/admin/newsletters", scope: "ops.write" },
   { prefix: "/api/admin/orders", scope: "orders.read", methods: ["GET"] },
   { prefix: "/api/admin/orders", scope: "orders.fulfillment.write" },
+  { prefix: "/api/admin/inventory-adjustments", scope: "inventory.read", methods: ["GET"] },
+  { prefix: "/api/admin/inventory-adjustments", scope: "inventory.write" },
+  { prefix: "/api/admin/attribution", scope: "ops.read", methods: ["GET"] },
+  { prefix: "/api/admin/attribution", scope: "ops.write" },
   { prefix: "/api/admin/pricing/run", scope: "pricing.run" },
   { prefix: "/api/admin/pricing/recommendations", scope: "pricing.review" },
   { prefix: "/api/admin/pricing/variants", scope: "pricing.write" },

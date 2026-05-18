@@ -1,6 +1,6 @@
 export type AdminScriptRiskLevel = "read-only" | "write";
 
-export type AdminScriptCategory = "Suppliers" | "Catalog" | "Orders";
+export type AdminScriptCategory = "Suppliers" | "Catalog" | "Orders" | "Operations";
 
 export type AdminScriptInputKind = "url";
 
@@ -230,6 +230,25 @@ export const ADMIN_SCRIPT_DEFINITIONS: readonly AdminScriptDefinition[] = [
     dryRunByDefault: false,
     timeoutMs: 8 * 60 * 1000,
     safetyNote: "Run when finance data is incomplete. This updates historical order records.",
+  },
+  {
+    id: "orders:backfill-attribution",
+    npmScript: "orders:backfill-attribution",
+    title: "Backfill storefront attribution",
+    category: "Operations",
+    description:
+      "Apply exact storefront attribution to unresolved historical orders using configured host/origin matches and unique prior customer history only.",
+    inputSummary:
+      "Scans unresolved orders and exact historical signals already stored by Smokeify. It never guesses between multiple storefront candidates.",
+    outputSummary:
+      "Prints a dry-run remediation summary by evidence type and, when explicitly applied, writes exact storefront attribution plus audit rows for the affected orders.",
+    impact: "Writes historical order attribution fields when exact evidence exists.",
+    expectedDuration: "30-120 seconds",
+    riskLevel: "write",
+    dryRunByDefault: true,
+    timeoutMs: 5 * 60 * 1000,
+    safetyNote:
+      "Dry-run first. Apply mode only classifies orders with exact evidence and leaves ambiguous cases unresolved.",
   },
 ] as const;
 

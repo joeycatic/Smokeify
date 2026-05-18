@@ -14,6 +14,7 @@ import {
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
 import {
+  buildAdminSearchHref,
   getAdminTimeRangeOption,
   parseAdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
@@ -43,10 +44,16 @@ function StorefrontBadge({ storefront }: { storefront: Storefront }) {
 function StorefrontSummaryCard({
   item,
   currency,
+  lens,
 }: {
   item: StorefrontSummary;
   currency: string;
+  lens: "contribution" | "allocated";
 }) {
+  const primaryValue =
+    lens === "allocated" ? item.allocatedProfitCents : item.contributionMarginCents;
+  const primaryRatio =
+    lens === "allocated" ? item.allocatedProfitRatio : item.contributionMarginRatio;
   return (
     <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
       <div className="flex items-start justify-between gap-3">
@@ -61,13 +68,14 @@ function StorefrontSummaryCard({
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Contribution
+            {lens === "allocated" ? "Allocated Profit" : "Contribution"}
           </div>
           <div className="mt-2 text-xl font-semibold text-white">
-            {formatMoney(item.contributionMarginCents, currency)}
+            {formatMoney(primaryValue, currency)}
           </div>
           <div className="mt-1 text-xs text-slate-400">
-            {formatPercent(item.contributionMarginRatio)} after COGS and fees
+            {formatPercent(primaryRatio)}{" "}
+            {lens === "allocated" ? "after allocated overhead" : "after COGS and fees"}
           </div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
@@ -112,12 +120,16 @@ function OpportunityList({
   currency,
   metricLabel,
   metricValue,
+  submetricLabel,
+  submetricValue,
 }: {
   rows: ProfitabilityRow[];
   emptyCopy: string;
   currency: string;
   metricLabel: string;
   metricValue: (row: ProfitabilityRow) => string;
+  submetricLabel: string;
+  submetricValue: (row: ProfitabilityRow) => string;
 }) {
   if (rows.length === 0) {
     return <AdminEmptyState copy={emptyCopy} />;
@@ -152,7 +164,7 @@ function OpportunityList({
               <div className="text-sm font-semibold text-white">{metricValue(row)}</div>
               <div className="mt-1 text-xs text-slate-500">{metricLabel}</div>
               <div className="mt-2 text-xs text-slate-400">
-                {formatMoney(row.marginCents, currency)} contribution
+                {submetricValue(row)} {submetricLabel}
               </div>
             </div>
           </div>
@@ -171,22 +183,50 @@ export default async function AdminProfitabilityPage({
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
+  const selectedLens =
+    (Array.isArray(resolvedSearchParams?.lens)
+      ? resolvedSearchParams?.lens[0]
+      : resolvedSearchParams?.lens) === "allocated"
+      ? "allocated"
+      : "contribution";
   const selectedRange = getAdminTimeRangeOption(days);
 
   const {
     rows,
-    topProfit,
-    lowestProfit,
-    strongestMargin,
     storefronts,
     opportunities,
     coverage,
   } = await getProfitabilityPageData(days);
 
-  const bestProfit = topProfit[0] ?? null;
-  const worstProfit = lowestProfit[0] ?? null;
-  const bestMargin = strongestMargin[0] ?? null;
-  const leadingStorefront = storefronts[0] ?? null;
+  const bestProfit =
+    [...rows].sort((left, right) =>
+      selectedLens === "allocated"
+        ? right.allocatedProfitCents - left.allocatedProfitCents
+        : right.marginCents - left.marginCents,
+    )[0] ?? null;
+  const worstProfit =
+    [...rows].sort((left, right) =>
+      selectedLens === "allocated"
+        ? left.allocatedProfitCents - right.allocatedProfitCents
+        : left.marginCents - right.marginCents,
+    )[0] ?? null;
+  const bestMargin =
+    [...rows].sort((left, right) =>
+      selectedLens === "allocated"
+        ? right.allocatedProfitRate - left.allocatedProfitRate
+        : right.marginRate - left.marginRate,
+    )[0] ?? null;
+  const leadingStorefront =
+    [...storefronts].sort((left, right) =>
+      selectedLens === "allocated"
+        ? right.allocatedProfitCents - left.allocatedProfitCents
+        : right.contributionMarginCents - left.contributionMarginCents,
+    )[0] ?? null;
+  const displayRows = [...rows].sort((left, right) =>
+    selectedLens === "allocated"
+      ? right.allocatedProfitCents - left.allocatedProfitCents
+      : right.marginCents - left.marginCents,
+  );
   const currency = coverage.currency;
 
   return (
@@ -202,9 +242,9 @@ export default async function AdminProfitabilityPage({
               Margin and profit opportunities across Smokeify and GrowVault
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              This report is contribution-focused. It uses tracked net revenue, product cost and
-              payment fees to show where price, assortment, storefront allocation and traffic can
-              improve commercial performance.
+              {selectedLens === "allocated"
+                ? "This report adds explicit storefront overhead allocation on top of contribution data so the team can inspect a fuller profit view without losing the direct-margin baseline."
+                : "This report is contribution-focused. It uses tracked net revenue, product cost and payment fees to show where price, assortment, storefront allocation and traffic can improve commercial performance."}
             </p>
             <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
               {selectedRange.adjectiveLabel} control window
@@ -212,6 +252,26 @@ export default async function AdminProfitabilityPage({
           </div>
           <div className="flex max-w-sm flex-col items-start gap-3">
             <AdminTimeRangeTabs pathname="/admin/profitability" activeDays={days} />
+            <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1 text-xs font-semibold">
+              <Link
+                href={buildAdminSearchHref("/admin/profitability", {
+                  days: String(days),
+                  lens: "contribution",
+                })}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "contribution" ? "bg-white text-[#05070a]" : "text-slate-200"}`}
+              >
+                Contribution
+              </Link>
+              <Link
+                href={buildAdminSearchHref("/admin/profitability", {
+                  days: String(days),
+                  lens: "allocated",
+                })}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "allocated" ? "bg-white text-[#05070a]" : "text-slate-200"}`}
+              >
+                Allocated Profit
+              </Link>
+            </div>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               <Link
                 href="/admin/catalog"
@@ -237,9 +297,9 @@ export default async function AdminProfitabilityPage({
       </section>
 
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-        Shared shipping operations, packaging, marketing spend and fixed overhead are not allocated
-        here yet. Use this page to find contribution opportunity first, then validate full P&amp;L in
-        Finance and Expenses.
+        {selectedLens === "allocated"
+          ? `Allocated profit is currently distributing ${formatMoney(coverage.allocatedOverheadCents, currency)} of explicit overhead from allocated expense records and recurring plans.`
+          : "Use contribution first to isolate direct commercial performance, then switch to Allocated Profit for a fuller overhead-aware lens."}
       </div>
 
       {coverage.unattributedPaidOrders > 0 ? (
@@ -247,23 +307,55 @@ export default async function AdminProfitabilityPage({
           {coverage.unattributedPaidOrders} paid order(s) in the selected window are missing
           storefront attribution. Storefront comparison currently excludes{" "}
           {formatMoney(coverage.unattributedContributionCents, currency)} of contribution until
-          those orders are classified.
+          those orders are classified. Resolve them in{" "}
+          <Link href="/admin/attribution" className="font-semibold underline underline-offset-2">
+            Attribution
+          </Link>
+          .
+        </div>
+      ) : null}
+
+      {coverage.unallocatedExpenseCount > 0 ? (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {coverage.unallocatedExpenseCount} expense record(s) in the selected window still lack
+          complete storefront allocation, so the allocated-profit lens remains incomplete until they
+          are fixed in{" "}
+          <Link href="/admin/expenses" className="font-semibold underline underline-offset-2">
+            Expenses
+          </Link>
+          .
         </div>
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AdminMetricCard
           label="Best Profit"
-          value={bestProfit ? formatMoney(bestProfit.marginCents, currency) : formatMoney(0, currency)}
+          value={
+            bestProfit
+              ? formatMoney(
+                  selectedLens === "allocated"
+                    ? bestProfit.allocatedProfitCents
+                    : bestProfit.marginCents,
+                  currency,
+                )
+              : formatMoney(0, currency)
+          }
           detail={bestProfit ? bestProfit.productTitle : "no data"}
           detailBadgeClassName="orders-kpi-badge-violet"
-          footnote={`highest ${selectedRange.adjectiveLabel} contribution`}
+          footnote={`highest ${selectedRange.adjectiveLabel} ${selectedLens === "allocated" ? "allocated profit" : "contribution"}`}
           tone="violet"
         />
         <AdminMetricCard
           label="Weakest Profit"
           value={
-            worstProfit ? formatMoney(worstProfit.marginCents, currency) : formatMoney(0, currency)
+            worstProfit
+              ? formatMoney(
+                  selectedLens === "allocated"
+                    ? worstProfit.allocatedProfitCents
+                    : worstProfit.marginCents,
+                  currency,
+                )
+              : formatMoney(0, currency)
           }
           detail={worstProfit ? worstProfit.productTitle : "no data"}
           detailBadgeClassName="orders-kpi-badge-amber"
@@ -272,34 +364,68 @@ export default async function AdminProfitabilityPage({
         />
         <AdminMetricCard
           label="Strongest Margin"
-          value={bestMargin ? formatPercent(bestMargin.marginRate) : "0%"}
+          value={
+            bestMargin
+              ? formatPercent(
+                  selectedLens === "allocated"
+                    ? bestMargin.allocatedProfitRate
+                    : bestMargin.marginRate,
+                )
+              : "0%"
+          }
           detail={bestMargin ? bestMargin.productTitle : "no data"}
           detailBadgeClassName="orders-kpi-badge-emerald"
-          footnote="best tracked contribution rate"
+          footnote={
+            selectedLens === "allocated"
+              ? "best tracked allocated-profit rate"
+              : "best tracked contribution rate"
+          }
           tone="emerald"
         />
         <AdminMetricCard
           label="Leading Storefront"
           value={
             leadingStorefront
-              ? formatMoney(leadingStorefront.contributionMarginCents, currency)
+              ? formatMoney(
+                  selectedLens === "allocated"
+                    ? leadingStorefront.allocatedProfitCents
+                    : leadingStorefront.contributionMarginCents,
+                  currency,
+                )
               : formatMoney(0, currency)
           }
           detail={leadingStorefront ? leadingStorefront.label : "no data"}
           detailBadgeClassName="orders-kpi-badge-slate"
-          footnote="highest storefront contribution"
+          footnote={
+            selectedLens === "allocated"
+              ? "highest storefront allocated profit"
+              : "highest storefront contribution"
+          }
         />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <AdminPanel
           eyebrow="Storefronts"
-          title="Smokeify vs GrowVault contribution quality"
-          description="Compare which storefront converts contribution into cash most efficiently before shared operating costs are allocated."
+          title={
+            selectedLens === "allocated"
+              ? "Smokeify vs GrowVault allocated profit quality"
+              : "Smokeify vs GrowVault contribution quality"
+          }
+          description={
+            selectedLens === "allocated"
+              ? "Compare storefront performance after explicit overhead allocation while keeping attribution and allocation blockers visible."
+              : "Compare which storefront converts contribution into cash most efficiently before shared operating costs are allocated."
+          }
         >
           <div className="space-y-4">
             {storefronts.map((item) => (
-              <StorefrontSummaryCard key={item.storefront} item={item} currency={currency} />
+              <StorefrontSummaryCard
+                key={item.storefront}
+                item={item}
+                currency={currency}
+                lens={selectedLens}
+              />
             ))}
           </div>
         </AdminPanel>
@@ -340,8 +466,19 @@ export default async function AdminProfitabilityPage({
             rows={opportunities.priceLiftCandidates}
             emptyCopy="No clear price-lift candidates are available in the selected period."
             currency={currency}
-            metricLabel="current margin rate"
-            metricValue={(row) => formatPercent(row.marginRate)}
+            metricLabel={selectedLens === "allocated" ? "allocated profit rate" : "current margin rate"}
+            metricValue={(row) =>
+              formatPercent(
+                selectedLens === "allocated" ? row.allocatedProfitRate : row.marginRate,
+              )
+            }
+            submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
+            submetricValue={(row) =>
+              formatMoney(
+                selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                currency,
+              )
+            }
           />
         </AdminPanel>
 
@@ -354,8 +491,19 @@ export default async function AdminProfitabilityPage({
             rows={opportunities.marginLeakCandidates}
             emptyCopy="No obvious high-traffic margin leaks were found in the selected period."
             currency={currency}
-            metricLabel="tracked margin rate"
-            metricValue={(row) => formatPercent(row.marginRate)}
+            metricLabel={selectedLens === "allocated" ? "allocated profit rate" : "tracked margin rate"}
+            metricValue={(row) =>
+              formatPercent(
+                selectedLens === "allocated" ? row.allocatedProfitRate : row.marginRate,
+              )
+            }
+            submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
+            submetricValue={(row) =>
+              formatMoney(
+                selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                currency,
+              )
+            }
           />
         </AdminPanel>
       </section>
@@ -372,6 +520,13 @@ export default async function AdminProfitabilityPage({
             currency={currency}
             metricLabel="views in window"
             metricValue={(row) => String(row.views)}
+            submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
+            submetricValue={(row) =>
+              formatMoney(
+                selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                currency,
+              )
+            }
           />
         </AdminPanel>
 
@@ -386,6 +541,13 @@ export default async function AdminProfitabilityPage({
             currency={currency}
             metricLabel="purchase count"
             metricValue={(row) => String(row.purchases)}
+            submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
+            submetricValue={(row) =>
+              formatMoney(
+                selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                currency,
+              )
+            }
           />
         </AdminPanel>
       </section>
@@ -393,14 +555,18 @@ export default async function AdminProfitabilityPage({
       <AdminPanel
         eyebrow="Profit Table"
         title={`${selectedRange.adjectiveLabel} product ranking`}
-        description="This table stays close to the raw signal: revenue, tracked contribution, conversion and storefront availability."
+        description={
+          selectedLens === "allocated"
+            ? "This table keeps the raw commercial signal visible while adding explicit storefront overhead allocation on top."
+            : "This table stays close to the raw signal: revenue, tracked contribution, conversion and storefront availability."
+        }
       >
-        {rows.length === 0 ? (
+        {displayRows.length === 0 ? (
           <AdminEmptyState copy="No profitability rows are available yet." />
         ) : (
           <>
             <div className="space-y-3 md:hidden">
-              {rows.map((row) => (
+              {displayRows.map((row) => (
                 <Link
                   key={row.productId}
                   href={`/admin/catalog/${row.productId}`}
@@ -418,9 +584,18 @@ export default async function AdminProfitabilityPage({
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <ProfitabilityMeta label="Revenue" value={formatMoney(row.revenueCents, currency)} />
                     <ProfitabilityMeta
-                      label="Profit"
-                      value={formatMoney(row.marginCents, currency)}
-                      tone={row.marginCents >= 0 ? "positive" : "warning"}
+                      label={selectedLens === "allocated" ? "Allocated profit" : "Profit"}
+                      value={formatMoney(
+                        selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                        currency,
+                      )}
+                      tone={
+                        (selectedLens === "allocated"
+                          ? row.allocatedProfitCents
+                          : row.marginCents) >= 0
+                          ? "positive"
+                          : "warning"
+                      }
                     />
                     <ProfitabilityMeta label="CVR" value={formatPercent(row.conversionRate)} />
                     <ProfitabilityMeta label="Views" value={String(row.views)} />
@@ -435,11 +610,11 @@ export default async function AdminProfitabilityPage({
                 <div>Supplier</div>
                 <div>Storefronts</div>
                 <div>Revenue</div>
-                <div>Profit</div>
+                <div>{selectedLens === "allocated" ? "Allocated Profit" : "Profit"}</div>
                 <div>CVR / Views</div>
               </div>
               <div className="divide-y divide-white/5">
-                {rows.map((row) => (
+                {displayRows.map((row) => (
                   <Link
                     key={row.productId}
                     href={`/admin/catalog/${row.productId}`}
@@ -459,8 +634,19 @@ export default async function AdminProfitabilityPage({
                       ))}
                     </div>
                     <div>{formatMoney(row.revenueCents, currency)}</div>
-                    <div className={row.marginCents >= 0 ? "text-cyan-300" : "text-amber-300"}>
-                      {formatMoney(row.marginCents, currency)}
+                    <div
+                      className={
+                        (selectedLens === "allocated"
+                          ? row.allocatedProfitCents
+                          : row.marginCents) >= 0
+                          ? "text-cyan-300"
+                          : "text-amber-300"
+                      }
+                    >
+                      {formatMoney(
+                        selectedLens === "allocated" ? row.allocatedProfitCents : row.marginCents,
+                        currency,
+                      )}
                     </div>
                     <div>
                       <div>{formatPercent(row.conversionRate)}</div>

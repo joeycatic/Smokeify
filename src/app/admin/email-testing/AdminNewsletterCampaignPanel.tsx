@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   AdminButton,
@@ -157,11 +158,15 @@ export default function AdminNewsletterCampaignPanel({
         description="Create a newsletter, choose the storefront branding, send yourself a test, then send the campaign to the active newsletter audience from admin."
         className="admin-reveal-delay-1"
       >
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-4">
             <AdminMetricCard label="Storefront" value={storefrontLabel} detail="Brand and links" />
           <AdminMetricCard label="Exact audience" value={String(selectedAudienceCount)} detail="Attributed recipients" />
           <AdminMetricCard label="Unresolved" value={String(initialAudienceSummary.unresolvedRecipientCount)} detail="Excluded from brand sends" />
-          <AdminMetricCard label="Test target" value={testRecipient.trim() || "Unset"} detail="Preview recipient" />
+          <AdminMetricCard
+            label="Coverage split"
+            value={`${initialAudienceSummary.byStorefront.MAIN.attributedRecipientCount} / ${initialAudienceSummary.byStorefront.GROW.attributedRecipientCount}`}
+            detail="Smokeify vs GrowVault"
+          />
         </div>
 
         <div className="mt-5 space-y-4">
@@ -216,7 +221,21 @@ export default function AdminNewsletterCampaignPanel({
             Newsletter campaigns now use storefront-attributed recipients only. {selectedAudienceCount}{" "}
             recipient(s) are currently eligible for {storefrontLabel}.
             {initialAudienceSummary.unresolvedRecipientCount > 0
-              ? ` ${initialAudienceSummary.unresolvedRecipientCount} active recipient(s) still lack exact storefront attribution and are excluded instead of being guessed.`
+              ? (
+                  <>
+                    {" "}
+                    {initialAudienceSummary.unresolvedRecipientCount} active recipient(s) still
+                    lack exact storefront attribution and are excluded instead of being guessed.
+                    Review them in{" "}
+                    <Link
+                      href="/admin/attribution"
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Attribution
+                    </Link>
+                    .
+                  </>
+                )
               : ""}
           </AdminNotice>
 

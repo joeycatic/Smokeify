@@ -7,6 +7,7 @@ import { logAdminAction } from "@/lib/adminAuditLog";
 import { getExpensesPageData } from "@/lib/adminAddonData";
 import { parseExpensePayload, serializeExpenseRecord, serializeRecurringExpenseRecord } from "@/lib/adminExpenseApi";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { buildAllocationUpsertData } from "@/lib/expenseAllocations";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
@@ -86,8 +87,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { allocations, ...expenseData } = parsed.data;
     const expense = await prisma.expense.create({
-      data: parsed.data,
+      data: {
+        ...expenseData,
+        allocations:
+          allocations.length > 0
+            ? {
+                create: buildAllocationUpsertData(allocations),
+              }
+            : undefined,
+      },
       include: {
         supplier: {
           select: {
@@ -95,6 +105,7 @@ export async function POST(request: Request) {
             name: true,
           },
         },
+        allocations: true,
       },
     });
 

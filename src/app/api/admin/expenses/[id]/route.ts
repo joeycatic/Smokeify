@@ -6,6 +6,7 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { parseExpensePayload, serializeExpenseRecord } from "@/lib/adminExpenseApi";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { buildAllocationUpsertData } from "@/lib/expenseAllocations";
 import {
   EXPENSE_STORAGE_UNAVAILABLE_MESSAGE,
   isMissingExpenseTableError,
@@ -56,17 +57,30 @@ export async function PATCH(
   }
 
   try {
-    const expense = await prisma.expense.update({
-      where: { id },
-      data: parsed.data,
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-          },
+    const { allocations, ...expenseData } = parsed.data;
+    const expense = await prisma.$transaction(async (tx) => {
+      await tx.expenseStorefrontAllocation.deleteMany({ where: { expenseId: id } });
+      return tx.expense.update({
+        where: { id },
+        data: {
+          ...expenseData,
+          allocations:
+            allocations.length > 0
+              ? {
+                  create: buildAllocationUpsertData(allocations),
+                }
+              : undefined,
         },
-      },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          allocations: true,
+        },
+      });
     });
 
     await logAdminAction({

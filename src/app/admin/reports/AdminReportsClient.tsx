@@ -231,7 +231,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
           </>
         }
         metrics={
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-6">
             <AdminMetricCard
               label="Revenue"
               value={formatMoney(initialSnapshot.summary.revenue.current, initialSnapshot.currency)}
@@ -263,12 +263,32 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
               )}
               detail={`${Math.round(initialSnapshot.finance.contributionMarginRatio * 100)}%`}
             />
+            <AdminMetricCard
+              label="Attribution"
+              value={`${Math.round(initialSnapshot.attributionCoverage.coverageRate * 100)}%`}
+              detail={`${initialSnapshot.attributionCoverage.unattributedOrderCount} unresolved`}
+            />
           </div>
         }
       />
 
       {notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
+      {initialSnapshot.attributionCoverage.unattributedOrderCount > 0 ? (
+        <AdminNotice tone="warning">
+          {initialSnapshot.attributionCoverage.unattributedOrderCount} order(s) in this report
+          window still lack storefront attribution, representing{" "}
+          {formatMoney(
+            initialSnapshot.attributionCoverage.unattributedRevenueCents,
+            initialSnapshot.currency,
+          )}{" "}
+          of paid revenue. Resolve them in{" "}
+          <Link href="/admin/attribution" className="font-semibold underline underline-offset-2">
+            Attribution
+          </Link>
+          .
+        </AdminNotice>
+      ) : null}
 
       <AdminPanel
         eyebrow="Filters"

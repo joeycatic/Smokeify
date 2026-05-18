@@ -9,6 +9,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { canAdminPerformAction } from "@/lib/adminPermissions";
 import bcrypt from "bcryptjs";
+import { applyAdminInventoryAdjustment } from "@/lib/adminInventory";
 
 export async function PATCH(
   request: NextRequest,
@@ -56,7 +57,17 @@ export async function PATCH(
 
   const existingVariant = await prisma.variant.findUnique({
     where: { id },
-    select: { id: true, updatedAt: true },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      inventory: {
+        select: {
+          quantityOnHand: true,
+          reserved: true,
+        },
+      },
+    },
   });
 
   if (!existingVariant) {
@@ -164,24 +175,25 @@ export async function PATCH(
     }
   }
 
-  if (body.inventory) {
-    operations.push(
-      prisma.variantInventory.upsert({
-        where: { variantId: id },
-        update: {
-          quantityOnHand: body.inventory.quantityOnHand ?? 0,
-          reserved: body.inventory.reserved ?? 0,
-        },
-        create: {
-          variantId: id,
-          quantityOnHand: body.inventory.quantityOnHand ?? 0,
-          reserved: body.inventory.reserved ?? 0,
-        },
-      })
-    );
-  }
-
   await prisma.$transaction(operations);
+
+  if (
+    body.inventory &&
+    typeof body.inventory.quantityOnHand === "number" &&
+    body.inventory.quantityOnHand !== (existingVariant.inventory?.quantityOnHand ?? 0)
+  ) {
+    await applyAdminInventoryAdjustment({
+      variantId: id,
+      mode: "set_on_hand",
+      quantity: body.inventory.quantityOnHand,
+      reasonCode: "ADMIN_SET_ON_HAND",
+      note: `Variant editor inventory update for ${existingVariant.title}`,
+      actor: {
+        id: session.user.id,
+        email: session.user.email ?? null,
+      },
+    });
+  }
 
   const variant = await prisma.variant.findUnique({
     where: { id },
@@ -230,6 +242,9 @@ export async function PATCH(
     Array.isArray(body.options) ||
     body.inventory
   ) {
+    const inventoryUpdated =
+      typeof body.inventory?.quantityOnHand === "number" &&
+      body.inventory.quantityOnHand !== (existingVariant.inventory?.quantityOnHand ?? 0);
     await logAdminAction({
       actor: { id: session.user.id, email: session.user.email ?? null },
       action: "variant.update",
@@ -239,7 +254,7 @@ export async function PATCH(
       metadata: {
         updatedFields: Object.keys(updates),
         optionsUpdated: Array.isArray(body.options),
-        inventoryUpdated: Boolean(body.inventory),
+        inventoryUpdated,
       },
     });
   }

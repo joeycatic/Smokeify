@@ -79,6 +79,12 @@ export function buildAdminScriptExecution(
         } as Record<string, string>,
         normalizedInputs: {} as Record<string, string>,
       };
+    case "orders:backfill-attribution":
+      return {
+        scriptArgs: ["--apply"],
+        envOverrides: {} as Record<string, string>,
+        normalizedInputs: {} as Record<string, string>,
+      };
     default:
       return {
         scriptArgs: [] as string[],
