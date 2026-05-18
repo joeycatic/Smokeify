@@ -2,7 +2,7 @@ import PageLayout from "@/components/PageLayout";
 
 export default function MaintenancePage() {
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <div className="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center px-6 py-16 text-center text-stone-800">
         <p className="text-xs font-semibold tracking-[0.3em] text-[#2f3e36]/70">
           SMOKEIFY

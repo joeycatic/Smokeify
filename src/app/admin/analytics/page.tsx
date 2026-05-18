@@ -1,20 +1,19 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import PageLayout from "@/components/PageLayout";
+import { requireAdminScope } from "@/lib/adminCatalog";
+import { loadAdminAnalyticsOverview } from "@/lib/adminAnalyticsPageData";
+import { measureServerExecution } from "@/lib/perf";
 import AdminAnalyticsClient from "./AdminAnalyticsClient";
 
 export default async function AdminAnalyticsPage() {
-  const session = await getServerSession(authOptions);
-  const isAdminOrStaff =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  if (!isAdminOrStaff) notFound();
+  if (!(await requireAdminScope("analytics.read"))) notFound();
+  const { result: initialOverview } = await measureServerExecution(
+    "admin.analytics.overview",
+    () => loadAdminAnalyticsOverview(),
+  );
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminAnalyticsClient />
-      </div>
-    </PageLayout>
+    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
+      <AdminAnalyticsClient initialOverview={initialOverview} />
+    </div>
   );
 }

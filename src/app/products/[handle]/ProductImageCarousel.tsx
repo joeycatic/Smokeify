@@ -9,6 +9,7 @@ type ImageItem = {
   altText?: string | null;
   width?: number | null;
   height?: number | null;
+  position?: number | null;
 };
 
 type Props = {
@@ -18,34 +19,37 @@ type Props = {
 
 export default function ProductImageCarousel({ images, alt }: Props) {
   const [index, setIndex] = useState(0);
-  const [swerveDirection, setSwerveDirection] = useState<
+  const [slideDirection, setSlideDirection] = useState<
     "left" | "right" | null
   >(null);
-  const [swerveKey, setSwerveKey] = useState(0);
+  const [slideKey, setSlideKey] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
   const thumbnailsRef = useRef<HTMLDivElement | null>(null);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const count = images.length;
-  const current = images[index];
-
-  if (!current) return null;
+  const current = images[index] ?? null;
 
   const handlePrev = () => {
     if (count <= 1) return;
-    setSwerveDirection("left");
-    setSwerveKey((prev) => prev + 1);
+    setIsZoomed(false);
+    setZoomOrigin({ x: 50, y: 50 });
+    setSlideDirection("left");
+    setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev - 1 + count) % count);
   };
 
   const handleNext = () => {
     if (count <= 1) return;
-    setSwerveDirection("right");
-    setSwerveKey((prev) => prev + 1);
+    setIsZoomed(false);
+    setZoomOrigin({ x: 50, y: 50 });
+    setSlideDirection("right");
+    setSlideKey((prev) => prev + 1);
     setIndex((prev) => (prev + 1) % count);
   };
 
   useEffect(() => {
+    if (!current) return;
     const container = thumbnailsRef.current;
     const target = thumbnailRefs.current[index];
     if (!container || !target) return;
@@ -60,12 +64,27 @@ export default function ProductImageCarousel({ images, alt }: Props) {
     );
 
     container.scrollTo({ left: clampedScrollLeft, behavior: "smooth" });
-  }, [index]);
+  }, [current, index]);
 
   useEffect(() => {
-    setIsZoomed(false);
-    setZoomOrigin({ x: 50, y: 50 });
-  }, [index]);
+    if (images.length === 0) return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ position?: number | null }>).detail;
+      const position = detail?.position;
+      if (typeof position !== "number") return;
+      const nextIndex = images.findIndex(
+        (image) => image.position === position,
+      );
+      if (nextIndex < 0) return;
+      setIsZoomed(false);
+      setZoomOrigin({ x: 50, y: 50 });
+      setIndex(nextIndex);
+    };
+    window.addEventListener("product-image-position", handler);
+    return () => window.removeEventListener("product-image-position", handler);
+  }, [images]);
+
+  if (!current) return null;
 
   return (
     <div className="space-y-1">
@@ -95,12 +114,12 @@ export default function ProductImageCarousel({ images, alt }: Props) {
         aria-pressed={isZoomed}
       >
         <div
-          key={swerveKey}
+          key={slideKey}
           className="relative aspect-square overflow-hidden rounded-2xl bg-white"
           style={
-            swerveDirection
+            slideDirection
               ? {
-                  animation: `image-swerve-${swerveDirection} 420ms ease`,
+                  animation: `image-slide-${slideDirection} 420ms ease`,
                 }
               : undefined
           }
@@ -117,6 +136,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
             }}
             sizes="(min-width: 1024px) 50vw, 100vw"
             priority={index === 0}
+            quality={70}
           />
         </div>
         {count > 1 && (
@@ -152,7 +172,11 @@ export default function ProductImageCarousel({ images, alt }: Props) {
               <button
                 key={img.url}
                 type="button"
-                onClick={() => setIndex(imgIndex)}
+                onClick={() => {
+                  setIsZoomed(false);
+                  setZoomOrigin({ x: 50, y: 50 });
+                  setIndex(imgIndex);
+                }}
                 ref={(el) => {
                   thumbnailRefs.current[imgIndex] = el;
                 }}

@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parseStatus, requireAdmin, slugify } from "@/lib/adminCatalog";
+import { adminJson } from "@/lib/adminApi";
+import { parseStatus, slugify } from "@/lib/adminCatalog";
+import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
 import {
   sanitizePlainText,
   sanitizeProductDescription,
 } from "@/lib/sanitizeHtml";
+import { collectMerchantPolicyViolations } from "@/lib/merchantTextPolicy";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
 const normalizeSellerUrl = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -21,34 +25,49 @@ const normalizeSellerUrl = (value?: string | null) => {
   }
 };
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
+  // Select only list-view fields — description/technicalDetails can be
+  // several KB of HTML each and are fetched by the individual product editor.
   const products = await prisma.product.findMany({
     orderBy: { updatedAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      handle: true,
+      manufacturer: true,
+      supplier: true,
+      supplierId: true,
+      sellerName: true,
+      sellerUrl: true,
+      productGroup: true,
+      shippingClass: true,
+      tags: true,
+      storefronts: true,
+      status: true,
+      leadTimeDays: true,
+      weightGrams: true,
+      lengthMm: true,
+      widthMm: true,
+      heightMm: true,
+      growboxSize: true,
+      mainCategoryId: true,
+      createdAt: true,
+      updatedAt: true,
       _count: { select: { variants: true, images: true } },
     },
   });
 
-  return NextResponse.json({
+  return adminJson({
     products: products.map((product) => ({
       ...product,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     })),
   });
-}
+});
 
-export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
   const body = (await request.json()) as {
     title?: string;
     handle?: string;
@@ -60,6 +79,7 @@ export async function POST(request: Request) {
     supplierId?: string | null;
     sellerName?: string | null;
     sellerUrl?: string | null;
+    storefronts?: string[];
     leadTimeDays?: number | null;
     weightGrams?: number | null;
     lengthMm?: number | null;
@@ -72,12 +92,12 @@ export async function POST(request: Request) {
 
   const title = body.title?.trim();
   if (!title) {
-    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    return adminJson({ error: "Title is required" }, { status: 400 });
   }
 
   const sellerUrlResult = normalizeSellerUrl(body.sellerUrl);
   if (!sellerUrlResult.ok) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Seller URL must be a valid http(s) link" },
       { status: 400 }
     );
@@ -89,7 +109,7 @@ export async function POST(request: Request) {
       !Number.isFinite(body.leadTimeDays) ||
       body.leadTimeDays < 0)
   ) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Lead time must be a non-negative number" },
       { status: 400 }
     );
@@ -103,7 +123,7 @@ export async function POST(request: Request) {
     baseHandle === "product" &&
     handleInput.toLowerCase() !== "product"
   ) {
-    return NextResponse.json(
+    return adminJson(
       { error: "Handle must include letters or numbers" },
       { status: 400 }
     );
@@ -114,7 +134,7 @@ export async function POST(request: Request) {
     const existing = await prisma.product.findUnique({ where: { handle } });
     if (!existing) break;
     if (handleInput) {
-      return NextResponse.json(
+      return adminJson(
         { error: "Handle already exists" },
         { status: 409 }
       );
@@ -133,7 +153,7 @@ export async function POST(request: Request) {
       select: { name: true, leadTimeDays: true },
     });
     if (!supplier) {
-      return NextResponse.json(
+      return adminJson(
         { error: "Supplier not found" },
         { status: 400 }
       );
@@ -144,18 +164,50 @@ export async function POST(request: Request) {
     }
   }
 
+  const sanitizedDescription = sanitizeProductDescription(body.description);
+  const sanitizedTechnicalDetails = sanitizeProductDescription(
+    body.technicalDetails
+  );
+  const sanitizedShortDescription = sanitizePlainText(body.shortDescription);
+  const sanitizedProductGroup = sanitizePlainText(body.productGroup);
+  const sanitizedSellerName = sanitizePlainText(body.sellerName);
+  const sanitizedTags = Array.isArray(body.tags)
+    ? body.tags.map((tag) => tag.trim()).filter(Boolean)
+    : [];
+  const storefronts = parseStorefronts(body.storefronts, ["MAIN"]);
+
+  const violations = collectMerchantPolicyViolations({
+    title,
+    description: sanitizedDescription,
+    technicalDetails: sanitizedTechnicalDetails,
+    shortDescription: sanitizedShortDescription,
+    productGroup: sanitizedProductGroup,
+    tags: sanitizedTags.join(" "),
+  });
+
+  if (violations.length > 0) {
+    return adminJson(
+      {
+        error:
+          "Product text includes terms that imply medical claims or illegal use. Please revise wording.",
+        violations,
+      },
+      { status: 400 }
+    );
+  }
+
   const product = await prisma.product.create({
     data: {
       title,
       handle,
-      description: sanitizeProductDescription(body.description),
-      technicalDetails: sanitizeProductDescription(body.technicalDetails),
-      shortDescription: sanitizePlainText(body.shortDescription),
+      description: sanitizedDescription,
+      technicalDetails: sanitizedTechnicalDetails,
+      shortDescription: sanitizedShortDescription,
       manufacturer: body.manufacturer?.trim() || null,
-      productGroup: sanitizePlainText(body.productGroup),
+      productGroup: sanitizedProductGroup,
       supplier: supplierName,
       supplierId,
-      sellerName: sanitizePlainText(body.sellerName),
+      sellerName: sanitizedSellerName,
       sellerUrl: sellerUrlResult.value,
       leadTimeDays,
       weightGrams:
@@ -164,9 +216,8 @@ export async function POST(request: Request) {
       widthMm: typeof body.widthMm === "number" ? body.widthMm : null,
       heightMm: typeof body.heightMm === "number" ? body.heightMm : null,
       shippingClass: body.shippingClass?.trim() || null,
-      tags: Array.isArray(body.tags)
-        ? body.tags.map((tag) => tag.trim()).filter(Boolean)
-        : [],
+      tags: sanitizedTags,
+      storefronts: storefrontsToPrisma(storefronts),
       status: parseStatus(body.status),
       variants: {
         create: {
@@ -188,11 +239,29 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "product.create",
+    targetType: "product",
+    targetId: product.id,
+    summary: `Created product ${product.title}`,
+  });
+
+  return adminJson({
     product: {
       ...product,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
     },
   });
-}
+  },
+  {
+    action: "catalog.product.write",
+    rateLimit: {
+      keyPrefix: "admin-products",
+      limit: 60,
+      windowMs: 10 * 60 * 1000,
+      message: "Zu viele Anfragen. Bitte spater erneut versuchen.",
+    },
+  },
+);

@@ -1,7 +1,20 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const rawSiteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
+
+const siteUrl = (() => {
+  try {
+    const url = new URL(rawSiteUrl);
+    if (url.hostname === "smokeify.de") {
+      url.hostname = "www.smokeify.de";
+    }
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return rawSiteUrl;
+  }
+})();
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -1,9 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import AddedToCartModal from "@/components/AddedToCartModal";
-import OutOfStockModal from "@/components/OutOfStockModal";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import type { Cart } from "@/lib/cart";
+import { trackAnalyticsEvent } from "@/lib/analytics";
+
+const AddedToCartModal = dynamic(() => import("@/components/AddedToCartModal"), {
+  ssr: false,
+});
+const OutOfStockModal = dynamic(() => import("@/components/OutOfStockModal"), {
+  ssr: false,
+});
 
 export type AddedItem = {
   title: string;
@@ -12,6 +20,17 @@ export type AddedItem = {
   price?: { amount: string; currencyCode: string };
   quantity: number;
   productHandle?: string;
+  variantChoices?: Array<{
+    id: string;
+    title: string;
+    available: boolean;
+    options: Array<{ name: string; value: string }>;
+  }>;
+  confirmAdd?: (payload: {
+    variantId: string;
+    label?: string;
+    options?: Array<{ name: string; value: string }>;
+  }) => Promise<boolean>;
 };
 
 type CartCtx = {
@@ -19,7 +38,18 @@ type CartCtx = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  addToCart: (variantId: string, quantity?: number) => Promise<Cart>;
+  addToCart: (
+    variantId: string,
+    quantity?: number,
+    options?: Array<{ name: string; value: string }>
+  ) => Promise<Cart>;
+  addManyToCart: (
+    items: Array<{
+      variantId: string;
+      quantity?: number;
+      options?: Array<{ name: string; value: string }>;
+    }>
+  ) => Promise<Cart>;
   updateLine: (lineId: string, quantity: number) => Promise<void>;
   removeLines: (lineIds: string[]) => Promise<void>;
   openAddedModal: (item: AddedItem) => void;
@@ -30,6 +60,26 @@ type CartCtx = {
 
 const CartContext = createContext<CartCtx | null>(null);
 
+const CART_UNAVAILABLE_ERROR = "Cart context unavailable";
+const cartFallback: CartCtx = {
+  cart: null,
+  loading: false,
+  error: null,
+  refresh: async () => {},
+  addToCart: async () => {
+    throw new Error(CART_UNAVAILABLE_ERROR);
+  },
+  addManyToCart: async () => {
+    throw new Error(CART_UNAVAILABLE_ERROR);
+  },
+  updateLine: async () => {},
+  removeLines: async () => {},
+  openAddedModal: () => {},
+  closeAddedModal: () => {},
+  openOutOfStockModal: () => {},
+  closeOutOfStockModal: () => {},
+};
+
 async function apiGetCart(): Promise<Cart> {
   const res = await fetch("/api/cart", { method: "GET" });
   if (!res.ok) {
@@ -39,7 +89,7 @@ async function apiGetCart(): Promise<Cart> {
   return res.json();
 }
 
-async function apiCartAction(payload: any): Promise<Cart> {
+async function apiCartAction(payload: unknown): Promise<Cart> {
   const res = await fetch("/api/cart", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -55,10 +105,49 @@ const normalizeError = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const toItemPayload = (line: Cart["lines"][number], quantity: number) => {
+  const unitPrice = Number(line.merchandise.price.amount);
+  return {
+    product_id: line.merchandise.product.id,
+    item_id: line.merchandise.id,
+    item_name: line.merchandise.product.title,
+    item_variant: line.merchandise.title,
+    item_brand: line.merchandise.product.manufacturer ?? undefined,
+    item_category: line.merchandise.product.categories?.[0]?.name,
+    price: Number.isFinite(unitPrice) ? unitPrice : undefined,
+    quantity,
+  };
+};
+
+const trackAddToCart = (line: Cart["lines"][number] | undefined, quantity: number) => {
+  if (!line) return;
+  const unitPrice = Number(line.merchandise.price.amount);
+  const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
+    trackAnalyticsEvent("add_to_cart", {
+    currency: line.merchandise.price.currencyCode,
+    value,
+    items: [toItemPayload(line, quantity)],
+  });
+};
+
+const trackRemoveFromCart = (
+  line: Cart["lines"][number] | undefined,
+  quantity: number,
+) => {
+  if (!line || quantity <= 0) return;
+  const unitPrice = Number(line.merchandise.price.amount);
+  const value = Number.isFinite(unitPrice) ? unitPrice * quantity : undefined;
+    trackAnalyticsEvent("remove_from_cart", {
+    currency: line.merchandise.price.currencyCode,
+    value,
+    items: [toItemPayload(line, quantity)],
+  });
+};
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [addedItem, setAddedItem] = useState<AddedItem | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [outOfStockOpen, setOutOfStockOpen] = useState(false);
@@ -67,20 +156,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = async () => {
     setLoading(true);
-    setError(null);
     try {
       const c = await apiGetCart();
       setCart(c);
-    } catch (err) {
-      setError(normalizeError(err, "Failed to load cart"));
+    } catch {
+      // The navbar and cart UI use the toast error channel instead.
     } finally {
       setLoading(false);
     }
   };
 
+  const shouldLoadCartImmediately =
+    pathname === "/cart" ||
+    pathname?.startsWith("/checkout") ||
+    pathname?.startsWith("/order") ||
+    pathname?.startsWith("/products/");
+
   useEffect(() => {
-    refresh();
-  }, []);
+    if (!shouldLoadCartImmediately) return;
+    void refresh();
+  }, [shouldLoadCartImmediately]);
 
   useEffect(() => {
     if (!errorToast) return;
@@ -96,16 +191,53 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => media.removeEventListener("change", update);
   }, []);
 
-  const addToCart = async (variantId: string, quantity = 1) => {
+  const addToCart = async (
+    variantId: string,
+    quantity = 1,
+    options?: Array<{ name: string; value: string }>
+  ) => {
     try {
-      const c = await apiCartAction({ action: "add", variantId, quantity });
+      const c = await apiCartAction({ action: "add", variantId, quantity, options });
       setCart(c);
-      setError(null);
+      const addedLine = c.lines.find((line) => line.merchandise.id === variantId);
+      trackAddToCart(addedLine, quantity);
       setErrorToast(null);
       return c;
     } catch (err) {
       const message = normalizeError(err, "Cart action failed");
-      setError(message);
+      setErrorToast(message);
+      throw err;
+    }
+  };
+
+  const addManyToCart = async (
+    items: Array<{
+      variantId: string;
+      quantity?: number;
+      options?: Array<{ name: string; value: string }>;
+    }>
+  ) => {
+    const normalized = items
+      .map((item) => ({
+        variantId: item.variantId,
+        quantity: Math.max(1, Math.floor(Number(item.quantity ?? 1))),
+        options: item.options,
+      }))
+      .filter((item) => item.variantId);
+    if (normalized.length === 0) {
+      throw new Error("No items to add");
+    }
+    try {
+      const c = await apiCartAction({ action: "addMany", items: normalized });
+      setCart(c);
+      setErrorToast(null);
+      normalized.forEach((item) => {
+        const line = c.lines.find((entry) => entry.merchandise.id === item.variantId);
+        trackAddToCart(line, item.quantity);
+      });
+      return c;
+    } catch (err) {
+      const message = normalizeError(err, "Cart action failed");
       setErrorToast(message);
       throw err;
     }
@@ -113,70 +245,74 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateLine = async (lineId: string, quantity: number) => {
     try {
+      const beforeLine = cart?.lines.find((line) => line.id === lineId);
+      const beforeQty = beforeLine?.quantity ?? 0;
       const c = await apiCartAction({ action: "update", lineId, quantity });
       setCart(c);
       const updatedLine = c.lines.find((line) => line.id === lineId);
       const updatedQty = updatedLine?.quantity ?? 0;
+      if (beforeLine && updatedQty < beforeQty) {
+        trackRemoveFromCart(beforeLine, beforeQty - updatedQty);
+      }
       if (quantity > updatedQty) {
         const message = "Nicht genug Bestand verfügbar.";
-        setError(message);
         setErrorToast(message);
         setOutOfStockOpen(true);
         return;
       }
-      setError(null);
       setErrorToast(null);
     } catch (err) {
       const message = normalizeError(err, "Cart update failed");
-      setError(message);
       setErrorToast(message);
     }
   };
 
   const removeLines = async (lineIds: string[]) => {
     try {
+      const removedLines =
+        cart?.lines.filter((line) => lineIds.includes(line.id)) ?? [];
       const c = await apiCartAction({ action: "remove", lineIds });
       setCart(c);
-      setError(null);
+      removedLines.forEach((line) => trackRemoveFromCart(line, line.quantity));
       setErrorToast(null);
     } catch (err) {
       const message = normalizeError(err, "Cart update failed");
-      setError(message);
       setErrorToast(message);
     }
   };
 
-  const value = useMemo(
-    () => ({
-      cart,
-      loading,
-      error: errorToast,
-      refresh,
-      addToCart,
-      updateLine,
-      removeLines,
-      openAddedModal: (item: AddedItem) => {
-        setAddedItem(item);
-        setAddedOpen(true);
+  const value: CartCtx = {
+    cart,
+    loading,
+    error: errorToast,
+    refresh,
+    addToCart,
+    addManyToCart,
+    updateLine,
+    removeLines,
+    openAddedModal: (item: AddedItem) => {
+      setAddedItem(item);
+      setAddedOpen(true);
+      if (!item.confirmAdd) {
         window.dispatchEvent(
           new CustomEvent<AddedItem>("cart:item-added", { detail: item })
         );
-      },
-      closeAddedModal: () => setAddedOpen(false),
-      openOutOfStockModal: () => setOutOfStockOpen(true),
-      closeOutOfStockModal: () => setOutOfStockOpen(false),
-    }),
-    [cart, loading, errorToast]
-  );
+      }
+    },
+    closeAddedModal: () => setAddedOpen(false),
+    openOutOfStockModal: () => setOutOfStockOpen(true),
+    closeOutOfStockModal: () => setOutOfStockOpen(false),
+  };
 
   return (
     <CartContext.Provider value={value}>
       {children}
-      {!isMobile && (
+      {(!isMobile || addedItem?.confirmAdd) && (
         <AddedToCartModal
           open={addedOpen}
           item={addedItem}
           onClose={() => setAddedOpen(false)}
+          cartSubtotal={cart ? Number(cart.cost.subtotalAmount.amount) : undefined}
         />
       )}
       <OutOfStockModal
@@ -189,6 +325,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
 export function useCart() {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  if (!ctx) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("useCart was called outside CartProvider. Returning fallback context.");
+    }
+    return cartFallback;
+  }
   return ctx;
 }

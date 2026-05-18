@@ -1,6 +1,9 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export const runtime = "nodejs";
 
@@ -71,6 +74,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-discounts:ip:${ip}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -136,6 +154,14 @@ export async function POST(request: Request) {
     max_redemptions: maxRedemptions ? Math.floor(maxRedemptions) : undefined,
     expires_at: expiresAt ? Math.floor(expiresAt) : undefined,
     active: true,
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "discount.create",
+    targetType: "discount",
+    targetId: promotionCode.id,
+    summary: `Created discount ${promotionCode.code}`,
   });
 
   return NextResponse.json({ discount: mapPromotionCode(promotionCode) });

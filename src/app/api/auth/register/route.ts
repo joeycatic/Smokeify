@@ -31,6 +31,8 @@ export async function POST(request: Request) {
     city?: string;
     country?: string;
     birthDate?: string;
+    newsletterOptIn?: boolean;
+    privacyAccepted?: boolean;
   };
 
   const email = body.email?.trim().toLowerCase();
@@ -45,6 +47,8 @@ export async function POST(request: Request) {
   const country = body.country?.trim();
   const birthDateRaw = body.birthDate?.trim();
   const birthDate = birthDateRaw ? new Date(birthDateRaw) : undefined;
+  const newsletterOptIn = Boolean(body.newsletterOptIn);
+  const privacyAccepted = Boolean(body.privacyAccepted);
 
   if (!email || !password) {
     return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
@@ -65,6 +69,12 @@ export async function POST(request: Request) {
   }
   if (birthDateRaw && (!birthDate || Number.isNaN(birthDate.getTime()))) {
     return NextResponse.json({ error: "Invalid birth date" }, { status: 400 });
+  }
+  if (!privacyAccepted) {
+    return NextResponse.json(
+      { error: "Datenschutz muss akzeptiert werden." },
+      { status: 400 }
+    );
   }
 
   const emailLimit = await checkRateLimit({
@@ -100,34 +110,56 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name,
-      firstName,
-      lastName,
-      street,
-      houseNumber,
-      postalCode,
-      city,
-      country,
-      birthDate,
-      passwordHash,
-    },
-  });
-
   const code = generateVerificationCode();
   const codeHash = hashToken(code);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  await prisma.verificationCode.create({
-    data: {
-      userId: user.id,
-      email,
-      codeHash,
-      purpose: "SIGNUP",
-      expiresAt,
-    },
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: {
+        email,
+        name,
+        firstName,
+        lastName,
+        street,
+        houseNumber,
+        postalCode,
+        city,
+        country,
+        birthDate,
+        passwordHash,
+        newsletterOptIn,
+        newsletterOptInAt: newsletterOptIn ? new Date() : null,
+      },
+    });
+
+    if (newsletterOptIn) {
+      await tx.newsletterSubscriber.upsert({
+        where: { email },
+        create: {
+          email,
+          userId: created.id,
+          subscribedAt: new Date(),
+        },
+        update: {
+          userId: created.id,
+          subscribedAt: new Date(),
+          unsubscribedAt: null,
+        },
+      });
+    }
+
+    await tx.verificationCode.create({
+      data: {
+        userId: created.id,
+        email,
+        codeHash,
+        purpose: "SIGNUP",
+        expiresAt,
+      },
+    });
+
+    return created;
   });
 
   await sendVerificationCodeEmail({ email, code, purpose: "SIGNUP" });

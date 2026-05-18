@@ -1,0 +1,595 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import {
+  Bars3BottomLeftIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
+import type { Product, ProductFilters } from "@/data/types";
+import { filterProducts } from "@/lib/filterProducts";
+import DisplayProducts, {
+  DisplayProductsList,
+} from "@/components/DisplayProducts";
+import FilterDrawer from "@/components/FilterDrawer";
+import { trackAnalyticsEvent } from "@/lib/analytics";
+
+type Props = {
+  initialProducts: Product[];
+  title: string;
+  subtitle: string;
+  copy?: string[];
+  faq?: Array<{ question: string; answer: string }>;
+  sizeLinks?: Array<{ label: string; href: string; active: boolean }>;
+};
+
+type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
+
+export default function SeoProductsClient({
+  initialProducts,
+  title,
+  subtitle,
+  copy,
+  faq,
+  sizeLinks,
+}: Props) {
+  const pageSize = 24;
+  const parentCategoryById = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; handle: string; title: string }
+    >();
+    initialProducts.forEach((product) => {
+      product.categories?.forEach((category) => {
+        if (!category.parentId) {
+          map.set(category.id, {
+            id: category.id,
+            handle: category.handle,
+            title: category.title,
+          });
+          return;
+        }
+        if (category.parent) {
+          map.set(category.parent.id, {
+            id: category.parent.id,
+            handle: category.parent.handle,
+            title: category.parent.title,
+          });
+        }
+      });
+    });
+    return map;
+  }, [initialProducts]);
+
+  const normalizedProducts = useMemo(() => {
+    return initialProducts.map((product) => {
+      if (!product.categories?.length) return product;
+      const categories = [...product.categories];
+      const handles = new Set(categories.map((category) => category.handle));
+      categories.forEach((category) => {
+        if (!category.parentId) return;
+        const parent =
+          parentCategoryById.get(category.parentId) ?? category.parent;
+        if (!parent || handles.has(parent.handle)) return;
+        categories.push({ ...parent, parentId: null, parent: null });
+        handles.add(parent.handle);
+      });
+      return { ...product, categories };
+    });
+  }, [initialProducts, parentCategoryById]);
+
+  const priceMaxBound = useMemo(() => {
+    const prices = normalizedProducts
+      .map((p) => Number(p.priceRange?.minVariantPrice?.amount ?? 0))
+      .filter((n) => Number.isFinite(n));
+    const max = prices.length ? Math.max(...prices) : 0;
+    return Math.max(10, Math.ceil(max / 10) * 10);
+  }, [normalizedProducts]);
+
+  const priceMinBound = 0;
+
+  const [filters, setFilters] = useState<ProductFilters>({
+    categories: [],
+    manufacturers: [],
+    priceMin: priceMinBound,
+    priceMax: priceMaxBound,
+  });
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<SortMode>("featured");
+  const [isMobile, setIsMobile] = useState(false);
+  const viewListTrackedRef = useRef<string | null>(null);
+  const searchTrackedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const apply = () => {
+      setIsMobile(media.matches);
+      setLayout("grid");
+    };
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilters((prev) => ({
+      ...prev,
+      priceMin: priceMinBound,
+      priceMax: priceMaxBound,
+    }));
+  }, [priceMaxBound, priceMinBound]);
+
+  const filteredProducts = useMemo(() => {
+    const results = filterProducts(normalizedProducts, filters);
+    return [...results];
+  }, [normalizedProducts, filters]);
+  const sortedProducts = useMemo(() => {
+    const toPrice = (product: Product) =>
+      Number(product.priceRange?.minVariantPrice?.amount ?? 0);
+    const toCompareAtPrice = (product: Product) =>
+      Number(product.compareAtPrice?.amount ?? 0);
+    const toDiscountRatio = (product: Product) => {
+      const price = toPrice(product);
+      const compareAt = toCompareAtPrice(product);
+      if (!Number.isFinite(price) || !Number.isFinite(compareAt)) return 0;
+      if (price <= 0 || compareAt <= price) return 0;
+      return (compareAt - price) / compareAt;
+    };
+    const indexById = new Map(
+      filteredProducts.map((product, index) => [product.id, index]),
+    );
+
+    return [...filteredProducts].sort((a, b) => {
+      const stockDelta =
+        Number(Boolean(b.availableForSale)) - Number(Boolean(a.availableForSale));
+      if (stockDelta !== 0) return stockDelta;
+
+      if (sortBy === "price_asc") return toPrice(a) - toPrice(b);
+      if (sortBy === "price_desc") return toPrice(b) - toPrice(a);
+      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
+
+      // Recommended: in-stock first, stronger current discounts first,
+      // then preserve backend order (updated content first from server query).
+      const discountDelta = toDiscountRatio(b) - toDiscountRatio(a);
+      if (discountDelta !== 0) return discountDelta;
+
+      return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
+    });
+  }, [filteredProducts, sortBy]);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(pageSize);
+  }, [filters, sortBy, pageSize]);
+
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount],
+  );
+  const canLoadMore = visibleCount < sortedProducts.length;
+
+  const availableCategories = useMemo(() => {
+    const categories = new Map<string, string>();
+    normalizedProducts.forEach((product) => {
+      product.categories?.forEach((category) => {
+        categories.set(category.handle, category.title);
+      });
+    });
+    return Array.from(categories.entries()).sort((a, b) =>
+      a[1].localeCompare(b[1]),
+    );
+  }, [normalizedProducts]);
+
+  const availableManufacturers = useMemo(() => {
+    const manufacturers = new Set<string>();
+    const categoryFilters = filters.categories ?? [];
+    const sourceProducts =
+      categoryFilters.length === 0
+        ? normalizedProducts
+        : normalizedProducts.filter((product) => {
+            const handles = product.categories.map((c) => c.handle);
+            return categoryFilters.some((handle) => handles.includes(handle));
+          });
+    sourceProducts.forEach((product) => {
+      if (product.manufacturer) manufacturers.add(product.manufacturer);
+    });
+    return Array.from(manufacturers).sort((a, b) => a.localeCompare(b));
+  }, [normalizedProducts, filters.categories]);
+
+  const activeChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> =
+      [];
+    const categoryTitleByHandle = new Map(availableCategories);
+
+    filters.categories.forEach((handle) => {
+      const title = categoryTitleByHandle.get(handle) ?? handle;
+      chips.push({
+        key: `category:${handle}`,
+        label: title,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            categories: prev.categories.filter((c) => c !== handle),
+          })),
+      });
+    });
+
+    filters.manufacturers.forEach((manufacturer) => {
+      chips.push({
+        key: `manufacturer:${manufacturer}`,
+        label: manufacturer,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            manufacturers: prev.manufacturers.filter((m) => m !== manufacturer),
+          })),
+      });
+    });
+
+    if (filters.priceMin > priceMinBound || filters.priceMax < priceMaxBound) {
+      chips.push({
+        key: "price",
+        label: `Preis ${filters.priceMin}–${filters.priceMax}`,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            priceMin: priceMinBound,
+            priceMax: priceMaxBound,
+          })),
+      });
+    }
+
+    if (filters.searchQuery?.trim()) {
+      chips.push({
+        key: "search",
+        label: `Search: ${filters.searchQuery.trim()}`,
+        onRemove: () =>
+          setFilters((prev) => ({
+            ...prev,
+            searchQuery: "",
+          })),
+      });
+    }
+
+    return chips;
+  }, [availableCategories, filters, priceMaxBound, priceMinBound]);
+
+  const resetFilters = () => {
+    setFilters({
+      categories: [],
+      manufacturers: [],
+      priceMin: priceMinBound,
+      priceMax: priceMaxBound,
+      searchQuery: "",
+    });
+  };
+
+  const handleSelectItem = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    const el = target?.closest<HTMLElement>("[data-gtag-item-id]");
+    if (!el) return;
+    const {
+      gtagItemId,
+      gtagItemName,
+      gtagItemBrand,
+      gtagItemCategory,
+      gtagItemPrice,
+      gtagItemIndex,
+    } = el.dataset;
+    if (!gtagItemId || !gtagItemName) return;
+    trackAnalyticsEvent("select_item", {
+      item_list_id: `seo:${title.toLowerCase()}`,
+      item_list_name: `seo:${title}`,
+      items: [
+        {
+          item_id: gtagItemId,
+          item_name: gtagItemName,
+          item_brand: gtagItemBrand || undefined,
+          item_category: gtagItemCategory || undefined,
+          price: gtagItemPrice ? Number(gtagItemPrice) : undefined,
+          index: gtagItemIndex ? Number(gtagItemIndex) : undefined,
+          quantity: 1,
+        },
+      ],
+    });
+  };
+
+  useEffect(() => {
+    if (sortedProducts.length === 0) return;
+    const key = `${title}:${sortBy}:${sortedProducts.length}`;
+    if (viewListTrackedRef.current === key) return;
+    viewListTrackedRef.current = key;
+    const items = sortedProducts.slice(0, 20).map((product) => ({
+      item_id: product.defaultVariantId ?? product.id,
+      item_name: product.title,
+      item_brand: product.manufacturer ?? undefined,
+      item_category: product.categories?.[0]?.title,
+      price: Number(product.priceRange?.minVariantPrice?.amount ?? 0),
+      quantity: 1,
+    }));
+    trackAnalyticsEvent("view_item_list", {
+      item_list_id: `seo:${title.toLowerCase()}`,
+      item_list_name: `seo:${title}`,
+      items,
+    });
+  }, [sortedProducts, title, sortBy]);
+
+  useEffect(() => {
+    const term = filters.searchQuery?.trim();
+    if (!term) {
+      searchTrackedRef.current = null;
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (searchTrackedRef.current === term) return;
+      searchTrackedRef.current = term;
+      trackAnalyticsEvent("search", { search_term: term });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filters.searchQuery]);
+
+  return (
+    <div className="w-full text-[var(--smk-text)]">
+      <div className="mt-0 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.14),transparent_24%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.14),transparent_26%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:px-10">
+        <div className="relative text-center">
+          <div className="absolute left-0 top-0 h-28 w-28 rounded-full bg-[rgba(233,188,116,0.12)] blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[rgba(217,119,69,0.12)] blur-3xl" />
+          <div className="relative">
+            <p className="smk-kicker">Kategorie</p>
+            <h1 className="smk-heading mt-4 text-4xl text-[var(--smk-text)] sm:text-5xl">{title}</h1>
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--smk-text-muted)] sm:text-base">{subtitle}</p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <span className="smk-chip">{sortedProducts.length} Produkte</span>
+            </div>
+          </div>
+        </div>
+
+        {sizeLinks && sizeLinks.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {sizeLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  link.active
+                    ? "bg-[linear-gradient(135deg,#f1c684_0%,#d97745_100%)] text-[#1a140f]"
+                    : "border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-text-muted)] hover:bg-[rgba(255,255,255,0.08)]"
+                }`}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--smk-text-dim)]">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="20" y1="20" x2="16.5" y2="16.5" />
+              </svg>
+            </span>
+            <input
+              type="search"
+              value={filters.searchQuery ?? ""}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+              }
+              placeholder={`${title} durchsuchen...`}
+              className="smk-input h-12 w-full rounded-2xl pl-12 pr-4 text-sm shadow-[0_12px_30px_rgba(8,18,14,0.15)]"
+            />
+          </div>
+          <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
+            <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
+              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] p-[6px] shadow-sm sm:h-12 sm:w-40">
+              <span
+                className={`absolute top-[5px] bottom-[5px] rounded-full bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-200 ease-out ${
+                  layout === "grid"
+                    ? "left-[5px] right-[calc(50%-1px)]"
+                    : "left-[calc(50%+1px)] right-[5px]"
+                }`}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                onClick={() => setLayout("grid")}
+                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
+                  layout === "grid"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
+                }`}
+              >
+                <Squares2X2Icon className="h-4 w-4" />
+                {isMobile ? "2x" : "4x"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayout("list")}
+                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
+                  layout === "list"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
+                }`}
+              >
+                <Bars3BottomLeftIcon className="h-4 w-4" />
+                1x
+              </button>
+            </div>
+            <FilterDrawer
+              filters={filters}
+              setFilters={setFilters}
+              availableCategories={availableCategories}
+              availableManufacturers={availableManufacturers}
+              priceMinBound={priceMinBound}
+              priceMaxBound={priceMaxBound}
+              resultCount={sortedProducts.length}
+              onReset={resetFilters}
+              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-5 text-sm font-semibold text-[#1a140f] shadow-sm transition hover:border-[var(--smk-border-strong)] sm:h-12 sm:w-auto sm:px-6"
+              triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-[#1a140f]"
+            />
+            </div>
+            <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
+              <label className="inline-flex h-11 w-44 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-3 text-xs font-semibold text-[#2f241d] shadow-sm sm:h-12 sm:w-auto">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortMode)}
+                aria-label="Sortierung"
+                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-[#1a140f] outline-none sm:w-auto sm:text-center"
+              >
+                <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
+                <option value="price_asc">Preis aufsteigend</option>
+                <option value="price_desc">Preis absteigend</option>
+                <option value="name_asc">Name A-Z</option>
+              </select>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {activeChips.length > 0 && (
+        <div className="mt-6 mb-8 flex flex-wrap items-center gap-2">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={chip.onRemove}
+              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 hover:border-black/30"
+            >
+              <span>{chip.label}</span>
+              <span className="text-sm">x</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-xs font-semibold text-stone-600 hover:text-stone-800"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      <div onClick={handleSelectItem}>
+        {layout === "grid" ? (
+          <DisplayProducts
+            products={visibleProducts}
+            cols={isMobile ? 2 : 4}
+            showManufacturer
+            titleLines={3}
+            showGrowboxSize
+            hideCartLabel={isMobile && layout === "grid"}
+          />
+        ) : (
+          <DisplayProductsList
+            products={visibleProducts}
+            showManufacturer
+            showGrowboxSize
+          />
+        )}
+      </div>
+
+      {canLoadMore && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((prev) =>
+                Math.min(prev + pageSize, sortedProducts.length),
+              )
+            }
+            className="smk-button-secondary inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold focus-visible:ring-offset-black"
+          >
+            Mehr laden
+          </button>
+        </div>
+      )}
+
+      {sortedProducts.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-gray-500 text-lg mb-2">Keine Produkte gefunden</p>
+          <p className="text-sm text-stone-500 mb-6">
+            Passe deine Auswahl an oder starte mit einer kuratierten Seite.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {Boolean(filters.searchQuery?.trim()) && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters((prev) => ({ ...prev, searchQuery: "" }))
+                }
+                className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+              >
+                Suche löschen
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-black/20"
+            >
+              Alle Filter zurücksetzen
+            </button>
+            <Link
+              href="/bestseller"
+              className="inline-flex items-center justify-center rounded-full bg-[#254237] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Zu den Bestsellern
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {copy && copy.length > 0 && (
+        <div className="smk-panel mt-12 rounded-[32px] px-6 py-8 text-sm text-[var(--smk-text-muted)] sm:px-10 sm:text-base">
+          <div className="mx-auto max-w-3xl space-y-4">
+            {copy.map((paragraph, index) => (
+              <p key={`${paragraph.slice(0, 24)}-${index}`}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {faq && faq.length > 0 && (
+        <div className="smk-panel mt-8 rounded-[32px] px-6 py-6 sm:px-10">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-lg font-semibold text-[var(--smk-text)]">
+              Häufige Fragen
+            </h2>
+            <div className="mt-4 space-y-3">
+              {faq.map((item, index) => (
+                <details
+                  key={`${item.question}-${index}`}
+                  className="group rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(241,198,132,0.32)] focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
+                    <span>{item.question}</span>
+                    <span className="text-[var(--smk-text-dim)] transition group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <div className="mt-3 text-sm text-[var(--smk-text-muted)]">
+                    {item.answer}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

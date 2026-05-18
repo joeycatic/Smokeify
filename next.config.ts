@@ -1,10 +1,126 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === "production";
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(isProd ? [] : ["'unsafe-eval'"]),
+  "https://js.stripe.com",
+  "https://www.googletagmanager.com",
+  "https://googleads.g.doubleclick.net",
+  "https://www.google.com",
+].join(" ");
+const adminReportOnlyScriptSrc = [
+  "'self'",
+  ...(isProd ? [] : ["'unsafe-eval'"]),
+  "https://js.stripe.com",
+  "https://www.googletagmanager.com",
+  "https://googleads.g.doubleclick.net",
+  "https://www.google.com",
+].join(" ");
+const adminReportOnlyCsp =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
+  "form-action 'self' https://checkout.stripe.com; " +
+  "manifest-src 'self'; " +
+  "object-src 'none'; " +
+  "script-src-attr 'none'; " +
+  "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
+  `script-src ${adminReportOnlyScriptSrc}; ` +
+  "worker-src 'self' blob:; " +
+  "style-src 'self'; " +
+  "style-src-attr 'none'; " +
+  "font-src 'self' data:; " +
+  "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
+  "frame-src https://js.stripe.com https://*.stripe.com; " +
+  "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
+  (isProd ? " upgrade-insecure-requests;" : "");
+
+const securityHeaders = [
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "DENY",
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Permissions-Policy",
+    value:
+      "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()",
+  },
+  {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin-allow-popups",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-site",
+  },
+  {
+    key: "Origin-Agent-Cluster",
+    value: "?1",
+  },
+  {
+    key: "X-Permitted-Cross-Domain-Policies",
+    value: "none",
+  },
+  {
+    key: "X-DNS-Prefetch-Control",
+    value: "on",
+  },
+  {
+    key: "Content-Security-Policy",
+    value:
+      "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
+      "form-action 'self' https://checkout.stripe.com; " +
+      "manifest-src 'self'; " +
+      "object-src 'none'; " +
+      "script-src-attr 'none'; " +
+      "img-src 'self' data: blob: https: https://googleads.g.doubleclick.net https://www.google.com; " +
+      `script-src ${scriptSrc}; ` +
+      "worker-src 'self' blob:; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "style-src-attr 'unsafe-inline'; " +
+      "font-src 'self' data:; " +
+      "connect-src 'self' https://api.stripe.com https://*.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
+      "frame-src https://js.stripe.com https://*.stripe.com; " +
+      "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
+      (isProd ? " upgrade-insecure-requests;" : ""),
+  },
+  ...(isProd
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]
+    : []),
+];
+
 const nextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   images: {
+    qualities: [70, 72, 75],
     remotePatterns: [
       {
         protocol: "https",
         hostname: "cdn.shopify.com",
+      },
+      {
+        protocol: "https",
+        hostname: "bloomtech.de",
+      },
+      {
+        protocol: "https",
+        hostname: "www.bloomtech.de",
       },
       {
         protocol: "https",
@@ -18,6 +134,19 @@ const nextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+      {
+        source: "/admin/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: adminReportOnlyCsp,
+          },
+        ],
+      },
       {
         source: "/_next/static/:path*",
         headers: [
@@ -67,4 +196,12 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  sourcemaps: {
+    disable: !process.env.SENTRY_DSN,
+  },
+});

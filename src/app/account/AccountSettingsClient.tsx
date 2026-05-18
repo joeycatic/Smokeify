@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import DiscordLinkSection from "./DiscordLinkSection";
+import { SHIPPING_ADDRESS_TYPES } from "@/lib/shippingAddress";
 
 type Props = {
   initialName: string;
@@ -13,6 +15,9 @@ type Props = {
   initialPostalCode: string;
   initialCity: string;
   initialCountry: string;
+  initialShippingAddressType: string;
+  initialPackstationNumber: string;
+  initialPostNumber: string;
 };
 
 export default function AccountSettingsClient({
@@ -25,6 +30,9 @@ export default function AccountSettingsClient({
   initialPostalCode,
   initialCity,
   initialCountry,
+  initialShippingAddressType,
+  initialPackstationNumber,
+  initialPostNumber,
 }: Props) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
@@ -35,6 +43,13 @@ export default function AccountSettingsClient({
   const [postalCode, setPostalCode] = useState(initialPostalCode);
   const [city, setCity] = useState(initialCity);
   const [country, setCountry] = useState(initialCountry);
+  const [shippingAddressType, setShippingAddressType] = useState(
+    initialShippingAddressType === "PACKSTATION" ? "PACKSTATION" : "STREET",
+  );
+  const [packstationNumber, setPackstationNumber] = useState(
+    initialPackstationNumber,
+  );
+  const [postNumber, setPostNumber] = useState(initialPostNumber);
   const [profileStatus, setProfileStatus] = useState<
     "idle" | "saving" | "ok" | "error"
   >("idle");
@@ -43,6 +58,11 @@ export default function AccountSettingsClient({
   const handleProfileSave = async () => {
     setProfileStatus("saving");
     setProfileError("");
+    if (!firstName.trim() || !lastName.trim()) {
+      setProfileStatus("error");
+      setProfileError("Vorname und Nachname sind erforderlich.");
+      return;
+    }
     try {
       const res = await fetch("/api/account/profile", {
         method: "POST",
@@ -57,6 +77,9 @@ export default function AccountSettingsClient({
           postalCode,
           city,
           country,
+          shippingAddressType,
+          packstationNumber,
+          postNumber,
         }),
       });
       if (!res.ok) {
@@ -73,134 +96,227 @@ export default function AccountSettingsClient({
     }
   };
 
+  const inputClass =
+    "w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2.5 text-sm text-stone-800 outline-none transition-colors focus:border-[#44584c]/40 focus:bg-white focus:ring-2 focus:ring-[#44584c]/10";
+
+  const labelClass = "block text-[11px] font-semibold tracking-wide text-stone-500 mb-1";
+
   return (
     <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-      <h2 className="text-sm font-semibold tracking-widest text-black/70 mb-4">
+      <h2 className="mb-6 text-sm font-semibold tracking-widest text-black/70">
         ACCOUNT AKTUALISIEREN
       </h2>
-      <div className="mx-auto max-w-3xl">
-        <p className="text-xs font-semibold tracking-widest text-black/60 mb-3">
-          PROFIL
-        </p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Username *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Email *
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Vorname
-            </label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Nachname
-            </label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Straße
-            </label>
-            <input
-              type="text"
-              value={street}
-              onChange={(event) => setStreet(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Hausnummer
-            </label>
-            <input
-              type="text"
-              value={houseNumber}
-              onChange={(event) => setHouseNumber(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Postleitzahl
-            </label>
-            <input
-              type="text"
-              value={postalCode}
-              onChange={(event) => setPostalCode(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Stadt
-            </label>
-            <input
-              type="text"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600">
-              Land
-            </label>
-            <input
-              type="text"
-              value={country}
-              onChange={(event) => setCountry(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            />
+
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Personal info */}
+        <div>
+          <p className="mb-3 text-[11px] font-semibold tracking-widest text-stone-400">
+            PERSÖNLICHE DATEN
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>Username *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Email *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Vorname *</label>
+              <input
+                type="text"
+                required
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Nachname *</label>
+              <input
+                type="text"
+                required
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+                className={inputClass}
+              />
+            </div>
           </div>
         </div>
-        <div className="mt-4 space-y-3">
+
+        {/* Divider */}
+        <div className="border-t border-black/6" />
+
+        {/* Address */}
+        <div>
+          <p className="mb-3 text-[11px] font-semibold tracking-widest text-stone-400">
+            LIEFERADRESSE
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className={labelClass}>Adressart</label>
+              <div className="grid gap-3 md:grid-cols-2">
+                {SHIPPING_ADDRESS_TYPES.map((value) => {
+                  const active = shippingAddressType === value;
+                  const title =
+                    value === "PACKSTATION"
+                      ? "DHL Packstation"
+                      : "Straßenadresse";
+                  const description =
+                    value === "PACKSTATION"
+                      ? "Packstation + Postnummer für DHL in Deutschland."
+                      : "Klassische Lieferadresse mit Straße und Hausnummer.";
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setShippingAddressType(value);
+                        if (value === "PACKSTATION") {
+                          setCountry("DE");
+                        }
+                      }}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        active
+                          ? "border-[#44584c]/30 bg-[#44584c]/8"
+                          : "border-black/10 bg-stone-50 hover:border-black/20 hover:bg-white"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-stone-900">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                        {description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {shippingAddressType === "PACKSTATION" ? (
+              <>
+                <div>
+                  <label className={labelClass}>Packstation</label>
+                  <input
+                    type="text"
+                    value={packstationNumber}
+                    onChange={(event) => setPackstationNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Postnummer</label>
+                  <input
+                    type="text"
+                    value={postNumber}
+                    onChange={(event) => setPostNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className={labelClass}>Straße</label>
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(event) => setStreet(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Hausnummer</label>
+                  <input
+                    type="text"
+                    value={houseNumber}
+                    onChange={(event) => setHouseNumber(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            )}
+            <div>
+              <label className={labelClass}>Postleitzahl</label>
+              <input
+                type="text"
+                value={postalCode}
+                onChange={(event) => setPostalCode(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Stadt</label>
+              <input
+                type="text"
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Land</label>
+              <input
+                type="text"
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+                disabled={shippingAddressType === "PACKSTATION"}
+                className={inputClass}
+              />
+            </div>
+            {shippingAddressType === "PACKSTATION" && (
+              <p className="md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Für Packstationen wird im Checkout automatisch
+                {" "}
+                <span className="font-semibold">
+                  Packstation {packstationNumber || "..."}
+                </span>
+                {" "}und{" "}
+                <span className="font-semibold">
+                  Postnummer {postNumber || "..."}
+                </span>
+                {" "}an Stripe übergeben.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-black/6" />
+
+        <DiscordLinkSection />
+
+        {/* Actions */}
+        <div className="space-y-3 pt-1">
           {profileError && (
-            <p className="text-xs text-red-600">{profileError}</p>
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {profileError}
+            </p>
           )}
           {profileStatus === "ok" && (
-            <p className="text-xs text-green-700">Updated.</p>
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              Änderungen gespeichert.
+            </p>
           )}
           <button
             type="button"
             onClick={handleProfileSave}
             disabled={profileStatus === "saving"}
-            className="h-11 w-full rounded-md bg-[#44584c] px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:h-12 sm:text-base"
+            className="h-11 w-full rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#44584c] disabled:opacity-60 sm:h-12 sm:text-base"
           >
-            {profileStatus === "saving" ? "Saving..." : "Änderungen speichern"}
+            {profileStatus === "saving" ? "Wird gespeichert..." : "Änderungen speichern"}
           </button>
           <Link
             href="/account/password"
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-black/15 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 sm:h-12 sm:text-base"
+            className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-black/10 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50 sm:h-12 sm:text-base"
           >
             Passwort ändern
           </Link>

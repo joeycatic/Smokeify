@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminCatalog";
+import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
+import { listAdminProcurementSuppliers } from "@/lib/adminProcurement";
 
 const normalizeWebsite = (value?: string | null) => {
   if (typeof value !== "string") return { ok: true, value: null };
@@ -17,34 +19,87 @@ const normalizeWebsite = (value?: string | null) => {
   }
 };
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const suppliers = await prisma.supplier.findMany({
     orderBy: { name: "asc" },
+    include: {
+      products: {
+        select: {
+          id: true,
+          status: true,
+          variants: {
+            select: {
+              lowStockThreshold: true,
+              inventory: {
+                select: {
+                  quantityOnHand: true,
+                  reserved: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      _count: {
+        select: {
+          products: true,
+        },
+      },
+    },
   });
+  const procurementSuppliers = await listAdminProcurementSuppliers();
+  const procurementSummaryBySupplierId = new Map(
+    procurementSuppliers.map((supplier) => [supplier.id, supplier]),
+  );
 
-  return NextResponse.json({ suppliers });
-}
+  return NextResponse.json({
+    suppliers: suppliers.map((supplier) => {
+      const procurementSummary = procurementSummaryBySupplierId.get(supplier.id);
+      const activeProducts = supplier.products.filter(
+        (product) => product.status === "ACTIVE"
+      ).length;
+      const lowStockProducts = supplier.products.filter((product) =>
+        product.variants.some((variant) => {
+          const onHand = variant.inventory?.quantityOnHand ?? 0;
+          const reserved = variant.inventory?.reserved ?? 0;
+          const available = Math.max(0, onHand - reserved);
+          return available <= variant.lowStockThreshold;
+        })
+      ).length;
 
-export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      return {
+        id: supplier.id,
+        name: supplier.name,
+        contactName: supplier.contactName,
+        email: supplier.email,
+        phone: supplier.phone,
+        website: supplier.website,
+        notes: supplier.notes,
+        leadTimeDays: supplier.leadTimeDays,
+        createdAt: supplier.createdAt,
+        updatedAt: supplier.updatedAt,
+        productCount: supplier._count.products,
+        activeProductCount: activeProducts,
+        lowStockProductCount: lowStockProducts,
+        openPurchaseOrderCount: procurementSummary?.openPurchaseOrderCount ?? 0,
+        latePurchaseOrderCount: procurementSummary?.latePurchaseOrderCount ?? 0,
+        lastReceiptAt: procurementSummary?.lastReceiptAt ?? null,
+      };
+    }),
+  });
+});
 
-  const body = (await request.json()) as {
-    name?: string;
-    contactName?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    website?: string | null;
-    notes?: string | null;
-    leadTimeDays?: number | null;
-  };
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      contactName?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      website?: string | null;
+      notes?: string | null;
+      leadTimeDays?: number | null;
+    };
 
   const name = body.name?.trim();
   if (!name) {
@@ -89,5 +144,21 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ supplier });
-}
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "supplier.create",
+    targetType: "supplier",
+    targetId: supplier.id,
+    summary: `Created supplier ${supplier.name}`,
+  });
+
+    return NextResponse.json({ supplier });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-suppliers",
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

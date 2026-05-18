@@ -1,12 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 type Props = {
   orderId: string;
   existingStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   adminNote: string | null;
-  items: Array<{ id: string; name: string; quantity: number; imageUrl?: string | null }>;
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    imageUrl?: string | null;
+    options?: Array<{ name: string; value: string }>;
+  }>;
+};
+
+const formatOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
 };
 
 export default function ReturnRequestForm({
@@ -16,6 +31,10 @@ export default function ReturnRequestForm({
   items,
 }: Props) {
   const [reason, setReason] = useState("");
+  const [requestedResolution, setRequestedResolution] = useState<
+    "REFUND" | "STORE_CREDIT" | "EXCHANGE"
+  >("REFUND");
+  const [exchangePreference, setExchangePreference] = useState("");
   const [selection, setSelection] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
@@ -36,7 +55,13 @@ export default function ReturnRequestForm({
       const res = await fetch("/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, reason, items: selectedItems }),
+        body: JSON.stringify({
+          orderId,
+          reason,
+          items: selectedItems,
+          requestedResolution,
+          exchangePreference,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -53,29 +78,30 @@ export default function ReturnRequestForm({
 
   if (existingStatus) {
     return (
-      <div className="text-sm text-stone-600">
+      <div className="rounded-xl border border-white/10 bg-[#0c1410] px-4 py-3 text-sm text-emerald-200/80">
         Status:{" "}
-        <span className="font-semibold text-stone-800">{existingStatus}</span>
+        <span className="font-semibold text-emerald-100">
+          {existingStatus}
+        </span>
         {adminNote && (
-          <div className="mt-1 text-xs text-stone-500">Note: {adminNote}</div>
+        <div className="mt-1 text-xs text-emerald-200/60">
+            Hinweis: {adminNote}
+          </div>
         )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-stone-600">
-        Beantrage eine Rueckgabe fuer diese Bestellung.
-      </p>
-      <div className="space-y-2 text-sm">
+    <div className="space-y-4">
+      <div className="rounded-xl border border-white/10 bg-[#0c1410] px-3 py-3 text-sm">
         {items.map((item) => {
           const qty = selection[item.id] ?? 0;
           const isSelected = qty > 0;
           return (
             <div
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3 last:border-b-0 last:pb-0"
             >
               <div className="flex items-center gap-3">
                 <input
@@ -87,24 +113,30 @@ export default function ReturnRequestForm({
                       [item.id]: event.target.checked ? 1 : 0,
                     }))
                   }
-                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="h-4 w-4 rounded border border-white/20 bg-[#0f1713] text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
                 />
                 {item.imageUrl ? (
-                  <img
+                  <Image
                     src={item.imageUrl}
                     alt={item.name}
-                    className="h-10 w-10 rounded-lg border border-black/10 object-cover"
-                    loading="lazy"
-                    decoding="async"
+                    className="h-10 w-10 rounded-lg border border-white/10 object-cover"
                     width={40}
                     height={40}
+                    sizes="40px"
                   />
                 ) : (
-                  <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
+                  <div className="h-10 w-10 rounded-lg border border-white/10 bg-[#0f1713]" />
                 )}
                 <div>
-                  <div className="font-semibold">{item.name}</div>
-                  <div className="text-xs text-stone-500">
+                  <div className="font-semibold text-emerald-100">
+                    {item.name}
+                  </div>
+                  {item.options && item.options.length > 0 && (
+                    <div className="text-xs text-emerald-200/60">
+                      {formatOptions(item.options)}
+                    </div>
+                  )}
+                  <div className="text-xs text-emerald-200/60">
                     Menge: {item.quantity}
                   </div>
                 </div>
@@ -121,7 +153,7 @@ export default function ReturnRequestForm({
                       [item.id]: Number(event.target.value),
                     }))
                   }
-                  className="h-8 w-14 rounded-md border border-black/10 px-0 text-[11px] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="h-8 w-14 rounded-md border border-white/10 bg-[#0f1713] px-0 text-[11px] text-center text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
                 />
               )}
             </div>
@@ -129,28 +161,70 @@ export default function ReturnRequestForm({
         })}
       </div>
       <label className="block text-xs font-semibold text-stone-600">
+        Gewünschte Lösung
+        <p className="mt-2 text-sm text-emerald-200/60">
+          Wähle aus, ob du eine Rückerstattung, Shop-Guthaben oder einen Umtausch möchtest.
+        </p>
+        <select
+          value={requestedResolution}
+          onChange={(event) =>
+            setRequestedResolution(
+              event.target.value as "REFUND" | "STORE_CREDIT" | "EXCHANGE"
+            )
+          }
+          className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-[#0f1713] px-3 text-sm text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+        >
+          <option value="REFUND">Rückerstattung</option>
+          <option value="STORE_CREDIT">Shop-Guthaben</option>
+          <option value="EXCHANGE">Umtausch</option>
+        </select>
+      </label>
+      {requestedResolution === "EXCHANGE" ? (
+        <label className="block text-xs font-semibold text-stone-600">
+          Umtauschhinweis
+          <p className="mt-2 text-sm text-emerald-200/60">
+            Teile mit, welche Variante oder welchen Austausch du bevorzugst.
+          </p>
+          <input
+            value={exchangePreference}
+            onChange={(event) => setExchangePreference(event.target.value)}
+            className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-[#0f1713] px-3 text-sm text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+            placeholder="z. B. gleiche Sorte in anderer Größe"
+          />
+        </label>
+      ) : null}
+      <label className="block text-xs font-semibold text-stone-600">
         Grund
+        <p className="mt-2 text-sm text-emerald-200/60">
+          Warum möchtest du die Rückgabe beantragen?
+        </p>
         <textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          placeholder="Warum moechtest du zurueckgeben?"
+          className="mt-2 w-full rounded-xl border border-white/10 bg-[#0f1713] px-3 py-2 text-sm text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
+          placeholder="Warum möchtest du zurückgeben?"
         />
       </label>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-300">{error}</p>}
       {status === "ok" && (
-        <p className="text-xs text-emerald-700">
-          Rueckgabeanfrage gesendet.
+        <p className="text-xs text-emerald-300">
+          Rückgabeanfrage gesendet.
         </p>
       )}
       <button
         type="button"
         onClick={submit}
-        disabled={!reason.trim() || status === "loading" || selectedCount === 0}
-        className="h-9 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        disabled={
+          !reason.trim() ||
+          status === "loading" ||
+          selectedCount === 0 ||
+          (requestedResolution === "EXCHANGE" && !exchangePreference.trim())
+        }
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-emerald-900 px-5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1713]"
       >
-        {status === "loading" ? "Senden..." : "Rueckgabe anfragen"}
+        <span aria-hidden="true">🛒</span>
+        {status === "loading" ? "Senden..." : "Rückgabe anfragen"}
       </button>
     </div>
   );

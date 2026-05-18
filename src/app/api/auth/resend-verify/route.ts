@@ -9,11 +9,11 @@ const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const RECENT_NEW_DEVICE_MS = 60 * 60 * 1000;
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { email?: string };
-  const email = body.email?.trim().toLowerCase();
+  const body = (await request.json()) as { identifier?: string };
+  const identifier = body.identifier?.trim();
 
-  if (!email) {
-    return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  if (!identifier) {
+    return NextResponse.json({ error: "Missing identifier" }, { status: 400 });
   }
 
   const ip = getClientIp(request.headers);
@@ -22,36 +22,43 @@ export async function POST(request: Request) {
     limit: 5,
     windowMs: RESEND_WINDOW_MS,
   });
-  const emailLimit = await checkRateLimit({
-    key: `resend:email:${email}`,
+  const identifierLimit = await checkRateLimit({
+    key: `resend:identifier:${identifier}`,
     limit: 5,
     windowMs: RESEND_WINDOW_MS,
   });
 
-  if (!ipLimit.allowed || !emailLimit.allowed) {
+  if (!ipLimit.allowed || !identifierLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },
       { status: 429 }
     );
   }
 
+  const identifierLower = identifier.toLowerCase();
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: identifierLower },
     select: { id: true, email: true, emailVerified: true },
   });
+  const resolvedUser =
+    user ??
+    (await prisma.user.findUnique({
+      where: { name: identifier },
+      select: { id: true, email: true, emailVerified: true },
+    }));
 
-  if (!user || !user.email) {
+  if (!resolvedUser || !resolvedUser.email) {
     return NextResponse.json({ ok: true });
   }
 
   let purpose: "SIGNUP" | "NEW_DEVICE" | null = null;
-  if (!user.emailVerified) {
+  if (!resolvedUser.emailVerified) {
     purpose = "SIGNUP";
   } else {
     const recentNewDevice = await prisma.verificationCode.findFirst({
       where: {
-        userId: user.id,
-        email,
+        userId: resolvedUser.id,
+        email: resolvedUser.email,
         purpose: "NEW_DEVICE",
         createdAt: { gt: new Date(Date.now() - RECENT_NEW_DEVICE_MS) },
       },
@@ -72,15 +79,19 @@ export async function POST(request: Request) {
 
   await prisma.verificationCode.create({
     data: {
-      userId: user.id,
-      email,
+      userId: resolvedUser.id,
+      email: resolvedUser.email,
       codeHash,
       purpose,
       expiresAt,
     },
   });
 
-  await sendVerificationCodeEmail({ email, code, purpose });
+  await sendVerificationCodeEmail({
+    email: resolvedUser.email,
+    code,
+    purpose,
+  });
 
   return NextResponse.json({ ok: true });
 }

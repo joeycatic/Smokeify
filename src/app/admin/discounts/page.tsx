@@ -1,20 +1,13 @@
-import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
-import PageLayout from "@/components/PageLayout";
-import { authOptions } from "@/lib/auth";
+import { requireAdminScope } from "@/lib/adminCatalog";
 import AdminDiscountsClient from "./AdminDiscountsClient";
 
 export default async function AdminDiscountsPage() {
-  const session = await getServerSession(authOptions);
-  const isAdminOrStaff =
-    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
-  if (!isAdminOrStaff) notFound();
+  if (!(await requireAdminScope("discounts.manage"))) notFound();
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
-        <AdminDiscountsClient />
-      </div>
-    </PageLayout>
+    <div className="mx-auto max-w-screen-xl px-2 py-2 text-slate-100">
+      <AdminDiscountsClient />
+    </div>
   );
 }

@@ -1,26 +1,62 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
-import { sendResendEmail } from "@/lib/resend";
-import { buildOrderEmail } from "@/lib/orderEmail";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { getAppOrigin } from "@/lib/appOrigin";
+import { logAdminAction } from "@/lib/adminAuditLog";
+import { adminJson } from "@/lib/adminApi";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
+import { appendSupportEventForOrderEmail } from "@/lib/adminSupport";
+import {
+  buildOrderEmailSentAtUpdate,
+  sendAdminOrderEmailById,
+} from "@/lib/adminOrderEmail";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isSameOrigin(request)) {
+    return adminJson({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-order-email:ip:${ip}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return adminJson(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
+  const session = await requireAdmin();
+  if (!session) {
+    return adminJson({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "order.email.send")) {
+    return adminJson(
+      { error: "You do not have permission to send customer emails." },
+      { status: 403 },
+    );
   }
 
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
-    type?: "confirmation" | "shipping" | "refund";
+    type?: "confirmation" | "shipping" | "refund" | "refund_request";
+    reason?: string;
   };
   const type = body.type;
   if (!type) {
-    return NextResponse.json({ error: "Missing email type" }, { status: 400 });
+    return adminJson({ error: "Missing email type" }, { status: 400 });
+  }
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!reason) {
+    return adminJson(
+      { error: "A short reason is required before sending customer emails." },
+      { status: 400 }
+    );
   }
 
   const order = await prisma.order.findUnique({
@@ -28,58 +64,55 @@ export async function POST(
     include: { items: true },
   });
   if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return adminJson({ error: "Order not found" }, { status: 404 });
   }
 
-  const recipient = order.customerEmail;
-  if (!recipient) {
-    return NextResponse.json(
-      { error: "Order has no customer email" },
-      { status: 400 }
+  let recipient: string;
+  try {
+    const result = await sendAdminOrderEmailById({
+      orderId: id,
+      type,
+      requestOrigin: getAppOrigin(request),
+    });
+    recipient = result.recipient;
+  } catch (error) {
+    return adminJson(
+      {
+        error:
+          error instanceof Error ? error.message : `Failed to send ${type} email.`,
+      },
+      { status: 400 },
     );
   }
 
-  const origin =
-    request.headers.get("origin") ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000";
-  const orderUrl = `${origin}/account/orders/${order.id}`;
-  const email = buildOrderEmail(type, {
-    id: order.id,
-    createdAt: order.createdAt,
-    currency: order.currency,
-    amountSubtotal: order.amountSubtotal,
-    amountTax: order.amountTax,
-    amountShipping: order.amountShipping,
-    amountDiscount: order.amountDiscount,
-    amountTotal: order.amountTotal,
-    amountRefunded: order.amountRefunded,
-    discountCode: order.discountCode,
-    customerEmail: order.customerEmail,
-    trackingCarrier: order.trackingCarrier,
-    trackingNumber: order.trackingNumber,
-    trackingUrl: order.trackingUrl,
-    items: order.items,
-  }, orderUrl);
-
-  await sendResendEmail({
-    to: recipient,
-    subject: email.subject,
-    html: email.html,
-    text: email.text,
-  });
-
-  const sentAtUpdate =
-    type === "confirmation"
-      ? { confirmationEmailSentAt: new Date() }
-      : type === "shipping"
-      ? { shippingEmailSentAt: new Date() }
-      : { refundEmailSentAt: new Date() };
-
   await prisma.order.update({
     where: { id },
-    data: sentAtUpdate,
+    data: buildOrderEmailSentAtUpdate(type),
   });
 
-  return NextResponse.json({ ok: true });
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "order.email.send",
+    targetType: "order",
+    targetId: id,
+    summary: `Sent ${type} email for order #${order.orderNumber}`,
+    metadata: {
+      emailType: type,
+      recipient,
+      orderNumber: order.orderNumber,
+      reason,
+    },
+  });
+
+  await appendSupportEventForOrderEmail({
+    orderId: id,
+    emailType: type,
+    reason,
+    actor: {
+      id: session.user.id,
+      email: session.user.email ?? null,
+    },
+  });
+
+  return adminJson({ ok: true });
 }

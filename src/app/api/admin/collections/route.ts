@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, slugify } from "@/lib/adminCatalog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { logAdminAction } from "@/lib/adminAuditLog";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -16,6 +19,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-collections:ip:${ip}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,6 +62,14 @@ export async function POST(request: Request) {
       handle,
       description: body.description?.trim() || null,
     },
+  });
+
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "collection.create",
+    targetType: "collection",
+    targetId: collection.id,
+    summary: `Created collection ${collection.name}`,
   });
 
   return NextResponse.json({ collection });

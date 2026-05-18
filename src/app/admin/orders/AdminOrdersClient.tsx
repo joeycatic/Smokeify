@@ -1,60 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
-
-type OrderItem = {
-  id: string;
-  name: string;
-  quantity: number;
-  unitAmount: number;
-  totalAmount: number;
-  currency: string;
-  imageUrl?: string | null;
-};
-
-type OrderRow = {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  status: string;
-  paymentStatus: string;
-  currency: string;
-  amountSubtotal: number;
-  amountTax: number;
-  amountShipping: number;
-  amountDiscount: number;
-  amountTotal: number;
-  amountRefunded: number;
-  stripePaymentIntent: string | null;
-  trackingCarrier: string | null;
-  trackingNumber: string | null;
-  trackingUrl: string | null;
-  shippingName: string | null;
-  shippingLine1: string | null;
-  shippingLine2: string | null;
-  shippingPostalCode: string | null;
-  shippingCity: string | null;
-  shippingCountry: string | null;
-  confirmationEmailSentAt: string | null;
-  shippingEmailSentAt: string | null;
-  refundEmailSentAt: string | null;
-  discountCode: string | null;
-  user: { email: string | null; name: string | null };
-  items: OrderItem[];
-};
-
-type WebhookFailure = {
-  id: string;
-  eventId: string;
-  type: string;
-  status: string;
-  createdAt: string;
-};
+import { useDeferredValue, useMemo, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminInput,
+  AdminMetricCard,
+  AdminNotice,
+  AdminPageIntro,
+  AdminPanel,
+} from "@/components/admin/AdminWorkspace";
+import type { AdminOrderListPage, AdminOrderRecord, AdminOrderWebhookFailure } from "@/lib/adminOrders";
+import {
+  ADMIN_STOREFRONT_SCOPE_LABELS,
+  type AdminStorefrontScope,
+} from "@/lib/storefronts";
+import {
+  getOrderCustomerLabel,
+  getOrderCustomerSecondary,
+  getOrderItemSummary,
+  getOrderQueuePriority,
+  getOrderQueueTone,
+  getOrderSourceDetail,
+  getOrderTrackingSummary,
+  hasPaymentFailure,
+  isArchivedOrder,
+  isAwaitingPaymentOrder,
+  isPaidOrder,
+  isReadyToFulfillOrder,
+  matchesOrderSearch,
+  normalizeOrderStatus,
+  type OrderQueueTone,
+} from "@/lib/adminOrderQueue";
 
 type Props = {
-  orders: OrderRow[];
-  webhookFailures: WebhookFailure[];
+  activeStorefrontScope: AdminStorefrontScope;
+  initialSearchQuery?: string;
+  orderPage: AdminOrderListPage;
+  webhookFailures: AdminOrderWebhookFailure[];
 };
 
 const formatPrice = (amount: number, currency: string) =>
@@ -64,1045 +49,509 @@ const formatPrice = (amount: number, currency: string) =>
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
-const normalizeStatus = (value: string) => value.trim().toLowerCase();
-
-const buildShippingLines = (order: OrderRow) => {
-  const lines = [
-    order.shippingName,
-    order.shippingLine1,
-    order.shippingLine2,
-    [order.shippingPostalCode, order.shippingCity].filter(Boolean).join(" "),
-    order.shippingCountry,
-  ];
-  return lines.filter((line) => Boolean(line?.trim())) as string[];
-};
-
-const formatTimelineDate = (value: string) =>
-  new Date(value).toLocaleString("de-DE", {
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "short",
-  });
+  }).format(new Date(value));
 
-const buildTimeline = (order: OrderRow) =>
-  [
-    { label: "Order created", at: order.createdAt },
-    {
-      label: "Confirmation email sent",
-      at: order.confirmationEmailSentAt ?? undefined,
-    },
-    { label: "Shipping email sent", at: order.shippingEmailSentAt ?? undefined },
-    { label: "Refund email sent", at: order.refundEmailSentAt ?? undefined },
-    { label: "Last updated", at: order.updatedAt },
-  ].filter((entry) => Boolean(entry.at)) as Array<{
+const formatStatusLabel = (value: string) =>
+  value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const toneClassNames: Record<
+  OrderQueueTone,
+  {
+    card: string;
+    accent: string;
     label: string;
-    at: string;
-  }>;
-
-const getFulfillmentBadge = (status: string, paymentStatus: string) => {
-  const normalizedStatus = normalizeStatus(status);
-  const normalizedPayment = normalizeStatus(paymentStatus);
-
-  if (normalizedStatus === "fulfilled") {
-    return {
-      label: "Fulfillment: fulfilled",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    };
   }
-  if (
-    ["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)
-  ) {
-    return {
-      label: "Fulfillment: closed",
-      className: "border-stone-200 bg-stone-100 text-stone-700",
-    };
-  }
-  if (normalizedPayment === "paid" || normalizedPayment === "succeeded") {
-    return {
-      label: "Fulfillment: ready",
-      className: "border-sky-200 bg-sky-50 text-sky-800",
-    };
-  }
-  return {
-    label: "Fulfillment: not ready",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
-  };
+> = {
+  attention: {
+    card: "border-amber-400/30 bg-[linear-gradient(135deg,rgba(120,53,15,0.26),rgba(12,16,22,0.96))]",
+    accent: "border-amber-300/30 bg-amber-300/15 text-amber-100",
+    label: "Needs action",
+  },
+  progress: {
+    card: "border-cyan-400/25 bg-[linear-gradient(135deg,rgba(8,64,86,0.25),rgba(12,16,22,0.96))]",
+    accent: "border-cyan-300/25 bg-cyan-300/15 text-cyan-100",
+    label: "In progress",
+  },
+  settled: {
+    card: "border-emerald-400/25 bg-[linear-gradient(135deg,rgba(6,78,59,0.24),rgba(12,16,22,0.96))]",
+    accent: "border-emerald-300/25 bg-emerald-300/15 text-emerald-100",
+    label: "Completed",
+  },
+  muted: {
+    card: "border-white/10 bg-[#0d1218]",
+    accent: "border-white/10 bg-white/[0.05] text-slate-200",
+    label: "Monitoring",
+  },
 };
 
-export default function AdminOrdersClient({ orders, webhookFailures }: Props) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
-  const [trackingDrafts, setTrackingDrafts] = useState<
-    Record<string, { carrier: string; number: string; url: string }>
-  >({});
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [refundId, setRefundId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [shippingEmailSent, setShippingEmailSent] = useState<
-    Record<string, boolean>
-  >({});
-  const [confirmationEmailSent, setConfirmationEmailSent] = useState<
-    Record<string, boolean>
-  >({});
-  const [refundEmailSent, setRefundEmailSent] = useState<Record<string, boolean>>(
-    {}
+function StatusChip({
+  label,
+  tone = "neutral",
+}: {
+  label: string;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+}) {
+  const className =
+    tone === "success"
+      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+      : tone === "warning"
+        ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
+        : tone === "danger"
+          ? "border-red-400/20 bg-red-400/10 text-red-200"
+          : tone === "info"
+            ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+            : "border-white/10 bg-white/[0.04] text-slate-300";
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${className}`}
+    >
+      {label}
+    </span>
   );
-  const [sendingEmail, setSendingEmail] = useState<{
-    orderId: string;
-    type: "confirmation" | "shipping" | "refund";
-  } | null>(null);
-  const [refundSelection, setRefundSelection] = useState<
-    Record<string, Record<string, number>>
-  >({});
-  const [confirmRefund, setConfirmRefund] = useState<{
-    orderId: string;
-    mode: "full" | "items";
-  } | null>(null);
-  const [confirmShippingResend, setConfirmShippingResend] = useState<{
-    orderId: string;
-  } | null>(null);
-  const [confirmEmailResend, setConfirmEmailResend] = useState<{
-    orderId: string;
-    type: "confirmation" | "refund";
-  } | null>(null);
+}
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filteredOrders = useMemo(() => {
-    if (!normalizedQuery) return orders;
-    return orders.filter((order) => {
-      const email = order.user?.email?.toLowerCase() ?? "";
-      const name = order.user?.name?.toLowerCase() ?? "";
-      return (
-        order.id.toLowerCase().includes(normalizedQuery) ||
-        email.includes(normalizedQuery) ||
-        name.includes(normalizedQuery)
-      );
-    });
-  }, [orders, normalizedQuery]);
+function InlineMeta({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-2 text-sm text-slate-200">{value}</div>
+    </div>
+  );
+}
 
-  const sorted = useMemo(() => filteredOrders, [filteredOrders]);
-  const customerSummary = useMemo(() => {
-    if (!normalizedQuery) return null;
-    const matching = orders.filter((order) => {
-      const email = order.user?.email?.toLowerCase() ?? "";
-      return email && email.includes(normalizedQuery);
-    });
-    if (!matching.length) return null;
-    const total = matching.reduce((sum, order) => sum + order.amountTotal, 0);
-    return {
-      email: matching[0]?.user?.email ?? "Unknown",
-      orders: matching.length,
-      total,
-      currency: matching[0]?.currency ?? "EUR",
-    };
-  }, [orders, normalizedQuery]);
-  const fulfilledCount = useMemo(
+function OrderRow({ order }: { order: AdminOrderRecord }) {
+  const tone = getOrderQueueTone(order);
+  const toneClasses = toneClassNames[tone];
+  const customerLabel = getOrderCustomerLabel(order);
+  const customerSecondary = getOrderCustomerSecondary(order);
+  const isPaid = isPaidOrder(order);
+  const readyToFulfill = isReadyToFulfillOrder(order);
+  const paymentFailed = hasPaymentFailure(order);
+  const destination = [order.shippingCity, order.shippingCountry]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <article className={`rounded-[26px] border p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] ${toneClasses.card}`}>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${toneClasses.accent}`}
+            >
+              {toneClasses.label}
+            </span>
+            <StatusChip label={formatStatusLabel(order.status)} tone={tone === "settled" ? "success" : "neutral"} />
+            <StatusChip
+              label={formatStatusLabel(order.paymentStatus)}
+              tone={
+                paymentFailed ? "danger" : isPaid ? "success" : isAwaitingPaymentOrder(order) ? "warning" : "neutral"
+              }
+            />
+            <StatusChip
+              label={order.trackingNumber ? "Tracking attached" : "No tracking"}
+              tone={order.trackingNumber ? "info" : readyToFulfill ? "warning" : "neutral"}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+            <h2 className="text-xl font-semibold tracking-tight text-white">
+              #{order.orderNumber}
+            </h2>
+            <div className="text-sm font-medium text-slate-200">{customerLabel}</div>
+            {customerSecondary ? (
+              <div className="text-sm text-slate-500">{customerSecondary}</div>
+            ) : null}
+          </div>
+
+          <div className="mt-2 text-sm text-slate-400">{getOrderItemSummary(order)}</div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <InlineMeta label="Created" value={formatDateTime(order.createdAt)} />
+            <InlineMeta label="Source" value={getOrderSourceDetail(order)} />
+            <InlineMeta label="Tracking" value={getOrderTrackingSummary(order)} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500">
+            {destination ? <span>{destination}</span> : null}
+            {order.discountCode ? <span>Discount {order.discountCode}</span> : null}
+            {order.amountRefunded > 0 ? (
+              <span>
+                Refunded {formatPrice(order.amountRefunded, order.currency)}
+              </span>
+            ) : null}
+            <span>Updated {formatDateTime(order.updatedAt)}</span>
+          </div>
+        </div>
+
+        <div className="flex w-full shrink-0 flex-col gap-3 xl:w-[220px] xl:items-end">
+          <div className="w-full rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-left xl:text-right">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Total
+            </div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-white">
+              {formatPrice(order.amountTotal, order.currency)}
+            </div>
+            <div className="mt-2 text-xs text-slate-500">
+              {readyToFulfill
+                ? "Paid and available for fulfillment."
+                : paymentFailed
+                  ? "Payment issue requires review."
+                  : tone === "progress"
+                    ? "Tracking already attached."
+                    : normalizeOrderStatus(order.status) === "fulfilled"
+                      ? "Completed order."
+                      : "Open order in detailed view for next steps."}
+            </div>
+          </div>
+
+          <a
+            href={`/api/admin/orders/${order.id}/lieferschein`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25"
+          >
+            Lieferschein
+          </a>
+          <Link
+            href={`/admin/orders/${order.id}`}
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+          >
+            Open detail
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function WebhookFailureRow({ failure }: { failure: AdminOrderWebhookFailure }) {
+  return (
+    <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
+      <div>
+        <div className="text-sm font-semibold text-white">{failure.type}</div>
+        <div className="mt-1 text-xs text-slate-500">
+          Event {failure.eventId} · {failure.status}
+        </div>
+        {failure.errorMessage ? (
+          <div className="mt-2 text-xs text-rose-200">{failure.errorMessage}</div>
+        ) : null}
+      </div>
+      <div className="text-xs text-slate-500">{formatDateTime(failure.createdAt)}</div>
+    </div>
+  );
+}
+
+function buildOrdersScopeHref(
+  storefrontScope: AdminStorefrontScope,
+  initialSearchQuery: string,
+) {
+  const params = new URLSearchParams();
+  if (storefrontScope !== "ALL") {
+    params.set("storefront", storefrontScope);
+  }
+  const trimmedQuery = initialSearchQuery.trim();
+  if (trimmedQuery) {
+    params.set("customer", trimmedQuery);
+  }
+  const queryString = params.toString();
+  return queryString ? `/admin/orders?${queryString}` : "/admin/orders";
+}
+
+export default function AdminOrdersClient({
+  activeStorefrontScope,
+  initialSearchQuery = "",
+  orderPage,
+  webhookFailures,
+}: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const deferredQuery = useDeferredValue(searchQuery);
+  const activeStorefrontLabel =
+    ADMIN_STOREFRONT_SCOPE_LABELS[activeStorefrontScope];
+  const orders = orderPage.orders;
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => matchesOrderSearch(order, deferredQuery)),
+    [deferredQuery, orders],
+  );
+
+  const activeOrders = useMemo(
     () =>
-      filteredOrders.reduce((count, order) => {
-        const normalizedStatus = normalizeStatus(order.status);
-        return normalizedStatus === "fulfilled" ||
-          normalizedStatus === "refunded"
-          ? count + 1
-          : count;
-      }, 0),
-    [filteredOrders]
+      filteredOrders
+        .filter((order) => !isArchivedOrder(order))
+        .toSorted((left, right) => {
+          const priorityDelta =
+            getOrderQueuePriority(left) - getOrderQueuePriority(right);
+          if (priorityDelta !== 0) return priorityDelta;
+          return right.createdAt.localeCompare(left.createdAt);
+        }),
+    [filteredOrders],
   );
 
-  const isConfirmationEmailSent = (order: OrderRow) =>
-    confirmationEmailSent[order.id] || Boolean(order.confirmationEmailSentAt);
+  const archivedOrders = useMemo(
+    () =>
+      filteredOrders
+        .filter((order) => isArchivedOrder(order))
+        .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt)),
+    [filteredOrders],
+  );
 
-  const isShippingEmailSent = (order: OrderRow) =>
-    shippingEmailSent[order.id] || Boolean(order.shippingEmailSentAt);
+  const readyToFulfillCount = useMemo(
+    () => activeOrders.filter((order) => isReadyToFulfillOrder(order)).length,
+    [activeOrders],
+  );
 
-  const isRefundEmailSent = (order: OrderRow) =>
-    refundEmailSent[order.id] || Boolean(order.refundEmailSentAt);
+  const awaitingPaymentCount = useMemo(
+    () => activeOrders.filter((order) => isAwaitingPaymentOrder(order)).length,
+    [activeOrders],
+  );
 
-  const updateOrder = async (orderId: string) => {
-    setError("");
-    setNotice("");
-    setSavingId(orderId);
-    const status = statusDrafts[orderId];
-    const tracking = trackingDrafts[orderId];
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: status || undefined,
-          trackingCarrier: tracking?.carrier || undefined,
-          trackingNumber: tracking?.number || undefined,
-          trackingUrl: tracking?.url || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Update failed");
-      }
-    } catch {
-      setError("Update failed");
-    } finally {
-      setSavingId(null);
+  const attentionCount = useMemo(
+    () => activeOrders.filter((order) => getOrderQueueTone(order) === "attention").length,
+    [activeOrders],
+  );
+
+  const paidRevenue = useMemo(
+    () =>
+      filteredOrders.reduce((sum, order) => {
+        if (!isPaidOrder(order)) return sum;
+        return sum + order.amountTotal;
+      }, 0),
+    [filteredOrders],
+  );
+
+  const dashboardCurrency = filteredOrders[0]?.currency ?? orders[0]?.currency ?? "EUR";
+
+  const applyQueryState = (nextSearchQuery: string) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const trimmed = nextSearchQuery.trim();
+    if (trimmed) {
+      params.set("customer", trimmed);
+    } else {
+      params.delete("customer");
     }
+    params.delete("page");
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   };
 
-  const saveTrackingDrafts = async (orderId: string) => {
-    const tracking = trackingDrafts[orderId];
-    if (!tracking) return true;
-    setError("");
-    setNotice("");
-    setSavingId(orderId);
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackingCarrier: tracking.carrier || undefined,
-          trackingNumber: tracking.number || undefined,
-          trackingUrl: tracking.url || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Update failed");
-        return false;
-      }
-      return true;
-    } catch {
-      setError("Update failed");
-      return false;
-    } finally {
-      setSavingId(null);
+  const changePage = (nextPage: number) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (nextPage <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
     }
-  };
-
-  const refundOrder = async (orderId: string) => {
-    setError("");
-    setNotice("");
-    setRefundId(orderId);
-    try {
-      const current = orders.find((order) => order.id === orderId);
-      if (current?.paymentStatus === "refunded") {
-        setError("Order has already been refunded.");
-        return;
-      }
-      const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Refund failed");
-      }
-    } catch {
-      setError("Refund failed");
-    } finally {
-      setRefundId(null);
-    }
-  };
-
-  const refundSelectedItems = async (orderId: string) => {
-    setError("");
-    setNotice("");
-    setRefundId(orderId);
-    try {
-      const selection = refundSelection[orderId];
-      if (!selection) {
-        setError("Select items to refund.");
-        return;
-      }
-      const items = Object.entries(selection)
-        .filter(([, qty]) => qty > 0)
-        .map(([id, quantity]) => ({ id, quantity }));
-      if (!items.length) {
-        setError("Select items to refund.");
-        return;
-      }
-      const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Refund failed");
-      }
-    } catch {
-      setError("Refund failed");
-    } finally {
-      setRefundId(null);
-    }
-  };
-
-  const confirmRefundAction = async () => {
-    if (!confirmRefund) return;
-    const { orderId, mode } = confirmRefund;
-    setConfirmRefund(null);
-    if (mode === "items") {
-      await refundSelectedItems(orderId);
-      return;
-    }
-    await refundOrder(orderId);
-  };
-
-  const sendEmail = async (
-    orderId: string,
-    type: "confirmation" | "shipping" | "refund",
-    options?: { force?: boolean }
-  ) => {
-    setError("");
-    setNotice("");
-    setSendingEmail({ orderId, type });
-    if (type === "shipping" && shippingEmailSent[orderId] && !options?.force) {
-      setNotice("Shipping email already sent.");
-      setSendingEmail(null);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error ?? "Email failed");
-        return;
-      }
-      if (type === "shipping") {
-        setShippingEmailSent((prev) => ({ ...prev, [orderId]: true }));
-        setNotice("Shipping email sent.");
-        return;
-      }
-      if (type === "confirmation") {
-        setConfirmationEmailSent((prev) => ({ ...prev, [orderId]: true }));
-      }
-      if (type === "refund") {
-        setRefundEmailSent((prev) => ({ ...prev, [orderId]: true }));
-      }
-      setNotice("Email sent.");
-    } catch {
-      setError("Email failed");
-    } finally {
-      setSendingEmail(null);
-    }
-  };
-
-  const requestShippingEmail = async (orderId: string) => {
-    const order = orders.find((entry) => entry.id === orderId);
-    if (order && isShippingEmailSent(order)) {
-      setConfirmShippingResend({ orderId });
-      return;
-    }
-    const saved = await saveTrackingDrafts(orderId);
-    if (!saved) return;
-    await sendEmail(orderId, "shipping");
-  };
-
-  const confirmShippingResendAction = async () => {
-    if (!confirmShippingResend) return;
-    const { orderId } = confirmShippingResend;
-    setConfirmShippingResend(null);
-    const saved = await saveTrackingDrafts(orderId);
-    if (!saved) return;
-    await sendEmail(orderId, "shipping", { force: true });
-  };
-
-  const requestEmail = async (
-    orderId: string,
-    type: "confirmation" | "refund"
-  ) => {
-    const order = orders.find((entry) => entry.id === orderId);
-    const alreadySent =
-      order &&
-      (type === "confirmation"
-        ? isConfirmationEmailSent(order)
-        : isRefundEmailSent(order));
-    if (alreadySent) {
-      setConfirmEmailResend({ orderId, type });
-      return;
-    }
-    await sendEmail(orderId, type);
-  };
-
-  const confirmEmailResendAction = async () => {
-    if (!confirmEmailResend) return;
-    const { orderId, type } = confirmEmailResend;
-    setConfirmEmailResend(null);
-    await sendEmail(orderId, type, { force: true });
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   };
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
-              ADMIN / ORDERS
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">Orders</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {sorted.length} orders
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {fulfilledCount} fulfilled
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by email or order ID"
-              className="h-10 w-64 rounded-md border border-white/20 bg-white/10 px-3 text-xs text-white placeholder:text-white/70 outline-none focus:border-white/60"
-            />
-          </div>
-        </div>
-      </div>
-
-      {customerSummary && (
-        <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 text-sm text-sky-900 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-700/70">
-                Customer snapshot
-              </div>
-              <div className="mt-2 text-sm font-semibold">
-                {customerSummary.email}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-semibold">
-              <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-sky-700">
-                {customerSummary.orders} orders
-              </span>
-              <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-sky-700">
-                {formatPrice(customerSummary.total, customerSummary.currency)}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-          {notice}
-        </div>
-      )}
-      {webhookFailures.length > 0 && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-800 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-700/70">
-                Stripe webhook failures
-              </div>
-              <div className="mt-2 text-sm font-semibold">
-                {webhookFailures.length} failed event
-                {webhookFailures.length === 1 ? "" : "s"}
-              </div>
-            </div>
-            <div className="text-xs text-rose-700">
-              Replays are safe; Stripe will retry automatically.
-            </div>
-          </div>
-          <div className="mt-3 space-y-2 text-xs text-rose-800">
-            {webhookFailures.map((event) => (
-              <div
-                key={event.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-white/70 px-3 py-2"
+    <div className="space-y-6 text-slate-100">
+      <AdminPageIntro
+        eyebrow="Admin Orders"
+        title="Order queue"
+        description={`Compact operator view for ${activeStorefrontLabel}. The main queue now focuses on fulfillment and payment triage; refunds, customer actions, and line-item detail stay in the dedicated order view.`}
+        actions={
+          <div className="grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+            {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+              <Link
+                key={scope}
+                href={buildOrdersScopeHref(scope, initialSearchQuery)}
+                scroll={false}
+                className={`inline-flex h-10 min-w-[5.5rem] items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                  activeStorefrontScope === scope
+                    ? "bg-cyan-300/90 text-slate-950"
+                    : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                }`}
               >
-                <div className="font-semibold">{event.type}</div>
-                <div className="text-rose-700">{event.eventId}</div>
-                <div className="text-rose-700">
-                  {new Date(event.createdAt).toLocaleString("de-DE")}
-                </div>
-              </div>
+                {scope === "ALL" ? "Shared" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
+              </Link>
             ))}
           </div>
-        </div>
-      )}
+        }
+        metrics={
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <AdminMetricCard
+              label="Result set"
+              value={String(orderPage.totalCount)}
+              detail={`Page ${orderPage.currentPage} of ${orderPage.totalPages}.`}
+            />
+            <AdminMetricCard
+              label="Needs action"
+              value={String(attentionCount)}
+              detail="Paid orders missing tracking or payment issues requiring review."
+            />
+            <AdminMetricCard
+              label="Awaiting payment"
+              value={String(awaitingPaymentCount)}
+              detail="Open orders without a paid payment state yet."
+            />
+            <AdminMetricCard
+              label="Paid revenue"
+              value={formatPrice(paidRevenue, dashboardCurrency)}
+              detail={`${filteredOrders.length} orders shown on this page${orderPage.totalCount > filteredOrders.length ? ` out of ${orderPage.totalCount}` : ""}.`}
+            />
+          </div>
+        }
+      />
 
-      <div className="space-y-4">
-        {sorted.map((order) => {
-          const isOpen = openId === order.id;
-          const tracking = trackingDrafts[order.id] ?? {
-            carrier: order.trackingCarrier ?? "",
-            number: order.trackingNumber ?? "",
-            url: order.trackingUrl ?? "",
-          };
-          const status = statusDrafts[order.id] ?? order.status;
-          const fulfillmentBadge = getFulfillmentBadge(
-            order.status,
-            order.paymentStatus
-          );
-          const shippingLines = buildShippingLines(order);
-
-          return (
-            <div
-              key={order.id}
-              className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm"
+      <AdminPanel
+        title="Search and scope"
+        description="Search by order number, customer, email, tracking, source, city, discount code, or item name."
+        actions={
+          searchQuery.trim() ? (
+            <AdminButton
+              tone="secondary"
+              onClick={() => {
+                setSearchQuery("");
+                applyQueryState("");
+              }}
             >
-              <button
-                type="button"
-                onClick={() => setOpenId(isOpen ? null : order.id)}
-                className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <div className="text-sm font-semibold text-stone-900">
-                    Order {order.id.slice(0, 8).toUpperCase()}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    {new Date(order.createdAt).toLocaleDateString("de-DE")} ·{" "}
-                    {order.user?.email ?? "No email"}
-                  </div>
-                  {!isOpen && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
-                        Status: {order.status}
-                      </span>
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-                        Payment: {order.paymentStatus}
-                      </span>
-                      <span
-                        className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
-                      >
-                        {fulfillmentBadge.label}
-                      </span>
-                      {isShippingEmailSent(order) && (
-                        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
-                          Shipping email: sent
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-emerald-900">
-                    {formatPrice(order.amountTotal, order.currency)}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    {order.items.length} items
-                  </div>
-                </div>
-              </button>
-
-              {isOpen && (
-                <div className="mt-4 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
-                      Status: {order.status}
-                    </span>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-                      Payment: {order.paymentStatus}
-                    </span>
-                    <span
-                      className={`rounded-full border px-2 py-1 ${fulfillmentBadge.className}`}
-                    >
-                      {fulfillmentBadge.label}
-                    </span>
-                    {isShippingEmailSent(order) && (
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-800">
-                        Shipping email: sent
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.85fr]">
-                    <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-white via-stone-50 to-emerald-50/60 p-5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-700/70">
-                            Quick Actions
-                          </p>
-                          <h3 className="mt-2 text-sm font-semibold text-stone-900">
-                            Status & confirmation
-                          </h3>
-                        </div>
-                        <div className="h-1 w-12 rounded-full bg-emerald-400/70" />
-                      </div>
-                      <div className="mt-4 rounded-xl border border-emerald-100/70 bg-white/70 px-4 py-3 text-center">
-                        <label className="text-xs font-semibold text-stone-600 text-center">
-                          Status
-                          <input
-                            value={status}
-                            onChange={(event) =>
-                              setStatusDrafts((prev) => ({
-                                ...prev,
-                                [order.id]: event.target.value,
-                              }))
-                            }
-                            className="mt-2 h-10 w-full max-w-[220px] rounded-md border border-black/10 bg-white px-3 text-center text-sm shadow-inner"
-                          />
-                          <span className="mt-2 block text-[11px] font-normal text-stone-500">
-                            Tip: "complete" is the Stripe checkout status. Use
-                            "fulfilled" once the order is shipped.
-                          </span>
-                        </label>
-                      </div>
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => updateOrder(order.id)}
-                          className="h-10 w-full rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
-                          disabled={savingId === order.id}
-                        >
-                          {savingId === order.id ? "Saving..." : "Save changes"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setStatusDrafts((prev) => ({
-                              ...prev,
-                              [order.id]: "fulfilled",
-                            }))
-                          }
-                          className="h-10 w-full rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
-                        >
-                          Mark fulfilled
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setStatusDrafts((prev) => ({
-                              ...prev,
-                              [order.id]: "canceled",
-                            }))
-                          }
-                          className="h-10 w-full rounded-md border border-amber-200 px-3 text-xs font-semibold text-amber-800 hover:border-amber-300"
-                        >
-                          Mark canceled
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => requestEmail(order.id, "confirmation")}
-                          className="h-10 w-full rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700 hover:border-black/20"
-                          disabled={
-                            sendingEmail?.orderId === order.id &&
-                            sendingEmail?.type === "confirmation"
-                          }
-                        >
-                          {sendingEmail?.orderId === order.id &&
-                          sendingEmail?.type === "confirmation"
-                            ? "Sending..."
-                            : isConfirmationEmailSent(order)
-                            ? "Resend confirmation"
-                            : "Send confirmation"}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-black/10 bg-white p-4">
-                      <div className="text-xs font-semibold text-stone-600">
-                        Shipping information
-                      </div>
-                      <div className="mt-3 space-y-3 text-sm text-stone-700">
-                        {shippingLines.length > 0 ? (
-                          <div className="rounded-xl border border-black/10 bg-stone-50 px-3 py-2">
-                            {shippingLines.map((line, index) => (
-                              <div key={`${line}-${index}`}>{line}</div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-stone-500">
-                            No shipping address yet.
-                          </div>
-                        )}
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <label className="text-xs font-semibold text-stone-600">
-                            Tracking carrier
-                            <input
-                              value={tracking.carrier}
-                              onChange={(event) =>
-                                setTrackingDrafts((prev) => ({
-                                  ...prev,
-                                  [order.id]: {
-                                    ...tracking,
-                                    carrier: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs font-semibold text-stone-600">
-                            Tracking number
-                            <input
-                              value={tracking.number}
-                              onChange={(event) =>
-                                setTrackingDrafts((prev) => ({
-                                  ...prev,
-                                  [order.id]: {
-                                    ...tracking,
-                                    number: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs font-semibold text-stone-600 sm:col-span-2">
-                            Tracking URL
-                            <input
-                              value={tracking.url}
-                              onChange={(event) =>
-                                setTrackingDrafts((prev) => ({
-                                  ...prev,
-                                  [order.id]: {
-                                    ...tracking,
-                                    url: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
-                            />
-                          </label>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => requestShippingEmail(order.id)}
-                            className="h-9 rounded-md border border-sky-200 px-3 text-xs font-semibold text-sky-700 hover:border-sky-300"
-                            disabled={
-                              sendingEmail?.orderId === order.id &&
-                              sendingEmail?.type === "shipping"
-                            }
-                          >
-                            {sendingEmail?.orderId === order.id &&
-                            sendingEmail?.type === "shipping"
-                              ? "Sending..."
-                              : isShippingEmailSent(order)
-                              ? "Resend shipping"
-                              : "Send shipping"}
-                          </button>
-                          {isShippingEmailSent(order) && (
-                            <span className="text-[11px] text-stone-500">
-                              Already sent. Resending will notify the customer
-                              again.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-black/10 bg-white p-4">
-                      <div className="flex items-center justify-between text-xs font-semibold text-stone-600">
-                        <span>Totals</span>
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
-                          {order.currency}
-                        </span>
-                      </div>
-                      <div className="mt-3 space-y-1 text-sm text-stone-700">
-                        <div className="flex items-center justify-between">
-                          <span>Subtotal</span>
-                          <span>
-                            {formatPrice(order.amountSubtotal, order.currency)}
-                          </span>
-                        </div>
-                        {order.amountDiscount > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span>
-                              Discount
-                              {order.discountCode
-                                ? ` (${order.discountCode})`
-                                : ""}
-                            </span>
-                            <span>
-                              -
-                              {formatPrice(
-                                order.amountDiscount,
-                                order.currency
-                              )}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span>Shipping</span>
-                          <span>
-                            {formatPrice(order.amountShipping, order.currency)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Tax</span>
-                          <span>
-                            {formatPrice(order.amountTax, order.currency)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Refunded</span>
-                          <span>
-                            {formatPrice(order.amountRefunded, order.currency)}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between rounded-lg bg-stone-50 px-2 py-1 font-semibold">
-                          <span>Total</span>
-                          <span>
-                            {formatPrice(order.amountTotal, order.currency)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-black/10 bg-white p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700/70">
-                          Timeline
-                        </p>
-                        <h3 className="mt-2 text-sm font-semibold text-stone-900">
-                          Order activity
-                        </h3>
-                      </div>
-                      <div className="h-1 w-10 rounded-full bg-emerald-400/70" />
-                    </div>
-                    <ol className="mt-4 space-y-3">
-                      {buildTimeline(order).map((entry, index) => (
-                        <li key={`${order.id}-${index}`} className="flex gap-3">
-                          <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                          <div>
-                            <div className="text-sm font-semibold text-stone-800">
-                              {entry.label}
-                            </div>
-                            <div className="text-xs text-stone-500">
-                              {formatTimelineDate(entry.at)}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-semibold text-stone-600 mb-2">
-                      Items
-                    </div>
-                    <div className="space-y-2">
-                      {order.items.map((item) => {
-                        const selection = refundSelection[order.id] ?? {};
-                        const selectedQty = selection[item.id] ?? 0;
-                        const isSelected = selectedQty > 0;
-                        return (
-                          <div
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(event) =>
-                                  setRefundSelection((prev) => ({
-                                    ...prev,
-                                    [order.id]: {
-                                      ...selection,
-                                      [item.id]: event.target.checked ? 1 : 0,
-                                    },
-                                  }))
-                                }
-                              />
-                              {item.imageUrl ? (
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.name}
-                                  className="h-10 w-10 rounded-lg border border-black/10 object-cover"
-                                  loading="lazy"
-                                  decoding="async"
-                                  width={40}
-                                  height={40}
-                                />
-                              ) : (
-                                <div className="h-10 w-10 rounded-lg border border-black/10 bg-stone-100" />
-                              )}
-                              <div>
-                                <div className="font-semibold">{item.name}</div>
-                                <div className="text-xs text-stone-500">
-                                  Qty {item.quantity}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="ml-auto flex items-center gap-3">
-                              {item.quantity > 1 && (
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={item.quantity}
-                                  value={selectedQty}
-                                  onChange={(event) =>
-                                    setRefundSelection((prev) => ({
-                                      ...prev,
-                                      [order.id]: {
-                                        ...selection,
-                                        [item.id]: Number(event.target.value),
-                                      },
-                                    }))
-                                  }
-                                  className="h-7 w-12 rounded-md border border-black/10 px-0 text-[11px] text-center"
-                                />
-                              )}
-                              <div className="w-20 text-right text-sm font-semibold">
-                                {formatPrice(item.totalAmount, item.currency)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-3">
-                      <div className="flex flex-wrap items-center justify-center gap-3">
-                        <p className="text-xs text-stone-600">
-                          Set a quantity per item to refund.
-                        </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfirmRefund({ orderId: order.id, mode: "items" })
-                        }
-                        className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
-                        disabled={refundId === order.id}
-                      >
-                        {refundId === order.id
-                          ? "Refunding..."
-                          : "Refund selected items"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => requestEmail(order.id, "refund")}
-                        className="h-9 rounded-md border border-rose-200 px-3 text-xs font-semibold text-rose-700 hover:border-rose-300"
-                        disabled={
-                          sendingEmail?.orderId === order.id &&
-                          sendingEmail?.type === "refund"
-                        }
-                      >
-                        {sendingEmail?.orderId === order.id &&
-                        sendingEmail?.type === "refund"
-                          ? "Sending..."
-                          : isRefundEmailSent(order)
-                          ? "Resend refund"
-                          : "Send refund"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfirmRefund({ orderId: order.id, mode: "full" })
-                        }
-                        className="h-9 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
-                        disabled={refundId === order.id}
-                      >
-                        {refundId === order.id ? "Refunding..." : "Full refund"}
-                      </button>
-                    </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {confirmRefund && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setConfirmRefund(null)}
-            aria-label="Close dialog"
+              Clear search
+            </AdminButton>
+          ) : null
+        }
+      >
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
+          <AdminInput
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onBlur={() => applyQueryState(searchQuery)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              applyQueryState(searchQuery);
+            }}
+            placeholder="Search orders"
           />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-stone-900">
-              Rueckerstattung bestaetigen?
-            </h3>
-            <p className="mt-2 text-sm text-stone-600">
-              Diese Rueckerstattung kann nicht rueckgaengig gemacht werden.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmRefund(null)}
-                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                onClick={confirmRefundAction}
-                className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white"
-              >
-                Rueckerstatten
-              </button>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Scope
             </div>
+            <div className="mt-2 text-sm text-slate-200">{activeStorefrontLabel}</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Ready to ship
+            </div>
+            <div className="mt-2 text-sm text-slate-200">{readyToFulfillCount} orders</div>
           </div>
         </div>
-      )}
-      {confirmShippingResend && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setConfirmShippingResend(null)}
-            aria-label="Close dialog"
+      </AdminPanel>
+
+      {webhookFailures.length > 0 ? (
+        <AdminPanel
+          eyebrow="Ops"
+          title="Webhook failures"
+          description="Keep failures visible without mixing them into every row in the order queue."
+        >
+          <AdminNotice tone="error">
+            {webhookFailures.length} recent failed webhook event
+            {webhookFailures.length === 1 ? "" : "s"} detected.
+          </AdminNotice>
+          <div className="mt-4 grid gap-3">
+            {webhookFailures.slice(0, 5).map((failure) => (
+              <WebhookFailureRow key={failure.id} failure={failure} />
+            ))}
+          </div>
+        </AdminPanel>
+      ) : null}
+
+      <AdminPanel
+        title={`Active queue (${activeOrders.length})`}
+        description="Prioritized for quick scanning. The loudest rows are the ones that most likely need operator action now."
+      >
+        {activeOrders.length === 0 ? (
+          <AdminEmptyState
+            title="No active orders"
+            description={
+              deferredQuery.trim()
+                ? "No active orders match the current search."
+                : "No active orders require attention right now."
+            }
           />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-stone-900">
-              Resend shipping email?
-            </h3>
-            <p className="mt-2 text-sm text-stone-600">
-              This order already has a shipping email sent. Resend it anyway?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmShippingResend(null)}
-                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
+        ) : (
+          <div className="grid gap-4">
+            {activeOrders.map((order) => (
+              <OrderRow key={order.id} order={order} />
+            ))}
+          </div>
+        )}
+      </AdminPanel>
+
+      <AdminPanel
+        title={`Archived and completed (${archivedOrders.length})`}
+        description="Closed orders stay available for lookup, but visually quieter than the working queue."
+      >
+        {archivedOrders.length === 0 ? (
+          <AdminEmptyState
+            title="No archived orders"
+            description={
+              deferredQuery.trim()
+                ? "No archived orders match the current search."
+                : "Archived orders will appear here once they are fulfilled or refunded."
+            }
+          />
+        ) : (
+          <div className="grid gap-4">
+            {archivedOrders.map((order) => (
+              <OrderRow key={order.id} order={order} />
+            ))}
+          </div>
+        )}
+      </AdminPanel>
+
+      {orderPage.totalPages > 1 ? (
+        <AdminPanel
+          title="Pagination"
+          description="Server-framed order pages keep the first load small while preserving storefront and search scope."
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-slate-400">
+              Showing page {orderPage.currentPage} of {orderPage.totalPages} for {orderPage.totalCount} matching orders.
+            </div>
+            <div className="flex gap-2">
+              <AdminButton
+                tone="secondary"
+                disabled={orderPage.currentPage <= 1}
+                onClick={() => changePage(orderPage.currentPage - 1)}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmShippingResendAction}
-                className="h-10 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white"
+                Previous
+              </AdminButton>
+              <AdminButton
+                tone="secondary"
+                disabled={orderPage.currentPage >= orderPage.totalPages}
+                onClick={() => changePage(orderPage.currentPage + 1)}
               >
-                Resend
-              </button>
+                Next
+              </AdminButton>
             </div>
           </div>
-        </div>
-      )}
-      {confirmEmailResend && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setConfirmEmailResend(null)}
-            aria-label="Close dialog"
-          />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-stone-900">
-              Resend {confirmEmailResend.type} email?
-            </h3>
-            <p className="mt-2 text-sm text-stone-600">
-              This order already has a {confirmEmailResend.type} email sent.
-              Resend it anyway?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmEmailResend(null)}
-                className="h-10 rounded-md border border-black/10 px-4 text-sm font-semibold text-stone-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmEmailResendAction}
-                className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white"
-              >
-                Resend
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        </AdminPanel>
+      ) : null}
     </div>
   );
 }

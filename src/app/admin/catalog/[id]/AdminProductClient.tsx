@@ -1,10 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import AdminThemeToggle from "@/components/admin/AdminThemeToggle";
+import type { VariantPricingProfileRecord } from "@/lib/adminPricingIntegration";
 import RichTextEditor from "@/components/admin/RichTextEditor";
+import AdminVariantPricingProfiles from "./AdminVariantPricingProfiles";
+import {
+  collectMerchantPolicyViolations,
+  type MerchantPolicyViolation,
+} from "@/lib/merchantTextPolicy";
+import {
+  STOREFRONT_ASSIGNMENT_OPTIONS,
+  STOREFRONT_LABELS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 type ImageItem = {
   id: string;
@@ -13,7 +24,12 @@ type ImageItem = {
   position: number;
 };
 
-type VariantOption = { id: string; name: string; value: string };
+type VariantOption = {
+  id: string;
+  name: string;
+  value: string;
+  imagePosition?: number | null;
+};
 
 type VariantItem = {
   id: string;
@@ -24,6 +40,7 @@ type VariantItem = {
   lowStockThreshold: number;
   compareAtCents: number | null;
   position: number;
+  updatedAt: string;
   options: VariantOption[];
   inventory: { quantityOnHand: number; reserved: number } | null;
 };
@@ -34,6 +51,7 @@ type CategoryRow = {
   handle: string;
   description: string | null;
   parentId?: string | null;
+  storefronts?: StorefrontCode[];
 };
 
 type SupplierRow = {
@@ -49,6 +67,8 @@ type ProductDetail = {
   description: string | null;
   technicalDetails: string | null;
   shortDescription: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   manufacturer: string | null;
   productGroup: string | null;
   supplier: string | null;
@@ -67,7 +87,19 @@ type ProductDetail = {
   lightSize: string | null;
   airSystemDiameterMm: number | null;
   shippingClass: string | null;
+  merchantUnitPricingMeasure: string | null;
+  merchantUnitPricingBaseMeasure: string | null;
+  merchantCertificationAuthority: string | null;
+  merchantCertificationName: string | null;
+  merchantCertificationCode: string | null;
+  merchantCertificationValue: string | null;
+  complianceStatus: "DRAFT_REVIEW" | "APPROVED" | "NEEDS_CHANGES" | "BLOCKED";
+  complianceOwnerEmail: string | null;
+  complianceFeedEligible: boolean;
+  complianceAdsEligible: boolean;
+  complianceManualBlockers: string[];
   tags: string[];
+  storefronts: StorefrontCode[];
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
@@ -77,17 +109,106 @@ type ProductDetail = {
   collections: { collection: CategoryRow }[];
 };
 
+type CrossSellItem = {
+  crossSell: {
+    id: string;
+    title: string;
+    handle: string;
+    imageUrl: string | null;
+  };
+};
+
+type CrossSellProduct = {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl: string | null;
+};
+
+type ProductInsights = {
+  views30d: number;
+  addToCart30d: number;
+  beginCheckout30d: number;
+  purchases30d: number;
+  revenue30dCents: number;
+  margin30dCents: number;
+  marginRate30d: number;
+  conversionRate30d: number;
+  addToCartRate30d: number;
+  checkoutToPaidRate30d: number;
+  returnedUnits30d: number;
+  returnRate30d: number;
+  stockCoverDays: number | null;
+  trendDirection: "trending" | "steady" | "cooling";
+  trendDeltaRatio: number;
+  topTrafficSources: Array<{ label: string; count: number }>;
+  topReturnReasons: Array<{ reason: string; count: number }>;
+};
+
 type Props = {
   product: ProductDetail;
   categories: CategoryRow[];
   collections: CategoryRow[];
   suppliers: SupplierRow[];
+  crossSells: CrossSellItem[];
+  insights: ProductInsights;
+  pricingProfilesByVariantId: Record<string, VariantPricingProfileRecord>;
+  pricingIntegrationError?: string | null;
+};
+
+type ProductDetailsState = {
+  title: string;
+  handle: string;
+  description: string;
+  technicalDetails: string;
+  shortDescription: string;
+  seoTitle: string;
+  seoDescription: string;
+  manufacturer: string;
+  productGroup: string;
+  supplierId: string;
+  sellerName: string;
+  sellerUrl: string;
+  leadTimeDays: number | "";
+  weightGrams: number | "";
+  lengthMm: number | "";
+  widthMm: number | "";
+  heightMm: number | "";
+  growboxPlantCountMin: number | "";
+  growboxPlantCountMax: number | "";
+  growboxSize: string;
+  growboxConnectionDiameterMm: number[];
+  lightSize: string;
+  airSystemDiameterMm: number | "";
+  shippingClass: string;
+  merchantUnitPricingMeasure: string;
+  merchantUnitPricingBaseMeasure: string;
+  merchantCertificationAuthority: string;
+  merchantCertificationName: string;
+  merchantCertificationCode: string;
+  merchantCertificationValue: string;
+  tags: string;
+  storefronts: StorefrontCode[];
+  status: ProductDetail["status"];
 };
 
 const STATUS_OPTIONS: ProductDetail["status"][] = ["DRAFT", "ACTIVE", "ARCHIVED"];
 
 const toEuro = (cents: number | null) =>
   cents === null ? "" : (cents / 100).toFixed(2);
+
+const formatCurrency = (cents: number) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
+
+const formatPercent = (value: number, digits = 1) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
 
 const parseEuro = (value: string) => {
   const normalized = value.replace(",", ".");
@@ -96,12 +217,238 @@ const parseEuro = (value: string) => {
   return Math.round(amount * 100);
 };
 
+type PaymentFeePreset = {
+  label: string;
+  percentBasisPoints: number;
+  fixedCents: number;
+};
+
+const CATALOG_PAYMENT_FEES: PaymentFeePreset[] = [
+  { label: "Stripe", percentBasisPoints: 150, fixedCents: 25 },
+  { label: "PayPal", percentBasisPoints: 299, fixedCents: 35 },
+  { label: "Klarna", percentBasisPoints: 329, fixedCents: 35 },
+];
+
+const PRICE_WITH_SHIPPING_THRESHOLD_CENTS = 10_000;
+const ESTIMATED_SHIPPING_CENTS = 690;
+
+const calculateAdjustedCostForProvider = (
+  priceCents: number,
+  costCents: number,
+  provider: PaymentFeePreset
+) => {
+  const includeShipping = priceCents >= PRICE_WITH_SHIPPING_THRESHOLD_CENTS;
+  const feeBase = priceCents + (includeShipping ? ESTIMATED_SHIPPING_CENTS : 0);
+  const percentFee = Math.round((feeBase * provider.percentBasisPoints) / 10_000);
+  const paymentFee = Math.max(0, percentFee + provider.fixedCents);
+  const adjustedCost = Math.max(0, costCents + paymentFee);
+  const profit = priceCents - adjustedCost;
+  return { adjustedCost, paymentFee, profit, includeShipping };
+};
+
+type OptionInput = { name: string; value: string; imagePosition?: number | null };
+
+const normalizeVariantOptions = (
+  options: OptionInput[]
+): {
+  options: Array<{ name: string; value: string; imagePosition?: number | null }>;
+  duplicates: string[];
+} => {
+  const duplicates = new Set<string>();
+  const normalized = options
+    .map((opt) => ({
+      name: opt.name.trim(),
+      value: opt.value.trim(),
+      imagePosition:
+        typeof opt.imagePosition === "number" && Number.isFinite(opt.imagePosition)
+          ? Math.max(0, Math.floor(opt.imagePosition))
+          : null,
+    }))
+    .filter((opt) => opt.name && opt.value);
+  const deduped: Array<{
+    name: string;
+    value: string;
+    imagePosition?: number | null;
+  }> = [];
+  normalized.forEach((opt) => {
+    const key = opt.name.toLowerCase();
+    if (duplicates.has(key)) return;
+    deduped.push(opt);
+  });
+  return { options: deduped, duplicates: Array.from(duplicates) };
+};
+
+const findOptionRowIssues = (options: OptionInput[]) => {
+  const incomplete = options.find(
+    (opt) => Boolean(opt.name.trim()) !== Boolean(opt.value.trim())
+  );
+  return incomplete
+    ? `Option requires name and value: "${incomplete.name || incomplete.value}"`
+    : null;
+};
+
+const buildInitialDetails = (
+  product: ProductDetail,
+  resolvedSupplierId: string
+): ProductDetailsState => ({
+  title: product.title,
+  handle: product.handle,
+  description: product.description ?? "",
+  technicalDetails: product.technicalDetails ?? "",
+  shortDescription: product.shortDescription ?? "",
+  seoTitle: product.seoTitle ?? "",
+  seoDescription: product.seoDescription ?? "",
+  manufacturer: product.manufacturer ?? "",
+  productGroup: product.productGroup ?? "",
+  supplierId: resolvedSupplierId,
+  sellerName: product.sellerName ?? "",
+  sellerUrl: product.sellerUrl ?? "",
+  leadTimeDays: product.leadTimeDays ?? "",
+  weightGrams: product.weightGrams ?? "",
+  lengthMm: product.lengthMm ?? "",
+  widthMm: product.widthMm ?? "",
+  heightMm: product.heightMm ?? "",
+  growboxPlantCountMin: product.growboxPlantCountMin ?? "",
+  growboxPlantCountMax: product.growboxPlantCountMax ?? "",
+  growboxSize: product.growboxSize ?? "",
+  growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
+  lightSize: product.lightSize ?? "",
+  airSystemDiameterMm: product.airSystemDiameterMm ?? "",
+  shippingClass: product.shippingClass ?? "",
+  merchantUnitPricingMeasure: product.merchantUnitPricingMeasure ?? "",
+  merchantUnitPricingBaseMeasure: product.merchantUnitPricingBaseMeasure ?? "",
+  merchantCertificationAuthority: product.merchantCertificationAuthority ?? "",
+  merchantCertificationName: product.merchantCertificationName ?? "",
+  merchantCertificationCode: product.merchantCertificationCode ?? "",
+  merchantCertificationValue: product.merchantCertificationValue ?? "",
+  tags: (product.tags ?? []).join(", "),
+  storefronts: product.storefronts ?? ["MAIN"],
+  status: product.status,
+});
+
+const serializeDetailsSnapshot = (details: ProductDetailsState) =>
+  JSON.stringify(details);
+
+const serializeIdSnapshot = (values: Iterable<string>) =>
+  JSON.stringify(Array.from(values).sort());
+
+const cloneImageItems = (images: ImageItem[]) =>
+  images.map((image) => ({
+    id: image.id,
+    url: image.url,
+    altText: image.altText ?? null,
+    position: image.position,
+  }));
+
+const serializeImageSnapshot = (images: ImageItem[]) =>
+  JSON.stringify(cloneImageItems(images));
+
+const cloneVariantItems = (variants: VariantItem[]) =>
+  variants.map((variant) => ({
+    id: variant.id,
+    title: variant.title,
+    sku: variant.sku,
+    priceCents: variant.priceCents,
+    costCents: variant.costCents,
+    lowStockThreshold: variant.lowStockThreshold,
+    compareAtCents: variant.compareAtCents,
+    position: variant.position,
+    updatedAt: variant.updatedAt,
+    options: variant.options.map((option) => ({
+      id: option.id,
+      name: option.name,
+      value: option.value,
+      imagePosition: option.imagePosition ?? null,
+    })),
+    inventory: variant.inventory
+      ? {
+          quantityOnHand: variant.inventory.quantityOnHand,
+          reserved: variant.inventory.reserved,
+        }
+      : null,
+  }));
+
+const serializeVariantSnapshot = (
+  variants: VariantItem[],
+  priceDrafts: Record<string, string> = {},
+  costDrafts: Record<string, string> = {},
+  compareDrafts: Record<string, string> = {}
+) =>
+  JSON.stringify(
+    variants.map((variant) => ({
+      id: variant.id,
+      title: variant.title,
+      sku: variant.sku,
+      position: variant.position,
+      lowStockThreshold: variant.lowStockThreshold,
+      priceDraft: priceDrafts[variant.id] ?? toEuro(variant.priceCents),
+      costDraft: costDrafts[variant.id] ?? toEuro(variant.costCents),
+      compareDraft: compareDrafts[variant.id] ?? toEuro(variant.compareAtCents),
+      inventory: variant.inventory
+        ? {
+            quantityOnHand: variant.inventory.quantityOnHand,
+            reserved: variant.inventory.reserved,
+          }
+        : null,
+      options: variant.options.map((option) => ({
+        id: option.id,
+        name: option.name,
+        value: option.value,
+        imagePosition: option.imagePosition ?? null,
+      })),
+    }))
+  );
+
+const PRODUCT_EDITOR_SECTIONS = [
+  { id: "performance", label: "Performance" },
+  { id: "overview", label: "Overview" },
+  { id: "seo", label: "SEO" },
+  { id: "content", label: "Content" },
+  { id: "associations", label: "Associations" },
+  { id: "media", label: "Media" },
+  { id: "variants", label: "Variants" },
+  { id: "pricing", label: "Pricing" },
+  { id: "cross-sells", label: "Manual overrides" },
+] as const;
+
+type ProductEditorSectionId = (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"];
+
+type PersistedProductDraft = {
+  version: 1;
+  baseProductUpdatedAt: string;
+  baseVariantUpdatedAtById: Record<string, string>;
+  activeSection: ProductEditorSectionId;
+  details: ProductDetailsState;
+  images: ImageItem[];
+  variants: VariantItem[];
+  priceDrafts: Record<string, string>;
+  costDrafts: Record<string, string>;
+  compareDrafts: Record<string, string>;
+  categoryIds: string[];
+  collectionIds: string[];
+  fbtItems: CrossSellProduct[];
+};
+
+const PRODUCT_DRAFT_STORAGE_PREFIX = "admin-product-draft:";
+
+const serializeVersionMap = (value: Record<string, string>) =>
+  JSON.stringify(
+    Object.entries(value).sort(([leftId], [rightId]) =>
+      leftId.localeCompare(rightId)
+    )
+  );
+
 export default function AdminProductClient({
   product,
   categories,
   collections,
   suppliers,
+  crossSells: initialCrossSells,
+  insights,
+  pricingProfilesByVariantId,
+  pricingIntegrationError,
 }: Props) {
+  const productDraftStorageKey = `${PRODUCT_DRAFT_STORAGE_PREFIX}${product.id}`;
   const resolvedSupplierId = (() => {
     if (product.supplierId) return product.supplierId;
     if (product.supplier) {
@@ -112,38 +459,33 @@ export default function AdminProductClient({
     }
     return "";
   })();
-  const [details, setDetails] = useState({
-    title: product.title,
-    handle: product.handle,
-    description: product.description ?? "",
-    technicalDetails: product.technicalDetails ?? "",
-    shortDescription: product.shortDescription ?? "",
-    manufacturer: product.manufacturer ?? "",
-    productGroup: product.productGroup ?? "",
-    supplierId: resolvedSupplierId,
-    sellerUrl: product.sellerUrl ?? "",
-    leadTimeDays: product.leadTimeDays ?? "",
-    weightGrams: product.weightGrams ?? "",
-    lengthMm: product.lengthMm ?? "",
-    widthMm: product.widthMm ?? "",
-    heightMm: product.heightMm ?? "",
-    growboxPlantCountMin: product.growboxPlantCountMin ?? "",
-    growboxPlantCountMax: product.growboxPlantCountMax ?? "",
-    growboxSize: product.growboxSize ?? "",
-    growboxConnectionDiameterMm: product.growboxConnectionDiameterMm ?? [],
-    lightSize: product.lightSize ?? "",
-    airSystemDiameterMm: product.airSystemDiameterMm ?? "",
-    shippingClass: product.shippingClass ?? "",
-    tags: (product.tags ?? []).join(", "),
-    status: product.status,
-  });
+  const initialDetails = useMemo(
+    () => buildInitialDetails(product, resolvedSupplierId),
+    [product, resolvedSupplierId]
+  );
+  const [details, setDetails] = useState<ProductDetailsState>(initialDetails);
+  const [productUpdatedAt, setProductUpdatedAt] = useState(product.updatedAt);
   const [images, setImages] = useState<ImageItem[]>(product.images);
+  const [savedImages, setSavedImages] = useState<ImageItem[]>(() =>
+    cloneImageItems(product.images)
+  );
   const [uploading, setUploading] = useState(false);
+  const [uploadDragActive, setUploadDragActive] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
-  const [reordering, setReordering] = useState(false);
   const [variants, setVariants] = useState<VariantItem[]>(product.variants);
+  const [savedVariants, setSavedVariants] = useState<VariantItem[]>(() =>
+    cloneVariantItems(product.variants)
+  );
+  const [variantUpdatedAtById, setVariantUpdatedAtById] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(product.variants.map((variant) => [variant.id, variant.updatedAt]))
+  );
   const [draggingVariantId, setDraggingVariantId] = useState<string | null>(null);
-  const [reorderingVariants, setReorderingVariants] = useState(false);
+  const [draggingOption, setDraggingOption] = useState<{
+    variantId: string;
+    optionId: string;
+  } | null>(null);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     product.variants.forEach((variant) => {
@@ -165,22 +507,61 @@ export default function AdminProductClient({
     });
     return initial;
   });
+  const [savingAllChanges, setSavingAllChanges] = useState(false);
   const [categoryIds, setCategoryIds] = useState(
     new Set(product.categories.map((item) => item.category.id))
   );
   const [collectionIds, setCollectionIds] = useState(
     new Set(product.collections.map((item) => item.collection.id))
   );
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<
+    "all" | "selected" | "parent" | "child"
+  >("all");
+  const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [staleConflictMessage, setStaleConflictMessage] = useState("");
+  const [activeSection, setActiveSection] =
+    useState<ProductEditorSectionId>("performance");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
   const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
   const [confirmVariantText, setConfirmVariantText] = useState("");
+  const [confirmVariantReason, setConfirmVariantReason] = useState("");
   const [confirmVariantError, setConfirmVariantError] = useState("");
   const [confirmVariantLoading, setConfirmVariantLoading] = useState(false);
+  const [confirmVariantPassword, setConfirmVariantPassword] = useState("");
+  const [confirmVariantPasswordError, setConfirmVariantPasswordError] =
+    useState("");
   const [shippingOpen, setShippingOpen] = useState(false);
   const [descriptionsOpen, setDescriptionsOpen] = useState(false);
   const [handleError, setHandleError] = useState("");
+  const [serverPolicyViolations, setServerPolicyViolations] = useState<
+    MerchantPolicyViolation[]
+  >([]);
+
+  // FBT state
+  const [fbtItems, setFbtItems] = useState<CrossSellProduct[]>(
+    () => initialCrossSells.map((row) => row.crossSell)
+  );
+  const [fbtSearch, setFbtSearch] = useState("");
+  const [fbtResults, setFbtResults] = useState<CrossSellProduct[]>([]);
+  const [fbtSearching, setFbtSearching] = useState(false);
+  const [, setFbtSaving] = useState(false);
+  const [fbtMessage, setFbtMessage] = useState("");
+  const [savedDetailsSnapshot, setSavedDetailsSnapshot] = useState(() =>
+    serializeDetailsSnapshot(initialDetails)
+  );
+  const [savedCategorySnapshot, setSavedCategorySnapshot] = useState(() =>
+    serializeIdSnapshot(product.categories.map((item) => item.category.id))
+  );
+  const [savedCollectionSnapshot, setSavedCollectionSnapshot] = useState(() =>
+    serializeIdSnapshot(product.collections.map((item) => item.collection.id))
+  );
+  const [savedCrossSellSnapshot, setSavedCrossSellSnapshot] = useState(() =>
+    serializeIdSnapshot(initialCrossSells.map((row) => row.crossSell.id))
+  );
 
   const parentCategories = useMemo(
     () => categories.filter((item) => !item.parentId),
@@ -197,11 +578,109 @@ export default function AdminProductClient({
     });
     return map;
   }, [categories]);
+  const normalizedCategorySearch = categorySearch.trim().toLowerCase();
+  const filteredParentCategories = useMemo(() => {
+    const base =
+      categoryFilter === "child"
+        ? []
+        : parentCategories.filter((item) => {
+            if (!normalizedCategorySearch) return true;
+            return item.name.toLowerCase().includes(normalizedCategorySearch);
+          });
+    if (categoryFilter === "selected") {
+      return base.filter((item) => categoryIds.has(item.id));
+    }
+    return base;
+  }, [categoryFilter, categoryIds, normalizedCategorySearch, parentCategories]);
+  const filteredChildCategories = useMemo(() => {
+    const base =
+      categoryFilter === "parent"
+        ? []
+        : childCategories.filter((item) => {
+            const parentName = item.parentId
+              ? categoryNameById.get(item.parentId)?.toLowerCase() ?? ""
+              : "";
+            if (!normalizedCategorySearch) return true;
+            return (
+              item.name.toLowerCase().includes(normalizedCategorySearch) ||
+              parentName.includes(normalizedCategorySearch)
+            );
+          });
+    if (categoryFilter === "selected") {
+      return base.filter((item) => categoryIds.has(item.id));
+    }
+    return base;
+  }, [
+    categoryFilter,
+    categoryIds,
+    childCategories,
+    categoryNameById,
+    normalizedCategorySearch,
+  ]);
+  const visibleChildCategories = useMemo(() => {
+    if (!activeParentId) return filteredChildCategories;
+    return filteredChildCategories.filter(
+      (item) => item.parentId === activeParentId
+    );
+  }, [activeParentId, filteredChildCategories]);
+  const activeParentName = activeParentId
+    ? categoryNameById.get(activeParentId) ?? "Auswahl"
+    : "Auswahl";
+  const selectedCategoryCount = categoryIds.size;
+  const selectedChildCount = childCategories.filter((item) =>
+    categoryIds.has(item.id)
+  ).length;
+  const selectedCollectionCount = collectionIds.size;
+  const totalAvailableInventory = useMemo(
+    () =>
+      variants.reduce(
+        (sum, variant) =>
+          sum +
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ),
+        0
+      ),
+    [variants]
+  );
+  const lowStockVariantCount = useMemo(
+    () =>
+      variants.filter(
+        (variant) =>
+          Math.max(
+            0,
+            (variant.inventory?.quantityOnHand ?? 0) - (variant.inventory?.reserved ?? 0)
+          ) <= variant.lowStockThreshold && variant.lowStockThreshold > 0
+      ).length,
+    [variants]
+  );
+  const trendLabel =
+    insights.trendDirection === "trending"
+      ? "Trending"
+      : insights.trendDirection === "cooling"
+        ? "Cooling"
+        : "Steady";
+  const trendTone =
+    insights.trendDirection === "trending"
+      ? "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200"
+      : insights.trendDirection === "cooling"
+        ? "border-amber-400/20 bg-amber-400/[0.08] text-amber-200"
+        : "border-white/10 bg-white/[0.06] text-slate-200";
+
+  useEffect(() => {
+    if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
+      return;
+    }
+    const selectedParent =
+      parentCategories.find((item) => categoryIds.has(item.id)) ?? null;
+    setActiveParentId(selectedParent?.id ?? parentCategories[0]?.id ?? null);
+  }, [activeParentId, categoryIds, parentCategories]);
   const growboxenCategoryId = useMemo(
-    () => categories.find((item) => item.handle === "growboxen")?.id ?? null,
+    () => categories.find((item) => item.handle === "zelte")?.id ?? null,
     [categories]
   );
-  const showGrowboxenFields = useMemo(
+  const showZelteFields = useMemo(
     () => (growboxenCategoryId ? categoryIds.has(growboxenCategoryId) : false),
     [categoryIds, growboxenCategoryId]
   );
@@ -227,6 +706,191 @@ export default function AdminProductClient({
     () => (airSystemCategoryId ? categoryIds.has(airSystemCategoryId) : false),
     [categoryIds, airSystemCategoryId]
   );
+  const editorPolicyViolations = useMemo(
+    () =>
+      collectMerchantPolicyViolations({
+        title: details.title,
+        description: details.description,
+        technicalDetails: details.technicalDetails,
+        shortDescription: details.shortDescription,
+        productGroup: details.productGroup,
+        tags: details.tags,
+      }),
+    [
+      details.description,
+      details.productGroup,
+      details.shortDescription,
+      details.tags,
+      details.technicalDetails,
+      details.title,
+    ]
+  );
+  const hasEditorPolicyViolations = editorPolicyViolations.length > 0;
+  const mergedPolicyViolations = useMemo(() => {
+    const map = new Map<string, MerchantPolicyViolation>();
+    for (const violation of [
+      ...editorPolicyViolations,
+      ...serverPolicyViolations,
+    ]) {
+      map.set(
+        `${violation.field}:${violation.reason}:${violation.match}`,
+        violation
+      );
+    }
+    return Array.from(map.values());
+  }, [editorPolicyViolations, serverPolicyViolations]);
+  const policyViolationSummary = useMemo(() => {
+    const grouped = new Map<string, Set<string>>();
+    mergedPolicyViolations.forEach((violation) => {
+      const reasonLabel =
+        violation.reason === "medical_claim"
+          ? "Medical claim terms"
+          : "Illegal-use implication terms";
+      const key = `${reasonLabel} (${violation.field})`;
+      const set = grouped.get(key) ?? new Set<string>();
+      set.add(violation.match);
+      grouped.set(key, set);
+    });
+    return Array.from(grouped.entries()).map(([label, matches]) => ({
+      label,
+      matches: Array.from(matches).slice(0, 6),
+    }));
+  }, [mergedPolicyViolations]);
+
+  const detailsDirty =
+    serializeDetailsSnapshot(details) !== savedDetailsSnapshot;
+  const categoriesDirty =
+    serializeIdSnapshot(categoryIds) !== savedCategorySnapshot;
+  const collectionsDirty =
+    serializeIdSnapshot(collectionIds) !== savedCollectionSnapshot;
+  const imagesDirty =
+    serializeImageSnapshot(images) !== serializeImageSnapshot(savedImages);
+  const variantsDirty =
+    serializeVariantSnapshot(variants, priceDrafts, costDrafts, compareDrafts) !==
+    serializeVariantSnapshot(savedVariants);
+  const crossSellsDirty =
+    serializeIdSnapshot(fbtItems.map((item) => item.id)) !== savedCrossSellSnapshot;
+  const hasUnsavedChanges =
+    detailsDirty ||
+    categoriesDirty ||
+    collectionsDirty ||
+    imagesDirty ||
+    variantsDirty ||
+    crossSellsDirty;
+  const dirtySections = [
+    detailsDirty ? "Details" : null,
+    categoriesDirty ? "Categories" : null,
+    collectionsDirty ? "Collections" : null,
+    imagesDirty ? "Media" : null,
+    variantsDirty ? "Variants" : null,
+    crossSellsDirty ? "Manual overrides" : null,
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rawDraft = window.sessionStorage.getItem(productDraftStorageKey);
+    if (!rawDraft) return;
+    try {
+      const draft = JSON.parse(rawDraft) as PersistedProductDraft;
+      const currentVariantVersions = Object.fromEntries(
+        product.variants.map((variant) => [variant.id, variant.updatedAt])
+      );
+      const versionsMatch =
+        draft.version === 1 &&
+        draft.baseProductUpdatedAt === product.updatedAt &&
+        serializeVersionMap(draft.baseVariantUpdatedAtById) ===
+          serializeVersionMap(currentVariantVersions);
+      if (!versionsMatch) {
+        window.sessionStorage.removeItem(productDraftStorageKey);
+        return;
+      }
+      setDetails(draft.details);
+      setImages(draft.images);
+      setVariants(draft.variants);
+      setPriceDrafts(draft.priceDrafts);
+      setCostDrafts(draft.costDrafts);
+      setCompareDrafts(draft.compareDrafts);
+      setCategoryIds(new Set(draft.categoryIds));
+      setCollectionIds(new Set(draft.collectionIds));
+      setFbtItems(draft.fbtItems);
+      setActiveSection(draft.activeSection);
+      setDraftMessage("Recovered local draft from this browser session.");
+      window.requestAnimationFrame(() => {
+        document.getElementById(draft.activeSection)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    } catch {
+      window.sessionStorage.removeItem(productDraftStorageKey);
+    }
+  }, [product.id, product.updatedAt, product.variants, productDraftStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hasUnsavedChanges) {
+      window.sessionStorage.removeItem(productDraftStorageKey);
+      return;
+    }
+    const draft: PersistedProductDraft = {
+      version: 1,
+      baseProductUpdatedAt: productUpdatedAt,
+      baseVariantUpdatedAtById: variantUpdatedAtById,
+      activeSection,
+      details,
+      images,
+      variants,
+      priceDrafts,
+      costDrafts,
+      compareDrafts,
+      categoryIds: Array.from(categoryIds),
+      collectionIds: Array.from(collectionIds),
+      fbtItems,
+    };
+    window.sessionStorage.setItem(productDraftStorageKey, JSON.stringify(draft));
+  }, [
+    activeSection,
+    categoryIds,
+    collectionIds,
+    compareDrafts,
+    costDrafts,
+    details,
+    fbtItems,
+    hasUnsavedChanges,
+    images,
+    priceDrafts,
+    productUpdatedAt,
+    productDraftStorageKey,
+    variantUpdatedAtById,
+    variants,
+  ]);
+
+  useEffect(() => {
+    setServerPolicyViolations((prev) => (prev.length > 0 ? [] : prev));
+  }, [
+    details.title,
+    details.description,
+    details.technicalDetails,
+    details.shortDescription,
+    details.productGroup,
+    details.tags,
+  ]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const discardLocalDraft = () => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(productDraftStorageKey);
+    window.location.reload();
+  };
 
   const [newImage, setNewImage] = useState({
     url: "",
@@ -234,14 +898,22 @@ export default function AdminProductClient({
     position: 0,
   });
 
-  const [newVariant, setNewVariant] = useState({
+  const [newVariant, setNewVariant] = useState<{
+    title: string;
+    sku: string;
+    price: string;
+    cost: string;
+    compareAt: string;
+    lowStockThreshold: number;
+    options: Array<{ name: string; value: string; imagePosition: number | null }>;
+  }>({
     title: "",
     sku: "",
     price: "",
     cost: "",
     compareAt: "",
     lowStockThreshold: 5,
-    options: [{ name: "", value: "" }],
+    options: [{ name: "", value: "", imagePosition: null }],
   });
   const [addVariantOpen, setAddVariantOpen] = useState(false);
 
@@ -249,9 +921,11 @@ export default function AdminProductClient({
     setMessage("");
     setError("");
     setHandleError("");
+    setStaleConflictMessage("");
+    setServerPolicyViolations([]);
     if (details.sellerUrl && !/^https?:\/\//i.test(details.sellerUrl)) {
       setError("Seller URL must be a valid http(s) link");
-      return;
+      return false;
     }
     try {
       const tags = details.tags
@@ -266,10 +940,14 @@ export default function AdminProductClient({
         description: details.description,
         technicalDetails: details.technicalDetails,
         shortDescription: details.shortDescription,
+        seoTitle: details.seoTitle,
+        seoDescription: details.seoDescription,
         manufacturer: details.manufacturer,
         productGroup: details.productGroup,
+        sellerName: details.sellerName,
         sellerUrl: details.sellerUrl,
         tags,
+        storefronts: details.storefronts,
         leadTimeDays: toNumberOrNull(details.leadTimeDays),
         weightGrams: toNumberOrNull(details.weightGrams),
         lengthMm: toNumberOrNull(details.lengthMm),
@@ -282,7 +960,14 @@ export default function AdminProductClient({
         lightSize: details.lightSize,
         airSystemDiameterMm: toNumberOrNull(details.airSystemDiameterMm),
         shippingClass: details.shippingClass,
+        merchantUnitPricingMeasure: details.merchantUnitPricingMeasure,
+        merchantUnitPricingBaseMeasure: details.merchantUnitPricingBaseMeasure,
+        merchantCertificationAuthority: details.merchantCertificationAuthority,
+        merchantCertificationName: details.merchantCertificationName,
+        merchantCertificationCode: details.merchantCertificationCode,
+        merchantCertificationValue: details.merchantCertificationValue,
         status: details.status,
+        expectedUpdatedAt: productUpdatedAt,
       };
       if (details.supplierId || product.supplierId) {
         payload.supplierId = details.supplierId || null;
@@ -293,23 +978,44 @@ export default function AdminProductClient({
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as {
+          error?: string;
+          violations?: MerchantPolicyViolation[];
+          currentUpdatedAt?: string;
+        };
         const errorMessage = data.error ?? "Update failed";
         setError(errorMessage);
+        if (res.status === 409 && data.currentUpdatedAt) {
+          setStaleConflictMessage(
+            `Another admin saved this product on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload before applying more changes.`
+          );
+        }
+        if (Array.isArray(data.violations)) {
+          setServerPolicyViolations(data.violations);
+        }
         if (errorMessage.toLowerCase().includes("handle")) {
           setHandleError(errorMessage);
         }
-        return;
+        return false;
       }
-      setMessage("Product updated");
+      const data = (await res.json()) as {
+        product?: { updatedAt?: string };
+      };
+      if (data.product?.updatedAt) {
+        setProductUpdatedAt(data.product.updatedAt);
+      }
+      setSavedDetailsSnapshot(serializeDetailsSnapshot(details));
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
 
   const saveCategories = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/categories`, {
         method: "PUT",
@@ -319,17 +1025,20 @@ export default function AdminProductClient({
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
-        return;
+        return false;
       }
-      setMessage("Categories updated");
+      setSavedCategorySnapshot(serializeIdSnapshot(categoryIds));
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
 
   const saveCollections = async () => {
     setMessage("");
     setError("");
+    setStaleConflictMessage("");
     try {
       const res = await fetch(`/api/admin/products/${product.id}/collections`, {
         method: "PUT",
@@ -339,13 +1048,72 @@ export default function AdminProductClient({
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         setError(data.error ?? "Update failed");
-        return;
+        return false;
       }
-      setMessage("Collections updated");
+      setSavedCollectionSnapshot(serializeIdSnapshot(collectionIds));
+      return true;
     } catch {
       setError("Update failed");
+      return false;
     }
   };
+
+  const saveCrossSells = async () => {
+    setFbtMessage("");
+    setStaleConflictMessage("");
+    setFbtSaving(true);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/cross-sells`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crossSellIds: fbtItems.map((item) => item.id) }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setFbtMessage(data.error ?? "Save failed");
+        return false;
+      } else {
+        setSavedCrossSellSnapshot(serializeIdSnapshot(fbtItems.map((item) => item.id)));
+        setFbtMessage("Saved");
+        return true;
+      }
+    } catch {
+      setFbtMessage("Save failed");
+      return false;
+    } finally {
+      setFbtSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const q = fbtSearch.trim();
+    if (!q) {
+      setFbtResults([]);
+      return;
+    }
+    setFbtSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/products/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = (await res.json()) as CrossSellProduct[];
+          setFbtResults(
+            data
+              .filter((p) => p.id !== product.id && !fbtItems.some((item) => item.id === p.id))
+              .slice(0, 8)
+          );
+        }
+      } catch {
+        // ignore
+      } finally {
+        setFbtSearching(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      setFbtSearching(false);
+    };
+  }, [fbtSearch, product.id, fbtItems]);
 
   const createImage = async (payload: {
     url: string;
@@ -364,6 +1132,7 @@ export default function AdminProductClient({
       return null;
     }
     setImages((prev) => [...prev, image]);
+    setSavedImages((prev) => [...prev, ...cloneImageItems([image])]);
     return image;
   };
 
@@ -421,45 +1190,11 @@ export default function AdminProductClient({
     }
   };
 
-  const updateImage = async (image: ImageItem) => {
-    setMessage("");
-    setError("");
-    const res = await fetch(`/api/admin/images/${image.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: image.url,
-        altText: image.altText,
-        position: Number(image.position) || 0,
-      }),
-    });
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setError(data.error ?? "Update failed");
-      return;
-    }
-    setMessage("Image updated");
-  };
-
-  const saveImageOrder = async (items: ImageItem[]) => {
-    setMessage("");
-    setError("");
-    setReordering(true);
-    try {
-      await Promise.all(
-        items.map((image) =>
-          fetch(`/api/admin/images/${image.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: image.position }),
-          })
-        )
-      );
-      setMessage("Image order updated");
-    } catch {
-      setError("Reorder failed");
-    } finally {
-      setReordering(false);
+  const handleUploadDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setUploadDragActive(false);
+    if (event.dataTransfer?.files?.length) {
+      void uploadImages(event.dataTransfer.files);
     }
   };
 
@@ -476,7 +1211,6 @@ export default function AdminProductClient({
         ...img,
         position: index,
       }));
-      void saveImageOrder(positioned);
       return positioned;
     });
   };
@@ -484,73 +1218,193 @@ export default function AdminProductClient({
   const deleteImage = async (id: string) => {
     setMessage("");
     setError("");
-    const res = await fetch(`/api/admin/images/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/images/${id}`, {
+      method: "DELETE",
+    });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       setError(data.error ?? "Delete failed");
       return;
     }
     setImages((prev) => prev.filter((img) => img.id !== id));
+    setSavedImages((prev) => prev.filter((img) => img.id !== id));
     setMessage("Image deleted");
   };
 
-  const updateVariant = async (variant: VariantItem) => {
-    setMessage("");
-    setError("");
-    const res = await fetch(`/api/admin/variants/${variant.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: variant.title,
-        sku: variant.sku,
-        priceCents: variant.priceCents,
-        costCents: variant.costCents,
-        compareAtCents: variant.compareAtCents,
-        position: variant.position,
-        lowStockThreshold: variant.lowStockThreshold,
-        options: variant.options.map((opt) => ({
-          name: opt.name,
-          value: opt.value,
-        })),
-        inventory: {
-          quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
-          reserved: variant.inventory?.reserved ?? 0,
-        },
-      }),
-    });
-    if (!res.ok) {
-      let message = "Update failed";
-      try {
-        const data = (await res.json()) as { error?: string };
-        if (data?.error) message = data.error;
-      } catch {
-        // Keep default message when response isn't JSON.
+  const normalizeVariantDrafts = () => {
+    const nextPriceDrafts = { ...priceDrafts };
+    const nextCostDrafts = { ...costDrafts };
+    const nextCompareDrafts = { ...compareDrafts };
+    let validationError = "";
+    const normalizedVariants = variants.map((variant) => {
+      const variantLabel = variant.title.trim() || variant.id;
+      const priceInput = (priceDrafts[variant.id] ?? toEuro(variant.priceCents)).trim();
+      if (!priceInput) {
+        validationError = `"${variantLabel}": Price required`;
+        return variant;
       }
-      setError(message);
-      return;
+      const parsedPrice = parseEuro(priceInput);
+      if (parsedPrice === null) {
+        validationError = `"${variantLabel}": Price is invalid`;
+        return variant;
+      }
+      const costInput = (costDrafts[variant.id] ?? toEuro(variant.costCents)).trim();
+      let parsedCost = 0;
+      if (costInput) {
+        const nextCost = parseEuro(costInput);
+        if (nextCost === null) {
+          validationError = `"${variantLabel}": Cost is invalid`;
+          return variant;
+        }
+        parsedCost = nextCost;
+      }
+      const compareInput = (
+        compareDrafts[variant.id] ?? toEuro(variant.compareAtCents)
+      ).trim();
+      let parsedCompare: number | null = null;
+      if (compareInput) {
+        const nextCompare = parseEuro(compareInput);
+        if (nextCompare === null) {
+          validationError = `"${variantLabel}": Compare at is invalid`;
+          return variant;
+        }
+        parsedCompare = nextCompare;
+      }
+      nextPriceDrafts[variant.id] = toEuro(parsedPrice);
+      nextCostDrafts[variant.id] = toEuro(parsedCost);
+      nextCompareDrafts[variant.id] = parsedCompare === null ? "" : toEuro(parsedCompare);
+      return {
+        ...variant,
+        priceCents: parsedPrice,
+        costCents: parsedCost,
+        compareAtCents: parsedCompare,
+      };
+    });
+
+    if (validationError) {
+      setError(validationError);
+      return null;
     }
-    setMessage("Variant updated");
+
+    setVariants(normalizedVariants);
+    setPriceDrafts(nextPriceDrafts);
+    setCostDrafts(nextCostDrafts);
+    setCompareDrafts(nextCompareDrafts);
+    return normalizedVariants;
   };
 
-  const saveVariantOrder = async (items: VariantItem[]) => {
+  const saveImages = async () => {
+    if (!imagesDirty) return true;
     setMessage("");
     setError("");
-    setReorderingVariants(true);
     try {
-      await Promise.all(
-        items.map((variant) =>
-          fetch(`/api/admin/variants/${variant.id}`, {
+      const responses = await Promise.all(
+        images.map((image) =>
+          fetch(`/api/admin/images/${image.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: variant.position }),
+            body: JSON.stringify({
+              url: image.url,
+              altText: image.altText,
+              position: Number(image.position) || 0,
+            }),
           })
         )
       );
-      setMessage("Variant order updated");
+      const failed = responses.find((response) => !response.ok);
+      if (failed) {
+        const data = (await failed.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "Image update failed");
+        return false;
+      }
+      setSavedImages(cloneImageItems(images));
+      return true;
     } catch {
-      setError("Reorder failed");
-    } finally {
-      setReorderingVariants(false);
+      setError("Image update failed");
+      return false;
+    }
+  };
+
+  const saveVariants = async () => {
+    if (!variantsDirty) return true;
+    setMessage("");
+    setError("");
+    setStaleConflictMessage("");
+    try {
+      const normalizedVariants = normalizeVariantDrafts();
+      if (!normalizedVariants) return false;
+      for (const variant of normalizedVariants) {
+        const rowIssue = findOptionRowIssues(variant.options);
+        if (rowIssue) {
+          setError(`"${variant.title}": ${rowIssue}`);
+          return false;
+        }
+      }
+      const responses = await Promise.all(
+        normalizedVariants.map((variant) =>
+          (() => {
+            const normalized = normalizeVariantOptions(variant.options);
+            return fetch(`/api/admin/variants/${variant.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: variant.title,
+                sku: variant.sku,
+                priceCents: variant.priceCents,
+                costCents: variant.costCents,
+                compareAtCents: variant.compareAtCents,
+                position: variant.position,
+                lowStockThreshold: variant.lowStockThreshold,
+                options: normalized.options,
+                inventory: {
+                  quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
+                  reserved: variant.inventory?.reserved ?? 0,
+                },
+                expectedUpdatedAt: variantUpdatedAtById[variant.id],
+              }),
+            });
+          })()
+        )
+      );
+      const failed = responses.find((res) => !res.ok);
+      if (failed) {
+        let errorMessage = "Save failed";
+        try {
+          const data = (await failed.json()) as {
+            error?: string;
+            currentUpdatedAt?: string;
+          };
+          if (data?.error) errorMessage = data.error;
+          if (failed.status === 409 && data.currentUpdatedAt) {
+            setStaleConflictMessage(
+              `Variant data changed on ${new Date(data.currentUpdatedAt).toLocaleString("de-DE")}. Reload the product before saving again.`
+            );
+          }
+        } catch {
+          // Keep default message when response isn't JSON.
+        }
+        setError(errorMessage);
+        return false;
+      }
+      const payloads = (await Promise.all(
+        responses.map((response) =>
+          response.json().catch(() => ({} as { variant?: { id: string; updatedAt?: string } }))
+        )
+      )) as Array<{ variant?: { id: string; updatedAt?: string } }>;
+      const nextVersions = payloads.reduce<Record<string, string>>((acc, item) => {
+        if (item.variant?.id && item.variant.updatedAt) {
+          acc[item.variant.id] = item.variant.updatedAt;
+        }
+        return acc;
+      }, {});
+      if (Object.keys(nextVersions).length > 0) {
+        setVariantUpdatedAtById((prev) => ({ ...prev, ...nextVersions }));
+      }
+      setSavedVariants(cloneVariantItems(normalizedVariants));
+      return true;
+    } catch {
+      setError("Save failed");
+      return false;
     }
   };
 
@@ -567,21 +1421,55 @@ export default function AdminProductClient({
         ...item,
         position: index,
       }));
-      void saveVariantOrder(positioned);
       return positioned;
     });
   };
 
-  const deleteVariant = async (id: string) => {
+  const reorderVariantOptions = (
+    variantId: string,
+    sourceId: string,
+    targetId: string
+  ) => {
+    if (sourceId === targetId) return;
+    setVariants((prev) =>
+      prev.map((variant) => {
+        if (variant.id !== variantId) return variant;
+        const nextOptions = [...variant.options];
+        const sourceIndex = nextOptions.findIndex((opt) => opt.id === sourceId);
+        const targetIndex = nextOptions.findIndex((opt) => opt.id === targetId);
+        if (sourceIndex === -1 || targetIndex === -1) return variant;
+        const [moved] = nextOptions.splice(sourceIndex, 1);
+        nextOptions.splice(targetIndex, 0, moved);
+        return { ...variant, options: nextOptions };
+      })
+    );
+  };
+
+  const deleteVariant = async (
+    id: string,
+    adminPassword: string,
+    reason: string
+  ) => {
     setMessage("");
     setError("");
-    const res = await fetch(`/api/admin/variants/${id}`, { method: "DELETE" });
+    setStaleConflictMessage("");
+    const res = await fetch(`/api/admin/variants/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminPassword, reason }),
+    });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       setError(data.error ?? "Delete failed");
       return;
     }
     setVariants((prev) => prev.filter((item) => item.id !== id));
+    setSavedVariants((prev) => prev.filter((item) => item.id !== id));
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setMessage("Variant deleted");
   };
 
@@ -601,6 +1489,11 @@ export default function AdminProductClient({
       setError("Variant cost is invalid");
       return;
     }
+    const rowIssue = findOptionRowIssues(newVariant.options);
+    if (rowIssue) {
+      setError(rowIssue);
+      return;
+    }
     setMessage("");
     setError("");
     const res = await fetch(`/api/admin/products/${product.id}/variants`, {
@@ -614,7 +1507,7 @@ export default function AdminProductClient({
         compareAtCents: newVariant.compareAt ? parseEuro(newVariant.compareAt) : null,
         position: variants.length,
         lowStockThreshold: Number(newVariant.lowStockThreshold) || 0,
-        options: newVariant.options.filter((opt) => opt.name && opt.value),
+        options: normalizeVariantOptions(newVariant.options).options,
       }),
     });
     const data = (await res.json()) as { variant?: VariantItem; error?: string };
@@ -624,6 +1517,13 @@ export default function AdminProductClient({
       return;
     }
     setVariants((prev) => [...prev, variant]);
+    setSavedVariants((prev) => [...prev, ...cloneVariantItems([variant])]);
+    if (variant.updatedAt) {
+      setVariantUpdatedAtById((prev) => ({
+        ...prev,
+        [variant.id]: variant.updatedAt,
+      }));
+    }
     setNewVariant({
       title: "",
       sku: "",
@@ -631,10 +1531,29 @@ export default function AdminProductClient({
       cost: "",
       compareAt: "",
       lowStockThreshold: 5,
-      options: [{ name: "", value: "" }],
+      options: [{ name: "", value: "", imagePosition: null }],
     });
     setAddVariantOpen(false);
     setMessage("Variant added");
+  };
+
+  const saveAllChanges = async () => {
+    if (!hasUnsavedChanges) return;
+    setSavingAllChanges(true);
+    setMessage("");
+    setError("");
+    setStaleConflictMessage("");
+    try {
+      if (detailsDirty && !(await saveDetails())) return;
+      if (categoriesDirty && !(await saveCategories())) return;
+      if (collectionsDirty && !(await saveCollections())) return;
+      if (imagesDirty && !(await saveImages())) return;
+      if (variantsDirty && !(await saveVariants())) return;
+      if (crossSellsDirty && !(await saveCrossSells())) return;
+      setMessage("All changes saved");
+    } finally {
+      setSavingAllChanges(false);
+    }
   };
 
   const variantRows = useMemo(
@@ -680,6 +1599,28 @@ export default function AdminProductClient({
     });
   }, [variants]);
 
+  useEffect(() => {
+    setVariantUpdatedAtById((prev) => {
+      const next = { ...prev };
+      variants.forEach((variant) => {
+        if (!(variant.id in next) && variant.updatedAt) {
+          next[variant.id] = variant.updatedAt;
+        }
+      });
+      return next;
+    });
+  }, [variants]);
+
+  useEffect(() => {
+    setNewVariant((prev) => ({
+      ...prev,
+      options:
+        prev.options.length === 0
+          ? [{ name: "", value: "", imagePosition: null }]
+          : prev.options,
+    }));
+  }, []);
+
   const legacySupplierName = useMemo(() => {
     if (product.supplierId) return null;
     if (!product.supplier) return null;
@@ -702,55 +1643,316 @@ export default function AdminProductClient({
     );
   }, [details.supplierId, suppliers]);
 
+  const scrollToSection = (sectionId: ProductEditorSectionId) => {
+    setActiveSection(sectionId);
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div className="space-y-10 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 md:p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="rounded-2xl bg-[#2f3e36] p-6 text-white shadow-lg shadow-emerald-900/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.3em] text-white/70">
+    <div className="admin-legacy-page admin-product-redesign space-y-6 rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:space-y-8 md:rounded-[32px] md:p-8 md:pb-40">
+      <div className="admin-product-hero admin-reveal rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[28px] sm:p-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold tracking-[0.3em] text-cyan-200/80">
               CATALOG / PRODUCT
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{product.title}</h1>
+            <h1 className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{details.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">
-                {product.status}
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
+                {details.status}
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                Updated {new Date(product.updatedAt).toLocaleDateString("de-DE")}
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">
+                Updated {new Date(productUpdatedAt).toLocaleDateString("de-DE")}
               </span>
+              {hasUnsavedChanges ? (
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 font-semibold text-amber-200">
+                  Unsaved changes
+                </span>
+              ) : (
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-semibold text-emerald-200">
+                  Synced
+                </span>
+              )}
+              <Link
+                href={`/admin/compliance?q=${encodeURIComponent(product.handle)}`}
+                className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 font-semibold text-sky-100 hover:bg-sky-300/15"
+              >
+                Compliance {product.complianceStatus.replace("_", " ")}
+              </Link>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminThemeToggle />
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
             <Link
               href="/admin/catalog"
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2f3e36] shadow-sm transition hover:bg-emerald-50"
+              className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
             >
               Back to catalog
             </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="admin-product-stat admin-lift rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+              Availability
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{totalAvailableInventory}</div>
+            <div className="mt-1 text-sm text-cyan-100/75">Units available across all variants</div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-violet-400/20 bg-violet-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
+              Variants
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">{variants.length}</div>
+            <div className="mt-1 text-sm text-violet-100/75">
+              {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+              30d Revenue
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatCurrency(insights.revenue30dCents)}
+            </div>
+            <div className="mt-1 text-sm text-emerald-100/75">
+              Margin {formatPercent(insights.marginRate30d)}
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
+              Conversion
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.conversionRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-amber-100/75">
+              {insights.views30d} views / {insights.purchases30d} purchases
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-rose-400/20 bg-rose-400/[0.08] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200">
+              Returns
+            </div>
+            <div className="mt-3 text-3xl font-semibold text-white">
+              {formatPercent(insights.returnRate30d)}
+            </div>
+            <div className="mt-1 text-sm text-rose-100/75">
+              {insights.returnedUnits30d} returned units in the last 30 days
+            </div>
+          </div>
+          <div className="admin-product-stat admin-lift rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
+              Compliance
+            </div>
+            <div className="mt-3 text-2xl font-semibold text-white">
+              {product.complianceStatus.replace("_", " ")}
+            </div>
+            <div className="mt-1 text-sm text-slate-300/75">
+              Feed {product.complianceFeedEligible ? "on" : "off"} · Ads{" "}
+              {product.complianceAdsEligible ? "on" : "off"} ·{" "}
+              {product.complianceOwnerEmail ?? "Unassigned"}
+            </div>
           </div>
         </div>
       </div>
 
       {(message || error) && (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          className={`admin-product-alert rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(0,0,0,0.25)] ${
             error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-green-200 bg-green-50 text-green-700"
+              ? "border-red-400/20 bg-red-400/10 text-red-200"
+              : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
           }`}
         >
           {error || message}
         </div>
       )}
 
-      <section className="rounded-2xl border border-emerald-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
+      {draftMessage ? (
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100 shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{draftMessage}</span>
+            <button
+              type="button"
+              onClick={discardLocalDraft}
+              className="rounded-full border border-cyan-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-cyan-100"
+            >
+              Discard local draft
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {staleConflictMessage ? (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{staleConflictMessage}</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-full border border-amber-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
+            >
+              Reload latest product
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-[4.75rem] z-20 rounded-[20px] border border-white/10 bg-[#05070a]/88 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur sm:top-20 sm:rounded-[24px] sm:p-3">
+        <div className="admin-scroll-x flex items-center gap-2 sm:flex-wrap">
+          {PRODUCT_EDITOR_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                activeSection === section.id
+                  ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
+                  : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+              }`}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section
+        id="performance"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">01</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">
+              P
+            </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Details</p>
-              <p className="text-xs text-stone-500">Core product information.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                Performance
+              </p>
+              <p className="text-xs text-slate-400">
+                Views, conversion, margin, return pressure, and traffic quality.
+              </p>
+            </div>
+          </div>
+          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${trendTone}`}>
+            {trendLabel} · {formatPercent(insights.trendDeltaRatio, 0)} vs 30d pace
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <InsightCard
+            label="Views"
+            value={String(insights.views30d)}
+            detail={`${insights.addToCart30d} add to cart`}
+          />
+          <InsightCard
+            label="Checkouts"
+            value={String(insights.beginCheckout30d)}
+            detail={`${insights.purchases30d} paid units`}
+          />
+          <InsightCard
+            label="CVR"
+            value={formatPercent(insights.conversionRate30d)}
+            detail={`Checkout to paid ${formatPercent(insights.checkoutToPaidRate30d)}`}
+          />
+          <InsightCard
+            label="Revenue"
+            value={formatCurrency(insights.revenue30dCents)}
+            detail={`Margin ${formatCurrency(insights.margin30dCents)}`}
+          />
+          <InsightCard
+            label="Returns"
+            value={formatPercent(insights.returnRate30d)}
+            detail={`${insights.returnedUnits30d} returned units`}
+          />
+          <InsightCard
+            label="Stock cover"
+            value={
+              typeof insights.stockCoverDays === "number"
+                ? `${Math.round(insights.stockCoverDays)}d`
+                : "—"
+            }
+            detail="Based on the last 30 days sales velocity"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Top traffic sources
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topTrafficSources.length === 0 ? (
+                <p className="text-sm text-slate-500">No source data captured for this product yet.</p>
+              ) : (
+                insights.topTrafficSources.map((source) => (
+                  <div
+                    key={source.label}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{source.label}</span>
+                    <span className="shrink-0 text-sm font-semibold text-cyan-200">
+                      {source.count} views
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Return reasons
+            </p>
+            <div className="mt-4 space-y-3">
+              {insights.topReturnReasons.length === 0 ? (
+                <p className="text-sm text-slate-500">No return reasons recorded in the last 30 days.</p>
+              ) : (
+                insights.topReturnReasons.map((reason) => (
+                  <div
+                    key={reason.reason}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  >
+                    <span className="truncate text-sm text-slate-200">{reason.reason}</span>
+                    <span className="shrink-0 text-sm font-semibold text-rose-200">
+                      {reason.count}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="overview"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">01</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Details</p>
+              <p className="text-xs text-slate-400">Core product information.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {details.storefronts.map((storefront) => (
+                  <span
+                    key={`hero-${storefront}`}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                      storefront === "GROW"
+                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                    }`}
+                  >
+                    {STOREFRONT_LABELS[storefront]}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -821,11 +2023,33 @@ export default function AdminProductClient({
               className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
             />
           </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Storefront visibility
+            <select
+              value={details.storefronts.join(",")}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  storefronts: event.target.value
+                    .split(",")
+                    .map((value) => value.trim())
+                    .filter(Boolean) as StorefrontCode[],
+                }))
+              }
+              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+            >
+              {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        {showGrowboxenFields && (
+        {showZelteFields && (
           <div className="mt-4 rounded-lg border border-emerald-200/70 bg-emerald-50/60 p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Growboxen
+              Zelte
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="text-xs font-semibold text-stone-600">
@@ -975,6 +2199,17 @@ export default function AdminProductClient({
               </Link>
               .
             </span>
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            Seller name
+            <input
+              value={details.sellerName}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
+              }
+              placeholder="e.g. Smokeify Marketplace"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
           </label>
           <label className="text-xs font-semibold text-stone-600">
             Seller link
@@ -1127,7 +2362,135 @@ export default function AdminProductClient({
             Separate tags with commas.
           </span>
         </label>
-        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+        <div className="mt-4 rounded-lg border border-violet-200/70 bg-violet-50/60 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
+            Merchant metadata
+          </p>
+          <p className="mt-1 text-[11px] text-stone-500">
+            Optional metadata for Google Merchant and light certificate feeds.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-xs font-semibold text-stone-600">
+              Unit pricing measure
+              <input
+                value={details.merchantUnitPricingMeasure}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantUnitPricingMeasure: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 100W"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Unit pricing base measure
+              <input
+                value={details.merchantUnitPricingBaseMeasure}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantUnitPricingBaseMeasure: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 1W"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate authority
+              <input
+                value={details.merchantCertificationAuthority}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationAuthority: event.target.value,
+                  }))
+                }
+                placeholder="e.g. EU"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate name
+              <input
+                value={details.merchantCertificationName}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationName: event.target.value,
+                  }))
+                }
+                placeholder="e.g. EPREL"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate code
+              <input
+                value={details.merchantCertificationCode}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationCode: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 123456"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+            <label className="text-xs font-semibold text-stone-600">
+              Certificate value
+              <input
+                value={details.merchantCertificationValue}
+                onChange={(event) =>
+                  setDetails((prev) => ({
+                    ...prev,
+                    merchantCertificationValue: event.target.value,
+                  }))
+                }
+                placeholder="e.g. A++"
+                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              />
+            </label>
+          </div>
+        </div>
+        <div
+          id="seo"
+          className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
+        >
+          <label className="text-xs font-semibold text-stone-600">
+            SEO title
+            <input
+              value={details.seoTitle}
+              onChange={(event) =>
+                setDetails((prev) => ({ ...prev, seoTitle: event.target.value }))
+              }
+              placeholder="Search result title"
+              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-stone-600">
+            SEO description
+            <textarea
+              value={details.seoDescription}
+              onChange={(event) =>
+                setDetails((prev) => ({
+                  ...prev,
+                  seoDescription: event.target.value,
+                }))
+              }
+              rows={3}
+              placeholder="Search result description"
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <div
+          id="content"
+          className="scroll-mt-32 mt-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3"
+        >
           <button
             type="button"
             onClick={() => setDescriptionsOpen((prev) => !prev)}
@@ -1215,6 +2578,32 @@ export default function AdminProductClient({
           )}
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
+          {mergedPolicyViolations.length > 0 && (
+            <div className="w-full rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">
+                Policy warning: revise text before saving.
+              </p>
+              <ul className="mt-1 list-disc pl-4">
+                {policyViolationSummary.map((entry) => (
+                  <li key={entry.label}>
+                    {entry.label}: {entry.matches.join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {details.storefronts.map((storefront) => (
+            <span
+              key={`footer-${storefront}`}
+              className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold ${
+                storefront === "GROW"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-cyan-200 bg-cyan-50 text-cyan-700"
+              }`}
+            >
+              {STOREFRONT_LABELS[storefront]}
+            </span>
+          ))}
           <select
             value={details.status}
             onChange={(event) =>
@@ -1234,187 +2623,299 @@ export default function AdminProductClient({
           <button
             type="button"
             onClick={saveDetails}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#24312b]"
+            disabled={hasEditorPolicyViolations}
+            className="h-10 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Save details
           </button>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-amber-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(251,191,36,0.14)]">
+      <section
+        id="associations"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-sm font-semibold text-amber-900">02</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm font-semibold text-amber-200">02</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Categories & collections</p>
-            <p className="text-xs text-stone-500">Organize where this product appears.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Categories & collections</p>
+            <p className="text-xs text-slate-400">Organize where this product appears.</p>
           </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="flex h-full flex-col">
-            <p className="text-xs font-semibold text-stone-600 mb-2">Categories</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {parentCategories.map((item) => {
-                const selected = categoryIds.has(item.id);
-                const parentName = item.parentId
-                  ? categoryNameById.get(item.parentId)
-                  : null;
-                return (
-                <label
-                  key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={categoryIds.has(item.id)}
-                    onChange={() => {
-                      setCategoryIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                  <span className="flex flex-col">
-                    <span>{item.name}</span>
-                    {parentName && (
-                      <span className="text-[11px] font-semibold text-emerald-700/70">
-                        Parent: {parentName}
-                      </span>
-                    )}
-                  </span>
-                </label>
-                );
-              })}
-              {parentCategories.length === 0 && (
-                <p className="text-xs text-stone-500">No categories yet.</p>
-              )}
-            </div>
-            <p className="mt-5 text-xs font-semibold text-stone-600 mb-2">
-              Subcategories
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {childCategories.map((item) => {
-                const selected = categoryIds.has(item.id);
-                const parentName = item.parentId
-                  ? categoryNameById.get(item.parentId)
-                  : null;
-                return (
-                <label
-                  key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                      : "border-emerald-100 bg-emerald-50/50 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={categoryIds.has(item.id)}
-                    onChange={() => {
-                      setCategoryIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                  <span className="flex flex-col">
-                    <span>{item.name}</span>
-                    <span className="text-[11px] font-semibold text-emerald-700/70">
-                      {parentName ? `Parent: ${parentName}` : "No parent"}
-                    </span>
-                  </span>
-                </label>
-                );
-              })}
-              {childCategories.length === 0 && (
-                <p className="text-xs text-stone-500">No subcategories yet.</p>
-              )}
-            </div>
-            <div className="mt-auto pt-3">
-              <button
-                type="button"
-                onClick={saveCategories}
-                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-              >
-                Save categories
-              </button>
-            </div>
+        <div className="space-y-4">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                <path
+                  d="M21 21l-4.2-4.2m1.7-5.1a6.8 6.8 0 11-13.6 0 6.8 6.8 0 0113.6 0z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              value={categorySearch}
+              onChange={(event) => setCategorySearch(event.target.value)}
+              placeholder="Kategorie / Subkategorie suchen ..."
+              className="h-11 w-full rounded-full border border-black/10 bg-white px-10 text-sm shadow-sm"
+            />
           </div>
-          <div className="flex h-full flex-col">
-            <p className="text-xs font-semibold text-stone-600 mb-2">Collections</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {collections.map((item) => {
-                const selected = collectionIds.has(item.id);
-                return (
-                <label
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            {[
+              { id: "all", label: "Alle" },
+              { id: "selected", label: "Nur ausgewählte" },
+              { id: "parent", label: "Kategorien" },
+              { id: "child", label: "Subkategorien" },
+            ].map((item) => {
+              const active = categoryFilter === item.id;
+              return (
+                <button
                   key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    selected
-                      ? "border-violet-300 bg-violet-100/70 text-violet-900"
-                      : "border-violet-100 bg-violet-50/50 text-stone-700 hover:border-violet-200 hover:bg-violet-50/80"
+                  type="button"
+                  onClick={() =>
+                    setCategoryFilter(
+                      item.id as "all" | "selected" | "parent" | "child"
+                    )
+                  }
+                  className={`h-9 rounded-full border px-4 transition ${
+                    active
+                      ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                      : "border-black/10 bg-white text-stone-600 hover:border-emerald-200 hover:text-emerald-700"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={collectionIds.has(item.id)}
-                    onChange={() => {
-                      setCollectionIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.id)) {
-                          next.delete(item.id);
-                        } else {
-                          next.add(item.id);
-                        }
-                        return next;
-                      });
-                    }}
-                    className="h-4 w-4 accent-violet-600"
-                  />
-                  {item.name}
-                </label>
-                );
-              })}
-              {collections.length === 0 && (
-                <p className="text-xs text-stone-500">No collections yet.</p>
-              )}
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr_0.9fr]">
+            <div className="rounded-2xl border border-black/10 bg-white p-4">
+              <p className="text-xs font-semibold text-stone-600">Kategorien</p>
+              <div className="mt-3 space-y-2">
+                {filteredParentCategories.map((item) => {
+                  const selected = categoryIds.has(item.id);
+                  const isActive = activeParentId === item.id;
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                        selected
+                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                      } ${isActive ? "ring-1 ring-emerald-300" : ""}`}
+                      onClick={() => setActiveParentId(item.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          setCategoryIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              parentCategories.forEach((parent) => {
+                                if (parent.id !== item.id) {
+                                  next.delete(parent.id);
+                                }
+                              });
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                      <span>{item.name}</span>
+                    </label>
+                  );
+                })}
+                {filteredParentCategories.length === 0 && (
+                  <p className="text-xs text-stone-500">No categories yet.</p>
+                )}
+              </div>
             </div>
-            <div className="mt-auto pt-3">
-              <button
-                type="button"
-                onClick={saveCollections}
-                className="h-10 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-              >
-                Save collections
-              </button>
+            <div className="rounded-2xl border border-black/10 bg-white p-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-700">
+                <span>Subkategorien für:</span>
+                <span className="text-emerald-700">{activeParentName}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-stone-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds((prev) => {
+                      const next = new Set(prev);
+                      visibleChildCategories.forEach((item) => next.add(item.id));
+                      return next;
+                    });
+                  }}
+                  className="hover:text-emerald-700"
+                >
+                  Alle auswählen
+                </button>
+                <span className="text-stone-300">|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds((prev) => {
+                      const next = new Set(prev);
+                      visibleChildCategories.forEach((item) => next.delete(item.id));
+                      return next;
+                    });
+                  }}
+                  className="hover:text-emerald-700"
+                >
+                  Alle abwählen
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {visibleChildCategories.map((item) => {
+                  const selected = categoryIds.has(item.id);
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                        selected
+                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          setCategoryIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                      <span>{item.name}</span>
+                    </label>
+                  );
+                })}
+                {visibleChildCategories.length === 0 && (
+                  <p className="text-xs text-stone-500">No subcategories yet.</p>
+                )}
+              </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={saveCategories}
+                  className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                >
+                  Save categories
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-black/10 bg-white p-4">
+                <p className="text-xs font-semibold text-stone-600">Collections</p>
+                <div className="mt-3 space-y-2">
+                  {collections.map((item) => {
+                    const selected = collectionIds.has(item.id);
+                    return (
+                      <label
+                        key={item.id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                          selected
+                            ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
+                            : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            setCollectionIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) {
+                                next.delete(item.id);
+                              } else {
+                                next.add(item.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-4 accent-emerald-600"
+                        />
+                        {item.name}
+                      </label>
+                    );
+                  })}
+                  {collections.length === 0 && (
+                    <p className="text-xs text-stone-500">No collections yet.</p>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={saveCollections}
+                    className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                  >
+                    Save collections
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-black/10 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Auswahl Übersicht
+                </p>
+                <div className="mt-3 space-y-2 text-sm text-stone-600">
+                  <p>Kategorien: {selectedCategoryCount} gewählt</p>
+                  <p>Subkategorien: {selectedChildCount} gewählt</p>
+                  <p>Collections: {selectedCollectionCount} gewählt</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryIds(new Set());
+                    setCollectionIds(new Set());
+                  }}
+                  className="mt-4 h-10 w-full rounded-md border border-amber-200 bg-amber-50 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-sky-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(56,189,248,0.14)]">
+      <section
+        id="media"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">03</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sm font-semibold text-sky-200">03</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Images</p>
-            <p className="text-xs text-stone-500">Upload, reorder, and describe media.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Images</p>
+            <p className="text-xs text-slate-400">Upload, reorder, and describe media.</p>
           </div>
         </div>
-        <div className="rounded-md border border-dashed border-[#2f3e36]/20 bg-[#f8fbf6] px-4 py-3 mb-5">
+          <div
+            className={`rounded-md border border-dashed px-4 py-3 mb-5 transition ${
+              uploadDragActive
+                ? "border-cyan-400/40 bg-cyan-400/10"
+                : "border-white/10 bg-white/[0.03]"
+            }`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setUploadDragActive(true);
+            }}
+            onDragLeave={() => setUploadDragActive(false)}
+            onDrop={handleUploadDrop}
+          >
           <p className="text-xs font-semibold text-stone-600">Upload images</p>
           <p className="mt-1 text-xs text-stone-500">
             JPG, PNG, or WEBP up to 5MB. Stored locally in `public/uploads`.
@@ -1447,10 +2948,7 @@ export default function AdminProductClient({
               }}
             >
               <div className="mx-auto w-full max-w-5xl">
-                <div className="mb-2 flex items-center gap-2 text-xs text-stone-500">
-                  {reordering && <span>Saving order…</span>}
-                </div>
-                <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto_auto]">
+                <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto]">
                   <div className="flex h-20 items-center justify-center self-start">
                     <span
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-400 shadow-sm cursor-grab select-none"
@@ -1463,11 +2961,13 @@ export default function AdminProductClient({
                   </div>
                   <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
                     {image.url ? (
-                      <img
+                      <Image
                         src={image.url}
                         alt={image.altText ?? "Image preview"}
                         className="h-full w-full object-cover"
-                        loading="lazy"
+                        width={96}
+                        height={80}
+                        sizes="96px"
                       />
                     ) : (
                       <span className="text-[10px] text-stone-400">
@@ -1531,19 +3031,7 @@ export default function AdminProductClient({
                     </span>
                     <button
                       type="button"
-                      onClick={() => updateImage(image)}
-                      className="h-10 rounded-md border border-black/15 px-3 text-xs font-semibold"
-                    >
-                      Save
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-1 items-center">
-                    <span className="text-[11px] font-semibold text-transparent">
-                      Actions
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => deleteImage(image.id)}
+                      onClick={() => void deleteImage(image.id)}
                       className="flex h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                       aria-label="Delete image"
                     >
@@ -1563,11 +3051,13 @@ export default function AdminProductClient({
             <div className="grid items-start gap-3 md:grid-cols-[96px_1.6fr_1fr_120px_auto]">
               <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
                 {newImage.url ? (
-                  <img
+                  <Image
                     src={newImage.url}
                     alt={newImage.altText || "New image preview"}
                     className="h-full w-full object-cover"
-                    loading="lazy"
+                    width={96}
+                    height={80}
+                    sizes="96px"
                   />
                 ) : (
                   <span className="text-[10px] text-stone-400">Preview</span>
@@ -1616,7 +3106,7 @@ export default function AdminProductClient({
                 <button
                   type="button"
                   onClick={addImage}
-                  className="h-10 rounded-md bg-[#2f3e36] px-3 text-xs font-semibold text-white hover:bg-[#24312b]"
+                  className="h-10 rounded-xl bg-cyan-300 px-3 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
                 >
                   Add image
                 </button>
@@ -1626,19 +3116,22 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-violet-200/70 bg-white/90 p-6 shadow-[0_18px_40px_rgba(167,139,250,0.18)]">
+      <section
+        id="variants"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">04</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">Variants & stock</p>
-            <p className="text-xs text-stone-500">Pricing, inventory, and options.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Variants & stock</p>
+            <p className="text-xs text-slate-400">Pricing, inventory, and options.</p>
           </div>
         </div>
         <div className="space-y-6">
           {variantRows.map((variant) => (
             <div
               key={variant.id}
-              className="rounded-lg border border-[#2f3e36]/10 bg-[#f6f9f4] p-4"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingVariantId) {
@@ -1656,7 +3149,6 @@ export default function AdminProductClient({
                   >
                     ⠿
                   </span>
-                  {reorderingVariants && <span>Saving order…</span>}
                 </div>
                 <div className="space-y-3">
                   <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
@@ -1926,20 +3418,46 @@ export default function AdminProductClient({
                       {toEuro(variant.priceCents - variant.costCents)}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => updateVariant(variant)}
-                    className="h-10 rounded-md border border-[#2f3e36]/20 px-4 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-                  >
-                    Save changes
-                  </button>
+                  <div className="w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-[11px] text-stone-600">
+                    <div className="mb-1 font-semibold text-stone-700">
+                      Cost incl. payment fees
+                    </div>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      {CATALOG_PAYMENT_FEES.map((provider) => {
+                        const adjusted = calculateAdjustedCostForProvider(
+                          variant.priceCents,
+                          variant.costCents,
+                          provider
+                        );
+                        return (
+                          <div key={`${variant.id}-${provider.label}`}>
+                            <span className="font-semibold">{provider.label}:</span>{" "}
+                            {toEuro(adjusted.adjustedCost)}{" "}
+                            <span
+                              className={
+                                adjusted.profit >= 0 ? "text-stone-700" : "text-red-600"
+                              }
+                            >
+                              (Profit {toEuro(adjusted.profit)})
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-1 text-[10px] text-stone-500">
+                      Shipping fee base estimate: +7.90 EUR only for items {"\u003e="} 100 EUR.
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       setConfirmVariantId(variant.id);
                       setConfirmVariantTitle(variant.title);
                       setConfirmVariantText("");
+                      setConfirmVariantReason("");
                       setConfirmVariantError("");
+                      setConfirmVariantPassword("");
+                      setConfirmVariantPasswordError("");
                     }}
                     className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
                     aria-label="Delete variant"
@@ -1948,113 +3466,195 @@ export default function AdminProductClient({
                   </button>
                 </div>
 
-                <div className="rounded-md border border-[#2f3e36]/10 bg-[#f8fbf6] px-3 py-3">
-                  <p className="text-xs font-semibold text-stone-600">Options</p>
-                  <p className="mt-1 text-xs text-stone-500">
-                    Add option pairs like Size: Small or Color: Black.
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {variant.options.map((opt, optIndex) => (
-                      <div
-                        key={opt.id}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
-                      >
-                        <input
-                          value={opt.name}
-                          onChange={(event) =>
-                            setVariants((prev) =>
-                              prev.map((item) =>
-                                item.id === variant.id
-                                  ? {
-                                      ...item,
-                                      options: item.options.map(
-                                        (row, rowIndex) =>
-                                          rowIndex === optIndex
-                                            ? { ...row, name: event.target.value }
-                                            : row
-                                      ),
-                                    }
-                                  : item
-                              )
-                            )
-                          }
-                          placeholder="Option name"
-                          className="h-9 w-full min-w-0 rounded-md border border-black/15 px-3 text-xs"
-                        />
-                        <input
-                          value={opt.value}
-                          onChange={(event) =>
-                            setVariants((prev) =>
-                              prev.map((item) =>
-                                item.id === variant.id
-                                  ? {
-                                      ...item,
-                                      options: item.options.map(
-                                        (row, rowIndex) =>
-                                          rowIndex === optIndex
-                                            ? {
-                                                ...row,
-                                                value: event.target.value,
-                                              }
-                                            : row
-                                      ),
-                                    }
-                                  : item
-                              )
-                            )
-                          }
-                          placeholder="Option value"
-                          className="h-9 w-full min-w-0 rounded-md border border-black/15 px-3 text-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setVariants((prev) =>
-                              prev.map((item) =>
-                                item.id === variant.id
-                                  ? {
-                                      ...item,
-                                      options: item.options.filter(
-                                        (_, rowIndex) => rowIndex !== optIndex
-                                      ),
-                                    }
-                                  : item
-                              )
-                            )
-                          }
-                          className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                        >
-                          Remove
-                        </button>
+                  <div className="rounded-2xl border border-black/10 bg-white/70 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-700">
+                          Options
+                        </p>
+                        <p className="mt-1 text-xs text-stone-500">
+                          Create multiple attribute options for this product.
+                        </p>
                       </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVariants((prev) =>
-                          prev.map((item) =>
-                            item.id === variant.id
-                              ? {
-                                  ...item,
-                                  options: [
-                                    ...item.options,
-                                    {
-                                      id: `${item.id}-${Date.now()}`,
-                                      name: "",
-                                      value: "",
-                                    },
-                                  ],
-                                }
-                              : item
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVariants((prev) =>
+                            prev.map((item) =>
+                              item.id === variant.id
+                                ? {
+                                    ...item,
+                                    options: [
+                                      ...item.options,
+                                      {
+                                        id: `${item.id}-${Date.now()}`,
+                                        name: "",
+                                        value: "",
+                                        imagePosition: null,
+                                      },
+                                    ],
+                                  }
+                                : item
+                            )
                           )
-                        )
-                      }
-                      className="h-9 rounded-md border border-[#2f3e36]/20 px-3 text-xs font-semibold text-[#2f3e36] hover:border-[#2f3e36]/40"
-                    >
-                      Add option
-                    </button>
+                        }
+                        className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                      >
+                        <span className="text-base leading-none">＋</span>
+                        Add value
+                      </button>
+                    </div>
+                    <div className="mt-4 overflow-hidden rounded-xl border border-black/10 bg-white">
+                      <div className="grid gap-2 border-b border-black/5 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]">
+                        <span />
+                        <span>Option</span>
+                        <span>Value</span>
+                        <span>Image position</span>
+                        <span className="text-right">Actions</span>
+                      </div>
+                      <div className="divide-y divide-black/5">
+                        {variant.options.map((opt, optIndex) => (
+                          <div
+                            key={opt.id}
+                            className="grid items-center gap-2 px-3 py-2 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={() => {
+                              if (
+                                draggingOption &&
+                                draggingOption.variantId === variant.id
+                              ) {
+                                reorderVariantOptions(
+                                  variant.id,
+                                  draggingOption.optionId,
+                                  opt.id
+                                );
+                                setDraggingOption(null);
+                              }
+                            }}
+                          >
+                            <div className="flex h-9 items-center justify-center">
+                              <span
+                                className="cursor-grab select-none text-stone-400"
+                                draggable
+                                onDragStart={() =>
+                                  setDraggingOption({
+                                    variantId: variant.id,
+                                    optionId: opt.id,
+                                  })
+                                }
+                                onDragEnd={() => setDraggingOption(null)}
+                                aria-label="Drag option"
+                              >
+                                ⋮⋮
+                              </span>
+                            </div>
+                            <input
+                              value={opt.name}
+                              onChange={(event) =>
+                                setVariants((prev) =>
+                                  prev.map((item) =>
+                                    item.id === variant.id
+                                      ? {
+                                          ...item,
+                                          options: item.options.map(
+                                            (row, rowIndex) =>
+                                              rowIndex === optIndex
+                                                ? { ...row, name: event.target.value }
+                                                : row
+                                          ),
+                                        }
+                                      : item
+                                  )
+                                )
+                              }
+                              placeholder="Option name"
+                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                            />
+                            <input
+                              value={opt.value}
+                              onChange={(event) =>
+                                setVariants((prev) =>
+                                  prev.map((item) =>
+                                    item.id === variant.id
+                                      ? {
+                                          ...item,
+                                          options: item.options.map(
+                                            (row, rowIndex) =>
+                                              rowIndex === optIndex
+                                                ? { ...row, value: event.target.value }
+                                                : row
+                                          ),
+                                        }
+                                      : item
+                                  )
+                                )
+                              }
+                              placeholder="Option value"
+                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              value={
+                                typeof opt.imagePosition === "number"
+                                  ? opt.imagePosition
+                                  : ""
+                              }
+                              onChange={(event) => {
+                                const raw = event.target.value.trim();
+                                const nextValue = raw === "" ? null : Number(raw);
+                                const sanitized =
+                                  typeof nextValue === "number" &&
+                                  Number.isFinite(nextValue)
+                                    ? Math.max(0, Math.floor(nextValue))
+                                    : null;
+                                setVariants((prev) =>
+                                  prev.map((item) =>
+                                    item.id === variant.id
+                                      ? {
+                                          ...item,
+                                          options: item.options.map(
+                                            (row, rowIndex) =>
+                                              rowIndex === optIndex
+                                                ? { ...row, imagePosition: sanitized }
+                                                : row
+                                          ),
+                                        }
+                                      : item
+                                  )
+                                );
+                              }}
+                              placeholder="0"
+                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                            />
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVariants((prev) =>
+                                    prev.map((item) =>
+                                      item.id === variant.id
+                                        ? {
+                                            ...item,
+                                            options: item.options.filter(
+                                              (_, rowIndex) => rowIndex !== optIndex
+                                            ),
+                                          }
+                                        : item
+                                    )
+                                  )
+                                }
+                                className="inline-flex h-9 w-10 items-center justify-center rounded-md border border-black/10 text-stone-500 hover:border-red-200 hover:text-red-600"
+                                aria-label="Remove option"
+                              >
+                                <TrashIcon className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
               </div>
             </div>
           ))}
@@ -2063,26 +3663,205 @@ export default function AdminProductClient({
           )}
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setAddVariantOpen(true)}
-            className="h-10 rounded-md bg-[#2f3e36] px-4 text-sm font-semibold text-white hover:bg-[#24312b]"
-          >
-            Add variant
-          </button>
+      </section>
+
+      <AdminVariantPricingProfiles
+        variants={variants.map((variant) => ({
+          id: variant.id,
+          title: variant.title,
+          sku: variant.sku,
+          priceCents: variant.priceCents,
+        }))}
+        pricingProfilesByVariantId={pricingProfilesByVariantId}
+        pricingIntegrationError={pricingIntegrationError}
+      />
+
+      <section
+        id="cross-sells"
+        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-white">
+              Manual recommendation overrides
+            </h2>
+            <p className="text-xs text-slate-400">
+              Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {fbtItems.length > 0 ? (
+            <div className="space-y-2">
+              {fbtItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white px-3 py-2"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">
+                      {index + 1}
+                    </span>
+                    {item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.title}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-md border border-black/10 object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md border border-dashed border-black/10 bg-stone-50" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-stone-800">
+                        {item.title}
+                      </p>
+                      <p className="truncate text-xs text-stone-500">/{item.handle}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFbtItems((prev) => prev.filter((entry) => entry.id !== item.id));
+                      setFbtMessage("");
+                    }}
+                    className="h-8 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-500">Noch keine manuellen Overrides ausgewählt.</p>
+          )}
+
+          <div className="rounded-lg border border-black/10 bg-stone-50 p-3">
+            <label className="text-xs font-semibold text-stone-600">
+              Produkt suchen
+              <input
+                value={fbtSearch}
+                onChange={(event) => {
+                  setFbtSearch(event.target.value);
+                  setFbtMessage("");
+                }}
+                placeholder="Titel eingeben..."
+                className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-black/30"
+              />
+            </label>
+
+            {fbtSearching ? (
+              <p className="mt-2 text-xs text-stone-500">Suche...</p>
+            ) : null}
+
+            {!fbtSearching && fbtSearch.trim() && fbtResults.length > 0 ? (
+              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-black/10 bg-white p-1">
+                {fbtResults.map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    onClick={() => {
+                      setFbtItems((prev) => {
+                        if (prev.some((item) => item.id === result.id) || prev.length >= 3) {
+                          return prev;
+                        }
+                        return [...prev, result];
+                      });
+                      setFbtSearch("");
+                      setFbtResults([]);
+                      setFbtMessage("");
+                    }}
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-stone-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-stone-800">
+                        {result.title}
+                      </span>
+                      <span className="block truncate text-xs text-stone-500">
+                        /{result.handle}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-cyan-200">Hinzufügen</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {fbtItems.length >= 3 ? (
+              <p className="mt-2 text-xs text-amber-700">
+                Maximum erreicht (3 Produkte).
+              </p>
+            ) : null}
+          </div>
+
+          {fbtMessage ? (
+            <p
+              className={`text-xs font-medium ${
+                fbtMessage === "Saved" ? "text-emerald-700" : "text-red-600"
+              }`}
+            >
+              {fbtMessage}
+            </p>
+          ) : null}
         </div>
       </section>
 
+      <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-4 sm:px-4 sm:pb-0">
+        <div className="mx-auto w-full max-w-6xl rounded-[20px] border border-white/10 bg-[#05070a]/92 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[24px] sm:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
+                {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
+              </span>
+              {dirtySections.map((section) => (
+                <span
+                  key={section}
+                  className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200"
+                >
+                  {section}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                onClick={discardLocalDraft}
+                disabled={!hasUnsavedChanges}
+                className="w-full rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-400 sm:w-auto"
+              >
+                Discard local draft
+              </button>
+              <button
+                type="button"
+                onClick={saveAllChanges}
+                disabled={!hasUnsavedChanges || savingAllChanges}
+                className="w-full rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:w-auto"
+              >
+                {savingAllChanges ? "Saving..." : "Save all changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200 sm:w-auto"
+              >
+                Reload latest
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {addVariantOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
+          <div className="admin-product-modal relative max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:rounded-[28px] sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-stone-900">
@@ -2160,69 +3939,99 @@ export default function AdminProductClient({
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              {newVariant.options.map((opt, index) => (
-                <div
-                  key={index}
-                  className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                >
-                  <input
-                    value={opt.name}
-                    onChange={(event) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.map((row, rowIndex) =>
-                          rowIndex === index
-                            ? { ...row, name: event.target.value }
-                            : row
-                        ),
-                      }))
-                    }
-                    placeholder="Option name"
-                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                  />
-                  <input
-                    value={opt.value}
-                    onChange={(event) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.map((row, rowIndex) =>
-                          rowIndex === index
-                            ? { ...row, value: event.target.value }
-                            : row
-                        ),
-                      }))
-                    }
-                    placeholder="Option value"
-                    className="h-9 rounded-md border border-black/15 px-3 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        options: prev.options.filter((_, rowIndex) => rowIndex !== index),
-                      }))
-                    }
-                    className="h-9 rounded-md border border-black/15 px-2 text-xs"
+              <div className="space-y-2">
+                {newVariant.options.map((opt, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-2 md:grid-cols-[1fr_1fr_110px_auto]"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    <input
+                      value={opt.name}
+                      onChange={(event) =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, name: event.target.value }
+                              : row
+                          ),
+                        }))
+                      }
+                      placeholder="Option name"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
+                    <input
+                      value={opt.value}
+                      onChange={(event) =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, value: event.target.value }
+                              : row
+                          ),
+                        }))
+                      }
+                      placeholder="Option value"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={
+                        typeof opt.imagePosition === "number"
+                          ? opt.imagePosition
+                          : ""
+                      }
+                      onChange={(event) => {
+                        const raw = event.target.value.trim();
+                        const nextValue = raw === "" ? null : Number(raw);
+                        const sanitized =
+                          typeof nextValue === "number" &&
+                          Number.isFinite(nextValue)
+                            ? Math.max(0, Math.floor(nextValue))
+                            : null;
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? { ...row, imagePosition: sanitized }
+                              : row
+                          ),
+                        }));
+                      }}
+                      placeholder="Image #"
+                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewVariant((prev) => ({
+                          ...prev,
+                          options: prev.options.filter((_, rowIndex) => rowIndex !== index),
+                        }))
+                      }
+                      className="h-9 rounded-md border border-black/15 px-2 text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() =>
                   setNewVariant((prev) => ({
                     ...prev,
-                    options: [...prev.options, { name: "", value: "" }],
+                    options: [...prev.options, { name: "", value: "", imagePosition: null }],
                   }))
                 }
                 className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"
               >
-                Add option
+                New option
               </button>
             </div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
@@ -2233,7 +4042,7 @@ export default function AdminProductClient({
               <button
                 type="button"
                 onClick={addVariant}
-                className="h-10 rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
+                className="h-10 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
               >
                 Add variant
               </button>
@@ -2243,8 +4052,8 @@ export default function AdminProductClient({
       )}
 
       {confirmVariantId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 py-3 sm:items-center sm:px-4">
+          <div className="admin-product-modal max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
             <h3 className="text-base font-semibold text-stone-900">
               Variante löschen
             </h3>
@@ -2264,8 +4073,37 @@ export default function AdminProductClient({
               className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               placeholder="Bestätigen"
             />
+            <textarea
+              value={confirmVariantReason}
+              onChange={(event) => {
+                setConfirmVariantReason(event.target.value);
+                if (confirmVariantError) {
+                  setConfirmVariantError("");
+                }
+              }}
+              rows={3}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Grund für das Löschen"
+            />
+            <input
+              type="password"
+              value={confirmVariantPassword}
+              onChange={(event) => {
+                setConfirmVariantPassword(event.target.value);
+                if (confirmVariantPasswordError) {
+                  setConfirmVariantPasswordError("");
+                }
+              }}
+              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              placeholder="Admin-Passwort"
+            />
             {confirmVariantError && (
               <p className="mt-2 text-xs text-red-600">{confirmVariantError}</p>
+            )}
+            {confirmVariantPasswordError && (
+              <p className="mt-2 text-xs text-red-600">
+                {confirmVariantPasswordError}
+              </p>
             )}
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
@@ -2273,6 +4111,10 @@ export default function AdminProductClient({
                 onClick={() => {
                   setConfirmVariantId(null);
                   setConfirmVariantError("");
+                  setConfirmVariantReason("");
+                  setConfirmVariantPassword("");
+                  setConfirmVariantPasswordError("");
+                  setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
                 className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30 disabled:opacity-60"
@@ -2286,12 +4128,28 @@ export default function AdminProductClient({
                     setConfirmVariantError("Bitte Bestätigen eingeben.");
                     return;
                   }
+                  const reason = confirmVariantReason.trim();
+                  if (!reason) {
+                    setConfirmVariantError("Bitte einen Grund angeben.");
+                    return;
+                  }
+                  const adminPassword = confirmVariantPassword.trim();
+                  if (!adminPassword) {
+                    setConfirmVariantPasswordError(
+                      "Bitte Admin-Passwort eingeben."
+                    );
+                    return;
+                  }
                   if (!confirmVariantId) return;
                   setConfirmVariantLoading(true);
                   setConfirmVariantError("");
-                  await deleteVariant(confirmVariantId);
+                  await deleteVariant(confirmVariantId, adminPassword, reason);
                   setConfirmVariantLoading(false);
                   setConfirmVariantId(null);
+                  setConfirmVariantReason("");
+                  setConfirmVariantPassword("");
+                  setConfirmVariantPasswordError("");
+                  setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
                 className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
@@ -2302,6 +4160,95 @@ export default function AdminProductClient({
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select) {
+          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select)::placeholder {
+          color: #64748b;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(input:not([type="file"]), textarea, select):focus {
+          border-color: rgba(34, 211, 238, 0.35);
+          background: rgba(255, 255, 255, 0.06);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.02),
+            0 0 0 1px rgba(34, 211, 238, 0.12);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+          border-color: rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.03);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.text-stone-500, .text-stone-600) {
+          color: #94a3b8;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          :is(.text-stone-700, .text-stone-800, .text-stone-900) {
+          color: #f8fafc;
+        }
+
+        .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
+          .bg-stone-50 {
+          background: rgba(255, 255, 255, 0.04);
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select) {
+          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select)::placeholder {
+          color: #64748b;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(input, textarea, select):focus {
+          border-color: rgba(34, 211, 238, 0.35);
+          box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12);
+        }
+
+        .admin-product-redesign .admin-product-modal :is(.text-stone-500, .text-stone-600, .text-stone-700) {
+          color: #94a3b8;
+        }
+
+        .admin-product-redesign .admin-product-modal :is(.text-stone-800, .text-stone-900) {
+          color: #f8fafc;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function InsightCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-sm text-slate-400">{detail}</p>
     </div>
   );
 }

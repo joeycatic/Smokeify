@@ -2,10 +2,13 @@
 import type { ReactNode } from "react";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { Navbar } from "./Navbar";
+import CommerceShell from "./CommerceShell";
 import Footer from "./Footer";
+import SimpleHeader from "./SimpleHeader";
 
 type PageLayoutProps = {
   children: ReactNode;
+  commerce?: boolean;
 };
 
 type LayoutSectionProps = {
@@ -14,7 +17,7 @@ type LayoutSectionProps = {
 
 function PageShell({ children }: LayoutSectionProps) {
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col">
+    <main className="smk-shell flex min-h-screen flex-col">
       {children}
     </main>
   );
@@ -22,21 +25,36 @@ function PageShell({ children }: LayoutSectionProps) {
 
 function PageContainer({ children }: LayoutSectionProps) {
   return (
-    <div className="mx-auto w-full flex-1 px-3 sm:px-4 lg:max-w-6xl">
+    <div className="mx-auto w-full flex-1 px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
       {children}
     </div>
   );
 }
 
-export default function PageLayout({ children }: PageLayoutProps) {
+export default async function PageLayout({
+  children,
+  commerce = true,
+}: PageLayoutProps) {
+  if (!commerce) {
+    return (
+      <PageShell>
+        <SimpleHeader />
+        <PageContainer>{children}</PageContainer>
+        <Footer />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
-      <AnnouncementBar />
-      <PageContainer>
-        <Navbar />
-        {children}
-      </PageContainer>
-      <Footer />
+      <CommerceShell>
+        <AnnouncementBar />
+        <PageContainer>
+          <Navbar />
+          {children}
+        </PageContainer>
+        <Footer />
+      </CommerceShell>
     </PageShell>
   );
 }

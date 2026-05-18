@@ -1,10 +1,15 @@
 import PageLayout from "@/components/PageLayout";
+import {
+  FREE_SHIPPING_THRESHOLD_EUR,
+  SHIPPING_BASE,
+  SHIPPING_COUNTRY_LABELS,
+} from "@/lib/shippingPolicy";
 
 export const VERSAND_ZAHLUNG_SECTIONS = [
   {
     title: "§1 Versandgebiet",
     paragraphs: [
-      `Die Lieferung erfolgt innerhalb Deutschlands. Lieferungen in andere Länder erfolgen nur, sofern dies im Bestellprozess ausdrücklich angeboten wird.`,
+      `Die Lieferung erfolgt EU-weit. Lieferungen in weitere Länder erfolgen nur, sofern dies im Bestellprozess ausdrücklich angeboten wird.`,
     ],
   },
   {
@@ -12,13 +17,15 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     paragraphs: [
       `Die anfallenden Versandkosten werden dem Kunden im Bestellprozess deutlich mitgeteilt.`,
       `Sofern nicht anders angegeben, fallen keine zusätzlichen Kosten für Verpackung oder Bearbeitung an.`,
+      `Ab einem Bestellwert von ${FREE_SHIPPING_THRESHOLD_EUR.toFixed(2)} EUR liefern wir versandkostenfrei.`,
     ],
   },
   {
     title: "§3 Lieferzeiten",
     paragraphs: [
-      `Die Lieferzeit beträgt, sofern nicht beim jeweiligen Produkt anders angegeben, 2–5 Werktage innerhalb Deutschlands.`,
-      `An Sonn- und Feiertagen erfolgt keine Zustellung.`,
+      `Die Lieferzeit beträgt, sofern nicht beim jeweiligen Produkt anders angegeben, in der Regel 2-5 Werktage innerhalb Deutschlands und 3-7 Werktage innerhalb der EU (abhängig vom Zielland).`,
+      `Bei Speditionsware oder Direktversand können abweichende Lieferzeiten gelten.`,
+      `In der Regel erfolgt keine Zustellung an Sonn- und Feiertagen.`,
       `Kommt es zu Lieferverzögerungen, wird der Kunde unverzüglich informiert.`,
     ],
   },
@@ -33,7 +40,7 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     title: "§5 Zahlungsarten",
     paragraphs: [
       `Smokeify bietet die im Bestellprozess angezeigten Zahlungsarten an.`,
-      `Hierzu können insbesondere gehören: PayPal, Kreditkarte, Klarna, Apple Pay, Google Pay sowie weitere über Shopify Payments angebotene Zahlungsmethoden.`,
+      `Die im Shop dargestellten Zahlungslogos dienen der Orientierung; verbindlich und maßgeblich sind ausschließlich die im Checkout konkret auswählbaren Zahlungsarten.`,
     ],
   },
   {
@@ -47,21 +54,22 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
     title: "§7 Fälligkeit und Zahlungseingang",
     paragraphs: [
       `Der Kaufpreis ist unmittelbar mit Vertragsschluss fällig.`,
-      `Der Versand der Ware erfolgt erst nach bestätigtem Zahlungseingang, sofern nichts anderes vereinbart wurde.`,
+      `Der Versand der Ware erfolgt nach erfolgreicher Zahlungsautorisierung bzw. Zahlungsbestätigung, sofern nichts anderes vereinbart wurde.`,
     ],
   },
   {
     title: "§8 Rückerstattungen",
     paragraphs: [
       `Rückerstattungen erfolgen grundsätzlich über dasselbe Zahlungsmittel, das bei der ursprünglichen Transaktion verwendet wurde.`,
-      `Die Rückzahlung erfolgt spätestens innerhalb von 14 Tagen nach Eingang der retournierten Ware oder Widerrufserklärung.`,
+      `Die Rückzahlung erfolgt spätestens binnen 14 Tagen ab Zugang des Widerrufs.`,
+      `Wir können die Rückzahlung verweigern, bis wir die Ware zurückerhalten haben oder bis Sie den Nachweis erbracht haben, dass Sie die Ware zurückgesandt haben, je nachdem, welches der frühere Zeitpunkt ist (§ 357 BGB).`,
     ],
   },
 ];
 
 export default function ShippingPage() {
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
         <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <div className="mb-8">
@@ -69,11 +77,40 @@ export default function ShippingPage() {
               Versand- & Zahlungsbedingungen
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: {new Date().toLocaleDateString("de-DE")}
+              Stand: 01.02.2026
             </p>
           </div>
 
           <div className="space-y-10">
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-stone-900">
+                Aktuelle Versandkosten
+              </h2>
+              <div className="overflow-hidden rounded-2xl border border-black/10">
+                <table className="w-full border-collapse text-left text-sm text-stone-700">
+                  <thead className="bg-stone-50 text-stone-900">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Zielland</th>
+                      <th className="px-4 py-3 font-semibold">Versandkosten</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(SHIPPING_BASE).map(([country, amount]) => (
+                      <tr key={country} className="border-t border-black/10">
+                        <td className="px-4 py-3">
+                          {
+                            SHIPPING_COUNTRY_LABELS[
+                              country as keyof typeof SHIPPING_COUNTRY_LABELS
+                            ]
+                          }
+                        </td>
+                        <td className="px-4 py-3">{amount.toFixed(2)} EUR</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
             {VERSAND_ZAHLUNG_SECTIONS.map((section) => (
               <section key={section.title} className="space-y-3">
                 <h2 className="text-xl font-semibold text-stone-900">

@@ -1,32 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, slugify } from "@/lib/adminCatalog";
+import { slugify } from "@/lib/adminCatalog";
+import { logAdminAction } from "@/lib/adminAuditLog";
+import { withAdminRoute } from "@/lib/adminRoute";
+import { parseStorefronts, storefrontsToPrisma } from "@/lib/storefronts";
 
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAdminRoute(async () => {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
   });
 
   return NextResponse.json({ categories });
-}
+});
 
-export async function POST(request: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = (await request.json()) as {
-    name?: string;
-    handle?: string;
-    description?: string | null;
-    parentId?: string | null;
-  };
+export const POST = withAdminRoute(
+  async ({ request, session }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      handle?: string;
+      description?: string | null;
+      parentId?: string | null;
+      storefronts?: string[];
+    };
 
   const name = body.name?.trim();
   if (!name) {
@@ -60,8 +55,25 @@ export async function POST(request: Request) {
       handle,
       description: body.description?.trim() || null,
       parentId: parentId || null,
+      storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts, ["MAIN"])),
     },
   });
 
-  return NextResponse.json({ category });
-}
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "category.create",
+    targetType: "category",
+    targetId: category.id,
+    summary: `Created category ${category.name}`,
+  });
+
+    return NextResponse.json({ category });
+  },
+  {
+    rateLimit: {
+      keyPrefix: "admin-categories",
+      limit: 60,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

@@ -1,0 +1,137 @@
+import type { Prisma, Storefront } from "@prisma/client";
+
+export const STOREFRONTS = ["MAIN", "GROW"] as const;
+export type StorefrontCode = (typeof STOREFRONTS)[number];
+export type AdminStorefrontScope = StorefrontCode | "ALL";
+
+export const STOREFRONT_LABELS: Record<StorefrontCode, string> = {
+  MAIN: "Smokeify",
+  GROW: "GrowVault",
+};
+
+export const ADMIN_STOREFRONT_SCOPE_LABELS: Record<AdminStorefrontScope, string> = {
+  ALL: "All storefronts",
+  MAIN: STOREFRONT_LABELS.MAIN,
+  GROW: STOREFRONT_LABELS.GROW,
+};
+
+const ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES = [
+  "/admin/email-testing",
+  "/admin/finance",
+  "/admin/landing-page",
+  "/admin/reports",
+] as const;
+
+export const STOREFRONT_OPTION_ROWS = STOREFRONTS.map((code) => ({
+  value: code,
+  label: STOREFRONT_LABELS[code],
+}));
+
+export const STOREFRONT_ASSIGNMENT_OPTIONS = [
+  { value: "MAIN", label: "Smokeify only", storefronts: ["MAIN"] as StorefrontCode[] },
+  { value: "GROW", label: "GrowVault only", storefronts: ["GROW"] as StorefrontCode[] },
+  {
+    value: "MAIN,GROW",
+    label: "Smokeify + GrowVault",
+    storefronts: ["MAIN", "GROW"] as StorefrontCode[],
+  },
+] as const;
+
+const storefrontSet = new Set<string>(STOREFRONTS);
+
+export const parseStorefront = (value?: string | null): StorefrontCode | null => {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && storefrontSet.has(normalized)
+    ? (normalized as StorefrontCode)
+    : null;
+};
+
+export const parseAdminStorefrontScope = (
+  value?: string | string[] | null,
+): AdminStorefrontScope => {
+  const normalized = Array.isArray(value) ? value[0] : value;
+  if (normalized?.trim().toUpperCase() === "ALL") {
+    return "ALL";
+  }
+  return parseStorefront(normalized) ?? "ALL";
+};
+
+export const adminPathSupportsStorefrontScope = (pathname: string) =>
+  ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+export const storefrontScopeToStorefront = (
+  storefrontScope: AdminStorefrontScope,
+): StorefrontCode | null => (storefrontScope === "ALL" ? null : storefrontScope);
+
+export const parseStorefronts = (
+  value: unknown,
+  fallback: StorefrontCode[] = ["MAIN"],
+): StorefrontCode[] => {
+  if (!Array.isArray(value)) return fallback;
+
+  const normalized = Array.from(
+    new Set(
+      value
+        .map((entry) => (typeof entry === "string" ? parseStorefront(entry) : null))
+        .filter((entry): entry is StorefrontCode => entry !== null),
+    ),
+  );
+
+  return normalized.length > 0 ? normalized : fallback;
+};
+
+export const getStorefrontAssignmentValue = (storefronts: readonly string[]) => {
+  const normalized = STOREFRONT_ASSIGNMENT_OPTIONS.find((option) => {
+    if (option.storefronts.length !== storefronts.length) return false;
+    return option.storefronts.every((entry) => storefronts.includes(entry));
+  });
+  return normalized?.value ?? "MAIN";
+};
+
+export const parseStorefrontAssignmentValue = (value: string): StorefrontCode[] => {
+  const match = STOREFRONT_ASSIGNMENT_OPTIONS.find((option) => option.value === value);
+  return match ? [...match.storefronts] : ["MAIN"];
+};
+
+export const storefrontsToPrisma = (storefronts: StorefrontCode[]): Storefront[] =>
+  storefronts as Storefront[];
+
+export const storefrontsInclude = (
+  storefronts: Array<string | null | undefined>,
+  storefront: StorefrontCode,
+) => storefronts.some((entry) => entry === storefront);
+
+export const buildStorefrontProductWhere = (
+  storefront: StorefrontCode,
+  extra: Prisma.ProductWhereInput = {},
+  options?: { allowInactive?: boolean },
+): Prisma.ProductWhereInput => {
+  const andClauses: Prisma.ProductWhereInput[] = [
+    extra,
+    { storefronts: { has: storefront } },
+  ];
+
+  if (!options?.allowInactive) {
+    andClauses.unshift({ status: "ACTIVE" });
+  }
+
+  return { AND: andClauses };
+};
+
+export const buildStorefrontCategoryWhere = (
+  storefront: StorefrontCode,
+  extra: Prisma.CategoryWhereInput = {},
+): Prisma.CategoryWhereInput => ({
+  AND: [extra, { storefronts: { has: storefront } }],
+});
+
+export const buildStorefrontCollectionWhere = (
+  storefront: StorefrontCode,
+  extra: Prisma.CollectionWhereInput = {},
+): Prisma.CollectionWhereInput => {
+  if (storefront === "MAIN") {
+    return extra;
+  }
+
+  return extra;
+};

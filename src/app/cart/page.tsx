@@ -1,36 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
-import { Pixelify_Sans } from "next/font/google";
+import { useEffect, useRef, useState } from "react";
+import { TrashIcon, TruckIcon } from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
 import {
   FREE_SHIPPING_THRESHOLD_EUR,
   MIN_ORDER_TOTAL_EUR,
 } from "@/lib/checkoutPolicy";
-import PageLayout from "@/components/PageLayout";
+import {
+  getShippingAmount,
+  SHIPPING_BASE,
+  SHIPPING_COUNTRY_LABELS,
+  type ShippingCountry,
+} from "@/lib/shippingPolicy";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
-
-const SHIPPING_BASE = {
-  DE: 4.9,
-  AT: 7.9,
-  CH: 9.9,
-  EU: 8.9,
-  UK: 9.9,
-  US: 12.9,
-  OTHER: 12.9,
-} as const;
-
-type ShippingCountry = keyof typeof SHIPPING_BASE;
-
-const pixelNavFont = Pixelify_Sans({
-  weight: "400",
-  subsets: ["latin"],
-});
+import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
+import CheckoutAuthModal from "@/components/CheckoutAuthModal";
+import { trackAnalyticsEvent } from "@/lib/analytics";
+import { formatRedeemRateLabel } from "@/lib/loyalty";
+import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
+import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
 
 function formatPrice(amount: string | number, currencyCode: string) {
   const value = Number(amount);
@@ -42,11 +36,16 @@ function formatPrice(amount: string | number, currencyCode: string) {
   }).format(value);
 }
 
-function getShippingEstimate(country: ShippingCountry, itemCount: number) {
-  const base = SHIPPING_BASE[country] ?? SHIPPING_BASE.OTHER;
-  const perItem = 0.5;
-  return base + Math.max(itemCount, 0) * perItem;
-}
+const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
+  cart.lines.map((line) => ({
+    item_id: line.merchandise.id,
+    item_name: line.merchandise.product.title,
+    item_variant: line.merchandise.title,
+    item_brand: line.merchandise.product.manufacturer ?? undefined,
+    item_category: line.merchandise.product.categories?.[0]?.name,
+    price: Number(line.merchandise.price.amount),
+    quantity: line.quantity,
+  }));
 
 function normalizeCountryInput(value?: string | null): ShippingCountry | null {
   if (!value) return null;
@@ -80,18 +79,27 @@ function normalizeCountryInput(value?: string | null): ShippingCountry | null {
   return aliases[raw] ?? null;
 }
 
+const formatCartOptions = (options?: Array<{ name: string; value: string }>) => {
+  if (!options?.length) return "";
+  return options
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .filter(Boolean)
+    .join(" · ");
+};
+
 export default function CartPage() {
-  const { cart, loading, updateLine, removeLines, error, refresh } = useCart();
+  const { cart, loading, updateLine, removeLines, error } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const [country, setCountry] = useState<ShippingCountry>("DE");
-  const [postalCode, setPostalCode] = useState("");
   const [countryTouched, setCountryTouched] = useState(false);
-  const [postalTouched, setPostalTouched] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [loyaltyPointsBalance, setLoyaltyPointsBalance] = useState(0);
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
     "idle" | "loading" | "ok" | "error"
   >("idle");
@@ -99,8 +107,39 @@ export default function CartPage() {
     "idle" | "loading" | "error"
   >("idle");
   const [checkoutError, setCheckoutError] = useState("");
+  const viewCartTrackedRef = useRef<string | null>(null);
+  const shippingTrackedRef = useRef<string | null>(null);
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const canCheckout = checkoutStatus !== "loading";
+  const normalizedDiscountCode = discountCode.trim();
+  const activeDiscountCode = appliedDiscountCode || normalizedDiscountCode;
+
+  const applyDiscountCode = () => {
+    setAppliedDiscountCode(normalizedDiscountCode);
+    setCheckoutError("");
+    if (normalizedDiscountCode) {
+      setUseLoyaltyPoints(false);
+    }
+  };
+
+  const proceedToCheckout = async () => {
+    if (!cart || cart.lines.length === 0) return;
+    trackAnalyticsEvent("begin_checkout", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
+    setCheckoutStatus("loading");
+    setCheckoutError("");
+    router.push(
+      buildCheckoutStartUrl({
+        country,
+        discountCode: activeDiscountCode || undefined,
+        useLoyaltyPoints,
+      }),
+    );
+  };
 
   const startCheckout = async () => {
     if (!cart || cart.lines.length === 0) return;
@@ -113,47 +152,60 @@ export default function CartPage() {
       );
       return;
     }
-    if (!isAuthenticated) {
-      router.push(
-        `/auth/checkout?returnTo=${encodeURIComponent("/cart?startCheckout=1")}`,
-      );
+    if (status === "unauthenticated") {
+      setShowAuthModal(true);
       return;
     }
-    setCheckoutStatus("loading");
-    setCheckoutError("");
-    try {
-      const normalizedDiscountCode = discountCode.trim();
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          country,
-          postalCode,
-          discountCode: normalizedDiscountCode || undefined,
-        }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        setCheckoutStatus("error");
-        setCheckoutError(data.error ?? "Checkout fehlgeschlagen.");
-        return;
-      }
-      window.location.assign(data.url);
-    } catch {
-      setCheckoutStatus("error");
-      setCheckoutError("Checkout fehlgeschlagen.");
-    }
+    await proceedToCheckout();
   };
 
   useEffect(() => {
+    if (!cart || loading || cart.lines.length === 0) return;
+    if (viewCartTrackedRef.current === cart.id) return;
+    viewCartTrackedRef.current = cart.id;
+    trackAnalyticsEvent("view_cart", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
+  }, [cart, loading]);
+
+  useEffect(() => {
+    if (!cart) return;
+    const key = country;
+    if (shippingTrackedRef.current === key) return;
+    shippingTrackedRef.current = key;
+    trackAnalyticsEvent("add_shipping_info", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      shipping_tier: country,
+      items: toCartItems(cart),
+    });
+  }, [cart, country]);
+
+  useEffect(() => {
     if (status !== "authenticated") return;
+    if (loading) return;
+    if (!cart || cart.lines.length === 0) return;
     if (checkoutStatus !== "idle") return;
     if (searchParams.get("startCheckout") !== "1") return;
     const params = new URLSearchParams(searchParams.toString());
     params.delete("startCheckout");
     router.replace(params.toString() ? `/cart?${params.toString()}` : "/cart");
-    void startCheckout();
-  }, [checkoutStatus, router, searchParams, startCheckout, status]);
+    trackAnalyticsEvent("begin_checkout", {
+      currency: cart.cost.subtotalAmount.currencyCode,
+      value: Number(cart.cost.subtotalAmount.amount),
+      items: toCartItems(cart),
+    });
+    router.push(
+      buildCheckoutStartUrl({
+        country,
+        discountCode: activeDiscountCode || undefined,
+        useLoyaltyPoints,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, checkoutStatus, loading, router, searchParams, status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -165,16 +217,19 @@ export default function CartPage() {
         const res = await fetch("/api/account/profile", { method: "GET" });
         if (!res.ok) return;
         const data = (await res.json()) as {
-          user?: { postalCode?: string | null; country?: string | null };
+          user?: {
+            country?: string | null;
+            loyaltyPointsBalance?: number | null;
+          };
         };
         if (cancelled) return;
         const normalizedCountry = normalizeCountryInput(data.user?.country);
         if (!countryTouched && normalizedCountry) {
           setCountry(normalizedCountry);
         }
-        if (!postalTouched && data.user?.postalCode) {
-          setPostalCode(data.user.postalCode);
-        }
+        setLoyaltyPointsBalance(
+          Math.max(0, Math.floor(Number(data.user?.loyaltyPointsBalance ?? 0))),
+        );
       } finally {
         if (!cancelled) {
           setProfileLoaded(true);
@@ -186,7 +241,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [countryTouched, postalTouched, profileLoaded, status]);
+  }, [countryTouched, profileLoaded, status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -225,7 +280,7 @@ export default function CartPage() {
   if (loading) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-4xl items-center justify-center px-6 py-10 text-center">
-        <div className="flex items-center gap-3 text-stone-600">
+        <div className="flex items-center gap-3 text-[var(--smk-text-muted)]">
           <LoadingSpinner size="md" />
           <span>Warenkorb wird geladen...</span>
         </div>
@@ -235,61 +290,87 @@ export default function CartPage() {
 
   if (!cart || cart.lines.length === 0) {
     return (
-      <PageLayout>
-        <div className="mx-auto max-w-4xl px-6 py-10 text-black/80">
-          {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <div>{error}</div>
-            </div>
-          )}
-          <h1 className="text-2xl font-semibold mb-2">
-            Dein Warenkorb ist leer
-          </h1>
-          <p className="text-stone-600 mb-6">
-            Füge Produkte hinzu und komm hierher zur Übersicht.
-          </p>
-          <Link
-            href="/products"
-            className="text-green-700 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          >
-            Zu den Produkten
-          </Link>
-        </div>
-      </PageLayout>
+      <div className="mx-auto max-w-4xl px-6 py-10 text-[var(--smk-text)]">
+        {error && (
+          <div className="mb-4 rounded-[24px] border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
+            <div>{error}</div>
+          </div>
+        )}
+        <h1 className="smk-heading mb-2 text-3xl text-[var(--smk-text)]">
+          Dein Warenkorb ist leer
+        </h1>
+        <p className="mb-6 text-[var(--smk-text-muted)]">
+          Füge Produkte hinzu und komm hierher zur Übersicht.
+        </p>
+        <Link
+          href="/products"
+          className="smk-button-primary inline-flex rounded-full px-5 py-3 text-sm font-semibold focus-visible:ring-offset-black"
+        >
+          Zu den Produkten
+        </Link>
+      </div>
     );
   }
 
   const subtotal = Number(cart.cost.subtotalAmount.amount);
   const currencyCode = cart.cost.subtotalAmount.currencyCode;
-  const hasLocation = postalCode.trim().length > 0;
-  const itemCount =
-    cart.totalQuantity ??
-    cart.lines.reduce((sum, line) => sum + line.quantity, 0);
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
-  const shippingEstimate = hasLocation
-    ? freeShippingActive
-      ? 0
-      : getShippingEstimate(country, itemCount)
-    : 0;
+  const shippingEstimate = freeShippingActive ? 0 : getShippingAmount(country);
+  const appliedDiscountAmount =
+    activeDiscountCode && !useLoyaltyPoints
+      ? Math.min(subtotal + shippingEstimate, NEWSLETTER_OFFER_DISCOUNT_CENTS / 100)
+      : 0;
+  const redeemablePoints = Math.min(
+    loyaltyPointsBalance,
+    Math.max(0, Math.floor(subtotal * 100)),
+  );
+  const loyaltyDiscount = useLoyaltyPoints ? redeemablePoints / 100 : 0;
   const totalEstimate = subtotal + shippingEstimate;
+  const totalAfterDiscounts = Math.max(
+    0,
+    totalEstimate - appliedDiscountAmount - loyaltyDiscount,
+  );
   const meetsMinOrder = subtotal >= MIN_ORDER_TOTAL_EUR;
   const checkoutBlocked = !meetsMinOrder;
+  const cartProductHandles = Array.from(
+    new Set(
+      cart.lines
+        .map((line) => line.merchandise.product.handle)
+        .filter((handle): handle is string => Boolean(handle)),
+    ),
+  );
+
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-6 rounded-[24px] border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
             <div>{error}</div>
           </div>
         )}
         <div className="mb-5 flex items-center justify-between sm:mb-8">
-          <h1 className="text-2xl font-semibold text-black/80 sm:text-3xl">
+          <h1 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
             Warenkorb
           </h1>
-          <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-stone-700 shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm">
+          <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1 text-xs font-semibold text-[var(--smk-text-muted)] shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm">
             {cart.lines.length} Artikel
           </span>
+        </div>
+
+        {/* Free shipping progress bar */}
+        <div className={`mb-5 rounded-[28px] px-4 py-3.5 sm:mb-6 ${freeShippingActive ? "border border-[var(--smk-success)]/35 bg-[rgba(34,197,94,0.12)]" : "border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] shadow-sm"}`}>
+          <div className={`flex items-center gap-2 text-xs font-semibold sm:text-sm ${freeShippingActive ? "text-[var(--smk-success)]" : "text-[var(--smk-text-muted)]"}`}>
+            <TruckIcon className="h-4 w-4 shrink-0" />
+            {freeShippingActive
+              ? "Kostenloser Versand aktiv!"
+              : `Noch ${formatPrice(FREE_SHIPPING_THRESHOLD_EUR - subtotal, currencyCode)} bis zur versandkostenfreien Lieferung`}
+          </div>
+          <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD_EUR) * 100))}%` }}
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 text-black/80 sm:gap-6">
@@ -307,43 +388,48 @@ export default function CartPage() {
                     router.push(productUrl);
                   }
                 }}
-                className="flex cursor-pointer flex-col gap-4 rounded-[32px] border border-[#2f3e36]/70 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-[#2f3e36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="flex cursor-pointer flex-col gap-4 rounded-[32px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-[var(--smk-text)] shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition hover:border-[var(--smk-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 <div className="flex items-center gap-4">
                   {line.merchandise.image?.url ? (
-                    <img
+                    <Image
                       src={line.merchandise.image.url}
                       alt={
                         line.merchandise.image.altText ??
                         line.merchandise.product.title
                       }
                       className="h-20 w-20 rounded-3xl object-cover ring-1 ring-black/5"
-                      loading="lazy"
-                      decoding="async"
                       width={80}
                       height={80}
+                      sizes="80px"
                     />
                   ) : (
-                    <div className="h-20 w-20 rounded-3xl bg-stone-100 ring-1 ring-black/5" />
+                    <div className="h-20 w-20 rounded-3xl bg-[rgba(255,255,255,0.05)] ring-1 ring-white/8" />
                   )}
                   <div className="min-w-0 flex-1">
                     {line.merchandise.product.manufacturer && (
-                      <p className="text-xs uppercase tracking-wide text-[#2f3e36]">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                         {line.merchandise.product.manufacturer}
                       </p>
                     )}
-                    <p className="text-base font-semibold text-emerald-950">
+                    <p className="text-base font-semibold text-[var(--smk-text)]">
                       {line.merchandise.product.title}
                     </p>
+                    {line.merchandise.options &&
+                      line.merchandise.options.length > 0 && (
+                        <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
+                          {formatCartOptions(line.merchandise.options)}
+                        </p>
+                      )}
                     {line.merchandise.shortDescription && (
-                      <p className="mt-1 hidden text-sm text-stone-500 lg:block">
+                      <p className="mt-1 hidden text-sm text-[var(--smk-text-muted)] lg:block">
                         {line.merchandise.shortDescription}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="h-[1.5px] w-full bg-[#2f3e36]/70" />
+                <div className="h-px w-full bg-[var(--smk-border)]" />
 
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
@@ -358,11 +444,11 @@ export default function CartPage() {
                             updateLine(line.id, line.quantity - 1);
                           }
                         }}
-                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="add-to-cart-sweep h-11 w-11 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         -
                       </button>
-                      <span className="min-w-7 text-center text-sm font-semibold text-[#2f3e36]">
+                      <span className="min-w-7 text-center text-sm font-semibold text-[var(--smk-text)]">
                         {line.quantity}
                       </span>
                       <button
@@ -371,7 +457,7 @@ export default function CartPage() {
                           event.stopPropagation();
                           updateLine(line.id, line.quantity + 1);
                         }}
-                        className="add-to-cart-sweep h-9 w-9 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        className="add-to-cart-sweep h-11 w-11 rounded-2xl border border-[#2f3e36]/60 bg-[#5f7066] text-sm font-semibold text-white shadow-sm hover:bg-[#4b5e54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         +
                       </button>
@@ -382,17 +468,17 @@ export default function CartPage() {
                         event.stopPropagation();
                         removeLines([line.id]);
                       }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 shadow-sm hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 shadow-sm hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       aria-label="Entfernen"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="pl-1 text-left">
-                    <p className="text-xs uppercase tracking-wide text-[#2f3e36]">
+                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                       Preis
                     </p>
-                    <p className="text-base font-semibold text-emerald-950">
+                    <p className="text-base font-semibold text-[var(--smk-text)]">
                       {formatPrice(
                         line.merchandise.price.amount,
                         line.merchandise.price.currencyCode,
@@ -405,113 +491,166 @@ export default function CartPage() {
           })}
         </div>
 
-        <div className="my-8 h-px w-full bg-black/10" />
+        <RecentlyViewedStrip
+          title="Zuletzt angesehen"
+          excludeHandles={cartProductHandles}
+          className="mt-8"
+        />
+
+        <div className="my-8 h-px w-full bg-[var(--smk-border)]" />
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1.2fr]">
-          <div className="order-2 rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] lg:order-1">
-            <p className="text-xs font-semibold tracking-widest text-black/60">
-              Versandkostenkalkulator
+          <div className="order-2 rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)] lg:order-1">
+            <p className="text-xs font-semibold tracking-[0.22em] text-[var(--smk-text-dim)]">
+              Versandkosten
             </p>
-            <p className="mt-2 text-sm text-stone-600">
-              Trage Land und Postleitzahl ein, um eine Schätzung zu erhalten.
+              <p className="mt-2 text-sm text-[var(--smk-text-muted)]">
+              Die Versandkosten richten sich nach dem Zielland und stimmen mit
+              den Angaben auf unserer Versandseite überein.
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Land
-                </label>
-                <select
-                  value={country}
-                  onChange={(event) => {
-                    setCountryTouched(true);
-                    setCountry(event.target.value as ShippingCountry);
-                  }}
-                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  <option value="DE">Deutschland</option>
-                  <option value="AT">Österreich</option>
-                  <option value="CH">Schweiz</option>
-                  <option value="EU">EU (sonstige)</option>
-                  <option value="UK">Vereinigtes Königreich</option>
-                  <option value="US">USA</option>
-                  <option value="OTHER">Andere</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600">
-                  Postleitzahl
-                </label>
-                <input
-                  type="text"
-                  value={postalCode}
-                  onChange={(event) => {
-                    setPostalTouched(true);
-                    setPostalCode(event.target.value);
-                  }}
-                  placeholder="z.B. 10115"
-                  className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                />
-              </div>
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-[var(--smk-text-dim)]">
+                Zielland
+              </label>
+              <select
+                value={country}
+                onChange={(event) => {
+                  setCountryTouched(true);
+                  setCountry(event.target.value as ShippingCountry);
+                }}
+                className="smk-input mt-2 w-full rounded-2xl px-3 py-2 text-sm focus-visible:ring-offset-black"
+              >
+                <option value="DE">Deutschland</option>
+                <option value="AT">Österreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="EU">EU (sonstige)</option>
+                <option value="UK">Vereinigtes Königreich</option>
+                <option value="US">USA</option>
+                <option value="OTHER">Andere</option>
+              </select>
+              <p className="mt-2 text-xs text-[var(--smk-text-muted)]">
+                Ausgewählt: {SHIPPING_COUNTRY_LABELS[country]}
+              </p>
             </div>
           </div>
 
-          <div className="order-1 rounded-2xl border-2 border-black/10 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] lg:order-2">
+          <div className="order-1 rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)] lg:order-2">
             <div className="space-y-4 text-right">
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Zwischensumme
                 </p>
-                <p className="text-xl font-semibold text-[#2f3e36]">
-                  {formatPrice(subtotal, currencyCode)}
-                </p>
+                  <p className="text-xl font-semibold text-[var(--smk-text)]">
+                    {formatPrice(subtotal, currencyCode)}
+                  </p>
+                  {!meetsMinOrder && (
+                    <p className="mt-1 text-xs font-semibold text-red-600">
+                      Mindestbestellwert {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
+                    </p>
+                  )}
               </div>
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Versand (Schätzung)
                 </p>
-                <p className="text-base font-semibold text-[#2f3e36]">
-                  {hasLocation
-                    ? formatPrice(shippingEstimate, currencyCode)
-                    : "--"}
+                <p className="text-base font-semibold text-[var(--smk-text)]">
+                  {freeShippingActive
+                    ? formatPrice(0, currencyCode)
+                    : formatPrice(shippingEstimate, currencyCode)}
                 </p>
-                {hasLocation && freeShippingActive && (
+                {freeShippingActive ? (
                   <p className="mt-1 text-xs font-semibold text-emerald-700">
-                    Kostenloser Versand ab{" "}
-                    {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)}
+                    Kostenloser Versand aktiv
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
+                    Ab {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)} versandkostenfrei
+                    {" "}(noch {formatPrice(FREE_SHIPPING_THRESHOLD_EUR - subtotal, currencyCode)})
                   </p>
                 )}
               </div>
               <div>
                 <p
-                  className={`${pixelNavFont.className} text-[14px] uppercase tracking-[0.08em] text-[#2f3e36]/70`}
+                  className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]"
                 >
                   Gesamt (Schätzung)
                 </p>
-                <p className="text-2xl font-semibold text-[#2f3e36]">
-                  {hasLocation
-                    ? formatPrice(totalEstimate, currencyCode)
-                    : "--"}
+                <p className="text-2xl font-semibold text-[var(--smk-text)]">
+                  {formatPrice(totalAfterDiscounts, currencyCode)}
                 </p>
               </div>
-              <p className="text-xs text-[#2f3e36]/60">
-                Schätzungen können je nach Versanddienst abweichen.
+              <p className="text-xs text-[var(--smk-text-dim)]">
+                Die endgültigen Versandkosten werden vor dem Kaufabschluss im
+                Stripe-Checkout angezeigt.
               </p>
               <div className="text-left">
-                <label className="block text-xs font-semibold text-stone-600">
+                <label className="block text-xs font-semibold text-[var(--smk-text-dim)]">
                   Rabattcode
                 </label>
-                <input
-                  type="text"
-                  value={discountCode}
-                  onChange={(event) => setDiscountCode(event.target.value)}
-                  placeholder="Code eingeben"
-                  className="mt-2 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                />
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(event) => {
+                      if (useLoyaltyPoints) {
+                        setUseLoyaltyPoints(false);
+                      }
+                      setAppliedDiscountCode("");
+                      setDiscountCode(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyDiscountCode();
+                      }
+                    }}
+                    placeholder="Code eingeben"
+                    className="smk-input h-10 min-w-0 flex-1 rounded-full px-3 text-sm focus-visible:ring-offset-black"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyDiscountCode}
+                    disabled={!normalizedDiscountCode}
+                    className="smk-button-primary inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-black"
+                  >
+                    Anwenden
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  {appliedDiscountCode && (
+                    <span className="text-xs font-semibold text-emerald-700">
+                      Code angewendet: {appliedDiscountCode}
+                    </span>
+                  )}
+                </div>
               </div>
+              {isAuthenticated && loyaltyPointsBalance > 0 && (
+                <label className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-left text-sm text-emerald-900">
+                  <input
+                    type="checkbox"
+                    checked={useLoyaltyPoints}
+                    onChange={(event) => {
+                      if (event.target.checked && discountCode.trim()) {
+                        setDiscountCode("");
+                      }
+                      setUseLoyaltyPoints(event.target.checked);
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-700 focus:ring-emerald-600"
+                  />
+                  <span>
+                    <span className="block font-semibold">
+                      {redeemablePoints} Smokeify Punkte einlösen
+                    </span>
+                    <span className="block text-xs text-emerald-800/80">
+                      Smokeify Punkte funktionieren wie Shop-Guthaben. {redeemablePoints} Punkte entsprechen aktuell {formatPrice(loyaltyDiscount, currencyCode)} Rabatt. {formatRedeemRateLabel()}.
+                    </span>
+                  </span>
+                </label>
+              )}
               {checkoutError && (
                 <p className="text-xs font-semibold text-red-600">
                   {checkoutError}
@@ -523,11 +662,23 @@ export default function CartPage() {
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
               )}
+              {appliedDiscountAmount > 0 && (
+                <div className="flex items-center justify-between text-sm font-semibold text-red-600">
+                  <span>Rabattcode</span>
+                  <span>-{formatPrice(appliedDiscountAmount, currencyCode)}</span>
+                </div>
+              )}
+              {useLoyaltyPoints && loyaltyDiscount > 0 && (
+                <div className="flex items-center justify-between text-sm text-emerald-800">
+                  <span>Smokeify Punkte</span>
+                  <span>-{formatPrice(loyaltyDiscount, currencyCode)}</span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={startCheckout}
                 disabled={!canCheckout || checkoutBlocked}
-                className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#14532d] via-[#2f3e36] to-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-900/25 disabled:cursor-not-allowed disabled:from-stone-300 disabled:via-stone-200 disabled:to-stone-200 disabled:text-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="smk-button-primary inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-black"
               >
                 {checkoutStatus === "loading"
                   ? "Weiterleitung..."
@@ -535,13 +686,25 @@ export default function CartPage() {
               </button>
               <PaymentMethodLogos
                 className="justify-center gap-[2px] sm:gap-2"
-                pillClassName="h-7 px-2 border-black/10 bg-white sm:h-8 sm:px-3"
+                pillClassName="h-7 border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2 sm:h-8 sm:px-3"
                 logoClassName="h-4 sm:h-5"
               />
             </div>
           </div>
         </div>
-      </div>
-    </PageLayout>
+      <CheckoutAuthModal
+        open={showAuthModal}
+        returnTo={buildCheckoutStartUrl({
+          country,
+          discountCode: activeDiscountCode || undefined,
+          useLoyaltyPoints,
+        })}
+        onClose={() => setShowAuthModal(false)}
+        onContinueAsGuest={() => {
+          setShowAuthModal(false);
+          return proceedToCheckout();
+        }}
+      />
+    </div>
   );
 }

@@ -1,14 +1,23 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
-import { Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
 const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-fraunces",
 });
 
 export const metadata: Metadata = {
@@ -16,23 +25,32 @@ export const metadata: Metadata = {
     default: "Smokeify",
     template: "%s | Smokeify",
   },
-  description: "Modern grow equipment",
+  description:
+    "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   metadataBase: new URL(siteUrl),
   alternates: {
-    canonical: "/",
+    languages: {
+      "de-DE": "/",
+      "x-default": "/",
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
   },
   openGraph: {
     type: "website",
     locale: "de_DE",
     url: siteUrl,
     title: "Smokeify",
-    description: "Modern grow equipment",
+    description:
+      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
     siteName: "Smokeify",
   },
   twitter: {
     card: "summary_large_image",
     title: "Smokeify",
-    description: "Modern grow equipment",
+    description:
+      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   },
   robots: {
     index: true,
@@ -56,14 +74,17 @@ export const metadata: Metadata = {
   manifest: "/favicons/site.webmanifest",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`min-h-screen bg-stone-50 text-stone-900 ${manrope.className}`}>
+    <html lang="de">
+      <head />
+      <body
+        className={`${manrope.variable} ${fraunces.variable} min-h-screen bg-[var(--smk-bg)] font-[family:var(--font-manrope)] text-[var(--smk-text)] antialiased`}
+      >
         <Providers>{children}</Providers>
         <Analytics />
       </body>

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd C:/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate deploy 2>&1)",
+      "Bash(tail:*)",
+      "Bash(powershell:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate deploy 2>&1)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && sleep 5 && npx prisma migrate deploy 2>&1)",
+      "Bash(powershell -Command \"Stop-Process -Id 17532 -Force\" 2>&1 && sleep 2 && cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)",
+      "Bash(head:*)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx eslint src/components/QuickViewModal.tsx src/components/DisplayProducts.tsx 2>&1)",
+      "Bash(grep:*)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma migrate dev --name add_product_cross_sells 2>&1)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma generate 2>&1)",
+      "Bash(cd:*)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npm uninstall framer-motion react-icons 2>&1)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma db execute --stdin <<'EOF'\nSELECT id, name, handle, \"parentId\" FROM \"Category\" WHERE handle ILIKE '%growbox%' OR name ILIKE '%growbox%';\nEOF)",
+      "Bash(cd /c/Users/Joey/development/projects/webdev/smokeify && npx prisma db execute --schema=prisma/schema.prisma --stdin <<'EOF'\nSELECT id, name, handle, \"parentId\" FROM \"Category\" WHERE handle ILIKE '%growbox%' OR name ILIKE '%growbox%';\nEOF)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

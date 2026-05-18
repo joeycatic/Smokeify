@@ -1,14 +1,64 @@
 // app/products/page.tsx (Server Component)
-import { getProducts } from "@/lib/catalog";
-import ProductsClient from './ProductsClient';
-import PageLayout from '@/components/PageLayout';
+import type { Metadata } from "next";
+import ProductsPageClient from "./ProductsPageClient";
+import PageLayout from "@/components/PageLayout";
+import { measureServerExecution } from "@/lib/perf";
+import { queryProducts } from "@/lib/productsQuery";
 
-export default async function ProductsPage() {
-  const products = await getProducts(500);
-  
+export const revalidate = 30;
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+  "https://www.smokeify.de";
+
+export const metadata: Metadata = {
+  title: "Produkte",
+  description: "Alle Produkte bei Smokeify entdecken.",
+  alternates: {
+    canonical: "/products",
+    languages: {
+      "de-DE": "/products",
+      "x-default": "/products",
+    },
+  },
+  openGraph: {
+    url: `${siteUrl}/products`,
+    title: "Produkte | Smokeify",
+    description: "Alle Produkte bei Smokeify entdecken.",
+  },
+  twitter: {
+    title: "Produkte | Smokeify",
+    description: "Alle Produkte bei Smokeify entdecken.",
+  },
+};
+
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ProductsPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const categoryParam = Array.isArray(resolvedSearchParams.category)
+    ? resolvedSearchParams.category[0] ?? ""
+    : (resolvedSearchParams.category ?? "");
+  const manufacturerParam = Array.isArray(resolvedSearchParams.manufacturer)
+    ? resolvedSearchParams.manufacturer[0] ?? ""
+    : (resolvedSearchParams.manufacturer ?? "");
+
+  const { result: initialData } = await measureServerExecution(
+    "page.products",
+    () =>
+      queryProducts({
+        categoryParam,
+        manufacturerParam,
+        offset: 0,
+        limit: 24,
+        sortBy: "featured",
+      }),
+  );
+
   return (
-    <PageLayout>
-      <ProductsClient initialProducts={products} />
+    <PageLayout commerce>
+      <ProductsPageClient initialData={initialData} />
     </PageLayout>
   );
 }

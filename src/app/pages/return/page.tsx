@@ -26,23 +26,24 @@ export const RETURN_POLICY_SECTIONS = [
   {
     title: "4. Vom Umtausch ausgeschlossene Artikel",
     paragraphs: [
-      `Aus hygienischen und gesundheitlichen Gründen sind bestimmte Artikel von der Rückgabe ausgeschlossen, sofern deren Versiegelung nach der Lieferung entfernt wurde.`,
-      `Hierzu zählen insbesondere hygienisch versiegelte Produkte oder Verbrauchsartikel.`,
+      `Das Widerrufsrecht erlischt bei versiegelten Waren, die aus Gründen des Gesundheitsschutzes oder der Hygiene nicht zur Rückgabe geeignet sind, wenn ihre Versiegelung nach der Lieferung entfernt wurde (§ 312g Abs. 2 Nr. 3 BGB).`,
+      `Hierzu zählen insbesondere hygienisch versiegelte Produkte oder Verbrauchsartikel nach Entfernung des Siegels.`,
       `Die gesetzlichen Ausnahmen vom Widerrufsrecht bleiben unberührt.`,
     ],
   },
   {
     title: "5. Rücksendeprozess",
     paragraphs: [
-      `Bitte informieren Sie uns vor der Rücksendung per E-Mail über Ihren Widerruf oder Ihre Rückgabe.`,
+      `Bitte beantragen Sie Retouren bevorzugt über unser Retourenportal oder per E-Mail. Der Widerruf ist formfrei und kann auch auf anderem Weg erklärt werden.`,
       `Nach Eingang Ihrer Anfrage erhalten Sie weitere Informationen zur Rücksendung.`,
-      `Unfreie Sendungen können nicht angenommen werden.`,
+      `Unfreie Sendungen werden bei Widerruf/Retouren nicht angenommen. Bei mängelbedingten Rücksendungen stellen wir ein Retourenlabel oder erstatten die Versandkosten.`,
     ],
   },
   {
     title: "6. Kosten der Rücksendung",
     paragraphs: [
       `Die unmittelbaren Kosten der Rücksendung tragen Sie als Kunde, sofern nichts anderes vereinbart wurde.`,
+      `Bei beschädigten oder fehlerhaften Artikeln übernehmen wir die Rücksendekosten.`,
     ],
   },
   {
@@ -50,7 +51,8 @@ export const RETURN_POLICY_SECTIONS = [
     paragraphs: [
       `Nach Eingang und Prüfung der retournierten Ware erstatten wir Ihnen den Kaufbetrag.`,
       `Die Rückerstattung erfolgt über dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion verwendet haben.`,
-      `Die Rückzahlung erfolgt spätestens innerhalb von 14 Tagen nach Eingang der Rücksendung oder Ihres Widerrufs.`,
+      `Die Rückzahlung erfolgt spätestens binnen 14 Tagen ab Zugang Ihres Widerrufs.`,
+      `Wir können die Rückzahlung verweigern, bis wir die Ware zurückerhalten haben oder bis Sie den Nachweis erbracht haben, dass Sie die Ware zurückgesandt haben, je nachdem, welches der frühere Zeitpunkt ist (§ 357 BGB).`,
     ],
   },
   {
@@ -64,15 +66,15 @@ export const RETURN_POLICY_SECTIONS = [
 
 export default function ReturnPolicy() {
   return (
-    <PageLayout>
+    <PageLayout commerce={false}>
       <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
         <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Rueckgabe & Retouren
+              Rückgabe & Retouren
             </h1>
             <p className="mt-2 text-sm text-stone-500">
-              Stand: {new Date().toLocaleDateString("de-DE")}
+              Stand: 01.02.2026
             </p>
           </div>
 

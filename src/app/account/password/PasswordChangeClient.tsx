@@ -93,13 +93,13 @@ export default function PasswordChangeClient() {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="block text-xs font-semibold text-stone-600">
+        <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
           Aktuelles Passwort *
         </label>
         <button
           type="button"
           onClick={() => setShowPasswords((prev) => !prev)}
-          className="inline-flex items-center text-stone-600 hover:text-stone-800"
+          className="inline-flex items-center text-[var(--smk-text-muted)] hover:text-[var(--smk-text)]"
           aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
         >
           {showPasswords ? (
@@ -138,17 +138,17 @@ export default function PasswordChangeClient() {
         type={showPasswords ? "text" : "password"}
         value={currentPassword}
         onChange={(event) => setCurrentPassword(event.target.value)}
-        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+        className="smk-input w-full rounded-xl px-3 py-2 text-sm"
         required
       />
-      <label className="block text-xs font-semibold text-stone-600">
+      <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
         Neues Passwort *
       </label>
       <input
         type={showPasswords ? "text" : "password"}
         value={newPassword}
         onChange={(event) => setNewPassword(event.target.value)}
-        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+        className="smk-input w-full rounded-xl px-3 py-2 text-sm"
         required
       />
       <div className="space-y-1">
@@ -164,21 +164,21 @@ export default function PasswordChangeClient() {
             }}
           />
         </div>
-        <div className="flex items-center justify-between text-xs text-stone-600">
+        <div className="flex items-center justify-between text-xs text-[var(--smk-text-muted)]">
           <span>Passwort-Stärke: {strength.label}</span>
           <span className={canLogin ? "text-green-600" : "text-red-600"}>
             {canLogin ? "OK" : "X"}
           </span>
         </div>
       </div>
-      <label className="block text-xs font-semibold text-stone-600">
+      <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
         Neues Passwort wiederholen *
       </label>
       <input
         type={showPasswords ? "text" : "password"}
         value={confirmPassword}
         onChange={(event) => setConfirmPassword(event.target.value)}
-        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+        className="smk-input w-full rounded-xl px-3 py-2 text-sm"
         required
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -186,14 +186,14 @@ export default function PasswordChangeClient() {
       <button
         type="submit"
         disabled={status === "saving"}
-        className="h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+        className="smk-button-primary h-12 w-full rounded-full px-4 text-base font-semibold disabled:opacity-60"
       >
         {status === "saving" ? "Saving..." : "Passwort ändern"}
       </button>
       <button
         type="button"
         onClick={() => router.push("/account")}
-        className="h-12 w-full rounded-md border border-black/10 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
+        className="smk-button-secondary h-12 w-full rounded-full px-4 text-base font-semibold"
       >
         Zurück
       </button>

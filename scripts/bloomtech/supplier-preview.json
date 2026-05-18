@@ -1,0 +1,33 @@
+{
+  "sourceMode": "product",
+  "sourceUrl": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+  "sourceCategory": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+  "sourceProduct": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+  "checkedLinks": 1,
+  "previewCount": 1,
+  "items": [
+    {
+      "sourceUrl": "https://bloomtech.de/BioBizz-Bio-Grow-250-ml",
+      "title": "Bio-Grow 250 ml",
+      "manufacturer": "BioBizz",
+      "handle": "bio-grow-250-ml-biobizz",
+      "shortDescription": "Biodünger für das Wachstum",
+      "description": "Beschreibung BioBizz Bio-Grow 250 ml Bio-Wachstumsdünger Bio-Grow von Biobizz ist ein flüssiger Dünger der ein üppiges Wachstum fördert und für alle Erdemischungen geeignet ist. Hauptbestandteil ist Vinasse, aus pestizidfreier Zuckerrohrmelasse fermentiert. Ein sehr mineralstoff- und kohlenhydratreicher Volldünger, mit dem das Pflanzenwachstum direkt und indirekt über die starke Aktivierung der Mikroflora im Erdsubstrat genährt wird. Anwendungsbereich von Bio-Grow: Komplette flüssige Pflanzennahrung. Sowohl in der Wachstumsphase als in der Blüte zu gebrauchen, bei letzterer dann aber in Verbindung mit dem Blütedünger BIO-BLOOM. Dosierung: 1 - 4 ml Bio-Grow per Liter Wasser. Bei jeder Bewässerung wiederholen. Bitte am unten verlinkten Düngeplan orientieren.",
+      "technicalDetails": "Inhalt: 250ml; Artikelgewicht: 0,35 kg",
+      "gtin": "",
+      "price": 4.18,
+      "stock": {
+        "statusText": "20 Auf Lager",
+        "quantity": 20,
+        "inStock": true
+      },
+      "supplierWeight": {
+        "raw": "0.35 kg",
+        "grams": 350
+      },
+      "supplierImages": [
+        "https://bloomtech.de/media/image/product/6175/lg/biobizz-bio-grow-250-ml.webp"
+      ]
+    }
+  ]
+}

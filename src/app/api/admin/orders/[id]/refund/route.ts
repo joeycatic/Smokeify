@@ -1,145 +1,170 @@
-import Stripe from "stripe";
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { logAdminAction } from "@/lib/adminAuditLog";
-import { sendResendEmail } from "@/lib/resend";
-import { buildOrderEmail } from "@/lib/orderEmail";
+import bcrypt from "bcryptjs";
+import { getAppOrigin } from "@/lib/appOrigin";
+import { adminJson } from "@/lib/adminApi";
+import { withAdminRoute } from "@/lib/adminRoute";
+import {
+  calculateSelectedRefundAmount,
+  getRefundPreviewAmount,
+} from "@/lib/adminRefundCalculator";
+import { refundAdminOrder } from "@/lib/adminRefunds";
 
 export const runtime = "nodejs";
 
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
-};
+export const POST = withAdminRoute(
+  async ({ request, params, session }) => {
+    const { id } = params;
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const body = (await request.json().catch(() => ({}))) as {
+      items?: Array<{ id: string; quantity?: number }>;
+      amount?: number;
+      includeShipping?: boolean;
+      adminPassword?: string;
+      reason?: string;
+      expectedUpdatedAt?: string;
+    };
+    const includeShipping = body.includeShipping === true;
+    const adminPassword = body.adminPassword?.trim();
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    const admin = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { passwordHash: true },
+    });
+    if (!admin?.passwordHash) {
+      return adminJson({ error: "Passwort erforderlich." }, { status: 400 });
+    }
+    if (!adminPassword) {
+      return adminJson({ error: "Passwort erforderlich." }, { status: 400 });
+    }
+    if (!reason) {
+      return adminJson({ error: "Refund reason is required." }, { status: 400 });
+    }
+    const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+    if (!validPassword) {
+      return adminJson({ error: "Passwort ist falsch." }, { status: 401 });
+    }
 
-  const { id } = await context.params;
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe secret key not configured." },
-      { status: 500 }
-    );
-  }
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!order) {
+      return adminJson({ error: "Order not found" }, { status: 404 });
+    }
+    if (body.expectedUpdatedAt && order.updatedAt.toISOString() !== body.expectedUpdatedAt) {
+      return adminJson(
+        {
+          error:
+            "This order was updated by another admin. Refresh the latest order before refunding.",
+          currentUpdatedAt: order.updatedAt.toISOString(),
+        },
+        { status: 409 }
+      );
+    }
+    if (order.paymentStatus === "refunded") {
+      return adminJson({ error: "Order already refunded" }, { status: 409 });
+    }
+    if (!order.stripePaymentIntent) {
+      return adminJson({ error: "Missing payment intent" }, { status: 400 });
+    }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    items?: Array<{ id: string; quantity?: number }>;
-    amount?: number;
-  };
-
-  const order = await prisma.order.findUnique({
-    where: { id },
-    include: { items: true },
-  });
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-  if (order.paymentStatus === "refunded") {
-    return NextResponse.json(
-      { error: "Order already refunded" },
-      { status: 409 }
-    );
-  }
-  if (!order.stripePaymentIntent) {
-    return NextResponse.json(
-      { error: "Missing payment intent" },
-      { status: 400 }
-    );
-  }
-
-  let refundAmount = 0;
+    let refundAmount = 0;
+    let shippingRefundAmount = 0;
+    const refundCalculationOrder = {
+      amountTotal: order.amountTotal,
+      amountRefunded: order.amountRefunded,
+      amountShipping: order.amountShipping,
+      items: order.items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        totalAmount: item.totalAmount,
+      })),
+    };
 
   if (Array.isArray(body.items) && body.items.length > 0) {
-    const itemMap = new Map(order.items.map((item) => [item.id, item]));
-    for (const requestItem of body.items) {
-      const item = itemMap.get(requestItem.id);
-      if (!item) continue;
-      const requestedQty = Math.max(1, Number(requestItem.quantity ?? 1));
-      const qty = Math.min(requestedQty, item.quantity);
-      refundAmount += item.unitAmount * qty;
-    }
+    const selection = Object.fromEntries(
+      body.items.map((item) => [item.id, Number(item.quantity ?? 0)]),
+    );
+    const itemRefundAmount = calculateSelectedRefundAmount(
+      refundCalculationOrder,
+      selection,
+    );
+    refundAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "items",
+      selection,
+      includeShipping,
+    );
+    shippingRefundAmount = Math.max(refundAmount - itemRefundAmount, 0);
   } else if (Number.isFinite(body.amount)) {
     refundAmount = Math.max(0, Math.floor(Number(body.amount)));
-  } else {
-    refundAmount = order.amountTotal - order.amountRefunded;
-  }
-
-  if (refundAmount <= 0) {
-    return NextResponse.json(
-      { error: "Refund amount must be greater than zero" },
-      { status: 400 }
-    );
-  }
-
-  const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
-  if (refundAmount > remaining) {
-    return NextResponse.json(
-      { error: "Refund amount exceeds remaining balance" },
-      { status: 400 }
-    );
-  }
-
-  await stripe.refunds.create({
-    payment_intent: order.stripePaymentIntent,
-    amount: refundAmount,
-  });
-
-  const newRefunded = order.amountRefunded + refundAmount;
-  const fullyRefunded = newRefunded >= order.amountTotal;
-
-  const updated = await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      amountRefunded: newRefunded,
-      status: fullyRefunded ? "refunded" : order.status,
-      paymentStatus: fullyRefunded ? "refunded" : "partially_refunded",
-    },
-    include: { items: true },
-  });
-
-  await logAdminAction({
-    actor: { id: session.user.id, email: session.user.email ?? null },
-    action: "order.refund",
-    targetType: "order",
-    targetId: order.id,
-    summary: `Refunded ${refundAmount} of ${order.amountTotal}`,
-    metadata: {
-      refundAmount,
-      totalAmount: order.amountTotal,
-      newRefunded,
-      fullyRefunded,
-    },
-  });
-
-  if (updated.customerEmail) {
-    try {
-      const origin =
-        request.headers.get("origin") ??
-        process.env.NEXT_PUBLIC_APP_URL ??
-        "http://localhost:3000";
-      const orderUrl = `${origin}/account/orders/${updated.id}`;
-      const email = buildOrderEmail("refund", updated, orderUrl);
-      await sendResendEmail({
-        to: updated.customerEmail,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-    } catch {
-      // Ignore email errors for refund processing.
+    if (includeShipping) {
+      const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
+      const remainingAfterBase = Math.max(0, remaining - refundAmount);
+      shippingRefundAmount = Math.min(order.amountShipping, remainingAfterBase);
+      refundAmount += shippingRefundAmount;
     }
+  } else {
+    const withoutShippingAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "full",
+      undefined,
+      false,
+    );
+    refundAmount = getRefundPreviewAmount(
+      refundCalculationOrder,
+      "full",
+      undefined,
+      includeShipping,
+    );
+    shippingRefundAmount = Math.max(refundAmount - withoutShippingAmount, 0);
   }
 
-  return NextResponse.json({ order: updated });
-}
+    if (refundAmount <= 0) {
+      return adminJson({ error: "Refund amount must be greater than zero" }, { status: 400 });
+    }
+
+    const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
+    if (refundAmount > remaining) {
+      return adminJson({ error: "Refund amount exceeds remaining balance" }, { status: 400 });
+    }
+
+    try {
+      const result = await refundAdminOrder({
+        orderId: order.id,
+        refundAmount,
+        includeShipping,
+        shippingRefundAmount,
+        reason,
+        actor: { id: session.user.id, email: session.user.email ?? null },
+        source: "admin.orders.refund",
+        origin: getAppOrigin(request),
+      });
+
+      return adminJson({ order: result.updated });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Refund failed";
+      const status =
+        message === "Stripe secret key not configured."
+          ? 500
+          : message === "Order not found"
+            ? 404
+            : message === "Order already refunded"
+              ? 409
+              : message === "Missing payment intent" ||
+                  message === "Refund amount must be greater than zero" ||
+                  message === "Refund amount exceeds remaining balance"
+                ? 400
+                : 500;
+      return adminJson({ error: message }, { status });
+    }
+  },
+  {
+    action: "order.refund.process",
+    rateLimit: {
+      keyPrefix: "admin-order-refund",
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+    },
+  },
+);

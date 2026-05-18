@@ -1,7 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 import type { Product } from "@/data/types";
+import { buildStorefrontProductWhere, storefrontsInclude } from "@/lib/storefronts";
 
 const CURRENCY_CODE = "EUR";
 
@@ -12,6 +14,45 @@ const getAvailability = (quantityOnHand: number | null, reserved: number | null)
   const held = reserved ?? 0;
   return Math.max(0, onHand - held);
 };
+
+const MAIN_STOREFRONT = "MAIN" as const;
+
+const mapVisibleCategories = (
+  categories: Array<{
+    category: {
+      id: string;
+      name: string;
+      handle: string;
+      parentId: string | null;
+      storefronts?: string[];
+      parent?: {
+        id: string;
+        name: string;
+        handle: string;
+        storefronts?: string[];
+      } | null;
+    };
+  }>,
+) =>
+  categories
+    .filter((entry) =>
+      storefrontsInclude(entry.category.storefronts ?? [], MAIN_STOREFRONT),
+    )
+    .map((entry) => ({
+      id: entry.category.id,
+      handle: entry.category.handle,
+      title: entry.category.name,
+      parentId: entry.category.parentId ?? null,
+      parent:
+        entry.category.parent &&
+        storefrontsInclude(entry.category.parent.storefronts ?? [], MAIN_STOREFRONT)
+          ? {
+              id: entry.category.parent.id,
+              handle: entry.category.parent.handle,
+              title: entry.category.parent.name,
+            }
+          : null,
+    }));
 
 const mapProduct = (product: {
   id: string;
@@ -38,10 +79,19 @@ const mapProduct = (product: {
       name: string;
       handle: string;
       parentId: string | null;
-      parent?: { id: string; name: string; handle: string } | null;
+      storefronts?: string[];
+      parent?: {
+        id: string;
+        name: string;
+        handle: string;
+        storefronts?: string[];
+      } | null;
     };
   }>;
   collections: Array<{ collection: { id: string; name: string; handle: string } }>;
+  reviews: Array<{ rating: number }>;
+  bestsellerScore?: number | null;
+  createdAt?: Date | null;
 }): Product => {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
   const featuredImage = sortedImages[0] ?? null;
@@ -78,6 +128,12 @@ const mapProduct = (product: {
     );
     return available > 0 && available <= variant.lowStockThreshold;
   });
+  const reviewCount = product.reviews.length;
+  const reviewAverage =
+    reviewCount > 0
+      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
+        reviewCount
+      : 0;
 
   return {
     id: product.id,
@@ -100,19 +156,7 @@ const mapProduct = (product: {
       url: image.url,
       altText: image.altText,
     })),
-    categories: product.categories.map((entry) => ({
-      id: entry.category.id,
-      handle: entry.category.handle,
-      title: entry.category.name,
-      parentId: entry.category.parentId ?? null,
-      parent: entry.category.parent
-        ? {
-            id: entry.category.parent.id,
-            handle: entry.category.parent.handle,
-            title: entry.category.parent.name,
-          }
-        : null,
-    })),
+    categories: mapVisibleCategories(product.categories),
     collections: product.collections.map((entry) => ({
       id: entry.collection.id,
       handle: entry.collection.handle,
@@ -127,29 +171,183 @@ const mapProduct = (product: {
     compareAtPrice: compareAtCents
       ? { amount: toAmount(compareAtCents), currencyCode: CURRENCY_CODE }
       : null,
+    reviewSummary: {
+      average: reviewAverage,
+      count: reviewCount,
+    },
+    bestsellerScore: product.bestsellerScore ?? null,
+    createdAt: product.createdAt ? product.createdAt.toISOString() : null,
   };
 };
 
-export async function getProducts(limit = 50): Promise<Product[]> {
-  const products = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-    include: {
-      images: { orderBy: { position: "asc" } },
-      variants: {
-        orderBy: { position: "asc" },
-        include: { inventory: true },
+const getProductsCached = unstable_cache(
+  async (limit: number): Promise<Product[]> => {
+    const products = await prisma.product.findMany({
+      where: buildStorefrontProductWhere(MAIN_STOREFRONT),
+      orderBy: [
+        { bestsellerScore: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
+      take: limit,
+      include: {
+        images: { orderBy: { position: "asc" } },
+        variants: {
+          orderBy: { position: "asc" },
+          include: { inventory: true },
+        },
+        categories: { include: { category: { include: { parent: true } } } },
+        collections: { include: { collection: true } },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
       },
-      categories: { include: { category: { include: { parent: true } } } },
-      collections: { include: { collection: true } },
-    },
-  });
+    });
 
-  return products.map(mapProduct);
+    return products.map(mapProduct);
+  },
+  ["catalog-products"],
+  { revalidate: 30 },
+);
+
+export async function getProducts(limit = 50): Promise<Product[]> {
+  return getProductsCached(limit);
 }
 
+const fetchAllActiveProducts = async (): Promise<Product[]> => {
+  const batchSize = 500;
+  let cursorId: string | null = null;
+  const mappedProducts: Product[] = [];
+
+  while (true) {
+    const products: Array<{
+      id: string;
+      title: string;
+      handle: string;
+      description: string | null;
+      shortDescription: string | null;
+      manufacturer: string | null;
+      growboxSize: string | null;
+      tags: string[];
+      variants: Array<{
+        id: string;
+        title: string;
+        priceCents: number;
+        compareAtCents: number | null;
+        position: number;
+        lowStockThreshold: number;
+        inventory: { quantityOnHand: number; reserved: number } | null;
+      }>;
+      images: Array<{ url: string; altText: string | null; position: number }>;
+      categories: Array<{
+        category: {
+          id: string;
+          name: string;
+          handle: string;
+          parentId: string | null;
+          storefronts?: string[];
+          parent?: {
+            id: string;
+            name: string;
+            handle: string;
+            storefronts?: string[];
+          } | null;
+        };
+      }>;
+      collections: Array<{ collection: { id: string; name: string; handle: string } }>;
+      reviews: Array<{ rating: number }>;
+      bestsellerScore?: number | null;
+      createdAt?: Date | null;
+    }> = await prisma.product.findMany({
+      where: buildStorefrontProductWhere(MAIN_STOREFRONT),
+      orderBy: { id: "asc" },
+      take: batchSize,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      include: {
+        images: { orderBy: { position: "asc" } },
+        variants: {
+          orderBy: { position: "asc" },
+          include: { inventory: true },
+        },
+        categories: {
+          include: {
+            category: {
+              include: {
+                parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+              },
+            },
+          },
+        },
+        collections: { include: { collection: true } },
+        reviews: {
+          where: { status: "APPROVED" },
+          select: { rating: true },
+        },
+      },
+    });
+
+    if (products.length === 0) break;
+
+    mappedProducts.push(...products.map(mapProduct));
+    cursorId = products[products.length - 1]?.id ?? null;
+  }
+
+  return mappedProducts;
+};
+
+const getAllProductsCached = unstable_cache(
+  async (): Promise<Product[]> => fetchAllActiveProducts(),
+  ["catalog-products-all"],
+  { revalidate: 30 },
+);
+
+export async function getAllProducts(): Promise<Product[]> {
+  return getAllProductsCached();
+}
+
+const getProductHandlesCached = unstable_cache(
+  async (): Promise<string[]> => {
+    const handles: string[] = [];
+    const batchSize = 500;
+    let cursorId: string | null = null;
+
+    while (true) {
+      const products: Array<{ id: string; handle: string }> =
+        await prisma.product.findMany({
+        where: buildStorefrontProductWhere(MAIN_STOREFRONT),
+        orderBy: { id: "asc" },
+        take: batchSize,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+        select: { id: true, handle: true },
+        });
+
+      if (!products.length) break;
+
+      handles.push(...products.map((product) => product.handle));
+      cursorId = products[products.length - 1]?.id ?? null;
+    }
+
+    return handles;
+  },
+  ["catalog-product-handles"],
+  { revalidate: 300 },
+);
+
+export async function getProductHandlesForSitemap(): Promise<string[]> {
+  return getProductHandlesCached();
+}
+
+const getProductByHandleCached = unstable_cache(
+  async (handle: string) => _fetchProductByHandle(handle),
+  ["catalog-product-by-handle"],
+  { revalidate: 60 }
+);
+
 export async function getProductByHandle(handle: string) {
+  return getProductByHandleCached(handle);
+}
+
+async function _fetchProductByHandle(handle: string) {
   const product = await prisma.product.findUnique({
     where: { handle },
     include: {
@@ -158,14 +356,24 @@ export async function getProductByHandle(handle: string) {
         orderBy: { position: "asc" },
         include: { inventory: true, options: true },
       },
+        categories: {
+          include: {
+            category: {
+              include: {
+                parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+              },
+            },
+          },
+        },
     },
   });
 
-  if (!product) return null;
+  if (!product || !storefrontsInclude(product.storefronts, MAIN_STOREFRONT)) return null;
 
   const images = product.images.map((image) => ({
     url: image.url,
     altText: image.altText,
+    position: image.position,
   }));
 
   const variants = product.variants.map((variant) => {
@@ -182,6 +390,11 @@ export async function getProductByHandle(handle: string) {
     return {
       id: variant.id,
       title: variant.title,
+      options: variant.options.map((option) => ({
+        name: option.name,
+        value: option.value,
+        imagePosition: option.imagePosition ?? null,
+      })),
       availableForSale: available > 0,
       availableQuantity: available,
       lowStockThreshold: variant.lowStockThreshold ?? 0,
@@ -217,33 +430,61 @@ export async function getProductByHandle(handle: string) {
     description: product.description ?? "",
     technicalDetails: product.technicalDetails ?? null,
     shortDescription: product.shortDescription ?? null,
+    seoTitle: product.seoTitle ?? null,
+    seoDescription: product.seoDescription ?? null,
     manufacturer: product.manufacturer,
     growboxSize: product.growboxSize ?? null,
     productGroup: product.productGroup ?? null,
+    categories: mapVisibleCategories(product.categories),
     images,
     variants,
     options,
   };
 }
 
-export async function getProductsByIds(ids: string[]): Promise<Product[]> {
-  if (!ids.length) return [];
+const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
   const products = await prisma.product.findMany({
-    where: { id: { in: ids }, status: "ACTIVE" },
+    where: buildStorefrontProductWhere(MAIN_STOREFRONT, { id: { in: ids } }),
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: { include: { parent: true } } } },
+      categories: {
+        include: {
+          category: {
+            include: {
+              parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+            },
+          },
+        },
+      },
       collections: { include: { collection: true } },
+      reviews: {
+        where: { status: "APPROVED" },
+        select: { rating: true },
+      },
     },
   });
-
   const mapped = products.map(mapProduct);
   const order = new Map(ids.map((id, index) => [id, index]));
   return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+};
+
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  if (!ids.length) return [];
+  // Stable cache key: sort IDs so order doesn't produce different cache entries.
+  const sortedIds = [...ids].sort();
+  const cached = unstable_cache(
+    () => _fetchProductsByIds(sortedIds),
+    ["catalog-products-by-ids", sortedIds.join(",")],
+    { revalidate: 30 }
+  );
+  const results = await cached();
+  // Re-sort to match the original caller-supplied order.
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return results.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
 export async function getProductsByIdsAllowInactive(
@@ -251,15 +492,31 @@ export async function getProductsByIdsAllowInactive(
 ): Promise<Product[]> {
   if (!ids.length) return [];
   const products = await prisma.product.findMany({
-    where: { id: { in: ids } },
+    where: buildStorefrontProductWhere(
+      MAIN_STOREFRONT,
+      { id: { in: ids } },
+      { allowInactive: true },
+    ),
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {
         orderBy: { position: "asc" },
         include: { inventory: true },
       },
-      categories: { include: { category: { include: { parent: true } } } },
+      categories: {
+        include: {
+          category: {
+            include: {
+              parent: { select: { id: true, name: true, handle: true, storefronts: true } },
+            },
+          },
+        },
+      },
       collections: { include: { collection: true } },
+      reviews: {
+        where: { status: "APPROVED" },
+        select: { rating: true },
+      },
     },
   });
 

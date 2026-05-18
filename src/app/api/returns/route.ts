@@ -2,8 +2,29 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import {
+  ReturnRequestSubmissionError,
+  createReturnRequestForOrder,
+} from "@/lib/returnRequestSubmission";
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `returns:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,6 +34,8 @@ export async function POST(request: Request) {
     orderId?: string;
     reason?: string;
     items?: Array<{ id: string; quantity?: number }>;
+    requestedResolution?: "REFUND" | "STORE_CREDIT" | "EXCHANGE";
+    exchangePreference?: string;
   };
 
   const orderId = body.orderId?.trim();
@@ -32,50 +55,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const existing = await prisma.returnRequest.findFirst({
-    where: { orderId, userId: session.user.id, status: "PENDING" },
-  });
-  if (existing) {
-    return NextResponse.json(
-      { error: "Return request already submitted" },
-      { status: 409 }
-    );
-  }
+  const requestedResolution =
+    body.requestedResolution === "STORE_CREDIT" || body.requestedResolution === "EXCHANGE"
+      ? body.requestedResolution
+      : "REFUND";
+  const exchangePreference =
+    requestedResolution === "EXCHANGE" && typeof body.exchangePreference === "string"
+      ? body.exchangePreference.trim() || null
+      : null;
 
-  const items = Array.isArray(body.items) ? body.items : [];
-  const itemMap = new Map(order.items.map((item) => [item.id, item]));
-  const selected = items
-    .map((item) => {
-      const orderItem = itemMap.get(item.id);
-      if (!orderItem) return null;
-      const quantity = Math.max(1, Number(item.quantity ?? 1));
-      return {
-        orderItemId: orderItem.id,
-        quantity: Math.min(quantity, orderItem.quantity),
-      };
-    })
-    .filter(Boolean) as { orderItemId: string; quantity: number }[];
-
-  if (!selected.length) {
-    return NextResponse.json(
-      { error: "Select items to return" },
-      { status: 400 }
-    );
-  }
-
-  const created = await prisma.returnRequest.create({
-    data: {
-      orderId,
-      userId: session.user.id,
+  try {
+    const created = await createReturnRequestForOrder({
+      order: {
+        id: order.id,
+        userId: order.userId,
+        customerEmail: order.customerEmail,
+        shippingName: order.shippingName,
+        items: order.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+        })),
+      },
       reason,
-      items: { create: selected },
-    },
-  });
+      items: Array.isArray(body.items) ? body.items : [],
+      requestedResolution,
+      exchangePreference,
+      requesterName: order.shippingName,
+      requesterEmail: order.customerEmail,
+      submissionSource: "account",
+    });
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { status: "return_requested" },
-  });
-
-  return NextResponse.json({ request: created });
+    return NextResponse.json({ request: created });
+  } catch (error) {
+    if (error instanceof ReturnRequestSubmissionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Request failed" }, { status: 500 });
+  }
 }

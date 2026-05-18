@@ -1,17 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
 import { sendResendEmail } from "@/lib/resend";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requestSecurity";
+import { canAdminPerformAction } from "@/lib/adminPermissions";
+import bcrypt from "bcryptjs";
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-variant-update:ip:${ip}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const { id } = await context.params;
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to edit product variants." },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json()) as {
@@ -22,9 +49,33 @@ export async function PATCH(
     compareAtCents?: number | string | null;
     position?: number;
     lowStockThreshold?: number;
-    options?: { name: string; value: string }[];
+    options?: { name: string; value: string; imagePosition?: number | null }[];
     inventory?: { quantityOnHand?: number; reserved?: number };
+    expectedUpdatedAt?: string | null;
   };
+
+  const existingVariant = await prisma.variant.findUnique({
+    where: { id },
+    select: { id: true, updatedAt: true },
+  });
+
+  if (!existingVariant) {
+    return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  }
+
+  if (
+    body.expectedUpdatedAt &&
+    existingVariant.updatedAt.toISOString() !== body.expectedUpdatedAt
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This variant was updated by another admin. Reload the latest product data before saving.",
+        currentUpdatedAt: existingVariant.updatedAt.toISOString(),
+      },
+      { status: 409 }
+    );
+  }
 
   const updates: {
     title?: string;
@@ -84,7 +135,7 @@ export async function PATCH(
     updates.lowStockThreshold = Math.max(0, Math.floor(body.lowStockThreshold));
   }
 
-  const operations: any[] = [
+  const operations: Prisma.PrismaPromise<unknown>[] = [
     prisma.variant.update({ where: { id }, data: updates }),
   ];
 
@@ -96,6 +147,11 @@ export async function PATCH(
       .map((opt) => ({
         name: opt.name.trim(),
         value: opt.value.trim(),
+        imagePosition:
+          typeof opt.imagePosition === "number" &&
+          Number.isFinite(opt.imagePosition)
+            ? Math.max(0, Math.floor(opt.imagePosition))
+            : null,
         variantId: id,
       }))
       .filter((opt) => opt.name && opt.value);
@@ -129,8 +185,11 @@ export async function PATCH(
 
   const variant = await prisma.variant.findUnique({
     where: { id },
-    include: { options: true, inventory: true, product: true },
+    include: { options: true, inventory: true, product: true, pricingProfile: true },
   });
+  if (variant?.product?.handle) {
+    revalidatePath(`/products/${variant.product.handle}`);
+  }
 
   if (variant?.inventory) {
     const available =
@@ -192,12 +251,75 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const ip = getClientIp(request.headers);
+  const ipLimit = await checkRateLimit({
+    key: `admin-variant-delete:ip:${ip}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
+      { status: 429 }
+    );
+  }
   const { id } = await context.params;
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!canAdminPerformAction(session.user.role, "catalog.product.write")) {
+    return NextResponse.json(
+      { error: "You do not have permission to delete product variants." },
+      { status: 403 }
+    );
+  }
 
+  const body = (await request.json().catch(() => ({}))) as {
+    adminPassword?: string;
+    reason?: string;
+  };
+  const adminPassword = body.adminPassword?.trim();
+  const reason = body.reason?.trim();
+  const admin = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
+  if (!admin?.passwordHash || !adminPassword) {
+    return NextResponse.json(
+      { error: "Passwort erforderlich." },
+      { status: 400 }
+    );
+  }
+  if (!reason) {
+    return NextResponse.json(
+      { error: "Grund für das Löschen erforderlich." },
+      { status: 400 }
+    );
+  }
+  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+  if (!validPassword) {
+    return NextResponse.json({ error: "Passwort ist falsch." }, { status: 401 });
+  }
+
+  const variant = await prisma.variant.findUnique({
+    where: { id },
+    select: { product: { select: { handle: true } } },
+  });
   await prisma.variant.delete({ where: { id } });
+  await logAdminAction({
+    actor: { id: session.user.id, email: session.user.email ?? null },
+    action: "variant.delete",
+    targetType: "variant",
+    targetId: id,
+    summary: `Deleted variant (${reason})`,
+    metadata: { reason },
+  });
+  if (variant?.product?.handle) {
+    revalidatePath(`/products/${variant.product.handle}`);
+  }
   return NextResponse.json({ ok: true });
 }

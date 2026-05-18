@@ -1,3 +1,14 @@
+import "server-only";
+
+import {
+  getStorefrontEmailBrand,
+  getStorefrontLinks,
+  resolveStorefrontEmailBrand,
+} from "@/lib/storefrontEmailBrand";
+import { type StorefrontCode } from "@/lib/storefronts";
+
+type EmailBrand = ReturnType<typeof getStorefrontEmailBrand>;
+
 type OrderItem = {
   name: string;
   quantity: number;
@@ -23,7 +34,18 @@ type OrderEmailInput = {
   items: OrderItem[];
 };
 
-type EmailType = "confirmation" | "shipping" | "refund";
+type EmailType =
+  | "confirmation"
+  | "shipping"
+  | "refund"
+  | "return_confirmation"
+  | "cancellation";
+
+type OrderEmailOptions = {
+  storefront?: StorefrontCode | null;
+  fallbackOrigin?: string | null;
+  receiptUrl?: string;
+};
 
 const formatPrice = (amount: number, currency: string) =>
   new Intl.NumberFormat("de-DE", {
@@ -32,61 +54,159 @@ const formatPrice = (amount: number, currency: string) =>
     minimumFractionDigits: 2,
   }).format(amount / 100);
 
+const normalizeItemName = (name: string) => {
+  const defaultSuffix = /\s*[-—]\s*Default( Title)?(?=\s*\(|$)/i;
+  return name.replace(defaultSuffix, "").trim();
+};
+
 const renderItemsText = (items: OrderItem[]) =>
   items
     .map(
       (item) =>
-        `- ${item.name} (x${item.quantity}) ${formatPrice(
-          item.totalAmount,
-          item.currency
-        )}`
+        `- ${normalizeItemName(item.name)} (x${item.quantity}) ${formatPrice(item.totalAmount, item.currency)}`,
     )
     .join("\n");
 
-const renderItemsHtml = (items: OrderItem[]) =>
+const renderItemsHtml = (items: OrderItem[], brand: EmailBrand) =>
   items
     .map(
-      (item) => `
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600;">${item.name}</td>
-          <td style="padding: 8px 0; text-align: center;">x${item.quantity}</td>
-          <td style="padding: 8px 0 8px 8px; text-align: left;">${formatPrice(
-            item.totalAmount,
-            item.currency
-          )}</td>
-        </tr>
-      `
+      (item, i) => `
+      <tr>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${normalizeItemName(item.name)}</td>
+        <td style="padding:12px 0;font-size:14px;color:${brand.mutedTextColor};text-align:center;width:40px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">×${item.quantity}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};text-align:right;width:110px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${formatPrice(item.totalAmount, item.currency)}</td>
+      </tr>`,
     )
     .join("");
+
+// ─── Shared layout primitives ──────────────────────────────────────────────
+
+const emailOuter = (
+  cardRows: string,
+  options: {
+    brand: EmailBrand;
+    shopUrl: string;
+    privacyUrl: string;
+    termsUrl: string;
+  },
+) => `
+<div style="background:${options.brand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:${options.brand.textColor};">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
+    <tr>
+      <td style="padding:0 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+          ${cardRows}
+        </table>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
+          <tr>
+            <td style="padding:20px 0;border-top:1px solid ${options.brand.cardBorderColor};text-align:center;">
+              <div style="font-size:12px;color:${options.brand.footerTextColor};line-height:1.8;">
+                © ${new Date().getFullYear()} ${options.brand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
+                <a href="${options.shopUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Shop</a>
+                &nbsp;·&nbsp;
+                <a href="${options.privacyUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Datenschutz</a>
+                &nbsp;·&nbsp;
+                <a href="${options.termsUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">AGB</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+const emailHeader = (
+  title: string,
+  subtitle: string,
+  options: {
+    brand: EmailBrand;
+    headerBackground: string;
+    headerColor: string;
+  },
+) => `
+  <tr>
+    <td height="4" style="background-color:${options.brand.accentColor};border-radius:14px 14px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+  </tr>
+  <tr>
+    <td style="background:${options.headerBackground};background-color:${options.headerColor};padding:32px 32px 28px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.brand.heroLabelColor};margin-bottom:16px;">${options.brand.brandName}</div>
+      <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${title}</div>
+      <div style="font-size:14px;color:${options.brand.heroMutedTextColor};">${subtitle}</div>
+    </td>
+  </tr>`;
+
+const sectionLabel = (text: string, brand: EmailBrand) =>
+  `<div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${brand.subtleTextColor};margin-bottom:10px;">${text}</div>`;
+
+const divider = (brand: EmailBrand) =>
+  `<div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>`;
+
+const primaryBtn = (href: string, label: string, brand: EmailBrand) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
+
+const secondaryBtn = (href: string, label: string, brand: EmailBrand) =>
+  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.secondaryButtonBackgroundColor};color:${brand.secondaryButtonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
+
+// ─── Main builder ──────────────────────────────────────────────────────────
 
 export function buildOrderEmail(
   type: EmailType,
   order: OrderEmailInput,
-  orderUrl?: string
+  orderUrl?: string,
+  invoiceUrl?: string,
+  options?: OrderEmailOptions,
 ) {
+  const storefront = resolveStorefrontEmailBrand(options?.storefront, [
+    options?.fallbackOrigin,
+  ]);
+  const brand = getStorefrontEmailBrand(storefront);
+  const links = getStorefrontLinks(storefront, options?.fallbackOrigin);
   const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const receiptUrl = storefront === "MAIN" ? options?.receiptUrl : undefined;
   const discountLabel = order.discountCode
     ? `Rabatt (${order.discountCode})`
     : "Rabatt";
-  const discountLine =
-    order.amountDiscount > 0
-      ? `${discountLabel}: -${formatPrice(order.amountDiscount, order.currency)}`
-      : null;
+
   const headerTitle =
     type === "confirmation"
       ? "Bestellung bestätigt"
       : type === "shipping"
-        ? "Versandupdate"
-        : "Rückerstattung";
+        ? "Dein Paket ist unterwegs"
+        : type === "refund"
+          ? "Rückerstattung verarbeitet"
+          : type === "return_confirmation"
+            ? "Rücksendung bestätigt"
+            : "Bestellung storniert";
+
   const headerSubtitle =
     type === "confirmation"
-      ? "Danke für deine Bestellung."
+      ? `Danke für deine Bestellung bei ${brand.brandName}.`
       : type === "shipping"
-        ? "Dein Paket ist unterwegs."
-        : "Deine Rückerstattung wurde verarbeitet.";
+      ? "Wir haben dein Paket auf den Weg gebracht."
+      : type === "refund"
+          ? "Der Betrag wird in Kürze gutgeschrieben."
+          : type === "return_confirmation"
+            ? "Wir haben deine Rücksendung erhalten."
+            : "Deine Bestellung wurde storniert.";
+
+  const headerColor = type === "cancellation" ? "#374151" : brand.headerColor;
+  const headerBackground =
+    type === "cancellation"
+      ? "linear-gradient(135deg,#374151 0%,#4b5563 100%)"
+      : brand.heroBackground;
+
+  const orderDate = new Date(order.createdAt).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
   const totalsText = [
     `Zwischensumme: ${formatPrice(order.amountSubtotal, order.currency)}`,
-    discountLine,
+    order.amountDiscount > 0
+      ? `${discountLabel}: -${formatPrice(order.amountDiscount, order.currency)}`
+      : null,
     `Steuern: ${formatPrice(order.amountTax, order.currency)}`,
     `Versand: ${formatPrice(order.amountShipping, order.currency)}`,
     `Gesamt: ${formatPrice(order.amountTotal, order.currency)}`,
@@ -94,130 +214,170 @@ export function buildOrderEmail(
     .filter(Boolean)
     .join("\n");
 
-  const trackingLines = [
-    order.trackingCarrier ? `Carrier: ${order.trackingCarrier}` : null,
-    order.trackingNumber ? `Tracking-Nr: ${order.trackingNumber}` : null,
-    order.trackingUrl ? `Tracking-URL: ${order.trackingUrl}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const trackingHtml = [
-    order.trackingCarrier ? `Carrier: ${order.trackingCarrier}` : null,
-    order.trackingNumber ? `Tracking-Nr: ${order.trackingNumber}` : null,
-    order.trackingUrl
-      ? `Tracking-URL: <a href="${order.trackingUrl}" style="color: #1f2937; text-decoration: underline;">${order.trackingUrl}</a>`
-      : null,
-  ]
-    .filter(Boolean)
-    .map((line) => `<div style="margin-top: 6px;">${line}</div>`)
-    .join("");
+  // ── Confirmation / Return / Cancellation ────────────────────────────────
+  if (
+    type === "confirmation" ||
+    type === "return_confirmation" ||
+    type === "cancellation"
+  ) {
+    const subject =
+      type === "confirmation"
+        ? `Bestellbestätigung ${orderNumber}`
+        : type === "return_confirmation"
+          ? `Rücksendung bestätigt ${orderNumber}`
+          : `Bestellung storniert ${orderNumber}`;
 
-  if (type === "confirmation") {
+    const introLine =
+      type === "confirmation"
+        ? `Danke für deine Bestellung ${orderNumber} bei ${brand.brandName}.`
+        : type === "return_confirmation"
+          ? `Wir haben deine Rücksendung für Bestellung ${orderNumber} erhalten.`
+          : `Deine Bestellung ${orderNumber} wurde storniert.`;
+
+    const statusNote =
+      type !== "confirmation"
+        ? `<div style="margin-bottom:24px;padding:14px 16px;background:${brand.noticeBackgroundColor};border-left:3px solid ${brand.noticeBorderColor};border-radius:0 8px 8px 0;font-size:14px;color:${brand.textColor};">${introLine}</div>`
+        : "";
+    const reviewInviteText =
+      type === "confirmation"
+        ? "Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein."
+        : null;
+    const reviewInviteHtml =
+      type === "confirmation"
+        ? `<div style="margin-top:20px;padding:12px 14px;background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;font-size:13px;color:${brand.mutedTextColor};">Bewerte deine gekauften Produkte in deinem Konto und sichere dir optional einen Dankes-Gutschein.</div>`
+        : "";
+
     return {
-      subject: `Bestellbestätigung ${orderNumber}`,
+      subject,
       text: [
-        `Danke für deine Bestellung ${orderNumber}.`,
+        introLine,
         "",
         renderItemsText(order.items),
         "",
         totalsText,
+        reviewInviteText ? `\n${reviewInviteText}` : "",
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
+        invoiceUrl ? `Rechnung herunterladen: ${invoiceUrl}` : "",
+        receiptUrl ? `Beleg herunterladen: ${receiptUrl}` : "",
       ].join("\n"),
-      html: `
-        <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-          <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-            <tr>
-              <td>
-                <div style="background: #2f3e36; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                  <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                  <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                  <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-                </div>
-                <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 0 32px 0 0; vertical-align: top;">
-                        <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                        <div style="font-weight: 700; font-size: 16px;">${orderNumber}</div>
-                      </td>
-                      <td style="padding: 0 0 0 32px; vertical-align: top; text-align: right;">
-                        <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Gesamt</div>
-                        <div style="font-weight: 700; font-size: 16px;">${formatPrice(
-                          order.amountTotal,
-                          order.currency
-                        )}</div>
-                      </td>
-                    </tr>
-                  </table>
+      html: emailOuter(`
+        ${emailHeader(headerTitle, headerSubtitle, {
+          brand,
+          headerBackground,
+          headerColor,
+        })}
+        <tr>
+          <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
 
-                  <div style="margin-top: 20px;">
-                    <div style="font-size: 12px; text-transform: uppercase; color: #6b7280; margin-bottom: 8px;">Artikel</div>
-                    <table style="width: 100%; border-collapse: collapse;">
-                      ${renderItemsHtml(order.items)}
-                    </table>
-                  </div>
+            ${statusNote}
 
-                  <div style="margin-top: 20px; background: #f9fafb; border-radius: 12px; padding: 16px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Zwischensumme</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountSubtotal,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      ${
-                        order.amountDiscount > 0
-                          ? `<tr>
-                              <td style="font-size: 14px; padding: 2px 0;">${discountLabel}</td>
-                              <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">-${formatPrice(
-                                order.amountDiscount,
-                                order.currency
-                              )}</td>
-                            </tr>`
-                          : ""
-                      }
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Steuern</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountTax,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      <tr>
-                        <td style="font-size: 14px; padding: 2px 0;">Versand</td>
-                        <td style="font-size: 14px; padding: 2px 0; text-align: left; width: 140px;">${formatPrice(
-                          order.amountShipping,
-                          order.currency
-                        )}</td>
-                      </tr>
-                      <tr>
-                        <td style="font-weight: 700; padding: 6px 0 2px;">Gesamt</td>
-                        <td style="font-weight: 700; padding: 6px 0 2px; text-align: left; width: 140px;">${formatPrice(
-                          order.amountTotal,
-                          order.currency
-                        )}</td>
-                      </tr>
-                    </table>
-                  </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="vertical-align:top;">
+                  ${sectionLabel("Bestellnummer", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+                </td>
+                <td style="vertical-align:top;text-align:right;">
+                  ${sectionLabel("Gesamt", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.emphasisColor};">${formatPrice(order.amountTotal, order.currency)}</div>
+                </td>
+              </tr>
+            </table>
 
-                  ${
-                    orderUrl
-                      ? `<div style="margin-top: 20px; text-align: center;">
-                          <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #2f3e36; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
-                        </div>`
-                      : ""
-                  }
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `,
+            ${divider(brand)}
+
+            ${sectionLabel("Artikel", brand)}
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              ${renderItemsHtml(order.items, brand)}
+            </table>
+
+            ${divider(brand)}
+
+            ${sectionLabel("Zahlungsübersicht", brand)}
+            <div style="background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;padding:20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">Zwischensumme</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0;">${formatPrice(order.amountSubtotal, order.currency)}</td>
+                </tr>
+                ${
+                  order.amountDiscount > 0
+                    ? `<tr>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">${discountLabel}</td>
+                  <td style="font-size:14px;color:#059669;text-align:right;padding:4px 0;">−${formatPrice(order.amountDiscount, order.currency)}</td>
+                </tr>`
+                    : ""
+                }
+                <tr>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">Steuern</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0;">${formatPrice(order.amountTax, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0 8px;">Versand</td>
+                  <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:4px 0 8px;">${formatPrice(order.amountShipping, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="height:1px;background:${brand.panelBorderColor};padding:0;font-size:0;"></td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px;font-weight:700;color:${brand.textColor};padding:12px 0 2px;">Gesamt</td>
+                  <td style="font-size:15px;font-weight:700;color:${brand.emphasisColor};text-align:right;padding:12px 0 2px;">${formatPrice(order.amountTotal, order.currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="font-size:12px;color:${brand.subtleTextColor};padding-bottom:2px;">inkl. MwSt.</td>
+                </tr>
+              </table>
+            </div>
+
+            ${
+              orderUrl || invoiceUrl || receiptUrl
+                ? `<div style="margin-top:28px;text-align:center;">
+                ${orderUrl ? primaryBtn(orderUrl, "Bestellung ansehen", brand) : ""}
+                ${invoiceUrl ? secondaryBtn(invoiceUrl, "Rechnung herunterladen", brand) : ""}
+                ${receiptUrl ? secondaryBtn(receiptUrl, "Beleg herunterladen", brand) : ""}
+              </div>`
+                : ""
+            }
+            ${reviewInviteHtml}
+
+          </td>
+        </tr>`, {
+        brand,
+        shopUrl: links.shopUrl,
+        privacyUrl: links.privacyUrl,
+        termsUrl: links.termsUrl,
+      }),
     };
   }
 
+  // ── Shipping ─────────────────────────────────────────────────────────────
   if (type === "shipping") {
+    const trackingRows = [
+      order.trackingCarrier
+        ? `<tr>
+            <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Versanddienst</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-weight:600;">${order.trackingCarrier}</td>
+          </tr>`
+        : null,
+      order.trackingNumber
+        ? `<tr>
+            <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Trackingnummer</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${order.trackingNumber}</td>
+          </tr>`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("");
+
+    const trackingLines = [
+      order.trackingCarrier ? `Versanddienst: ${order.trackingCarrier}` : null,
+      order.trackingNumber ? `Trackingnummer: ${order.trackingNumber}` : null,
+      order.trackingUrl ? `Tracking-URL: ${order.trackingUrl}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     return {
       subject: `Versandupdate ${orderNumber}`,
       text: [
@@ -226,40 +386,67 @@ export function buildOrderEmail(
         trackingLines || "Trackingdaten folgen in Kürze.",
         orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
       ].join("\n"),
-      html: `
-        <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-          <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-            <tr>
-              <td>
-                <div style="background: #1f2937; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                  <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                  <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                  <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-                </div>
-                <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                  <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                  <div style="font-weight: 700; font-size: 16px; margin-bottom: 24px;">${orderNumber}</div>
-                  <div style="margin-top: 6px; background: #f9fafb; border-radius: 12px; padding: 16px; font-size: 14px;">
-                    ${trackingHtml || '<div>Trackingdaten folgen in Kuerze.</div>'}
-                  </div>
-                  ${
-                    orderUrl
-                      ? `<div style="margin-top: 20px; text-align: center;">
-                          <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #1f2937; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
-                        </div>`
-                      : ""
-                  }
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `,
+      html: emailOuter(`
+        ${emailHeader(headerTitle, headerSubtitle, {
+          brand,
+          headerBackground,
+          headerColor,
+        })}
+        <tr>
+          <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
+
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="vertical-align:top;">
+                  ${sectionLabel("Bestellnummer", brand)}
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+                </td>
+              </tr>
+            </table>
+
+            ${divider(brand)}
+
+            ${sectionLabel("Versandinformationen", brand)}
+            ${
+              trackingRows
+                ? `<div style="background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:10px;padding:20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                  ${trackingRows}
+                </table>
+                ${
+                  order.trackingUrl
+                    ? `<div style="margin-top:18px;">
+                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">Paket verfolgen &rarr;</a>
+                  </div>`
+                    : ""
+                }
+              </div>`
+                : `<p style="font-size:14px;color:${brand.mutedTextColor};margin:0;">Trackingdaten folgen in Kürze.</p>`
+            }
+
+            ${
+              orderUrl
+                ? `<div style="margin-top:28px;text-align:center;">
+                ${primaryBtn(orderUrl, "Bestellung ansehen", brand)}
+              </div>`
+                : ""
+            }
+
+          </td>
+        </tr>`, {
+        brand,
+        shopUrl: links.shopUrl,
+        privacyUrl: links.privacyUrl,
+        termsUrl: links.termsUrl,
+      }),
     };
   }
 
+  // ── Refund ────────────────────────────────────────────────────────────────
   const refundedAmount =
     typeof order.amountRefunded === "number" ? order.amountRefunded : 0;
+
   return {
     subject: `Rückerstattung ${orderNumber}`,
     text: [
@@ -267,34 +454,47 @@ export function buildOrderEmail(
       `Rückerstattet: ${formatPrice(refundedAmount, order.currency)}`,
       orderUrl ? `\nBestellung ansehen: ${orderUrl}` : "",
     ].join("\n"),
-    html: `
-      <div style="background: #f6f5f2; padding: 24px 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
-        <table style="width: 100%; max-width: 640px; margin: 0 auto; border-collapse: collapse;">
-          <tr>
-            <td>
-              <div style="background: #6b7280; color: #ffffff; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                <div style="font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;">Smokeify</div>
-                <div style="font-size: 22px; font-weight: 700; margin-top: 6px;">${headerTitle}</div>
-                <div style="font-size: 14px; margin-top: 4px; opacity: 0.85;">${headerSubtitle}</div>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border-radius: 0 0 16px 16px; border: 1px solid #e5e7eb;">
-                <div style="font-size: 12px; text-transform: uppercase; color: #6b7280;">Bestellnummer</div>
-                <div style="font-weight: 700; font-size: 16px; margin-bottom: 16px;">${orderNumber}</div>
-                <div style="background: #f9fafb; border-radius: 12px; padding: 16px; font-size: 14px;">
-                  Rückerstattet: ${formatPrice(refundedAmount, order.currency)}
-                </div>
-                ${
-                  orderUrl
-                    ? `<div style="margin-top: 20px; text-align: center;">
-                        <a href="${orderUrl}" style="display: inline-block; padding: 10px 16px; border-radius: 999px; background: #6b7280; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">Bestellung ansehen</a>
-                      </div>`
-                    : ""
-                }
-              </div>
-            </td>
-          </tr>
-        </table>
-      </div>
-    `,
+    html: emailOuter(`
+      ${emailHeader(headerTitle, headerSubtitle, {
+        brand,
+        headerBackground,
+        headerColor,
+      })}
+      <tr>
+        <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="vertical-align:top;">
+                ${sectionLabel("Bestellnummer", brand)}
+                <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
+                <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+              </td>
+            </tr>
+          </table>
+
+          ${divider(brand)}
+
+          ${sectionLabel("Rückerstattungsbetrag", brand)}
+          <div style="background:${brand.noticeBackgroundColor};border-radius:12px;padding:28px;text-align:center;border:1px solid ${brand.noticeBorderColor};">
+            <div style="font-size:38px;font-weight:700;color:${brand.emphasisColor};">${formatPrice(refundedAmount, order.currency)}</div>
+            <div style="font-size:13px;color:${brand.mutedTextColor};margin-top:8px;">wird innerhalb von 5–10 Werktagen gutgeschrieben</div>
+          </div>
+
+          ${
+            orderUrl
+              ? `<div style="margin-top:28px;text-align:center;">
+              ${primaryBtn(orderUrl, "Bestellung ansehen", brand)}
+            </div>`
+              : ""
+          }
+
+        </td>
+      </tr>`, {
+      brand,
+      shopUrl: links.shopUrl,
+      privacyUrl: links.privacyUrl,
+      termsUrl: links.termsUrl,
+    }),
   };
 }

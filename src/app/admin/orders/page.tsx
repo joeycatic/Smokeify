@@ -1,55 +1,64 @@
-import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
-import PageLayout from "@/components/PageLayout";
-import { authOptions } from "@/lib/auth";
+import { requireAdminScope } from "@/lib/adminCatalog";
+import { loadAdminOrdersPage } from "@/lib/adminOrders";
+import { measureServerExecution } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
+import {
+  parseAdminStorefrontScope,
+  storefrontScopeToStorefront,
+} from "@/lib/storefronts";
 import AdminOrdersClient from "./AdminOrdersClient";
 
-export default async function AdminOrdersPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  if (!isAdmin) notFound();
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (!(await requireAdminScope("orders.read"))) notFound();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams.storefront);
+  const storefront = storefrontScopeToStorefront(storefrontScope);
+  const initialSearchQuery = Array.isArray(resolvedSearchParams.customer)
+    ? resolvedSearchParams.customer[0] ?? ""
+    : resolvedSearchParams.customer ?? "";
+  const page = Number(
+    Array.isArray(resolvedSearchParams.page)
+      ? resolvedSearchParams.page[0] ?? "1"
+      : resolvedSearchParams.page ?? "1",
+  );
 
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
-    },
-  });
-  const webhookFailures = await prisma.processedWebhookEvent.findMany({
-    where: { status: "failed" },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
+  const [{ result: orderPage }, { result: webhookFailures }] = await Promise.all([
+    measureServerExecution(`admin.orders.list.${storefrontScope.toLowerCase()}`, () =>
+      loadAdminOrdersPage({
+        storefront,
+        searchQuery: initialSearchQuery,
+        page,
+      }),
+    ),
+    measureServerExecution("admin.orders.webhookFailures", () =>
+      prisma.processedWebhookEvent.findMany({
+        where: { status: "failed" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+    ),
+  ]);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12 text-stone-800">
-        <AdminOrdersClient
-          webhookFailures={webhookFailures.map((event) => ({
-            id: event.id,
-            eventId: event.eventId,
-            type: event.type,
-            status: event.status,
-            createdAt: event.createdAt.toISOString(),
-          }))}
-          orders={orders.map((order) => ({
-            ...order,
-            createdAt: order.createdAt.toISOString(),
-            updatedAt: order.updatedAt.toISOString(),
-            confirmationEmailSentAt: order.confirmationEmailSentAt
-              ? order.confirmationEmailSentAt.toISOString()
-              : null,
-            shippingEmailSentAt: order.shippingEmailSentAt
-              ? order.shippingEmailSentAt.toISOString()
-              : null,
-            refundEmailSentAt: order.refundEmailSentAt
-              ? order.refundEmailSentAt.toISOString()
-              : null,
-          }))}
-        />
-      </div>
-    </PageLayout>
+    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
+      <AdminOrdersClient
+        activeStorefrontScope={storefrontScope}
+        initialSearchQuery={initialSearchQuery}
+        orderPage={orderPage}
+        webhookFailures={webhookFailures.map((event) => ({
+          id: event.id,
+          eventId: event.eventId,
+          type: event.type,
+          status: event.status,
+          createdAt: event.createdAt.toISOString(),
+          errorMessage: event.errorMessage ?? null,
+        }))}
+      />
+    </div>
   );
 }
