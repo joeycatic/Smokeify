@@ -5,7 +5,7 @@ import {
   ADMIN_INVENTORY_REASON_LABELS,
   type AdminInventoryAdjustmentMode,
   type AdminInventoryReasonCode,
-} from "@/lib/adminInventory";
+} from "@/lib/adminInventoryShared";
 
 type VariantSearchResult = {
   id: string;
