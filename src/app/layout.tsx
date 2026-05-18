@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import Providers from "@/app/providers";
+import { Analytics } from "@vercel/analytics/next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -24,7 +25,8 @@ export const metadata: Metadata = {
     default: "Smokeify",
     template: "%s | Smokeify",
   },
-  description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
+  description:
+    "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   metadataBase: new URL(siteUrl),
   alternates: {
     languages: {
@@ -40,13 +42,15 @@ export const metadata: Metadata = {
     locale: "de_DE",
     url: siteUrl,
     title: "Smokeify",
-    description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
+    description:
+      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
     siteName: "Smokeify",
   },
   twitter: {
     card: "summary_large_image",
     title: "Smokeify",
-    description: "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
+    description:
+      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
   },
   robots: {
     index: true,
@@ -82,6 +86,7 @@ export default async function RootLayout({
         className={`${manrope.variable} ${fraunces.variable} min-h-screen bg-[var(--smk-bg)] font-[family:var(--font-manrope)] text-[var(--smk-text)] antialiased`}
       >
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
