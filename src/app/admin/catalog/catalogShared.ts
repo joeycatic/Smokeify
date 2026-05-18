@@ -16,6 +16,10 @@ export type ProductRow = {
   sellerUrl?: string | null;
   supplierId?: string | null;
   supplierName?: string | null;
+  complianceStatus?: "DRAFT_REVIEW" | "APPROVED" | "NEEDS_CHANGES" | "BLOCKED";
+  complianceFeedEligible?: boolean;
+  complianceAdsEligible?: boolean;
+  complianceManualBlockers?: string[];
   storefronts: StorefrontCode[];
   availableInventory: number;
   categoryIds: string[];

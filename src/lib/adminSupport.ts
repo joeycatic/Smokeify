@@ -51,7 +51,7 @@ const SUPPORT_CASE_INCLUDE = {
   },
   events: {
     orderBy: { createdAt: "desc" as const },
-    take: 50,
+    take: 8,
   },
 } as const;
 
@@ -149,13 +149,90 @@ async function appendSupportEvent(input: {
   });
 }
 
-export async function listAdminSupportCases() {
+export type AdminSupportCaseFilters = {
+  q?: string;
+  status?: SupportCaseStatus | "ALL";
+  priority?: SupportCasePriority | "ALL";
+  assigneeUserId?: string | "ALL" | "UNASSIGNED";
+  take?: number;
+};
+
+export function parseAdminSupportCaseFilters(
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+): AdminSupportCaseFilters {
+  const read = (key: string) => {
+    const value = searchParams?.[key];
+    return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
+  };
+  const status = read("status").toUpperCase();
+  const priority = read("priority").toUpperCase();
+  const take = Number.parseInt(read("take"), 10);
+  return {
+    q: read("q"),
+    status: Object.values(SupportCaseStatus).includes(status as SupportCaseStatus)
+      ? (status as SupportCaseStatus)
+      : "ALL",
+    priority: Object.values(SupportCasePriority).includes(priority as SupportCasePriority)
+      ? (priority as SupportCasePriority)
+      : "ALL",
+    assigneeUserId: read("assignee") || "ALL",
+    take: Number.isFinite(take) ? Math.min(Math.max(take, 1), 100) : 50,
+  };
+}
+
+export async function listAdminSupportCases(filters: AdminSupportCaseFilters = {}) {
+  const where: Prisma.SupportCaseWhereInput = {};
+  const and: Prisma.SupportCaseWhereInput[] = [];
+  const q = filters.q?.trim();
+
+  if (filters.status && filters.status !== "ALL") {
+    and.push({ status: filters.status });
+  }
+  if (filters.priority && filters.priority !== "ALL") {
+    and.push({ priority: filters.priority });
+  }
+  if (filters.assigneeUserId && filters.assigneeUserId !== "ALL") {
+    and.push(
+      filters.assigneeUserId === "UNASSIGNED"
+        ? { assigneeUserId: null }
+        : { assigneeUserId: filters.assigneeUserId },
+    );
+  }
+  if (q) {
+    and.push({
+      OR: [
+        { summary: { contains: q, mode: "insensitive" } },
+        { assigneeEmail: { contains: q, mode: "insensitive" } },
+        { linkedOrder: { customerEmail: { contains: q, mode: "insensitive" } } },
+        { linkedCustomer: { email: { contains: q, mode: "insensitive" } } },
+        { contactSubmission: { email: { contains: q, mode: "insensitive" } } },
+      ],
+    });
+  }
+  if (and.length) where.AND = and;
+
   const cases = await prisma.supportCase.findMany({
+    where,
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    take: filters.take ?? 50,
     include: SUPPORT_CASE_INCLUDE,
   });
 
   return cases.map(serializeSupportCase);
+}
+
+export async function getAdminSupportCaseDetail(supportCaseId: string) {
+  const supportCase = await prisma.supportCase.findUnique({
+    where: { id: supportCaseId },
+    include: {
+      ...SUPPORT_CASE_INCLUDE,
+      events: {
+        orderBy: { createdAt: "desc" },
+        take: 80,
+      },
+    },
+  });
+  return supportCase ? serializeSupportCase(supportCase) : null;
 }
 
 export async function listAdminSupportOwners() {

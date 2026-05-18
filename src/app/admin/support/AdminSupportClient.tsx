@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AdminButton,
   AdminEmptyState,
@@ -113,6 +113,7 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
     note: "",
   });
   const [caseNoteDraft, setCaseNoteDraft] = useState("");
+  const [loadedDetailIds, setLoadedDetailIds] = useState<Set<string>>(() => new Set());
 
   const filteredCases = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -138,6 +139,28 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
     supportCases.find((supportCase) => supportCase.id === selectedCaseId) ??
     filteredCases[0] ??
     null;
+
+  useEffect(() => {
+    if (!selectedCase?.id || loadedDetailIds.has(selectedCase.id)) return;
+    let active = true;
+    const loadDetail = async () => {
+      const response = await fetch(`/api/admin/support-cases/${selectedCase.id}`);
+      const data = (await response.json().catch(() => ({}))) as {
+        supportCase?: SupportCase;
+      };
+      if (!active || !response.ok || !data.supportCase) return;
+      setSupportCases((current) =>
+        current.map((supportCase) =>
+          supportCase.id === data.supportCase!.id ? data.supportCase! : supportCase,
+        ),
+      );
+      setLoadedDetailIds((current) => new Set(current).add(selectedCase.id));
+    };
+    void loadDetail();
+    return () => {
+      active = false;
+    };
+  }, [loadedDetailIds, selectedCase?.id]);
 
   const openCount = supportCases.filter((supportCase) => supportCase.status !== "RESOLVED").length;
   const waitingCustomerCount = supportCases.filter(

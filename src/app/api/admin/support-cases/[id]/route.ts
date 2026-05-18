@@ -3,8 +3,16 @@ import {
   SupportCaseStatus,
 } from "@prisma/client";
 import { adminJson } from "@/lib/adminApi";
-import { updateAdminSupportCase } from "@/lib/adminSupport";
+import { getAdminSupportCaseDetail, updateAdminSupportCase } from "@/lib/adminSupport";
 import { withAdminRoute } from "@/lib/adminRoute";
+
+export const GET = withAdminRoute<{ id: string }>(async ({ params }) => {
+  const supportCase = await getAdminSupportCaseDetail(params.id);
+  if (!supportCase) {
+    return adminJson({ error: "Support case not found." }, { status: 404 });
+  }
+  return adminJson({ supportCase });
+});
 
 export const PATCH = withAdminRoute<{ id: string }>(
   async ({ request, params, session }) => {

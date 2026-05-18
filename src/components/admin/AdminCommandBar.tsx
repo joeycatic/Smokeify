@@ -4,6 +4,7 @@ import type { ComponentProps, ComponentType, KeyboardEvent as ReactKeyboardEvent
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { filterAdminCommandActions } from "@/lib/adminCommandActions";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
   adminPathSupportsStorefrontScope,
@@ -48,7 +49,17 @@ type DisplayCommand =
     })
   | (CommandSearchResult & {
       kind: "entity";
-    });
+    })
+  | {
+      kind: "action";
+      id: string;
+      group: string;
+      title: string;
+      subtitle: string;
+      href?: string;
+      badge?: string;
+      run?: () => Promise<void> | void;
+    };
 
 type AdminCommandBarProps = {
   groups: CommandNavGroup[];
@@ -91,6 +102,7 @@ export default function AdminCommandBar({
   const [activeIndex, setActiveIndex] = useState(0);
   const [entityResults, setEntityResults] = useState<CommandSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [notice, setNotice] = useState("");
   const deferredQuery = useDeferredValue(query);
 
   const commands = useMemo<FlattenedCommand[]>(
@@ -113,6 +125,50 @@ export default function AdminCommandBar({
     return commands.filter((item) => item.searchValue.includes(normalizedQuery));
   }, [commands, query]);
   const normalizedQuery = deferredQuery.trim();
+  const availableHrefs = useMemo(
+    () => new Set(commands.map((command) => command.href)),
+    [commands],
+  );
+  const actionCommands = useMemo<DisplayCommand[]>(() => {
+    const actions = filterAdminCommandActions({
+      query: normalizedQuery,
+      availableHrefs,
+    });
+
+    return actions.slice(0, normalizedQuery ? undefined : 5).map((action) => ({
+      kind: "action" as const,
+      id: action.id,
+      group: "Actions",
+      title: action.queryMatch?.(normalizedQuery)
+        ? `${action.label} #${normalizedQuery}`
+        : action.label,
+      subtitle: action.description,
+      href: action.buildHref
+        ? action.buildHref(normalizedQuery, currentStorefrontScope)
+        : action.href,
+      badge: action.badge,
+      run:
+        action.clientAction === "save-current-view"
+          ? async () => {
+              setNotice("");
+              if (typeof window === "undefined") return;
+          const filters = Object.fromEntries(new URLSearchParams(window.location.search));
+          const response = await fetch("/api/admin/saved-views", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              route: pathname,
+              label: document.title?.replace(" | Smokeify", "") || "Saved view",
+              filters,
+              storefrontScope: currentStorefrontScope,
+            }),
+          });
+          setNotice(response.ok ? "Saved current view." : "Saved view failed.");
+            }
+          : undefined,
+    }));
+  }, [availableHrefs, currentStorefrontScope, normalizedQuery, pathname]);
+
   const displayCommands = useMemo<DisplayCommand[]>(() => {
     const pageResults = filteredCommands.map((item) => ({
       ...item,
@@ -123,17 +179,18 @@ export default function AdminCommandBar({
     }));
 
     if (normalizedQuery.length < 2) {
-      return pageResults;
+      return [...actionCommands, ...pageResults];
     }
 
     return [
+      ...actionCommands,
       ...entityResults.map((result) => ({
         ...result,
         kind: "entity" as const,
       })),
       ...pageResults,
     ];
-  }, [entityResults, filteredCommands, normalizedQuery.length]);
+  }, [actionCommands, entityResults, filteredCommands, normalizedQuery.length]);
   const boundedActiveIndex =
     displayCommands.length === 0 ? 0 : Math.min(activeIndex, displayCommands.length - 1);
 
@@ -222,8 +279,13 @@ export default function AdminCommandBar({
 
   const openCommandBar = () => setOpen(true);
 
-  const selectCommand = (command: DisplayCommand | undefined) => {
+  const selectCommand = async (command: DisplayCommand | undefined) => {
     if (!command) return;
+    if (command.kind === "action" && command.run) {
+      await command.run();
+      return;
+    }
+    if (!command.href) return;
     setOpen(false);
     setQuery("");
     setActiveIndex(0);
@@ -250,7 +312,7 @@ export default function AdminCommandBar({
 
     if (event.key === "Enter") {
       event.preventDefault();
-      selectCommand(displayCommands[boundedActiveIndex]);
+      void selectCommand(displayCommands[boundedActiveIndex]);
     }
   };
 
@@ -263,7 +325,7 @@ export default function AdminCommandBar({
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">Jump to workspace or page</span>
+        <span className="min-w-0 flex-1 truncate">Search pages, records, or actions</span>
         <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500">
           Ctrl K
         </span>
@@ -312,7 +374,7 @@ export default function AdminCommandBar({
                 placeholder={
                   normalizedQuery.length >= 2
                     ? "Search pages, orders, customers, products, suppliers..."
-                    : "Search admin pages"
+                    : "Search admin pages and actions"
                 }
                 className="h-11 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                 aria-label="Search admin commands"
@@ -323,6 +385,11 @@ export default function AdminCommandBar({
             </div>
 
             <div className="min-h-0 overflow-y-auto p-3">
+              {notice ? (
+                <div className="mb-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-100">
+                  {notice}
+                </div>
+              ) : null}
               {displayCommands.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
                   {normalizedQuery.length >= 2
@@ -337,14 +404,18 @@ export default function AdminCommandBar({
                     const current =
                       command.kind === "page"
                         ? isCurrentPath(pathname, command)
-                        : pathname === command.href || pathname.startsWith(`${command.href}/`);
+                        : command.href
+                          ? pathname === command.href || pathname.startsWith(`${command.href}/`)
+                          : false;
 
                     return (
                       <button
                         key={`${command.group}-${command.id}`}
                         type="button"
                         onMouseEnter={() => setActiveIndex(index)}
-                        onClick={() => selectCommand(command)}
+                        onClick={() => {
+                          void selectCommand(command);
+                        }}
                         className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition sm:px-4 ${
                           active
                             ? "border-cyan-400/20 bg-cyan-400/10"

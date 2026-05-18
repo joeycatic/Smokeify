@@ -12,6 +12,7 @@ import {
   BanknotesIcon,
   CalculatorIcon,
   BeakerIcon,
+  CheckBadgeIcon,
   ChartBarSquareIcon,
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
@@ -50,6 +51,9 @@ const AdminConnectionStatus = dynamic(
     ssr: false,
   },
 );
+const AdminSavedViews = dynamic(() => import("@/components/admin/AdminSavedViews"), {
+  ssr: false,
+});
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -72,15 +76,14 @@ type NavGroup = {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
+    label: "Home",
     items: [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
       { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
-      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
     ],
   },
   {
-    label: "Control Layer",
+    label: "Revenue",
     items: [
       { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
       { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
@@ -97,13 +100,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Commerce",
+    label: "Catalog",
     items: [
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
       { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
       { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
       { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
       { href: "/admin/discounts", label: "Discounts", icon: TagIcon, scope: "discounts.manage" },
+      { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
       { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
     ],
   },
@@ -130,7 +134,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "CRM",
     items: [
       { href: "/admin/customers", label: "Customers", icon: UsersIcon, scope: "customers.read" },
-      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
       { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
       { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
     ],
@@ -168,11 +171,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardDocumentListIcon,
         scope: "ops.read",
       },
-    ],
-  },
-  {
-    label: "Utilities",
-    items: [
       {
         href: "/admin/email-testing",
         label: "Email Testing",
@@ -181,12 +179,21 @@ const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  {
+    label: "Access",
+    items: [
+      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
+      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
+    ],
+  },
 ];
 
 const HIDDEN_ROUTE_TITLES: Array<{ prefix: string; title: string }> = [
   { prefix: "/admin/catalog/", title: "Product Detail" },
   { prefix: "/admin/users/", title: "User Detail" },
   { prefix: "/admin/procurement/", title: "Purchase Order" },
+  { prefix: "/admin/orders/", title: "Order Detail" },
+  { prefix: "/admin/compliance/", title: "Compliance Detail" },
 ];
 
 function isActive(pathname: string, item: NavItem) {
@@ -351,6 +358,12 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 </div>
               </div>
             ))}
+            <AdminSavedViews
+              pathname={pathname}
+              searchParamsString={searchParams?.toString() ?? ""}
+              currentTitle={currentTitle}
+              currentStorefrontScope={currentStorefrontScope}
+            />
           </nav>
         </aside>
 

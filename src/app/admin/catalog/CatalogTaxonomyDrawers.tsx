@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   AdminButton,
   AdminDrawer,
@@ -74,7 +75,7 @@ export function CategoryManagementDrawer({
     <AdminDrawer
       open={open}
       title="Category management"
-      description="Maintain the product taxonomy without pushing the product table off screen."
+      description="Daily taxonomy work now starts here. Use advanced maintenance only for bulk cleanup and legacy audits."
       onClose={onClose}
       widthClassName="w-full max-w-6xl"
     >
@@ -143,6 +144,13 @@ export function CategoryManagementDrawer({
               </AdminButton>
             </div>
           </AdminPanel>
+
+          <Link
+            href="/admin/categories"
+            className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-white/[0.06]"
+          >
+            Advanced category maintenance
+          </Link>
 
           <AdminPanel
             eyebrow="Hierarchy"
@@ -389,7 +397,7 @@ export function CollectionManagementDrawer({
     <AdminDrawer
       open={open}
       title="Collection management"
-      description="Curate collections in a separate panel without reintroducing the legacy stacked form layout."
+      description="Daily collection work now starts here. Use advanced maintenance only for bulk cleanup and legacy audits."
       onClose={onClose}
       widthClassName="w-full max-w-5xl"
     >
@@ -431,6 +439,13 @@ export function CollectionManagementDrawer({
               </AdminButton>
             </div>
           </AdminPanel>
+
+          <Link
+            href="/admin/collections"
+            className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-white/[0.06]"
+          >
+            Advanced collection maintenance
+          </Link>
 
           <AdminPanel
             eyebrow="Browser"

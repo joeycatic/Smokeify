@@ -206,6 +206,7 @@ const ADMIN_API_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/api/admin/returns", scope: "orders.fulfillment.write" },
   { prefix: "/api/admin/reviews", scope: "catalog.write" },
   { prefix: "/api/admin/scripts", scope: "scripts.execute" },
+  { prefix: "/api/admin/saved-views", scope: "dashboard.read" },
   { prefix: "/api/admin/search", scope: "dashboard.read" },
   { prefix: "/api/admin/suppliers", scope: "suppliers.read", methods: ["GET"] },
   { prefix: "/api/admin/suppliers", scope: "suppliers.write" },
