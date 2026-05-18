@@ -30,6 +30,16 @@ export type StorefrontNewsletterAudience = {
   unresolvedRecipientCount: number;
 };
 
+export type NewsletterAttributionDiagnostics = {
+  unresolvedRecipients: string[];
+  byStorefront: Record<
+    StorefrontCode,
+    {
+      attributedRecipientCount: number;
+    }
+  >;
+};
+
 async function collectActiveNewsletterAudience() {
   const [subscriberRows, optedInUserRows, suppressedUserRows] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
@@ -189,6 +199,21 @@ export async function getNewsletterAudienceSummary(): Promise<NewsletterAudience
     optedInUserCount,
     suppressedUserCount,
     unresolvedRecipientCount: audience.unresolvedRecipients.length,
+    byStorefront: {
+      MAIN: {
+        attributedRecipientCount: audience.recipientsByStorefront.MAIN.size,
+      },
+      GROW: {
+        attributedRecipientCount: audience.recipientsByStorefront.GROW.size,
+      },
+    },
+  };
+}
+
+export async function getNewsletterAttributionDiagnostics(): Promise<NewsletterAttributionDiagnostics> {
+  const audience = await collectActiveNewsletterAudience();
+  return {
+    unresolvedRecipients: audience.unresolvedRecipients,
     byStorefront: {
       MAIN: {
         attributedRecipientCount: audience.recipientsByStorefront.MAIN.size,

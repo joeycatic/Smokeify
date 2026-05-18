@@ -106,6 +106,7 @@ type BuildVatSummaryOptions =
       missingExpenseVatCount?: number;
       missingExpenseDocumentCount?: number;
       missingExpenseSupplierCount?: number;
+      missingExpenseAllocationCount?: number;
     };
 
 const clamp = (value: number, min: number, max: number) =>
@@ -280,6 +281,8 @@ export const buildVatSummary = (
     typeof options === "number" ? 0 : options.missingExpenseDocumentCount ?? 0;
   const missingExpenseSupplierCount =
     typeof options === "number" ? 0 : options.missingExpenseSupplierCount ?? 0;
+  const missingExpenseAllocationCount =
+    typeof options === "number" ? 0 : options.missingExpenseAllocationCount ?? 0;
   const monthLabel = new Intl.DateTimeFormat("de-DE", {
     month: "long",
     year: "numeric",
@@ -310,6 +313,11 @@ export const buildVatSummary = (
     if (missingExpenseSupplierCount > 0) {
       blockers.push(
         `${missingExpenseSupplierCount} expense record(s) are not linked to a supplier.`,
+      );
+    }
+    if (missingExpenseAllocationCount > 0) {
+      blockers.push(
+        `${missingExpenseAllocationCount} expense record(s) are missing complete storefront allocations.`,
       );
     }
     if (inputVatCents <= 0) {

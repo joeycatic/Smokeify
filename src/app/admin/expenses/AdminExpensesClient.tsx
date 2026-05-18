@@ -25,6 +25,11 @@ import {
   type TaxRegime,
   type TaxReviewStatus,
 } from "@/lib/adminExpenses";
+import {
+  STOREFRONT_LABELS,
+  STOREFRONTS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 type SupplierOption = {
   id: string;
@@ -42,11 +47,23 @@ type ExpenseSummary = {
   missingSupplierCount: number;
   missingDocumentCount: number;
   missingVatCount: number;
+  missingAllocationCount: number;
   verifiedCount: number;
   readyCount: number;
   invoiceCompleteCount: number;
   reviewRequiredCount: number;
   blockedCount: number;
+};
+
+type StorefrontAllocation = {
+  storefront: StorefrontCode;
+  percent: number;
+};
+
+type AllocationSummary = {
+  totalPercent: number;
+  isFullyAllocated: boolean;
+  missingPercent: number;
 };
 
 type RecurringExpenseSummary = {
@@ -101,6 +118,8 @@ type ExpenseRecord = {
   documentDate: string;
   paidAt: string | null;
   documentStatus: ExpenseDocumentStatus;
+  allocations: StorefrontAllocation[];
+  allocationSummary: AllocationSummary;
   createdAt: string;
   updatedAt: string;
 };
@@ -121,6 +140,8 @@ type RecurringExpenseRecord = {
   interval: RecurringExpenseInterval;
   nextDueDate: string;
   isActive: boolean;
+  allocations: StorefrontAllocation[];
+  allocationSummary: AllocationSummary;
   createdAt: string;
   updatedAt: string;
 };
@@ -145,6 +166,7 @@ type ExpenseFormState = {
   documentDate: string;
   paidAt: string;
   documentStatus: ExpenseDocumentStatus;
+  allocations: StorefrontAllocation[];
 };
 
 type RecurringExpenseFormState = {
@@ -160,6 +182,7 @@ type RecurringExpenseFormState = {
   interval: RecurringExpenseInterval;
   nextDueDate: string;
   isActive: boolean;
+  allocations: StorefrontAllocation[];
 };
 
 type Tone = {
@@ -311,6 +334,7 @@ const emptyForm = (): ExpenseFormState => ({
   documentDate: new Date().toISOString().slice(0, 10),
   paidAt: "",
   documentStatus: "RECEIVED",
+  allocations: [],
 });
 
 const emptyRecurringForm = (): RecurringExpenseFormState => ({
@@ -326,7 +350,47 @@ const emptyRecurringForm = (): RecurringExpenseFormState => ({
   interval: "MONTHLY",
   nextDueDate: new Date().toISOString().slice(0, 10),
   isActive: true,
+  allocations: [],
 });
+
+const summarizeAllocations = (allocations: StorefrontAllocation[]): AllocationSummary => {
+  const totalPercent = allocations.reduce((sum, allocation) => sum + allocation.percent, 0);
+  return {
+    totalPercent,
+    isFullyAllocated: allocations.length > 0 && totalPercent === 100,
+    missingPercent: Math.max(0, 100 - totalPercent),
+  };
+};
+
+const validateAllocations = (allocations: StorefrontAllocation[]) => {
+  if (allocations.length === 0) {
+    return { ok: true as const, allocations: [] as StorefrontAllocation[] };
+  }
+
+  const seen = new Set<string>();
+  for (const allocation of allocations) {
+    if (!STOREFRONTS.includes(allocation.storefront)) {
+      return { ok: false as const, error: "Allocation storefront is invalid." };
+    }
+    if (!Number.isInteger(allocation.percent) || allocation.percent < 0 || allocation.percent > 100) {
+      return {
+        ok: false as const,
+        error: "Allocation percentages must be integers between 0 and 100.",
+      };
+    }
+    if (seen.has(allocation.storefront)) {
+      return { ok: false as const, error: "Duplicate storefront allocations are not allowed." };
+    }
+    seen.add(allocation.storefront);
+  }
+
+  const summary = summarizeAllocations(allocations);
+  if (summary.totalPercent !== 100) {
+    return { ok: false as const, error: "Allocation percentages must total 100." };
+  }
+
+  return { ok: true as const, allocations };
+};
 
 const buildPayload = (
   form: ExpenseFormState,
@@ -356,6 +420,10 @@ const buildPayload = (
   if (!form.documentDate) {
     return { ok: false as const, error: "Document date is required." };
   }
+  const allocationValidation = validateAllocations(form.allocations);
+  if (!allocationValidation.ok) {
+    return allocationValidation;
+  }
 
   return {
     ok: true as const,
@@ -380,6 +448,7 @@ const buildPayload = (
       documentDate: form.documentDate,
       paidAt: form.paidAt || null,
       documentStatus: form.documentStatus,
+      allocations: allocationValidation.allocations,
     },
   };
 };
@@ -412,6 +481,10 @@ const buildRecurringPayload = (
   if (!form.nextDueDate) {
     return { ok: false as const, error: "Next due date is required." };
   }
+  const allocationValidation = validateAllocations(form.allocations);
+  if (!allocationValidation.ok) {
+    return allocationValidation;
+  }
 
   return {
     ok: true as const,
@@ -429,6 +502,7 @@ const buildRecurringPayload = (
       interval: form.interval,
       nextDueDate: form.nextDueDate,
       isActive: form.isActive,
+      allocations: allocationValidation.allocations,
     },
   };
 };
@@ -453,6 +527,7 @@ const toEditableForm = (expense: ExpenseRecord): ExpenseFormState => ({
   documentDate: toDateInput(expense.documentDate),
   paidAt: toDateInput(expense.paidAt),
   documentStatus: expense.documentStatus,
+  allocations: expense.allocations,
 });
 
 const toEditableRecurringForm = (
@@ -470,6 +545,7 @@ const toEditableRecurringForm = (
   interval: expense.interval,
   nextDueDate: toDateInput(expense.nextDueDate),
   isActive: expense.isActive,
+  allocations: expense.allocations,
 });
 
 const getDerivedGrossFields = (grossValue: string, vatRateValue: string) => {
@@ -516,6 +592,29 @@ const calculateShare = (value: number, total: number) =>
 const getCategoryTone = (category: ExpenseCategory) => CATEGORY_TONES[category] ?? CATEGORY_TONES.OTHER;
 
 const getDocumentStatusTone = (status: ExpenseDocumentStatus) => DOCUMENT_STATUS_TONES[status];
+
+const getAllocationTone = (summary: AllocationSummary) => {
+  if (summary.isFullyAllocated) {
+    return "bg-emerald-400/10 text-emerald-200";
+  }
+  if (summary.totalPercent > 0) {
+    return "bg-amber-400/10 text-amber-200";
+  }
+  return "bg-rose-400/10 text-rose-200";
+};
+
+const formatAllocationCoverageLabel = (summary: AllocationSummary) => {
+  if (summary.isFullyAllocated) return "Fully allocated";
+  if (summary.totalPercent > 0) return `${summary.totalPercent}% allocated`;
+  return "Unallocated";
+};
+
+const formatAllocationBreakdown = (allocations: StorefrontAllocation[]) => {
+  if (allocations.length === 0) return "No storefront allocation";
+  return allocations
+    .map((allocation) => `${STOREFRONT_LABELS[allocation.storefront]} ${allocation.percent}%`)
+    .join(" · ");
+};
 
 const formatInvoiceValidationStatus = (
   value: ExpenseRecord["invoiceValidationStatus"],
@@ -686,6 +785,10 @@ export default function AdminExpensesClient({
     currentMonthSummary.deductibleExpenseCount,
     currentMonthSummary.expenseCount,
   );
+  const allocationRate = calculateShare(
+    currentMonthSummary.expenseCount - currentMonthSummary.missingAllocationCount,
+    currentMonthSummary.expenseCount,
+  );
   const recurringActiveRate = calculateShare(
     recurringSummary.activeCount,
     recurringSummary.activeCount + recurringSummary.inactiveCount,
@@ -839,6 +942,26 @@ export default function AdminExpensesClient({
     );
   };
 
+  const updateExpenseAllocations = (id: string, allocations: StorefrontAllocation[]) => {
+    setExpenses((current) =>
+      current.map((expense) =>
+        expense.id === id
+          ? { ...expense, allocations, allocationSummary: summarizeAllocations(allocations) }
+          : expense,
+      ),
+    );
+  };
+
+  const updateRecurringExpenseAllocations = (id: string, allocations: StorefrontAllocation[]) => {
+    setRecurringExpenses((current) =>
+      current.map((expense) =>
+        expense.id === id
+          ? { ...expense, allocations, allocationSummary: summarizeAllocations(allocations) }
+          : expense,
+      ),
+    );
+  };
+
   const cancelExpenseEditing = async () => {
     setEditingExpenseId(null);
     await loadData();
@@ -919,10 +1042,10 @@ export default function AdminExpensesClient({
             tone="from-amber-400/18 via-amber-400/6 to-transparent"
           />
           <MetricCard
-            label="VAT deadline"
-            value={`${deadline.daysUntilDue} days`}
-            footnote={new Date(deadline.dueDate).toLocaleDateString("de-DE")}
-            tone={DEADLINE_TONES[deadline.statusLabel].glow}
+            label="Allocation blockers"
+            value={String(currentMonthSummary.missingAllocationCount)}
+            footnote={`${Math.round(allocationRate)}% current-month coverage`}
+            tone="from-rose-400/18 via-rose-400/6 to-transparent"
           />
         </div>
 
@@ -959,6 +1082,12 @@ export default function AdminExpensesClient({
                 value={`${currentMonthSummary.deductibleExpenseCount}/${currentMonthSummary.expenseCount || 0}`}
                 percentage={deductibleRate}
                 tone="bg-amber-300"
+              />
+              <ProgressStat
+                label="Allocated"
+                value={`${Math.max(currentMonthSummary.expenseCount - currentMonthSummary.missingAllocationCount, 0)}/${currentMonthSummary.expenseCount || 0}`}
+                percentage={allocationRate}
+                tone="bg-rose-300"
               />
             </div>
           </div>
@@ -1038,6 +1167,12 @@ export default function AdminExpensesClient({
               bar="bg-emerald-300"
             />
             <MiniMetric
+              label="Missing allocations"
+              value={String(currentMonthSummary.missingAllocationCount)}
+              tone="text-rose-200"
+              bar="bg-rose-300"
+            />
+            <MiniMetric
               label="Invoice complete"
               value={String(currentMonthSummary.invoiceCompleteCount)}
               tone="text-cyan-200"
@@ -1072,13 +1207,18 @@ export default function AdminExpensesClient({
               value={String(currentMonthSummary.missingSupplierCount)}
               tone="border-cyan-400/15 bg-cyan-400/8 text-cyan-100"
             />
+            <SignalPill
+              label="Allocation blocker"
+              value={String(currentMonthSummary.missingAllocationCount)}
+              tone="border-rose-400/15 bg-rose-400/8 text-rose-100"
+            />
           </div>
           <div className="mt-4 space-y-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
               Deductible input VAT only counts from expense records marked deductible.
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
-              The current export is a bookkeeping handover file, not an official filing artifact.
+              Storefront-scoped finance stays incomplete until relevant expenses are fully allocated.
             </div>
           </div>
         </Panel>
@@ -1302,6 +1442,14 @@ export default function AdminExpensesClient({
                 className={inputClass}
               />
             </Field>
+            <div className="md:col-span-2">
+              <StorefrontAllocationEditor
+                allocations={newExpense.allocations}
+                onChange={(allocations) =>
+                  setNewExpense((current) => ({ ...current, allocations }))
+                }
+              />
+            </div>
           </div>
           <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
             <input
@@ -1547,6 +1695,14 @@ export default function AdminExpensesClient({
                 className={`${inputClass} min-h-[96px] py-3`}
               />
             </Field>
+            <div className="md:col-span-2">
+              <StorefrontAllocationEditor
+                allocations={newRecurringExpense.allocations}
+                onChange={(allocations) =>
+                  setNewRecurringExpense((current) => ({ ...current, allocations }))
+                }
+              />
+            </div>
           </div>
           <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
             <input
@@ -1670,6 +1826,13 @@ export default function AdminExpensesClient({
                         <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-200">
                           {formatTaxReviewStatusLabel(expense.taxReviewStatus)}
                         </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 ${getAllocationTone(
+                            expense.allocationSummary,
+                          )}`}
+                        >
+                          {formatAllocationCoverageLabel(expense.allocationSummary)}
+                        </span>
                       </div>
                     </div>
                     <div className="text-xs text-slate-500">
@@ -1701,6 +1864,10 @@ export default function AdminExpensesClient({
                     />
                     <RecordMeta label="Net" value={formatMoney(expense.netAmount)} />
                     <RecordMeta label="VAT" value={formatMoney(expense.vatAmount)} />
+                    <RecordMeta
+                      label="Allocation"
+                      value={formatAllocationBreakdown(expense.allocations)}
+                    />
                     <RecordMeta label="Deductible" value={expense.isDeductible ? "Yes" : "No"} />
                     <RecordMeta label="USt-Satz" value={formatGermanVatRateLabel(expense.germanVatRate)} />
                     <RecordMeta
@@ -1989,6 +2156,14 @@ export default function AdminExpensesClient({
                             className={inputClass}
                           />
                         </Field>
+                        <div className="md:col-span-2">
+                          <StorefrontAllocationEditor
+                            allocations={expense.allocations}
+                            onChange={(allocations) =>
+                              updateExpenseAllocations(expense.id, allocations)
+                            }
+                          />
+                        </div>
                       </div>
 
                       <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
@@ -2085,6 +2260,13 @@ export default function AdminExpensesClient({
                       >
                         {expense.isActive ? "Active" : "Inactive"}
                       </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 ${getAllocationTone(
+                          expense.allocationSummary,
+                        )}`}
+                      >
+                        {formatAllocationCoverageLabel(expense.allocationSummary)}
+                      </span>
                     </div>
                   </div>
                   <div className="text-xs text-slate-500">
@@ -2114,6 +2296,10 @@ export default function AdminExpensesClient({
                   />
                   <RecordMeta label="Net" value={formatMoney(expense.netAmount)} />
                   <RecordMeta label="VAT" value={formatMoney(expense.vatAmount)} />
+                  <RecordMeta
+                    label="Allocation"
+                    value={formatAllocationBreakdown(expense.allocations)}
+                  />
                   <RecordMeta label="Deductible" value={expense.isDeductible ? "Yes" : "No"} />
                   <RecordMeta label="Status" value={expense.isActive ? "Active" : "Inactive"} />
                 </div>
@@ -2315,6 +2501,14 @@ export default function AdminExpensesClient({
                           className={`${inputClass} min-h-[96px] py-3`}
                         />
                       </Field>
+                      <div className="md:col-span-2">
+                        <StorefrontAllocationEditor
+                          allocations={expense.allocations}
+                          onChange={(allocations) =>
+                            updateRecurringExpenseAllocations(expense.id, allocations)
+                          }
+                        />
+                      </div>
                     </div>
 
                     <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
@@ -2357,6 +2551,118 @@ export default function AdminExpensesClient({
           )}
         </div>
       </Panel>
+    </div>
+  );
+}
+
+function StorefrontAllocationEditor({
+  allocations,
+  onChange,
+}: {
+  allocations: StorefrontAllocation[];
+  onChange: (allocations: StorefrontAllocation[]) => void;
+}) {
+  const summary = summarizeAllocations(allocations);
+
+  const updateAllocation = (
+    index: number,
+    key: keyof StorefrontAllocation,
+    value: StorefrontAllocation[keyof StorefrontAllocation],
+  ) => {
+    onChange(
+      allocations.map((allocation, allocationIndex) =>
+        allocationIndex === index ? { ...allocation, [key]: value } : allocation,
+      ),
+    );
+  };
+
+  const addAllocation = () => {
+    const nextStorefront =
+      STOREFRONTS.find(
+        (storefront) => !allocations.some((allocation) => allocation.storefront === storefront),
+      ) ?? "MAIN";
+    onChange([...allocations, { storefront: nextStorefront, percent: 0 }]);
+  };
+
+  const removeAllocation = (index: number) => {
+    onChange(allocations.filter((_, allocationIndex) => allocationIndex !== index));
+  };
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Storefront allocation
+          </div>
+          <div className="mt-1 text-sm text-slate-300">
+            Leave empty for an unallocated expense, or split 100% across storefronts.
+          </div>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getAllocationTone(summary)}`}>
+          {formatAllocationCoverageLabel(summary)}
+        </span>
+      </div>
+      <div className="mt-4 space-y-3">
+        {allocations.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-slate-400">
+            No allocation rows yet. This expense will block storefront-scoped finance until you add one.
+          </div>
+        ) : (
+          allocations.map((allocation, index) => (
+            <div key={`${allocation.storefront}-${index}`} className="grid gap-3 md:grid-cols-[1fr_140px_auto]">
+              <select
+                value={allocation.storefront}
+                onChange={(event) =>
+                  updateAllocation(index, "storefront", event.target.value as StorefrontCode)
+                }
+                className={inputClass}
+              >
+                {STOREFRONTS.map((storefront) => (
+                  <option key={storefront} value={storefront}>
+                    {STOREFRONT_LABELS[storefront]}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={String(allocation.percent)}
+                onChange={(event) =>
+                  updateAllocation(
+                    index,
+                    "percent",
+                    Number.parseInt(event.target.value || "0", 10) || 0,
+                  )
+                }
+                inputMode="numeric"
+                min={0}
+                max={100}
+                className={inputClass}
+                placeholder="Percent"
+              />
+              <button
+                type="button"
+                onClick={() => removeAllocation(index)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
+              >
+                Remove
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-slate-400">
+          Total {summary.totalPercent}%{summary.isFullyAllocated ? "" : ` · Missing ${summary.missingPercent}%`}
+        </div>
+        <button
+          type="button"
+          onClick={addAllocation}
+          disabled={allocations.length >= STOREFRONTS.length}
+          className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-200 disabled:opacity-50"
+        >
+          Add storefront split
+        </button>
+      </div>
     </div>
   );
 }

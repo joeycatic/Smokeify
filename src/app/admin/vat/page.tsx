@@ -354,8 +354,23 @@ export default async function AdminVatPage() {
               label="Missing expense VAT"
               value={String(current?.missingExpenseVatCount ?? 0)}
             />
+            <AdminCompactMetric
+              label="Missing allocation"
+              value={String(current?.missingExpenseAllocationCount ?? 0)}
+            />
           </div>
           <div className="mt-4 space-y-3">
+            {(current?.missingExpenseAllocationCount ?? 0) > 0 ? (
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                {current?.missingExpenseAllocationCount ?? 0} expense record(s) are still missing
+                complete storefront allocations. Scoped VAT views remain incomplete until those rows
+                are assigned in{" "}
+                <Link href="/admin/expenses" className="font-semibold underline underline-offset-2">
+                  Expenses
+                </Link>
+                .
+              </div>
+            ) : null}
             {current?.blockers.length ? (
               current.blockers.map((blocker) => (
                 <div

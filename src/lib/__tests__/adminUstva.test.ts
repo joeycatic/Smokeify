@@ -40,6 +40,7 @@ describe("buildUstvaPreparation", () => {
       missingExpenseDocumentCount: 1,
       missingExpenseVatCount: 1,
       missingExpenseSupplierCount: 0,
+      missingExpenseAllocationCount: 2,
       reviewRequiredExpenseCount: 3,
       blockedExpenseCount: 1,
       reverseChargeExpenseCount: 1,
@@ -51,5 +52,8 @@ describe("buildUstvaPreparation", () => {
       "1 Beleg(e)",
     );
     expect(result.blockers.some((blocker) => blocker.includes("gesperrt"))).toBe(true);
+    expect(result.blockers.some((blocker) => blocker.includes("Storefront-Zuordnungen"))).toBe(
+      true,
+    );
   });
 });

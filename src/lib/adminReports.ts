@@ -220,6 +220,7 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
 
   const currentOrders = orders.filter((order) => order.createdAt >= currentStart);
   const previousOrders = orders.filter((order) => order.createdAt < currentStart);
+  const unattributedCurrentOrders = currentOrders.filter((order) => !order.sourceStorefront);
   const currentMetrics = calculateOrderMetrics(currentOrders);
   const previousMetrics = calculateOrderMetrics(previousOrders);
   const currency =
@@ -299,6 +300,32 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
       contributionMarginCents: financeData.currentFinance.contributionMarginCents,
       contributionMarginRatio: financeData.currentFinance.contributionMarginRatio,
       estimatedProfitCents: financeData.currentFinance.estimatedProfitCents,
+    },
+    attributionCoverage: {
+      attributedOrderCount: Math.max(currentOrders.length - unattributedCurrentOrders.length, 0),
+      unattributedOrderCount: unattributedCurrentOrders.length,
+      attributedRevenueCents: Math.max(
+        currentMetrics.grossRevenueCents -
+          unattributedCurrentOrders.reduce(
+            (sum, order) =>
+              PAID_STATUS_SET.has(order.paymentStatus.trim().toLowerCase())
+                ? sum + order.amountTotal
+                : sum,
+            0,
+          ),
+        0,
+      ),
+      unattributedRevenueCents: unattributedCurrentOrders.reduce(
+        (sum, order) =>
+          PAID_STATUS_SET.has(order.paymentStatus.trim().toLowerCase())
+            ? sum + order.amountTotal
+            : sum,
+        0,
+      ),
+      coverageRate:
+        currentOrders.length > 0
+          ? (currentOrders.length - unattributedCurrentOrders.length) / currentOrders.length
+          : 1,
     },
     topSources: Array.from(sourceMap.values())
       .sort((left, right) => right.revenueCents - left.revenueCents)

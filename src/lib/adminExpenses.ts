@@ -64,6 +64,7 @@ export type AdminExpenseInput = {
   documentDate: Date;
   paidAt: Date | null;
   documentStatus: ExpenseDocumentStatus;
+  allocations?: Array<{ storefront: string; percent: number }>;
 };
 
 export type AdminExpenseSummary = {
@@ -77,6 +78,7 @@ export type AdminExpenseSummary = {
   missingSupplierCount: number;
   missingDocumentCount: number;
   missingVatCount: number;
+  missingAllocationCount: number;
   verifiedCount: number;
   readyCount: number;
   invoiceCompleteCount: number;
@@ -105,6 +107,7 @@ export type AdminRecurringExpenseInput = {
   interval: RecurringExpenseInterval;
   nextDueDate: Date;
   isActive: boolean;
+  allocations?: Array<{ storefront: string; percent: number }>;
 };
 
 export type AdminRecurringExpenseSummary = {
@@ -200,6 +203,13 @@ export function buildExpenseSummary(
       if (!expense.supplierId) summary.missingSupplierCount += 1;
       if (expense.documentStatus === "MISSING") summary.missingDocumentCount += 1;
       if (expense.isDeductible && expense.vatAmount <= 0) summary.missingVatCount += 1;
+      const allocationTotal = (expense.allocations ?? []).reduce(
+        (sum, allocation) => sum + allocation.percent,
+        0,
+      );
+      if ((expense.allocations ?? []).length === 0 || allocationTotal !== 100) {
+        summary.missingAllocationCount += 1;
+      }
       if (expense.documentStatus === "VERIFIED") summary.verifiedCount += 1;
       if (expense.invoiceValidationStatus === "VOLLSTAENDIG") summary.invoiceCompleteCount += 1;
       if (expense.taxReviewStatus === "PRUEFUNG_ERFORDERLICH") summary.reviewRequiredCount += 1;
@@ -223,6 +233,7 @@ export function buildExpenseSummary(
       missingSupplierCount: 0,
       missingDocumentCount: 0,
       missingVatCount: 0,
+      missingAllocationCount: 0,
       verifiedCount: 0,
       readyCount: 0,
       invoiceCompleteCount: 0,

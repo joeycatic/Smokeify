@@ -52,6 +52,7 @@ export default async function AdminFinancePage({
     currentExpenseSummary,
     previousExpenseSummary,
     vatSummary,
+    scopeCoverage,
     trend,
     expenseByCategory,
     expenseMigrationRequired,
@@ -128,8 +129,10 @@ export default async function AdminFinancePage({
       {storefront ? (
         <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
           Finanzen sind aktuell auf {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]} begrenzt.
-          Gemeinsame Ausgaben- und Vorsteuer-Zuordnungen bleiben außen vor, bis Belege pro
-          Storefront markiert werden.
+          Nur explizit zugeordnete Ausgaben und Vorsteuer-Anteile fließen in diese Ansicht ein.
+          {scopeCoverage.unallocatedExpenseCount > 0
+            ? ` ${scopeCoverage.unallocatedExpenseCount} expense record(s) are still unallocated and excluded until they are assigned in Expenses.`
+            : " Allocation coverage is currently complete for recorded expenses in the selected window."}
         </div>
       ) : null}
 
@@ -249,15 +252,31 @@ export default async function AdminFinancePage({
               value={String(currentFinance.ordersMissingTaxCount)}
             />
             <AdminCompactMetric
+              label="Unallocated expenses"
+              value={String(scopeCoverage.unallocatedExpenseCount)}
+            />
+            <AdminCompactMetric
               label="Refunded orders"
               value={String(currentFinance.refundedOrderCount)}
+            />
+            <AdminCompactMetric
+              label="Missing expense VAT"
+              value={String(scopeCoverage.allocatedExpensesMissingVatCount)}
+            />
+            <AdminCompactMetric
+              label="Scoped completeness"
+              value={scopeCoverage.isComplete ? "Complete" : "Blocked"}
             />
           </div>
           <div className="mt-4 space-y-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
               {expenseMigrationRequired
                 ? "Expense storage is not available yet, so input VAT and non-order operating costs are excluded until the migration is applied."
-                : "Shipping costs, marketing spend and tool overhead are still not allocated into estimated profit yet."}
+                : storefront
+                  ? scopeCoverage.isComplete
+                    ? "This storefront view is allocation-complete for recorded expenses in the selected window."
+                    : `${scopeCoverage.unallocatedExpenseCount} expense record(s) remain outside this storefront rollup because they are missing complete allocations.`
+                  : "Global finance now includes recorded expense completeness checks, but allocated-profit distribution still lives in Profitability."}
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
               Order-level numbers remain traceable because all rollups come from existing order and
@@ -271,7 +290,7 @@ export default async function AdminFinancePage({
         <AdminPanel
           eyebrow="Expense Layer"
           title="Recorded expense impact"
-          description="These costs now feed VAT completeness and input-tax visibility. They are still shown separately from order contribution until broader allocation rules are added."
+          description="These costs feed VAT completeness and scoped expense coverage. Storefront-filtered views include only explicitly allocated shares."
         >
           <div className="space-y-3">
             <AdminDeltaRow
