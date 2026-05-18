@@ -6,7 +6,7 @@
     "dev": "next dev -p 3900",
     "build": "next build",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma migrate deploy && prisma generate && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
