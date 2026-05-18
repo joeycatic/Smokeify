@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   AdminButton,
@@ -9,6 +10,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import type { AdminEnvironmentHealth } from "@/lib/adminEnvironmentHealth";
 
 type FailedWebhookEvent = {
   id: string;
@@ -79,8 +81,10 @@ type Props = {
   automationJobs: AutomationJob[];
   automationSchedules: AutomationSchedule[];
   automationUnavailableReason: string | null;
+  environmentHealth: AdminEnvironmentHealth;
   failedWebhookEvents: FailedWebhookEvent[];
   jobRuns: JobRun[];
+  unresolvedAttributionCount: number;
 };
 
 const formatDate = (value: string | null) =>
@@ -95,8 +99,10 @@ export default function AdminOpsClient({
   automationJobs: initialAutomationJobs,
   automationSchedules: initialAutomationSchedules,
   automationUnavailableReason,
+  environmentHealth,
   failedWebhookEvents: initialFailedWebhookEvents,
   jobRuns,
+  unresolvedAttributionCount,
 }: Props) {
   const [automationJobs, setAutomationJobs] = useState(initialAutomationJobs);
   const [automationSchedules, setAutomationSchedules] = useState(initialAutomationSchedules);
@@ -227,9 +233,11 @@ export default function AdminOpsClient({
         title="Operational control surface"
         description="Monitor failed Stripe webhooks, queue-backed automations, schedules, and recent job history from one place."
         metrics={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <AdminMetricCard label="Failed webhooks" value={String(failedWebhookEvents.length)} />
             <AdminMetricCard label="Automation jobs" value={String(automationJobs.length)} />
+            <AdminMetricCard label="Environment" value={environmentHealth.status} detail="admin readiness" />
+            <AdminMetricCard label="Attribution queue" value={String(unresolvedAttributionCount)} detail="storefront fixes" />
             <AdminMetricCard
               label="Dead-letter jobs"
               value={String(automationJobs.filter((job) => job.status === "DEAD_LETTER").length)}
@@ -247,6 +255,52 @@ export default function AdminOpsClient({
       {!error && !notice && automationUnavailableReason ? (
         <AdminNotice tone="warning">{automationUnavailableReason}</AdminNotice>
       ) : null}
+      {unresolvedAttributionCount > 0 ? (
+        <AdminNotice tone="warning">
+          {unresolvedAttributionCount} order(s) still need storefront attribution before
+          storefront-scoped reporting and newsletters are fully trustworthy. Review them in{" "}
+          <Link href="/admin/attribution" className="font-semibold underline underline-offset-2">
+            Attribution
+          </Link>
+          .
+        </AdminNotice>
+      ) : null}
+
+      <AdminPanel
+        eyebrow="Preflight"
+        title="Admin environment health"
+        description="Migration-backed subsystems are checked here before deeper workflows rely on them."
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {environmentHealth.subsystems.map((subsystem) => (
+            <div
+              key={subsystem.key}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {subsystem.label}
+              </div>
+              <div className="mt-2 text-sm font-semibold text-white">
+                {subsystem.ready ? "Ready" : "Blocked"}
+              </div>
+              <div className="mt-2 text-xs text-slate-400">
+                {subsystem.message ?? "Healthy"}
+              </div>
+            </div>
+          ))}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Last successful automation
+            </div>
+            <div className="mt-2 text-sm font-semibold text-white">
+              {formatDate(environmentHealth.lastSuccessfulAutomationRunAt)}
+            </div>
+            <div className="mt-2 text-xs text-slate-400">
+              Last migration block {formatDate(environmentHealth.lastMigrationBlockAt)}
+            </div>
+          </div>
+        </div>
+      </AdminPanel>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <AdminPanel

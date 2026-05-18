@@ -7,10 +7,23 @@ import {
   isMissingProcurementStorageError,
 } from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
+import AdminInventoryAdjustmentsClient from "./AdminInventoryAdjustmentsClient";
 
 const PAGE_SIZE = 50;
 
-const inventoryAdjustmentInclude = Prisma.validator<Prisma.InventoryAdjustmentInclude>()({
+const inventoryAdjustmentSelect = Prisma.validator<Prisma.InventoryAdjustmentSelect>()({
+  id: true,
+  variantId: true,
+  productId: true,
+  orderId: true,
+  sourceType: true,
+  sourceId: true,
+  actorId: true,
+  note: true,
+  sourceReference: true,
+  quantityDelta: true,
+  reason: true,
+  createdAt: true,
   product: {
     select: {
       id: true,
@@ -39,7 +52,7 @@ const purchaseOrderReceiptInclude =
   });
 
 type InventoryAdjustmentRow = Prisma.InventoryAdjustmentGetPayload<{
-  include: typeof inventoryAdjustmentInclude;
+  select: typeof inventoryAdjustmentSelect;
 }>;
 
 type PurchaseOrderReceiptRow = Prisma.PurchaseOrderReceiptGetPayload<{
@@ -190,7 +203,7 @@ export default async function AdminInventoryAdjustmentsPage({
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
-        include: inventoryAdjustmentInclude,
+        select: inventoryAdjustmentSelect,
       }),
     ]);
 
@@ -222,6 +235,20 @@ export default async function AdminInventoryAdjustmentsPage({
   }
 
   const purchaseReceiptById = new Map(purchaseReceipts.map((receipt) => [receipt.id, receipt]));
+  const actorIds = Array.from(
+    new Set(
+      adjustments.map((entry) => entry.actorId).filter((entry): entry is string => Boolean(entry)),
+    ),
+  );
+  const actorRows = actorIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: actorIds } },
+        select: { id: true, email: true, name: true },
+      })
+    : [];
+  const actorById = new Map(
+    actorRows.map((actor) => [actor.id, actor.name ?? actor.email ?? actor.id]),
+  );
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const buildPageHref = (nextPage: number) => {
@@ -306,13 +333,17 @@ export default async function AdminInventoryAdjustmentsPage({
         </form>
       </section>
 
+      <AdminInventoryAdjustmentsClient
+        inventoryStorageAvailable={inventoryStorageAvailable}
+      />
+
       {adjustments.length === 0 ? (
         <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-500">
           No inventory adjustments match the current filters.
         </div>
       ) : (
         <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#090d12] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-          <div className="grid grid-cols-1 gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 sm:grid-cols-[1.5fr_1fr_1fr_0.7fr_1.15fr_1.2fr]">
+          <div className="grid grid-cols-1 gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]">
             <div>Item</div>
             <div>Reference</div>
             <div>Supplier</div>
@@ -339,7 +370,7 @@ export default async function AdminInventoryAdjustmentsPage({
               return (
                 <div
                   key={entry.id}
-                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-slate-300 sm:grid-cols-[1.5fr_1fr_1fr_0.7fr_1.15fr_1.2fr]"
+                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-slate-300 sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]"
                 >
                   <div>
                     <div className="font-semibold text-slate-100">{productName}</div>
@@ -382,7 +413,15 @@ export default async function AdminInventoryAdjustmentsPage({
                   <div className="text-xs text-cyan-300">
                     <div>{sourceLabel}</div>
                     <div className="mt-1 text-slate-500">{entry.reason}</div>
+                    {entry.sourceReference ? (
+                      <div className="mt-1 text-slate-500">Ref: {entry.sourceReference}</div>
+                    ) : null}
                     {entry.note ? <div className="mt-1 text-slate-500">{entry.note}</div> : null}
+                    {entry.actorId ? (
+                      <div className="mt-1 text-slate-500">
+                        Actor: {actorById.get(entry.actorId) ?? entry.actorId}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-xs text-slate-500">{formatDate(entry.createdAt)}</div>
                 </div>

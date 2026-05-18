@@ -27,6 +27,7 @@ const buildRequest = (init?: RequestInit) =>
       ...(init?.headers ?? {}),
     },
     ...init,
+    signal: init?.signal ?? undefined,
   });
 
 const adminSession = {
