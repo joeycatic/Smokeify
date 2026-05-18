@@ -148,6 +148,12 @@ const NAV_GROUPS: NavGroup[] = [
         scope: "pricing.review",
       },
       {
+        href: "/admin/attribution",
+        label: "Attribution",
+        icon: DocumentTextIcon,
+        scope: "ops.read",
+      },
+      {
         href: "/admin/growvault",
         label: "Growvault",
         icon: HomeIcon,
