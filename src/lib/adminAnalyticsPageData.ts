@@ -1,73 +1,32 @@
-import { prisma } from "@/lib/prisma";
-import { buildExpenseSummary } from "@/lib/adminExpenses";
-import { buildFinanceRollup, buildVatSummary } from "@/lib/adminFinance";
-import { isMissingExpenseTableError } from "@/lib/expenseTableGuard";
+import type { Storefront } from "@prisma/client";
+import type { AdminTimeRangeDays } from "@/lib/adminTimeRange";
 import {
   PAID_ORDER_STATUSES,
-  getFunnelComparison,
   getActiveSessionSnapshot,
   getCustomerRevenueMix,
+  getDateDaysAgo,
+  getFunnelComparison,
   getFunnelSnapshot,
   getFunnelTrend,
   getOrderComparisons,
   getProductPerformance,
 } from "@/lib/adminInsights";
+import { getFinancePageData } from "@/lib/adminAddonData";
+import { prisma } from "@/lib/prisma";
 
-const formatDayLabel = (date: Date) =>
-  new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
+const buildScopedOrderFilter = (storefront: Storefront | null) =>
+  storefront ? { sourceStorefront: storefront } : {};
 
-const getDateDaysAgo = (daysAgo: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() - daysAgo);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
+const buildScopedEventFilter = (storefront: Storefront | null) =>
+  storefront ? { storefront } : {};
 
-function createExpensePromise(last60DaysStart: Date) {
-  return prisma.expense
-    .findMany({
-      where: { documentDate: { gte: last60DaysStart } },
-      select: {
-        supplierId: true,
-        title: true,
-        category: true,
-        notes: true,
-        currency: true,
-        grossAmount: true,
-        netAmount: true,
-        vatAmount: true,
-        vatRateBasisPoints: true,
-        isDeductible: true,
-        documentDate: true,
-        paidAt: true,
-        documentStatus: true,
-      },
-      orderBy: { documentDate: "asc" },
-    })
-    .then((records) => ({
-      records,
-      migrationRequired: false,
-    }))
-    .catch((error) => {
-      if (isMissingExpenseTableError(error)) {
-        return {
-          records: [],
-          migrationRequired: true,
-        };
-      }
-      throw error;
-    });
-}
-
-export async function loadAdminAnalyticsOverview() {
+export async function loadAdminAnalyticsOverview(
+  days: AdminTimeRangeDays = 30,
+  storefront: Storefront | null = null,
+) {
   const now = new Date();
-  const last14DaysStart = getDateDaysAgo(13);
-  const last30DaysStart = getDateDaysAgo(29);
-  const last60DaysStart = getDateDaysAgo(59);
-  const expensePromise = createExpensePromise(last60DaysStart);
+  const currentWindowStart = getDateDaysAgo(days - 1);
+  const totalVelocityWindowStart = getDateDaysAgo(29);
 
   const [
     activeSnapshot,
@@ -76,31 +35,39 @@ export async function loadAdminAnalyticsOverview() {
     funnelTrend,
     orderComparisons,
     customerRevenueMix,
+    financePageData,
     totalOrders,
     fulfilledOrders,
     refundedOrders,
     canceledOrders,
     totalRevenue,
     recentOrders,
-    financeOrders,
-    expenseResult,
   ] = await Promise.all([
-    getActiveSessionSnapshot(),
-    getFunnelSnapshot(30),
-    getFunnelComparison(30),
-    getFunnelTrend(14),
-    getOrderComparisons(30),
-    getCustomerRevenueMix(30),
-    prisma.order.count(),
-    prisma.order.count({ where: { status: "fulfilled" } }),
-    prisma.order.count({ where: { paymentStatus: "refunded" } }),
-    prisma.order.count({ where: { status: "canceled" } }),
+    getActiveSessionSnapshot(storefront),
+    getFunnelSnapshot(days, storefront),
+    getFunnelComparison(days, storefront),
+    getFunnelTrend(days, storefront),
+    getOrderComparisons(days, storefront),
+    getCustomerRevenueMix(days, storefront),
+    getFinancePageData(days, storefront),
+    prisma.order.count({ where: buildScopedOrderFilter(storefront) }),
+    prisma.order.count({ where: { status: "fulfilled", ...buildScopedOrderFilter(storefront) } }),
+    prisma.order.count({
+      where: { paymentStatus: "refunded", ...buildScopedOrderFilter(storefront) },
+    }),
+    prisma.order.count({ where: { status: "canceled", ...buildScopedOrderFilter(storefront) } }),
     prisma.order.aggregate({
-      where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
+      where: {
+        paymentStatus: { in: PAID_ORDER_STATUSES },
+        ...buildScopedOrderFilter(storefront),
+      },
       _sum: { amountTotal: true },
     }),
     prisma.order.findMany({
-      where: { createdAt: { gte: last30DaysStart } },
+      where: {
+        createdAt: { gte: totalVelocityWindowStart },
+        ...buildScopedOrderFilter(storefront),
+      },
       select: {
         createdAt: true,
         amountTotal: true,
@@ -113,63 +80,17 @@ export async function loadAdminAnalyticsOverview() {
       },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.order.findMany({
-      where: { createdAt: { gte: last60DaysStart } },
-      select: {
-        createdAt: true,
-        currency: true,
-        paymentStatus: true,
-        status: true,
-        amountSubtotal: true,
-        amountTax: true,
-        amountShipping: true,
-        amountDiscount: true,
-        amountTotal: true,
-        amountRefunded: true,
-        items: {
-          select: {
-            quantity: true,
-            totalAmount: true,
-            baseCostAmount: true,
-            paymentFeeAmount: true,
-            adjustedCostAmount: true,
-            taxAmount: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    expensePromise,
   ]);
 
-  const last14Days = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(last14DaysStart);
-    date.setDate(last14DaysStart.getDate() + index);
-    return {
-      label: formatDayLabel(date),
-      key: date.toISOString().slice(0, 10),
-      revenueCents: 0,
-      orders: 0,
-    };
-  });
-  const dailyIndex = new Map(last14Days.map((entry) => [entry.key, entry]));
   const orderVelocity = {
     today: 0,
     last7Days: 0,
     last30Days: 0,
   };
 
-  const paidRevenueLast30Days = recentOrders.reduce((sum, order) => {
+  const paidRevenueCurrentWindow = recentOrders.reduce((sum, order) => {
     const paymentStatus = order.paymentStatus.trim().toLowerCase();
     const isPaid = PAID_ORDER_STATUSES.includes(paymentStatus);
-    const orderKey = order.createdAt.toISOString().slice(0, 10);
-    const target = dailyIndex.get(orderKey);
-    if (target) {
-      target.orders += 1;
-      if (isPaid) {
-        target.revenueCents += order.amountTotal;
-      }
-    }
 
     const diffDays = Math.floor(
       (now.getTime() - order.createdAt.getTime()) / (1000 * 60 * 60 * 24),
@@ -178,38 +99,18 @@ export async function loadAdminAnalyticsOverview() {
     if (diffDays < 7) orderVelocity.last7Days += 1;
     if (diffDays < 30) orderVelocity.last30Days += 1;
 
+    if (order.createdAt < currentWindowStart) return sum;
     if (!isPaid) return sum;
     return sum + order.amountTotal;
   }, 0);
 
-  const expenseRecords = expenseResult.records;
-  const currentFinanceOrders = financeOrders.filter(
-    (order) => order.createdAt >= last30DaysStart,
-  );
-  const previousFinanceOrders = financeOrders.filter(
-    (order) => order.createdAt < last30DaysStart,
-  );
-  const currentExpenses = expenseRecords.filter(
-    (expense) => expense.documentDate >= last30DaysStart,
-  );
-  const finance = buildFinanceRollup(
-    currentFinanceOrders,
-    orderComparisons.currency,
-  );
-  const previousFinance = buildFinanceRollup(
-    previousFinanceOrders,
-    orderComparisons.currency,
-  );
-  const expenseSummary = buildExpenseSummary(currentExpenses, orderComparisons.currency);
-  const vat = buildVatSummary(currentFinanceOrders, now, {
-    inputVatCents: expenseSummary.deductibleInputVatCents,
-    expenseCount: expenseSummary.expenseCount,
-    missingExpenseVatCount: expenseSummary.missingVatCount,
-    missingExpenseDocumentCount: expenseSummary.missingDocumentCount,
-    missingExpenseSupplierCount: expenseSummary.missingSupplierCount,
-  });
-
   return {
+    scope: {
+      days,
+      storefront,
+      currentStart: financePageData.currentStart,
+      currentEnd: financePageData.currentEnd,
+    },
     live: activeSnapshot,
     funnel: {
       ...funnelSnapshot,
@@ -229,27 +130,30 @@ export async function loadAdminAnalyticsOverview() {
     },
     revenue: {
       totalCents: totalRevenue._sum.amountTotal ?? 0,
-      last30DaysCents: paidRevenueLast30Days,
+      last30DaysCents: paidRevenueCurrentWindow,
       newRevenueCents: customerRevenueMix.newRevenueCents,
       returningRevenueCents: customerRevenueMix.returningRevenueCents,
     },
-    finance,
-    previousFinance,
-    vat,
-    expenseMigrationRequired: expenseResult.migrationRequired,
+    finance: financePageData.currentFinance,
+    previousFinance: financePageData.previousFinance,
+    vat: financePageData.vatSummary,
+    expenseMigrationRequired: financePageData.expenseMigrationRequired,
     trends: {
-      daily: last14Days.map((entry) => ({
+      daily: funnelTrend.map((entry) => ({
         label: entry.label,
         revenueCents: entry.revenueCents,
-        orders: entry.orders,
+        orders: entry.paidOrders,
       })),
       orderVelocity,
     },
   };
 }
 
-export async function loadAdminAnalyticsSecondary() {
-  const last30DaysStart = getDateDaysAgo(29);
+export async function loadAdminAnalyticsSecondary(
+  days: AdminTimeRangeDays = 30,
+  storefront: Storefront | null = null,
+) {
+  const rangeStart = getDateDaysAgo(days - 1);
 
   const [
     customerRevenueMix,
@@ -268,9 +172,16 @@ export async function loadAdminAnalyticsSecondary() {
     discountGroups,
     paymentGroups,
   ] = await Promise.all([
-    getCustomerRevenueMix(30),
-    getProductPerformance(30),
+    getCustomerRevenueMix(days, storefront),
+    getProductPerformance(days, storefront),
     prisma.variant.findMany({
+      where: storefront
+        ? {
+            product: {
+              storefronts: { has: storefront },
+            },
+          }
+        : undefined,
       include: {
         product: { select: { id: true, title: true } },
         inventory: true,
@@ -298,7 +209,10 @@ export async function loadAdminAnalyticsSecondary() {
       select: {
         id: true,
         orders: {
-          where: { paymentStatus: { in: PAID_ORDER_STATUSES } },
+          where: {
+            paymentStatus: { in: PAID_ORDER_STATUSES },
+            ...buildScopedOrderFilter(storefront),
+          },
           select: { amountTotal: true },
         },
       },
@@ -309,6 +223,7 @@ export async function loadAdminAnalyticsSecondary() {
         userId: null,
         paymentStatus: { in: PAID_ORDER_STATUSES },
         customerEmail: { not: null },
+        ...buildScopedOrderFilter(storefront),
       },
       _sum: { amountTotal: true },
       _count: { id: true },
@@ -316,25 +231,28 @@ export async function loadAdminAnalyticsSecondary() {
     prisma.analyticsEvent.groupBy({
       by: ["utmSource", "utmMedium"],
       where: {
-        createdAt: { gte: last30DaysStart },
+        createdAt: { gte: rangeStart },
         eventName: "page_view",
+        ...buildScopedEventFilter(storefront),
       },
       _count: { _all: true },
     }),
     prisma.analyticsEvent.groupBy({
       by: ["utmSource", "utmMedium"],
       where: {
-        createdAt: { gte: last30DaysStart },
+        createdAt: { gte: rangeStart },
         eventName: "begin_checkout",
+        ...buildScopedEventFilter(storefront),
       },
       _count: { _all: true },
     }),
     prisma.order.groupBy({
       by: ["discountCode"],
       where: {
-        createdAt: { gte: last30DaysStart },
+        createdAt: { gte: rangeStart },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         discountCode: { not: null },
+        ...buildScopedOrderFilter(storefront),
       },
       _count: { id: true },
       _sum: { amountTotal: true, amountDiscount: true },
@@ -344,8 +262,9 @@ export async function loadAdminAnalyticsSecondary() {
     prisma.order.groupBy({
       by: ["paymentMethod"],
       where: {
-        createdAt: { gte: last30DaysStart },
+        createdAt: { gte: rangeStart },
         paymentStatus: { in: PAID_ORDER_STATUSES },
+        ...buildScopedOrderFilter(storefront),
       },
       _count: { id: true },
       _sum: { amountTotal: true, amountRefunded: true },
@@ -461,6 +380,10 @@ export async function loadAdminAnalyticsSecondary() {
   const totalRepeatCustomers = repeatRegisteredCustomers + repeatGuestCustomers;
 
   return {
+    scope: {
+      days,
+      storefront,
+    },
     topProducts,
     underperformingProducts,
     stockouts,
