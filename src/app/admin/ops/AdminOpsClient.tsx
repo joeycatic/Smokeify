@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AdminButton,
   AdminEmptyState,
+  AdminField,
+  AdminInput,
   AdminMetricCard,
   AdminNotice,
   AdminPageIntro,
   AdminPanel,
+  AdminSelect,
+  AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
 import type { AdminEnvironmentHealth } from "@/lib/adminEnvironmentHealth";
 
@@ -81,10 +86,75 @@ type Props = {
   automationJobs: AutomationJob[];
   automationSchedules: AutomationSchedule[];
   automationUnavailableReason: string | null;
+  checkoutRecovery: CheckoutRecoveryOverview;
   environmentHealth: AdminEnvironmentHealth;
   failedWebhookEvents: FailedWebhookEvent[];
   jobRuns: JobRun[];
   unresolvedAttributionCount: number;
+};
+
+type CheckoutRecoveryStepConfig = {
+  stepIndex: number;
+  enabled: boolean;
+  delayMinutes: number;
+  promoCode: string | null;
+  promoMessage: string | null;
+};
+
+type CheckoutRecoveryOverview = {
+  schedule: {
+    key: string;
+    status: "ACTIVE" | "PAUSED";
+    cronExpression: string | null;
+    lastSucceededAt: string | null;
+    lastFailedAt: string | null;
+    lastError: string | null;
+    payload: {
+      maxSendsPerRun: number;
+      segmentation: {
+        minCartTotalCents: number;
+        customerType: "ANY" | "FIRST_TIME" | "RETURNING";
+        storefrontScope: "ALL" | "MAIN" | "GROW";
+        guestMode: "ANY" | "GUEST_ONLY" | "LOGGED_IN_ONLY";
+      };
+      steps: CheckoutRecoveryStepConfig[];
+    };
+  };
+  metrics: {
+    totalSessions: number;
+    consentedSessions: number;
+    dueNowCount: number;
+    recoveredOrders: number;
+    recoveredRevenueCents: number;
+    sentAttempts: number;
+    skippedAttempts: number;
+    failedAttempts: number;
+  };
+  recentAttempts: Array<{
+    id: string;
+    sessionId: string;
+    customerEmail: string | null;
+    stepIndex: number;
+    stepLabel: string;
+    status: string;
+    scheduledFor: string;
+    sentAt: string | null;
+    skipReason: string | null;
+    errorMessage: string | null;
+  }>;
+  topSkipReasons: Array<{ reason: string; count: number }>;
+  dueCandidates: Array<{
+    sessionId: string;
+    stripeSessionId: string;
+    customerEmail: string | null;
+    storefront: "MAIN" | "GROW" | null;
+    customerType: "FIRST_TIME" | "RETURNING";
+    stepIndex: number;
+    stepLabel: string;
+    scheduledFor: string;
+    totalCents: number;
+    isGuest: boolean;
+  }>;
 };
 
 const formatDate = (value: string | null) =>
@@ -95,22 +165,35 @@ const formatDate = (value: string | null) =>
       }).format(new Date(value))
     : "—";
 
+const formatMoney = (cents: number) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
+
 export default function AdminOpsClient({
   automationJobs: initialAutomationJobs,
   automationSchedules: initialAutomationSchedules,
   automationUnavailableReason,
+  checkoutRecovery: initialCheckoutRecovery,
   environmentHealth,
   failedWebhookEvents: initialFailedWebhookEvents,
   jobRuns,
   unresolvedAttributionCount,
 }: Props) {
+  const router = useRouter();
   const [automationJobs, setAutomationJobs] = useState(initialAutomationJobs);
   const [automationSchedules, setAutomationSchedules] = useState(initialAutomationSchedules);
+  const [checkoutRecovery, setCheckoutRecovery] = useState(initialCheckoutRecovery);
   const [failedWebhookEvents, setFailedWebhookEvents] = useState(initialFailedWebhookEvents);
   const [pendingAutomationAction, setPendingAutomationAction] = useState<string | null>(null);
+  const [pendingRecoveryAction, setPendingRecoveryAction] = useState<string | null>(null);
   const [replayingEventId, setReplayingEventId] = useState<string | null>(null);
+  const [testRecipient, setTestRecipient] = useState("");
+  const [testStepIndex, setTestStepIndex] = useState(String(initialCheckoutRecovery.schedule.payload.steps[0]?.stepIndex ?? 1));
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [recoveryConfig, setRecoveryConfig] = useState(initialCheckoutRecovery.schedule.payload);
 
   const replayWebhook = async (eventId: string) => {
     setReplayingEventId(eventId);
@@ -219,12 +302,161 @@ export default function AdminOpsClient({
         setAutomationSchedules((current) =>
           current.map((entry) => (entry.id === updated.id ? updated : entry)),
         );
+        if (updated.key === checkoutRecovery.schedule.key) {
+          setCheckoutRecovery((current) => ({
+            ...current,
+            schedule: {
+              ...current.schedule,
+              status: updated.status as "ACTIVE" | "PAUSED",
+            },
+          }));
+        }
         setNotice(
           `${updated.label} is now ${updated.status === "PAUSED" ? "paused" : "active"}.`,
         );
+        router.refresh();
       },
     );
   };
+
+  const runRecoveryAction = async (
+    key: string,
+    request: () => Promise<Response>,
+    apply?: (body: Record<string, unknown>) => void,
+  ) => {
+    setPendingRecoveryAction(key);
+    setError("");
+    setNotice("");
+    try {
+      const response = await request();
+      const data = (await response.json().catch(() => ({}))) as Record<string, unknown> & {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Checkout recovery action failed.");
+      }
+      apply?.(data);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Checkout recovery action failed.",
+      );
+    } finally {
+      setPendingRecoveryAction(null);
+    }
+  };
+
+  const previewRecovery = async () => {
+    await runRecoveryAction(
+      "preview",
+      () =>
+        fetch("/api/admin/checkout-recovery/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "preview", limit: 10 }),
+        }),
+      (body) => {
+        setCheckoutRecovery((current) => ({
+          ...current,
+          metrics: {
+            ...current.metrics,
+            dueNowCount: Number(body.dueCount ?? current.metrics.dueNowCount),
+          },
+          dueCandidates: Array.isArray(body.candidates)
+            ? (body.candidates as CheckoutRecoveryOverview["dueCandidates"])
+            : current.dueCandidates,
+        }));
+        setNotice("Updated checkout recovery preview.");
+      },
+    );
+  };
+
+  const saveRecoveryConfig = async () => {
+    await runRecoveryAction(
+      "save-config",
+      () =>
+        fetch("/api/admin/checkout-recovery/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(recoveryConfig),
+        }),
+      (body) => {
+        const schedule = body.schedule as
+          | { payload?: CheckoutRecoveryOverview["schedule"]["payload"] }
+          | undefined;
+        if (schedule?.payload) {
+          setRecoveryConfig(schedule.payload);
+          setCheckoutRecovery((current) => ({
+            ...current,
+            schedule: {
+              ...current.schedule,
+              payload: schedule.payload ?? current.schedule.payload,
+            },
+          }));
+        }
+        setNotice("Checkout recovery configuration saved.");
+        router.refresh();
+      },
+    );
+  };
+
+  const runRecoveryNow = async () => {
+    await runRecoveryAction(
+      "run-now",
+      () =>
+        fetch("/api/admin/checkout-recovery/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "run" }),
+        }),
+      (body) => {
+        const summary =
+          body.summary && typeof body.summary === "object"
+            ? (body.summary as Record<string, unknown>)
+            : {};
+        setNotice(
+          `Checkout recovery processed ${Number(summary.processed ?? 0)} candidate(s).`,
+        );
+        router.refresh();
+      },
+    );
+  };
+
+  const sendRecoveryTest = async () => {
+    await runRecoveryAction(
+      "test-send",
+      () =>
+        fetch("/api/admin/checkout-recovery/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "test_send",
+            recipient: testRecipient,
+            stepIndex: Number(testStepIndex),
+            storefront:
+              checkoutRecovery.schedule.payload.segmentation.storefrontScope === "ALL"
+                ? "MAIN"
+                : checkoutRecovery.schedule.payload.segmentation.storefrontScope,
+            promoCode:
+              recoveryConfig.steps.find(
+                (step) => String(step.stepIndex) === String(testStepIndex),
+              )?.promoCode ?? null,
+            promoMessage:
+              recoveryConfig.steps.find(
+                (step) => String(step.stepIndex) === String(testStepIndex),
+              )?.promoMessage ?? null,
+          }),
+        }),
+      () => {
+        setNotice("Checkout recovery test email sent.");
+      },
+    );
+  };
+
+  const linkedRecoverySchedule = automationSchedules.find(
+    (schedule) => schedule.key === checkoutRecovery.schedule.key,
+  );
 
   return (
     <div className="space-y-6">
@@ -265,6 +497,361 @@ export default function AdminOpsClient({
           .
         </AdminNotice>
       ) : null}
+
+      <AdminPanel
+        eyebrow="Recovery"
+        title="Checkout recovery control"
+        description="Preview, test, configure, and manually run checkout recovery while the underlying schedule stays paused until ops explicitly resumes it."
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <AdminMetricCard
+            label="Schedule"
+            value={checkoutRecovery.schedule.status}
+            detail={checkoutRecovery.schedule.cronExpression ?? "manual"}
+          />
+          <AdminMetricCard
+            label="Due now"
+            value={String(checkoutRecovery.metrics.dueNowCount)}
+            detail="eligible reminders"
+          />
+          <AdminMetricCard
+            label="Recovered orders"
+            value={String(checkoutRecovery.metrics.recoveredOrders)}
+            detail="linked orders"
+          />
+          <AdminMetricCard
+            label="Recovered revenue"
+            value={formatMoney(checkoutRecovery.metrics.recoveredRevenueCents)}
+            detail="linked revenue"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminField label="Minimum cart total (cents)">
+                <AdminInput
+                  value={String(recoveryConfig.segmentation.minCartTotalCents)}
+                  onChange={(event) =>
+                    setRecoveryConfig((current) => ({
+                      ...current,
+                      segmentation: {
+                        ...current.segmentation,
+                        minCartTotalCents: Math.max(
+                          0,
+                          Number(event.target.value) || 0,
+                        ),
+                      },
+                    }))
+                  }
+                />
+              </AdminField>
+              <AdminField label="Max sends per run">
+                <AdminInput
+                  value={String(recoveryConfig.maxSendsPerRun)}
+                  onChange={(event) =>
+                    setRecoveryConfig((current) => ({
+                      ...current,
+                      maxSendsPerRun: Math.max(1, Number(event.target.value) || 1),
+                    }))
+                  }
+                />
+              </AdminField>
+              <AdminField label="Customer type">
+                <AdminSelect
+                  value={recoveryConfig.segmentation.customerType}
+                  onChange={(event) =>
+                    setRecoveryConfig((current) => ({
+                      ...current,
+                      segmentation: {
+                        ...current.segmentation,
+                        customerType: event.target.value as
+                          | "ANY"
+                          | "FIRST_TIME"
+                          | "RETURNING",
+                      },
+                    }))
+                  }
+                >
+                  <option value="ANY">Any</option>
+                  <option value="FIRST_TIME">First-time only</option>
+                  <option value="RETURNING">Returning only</option>
+                </AdminSelect>
+              </AdminField>
+              <AdminField label="Storefront scope">
+                <AdminSelect
+                  value={recoveryConfig.segmentation.storefrontScope}
+                  onChange={(event) =>
+                    setRecoveryConfig((current) => ({
+                      ...current,
+                      segmentation: {
+                        ...current.segmentation,
+                        storefrontScope: event.target.value as "ALL" | "MAIN" | "GROW",
+                      },
+                    }))
+                  }
+                >
+                  <option value="ALL">All storefronts</option>
+                  <option value="MAIN">Smokeify only</option>
+                  <option value="GROW">GrowVault only</option>
+                </AdminSelect>
+              </AdminField>
+              <AdminField label="Guest mode">
+                <AdminSelect
+                  value={recoveryConfig.segmentation.guestMode}
+                  onChange={(event) =>
+                    setRecoveryConfig((current) => ({
+                      ...current,
+                      segmentation: {
+                        ...current.segmentation,
+                        guestMode: event.target.value as
+                          | "ANY"
+                          | "GUEST_ONLY"
+                          | "LOGGED_IN_ONLY",
+                      },
+                    }))
+                  }
+                >
+                  <option value="ANY">Guest + logged-in</option>
+                  <option value="GUEST_ONLY">Guest only</option>
+                  <option value="LOGGED_IN_ONLY">Logged-in only</option>
+                </AdminSelect>
+              </AdminField>
+            </div>
+
+            <div className="space-y-4">
+              {recoveryConfig.steps.map((step, index) => (
+                <div
+                  key={step.stepIndex}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-white">
+                      Reminder {step.stepIndex}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={step.enabled}
+                        onChange={(event) =>
+                          setRecoveryConfig((current) => {
+                            const nextSteps = [...current.steps];
+                            nextSteps[index] = {
+                              ...nextSteps[index],
+                              enabled: event.target.checked,
+                            };
+                            return {
+                              ...current,
+                              steps: nextSteps,
+                            };
+                          })
+                        }
+                      />
+                      Enabled
+                    </label>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <AdminField label="Delay (minutes)">
+                      <AdminInput
+                        value={String(step.delayMinutes)}
+                        onChange={(event) =>
+                          setRecoveryConfig((current) => {
+                            const nextSteps = [...current.steps];
+                            nextSteps[index] = {
+                              ...nextSteps[index],
+                              delayMinutes: Math.max(1, Number(event.target.value) || 1),
+                            };
+                            return {
+                              ...current,
+                              steps: nextSteps,
+                            };
+                          })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label="Promo code" optional="optional">
+                      <AdminInput
+                        value={step.promoCode ?? ""}
+                        onChange={(event) =>
+                          setRecoveryConfig((current) => {
+                            const nextSteps = [...current.steps];
+                            nextSteps[index] = {
+                              ...nextSteps[index],
+                              promoCode: event.target.value.trim() || null,
+                            };
+                            return {
+                              ...current,
+                              steps: nextSteps,
+                            };
+                          })
+                        }
+                      />
+                    </AdminField>
+                  </div>
+                  <div className="mt-4">
+                    <AdminField label="Promo message" optional="optional">
+                      <AdminTextarea
+                        rows={3}
+                        value={step.promoMessage ?? ""}
+                        onChange={(event) =>
+                          setRecoveryConfig((current) => {
+                            const nextSteps = [...current.steps];
+                            nextSteps[index] = {
+                              ...nextSteps[index],
+                              promoMessage: event.target.value.trim() || null,
+                            };
+                            return {
+                              ...current,
+                              steps: nextSteps,
+                            };
+                          })
+                        }
+                      />
+                    </AdminField>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <AdminButton
+                onClick={() => void saveRecoveryConfig()}
+                disabled={pendingRecoveryAction === "save-config"}
+              >
+                {pendingRecoveryAction === "save-config" ? "Saving..." : "Save config"}
+              </AdminButton>
+              <AdminButton
+                tone="secondary"
+                onClick={() => linkedRecoverySchedule && void toggleSchedule(linkedRecoverySchedule)}
+                disabled={
+                  !linkedRecoverySchedule ||
+                  pendingAutomationAction === `schedule:${checkoutRecovery.schedule.key}`
+                }
+              >
+                {pendingAutomationAction === `schedule:${checkoutRecovery.schedule.key}`
+                  ? "Saving..."
+                  : checkoutRecovery.schedule.status === "PAUSED"
+                    ? "Resume schedule"
+                    : "Pause schedule"}
+              </AdminButton>
+              <AdminButton
+                tone="secondary"
+                onClick={() => void previewRecovery()}
+                disabled={pendingRecoveryAction === "preview"}
+              >
+                {pendingRecoveryAction === "preview" ? "Refreshing..." : "Preview due reminders"}
+              </AdminButton>
+              <AdminButton
+                tone="secondary"
+                onClick={() => void runRecoveryNow()}
+                disabled={pendingRecoveryAction === "run-now"}
+              >
+                {pendingRecoveryAction === "run-now" ? "Running..." : "Run now"}
+              </AdminButton>
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="text-sm font-semibold text-white">Test send</div>
+              <div className="mt-4 grid gap-4">
+                <AdminField label="Recipient">
+                  <AdminInput
+                    value={testRecipient}
+                    onChange={(event) => setTestRecipient(event.target.value)}
+                    placeholder="ops@example.com"
+                  />
+                </AdminField>
+                <AdminField label="Step">
+                  <AdminSelect
+                    value={testStepIndex}
+                    onChange={(event) => setTestStepIndex(event.target.value)}
+                  >
+                    {recoveryConfig.steps.map((step) => (
+                      <option key={step.stepIndex} value={String(step.stepIndex)}>
+                        Reminder {step.stepIndex}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </AdminField>
+                <AdminButton
+                  onClick={() => void sendRecoveryTest()}
+                  disabled={pendingRecoveryAction === "test-send" || !testRecipient.trim()}
+                >
+                  {pendingRecoveryAction === "test-send" ? "Sending..." : "Send test email"}
+                </AdminButton>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="text-sm font-semibold text-white">Due candidates</div>
+              <div className="mt-3 space-y-3">
+                {checkoutRecovery.dueCandidates.length === 0 ? (
+                  <div className="text-sm text-slate-400">No due reminders right now.</div>
+                ) : (
+                  checkoutRecovery.dueCandidates.map((candidate) => (
+                    <div
+                      key={`${candidate.sessionId}-${candidate.stepIndex}`}
+                      className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                    >
+                      <div className="text-sm font-semibold text-white">
+                        {candidate.stepLabel} · {formatMoney(candidate.totalCents)}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {candidate.customerEmail || "No email"} · {candidate.customerType} ·{" "}
+                        {candidate.storefront || "Unknown storefront"} · due {formatDate(candidate.scheduledFor)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="text-sm font-semibold text-white">Recent attempt outcomes</div>
+              <div className="mt-3 space-y-3">
+                {checkoutRecovery.recentAttempts.slice(0, 6).map((attempt) => (
+                  <div
+                    key={attempt.id}
+                    className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                  >
+                    <div className="text-sm font-semibold text-white">
+                      {attempt.stepLabel} · {attempt.status}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {attempt.customerEmail || "No email"} · scheduled {formatDate(attempt.scheduledFor)}
+                    </div>
+                    {attempt.skipReason || attempt.errorMessage ? (
+                      <div className="mt-2 text-xs text-amber-200">
+                        {attempt.skipReason || attempt.errorMessage}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="text-sm font-semibold text-white">Top skip/failure reasons</div>
+              <div className="mt-3 space-y-2">
+                {checkoutRecovery.topSkipReasons.length === 0 ? (
+                  <div className="text-sm text-slate-400">No skip or failure reasons recorded yet.</div>
+                ) : (
+                  checkoutRecovery.topSkipReasons.map((reason) => (
+                    <div
+                      key={reason.reason}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3 text-sm"
+                    >
+                      <span className="text-slate-300">{reason.reason}</span>
+                      <span className="font-semibold text-white">{reason.count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminPanel>
 
       <AdminPanel
         eyebrow="Preflight"
