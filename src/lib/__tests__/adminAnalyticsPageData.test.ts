@@ -1,0 +1,370 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+const {
+  mockGetActiveSessionSnapshot,
+  mockGetCustomerRevenueMix,
+  mockGetDateDaysAgo,
+  mockGetFunnelComparison,
+  mockGetFunnelSnapshot,
+  mockGetFunnelTrend,
+  mockGetOrderComparisons,
+  mockGetProductPerformance,
+  mockGetFinancePageData,
+  orderCount,
+  orderAggregate,
+  orderFindMany,
+  orderGroupBy,
+  variantFindMany,
+  analyticsEventGroupBy,
+  plantAnalysisRunCount,
+  plantAnalysisFeedbackCount,
+  plantAnalysisIssueGroupBy,
+  userFindMany,
+} = vi.hoisted(() => ({
+  mockGetActiveSessionSnapshot: vi.fn(),
+  mockGetCustomerRevenueMix: vi.fn(),
+  mockGetDateDaysAgo: vi.fn(),
+  mockGetFunnelComparison: vi.fn(),
+  mockGetFunnelSnapshot: vi.fn(),
+  mockGetFunnelTrend: vi.fn(),
+  mockGetOrderComparisons: vi.fn(),
+  mockGetProductPerformance: vi.fn(),
+  mockGetFinancePageData: vi.fn(),
+  orderCount: vi.fn(),
+  orderAggregate: vi.fn(),
+  orderFindMany: vi.fn(),
+  orderGroupBy: vi.fn(),
+  variantFindMany: vi.fn(),
+  analyticsEventGroupBy: vi.fn(),
+  plantAnalysisRunCount: vi.fn(),
+  plantAnalysisFeedbackCount: vi.fn(),
+  plantAnalysisIssueGroupBy: vi.fn(),
+  userFindMany: vi.fn(),
+}));
+
+vi.mock("@/lib/adminInsights", () => ({
+  PAID_ORDER_STATUSES: ["paid", "succeeded", "refunded", "partially_refunded"],
+  getActiveSessionSnapshot: mockGetActiveSessionSnapshot,
+  getCustomerRevenueMix: mockGetCustomerRevenueMix,
+  getDateDaysAgo: mockGetDateDaysAgo,
+  getFunnelComparison: mockGetFunnelComparison,
+  getFunnelSnapshot: mockGetFunnelSnapshot,
+  getFunnelTrend: mockGetFunnelTrend,
+  getOrderComparisons: mockGetOrderComparisons,
+  getProductPerformance: mockGetProductPerformance,
+}));
+
+vi.mock("@/lib/adminAddonData", () => ({
+  getFinancePageData: mockGetFinancePageData,
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    order: {
+      count: orderCount,
+      aggregate: orderAggregate,
+      findMany: orderFindMany,
+      groupBy: orderGroupBy,
+    },
+    variant: {
+      findMany: variantFindMany,
+    },
+    analyticsEvent: {
+      groupBy: analyticsEventGroupBy,
+    },
+    plantAnalysisRun: {
+      count: plantAnalysisRunCount,
+    },
+    plantAnalysisFeedback: {
+      count: plantAnalysisFeedbackCount,
+    },
+    plantAnalysisIssue: {
+      groupBy: plantAnalysisIssueGroupBy,
+    },
+    user: {
+      findMany: userFindMany,
+    },
+  },
+}));
+
+import {
+  loadAdminAnalyticsOverview,
+  loadAdminAnalyticsSecondary,
+} from "@/lib/adminAnalyticsPageData";
+
+const currentStart = new Date("2026-05-01T00:00:00.000Z");
+const currentEnd = new Date("2026-05-19T12:00:00.000Z");
+
+beforeEach(() => {
+  vi.clearAllMocks();
+
+  mockGetDateDaysAgo.mockImplementation((daysAgo: number) => {
+    const date = new Date("2026-05-19T00:00:00.000Z");
+    date.setUTCDate(date.getUTCDate() - daysAgo);
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
+  });
+
+  mockGetActiveSessionSnapshot.mockResolvedValue({
+    activeVisitorCount: 4,
+    topPages: [],
+    trafficSources: [],
+  });
+  mockGetFunnelSnapshot.mockResolvedValue({
+    sessions: 10,
+    productViews: 8,
+    addToCart: 5,
+    beginCheckout: 3,
+    purchaseSessions: 2,
+    paidOrders: 2,
+    sessionToOrderRate: 0.2,
+    viewToCartRate: 0.625,
+    cartToCheckoutRate: 0.6,
+    checkoutToPaidRate: 0.66,
+    cartAbandonmentRate: 0.4,
+    checkoutAbandonmentRate: 0.33,
+  });
+  mockGetFunnelComparison.mockResolvedValue({
+    sessions: { current: 10, previous: 8, deltaRatio: 0.25 },
+    beginCheckout: { current: 3, previous: 2, deltaRatio: 0.5 },
+    paidOrders: { current: 2, previous: 1, deltaRatio: 1 },
+    purchaseSessions: { current: 2, previous: 1, deltaRatio: 1 },
+    sessionToOrderRate: { current: 0.2, previous: 0.125, deltaRatio: 0.6 },
+    checkoutAbandonmentRate: { current: 0.33, previous: 0.5, deltaRatio: -0.34 },
+    cartAbandonmentRate: { current: 0.4, previous: 0.45, deltaRatio: -0.11 },
+  });
+  mockGetFunnelTrend.mockResolvedValue([
+    {
+      label: "01 May",
+      sessions: 10,
+      productViews: 8,
+      addToCart: 5,
+      beginCheckout: 3,
+      purchases: 2,
+      paidOrders: 2,
+      revenueCents: 12000,
+      sessionConversionRate: 0.2,
+      checkoutRate: 0.3,
+    },
+  ]);
+  mockGetOrderComparisons.mockResolvedValue({
+    currency: "EUR",
+    revenue: { current: 12000, previous: 10000, deltaRatio: 0.2 },
+    paidOrders: { current: 2, previous: 1, deltaRatio: 1 },
+    aov: { current: 6000, previous: 5000, deltaRatio: 0.2 },
+    refundRate: { current: 0.1, previous: 0.2, deltaRatio: -0.5 },
+  });
+  mockGetCustomerRevenueMix.mockResolvedValue({
+    newRevenueCents: 6000,
+    returningRevenueCents: 6000,
+    newCustomerCount: 1,
+    returningCustomerCount: 1,
+  });
+  mockGetProductPerformance.mockResolvedValue([
+    {
+      productId: "prod_1",
+      productTitle: "Control Tent",
+      views: 40,
+      addToCart: 10,
+      beginCheckout: 8,
+      purchases: 4,
+      revenueCents: 20000,
+      marginCents: 8000,
+      conversionRate: 0.1,
+      addToCartRate: 0.25,
+    },
+  ]);
+  mockGetFinancePageData.mockResolvedValue({
+    currentFinance: {
+      currency: "EUR",
+      paidOrderCount: 2,
+      recognizedOrderCount: 2,
+      refundedOrderCount: 0,
+      grossRevenueCents: 12000,
+      refundedGrossCents: 0,
+      netCollectedGrossCents: 12000,
+      outputVatCents: 1900,
+      refundedVatEstimateCents: 0,
+      netOutputVatCents: 1900,
+      netRevenueCents: 10100,
+      shippingCollectedCents: 0,
+      cogsCents: 3000,
+      paymentFeesCents: 400,
+      variableCostCents: 3400,
+      contributionMarginCents: 6700,
+      contributionMarginRatio: 0.66,
+      estimatedProfitCents: 6700,
+      ordersMissingTaxCount: 0,
+      taxCoverageRate: 1,
+    },
+    previousFinance: {
+      currency: "EUR",
+      paidOrderCount: 1,
+      recognizedOrderCount: 1,
+      refundedOrderCount: 0,
+      grossRevenueCents: 10000,
+      refundedGrossCents: 0,
+      netCollectedGrossCents: 10000,
+      outputVatCents: 1600,
+      refundedVatEstimateCents: 0,
+      netOutputVatCents: 1600,
+      netRevenueCents: 8400,
+      shippingCollectedCents: 0,
+      cogsCents: 2500,
+      paymentFeesCents: 300,
+      variableCostCents: 2800,
+      contributionMarginCents: 5600,
+      contributionMarginRatio: 0.66,
+      estimatedProfitCents: 5600,
+      ordersMissingTaxCount: 0,
+      taxCoverageRate: 1,
+    },
+    vatSummary: {
+      monthLabel: "May 2026",
+      accountingModeLabel: "Cash-based VAT",
+      taxationModeLabel: "Regular VAT",
+      outputVatCents: 1900,
+      refundedVatEstimateCents: 0,
+      inputVatCents: 400,
+      estimatedLiabilityCents: 1500,
+      taxCoverageRate: 1,
+      ordersMissingTaxCount: 0,
+      status: "ready_for_handover",
+      blockers: [],
+      notes: [],
+    },
+    expenseMigrationRequired: false,
+    currentStart,
+    currentEnd,
+  });
+
+  orderCount.mockResolvedValue(3);
+  orderAggregate.mockResolvedValue({ _sum: { amountTotal: 45000 } });
+  orderFindMany.mockResolvedValue([
+    {
+      createdAt: new Date("2026-05-18T00:00:00.000Z"),
+      amountTotal: 12000,
+      paymentStatus: "paid",
+      paymentMethod: "card",
+      userId: "user_1",
+      amountDiscount: 0,
+      discountCode: null,
+      amountRefunded: 0,
+    },
+  ]);
+
+  variantFindMany.mockResolvedValue([
+    {
+      id: "var_1",
+      sku: "TENT-1",
+      title: "120x120",
+      lowStockThreshold: 2,
+      product: { id: "prod_1", title: "Control Tent" },
+      inventory: { quantityOnHand: 0, reserved: 0 },
+    },
+  ]);
+  userFindMany.mockResolvedValue([
+    { id: "user_1", orders: [{ amountTotal: 12000 }, { amountTotal: 8000 }] },
+  ]);
+  orderGroupBy
+    .mockResolvedValueOnce([
+      {
+        customerEmail: "guest@example.com",
+        _sum: { amountTotal: 5000 },
+        _count: { id: 1 },
+      },
+    ])
+    .mockResolvedValueOnce([
+      {
+        discountCode: "SPRING",
+        _sum: { amountTotal: 9000, amountDiscount: 1000 },
+        _count: { id: 2 },
+      },
+    ])
+    .mockResolvedValueOnce([
+      {
+        paymentMethod: "card",
+        _sum: { amountTotal: 12000, amountRefunded: 0 },
+        _count: { id: 2 },
+      },
+    ]);
+  analyticsEventGroupBy
+    .mockResolvedValueOnce([{ utmSource: "google", utmMedium: "cpc", _count: { _all: 6 } }])
+    .mockResolvedValueOnce([{ utmSource: "google", utmMedium: "cpc", _count: { _all: 2 } }]);
+  plantAnalysisRunCount.mockResolvedValue(20);
+  plantAnalysisFeedbackCount
+    .mockResolvedValueOnce(10)
+    .mockResolvedValueOnce(8);
+  plantAnalysisIssueGroupBy.mockResolvedValue([
+    { label: "low confidence", _count: { _all: 3 } },
+  ]);
+});
+
+describe("adminAnalyticsPageData", () => {
+  it("threads range and storefront scope through overview helpers and order queries", async () => {
+    await loadAdminAnalyticsOverview(90, "GROW");
+
+    expect(mockGetActiveSessionSnapshot).toHaveBeenCalledWith("GROW");
+    expect(mockGetFunnelSnapshot).toHaveBeenCalledWith(90, "GROW");
+    expect(mockGetFunnelComparison).toHaveBeenCalledWith(90, "GROW");
+    expect(mockGetFunnelTrend).toHaveBeenCalledWith(90, "GROW");
+    expect(mockGetOrderComparisons).toHaveBeenCalledWith(90, "GROW");
+    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(90, "GROW");
+    expect(mockGetFinancePageData).toHaveBeenCalledWith(90, "GROW");
+
+    expect(orderCount).toHaveBeenCalledWith({ where: { sourceStorefront: "GROW" } });
+    expect(orderAggregate).toHaveBeenCalledWith({
+      where: {
+        paymentStatus: { in: ["paid", "succeeded", "refunded", "partially_refunded"] },
+        sourceStorefront: "GROW",
+      },
+      _sum: { amountTotal: true },
+    });
+    expect(orderFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceStorefront: "GROW",
+        }),
+      }),
+    );
+  });
+
+  it("applies storefront scope to secondary analytics queries and inventory rows", async () => {
+    const result = await loadAdminAnalyticsSecondary(365, "MAIN");
+
+    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(365, "MAIN");
+    expect(mockGetProductPerformance).toHaveBeenCalledWith(365, "MAIN");
+    expect(variantFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          product: {
+            storefronts: { has: "MAIN" },
+          },
+        },
+      }),
+    );
+    expect(analyticsEventGroupBy).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          storefront: "MAIN",
+        }),
+      }),
+    );
+    expect(orderGroupBy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceStorefront: "MAIN",
+        }),
+      }),
+    );
+    expect(result.inventory).toEqual({
+      stockoutCount: 1,
+      lowStockCount: 1,
+      trackedVariants: 1,
+    });
+  });
+});
