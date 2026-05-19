@@ -110,6 +110,10 @@ export default function AdminEmailTestingClient({
   const [productTitle, setProductTitle] = useState("Beispiel-Shisha");
   const [variantTitle, setVariantTitle] = useState("Schwarz / Medium");
   const [sessionId, setSessionId] = useState("cs_test_XXXXXXXXXXXXXXXX");
+  const [recoveryStep, setRecoveryStep] = useState("1");
+  const [recoveryUrl, setRecoveryUrl] = useState("");
+  const [recoveryPromoCode, setRecoveryPromoCode] = useState("");
+  const [recoveryPromoMessage, setRecoveryPromoMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -199,6 +203,10 @@ export default function AdminEmailTestingClient({
         to: recipient.trim(),
         storefront,
         sessionId: sessionId.trim(),
+        step: Math.max(1, Number(recoveryStep) || 1),
+        recoveryUrl: recoveryUrl.trim() || null,
+        promoCode: recoveryPromoCode.trim() || null,
+        promoMessage: recoveryPromoMessage.trim() || null,
       };
     }
     return {
@@ -247,6 +255,10 @@ export default function AdminEmailTestingClient({
     orderId,
     productTitle,
     recipient,
+    recoveryPromoCode,
+    recoveryPromoMessage,
+    recoveryStep,
+    recoveryUrl,
     sessionId,
     trackingCarrier,
     trackingNumber,
@@ -428,12 +440,45 @@ export default function AdminEmailTestingClient({
                 </AdminField>
               </div>
             ) : isCheckoutRecovery ? (
-              <AdminField label="Mock session id">
-                <AdminInput
-                  value={sessionId}
-                  onChange={(event) => setSessionId(event.target.value)}
-                />
-              </AdminField>
+              <div className="grid gap-4">
+                <AdminField label="Mock session id">
+                  <AdminInput
+                    value={sessionId}
+                    onChange={(event) => setSessionId(event.target.value)}
+                  />
+                </AdminField>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AdminField label="Recovery step">
+                    <AdminSelect
+                      value={recoveryStep}
+                      onChange={(event) => setRecoveryStep(event.target.value)}
+                    >
+                      <option value="1">Reminder 1</option>
+                      <option value="2">Reminder 2</option>
+                      <option value="3">Reminder 3</option>
+                    </AdminSelect>
+                  </AdminField>
+                  <AdminField label="Recovery URL" optional="optional">
+                    <AdminInput
+                      value={recoveryUrl}
+                      onChange={(event) => setRecoveryUrl(event.target.value)}
+                      placeholder="https://smokeify.de/checkout/recover/..."
+                    />
+                  </AdminField>
+                  <AdminField label="Promo code" optional="optional">
+                    <AdminInput
+                      value={recoveryPromoCode}
+                      onChange={(event) => setRecoveryPromoCode(event.target.value)}
+                    />
+                  </AdminField>
+                  <AdminField label="Promo message" optional="optional">
+                    <AdminInput
+                      value={recoveryPromoMessage}
+                      onChange={(event) => setRecoveryPromoMessage(event.target.value)}
+                    />
+                  </AdminField>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2">

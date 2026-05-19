@@ -10,13 +10,14 @@ import {
 import { listUnresolvedOrderAttributionRows } from "@/lib/adminAttribution";
 import { getAdminEnvironmentHealth } from "@/lib/adminEnvironmentHealth";
 import { canReplayWebhookEvent } from "@/lib/adminWebhookReplay";
+import { getCheckoutRecoveryOverview } from "@/lib/checkoutRecoveryService";
 import { prisma } from "@/lib/prisma";
 import AdminOpsClient from "./AdminOpsClient";
 
 export default async function AdminOpsPage() {
   if (!(await requireAdminScope("ops.read"))) notFound();
 
-  const [jobRuns, failedWebhookEvents, automationData, environmentHealth, attributionSnapshot] = await Promise.all([
+  const [jobRuns, failedWebhookEvents, automationData, environmentHealth, attributionSnapshot, checkoutRecovery] = await Promise.all([
     listAdminJobRuns(),
     prisma.processedWebhookEvent.findMany({
       where: { status: "failed" },
@@ -45,6 +46,7 @@ export default async function AdminOpsPage() {
     })(),
     getAdminEnvironmentHealth(),
     listUnresolvedOrderAttributionRows(),
+    getCheckoutRecoveryOverview(),
   ]);
 
   return (
@@ -53,6 +55,7 @@ export default async function AdminOpsPage() {
         automationJobs={automationData.automationJobs}
         automationSchedules={automationData.automationSchedules}
         automationUnavailableReason={automationData.automationUnavailableReason}
+        checkoutRecovery={checkoutRecovery}
         unresolvedAttributionCount={attributionSnapshot.rows.length}
         environmentHealth={environmentHealth}
         failedWebhookEvents={failedWebhookEvents.map((event) => ({

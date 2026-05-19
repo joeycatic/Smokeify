@@ -77,7 +77,7 @@ export function withAdminRoute<TParams extends Record<string, string> = Record<s
 ) {
   return async (
     request: NextRequest,
-    context?: { params?: Promise<TParams> | TParams },
+    context?: { params?: Promise<unknown> | TParams },
   ) => {
     const requestStartedAt = getNow();
     const serverTimings: Array<{ name: string; durationMs: number; description?: string }> = [];
@@ -167,8 +167,8 @@ export function withAdminRoute<TParams extends Record<string, string> = Record<s
     }
 
     const params =
-      context?.params && typeof (context.params as Promise<TParams>).then === "function"
-        ? await (context.params as Promise<TParams>)
+      context?.params && typeof (context.params as Promise<unknown>).then === "function"
+        ? ((await (context.params as Promise<unknown>)) as TParams)
         : ((context?.params as TParams | undefined) ?? ({} as TParams));
 
     const handlerStartedAt = getNow();

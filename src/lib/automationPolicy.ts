@@ -1,7 +1,13 @@
 import "server-only";
 
+import {
+  DEFAULT_CHECKOUT_RECOVERY_CONFIG,
+  serializeCheckoutRecoveryConfig,
+} from "@/lib/checkoutRecovery";
+
 export const AUTOMATION_HANDLERS = [
   "admin.script.run",
+  "checkout.recovery.run",
   "supplier.stock.sync",
   "supplier.stock.daily_report",
   "supplier.pricing.sync",
@@ -44,7 +50,26 @@ const COMMERCE_GUARDRAIL_ACTIONS = [
 
 export type CommerceGuardrailAction = (typeof COMMERCE_GUARDRAIL_ACTIONS)[number];
 
+type AutomationScheduleDefault = {
+  key: string;
+  label: string;
+  handler: AutomationHandler;
+  cronExpression: string;
+  maxAttempts: number;
+  defaultStatus?: "ACTIVE" | "PAUSED";
+  defaultPayload?: Record<string, unknown>;
+};
+
 export const AUTOMATION_SCHEDULE_DEFAULTS = [
+  {
+    key: "checkout-recovery-run",
+    label: "Checkout recovery run",
+    handler: "checkout.recovery.run" as AutomationHandler,
+    cronExpression: "*/15 * * * *",
+    maxAttempts: 3,
+    defaultStatus: "PAUSED" as const,
+    defaultPayload: serializeCheckoutRecoveryConfig(DEFAULT_CHECKOUT_RECOVERY_CONFIG),
+  },
   {
     key: "supplier-stock-sync",
     label: "Supplier stock sync",
@@ -94,7 +119,7 @@ export const AUTOMATION_SCHEDULE_DEFAULTS = [
     cronExpression: "manual-cron",
     maxAttempts: 3,
   },
-] as const;
+] as const satisfies readonly AutomationScheduleDefault[];
 
 export function assertAutomationCommerceGuardrail(action: CommerceGuardrailAction) {
   throw new Error(

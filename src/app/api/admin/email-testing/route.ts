@@ -16,6 +16,7 @@ import {
   buildBackInStockEmail,
   buildCheckoutRecoveryEmail,
 } from "@/lib/storefrontNotificationEmail";
+import type { CheckoutRecoveryCartSummary } from "@/lib/checkoutRecovery";
 import { parseStorefront } from "@/lib/storefronts";
 
 const sendEmail = async (opts: {
@@ -135,6 +136,11 @@ export const POST = withAdminRoute(
       productTitle?: string;
       variantTitle?: string;
       sessionId?: string;
+      step?: number;
+      recoveryUrl?: string;
+      promoCode?: string;
+      promoMessage?: string;
+      cartSummary?: CheckoutRecoveryCartSummary;
     };
 
     const type = body.type;
@@ -201,14 +207,37 @@ export const POST = withAdminRoute(
 
   if (type === "checkout_recovery") {
     const sessionId = toSafeString(body.sessionId) || "cs_test_XXXXXXXXXXXXXXXX";
+    const step =
+      typeof body.step === "number" && Number.isFinite(body.step)
+        ? Math.max(1, Math.floor(body.step))
+        : 1;
     const email = buildCheckoutRecoveryEmail({
       storefront,
       recipientEmail: recipient,
       sessionId,
+      step,
+      recoveryUrl:
+        toSafeString(body.recoveryUrl) || `${emailOrigin}/checkout/start?recovery=test`,
+      cartSummary: body.cartSummary ?? {
+        currency: "EUR",
+        subtotalCents: 8990,
+        discountCents: 0,
+        shippingCents: 690,
+        totalCents: 9680,
+        items: [
+          {
+            name: "Beispiel-Artikel",
+            quantity: 1,
+            lineTotalCents: 8990,
+          },
+        ],
+      },
+      promoCode: toSafeString(body.promoCode) || null,
+      promoMessage: toSafeString(body.promoMessage) || null,
       fallbackOrigin: emailOrigin,
     });
     try { await sendEmail({ to: recipient, subject: email.subject, html: email.html, text: email.text }); } catch (err) { return adminJson({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 }); }
-    await logEmailTestingAction(type, recipient, { sessionId, storefront });
+    await logEmailTestingAction(type, recipient, { sessionId, step, storefront });
     return adminJson({ ok: true });
   }
 

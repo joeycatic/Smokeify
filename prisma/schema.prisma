@@ -232,6 +232,13 @@ enum AutomationEffectStatus {
   FAILED
 }
 
+enum CheckoutRecoveryAttemptStatus {
+  PENDING
+  SENT
+  SKIPPED
+  FAILED
+}
+
 enum CustomizerPresetSlot {
   SIZE
   LIGHT
@@ -438,6 +445,7 @@ model User {
   loyaltyPointsBalance            Int                        @default(0)
   storeCreditBalance              Int                        @default(0)
   crmFlags                        String[]                   @default([])
+  checkoutRecoverySessions        CheckoutRecoverySession[]
   newsletterOfferClaimedAt        DateTime?
   newsletterOfferClaimedEmail     String?
   cartItems                       UserCartItem[]
@@ -1034,6 +1042,7 @@ model Order {
   riskReviewedAt           DateTime?
   riskReviewedById         String?
   riskNotes                String?
+  recoveredFromCheckoutSessionId String?           @unique
   taxRegime                TaxRegime         @default(NORMAL)
   germanVatRate            GermanVatRate     @default(UNKNOWN)
   taxClassification        TaxClassification @default(UNKNOWN)
@@ -1054,12 +1063,74 @@ model Order {
   setupSnapshots           OrderSetupSnapshot[]
   riskEvents               OrderRiskEvent[]
   riskReviewedBy           User?                    @relation("OrderRiskReviewedBy", fields: [riskReviewedById], references: [id], onDelete: SetNull)
+  recoveredCheckoutRecoverySession CheckoutRecoverySession? @relation("RecoveredOrder", fields: [recoveredFromCheckoutSessionId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdAt])
   @@index([userId])
   @@index([userId, createdAt])
   @@index([sourceStorefront, createdAt])
+}
+
+model CheckoutRecoverySession {
+  id                String   @id @default(cuid())
+  stripeSessionId   String   @unique
+  userId            String?
+  customerEmail     String?
+  customerFirstName String?
+  customerLastName  String?
+  sourceStorefront  Storefront?
+  sourceHost        String?
+  sourceOrigin      String?
+  isGuest           Boolean  @default(false)
+  consentGranted    Boolean  @default(false)
+  consentCapturedAt DateTime?
+  cartItems         Json
+  currency          String
+  subtotalCents     Int
+  discountCents     Int      @default(0)
+  shippingCents     Int
+  totalCents        Int
+  cartLineCount     Int      @default(0)
+  discountCode      String?
+  shippingCountry   String?
+  metadata          Json?
+  suppressedAt      DateTime?
+  suppressionReason String?
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user           User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recoveredOrder Order?                    @relation("RecoveredOrder")
+  attempts       CheckoutRecoveryAttempt[]
+
+  @@index([consentGranted, createdAt])
+  @@index([completedAt, createdAt])
+  @@index([sourceStorefront, createdAt])
+  @@index([customerEmail, createdAt])
+}
+
+model CheckoutRecoveryAttempt {
+  id               String                        @id @default(cuid())
+  sessionId        String
+  stepIndex        Int
+  scheduledFor     DateTime
+  status           CheckoutRecoveryAttemptStatus @default(PENDING)
+  sentAt           DateTime?
+  skipReason       String?
+  errorMessage     String?
+  promoCode        String?
+  promoMessage     String?
+  deliveryMetadata Json?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  session CheckoutRecoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, stepIndex])
+  @@index([status, scheduledFor])
+  @@index([sessionId, createdAt])
 }
 
 model LandingPageSection {

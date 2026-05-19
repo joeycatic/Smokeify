@@ -20,6 +20,7 @@ import {
   pointsToDiscountCents,
 } from "@/lib/loyalty";
 import { createGuestCheckoutAccess } from "@/lib/checkoutAccess";
+import { persistCheckoutRecoverySession } from "@/lib/checkoutRecoveryService";
 import { resolveCheckoutOrigin, resolveOrderSourceFromRequest } from "@/lib/orderSource";
 import {
   buildShippingAddressLines,
@@ -496,6 +497,9 @@ export async function POST(req: Request) {
   const rawDiscountCode =
     typeof body?.discountCode === "string" ? body.discountCode.trim() : "";
   const useLoyaltyPoints = body?.useLoyaltyPoints === true;
+  const checkoutRecoveryConsent = body?.checkoutRecoveryConsent === true;
+  const recoverySessionId =
+    typeof body?.recoverySessionId === "string" ? body.recoverySessionId.trim() : "";
   if (rawDiscountCode && rawDiscountCode.length > 64) {
     return jsonNoStore({ error: "Rabattcode ungueltig." }, { status: 400 });
   }
@@ -753,6 +757,9 @@ export async function POST(req: Request) {
     metadata.loyaltyPointsRedeemed = String(loyaltyPointsToRedeem);
     metadata.loyaltyDiscountAmount = String(loyaltyDiscountCents);
   }
+  if (recoverySessionId) {
+    metadata.recoveredFromCheckoutSessionId = recoverySessionId;
+  }
 
   const guestCheckoutAccess = userId ? null : createGuestCheckoutAccess();
   if (guestCheckoutAccess) {
@@ -961,6 +968,22 @@ export async function POST(req: Request) {
       subtotalCents,
       totalCents: subtotalCents + shippingCents - effectiveDiscountCents,
     };
+    await persistCheckoutRecoverySession({
+      stripeSessionId: checkoutSession.id,
+      userId,
+      customerEmail: checkoutEmail,
+      customerFirstName: checkoutFirstName,
+      customerLastName: checkoutLastName,
+      sourceStorefront: orderSource.sourceStorefront,
+      sourceHost: orderSource.sourceHost,
+      sourceOrigin: orderSource.sourceOrigin,
+      isGuest: !userId,
+      consentGranted: checkoutRecoveryConsent,
+      cartItems: items,
+      cartSummary: summary,
+      discountCode: appliedDiscountCode ?? null,
+      shippingCountry: country,
+    });
     const successUrl = buildCheckoutSuccessUrl(
       appBaseUrl,
       guestCheckoutAccess,
