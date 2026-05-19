@@ -10,6 +10,8 @@ import {
   SparklineChart,
 } from "@/components/admin/AdminCharts";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
+import type { AdminTimeRangeDays } from "@/lib/adminTimeRange";
+import type { AdminStorefrontScope } from "@/lib/storefronts";
 
 type ComparisonMetric = {
   current: number;
@@ -417,9 +419,19 @@ type AdminAnalyticsSecondaryPayload = {
 
 export default function AdminAnalyticsClient({
   initialOverview,
+  initialDays,
+  initialStorefrontScope,
 }: {
   initialOverview: AdminAnalyticsOverviewPayload;
+  initialDays: AdminTimeRangeDays;
+  initialStorefrontScope: AdminStorefrontScope;
 }) {
+  const scopeQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("days", String(initialDays));
+    params.set("storefront", initialStorefrontScope);
+    return params.toString();
+  }, [initialDays, initialStorefrontScope]);
   const [loading, setLoading] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [error, setError] = useState("");
@@ -482,7 +494,7 @@ export default function AdminAnalyticsClient({
   const loadOverview = useCallback(async () => {
     const { response, data } = await fetchAdminJson<
       AdminAnalyticsOverviewPayload & { error?: string }
-    >("/api/admin/analytics?section=overview", {
+    >(`/api/admin/analytics?section=overview&${scopeQuery}`, {
       method: "GET",
       cache: "no-store",
       slowThresholdMs: 4_500,
@@ -495,12 +507,12 @@ export default function AdminAnalyticsClient({
       throw new Error(data.error ?? "Failed to load analytics overview.");
     }
     applyOverviewData(data);
-  }, []);
+  }, [scopeQuery]);
 
   const loadSecondary = useCallback(async () => {
     const { response, data } = await fetchAdminJson<
       AdminAnalyticsSecondaryPayload & { error?: string }
-    >("/api/admin/analytics?section=secondary", {
+    >(`/api/admin/analytics?section=secondary&${scopeQuery}`, {
       method: "GET",
       cache: "no-store",
       slowThresholdMs: 5_500,
@@ -513,7 +525,7 @@ export default function AdminAnalyticsClient({
       throw new Error(data.error ?? "Failed to load secondary analytics.");
     }
     applySecondaryData(data);
-  }, []);
+  }, [scopeQuery]);
 
   const refreshAnalytics = useCallback(async () => {
     setLoading(true);

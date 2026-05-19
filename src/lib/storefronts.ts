@@ -16,6 +16,7 @@ export const ADMIN_STOREFRONT_SCOPE_LABELS: Record<AdminStorefrontScope, string>
 };
 
 const ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES = [
+  "/admin/analytics",
   "/admin/email-testing",
   "/admin/finance",
   "/admin/landing-page",
