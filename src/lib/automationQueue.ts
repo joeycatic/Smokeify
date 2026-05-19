@@ -105,7 +105,15 @@ export async function ensureAutomationSchedules() {
           key: schedule.key,
           label: schedule.label,
           handler: schedule.handler,
+          status:
+            "defaultStatus" in schedule && schedule.defaultStatus
+              ? schedule.defaultStatus
+              : "ACTIVE",
           cronExpression: schedule.cronExpression,
+          payload:
+            !("defaultPayload" in schedule) || typeof schedule.defaultPayload === "undefined"
+              ? undefined
+              : toJsonValue(schedule.defaultPayload),
           maxAttempts: schedule.maxAttempts,
         },
       }),

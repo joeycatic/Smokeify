@@ -19,6 +19,7 @@ import { sendResendEmail } from "@/lib/resend";
 import { sendSupplierSyncDailyReport } from "@/lib/supplierSyncDailyReport";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import type { AutomationHandler } from "@/lib/automationPolicy";
+import { runCheckoutRecoveryCampaign } from "@/lib/checkoutRecoveryService";
 
 type AutomationActor = {
   id?: string | null;
@@ -292,6 +293,22 @@ export async function executeAutomationHandler(input: {
     }
     case "supplier.stock.sync":
       return runSupplierStockSync();
+    case "checkout.recovery.run": {
+      const result = await runCheckoutRecoveryCampaign({
+        limit:
+          typeof input.payload.limit === "number" && Number.isFinite(input.payload.limit)
+            ? Math.floor(input.payload.limit)
+            : undefined,
+        bypassPaused: input.payload.bypassPaused === true,
+        actor: input.actor,
+      });
+      return {
+        summary: result.paused
+          ? "Checkout recovery is paused."
+          : `Checkout recovery processed ${result.processed} candidate(s).`,
+        data: result as unknown as Record<string, unknown>,
+      } satisfies AutomationHandlerResult;
+    }
     case "supplier.stock.daily_report":
       return runSupplierStockDailyReport();
     case "supplier.pricing.sync": {

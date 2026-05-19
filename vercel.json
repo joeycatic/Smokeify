@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/supplier-sync-report",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/checkout-recovery",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
