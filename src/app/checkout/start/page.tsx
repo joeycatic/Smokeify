@@ -32,6 +32,9 @@ export default async function CheckoutStartPage({
   const discountCode = Array.isArray(resolvedSearchParams.discountCode)
     ? resolvedSearchParams.discountCode[0] ?? ""
     : resolvedSearchParams.discountCode ?? "";
+  const recoverySessionId = Array.isArray(resolvedSearchParams.recoverySession)
+    ? resolvedSearchParams.recoverySession[0] ?? ""
+    : resolvedSearchParams.recoverySession ?? "";
   const useLoyaltyPoints = Array.isArray(resolvedSearchParams.useLoyaltyPoints)
     ? resolvedSearchParams.useLoyaltyPoints[0] === "1"
     : resolvedSearchParams.useLoyaltyPoints === "1";
@@ -45,6 +48,7 @@ export default async function CheckoutStartPage({
       <CheckoutStartClient
         initialCountry={country}
         initialDiscountCode={discountCode}
+        initialRecoverySessionId={recoverySessionId}
         initialUseLoyaltyPoints={useLoyaltyPoints}
         publishableKey={publishableKey}
       />

@@ -5,6 +5,7 @@ import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
 } from "@/lib/storefrontEmailBrand";
+import type { CheckoutRecoveryCartSummary } from "@/lib/checkoutRecovery";
 import { type StorefrontCode } from "@/lib/storefronts";
 
 const escapeHtml = (text: string) =>
@@ -139,22 +140,85 @@ export const buildCheckoutRecoveryEmail = ({
   storefront,
   recipientEmail,
   sessionId,
+  step = 1,
+  recoveryUrl,
+  cartSummary,
+  promoCode,
+  promoMessage,
   fallbackOrigin,
 }: {
   storefront: StorefrontCode;
   recipientEmail: string;
   sessionId: string;
+  step?: number;
+  recoveryUrl?: string;
+  cartSummary?: CheckoutRecoveryCartSummary;
+  promoCode?: string | null;
+  promoMessage?: string | null;
   fallbackOrigin?: string | null;
 }) => {
   const brand = getStorefrontEmailBrand(storefront);
   const links = getStorefrontLinks(storefront, fallbackOrigin);
-  const cartUrl = `${links.origin}/cart`;
-  const subject = `Dein Warenkorb wartet noch bei ${brand.brandName}`;
+  const resolvedRecoveryUrl = recoveryUrl || `${links.origin}/cart`;
+  const resolvedCartSummary =
+    cartSummary ?? {
+      currency: "EUR",
+      subtotalCents: 0,
+      discountCents: 0,
+      shippingCents: 0,
+      totalCents: 0,
+      items: [],
+    };
+  const formatMoney = (cents: number) =>
+    new Intl.NumberFormat("de-DE", {
+      style: "currency",
+      currency: resolvedCartSummary.currency || "EUR",
+    }).format(cents / 100);
+  const stepLabel =
+    step === 1 ? "Dein Warenkorb wartet" : step === 2 ? "Fast geschafft" : "Letzte Erinnerung";
+  const subject =
+    step === 1
+      ? `Dein Warenkorb wartet noch bei ${brand.brandName}`
+      : step === 2
+        ? `Schließe deinen Einkauf bei ${brand.brandName} ab`
+        : `Letzte Erinnerung zu deinem Warenkorb bei ${brand.brandName}`;
+  const intro =
+    step === 1
+      ? "Du hast einen Checkout gestartet, aber noch nicht abgeschlossen."
+      : step === 2
+        ? "Dein Warenkorb ist noch verfügbar. Wenn du weitermachen möchtest, kannst du direkt dort fortsetzen."
+        : "Falls du noch bestellen möchtest, kannst du deinen Warenkorb jetzt mit einem Klick wiederherstellen.";
+  const itemMarkup = resolvedCartSummary.items
+    .slice(0, 4)
+    .map(
+      (item) => `
+      <div style="display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid ${brand.panelBorderColor};">
+        <div style="font-size:14px;color:${brand.textColor};">${escapeHtml(item.name)} × ${item.quantity}</div>
+        <div style="font-size:14px;font-weight:600;color:${brand.textColor};white-space:nowrap;">${escapeHtml(formatMoney(item.lineTotalCents))}</div>
+      </div>`,
+    )
+    .join("");
+  const promoBlock =
+    promoCode || promoMessage
+      ? `
+      <div style="margin-top:20px;border:1px solid ${brand.noticeBorderColor};background:${brand.noticeBackgroundColor};border-radius:14px;padding:16px;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${brand.subtleTextColor};margin-bottom:8px;">Angebot</div>
+        ${promoMessage ? `<div style="font-size:14px;color:${brand.textColor};margin-bottom:${promoCode ? "10px" : "0"};">${escapeHtml(promoMessage)}</div>` : ""}
+        ${promoCode ? `<div style="font-size:15px;font-weight:700;color:${brand.textColor};">Code: ${escapeHtml(promoCode)}</div>` : ""}
+      </div>`
+      : "";
   const text = [
-    "Du hast einen Checkout gestartet, aber noch nicht abgeschlossen.",
+    intro,
     "",
-    "Wenn du weitermachen möchtest, findest du deinen Warenkorb hier:",
-    cartUrl,
+    "Wenn du weitermachen möchtest, kannst du deinen Warenkorb hier wiederherstellen:",
+    resolvedRecoveryUrl,
+    "",
+    `Warenkorbwert: ${formatMoney(resolvedCartSummary.totalCents)}`,
+    ...resolvedCartSummary.items
+      .slice(0, 4)
+      .map((item) => `- ${item.name} × ${item.quantity}`),
+    ...(promoCode ? ["", `Code: ${promoCode}`] : []),
+    ...(promoMessage ? [promoMessage] : []),
     "",
     `Referenz: ${sessionId}`,
     "",
@@ -166,13 +230,21 @@ export const buildCheckoutRecoveryEmail = ({
     storefront,
     recipientEmail,
     fallbackOrigin,
-    title: "Dein Warenkorb wartet",
-    subtitle: "Du kannst deinen Checkout jederzeit fortsetzen.",
+    title: stepLabel,
+    subtitle: "Du kannst deinen Warenkorb mit einem Klick wiederherstellen.",
     footerReason: `Du erhältst diese E-Mail, weil du einen Checkout bei ${brand.brandName} begonnen und dem Erhalt von Erinnerungs-E-Mails zugestimmt hast.`,
     bodyHtml: `
-      <p style="margin:0 0 20px;font-size:15px;color:${brand.mutedTextColor};">Du hast einen Checkout gestartet, aber noch nicht abgeschlossen. Dein Warenkorb ist noch für dich reserviert.</p>
+      <p style="margin:0 0 18px;font-size:15px;color:${brand.mutedTextColor};">${escapeHtml(intro)}</p>
+      <div style="border:1px solid ${brand.panelBorderColor};border-radius:16px;padding:18px 20px;background:${brand.panelBackgroundColor};">
+        <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:${resolvedCartSummary.items.length > 0 ? "10px" : "0"};">
+          <div style="font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${brand.subtleTextColor};">Warenkorb</div>
+          <div style="font-size:14px;font-weight:700;color:${brand.textColor};">${escapeHtml(formatMoney(resolvedCartSummary.totalCents))}</div>
+        </div>
+        ${itemMarkup || `<div style="font-size:14px;color:${brand.mutedTextColor};">Dein gespeicherter Warenkorb ist bereit.</div>`}
+      </div>
+      ${promoBlock}
       <div style="text-align:center;margin:28px 0;">
-        <a href="${cartUrl}" style="display:inline-block;padding:14px 32px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:15px;font-weight:700;border-radius:999px;">Checkout fortsetzen &rarr;</a>
+        <a href="${resolvedRecoveryUrl}" style="display:inline-block;padding:14px 32px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:15px;font-weight:700;border-radius:999px;">Warenkorb wiederherstellen &rarr;</a>
       </div>
       <div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>
       <div style="font-size:12px;color:${brand.subtleTextColor};text-align:center;">Referenz: ${escapeHtml(sessionId)}</div>`,

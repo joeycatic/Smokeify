@@ -30,6 +30,7 @@ import {
 type Props = {
   initialCountry: ShippingCountry;
   initialDiscountCode: string;
+  initialRecoverySessionId: string;
   initialUseLoyaltyPoints: boolean;
   publishableKey: string;
 };
@@ -131,6 +132,7 @@ const buildContact = (input: {
 export default function CheckoutStartClient({
   initialCountry,
   initialDiscountCode,
+  initialRecoverySessionId,
   initialUseLoyaltyPoints,
   publishableKey,
 }: Props) {
@@ -162,6 +164,7 @@ export default function CheckoutStartClient({
     savedState?.formValues.packstationNumber ?? "",
   );
   const [postNumber, setPostNumber] = useState(savedState?.formValues.postNumber ?? "");
+  const [checkoutRecoveryConsent, setCheckoutRecoveryConsent] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
@@ -282,6 +285,8 @@ export default function CheckoutStartClient({
           packstationNumber,
           postalCode,
           postNumber,
+          checkoutRecoveryConsent,
+          recoverySessionId: initialRecoverySessionId || undefined,
           shippingAddressType,
           street,
           useLoyaltyPoints: initialUseLoyaltyPoints,
@@ -417,6 +422,7 @@ export default function CheckoutStartClient({
           <div className="mt-6 space-y-3">
             <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich akzeptiere die <a href="/pages/agb" target="_blank" rel="noreferrer" className="underline">AGB</a>.</span></label>
             <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={acceptPrivacy} onChange={(event) => setAcceptPrivacy(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich habe die <a href="/pages/privacy" target="_blank" rel="noreferrer" className="underline">Datenschutzerklärung</a> gelesen.</span></label>
+            <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={checkoutRecoveryConsent} onChange={(event) => setCheckoutRecoveryConsent(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich möchte Erinnerungen per E-Mail erhalten, falls ich den Checkout nicht abschließe.</span></label>
           </div>
           {submitError ? <div className="mt-5 rounded-[22px] border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">{submitError}</div> : null}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">

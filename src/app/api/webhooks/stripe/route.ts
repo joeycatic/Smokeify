@@ -33,6 +33,7 @@ import {
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
 import { recordAutomationEvent } from "@/lib/automationEvents";
+import { markCheckoutRecoveryOrderLinked } from "@/lib/checkoutRecoveryService";
 
 export const runtime = "nodejs";
 
@@ -568,6 +569,15 @@ export const createOrderFromSession = async (
   const paymentMethod = await resolvePaymentMethod(stripe, checkoutSession);
   const paymentFeeConfig =
     PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
+  const linkedRecoverySession =
+    await prisma.checkoutRecoverySession.findUnique({
+      where: { stripeSessionId: sessionId },
+      select: { id: true },
+    });
+  const recoveredFromCheckoutSessionId =
+    checkoutSession.metadata?.recoveredFromCheckoutSessionId?.trim() ?? null;
+  const recoverySessionLinkId =
+    recoveredFromCheckoutSessionId ?? linkedRecoverySession?.id ?? null;
   const orderSource = resolveOrderSourceFromMetadata(checkoutSession.metadata ?? {}, [
     checkoutSession.success_url,
     checkoutSession.cancel_url,
@@ -686,7 +696,7 @@ export const createOrderFromSession = async (
 
   const created = await prisma.order.create({
     data: {
-      ...(userId ? { user: { connect: { id: userId } } } : {}),
+      userId: userId ?? undefined,
       stripeSessionId: sessionId,
       stripePaymentIntent:
         typeof checkoutSession.payment_intent === "string"
@@ -705,6 +715,7 @@ export const createOrderFromSession = async (
       amountDiscount: discountTotal,
       amountTotal: total,
       discountCode: discountCode || undefined,
+      recoveredFromCheckoutSessionId: recoverySessionLinkId ?? undefined,
       customerEmail: checkoutSession.customer_details?.email ?? undefined,
       shippingName: shipping?.name ?? undefined,
       shippingLine1: address?.line1 ?? undefined,
@@ -746,6 +757,11 @@ export const createOrderFromSession = async (
       amountTotal: created.amountTotal,
       customerEmail: created.customerEmail,
     },
+  });
+  await markCheckoutRecoveryOrderLinked({
+    stripeSessionId: sessionId,
+    recoverySessionId: recoverySessionLinkId,
+    orderId: created.id,
   });
   const variantCounts = new Map<string, number>();
   for (const item of lineItems) {
