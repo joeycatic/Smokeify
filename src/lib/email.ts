@@ -5,6 +5,7 @@ type SendCodeInput = {
   email: string;
   code: string;
   purpose: "SIGNUP" | "NEW_DEVICE" | "PASSWORD_RESET";
+  actionUrl?: string | null;
 };
 
 const purposeMeta = (purpose: SendCodeInput["purpose"]) => {
@@ -41,13 +42,18 @@ export async function sendVerificationCodeEmail({
   email,
   code,
   purpose,
+  actionUrl,
 }: SendCodeInput) {
   const meta = purposeMeta(purpose);
+  const resolvedActionUrl =
+    purpose === "PASSWORD_RESET" && actionUrl?.trim() ? actionUrl.trim() : null;
 
   const text = [
     meta.codeLabel + ":",
     code,
     "",
+    resolvedActionUrl ? `Direktlink: ${resolvedActionUrl}` : "",
+    resolvedActionUrl ? "" : "",
     "Dieser Code ist 10 Minuten gültig.",
     meta.bodyNote ?? "",
   ]
@@ -57,6 +63,16 @@ export async function sendVerificationCodeEmail({
 
   const noteHtml = meta.bodyNote
     ? `<div style="margin-top:24px;padding:14px 16px;background:#fef3c7;border-left:3px solid #d97706;border-radius:0 8px 8px 0;font-size:13px;color:#92400e;line-height:1.5;">${meta.bodyNote}</div>`
+    : "";
+  const actionHtml = resolvedActionUrl
+    ? `<div style="margin:28px 0 18px;text-align:center;">
+        <a href="${resolvedActionUrl}" style="display:inline-block;background:#2f3e36;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:700;">
+          Passwort direkt zurücksetzen
+        </a>
+      </div>
+      <p style="margin:0 0 18px;font-size:13px;color:#6b7280;text-align:center;">
+        Der Link öffnet die Reset-Seite bereits mit deiner E-Mail-Adresse und dem Code.
+      </p>`
     : "";
 
   const html = `
@@ -96,6 +112,8 @@ export async function sendVerificationCodeEmail({
               <p style="margin:0;font-size:14px;color:#6b7280;text-align:center;">
                 Dieser Code ist <strong style="color:#1a2a22;">10 Minuten</strong> gültig.
               </p>
+
+              ${actionHtml}
 
               ${noteHtml}
 

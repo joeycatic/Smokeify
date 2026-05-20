@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { generateVerificationCode, hashToken } from "@/lib/security";
-import { sendVerificationCodeEmail } from "@/lib/email";
+import { getAppOrigin } from "@/lib/appOrigin";
+import { requestPasswordResetByEmail } from "@/lib/passwordReset";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
-const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const RESET_WINDOW_MS = 60 * 60 * 1000;
 
 export async function POST(request: Request) {
@@ -34,34 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, email: true },
-  });
-
-  if (!user?.email) {
-    return NextResponse.json({ ok: true });
-  }
-
-  const code = generateVerificationCode();
-  const codeHash = hashToken(code);
-  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MS);
-
-  await prisma.verificationCode.deleteMany({
-    where: { userId: user.id, purpose: "PASSWORD_RESET" },
-  });
-
-  await prisma.verificationCode.create({
-    data: {
-      userId: user.id,
-      email,
-      codeHash,
-      purpose: "PASSWORD_RESET",
-      expiresAt,
-    },
-  });
-
-  await sendVerificationCodeEmail({ email, code, purpose: "PASSWORD_RESET" });
+  await requestPasswordResetByEmail(email, { origin: getAppOrigin(request) });
 
   return NextResponse.json({ ok: true });
 }

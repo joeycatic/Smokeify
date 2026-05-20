@@ -1,15 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function PasswordResetPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const passwordRef = useRef<HTMLInputElement | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,6 +20,24 @@ export default function PasswordResetPage() {
     "idle" | "sending" | "sent" | "limited" | "error"
   >("idle");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    const codeParam = searchParams.get("code");
+
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+    if (codeParam) {
+      const normalizedCode = codeParam.replace(/\D/g, "").slice(0, 6);
+      if (normalizedCode) {
+        setCode(normalizedCode);
+        setRequestStatus("sent");
+        setNotice("Reset link loaded. Enter a new password to finish.");
+        setTimeout(() => passwordRef.current?.focus(), 0);
+      }
+    }
+  }, [searchParams]);
 
   return (
     <PageLayout>
@@ -34,6 +54,13 @@ export default function PasswordResetPage() {
               Wir senden dir einen Code, mit dem du dein Passwort ändern kannst.
             </p>
           </div>
+
+          {code.length === 6 ? (
+            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              Der Reset-Code wurde aus dem E-Mail-Link übernommen. Du kannst direkt ein neues
+              Passwort setzen.
+            </div>
+          ) : null}
 
           <form
             onSubmit={async (event) => {
@@ -187,6 +214,7 @@ export default function PasswordResetPage() {
             <input
               type="password"
               required
+              ref={passwordRef}
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
