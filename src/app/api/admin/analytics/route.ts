@@ -31,5 +31,10 @@ export const GET = withAdminRoute(async ({ request }) => {
   return adminJson({
     ...overview,
     ...secondary,
+    acquisition: {
+      ...(overview.acquisition ?? {}),
+      ...(secondary.acquisition ?? {}),
+    },
+    operations: secondary.operations,
   });
 });

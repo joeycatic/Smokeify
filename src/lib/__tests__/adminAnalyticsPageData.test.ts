@@ -304,7 +304,7 @@ beforeEach(() => {
 
 describe("adminAnalyticsPageData", () => {
   it("threads range and storefront scope through overview helpers and order queries", async () => {
-    await loadAdminAnalyticsOverview(90, "GROW");
+    const result = await loadAdminAnalyticsOverview(90, "GROW");
 
     expect(mockGetActiveSessionSnapshot).toHaveBeenCalledWith("GROW");
     expect(mockGetFunnelSnapshot).toHaveBeenCalledWith(90, "GROW");
@@ -329,6 +329,25 @@ describe("adminAnalyticsPageData", () => {
         }),
       }),
     );
+    expect(result.executive?.metrics.map((metric) => metric.id)).toEqual([
+      "netRevenue",
+      "paidOrders",
+      "sessionCvr",
+      "checkoutAbandonment",
+      "aov",
+      "contributionMargin",
+      "liveVisitors",
+      "vatState",
+    ]);
+    expect(result.revenueConversion?.trend).toEqual([
+      expect.objectContaining({
+        label: "01 May",
+        revenueCents: 12000,
+        paidOrders: 2,
+        sessions: 10,
+      }),
+    ]);
+    expect(result.acquisition?.live?.topPages).toEqual([]);
   });
 
   it("applies storefront scope to secondary analytics queries and inventory rows", async () => {
@@ -366,5 +385,25 @@ describe("adminAnalyticsPageData", () => {
       lowStockCount: 1,
       trackedVariants: 1,
     });
+    expect(result.acquisition?.trafficSources).toEqual([
+      expect.objectContaining({
+        label: "google / cpc",
+        sessions: 6,
+        beginCheckout: 2,
+        checkoutRate: 2 / 6,
+      }),
+    ]);
+    expect(result.operations?.merchandising.leaders[0]).toEqual(
+      expect.objectContaining({
+        productTitle: "Control Tent",
+        priorityReason: "Top revenue driver",
+      }),
+    );
+    expect(result.operations?.inventory.summary).toEqual({
+      stockoutCount: 1,
+      lowStockCount: 1,
+      trackedVariants: 1,
+    });
+    expect(result.operations?.customers.summary.repeatRate).toBeGreaterThan(0);
   });
 });

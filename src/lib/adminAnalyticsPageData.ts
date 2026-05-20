@@ -20,6 +20,107 @@ const buildScopedOrderFilter = (storefront: Storefront | null) =>
 const buildScopedEventFilter = (storefront: Storefront | null) =>
   storefront ? { storefront } : {};
 
+const toComparisonDelta = (current: number, previous: number) =>
+  previous > 0 ? (current - previous) / previous : current > 0 ? 1 : 0;
+
+const getExecutiveMetrics = ({
+  finance,
+  previousFinance,
+  periodComparison,
+  funnel,
+  funnelComparison,
+  vat,
+  liveVisitors,
+}: {
+  finance: Awaited<ReturnType<typeof getFinancePageData>>["currentFinance"];
+  previousFinance: Awaited<ReturnType<typeof getFinancePageData>>["previousFinance"];
+  periodComparison: Awaited<ReturnType<typeof getOrderComparisons>>;
+  funnel: Awaited<ReturnType<typeof getFunnelSnapshot>>;
+  funnelComparison: Awaited<ReturnType<typeof getFunnelComparison>>;
+  vat: Awaited<ReturnType<typeof getFinancePageData>>["vatSummary"];
+  liveVisitors: number;
+}) => [
+  {
+    id: "netRevenue",
+    label: "Net revenue",
+    kind: "currency" as const,
+    value: finance.netRevenueCents,
+    deltaRatio: toComparisonDelta(finance.netRevenueCents, previousFinance.netRevenueCents),
+    footnote: "after VAT and refunds",
+    tone: "emerald" as const,
+  },
+  {
+    id: "paidOrders",
+    label: "Paid orders",
+    kind: "count" as const,
+    value: periodComparison.paidOrders.current,
+    deltaRatio: periodComparison.paidOrders.deltaRatio,
+    footnote: "recognized paid volume",
+    tone: "slate" as const,
+  },
+  {
+    id: "sessionCvr",
+    label: "Session CVR",
+    kind: "percent" as const,
+    value: funnel.sessionToOrderRate,
+    deltaRatio: funnelComparison.sessionToOrderRate.deltaRatio,
+    footnote: "session to paid purchase",
+    tone: "violet" as const,
+  },
+  {
+    id: "checkoutAbandonment",
+    label: "Checkout abandonment",
+    kind: "percent" as const,
+    value: funnel.checkoutAbandonmentRate,
+    deltaRatio: funnelComparison.checkoutAbandonmentRate.deltaRatio,
+    footnote: "drop-off after checkout start",
+    tone: "amber" as const,
+  },
+  {
+    id: "aov",
+    label: "AOV",
+    kind: "currency" as const,
+    value: periodComparison.aov.current,
+    deltaRatio: periodComparison.aov.deltaRatio,
+    footnote: "recognized paid-order average",
+    tone: "slate" as const,
+  },
+  {
+    id: "contributionMargin",
+    label: "Contribution margin",
+    kind: "currency" as const,
+    value: finance.contributionMarginCents,
+    deltaRatio: toComparisonDelta(
+      finance.contributionMarginCents,
+      previousFinance.contributionMarginCents,
+    ),
+    footnote: "after COGS and fees",
+    tone: "emerald" as const,
+  },
+  {
+    id: "liveVisitors",
+    label: "Live visitors",
+    kind: "count" as const,
+    value: liveVisitors,
+    deltaRatio: null,
+    footnote: "rolling active session snapshot",
+    tone: "violet" as const,
+  },
+  {
+    id: "vatState",
+    label: "VAT state",
+    kind: "status" as const,
+    value: vat.status,
+    deltaRatio: null,
+    footnote:
+      vat.ordersMissingTaxCount > 0
+        ? `${vat.ordersMissingTaxCount} orders need tax review`
+        : "tax coverage looks complete",
+    tone: "amber" as const,
+    contextValue: vat.estimatedLiabilityCents,
+  },
+];
+
 export async function loadAdminAnalyticsOverview(
   days: AdminTimeRangeDays = 30,
   storefront: Storefront | null = null,
@@ -104,6 +205,33 @@ export async function loadAdminAnalyticsOverview(
     return sum + order.amountTotal;
   }, 0);
 
+  const revenueTrend = funnelTrend.map((entry) => ({
+    label: entry.label,
+    revenueCents: entry.revenueCents,
+    paidOrders: entry.paidOrders,
+    sessions: entry.sessions,
+    sessionConversionRate: entry.sessionConversionRate,
+    checkoutRate: entry.checkoutRate,
+  }));
+
+  const executiveMetrics = getExecutiveMetrics({
+    finance: financePageData.currentFinance,
+    previousFinance: financePageData.previousFinance,
+    periodComparison: orderComparisons,
+    funnel: funnelSnapshot,
+    funnelComparison,
+    vat: financePageData.vatSummary,
+    liveVisitors: activeSnapshot.activeVisitorCount,
+  });
+
+  const livePages = activeSnapshot.topPages.map((page) => ({
+    ...page,
+    shareOfVisitors:
+      activeSnapshot.activeVisitorCount > 0
+        ? page.count / activeSnapshot.activeVisitorCount
+        : 0,
+  }));
+
   return {
     scope: {
       days,
@@ -138,6 +266,46 @@ export async function loadAdminAnalyticsOverview(
     previousFinance: financePageData.previousFinance,
     vat: financePageData.vatSummary,
     expenseMigrationRequired: financePageData.expenseMigrationRequired,
+    executive: {
+      updatedAt: now.toISOString(),
+      metrics: executiveMetrics,
+    },
+    revenueConversion: {
+      revenue: {
+        totalCents: totalRevenue._sum.amountTotal ?? 0,
+        last30DaysCents: paidRevenueCurrentWindow,
+        newRevenueCents: customerRevenueMix.newRevenueCents,
+        returningRevenueCents: customerRevenueMix.returningRevenueCents,
+      },
+      funnel: {
+        ...funnelSnapshot,
+        totalOrders,
+        fulfilledOrders,
+        refundedOrders,
+        canceledOrders,
+      },
+      funnelComparison,
+      trend: revenueTrend,
+      periodComparison: {
+        currency: orderComparisons.currency,
+        revenue: orderComparisons.revenue,
+        paidOrders: orderComparisons.paidOrders,
+        aov: orderComparisons.aov,
+        refundRate: orderComparisons.refundRate,
+      },
+      finance: financePageData.currentFinance,
+      previousFinance: financePageData.previousFinance,
+      vat: financePageData.vatSummary,
+      expenseMigrationRequired: financePageData.expenseMigrationRequired,
+      orderVelocity,
+    },
+    acquisition: {
+      live: {
+        activeVisitorCount: activeSnapshot.activeVisitorCount,
+        topPages: livePages,
+        trafficSources: activeSnapshot.trafficSources,
+      },
+    },
     trends: {
       daily: funnelTrend.map((entry) => ({
         label: entry.label,
@@ -310,6 +478,10 @@ export async function loadAdminAnalyticsSecondary(
 
   const topProducts = [...productPerformance]
     .sort((left, right) => right.revenueCents - left.revenueCents)
+    .map((item) => ({
+      ...item,
+      priorityReason: item.purchases > 0 ? "Top revenue driver" : "High traffic with weak payout",
+    }))
     .slice(0, 8);
 
   const underperformingProducts = [...productPerformance]
@@ -318,6 +490,10 @@ export async function loadAdminAnalyticsSecondary(
       if (right.views !== left.views) return right.views - left.views;
       return left.conversionRate - right.conversionRate;
     })
+    .map((item) => ({
+      ...item,
+      priorityReason: "High visibility with weak conversion",
+    }))
     .slice(0, 8);
 
   const trafficSourceMap = new Map<
@@ -355,6 +531,10 @@ export async function loadAdminAnalyticsSecondary(
     trafficSourceMap.set(label, entry);
   }
   const trafficSources = Array.from(trafficSourceMap.values())
+    .map((source) => ({
+      ...source,
+      checkoutRate: source.sessions > 0 ? source.beginCheckout / source.sessions : 0,
+    }))
     .sort((left, right) => right.sessions - left.sessions)
     .slice(0, 8);
 
@@ -378,6 +558,32 @@ export async function loadAdminAnalyticsSecondary(
 
   const totalCustomerCount = registeredCustomers.length + guestCustomerCount;
   const totalRepeatCustomers = repeatRegisteredCustomers + repeatGuestCustomers;
+  const customerSummary = {
+    registeredCount: registeredCustomers.length,
+    guestCount: guestCustomerCount,
+    repeatRegisteredCount: repeatRegisteredCustomers,
+    repeatGuestCount: repeatGuestCustomers,
+    highValueRegisteredCount: highValueRegisteredCustomers,
+    newCustomerCount: customerRevenueMix.newCustomerCount,
+    returningCustomerCount: customerRevenueMix.returningCustomerCount,
+    repeatRate: totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
+  };
+  const retentionSummary = {
+    repeatCustomerRate: totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
+    newRevenueCents: customerRevenueMix.newRevenueCents,
+    returningRevenueCents: customerRevenueMix.returningRevenueCents,
+  };
+  const aiQualitySummary = {
+    totalAnalyses,
+    fallbackRate: totalAnalyses > 0 ? fallbackAnalyses / totalAnalyses : 0,
+    lowConfidenceRate: totalAnalyses > 0 ? lowConfidenceAnalyses / totalAnalyses : 0,
+    feedbackTotal,
+    feedbackCorrectRate: feedbackTotal > 0 ? feedbackCorrect / feedbackTotal : 0,
+    topIssueLabels: topIssueLabels.map((row) => ({
+      label: row.label,
+      count: row._count._all,
+    })),
+  };
 
   return {
     scope: {
@@ -392,35 +598,39 @@ export async function loadAdminAnalyticsSecondary(
       lowStockCount,
       trackedVariants: variants.length,
     },
-    customers: {
-      registeredCount: registeredCustomers.length,
-      guestCount: guestCustomerCount,
-      repeatRegisteredCount: repeatRegisteredCustomers,
-      repeatGuestCount: repeatGuestCustomers,
-      highValueRegisteredCount: highValueRegisteredCustomers,
-      newCustomerCount: customerRevenueMix.newCustomerCount,
-      returningCustomerCount: customerRevenueMix.returningCustomerCount,
-      repeatRate: totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
-    },
+    customers: customerSummary,
     trafficSources,
     discountAnalysis,
     paymentAnalysis,
-    retention: {
-      repeatCustomerRate:
-        totalCustomerCount > 0 ? totalRepeatCustomers / totalCustomerCount : 0,
-      newRevenueCents: customerRevenueMix.newRevenueCents,
-      returningRevenueCents: customerRevenueMix.returningRevenueCents,
+    retention: retentionSummary,
+    aiQuality: aiQualitySummary,
+    acquisition: {
+      trafficSources,
     },
-    aiQuality: {
-      totalAnalyses,
-      fallbackRate: totalAnalyses > 0 ? fallbackAnalyses / totalAnalyses : 0,
-      lowConfidenceRate: totalAnalyses > 0 ? lowConfidenceAnalyses / totalAnalyses : 0,
-      feedbackTotal,
-      feedbackCorrectRate: feedbackTotal > 0 ? feedbackCorrect / feedbackTotal : 0,
-      topIssueLabels: topIssueLabels.map((row) => ({
-        label: row.label,
-        count: row._count._all,
-      })),
+    operations: {
+      merchandising: {
+        leaders: topProducts,
+        leaks: underperformingProducts,
+      },
+      inventory: {
+        summary: {
+          stockoutCount: stockouts.length,
+          lowStockCount,
+          trackedVariants: variants.length,
+        },
+        stockouts,
+      },
+      customers: {
+        summary: customerSummary,
+        retention: retentionSummary,
+      },
+      commerceMix: {
+        payments: paymentAnalysis,
+        discounts: discountAnalysis,
+      },
+      system: {
+        aiQuality: aiQualitySummary,
+      },
     },
   };
 }
