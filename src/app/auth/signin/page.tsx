@@ -62,9 +62,13 @@ export default function SignInPage() {
       }
     }
     const verified = searchParams.get("verified");
+    const reset = searchParams.get("reset");
     const emailParam = searchParams.get("email");
     if (verified === "1") {
       setNotice("Email verifiziert. Bitte einloggen.");
+    }
+    if (reset === "1") {
+      setNotice("Passwort erfolgreich geändert. Bitte mit dem neuen Passwort einloggen.");
     }
     if (emailParam) {
       setEmail(emailParam);

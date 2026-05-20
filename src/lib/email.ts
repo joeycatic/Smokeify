@@ -55,6 +55,15 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+const formatDisplayUrl = (value: string) =>
+  escapeHtml(value)
+    .replaceAll("://", "://<wbr>")
+    .replaceAll("/", "/<wbr>")
+    .replaceAll("?", "?<wbr>")
+    .replaceAll("&amp;", "&amp;<wbr>")
+    .replaceAll("=", "=<wbr>")
+    .replaceAll("-", "-<wbr>");
+
 export async function sendVerificationCodeEmail({
   email,
   code,
@@ -67,6 +76,7 @@ export async function sendVerificationCodeEmail({
   const resolvedActionUrl =
     purpose === "PASSWORD_RESET" && actionUrl?.trim() ? actionUrl.trim() : null;
   const escapedActionUrl = resolvedActionUrl ? escapeHtml(resolvedActionUrl) : null;
+  const formattedActionUrl = resolvedActionUrl ? formatDisplayUrl(resolvedActionUrl) : null;
 
   const text = [
     meta.codeLabel + ":",
@@ -81,21 +91,23 @@ export async function sendVerificationCodeEmail({
     .trim();
 
   const noteHtml = meta.bodyNote
-    ? `<div style="margin-top:24px;padding:14px 16px;background:#fef3c7;border-left:3px solid #d97706;border-radius:0 8px 8px 0;font-size:13px;color:#92400e;line-height:1.5;">${escapeHtml(meta.bodyNote)}</div>`
+    ? `<div style="margin-top:24px;padding:14px 16px;background:${brand.noticeBackgroundColor};border:1px solid ${brand.noticeBorderColor};border-left:3px solid ${brand.noticeBorderColor};border-radius:0 12px 12px 0;font-size:13px;color:${brand.textColor};line-height:1.6;">${escapeHtml(meta.bodyNote)}</div>`
     : "";
   const actionHtml = escapedActionUrl
     ? `<div style="margin:28px 0 18px;text-align:center;">
-        <a href="${escapedActionUrl}" style="display:inline-block;background:#2f3e36;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:700;">
+        <a href="${escapedActionUrl}" style="display:inline-block;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:700;border:1px solid ${brand.noticeBorderColor};">
           Passwort direkt zurücksetzen
         </a>
       </div>
-      <p style="margin:0 0 18px;font-size:13px;color:#6b7280;text-align:center;">
+      <p style="margin:0 0 18px;font-size:13px;line-height:1.7;color:${brand.mutedTextColor};text-align:center;">
         Der Link öffnet die Reset-Seite bereits mit deiner E-Mail-Adresse und dem Code.
       </p>
-      <p style="margin:0 0 18px;font-size:12px;line-height:1.7;color:${brand.subtleTextColor};text-align:center;word-break:break-word;">
-        Oder öffne diesen Direktlink:<br />
-        <a href="${escapedActionUrl}" style="color:${brand.emphasisColor};text-decoration:underline;">${escapedActionUrl}</a>
-      </p>`
+      <div style="margin:0 0 18px;padding:14px 16px;background:${brand.panelBackgroundColor};border:1px solid ${brand.panelBorderColor};border-radius:12px;text-align:left;">
+        <div style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${brand.subtleTextColor};">
+          Direktlink
+        </div>
+        <a href="${escapedActionUrl}" style="display:inline-block;max-width:100%;font-size:11px;line-height:1.8;color:${brand.textColor};text-decoration:underline;word-break:break-all;">${formattedActionUrl}</a>
+      </div>`
     : "";
 
   const html = `
@@ -123,7 +135,7 @@ export async function sendVerificationCodeEmail({
           <tr>
             <td style="background:${brand.cardBackgroundColor};padding:36px 32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
 
-              <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${brand.subtleTextColor};margin-bottom:20px;">${escapeHtml(meta.codeLabel)}</div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${brand.mutedTextColor};margin-bottom:20px;">${escapeHtml(meta.codeLabel)}</div>
 
               <!-- Code display -->
               <div style="text-align:center;margin:0 0 24px;">
@@ -148,7 +160,7 @@ export async function sendVerificationCodeEmail({
         <!-- Footer -->
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
           <tr>
-            <td style="padding:20px 0;border-top:1px solid #e5e7eb;text-align:center;">
+            <td style="padding:20px 0;border-top:1px solid ${brand.cardBorderColor};text-align:center;">
               <div style="font-size:12px;color:${brand.footerTextColor};">
                 © ${new Date().getFullYear()} ${escapeHtml(brand.brandName)} &nbsp;·&nbsp; Alle Rechte vorbehalten
               </div>

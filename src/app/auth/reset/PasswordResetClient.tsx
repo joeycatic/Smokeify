@@ -43,16 +43,28 @@ export default function PasswordResetClient({
 
   const prefilledFromLink = code.length === 6 && code === initialCode;
   const isGrowVariant = storefrontVariant === "GROW";
-  const buildSignInDestination = (targetEmail: string) => {
+  const buildSignInDestination = (
+    targetEmail: string,
+    options?: { resetSuccess?: boolean }
+  ) => {
     if (!preferredSignInOrigin) {
-      return targetEmail
-        ? `/auth/signin?email=${encodeURIComponent(targetEmail)}`
-        : "/auth/signin";
+      const params = new URLSearchParams();
+      if (targetEmail) {
+        params.set("email", targetEmail);
+      }
+      if (options?.resetSuccess) {
+        params.set("reset", "1");
+      }
+      const query = params.toString();
+      return query ? `/auth/signin?${query}` : "/auth/signin";
     }
 
     const url = new URL("/auth/signin", preferredSignInOrigin);
     if (targetEmail) {
       url.searchParams.set("email", targetEmail);
+    }
+    if (options?.resetSuccess) {
+      url.searchParams.set("reset", "1");
     }
     return url.toString();
   };
@@ -167,14 +179,18 @@ export default function PasswordResetClient({
                   setError(data.error ?? "Zurücksetzen fehlgeschlagen.");
                   return;
                 }
-                setNotice("Passwort aktualisiert. Bitte einloggen.");
+                setNotice(
+                  "Passwort aktualisiert. Du wirst jetzt zum Login weitergeleitet."
+                );
                 setCode("");
                 setNewPassword("");
                 setConfirmPassword("");
-                const nextDestination = buildSignInDestination(email);
+                const nextDestination = buildSignInDestination(email, {
+                  resetSuccess: true,
+                });
                 window.setTimeout(() => {
                   window.location.assign(nextDestination);
-                }, 900);
+                }, 1800);
               } finally {
                 setSaving(false);
               }
