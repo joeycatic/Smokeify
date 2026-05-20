@@ -91,6 +91,10 @@ export async function sendVerificationCodeEmail({
       </div>
       <p style="margin:0 0 18px;font-size:13px;color:#6b7280;text-align:center;">
         Der Link öffnet die Reset-Seite bereits mit deiner E-Mail-Adresse und dem Code.
+      </p>
+      <p style="margin:0 0 18px;font-size:12px;line-height:1.7;color:${brand.subtleTextColor};text-align:center;word-break:break-word;">
+        Oder öffne diesen Direktlink:<br />
+        <a href="${escapedActionUrl}" style="color:${brand.emphasisColor};text-decoration:underline;">${escapedActionUrl}</a>
       </p>`
     : "";
 
