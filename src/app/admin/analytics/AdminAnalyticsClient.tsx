@@ -1,14 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
-  type AdminChartPoint,
   DonutChart,
-  FunnelChart,
   HorizontalBarsChart,
-  MultiSeriesTrendChart,
-  SparklineChart,
 } from "@/components/admin/AdminCharts";
 import {
   AdminDetailPanel,
@@ -19,6 +15,8 @@ import {
 } from "@/components/admin/AdminAnalyticsPrimitives";
 import {
   AdminButton,
+  AdminCompactMetric,
+  AdminDeltaRow,
   AdminInput,
   AdminNotice,
   AdminPanel,
@@ -29,6 +27,10 @@ import {
   buildAdminAnalyticsHref,
 } from "@/lib/adminAnalyticsUrl";
 import { formatAdminMoney, formatAdminPercent } from "@/lib/adminFormatting";
+import type {
+  AdminAnalyticsOverviewPayload,
+  AdminAnalyticsSecondaryPayload,
+} from "@/lib/adminAnalyticsPageData";
 import {
   ADMIN_TIME_RANGE_OPTIONS,
   type AdminTimeRangeDays,
@@ -38,253 +40,15 @@ import {
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
 
-type ComparisonMetric = {
-  current: number;
-  previous: number;
-  deltaRatio: number | null;
-};
-
-type LiveSnapshot = {
-  activeVisitorCount: number;
-  topPages: Array<{
-    path: string;
-    pageType: string;
-    count: number;
-  }>;
-  trafficSources: Array<{
-    label: string;
-    count: number;
-  }>;
-};
-
-type Funnel = {
-  sessions: number;
-  productViews: number;
-  addToCart: number;
-  beginCheckout: number;
-  purchaseSessions: number;
-  paidOrders: number;
-  sessionToOrderRate: number;
-  viewToCartRate: number;
-  cartToCheckoutRate: number;
-  checkoutToPaidRate: number;
-  cartAbandonmentRate: number;
-  checkoutAbandonmentRate: number;
-  totalOrders: number;
-  fulfilledOrders: number;
-  refundedOrders: number;
-  canceledOrders: number;
-};
-
-type FunnelComparison = {
-  sessions: ComparisonMetric;
-  beginCheckout: ComparisonMetric;
-  paidOrders: ComparisonMetric;
-  purchaseSessions: ComparisonMetric;
-  sessionToOrderRate: ComparisonMetric;
-  checkoutAbandonmentRate: ComparisonMetric;
-  cartAbandonmentRate: ComparisonMetric;
-};
-
-type FunnelTrendPoint = {
-  label: string;
-  sessions: number;
-  productViews: number;
-  addToCart: number;
-  beginCheckout: number;
-  purchases: number;
-  paidOrders: number;
-  revenueCents: number;
-  sessionConversionRate: number;
-  checkoutRate: number;
-};
-
-type ProductPerformance = {
-  productId: string;
-  productTitle: string;
-  views: number;
-  addToCart: number;
-  beginCheckout: number;
-  purchases: number;
-  revenueCents: number;
-  marginCents: number;
-  conversionRate: number;
-  addToCartRate: number;
-};
-
-type Stockout = {
-  variantId: string;
-  sku: string | null;
-  productId: string | null;
-  productTitle: string;
-  variantTitle: string;
-  quantityOnHand: number;
-  reserved: number;
-  available: number;
-};
-
-type Revenue = {
-  totalCents: number;
-  last30DaysCents: number;
-  newRevenueCents: number;
-  returningRevenueCents: number;
-};
-
-type Trends = {
-  daily: Array<{
-    label: string;
-    revenueCents: number;
-    orders: number;
-  }>;
-  orderVelocity: {
-    today: number;
-    last7Days: number;
-    last30Days: number;
-  };
-};
-
-type CustomerSummary = {
-  registeredCount: number;
-  guestCount: number;
-  repeatRegisteredCount: number;
-  repeatGuestCount: number;
-  highValueRegisteredCount: number;
-  newCustomerCount: number;
-  returningCustomerCount: number;
-  repeatRate: number;
-};
-
-type AiQuality = {
-  totalAnalyses: number;
-  fallbackRate: number;
-  lowConfidenceRate: number;
-  feedbackTotal: number;
-  feedbackCorrectRate: number;
-  topIssueLabels: Array<{ label: string; count: number }>;
-};
-
-type TrafficSource = {
-  label: string;
-  sessions: number;
-  beginCheckout: number;
-};
-
-type DiscountInsight = {
-  code: string;
-  orders: number;
-  revenueCents: number;
-  discountCents: number;
-};
-
-type PaymentInsight = {
-  method: string;
-  orders: number;
-  revenueCents: number;
-  refundedCents: number;
-};
-
-type Retention = {
-  repeatCustomerRate: number;
-  newRevenueCents: number;
-  returningRevenueCents: number;
-};
-
-type PeriodComparison = {
-  currency: string;
-  revenue: ComparisonMetric;
-  paidOrders: ComparisonMetric;
-  aov: ComparisonMetric;
-  refundRate: ComparisonMetric;
-};
-
-type FinanceSummary = {
-  currency: string;
-  paidOrderCount: number;
-  recognizedOrderCount: number;
-  refundedOrderCount: number;
-  grossRevenueCents: number;
-  refundedGrossCents: number;
-  netCollectedGrossCents: number;
-  outputVatCents: number;
-  refundedVatEstimateCents: number;
-  netOutputVatCents: number;
-  netRevenueCents: number;
-  shippingCollectedCents: number;
-  cogsCents: number;
-  paymentFeesCents: number;
-  variableCostCents: number;
-  contributionMarginCents: number;
-  contributionMarginRatio: number;
-  estimatedProfitCents: number;
-  ordersMissingTaxCount: number;
-  taxCoverageRate: number;
-};
-
-type VatSummary = {
-  monthLabel: string;
-  accountingModeLabel: string;
-  taxationModeLabel: string;
-  outputVatCents: number;
-  refundedVatEstimateCents: number;
-  inputVatCents: number;
-  estimatedLiabilityCents: number;
-  taxCoverageRate: number;
-  ordersMissingTaxCount: number;
-  status: "estimated" | "review_required" | "ready_for_handover";
-  blockers: string[];
-  notes: string[];
-};
-
-type InventorySummary = {
-  stockoutCount: number;
-  lowStockCount: number;
-  trackedVariants: number;
-};
-
-type AdminAnalyticsOverviewPayload = {
-  scope?: {
-    days: number;
-    storefront: "MAIN" | "GROW" | null;
-    currentStart: string | Date;
-    currentEnd: string | Date;
-  };
-  live?: LiveSnapshot;
-  funnel?: Funnel;
-  funnelComparison?: FunnelComparison;
-  funnelTrend?: FunnelTrendPoint[];
-  revenue?: Revenue;
-  trends?: Trends;
-  periodComparison?: PeriodComparison;
-  finance?: FinanceSummary;
-  previousFinance?: FinanceSummary;
-  vat?: VatSummary;
-  expenseMigrationRequired?: boolean;
-};
-
-type AdminAnalyticsSecondaryPayload = {
-  scope?: {
-    days: number;
-    storefront: "MAIN" | "GROW" | null;
-  };
-  topProducts?: ProductPerformance[];
-  underperformingProducts?: ProductPerformance[];
-  stockouts?: Stockout[];
-  inventory?: InventorySummary;
-  customers?: CustomerSummary;
-  trafficSources?: TrafficSource[];
-  discountAnalysis?: DiscountInsight[];
-  paymentAnalysis?: PaymentInsight[];
-  retention?: Retention;
-  aiQuality?: AiQuality;
-};
-
-type MerchRow =
-  | (ProductPerformance & { id: string; kind: "leader" | "leak" })
-  | (Stockout & { id: string; kind: "stockout" });
-
-type MixRow =
-  | (PaymentInsight & { id: string; kind: "payment" })
-  | (DiscountInsight & { id: string; kind: "discount" });
+type ExecutiveMetric = NonNullable<AdminAnalyticsOverviewPayload["executive"]>["metrics"][number];
+type RevenueConversionData = NonNullable<AdminAnalyticsOverviewPayload["revenueConversion"]>;
+type LiveSnapshot = NonNullable<
+  NonNullable<AdminAnalyticsOverviewPayload["acquisition"]>["live"]
+>;
+type TrafficSource = NonNullable<
+  NonNullable<AdminAnalyticsSecondaryPayload["acquisition"]>["trafficSources"]
+>[number];
+type OperationsData = NonNullable<AdminAnalyticsSecondaryPayload["operations"]>;
 
 type DetailPanelModel = {
   eyebrow: string;
@@ -294,133 +58,222 @@ type DetailPanelModel = {
   links: Array<{ label: string; href: string; tone?: "default" | "accent" }>;
 };
 
-const initialLive: LiveSnapshot = {
-  activeVisitorCount: 0,
-  topPages: [],
-  trafficSources: [],
+type OperationRow = {
+  id: string;
+  title: string;
+  subtitle: string;
+  primaryLabel: string;
+  primaryValue: string;
+  primarySort: number;
+  secondaryLabel?: string;
+  secondaryValue?: string;
+  secondarySort?: number;
+  chartValue: number;
+  chartSecondaryValue?: number;
+  detail: DetailPanelModel;
 };
 
-const initialFunnel: Funnel = {
-  sessions: 0,
-  productViews: 0,
-  addToCart: 0,
-  beginCheckout: 0,
-  purchaseSessions: 0,
-  paidOrders: 0,
-  sessionToOrderRate: 0,
-  viewToCartRate: 0,
-  cartToCheckoutRate: 0,
-  checkoutToPaidRate: 0,
-  cartAbandonmentRate: 0,
-  checkoutAbandonmentRate: 0,
-  totalOrders: 0,
-  fulfilledOrders: 0,
-  refundedOrders: 0,
-  canceledOrders: 0,
+type OperationsTabId =
+  | "products"
+  | "inventory"
+  | "payments"
+  | "discounts"
+  | "customers"
+  | "system";
+
+type ProductBoard = "leaders" | "leaks";
+
+const emptyExecutive = {
+  updatedAt: "",
+  metrics: [] as ExecutiveMetric[],
 };
 
-const initialFunnelComparison: FunnelComparison = {
-  sessions: { current: 0, previous: 0, deltaRatio: 0 },
-  beginCheckout: { current: 0, previous: 0, deltaRatio: 0 },
-  paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
-  purchaseSessions: { current: 0, previous: 0, deltaRatio: 0 },
-  sessionToOrderRate: { current: 0, previous: 0, deltaRatio: 0 },
-  checkoutAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
-  cartAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
-};
-
-const initialRevenue: Revenue = {
-  totalCents: 0,
-  last30DaysCents: 0,
-  newRevenueCents: 0,
-  returningRevenueCents: 0,
-};
-
-const emptyTrends: Trends = {
-  daily: [],
+const emptyRevenueConversion = {
+  revenue: {
+    totalCents: 0,
+    last30DaysCents: 0,
+    newRevenueCents: 0,
+    returningRevenueCents: 0,
+  },
+  funnel: {
+    sessions: 0,
+    productViews: 0,
+    addToCart: 0,
+    beginCheckout: 0,
+    purchaseSessions: 0,
+    paidOrders: 0,
+    sessionToOrderRate: 0,
+    viewToCartRate: 0,
+    cartToCheckoutRate: 0,
+    checkoutToPaidRate: 0,
+    cartAbandonmentRate: 0,
+    checkoutAbandonmentRate: 0,
+    totalOrders: 0,
+    fulfilledOrders: 0,
+    refundedOrders: 0,
+    canceledOrders: 0,
+  },
+  funnelComparison: {
+    sessions: { current: 0, previous: 0, deltaRatio: 0 },
+    beginCheckout: { current: 0, previous: 0, deltaRatio: 0 },
+    paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
+    purchaseSessions: { current: 0, previous: 0, deltaRatio: 0 },
+    sessionToOrderRate: { current: 0, previous: 0, deltaRatio: 0 },
+    checkoutAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
+    cartAbandonmentRate: { current: 0, previous: 0, deltaRatio: 0 },
+  },
+  trend: [] as RevenueConversionData["trend"],
+  periodComparison: {
+    currency: "EUR",
+    revenue: { current: 0, previous: 0, deltaRatio: 0 },
+    paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
+    aov: { current: 0, previous: 0, deltaRatio: 0 },
+    refundRate: { current: 0, previous: 0, deltaRatio: 0 },
+  },
+  finance: {
+    currency: "EUR",
+    paidOrderCount: 0,
+    recognizedOrderCount: 0,
+    refundedOrderCount: 0,
+    grossRevenueCents: 0,
+    refundedGrossCents: 0,
+    netCollectedGrossCents: 0,
+    outputVatCents: 0,
+    refundedVatEstimateCents: 0,
+    netOutputVatCents: 0,
+    netRevenueCents: 0,
+    shippingCollectedCents: 0,
+    cogsCents: 0,
+    paymentFeesCents: 0,
+    variableCostCents: 0,
+    contributionMarginCents: 0,
+    contributionMarginRatio: 0,
+    estimatedProfitCents: 0,
+    ordersMissingTaxCount: 0,
+    taxCoverageRate: 1,
+  },
+  previousFinance: {
+    currency: "EUR",
+    paidOrderCount: 0,
+    recognizedOrderCount: 0,
+    refundedOrderCount: 0,
+    grossRevenueCents: 0,
+    refundedGrossCents: 0,
+    netCollectedGrossCents: 0,
+    outputVatCents: 0,
+    refundedVatEstimateCents: 0,
+    netOutputVatCents: 0,
+    netRevenueCents: 0,
+    shippingCollectedCents: 0,
+    cogsCents: 0,
+    paymentFeesCents: 0,
+    variableCostCents: 0,
+    contributionMarginCents: 0,
+    contributionMarginRatio: 0,
+    estimatedProfitCents: 0,
+    ordersMissingTaxCount: 0,
+    taxCoverageRate: 1,
+  },
+  vat: {
+    monthLabel: "",
+    accountingModeLabel: "Cash-based VAT",
+    taxationModeLabel: "Regular VAT",
+    outputVatCents: 0,
+    refundedVatEstimateCents: 0,
+    inputVatCents: 0,
+    estimatedLiabilityCents: 0,
+    taxCoverageRate: 1,
+    ordersMissingTaxCount: 0,
+    status: "estimated",
+    blockers: [],
+    notes: [],
+  },
+  expenseMigrationRequired: false,
   orderVelocity: {
     today: 0,
     last7Days: 0,
     last30Days: 0,
   },
-};
+} satisfies RevenueConversionData;
 
-const initialCustomers: CustomerSummary = {
-  registeredCount: 0,
-  guestCount: 0,
-  repeatRegisteredCount: 0,
-  repeatGuestCount: 0,
-  highValueRegisteredCount: 0,
-  newCustomerCount: 0,
-  returningCustomerCount: 0,
-  repeatRate: 0,
-};
+const emptyLiveSnapshot = {
+  activeVisitorCount: 0,
+  topPages: [],
+  trafficSources: [],
+} satisfies LiveSnapshot;
 
-const initialAiQuality: AiQuality = {
-  totalAnalyses: 0,
-  fallbackRate: 0,
-  lowConfidenceRate: 0,
-  feedbackTotal: 0,
-  feedbackCorrectRate: 0,
-  topIssueLabels: [],
-};
+const emptyOperations = {
+  merchandising: {
+    leaders: [],
+    leaks: [],
+  },
+  inventory: {
+    summary: {
+      stockoutCount: 0,
+      lowStockCount: 0,
+      trackedVariants: 0,
+    },
+    stockouts: [],
+  },
+  customers: {
+    summary: {
+      registeredCount: 0,
+      guestCount: 0,
+      repeatRegisteredCount: 0,
+      repeatGuestCount: 0,
+      highValueRegisteredCount: 0,
+      newCustomerCount: 0,
+      returningCustomerCount: 0,
+      repeatRate: 0,
+    },
+    retention: {
+      repeatCustomerRate: 0,
+      newRevenueCents: 0,
+      returningRevenueCents: 0,
+    },
+  },
+  commerceMix: {
+    payments: [],
+    discounts: [],
+  },
+  system: {
+    aiQuality: {
+      totalAnalyses: 0,
+      fallbackRate: 0,
+      lowConfidenceRate: 0,
+      feedbackTotal: 0,
+      feedbackCorrectRate: 0,
+      topIssueLabels: [],
+    },
+  },
+} satisfies OperationsData;
 
-const initialRetention: Retention = {
-  repeatCustomerRate: 0,
-  newRevenueCents: 0,
-  returningRevenueCents: 0,
-};
+const emptySecondaryPayload = {
+  scope: {
+    days: 30,
+    storefront: null,
+  },
+  topProducts: [],
+  underperformingProducts: [],
+  stockouts: [],
+  inventory: emptyOperations.inventory.summary,
+  customers: emptyOperations.customers.summary,
+  trafficSources: [],
+  discountAnalysis: [],
+  paymentAnalysis: [],
+  retention: emptyOperations.customers.retention,
+  aiQuality: emptyOperations.system.aiQuality,
+  acquisition: {
+    trafficSources: [] as TrafficSource[],
+  },
+  operations: emptyOperations,
+} satisfies AdminAnalyticsSecondaryPayload;
 
-const initialPeriodComparison: PeriodComparison = {
-  currency: "EUR",
-  revenue: { current: 0, previous: 0, deltaRatio: 0 },
-  paidOrders: { current: 0, previous: 0, deltaRatio: 0 },
-  aov: { current: 0, previous: 0, deltaRatio: 0 },
-  refundRate: { current: 0, previous: 0, deltaRatio: 0 },
-};
-
-const initialFinanceSummary: FinanceSummary = {
-  currency: "EUR",
-  paidOrderCount: 0,
-  recognizedOrderCount: 0,
-  refundedOrderCount: 0,
-  grossRevenueCents: 0,
-  refundedGrossCents: 0,
-  netCollectedGrossCents: 0,
-  outputVatCents: 0,
-  refundedVatEstimateCents: 0,
-  netOutputVatCents: 0,
-  netRevenueCents: 0,
-  shippingCollectedCents: 0,
-  cogsCents: 0,
-  paymentFeesCents: 0,
-  variableCostCents: 0,
-  contributionMarginCents: 0,
-  contributionMarginRatio: 0,
-  estimatedProfitCents: 0,
-  ordersMissingTaxCount: 0,
-  taxCoverageRate: 1,
-};
-
-const initialVatSummary: VatSummary = {
-  monthLabel: "",
-  accountingModeLabel: "Cash-based VAT",
-  taxationModeLabel: "Regular VAT with input tax deduction",
-  outputVatCents: 0,
-  refundedVatEstimateCents: 0,
-  inputVatCents: 0,
-  estimatedLiabilityCents: 0,
-  taxCoverageRate: 1,
-  ordersMissingTaxCount: 0,
-  status: "estimated",
-  blockers: [],
-  notes: [],
-};
-
-const initialInventory: InventorySummary = {
-  stockoutCount: 0,
-  lowStockCount: 0,
-  trackedVariants: 0,
+const toneBadgeClassName = {
+  slate: "border-white/10 bg-white/[0.06] text-slate-100",
+  emerald: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+  violet: "border-violet-400/20 bg-violet-400/10 text-violet-100",
+  amber: "border-amber-400/20 bg-amber-400/10 text-amber-100",
 };
 
 const windowCopy: Record<
@@ -432,71 +285,46 @@ const windowCopy: Record<
   365: { label: "1 year", adjective: "1-year", horizon: "current yearly window" },
 };
 
+const chartPalette = ["#22d3ee", "#818cf8", "#34d399", "#f59e0b", "#fb7185", "#c084fc"];
+
 const formatPrice = (amount: number, currency = "EUR") =>
   formatAdminMoney(amount, "de-DE", currency);
 
+const formatCount = (value: number) =>
+  new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(value);
+
 const percent = (value: number) => formatAdminPercent(value);
 
-const formatDelta = (value: number | null, percentMode = true) => {
-  if (value === null) return "No baseline";
-  const numeric = percentMode ? value * 100 : value;
-  const sign = numeric > 0 ? "+" : "";
-  return `${sign}${Math.round(numeric)}${percentMode ? "%" : ""}`;
+const formatDelta = (value: number | null) => {
+  if (value === null) return "Live";
+  const rounded = Math.round(value * 100);
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded}%`;
 };
 
-const getRatioDelta = (current: number, previous: number) =>
-  previous > 0 ? (current - previous) / previous : current > 0 ? 1 : 0;
-
-const formatVatStatus = (value: VatSummary["status"]) => {
+const formatVatStatus = (value: string) => {
   if (value === "ready_for_handover") return "Ready";
   if (value === "review_required") return "Review";
   return "Estimated";
 };
 
-const toneChipClassName = {
-  slate: "border-white/10 bg-white/[0.05] text-slate-100",
-  emerald: "border-emerald-400/20 bg-emerald-400/12 text-emerald-100",
-  violet: "border-violet-400/20 bg-violet-400/12 text-violet-100",
-  amber: "border-amber-400/20 bg-amber-400/12 text-amber-100",
+const formatUpdatedAt = (value: string) => {
+  if (!value) return "Awaiting refresh";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Awaiting refresh";
+  return date.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
-function ExecutiveMetricCard({
-  label,
-  value,
-  detail,
-  footnote,
-  tone = "slate",
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  footnote?: string;
-  tone?: "slate" | "emerald" | "violet" | "amber";
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#09111d]/92 p-4 shadow-[0_20px_48px_rgba(0,0,0,0.22)]">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05),transparent_45%)]" />
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            {label}
-          </p>
-          {detail ? (
-            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${toneChipClassName[tone]}`}>
-              {detail}
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-5 text-[clamp(1.8rem,2.4vw,2.6rem)] font-semibold leading-none tracking-tight text-white">
-          {value}
-        </div>
-        {footnote ? <p className="mt-3 text-sm text-slate-400">{footnote}</p> : null}
-      </div>
-    </div>
-  );
+function resolveSelectedRow<T extends { id: string }>(rows: T[], selectedId: string | null) {
+  return rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
 }
 
-function SectionHeader({
+function WorkspaceHeader({
   eyebrow,
   title,
   description,
@@ -505,11 +333,11 @@ function SectionHeader({
   eyebrow: string;
   title: string;
   description: string;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-col items-start justify-between gap-3 lg:flex-row lg:items-end">
-      <div>
+    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
           {eyebrow}
         </p>
@@ -539,7 +367,7 @@ function SegmentButtons<T extends string>({
           onClick={() => onChange(option.value)}
           className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
             option.value === value
-              ? "border-cyan-300/25 bg-cyan-300/12 text-cyan-100"
+              ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
               : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
           }`}
         >
@@ -550,8 +378,1512 @@ function SegmentButtons<T extends string>({
   );
 }
 
-function resolveSelectedRow<T extends { id: string }>(rows: T[], selectedId: string | null) {
-  return rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
+function OperationsTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: OperationsTabId;
+  onChange: (tab: OperationsTabId) => void;
+}) {
+  const tabs: Array<{ id: OperationsTabId; label: string }> = [
+    { id: "products", label: "Products" },
+    { id: "inventory", label: "Inventory" },
+    { id: "payments", label: "Payments" },
+    { id: "discounts", label: "Discounts" },
+    { id: "customers", label: "Customers" },
+    { id: "system", label: "System" },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+            tab.id === activeTab
+              ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
+              : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CommandDeck({
+  metrics,
+  currency,
+  storefrontLabel,
+  rangeLabel,
+  updatedAt,
+}: {
+  metrics: ExecutiveMetric[];
+  currency: string;
+  storefrontLabel: string;
+  rangeLabel: string;
+  updatedAt: string;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,20,0.98),rgba(4,8,14,0.98))] px-4 py-5 shadow-[0_40px_100px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(129,140,248,0.14),transparent_28%)]" />
+      <div className="relative">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+              Shared Admin
+            </p>
+            <h1 className="mt-3 text-[clamp(2rem,3vw,3rem)] font-semibold tracking-tight text-white">
+              Analytics
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+              Finance-safe revenue truth first, acquisition quality second, and compact
+              operational context without forcing the page into a dashboard mosaic.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
+                {storefrontLabel}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
+                {rangeLabel}
+              </span>
+              <span className="rounded-full border border-cyan-300/25 bg-cyan-300/12 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                Refreshed {formatUpdatedAt(updatedAt)}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {metrics.map((metric) => (
+              <MetricTile key={metric.id} metric={metric} currency={currency} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MetricTile({
+  metric,
+  currency,
+}: {
+  metric: ExecutiveMetric;
+  currency: string;
+}) {
+  const metricValue = metric.value as number | string;
+  let displayValue: string;
+  switch (metric.kind) {
+    case "currency":
+      displayValue =
+        typeof metricValue === "number"
+          ? formatPrice(metricValue, currency)
+          : String(metricValue);
+      break;
+    case "percent":
+      displayValue =
+        typeof metricValue === "number" ? percent(metricValue) : String(metricValue);
+      break;
+    case "status":
+      displayValue = formatVatStatus(String(metricValue));
+      break;
+    case "count":
+    default:
+      displayValue =
+        typeof metricValue === "number" ? formatCount(metricValue) : String(metricValue);
+      break;
+  }
+
+  const badgeLabel =
+    metric.kind === "status" && typeof metric.contextValue === "number"
+      ? formatPrice(metric.contextValue, currency)
+      : formatDelta(metric.deltaRatio);
+
+  return (
+    <div className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.06]">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_40%)] opacity-70" />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3">
+          <p className="max-w-[14ch] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            {metric.label}
+          </p>
+          <span
+            className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${toneBadgeClassName[metric.tone]}`}
+          >
+            {badgeLabel}
+          </span>
+        </div>
+        <div className="mt-4 text-xl font-semibold text-white sm:text-2xl">{displayValue}</div>
+        <div className="mt-2 text-xs leading-5 text-slate-400">{metric.footnote}</div>
+      </div>
+    </div>
+  );
+}
+
+function TrendComposer({
+  trend,
+  currency,
+  summary,
+}: {
+  trend: RevenueConversionData["trend"];
+  currency: string;
+  summary: RevenueConversionData["periodComparison"];
+}) {
+  const [activeIndex, setActiveIndex] = useState(Math.max(trend.length - 1, 0));
+
+  useEffect(() => {
+    setActiveIndex(Math.max(trend.length - 1, 0));
+  }, [trend.length]);
+
+  if (trend.length === 0) {
+    return (
+      <div className="flex min-h-[22rem] items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-white/[0.03] text-sm text-slate-500">
+        No revenue trend is available for this scope.
+      </div>
+    );
+  }
+
+  const width = 760;
+  const height = 280;
+  const paddingLeft = 24;
+  const paddingRight = 24;
+  const paddingTop = 18;
+  const paddingBottom = 34;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const step = trend.length === 1 ? 0 : chartWidth / (trend.length - 1);
+  const revenueMax = Math.max(...trend.map((point) => point.revenueCents), 1);
+  const ordersMax = Math.max(...trend.map((point) => point.paidOrders), 1);
+
+  const points = trend.map((point, index) => {
+    const x = paddingLeft + step * index;
+    const y =
+      paddingTop +
+      chartHeight -
+      (Math.max(point.revenueCents, 0) / revenueMax) * chartHeight;
+    const barHeight = (Math.max(point.paidOrders, 0) / ordersMax) * (chartHeight * 0.32);
+
+    return {
+      ...point,
+      x,
+      y,
+      barHeight,
+      barTop: paddingTop + chartHeight - barHeight,
+    };
+  });
+
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${points.at(-1)?.x ?? width - paddingRight} ${
+    paddingTop + chartHeight
+  } L ${points[0]?.x ?? paddingLeft} ${paddingTop + chartHeight} Z`;
+  const activePoint = points[Math.min(Math.max(activeIndex, 0), points.length - 1)];
+
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(7,12,18,0.98),rgba(5,9,14,0.96))]">
+      <div className="grid gap-4 border-b border-white/10 px-4 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:px-5">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Recognized revenue pulse
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Revenue</div>
+              <div className="mt-1 text-2xl font-semibold text-white">
+                {formatPrice(summary.revenue.current, currency)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Paid orders</div>
+              <div className="mt-1 text-2xl font-semibold text-white">
+                {formatCount(summary.paidOrders.current)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            {activePoint.label}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-slate-300">
+            <span>{formatPrice(activePoint.revenueCents, currency)}</span>
+            <span>{formatCount(activePoint.paidOrders)} paid</span>
+            <span>{percent(activePoint.sessionConversionRate)} CVR</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 md:p-5">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[18rem] w-full">
+          <defs>
+            <linearGradient id="analytics-revenue-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgba(34,211,238,0.34)" />
+              <stop offset="100%" stopColor="rgba(34,211,238,0)" />
+            </linearGradient>
+          </defs>
+
+          {[0, 1, 2, 3].map((line) => {
+            const y = paddingTop + (chartHeight / 3) * line;
+            return (
+              <line
+                key={line}
+                x1={paddingLeft}
+                x2={width - paddingRight}
+                y1={y}
+                y2={y}
+                stroke="rgba(148,163,184,0.14)"
+                strokeDasharray="4 6"
+              />
+            );
+          })}
+
+          {points.map((point, index) => (
+            <rect
+              key={`${point.label}-bar`}
+              x={point.x - 10}
+              y={point.barTop}
+              width="20"
+              height={point.barHeight}
+              rx="10"
+              fill={index === activeIndex ? "rgba(129,140,248,0.72)" : "rgba(129,140,248,0.28)"}
+              style={{ transition: "all 220ms ease" }}
+            />
+          ))}
+
+          <path d={areaPath} fill="url(#analytics-revenue-fill)" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#22d3ee"
+            strokeWidth="3"
+            vectorEffect="non-scaling-stroke"
+          />
+
+          <line
+            x1={activePoint.x}
+            x2={activePoint.x}
+            y1={paddingTop}
+            y2={paddingTop + chartHeight}
+            stroke="rgba(148,163,184,0.26)"
+            strokeDasharray="4 5"
+          />
+
+          {points.map((point, index) => (
+            <g key={point.label}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={index === activeIndex ? "6" : "4"}
+                fill={index === activeIndex ? "#22d3ee" : "#0f172a"}
+                stroke="#22d3ee"
+                strokeWidth="2"
+              />
+              <rect
+                x={point.x - 20}
+                y={paddingTop}
+                width="40"
+                height={chartHeight}
+                fill="transparent"
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => setActiveIndex(index)}
+              />
+            </g>
+          ))}
+        </svg>
+
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+          <span>Revenue line</span>
+          <span>Paid order bars</span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-8">
+          {points.slice(-8).map((point) => (
+            <span key={point.label} className="truncate">
+              {point.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FunnelRail({
+  data,
+  selectedLabel,
+  onSelect,
+}: {
+  data: RevenueConversionData["funnel"];
+  selectedLabel: string;
+  onSelect: (value: string) => void;
+}) {
+  const stages = [
+    {
+      label: "Sessions",
+      value: data.sessions,
+      helper: "Entry volume",
+      ratio: data.sessionToOrderRate,
+      color: "#22d3ee",
+    },
+    {
+      label: "Product views",
+      value: data.productViews,
+      helper: percent(data.sessions > 0 ? data.productViews / data.sessions : 0),
+      ratio: data.sessions > 0 ? data.productViews / data.sessions : 0,
+      color: "#60a5fa",
+    },
+    {
+      label: "Add to cart",
+      value: data.addToCart,
+      helper: percent(data.viewToCartRate),
+      ratio: data.viewToCartRate,
+      color: "#f59e0b",
+    },
+    {
+      label: "Begin checkout",
+      value: data.beginCheckout,
+      helper: percent(data.cartToCheckoutRate),
+      ratio: data.cartToCheckoutRate,
+      color: "#c084fc",
+    },
+    {
+      label: "Paid orders",
+      value: data.paidOrders,
+      helper: percent(data.checkoutToPaidRate),
+      ratio: data.checkoutToPaidRate,
+      color: "#34d399",
+    },
+  ];
+
+  const maxValue = Math.max(...stages.map((stage) => stage.value), 1);
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-5">
+      {stages.map((stage) => {
+        const active = stage.label === selectedLabel;
+        return (
+          <button
+            key={stage.label}
+            type="button"
+            onClick={() => onSelect(stage.label)}
+            className={`rounded-[24px] border p-4 text-left transition duration-200 ${
+              active
+                ? "border-cyan-300/28 bg-cyan-300/10"
+                : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {stage.label}
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {formatCount(stage.value)}
+                </div>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                {stage.helper}
+              </span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full transition-[width] duration-500 ease-out"
+                style={{
+                  width: `${Math.max(8, Math.round((stage.value / maxValue) * 100))}%`,
+                  backgroundColor: stage.color,
+                }}
+              />
+            </div>
+            <div className="mt-3 text-xs text-slate-400">
+              {stage.label === "Sessions"
+                ? `${percent(stage.ratio)} session to paid conversion`
+                : `${percent(stage.ratio)} from prior step`}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileOperationCards({
+  rows,
+  selectedId,
+  onSelect,
+}: {
+  rows: OperationRow[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {rows.map((row) => {
+        const active = row.id === selectedId;
+        return (
+          <button
+            key={row.id}
+            type="button"
+            onClick={() => onSelect(row.id)}
+            className={`block w-full rounded-2xl border p-3 text-left transition ${
+              active
+                ? "border-cyan-400/25 bg-cyan-400/8"
+                : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-slate-100">{row.title}</div>
+                <div className="mt-1 text-xs text-slate-500">{row.subtitle}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-sm font-semibold text-white">{row.primaryValue}</div>
+                {row.secondaryValue ? (
+                  <div className="text-xs text-slate-400">{row.secondaryValue}</div>
+                ) : null}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RevenueWorkspace({
+  data,
+  days,
+  storefrontScope,
+  selectedStage,
+  onSelectStage,
+}: {
+  data: RevenueConversionData;
+  days: AdminTimeRangeDays;
+  storefrontScope: AdminStorefrontScope;
+  selectedStage: string;
+  onSelectStage: (value: string) => void;
+}) {
+  const currency = data.periodComparison.currency || data.finance.currency;
+  const query =
+    storefrontScope === "ALL" ? `days=${days}` : `days=${days}&storefront=${storefrontScope}`;
+
+  const stageDetail: DetailPanelModel = (() => {
+    switch (selectedStage) {
+      case "Product views":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Product views",
+          description:
+            "Traffic is reaching product detail pages. The next question is whether that traffic is converting into cart intent.",
+          metrics: [
+            { label: "Product views", value: formatCount(data.funnel.productViews) },
+            { label: "View to cart", value: percent(data.funnel.viewToCartRate) },
+            { label: "Sessions", value: formatCount(data.funnel.sessions) },
+            { label: "Paid orders", value: formatCount(data.funnel.paidOrders) },
+          ],
+          links: [
+            { label: "Open reports", href: `/admin/reports?${query}`, tone: "accent" },
+            { label: "Open catalog", href: "/admin/catalog" },
+          ],
+        };
+      case "Add to cart":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Add to cart",
+          description:
+            "Cart intent is visible, but it only matters if checkout starts stay close and abandonment stays under control.",
+          metrics: [
+            { label: "Add to cart", value: formatCount(data.funnel.addToCart) },
+            { label: "Cart to checkout", value: percent(data.funnel.cartToCheckoutRate) },
+            { label: "Cart abandonment", value: percent(data.funnel.cartAbandonmentRate) },
+            { label: "Paid orders", value: formatCount(data.funnel.paidOrders) },
+          ],
+          links: [
+            { label: "Open orders", href: "/admin/orders", tone: "accent" },
+            { label: "Open reports", href: `/admin/reports?${query}` },
+          ],
+        };
+      case "Begin checkout":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Begin checkout",
+          description:
+            "Checkout friction is the fastest operational read. This is where demand and purchase completion should stay close together.",
+          metrics: [
+            { label: "Checkout starts", value: formatCount(data.funnel.beginCheckout) },
+            { label: "Checkout to paid", value: percent(data.funnel.checkoutToPaidRate) },
+            { label: "Checkout abandonment", value: percent(data.funnel.checkoutAbandonmentRate) },
+            { label: "Refund rate", value: percent(data.periodComparison.refundRate.current) },
+          ],
+          links: [
+            { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
+            { label: "Open reports", href: `/admin/reports?${query}` },
+          ],
+        };
+      case "Paid orders":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Paid orders",
+          description:
+            "This is the conversion anchor for the entire page. Compare it against revenue, AOV, and refund pressure before interpreting traffic changes.",
+          metrics: [
+            { label: "Paid orders", value: formatCount(data.periodComparison.paidOrders.current) },
+            { label: "Revenue", value: formatPrice(data.periodComparison.revenue.current, currency) },
+            { label: "AOV", value: formatPrice(data.periodComparison.aov.current, currency) },
+            { label: "Refund rate", value: percent(data.periodComparison.refundRate.current) },
+          ],
+          links: [
+            { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
+            { label: "Open VAT", href: "/admin/vat" },
+          ],
+        };
+      default:
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Sessions",
+          description:
+            "Demand volume frames the rest of the workspace. Read sessions together with paid orders and revenue before assuming a conversion issue.",
+          metrics: [
+            { label: "Sessions", value: formatCount(data.funnel.sessions) },
+            { label: "Session CVR", value: percent(data.funnel.sessionToOrderRate) },
+            { label: "Checkout starts", value: formatCount(data.funnel.beginCheckout) },
+            { label: "Paid orders", value: formatCount(data.funnel.paidOrders) },
+          ],
+          links: [
+            { label: "Open reports", href: `/admin/reports?${query}`, tone: "accent" },
+            { label: "Open analytics", href: `/admin/analytics?${query}` },
+          ],
+        };
+    }
+  })();
+
+  const comparisonRows = [
+    {
+      label: "Revenue",
+      value: formatPrice(data.periodComparison.revenue.current, currency),
+      delta: formatDelta(data.periodComparison.revenue.deltaRatio),
+    },
+    {
+      label: "Paid orders",
+      value: formatCount(data.periodComparison.paidOrders.current),
+      delta: formatDelta(data.periodComparison.paidOrders.deltaRatio),
+    },
+    {
+      label: "AOV",
+      value: formatPrice(data.periodComparison.aov.current, currency),
+      delta: formatDelta(data.periodComparison.aov.deltaRatio),
+    },
+    {
+      label: "Refund rate",
+      value: percent(data.periodComparison.refundRate.current),
+      delta: formatDelta(data.periodComparison.refundRate.deltaRatio),
+    },
+  ];
+
+  return (
+    <section className="space-y-4">
+      <WorkspaceHeader
+        eyebrow="Revenue & conversion"
+        title="Recognized revenue, paid-order pace, and checkout loss"
+        description="One serious trend surface, one compact funnel rail, and a finance-backed decision rail instead of repeated mini-panels."
+      />
+
+      {data.expenseMigrationRequired ? (
+        <AdminNotice tone="warning">
+          Expense-backed VAT and margin support are partially unavailable until expense
+          migration coverage is complete for this environment.
+        </AdminNotice>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-12">
+        <AdminPanel
+          title="Revenue pulse"
+          description="Start with the recognized revenue line, then compare paid-order density and the current funnel loss profile."
+          className="xl:col-span-8"
+        >
+          <div className="space-y-5">
+            <TrendComposer
+              trend={data.trend}
+              currency={currency}
+              summary={data.periodComparison}
+            />
+
+            <div className="grid gap-3 lg:grid-cols-4">
+              {comparisonRows.map((row) => (
+                <AdminDeltaRow key={row.label} label={row.label} value={row.value} delta={row.delta} />
+              ))}
+            </div>
+
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Funnel rail
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-white">
+                    Each stage stays readable without turning the page into five large cards.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
+                    Session CVR {percent(data.funnel.sessionToOrderRate)}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
+                    Checkout abandonment {percent(data.funnel.checkoutAbandonmentRate)}
+                  </span>
+                </div>
+              </div>
+              <FunnelRail data={data.funnel} selectedLabel={selectedStage} onSelect={onSelectStage} />
+            </div>
+          </div>
+        </AdminPanel>
+
+        <div className="space-y-4 xl:col-span-4">
+          <AdminDetailPanel
+            eyebrow={stageDetail.eyebrow}
+            title={stageDetail.title}
+            description={stageDetail.description}
+            metrics={stageDetail.metrics}
+            links={stageDetail.links}
+          />
+          <AdminDetailPanel
+            eyebrow="Finance truth"
+            title={`${windowCopy[days].adjective} accounting read`}
+            description="Server-side finance and VAT remain the authority for recognized revenue, contribution, and tax readiness."
+            metrics={[
+              { label: "Net revenue", value: formatPrice(data.finance.netRevenueCents, currency) },
+              {
+                label: "Contribution",
+                value: formatPrice(data.finance.contributionMarginCents, currency),
+              },
+              { label: "VAT state", value: formatVatStatus(data.vat.status) },
+              { label: "Tax coverage", value: percent(data.vat.taxCoverageRate) },
+            ]}
+            links={[
+              { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
+              { label: "Open VAT", href: "/admin/vat" },
+              { label: "Open reports", href: `/admin/reports?${query}` },
+            ]}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <AdminCompactMetric label="Orders today" value={formatCount(data.orderVelocity.today)} />
+            <AdminCompactMetric
+              label="Last 7 days"
+              value={formatCount(data.orderVelocity.last7Days)}
+            />
+            <AdminCompactMetric
+              label="Last 30 days"
+              value={formatCount(data.orderVelocity.last30Days)}
+            />
+            <AdminCompactMetric
+              label="VAT liability"
+              value={formatPrice(data.vat.estimatedLiabilityCents, currency)}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AcquisitionWorkspace({
+  live,
+  trafficSources,
+  days,
+  storefrontScope,
+  selectedSourceLabel,
+  onSelectSourceLabel,
+}: {
+  live: LiveSnapshot;
+  trafficSources: TrafficSource[];
+  days: AdminTimeRangeDays;
+  storefrontScope: AdminStorefrontScope;
+  selectedSourceLabel: string | null;
+  onSelectSourceLabel: (value: string | null) => void;
+}) {
+  const query =
+    storefrontScope === "ALL" ? `days=${days}` : `days=${days}&storefront=${storefrontScope}`;
+  const selectedSource =
+    trafficSources.find((item) => item.label === selectedSourceLabel) ?? trafficSources[0] ?? null;
+
+  const sourceBars = useMemo(
+    () =>
+      trafficSources.map((source) => ({
+        label: source.label,
+        value: source.sessions,
+        secondaryValue: source.beginCheckout,
+      })),
+    [trafficSources],
+  );
+
+  const sourceMix = useMemo(
+    () =>
+      trafficSources.map((source, index) => ({
+        label: source.label,
+        value: source.sessions,
+        colorClassName: chartPalette[index % chartPalette.length],
+      })),
+    [trafficSources],
+  );
+
+  const livePageRows = useMemo(
+    () =>
+      live.topPages.map((page) => ({
+        id: page.path,
+        path: page.path,
+        pageType: page.pageType,
+        count: page.count,
+        shareOfVisitors: page.shareOfVisitors ?? 0,
+      })),
+    [live.topPages],
+  );
+
+  const livePageColumns = useMemo<
+    AdminRankingTableColumn<(typeof livePageRows)[number]>[]
+  >(
+    () => [
+      {
+        key: "page",
+        label: "Page",
+        render: (row) => (
+          <div>
+            <div className="font-semibold text-slate-100">{row.path}</div>
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{row.pageType}</div>
+          </div>
+        ),
+      },
+      {
+        key: "count",
+        label: "Live",
+        align: "right",
+        render: (row) => formatCount(row.count),
+        sortValue: (row) => row.count,
+      },
+      {
+        key: "share",
+        label: "Share",
+        align: "right",
+        render: (row) => percent(row.shareOfVisitors),
+        sortValue: (row) => row.shareOfVisitors,
+      },
+    ],
+    [],
+  );
+
+  const leadPage = livePageRows[0] ?? null;
+
+  return (
+    <section className="space-y-4">
+      <WorkspaceHeader
+        eyebrow="Acquisition"
+        title="Source quality with live page concentration"
+        description="Demand scale, checkout intent, and current live attention stay in one workspace so acquisition can be read in one pass."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-12">
+        <AdminPanel
+          title="Sources and live demand"
+          description="The ranked source board handles acquisition quality, while live pages stay compact and secondary instead of competing for equal weight."
+          className="xl:col-span-8"
+        >
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)]">
+            <div className="space-y-4">
+              <HorizontalBarsChart
+                data={sourceBars}
+                valueFormatter={(value) => `${formatCount(value)} sessions`}
+                secondaryValueFormatter={(value) => `${formatCount(value)} checkout starts`}
+                colorClassName="bg-cyan-400"
+                selectedLabel={selectedSource?.label}
+                onSelect={onSelectSourceLabel}
+              />
+              <div>
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Live pages
+                </div>
+                <div className="md:hidden">
+                  <MobileOperationCards
+                    rows={livePageRows.map((row) => ({
+                      id: row.id,
+                      title: row.path,
+                      subtitle: row.pageType,
+                      primaryLabel: "Live visitors",
+                      primaryValue: formatCount(row.count),
+                      primarySort: row.count,
+                      secondaryLabel: "Share",
+                      secondaryValue: percent(row.shareOfVisitors),
+                      secondarySort: row.shareOfVisitors,
+                      chartValue: row.count,
+                      detail: {
+                        eyebrow: "Live page",
+                        title: row.path,
+                        description: "Current live page concentration in the rolling active-session window.",
+                        metrics: [],
+                        links: [],
+                      },
+                    }))}
+                    selectedId={leadPage?.id ?? null}
+                    onSelect={() => undefined}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <AdminRankingTable
+                    rows={livePageRows}
+                    columns={livePageColumns}
+                    emptyCopy="No active storefront sessions are currently visible."
+                    initialSortKey="count"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <DonutChart
+                data={sourceMix}
+                totalLabel="Sessions"
+                totalValue={formatCount(
+                  trafficSources.reduce((sum, source) => sum + source.sessions, 0),
+                )}
+                valueFormatter={formatCount}
+                selectedLabel={selectedSource?.label}
+                onSelect={onSelectSourceLabel}
+              />
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <AdminCompactMetric
+                  label="Live visitors"
+                  value={formatCount(live.activeVisitorCount)}
+                />
+                <AdminCompactMetric
+                  label="Source sessions"
+                  value={selectedSource ? formatCount(selectedSource.sessions) : "0"}
+                />
+                <AdminCompactMetric
+                  label="Checkout rate"
+                  value={selectedSource ? percent(selectedSource.checkoutRate ?? 0) : percent(0)}
+                />
+              </div>
+            </div>
+          </div>
+        </AdminPanel>
+
+        <div className="space-y-4 xl:col-span-4">
+          <AdminDetailPanel
+            eyebrow="Selected source"
+            title={selectedSource?.label ?? "No source selected"}
+            description={
+              selectedSource
+                ? "Use this rail to separate pure session scale from downstream buying intent without leaving the acquisition workspace."
+                : "No scoped source data is available for this window."
+            }
+            metrics={
+              selectedSource
+                ? [
+                    { label: "Sessions", value: formatCount(selectedSource.sessions) },
+                    {
+                      label: "Checkout starts",
+                      value: formatCount(selectedSource.beginCheckout),
+                    },
+                    {
+                      label: "Checkout rate",
+                      value: percent(selectedSource.checkoutRate ?? 0),
+                    },
+                    { label: "Live visitors", value: formatCount(live.activeVisitorCount) },
+                  ]
+                : []
+            }
+            links={[
+              { label: "Open reports", href: `/admin/reports?${query}`, tone: "accent" },
+              { label: "Open orders", href: "/admin/orders" },
+            ]}
+          />
+          <AdminDetailPanel
+            eyebrow="Live pulse"
+            title={leadPage?.path ?? "No live page"}
+            description={
+              leadPage
+                ? "This is the current highest-concentration live page in the rolling active-session snapshot."
+                : "No active page concentration is available right now."
+            }
+            metrics={
+              leadPage
+                ? [
+                    { label: "Page type", value: leadPage.pageType },
+                    { label: "Live visitors", value: formatCount(leadPage.count) },
+                    { label: "Visitor share", value: percent(leadPage.shareOfVisitors) },
+                    { label: "Live total", value: formatCount(live.activeVisitorCount) },
+                  ]
+                : []
+            }
+            links={[
+              { label: "Open reports", href: `/admin/reports?${query}`, tone: "accent" },
+              { label: "Open catalog", href: "/admin/catalog" },
+            ]}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OperationsWorkspace({
+  data,
+  currency,
+  days,
+  storefrontScope,
+  activeTab,
+  onChangeTab,
+  productBoard,
+  onChangeProductBoard,
+  productQuery,
+  onChangeProductQuery,
+  selectedRowId,
+  onSelectRowId,
+}: {
+  data: OperationsData;
+  currency: string;
+  days: AdminTimeRangeDays;
+  storefrontScope: AdminStorefrontScope;
+  activeTab: OperationsTabId;
+  onChangeTab: (tab: OperationsTabId) => void;
+  productBoard: ProductBoard;
+  onChangeProductBoard: (value: ProductBoard) => void;
+  productQuery: string;
+  onChangeProductQuery: (value: string) => void;
+  selectedRowId: string | null;
+  onSelectRowId: (value: string | null) => void;
+}) {
+  const deferredProductQuery = useDeferredValue(productQuery);
+  const query =
+    storefrontScope === "ALL" ? `days=${days}` : `days=${days}&storefront=${storefrontScope}`;
+
+  const rows = useMemo<OperationRow[]>(() => {
+    switch (activeTab) {
+      case "inventory":
+        return data.inventory.stockouts.map((item) => ({
+          id: item.variantId,
+          title: item.productTitle,
+          subtitle: `${item.variantTitle}${item.sku ? ` • ${item.sku}` : ""}`,
+          primaryLabel: "Available",
+          primaryValue: formatCount(item.available),
+          primarySort: item.available,
+          secondaryLabel: "Reserved",
+          secondaryValue: formatCount(item.reserved),
+          secondarySort: item.reserved,
+          chartValue: Math.max(item.quantityOnHand, 0),
+          chartSecondaryValue: item.reserved,
+          detail: {
+            eyebrow: "Inventory",
+            title: item.productTitle,
+            description:
+              "These rows need direct stock intervention because available quantity is already at or below zero.",
+            metrics: [
+              { label: "Variant", value: item.variantTitle },
+              { label: "On hand", value: formatCount(item.quantityOnHand) },
+              { label: "Reserved", value: formatCount(item.reserved) },
+              { label: "Available", value: formatCount(item.available) },
+            ],
+            links: [
+              { label: "Open inventory", href: "/admin/inventory-adjustments", tone: "accent" },
+              { label: "Open catalog", href: "/admin/catalog" },
+            ],
+          },
+        }));
+      case "payments":
+        return data.commerceMix.payments.map((item) => ({
+          id: item.method,
+          title: item.method,
+          subtitle: "recognized payment mix",
+          primaryLabel: "Revenue",
+          primaryValue: formatPrice(item.revenueCents, currency),
+          primarySort: item.revenueCents,
+          secondaryLabel: "Refunded",
+          secondaryValue: formatPrice(item.refundedCents, currency),
+          secondarySort: item.refundedCents,
+          chartValue: item.revenueCents,
+          chartSecondaryValue: item.orders,
+          detail: {
+            eyebrow: "Payments",
+            title: item.method,
+            description:
+              "Keep payment behavior tied to recognized revenue quality and refund pressure, not in its own oversized board.",
+            metrics: [
+              { label: "Orders", value: formatCount(item.orders) },
+              { label: "Revenue", value: formatPrice(item.revenueCents, currency) },
+              { label: "Refunded", value: formatPrice(item.refundedCents, currency) },
+              {
+                label: "Refund share",
+                value: percent(item.revenueCents > 0 ? item.refundedCents / item.revenueCents : 0),
+              },
+            ],
+            links: [
+              { label: "Open orders", href: "/admin/orders", tone: "accent" },
+              { label: "Open reports", href: `/admin/reports?${query}` },
+            ],
+          },
+        }));
+      case "discounts":
+        return data.commerceMix.discounts.map((item) => ({
+          id: item.code,
+          title: item.code,
+          subtitle: "promo dependence",
+          primaryLabel: "Revenue",
+          primaryValue: formatPrice(item.revenueCents, currency),
+          primarySort: item.revenueCents,
+          secondaryLabel: "Discount",
+          secondaryValue: formatPrice(item.discountCents, currency),
+          secondarySort: item.discountCents,
+          chartValue: item.revenueCents,
+          chartSecondaryValue: item.orders,
+          detail: {
+            eyebrow: "Discounts",
+            title: item.code,
+            description:
+              "Promotion impact matters, but it should stay in service of understanding revenue quality rather than dominating the page.",
+            metrics: [
+              { label: "Orders", value: formatCount(item.orders) },
+              { label: "Revenue", value: formatPrice(item.revenueCents, currency) },
+              { label: "Discount", value: formatPrice(item.discountCents, currency) },
+              {
+                label: "Discount share",
+                value: percent(item.revenueCents > 0 ? item.discountCents / item.revenueCents : 0),
+              },
+            ],
+            links: [
+              { label: "Open discounts", href: "/admin/discounts", tone: "accent" },
+              { label: "Open reports", href: `/admin/reports?${query}` },
+            ],
+          },
+        }));
+      case "customers":
+        return [
+          {
+            id: "registered",
+            title: "Registered customers",
+            subtitle: "identified accounts",
+            primaryLabel: "Count",
+            primaryValue: formatCount(data.customers.summary.registeredCount),
+            primarySort: data.customers.summary.registeredCount,
+            secondaryLabel: "Repeat",
+            secondaryValue: formatCount(data.customers.summary.repeatRegisteredCount),
+            secondarySort: data.customers.summary.repeatRegisteredCount,
+            chartValue: data.customers.summary.registeredCount,
+            chartSecondaryValue: data.customers.summary.repeatRegisteredCount,
+            detail: {
+              eyebrow: "Customers",
+              title: "Registered customers",
+              description:
+                "Known customer depth is the cleanest signal that current growth is compounding rather than resetting every period.",
+              metrics: [
+                {
+                  label: "Registered",
+                  value: formatCount(data.customers.summary.registeredCount),
+                },
+                {
+                  label: "Repeat",
+                  value: formatCount(data.customers.summary.repeatRegisteredCount),
+                },
+                {
+                  label: "High-value",
+                  value: formatCount(data.customers.summary.highValueRegisteredCount),
+                },
+                {
+                  label: "Repeat rate",
+                  value: percent(data.customers.retention.repeatCustomerRate),
+                },
+              ],
+              links: [
+                { label: "Open customers", href: "/admin/customers", tone: "accent" },
+                { label: "Open reports", href: `/admin/reports?${query}` },
+              ],
+            },
+          },
+          {
+            id: "guest",
+            title: "Guest customers",
+            subtitle: "unregistered buyers",
+            primaryLabel: "Count",
+            primaryValue: formatCount(data.customers.summary.guestCount),
+            primarySort: data.customers.summary.guestCount,
+            secondaryLabel: "Repeat",
+            secondaryValue: formatCount(data.customers.summary.repeatGuestCount),
+            secondarySort: data.customers.summary.repeatGuestCount,
+            chartValue: data.customers.summary.guestCount,
+            chartSecondaryValue: data.customers.summary.repeatGuestCount,
+            detail: {
+              eyebrow: "Customers",
+              title: "Guest customers",
+              description:
+                "Guest concentration only matters when you compare it against repeat depth and the returning-revenue share.",
+              metrics: [
+                { label: "Guests", value: formatCount(data.customers.summary.guestCount) },
+                {
+                  label: "Repeat guests",
+                  value: formatCount(data.customers.summary.repeatGuestCount),
+                },
+                {
+                  label: "New customers",
+                  value: formatCount(data.customers.summary.newCustomerCount),
+                },
+                {
+                  label: "Returning customers",
+                  value: formatCount(data.customers.summary.returningCustomerCount),
+                },
+              ],
+              links: [
+                { label: "Open customers", href: "/admin/customers", tone: "accent" },
+                { label: "Open support", href: "/admin/support" },
+              ],
+            },
+          },
+          {
+            id: "revenueMix",
+            title: "Returning revenue",
+            subtitle: "repeat customer contribution",
+            primaryLabel: "Revenue",
+            primaryValue: formatPrice(data.customers.retention.returningRevenueCents, currency),
+            primarySort: data.customers.retention.returningRevenueCents,
+            secondaryLabel: "New revenue",
+            secondaryValue: formatPrice(data.customers.retention.newRevenueCents, currency),
+            secondarySort: data.customers.retention.newRevenueCents,
+            chartValue: data.customers.retention.returningRevenueCents,
+            chartSecondaryValue: data.customers.retention.newRevenueCents,
+            detail: {
+              eyebrow: "Customers",
+              title: "Revenue mix",
+              description:
+                "Returning revenue changes how aggressively acquisition can spend, so it belongs in the operating surface.",
+              metrics: [
+                {
+                  label: "Returning revenue",
+                  value: formatPrice(data.customers.retention.returningRevenueCents, currency),
+                },
+                {
+                  label: "New revenue",
+                  value: formatPrice(data.customers.retention.newRevenueCents, currency),
+                },
+                {
+                  label: "Repeat rate",
+                  value: percent(data.customers.retention.repeatCustomerRate),
+                },
+                {
+                  label: "High-value users",
+                  value: formatCount(data.customers.summary.highValueRegisteredCount),
+                },
+              ],
+              links: [
+                { label: "Open customers", href: "/admin/customers", tone: "accent" },
+                { label: "Open reports", href: `/admin/reports?${query}` },
+              ],
+            },
+          },
+        ];
+      case "system":
+        return data.system.aiQuality.topIssueLabels.map((item) => ({
+          id: item.label,
+          title: item.label,
+          subtitle: "issue concentration",
+          primaryLabel: "Count",
+          primaryValue: formatCount(item.count),
+          primarySort: item.count,
+          chartValue: item.count,
+          detail: {
+            eyebrow: "System",
+            title: item.label,
+            description:
+              "System trust stays visible as an operations concern rather than competing with revenue and acquisition for first attention.",
+            metrics: [
+              { label: "Issue count", value: formatCount(item.count) },
+              { label: "Fallback rate", value: percent(data.system.aiQuality.fallbackRate) },
+              {
+                label: "Low confidence",
+                value: percent(data.system.aiQuality.lowConfidenceRate),
+              },
+              {
+                label: "Correct feedback",
+                value: percent(data.system.aiQuality.feedbackCorrectRate),
+              },
+            ],
+            links: [
+              { label: "Open analyzer", href: "/admin/analyzer", tone: "accent" },
+              { label: "Open scripts", href: "/admin/scripts" },
+            ],
+          },
+        }));
+      case "products":
+      default: {
+        const source =
+          productBoard === "leaders" ? data.merchandising.leaders : data.merchandising.leaks;
+        const queryText = deferredProductQuery.trim().toLowerCase();
+        return source
+          .filter((item) =>
+            queryText ? item.productTitle.toLowerCase().includes(queryText) : true,
+          )
+          .map((item) => ({
+            id: item.productId,
+            title: item.productTitle,
+            subtitle: item.priorityReason ?? "Product performance",
+            primaryLabel: "Revenue",
+            primaryValue: formatPrice(item.revenueCents, currency),
+            primarySort: item.revenueCents,
+            secondaryLabel: "CVR",
+            secondaryValue: percent(item.conversionRate),
+            secondarySort: item.conversionRate,
+            chartValue: item.revenueCents,
+            chartSecondaryValue: item.views,
+            detail: {
+              eyebrow: "Products",
+              title: item.productTitle,
+              description:
+                productBoard === "leaders"
+                  ? "This row earns its place because it is carrying recognized revenue inside the current scope."
+                  : "This row needs attention because it is attracting visibility without enough downstream conversion.",
+              metrics: [
+                { label: "Views", value: formatCount(item.views) },
+                { label: "Add to cart", value: formatCount(item.addToCart) },
+                { label: "Purchases", value: formatCount(item.purchases) },
+                { label: "Revenue", value: formatPrice(item.revenueCents, currency) },
+              ],
+              links: [
+                { label: "Open catalog", href: "/admin/catalog", tone: "accent" },
+                { label: "Open orders", href: "/admin/orders" },
+              ],
+            },
+          }));
+      }
+    }
+  }, [activeTab, currency, data, deferredProductQuery, productBoard, query]);
+
+  const selectedRow = resolveSelectedRow(rows, selectedRowId);
+  const columns = useMemo<AdminRankingTableColumn<OperationRow>[]>(
+    () => [
+      {
+        key: "item",
+        label: "Item",
+        render: (row) => (
+          <div>
+            <div className="font-semibold text-slate-100">{row.title}</div>
+            <div className="text-xs text-slate-500">{row.subtitle}</div>
+          </div>
+        ),
+      },
+      {
+        key: "primary",
+        label: "Primary",
+        align: "right",
+        render: (row) => (
+          <div>
+            <div className="font-medium text-slate-100">{row.primaryValue}</div>
+            <div className="text-xs text-slate-500">{row.primaryLabel}</div>
+          </div>
+        ),
+        sortValue: (row) => row.primarySort,
+      },
+      {
+        key: "secondary",
+        label: "Secondary",
+        align: "right",
+        render: (row) =>
+          row.secondaryValue ? (
+            <div>
+              <div className="font-medium text-slate-100">{row.secondaryValue}</div>
+              <div className="text-xs text-slate-500">{row.secondaryLabel}</div>
+            </div>
+          ) : (
+            <span className="text-slate-500">-</span>
+          ),
+        sortValue: (row) => row.secondarySort ?? 0,
+      },
+    ],
+    [],
+  );
+
+  const showDonut = activeTab === "payments" || activeTab === "discounts" || activeTab === "customers";
+  const donutData = rows.slice(0, 6).map((row, index) => ({
+    label: row.title,
+    value: Math.max(row.chartValue, 0),
+    colorClassName: chartPalette[index % chartPalette.length],
+  }));
+  const chartRows = rows.slice(0, 6).map((row) => ({
+    label: row.title,
+    value: row.chartValue,
+    secondaryValue: row.chartSecondaryValue,
+  }));
+
+  return (
+    <section className="space-y-4">
+      <WorkspaceHeader
+        eyebrow="Operations"
+        title="Compact operating board"
+        description="Products, inventory, payments, discounts, customers, and system trust stay in one denser tabbed workspace."
+        actions={<OperationsTabs activeTab={activeTab} onChange={onChangeTab} />}
+      />
+
+      <div className="grid gap-4 xl:grid-cols-12">
+        <AdminPanel
+          title="Operational board"
+          description="The selected tab keeps one dense ranking surface and one small chart so you can act without scanning another wall of cards."
+          className="xl:col-span-8"
+          actions={
+            activeTab === "products" ? (
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <SegmentButtons
+                  value={productBoard}
+                  options={[
+                    { value: "leaders", label: "Revenue leaders" },
+                    { value: "leaks", label: "Conversion leaks" },
+                  ]}
+                  onChange={onChangeProductBoard}
+                />
+                <div className="w-full sm:w-64">
+                  <AdminInput
+                    value={productQuery}
+                    onChange={(event) => onChangeProductQuery(event.target.value)}
+                    placeholder="Search product"
+                  />
+                </div>
+              </div>
+            ) : null
+          }
+        >
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(16rem,0.9fr)]">
+            <div>
+              <MobileOperationCards
+                rows={rows}
+                selectedId={selectedRow?.id ?? null}
+                onSelect={onSelectRowId}
+              />
+              <div className="hidden md:block">
+                <AdminRankingTable
+                  rows={rows}
+                  columns={columns}
+                  emptyCopy="No rows are available for this tab and scope."
+                  selectedRowId={selectedRow?.id ?? null}
+                  onSelectRow={(row) => onSelectRowId(row.id)}
+                  initialSortKey="primary"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {showDonut ? (
+                <DonutChart
+                  data={donutData}
+                  totalLabel={
+                    activeTab === "customers"
+                      ? "Profiles"
+                      : activeTab === "discounts"
+                        ? "Discounted revenue"
+                        : "Recognized revenue"
+                  }
+                  totalValue={
+                    activeTab === "customers"
+                      ? formatCount(rows.reduce((sum, row) => sum + Math.max(row.chartValue, 0), 0))
+                      : formatPrice(
+                          rows.reduce((sum, row) => sum + Math.max(row.chartValue, 0), 0),
+                          currency,
+                        )
+                  }
+                  valueFormatter={
+                    activeTab === "customers"
+                      ? formatCount
+                      : (value) => formatPrice(value, currency)
+                  }
+                  selectedLabel={selectedRow?.title}
+                  onSelect={(label) => {
+                    const next = rows.find((row) => row.title === label);
+                    onSelectRowId(next?.id ?? null);
+                  }}
+                />
+              ) : (
+                <HorizontalBarsChart
+                  data={chartRows}
+                  valueFormatter={(value) =>
+                    activeTab === "inventory" || activeTab === "system"
+                      ? formatCount(value)
+                      : formatPrice(value, currency)
+                  }
+                  secondaryValueFormatter={(value) => formatCount(value)}
+                  colorClassName={
+                    activeTab === "inventory"
+                      ? "bg-amber-400"
+                      : activeTab === "products" && productBoard === "leaks"
+                        ? "bg-amber-400"
+                        : "bg-cyan-400"
+                  }
+                  selectedLabel={selectedRow?.title}
+                  onSelect={(label) => {
+                    const next = rows.find((row) => row.title === label);
+                    onSelectRowId(next?.id ?? null);
+                  }}
+                />
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <AdminCompactMetric
+                  label="Tracked variants"
+                  value={formatCount(data.inventory.summary.trackedVariants)}
+                />
+                <AdminCompactMetric
+                  label="Low stock"
+                  value={formatCount(data.inventory.summary.lowStockCount)}
+                />
+                <AdminCompactMetric
+                  label="Repeat rate"
+                  value={percent(data.customers.retention.repeatCustomerRate)}
+                />
+                <AdminCompactMetric
+                  label="Fallback rate"
+                  value={percent(data.system.aiQuality.fallbackRate)}
+                />
+              </div>
+            </div>
+          </div>
+        </AdminPanel>
+
+        <div className="space-y-4 xl:col-span-4">
+          <AdminDetailPanel
+            eyebrow={selectedRow?.detail.eyebrow ?? "Operations"}
+            title={selectedRow?.detail.title ?? "No row selected"}
+            description={
+              selectedRow?.detail.description ??
+              "Select a row from the current tab to inspect its metrics and next actions."
+            }
+            metrics={selectedRow?.detail.metrics ?? []}
+            links={selectedRow?.detail.links ?? []}
+          />
+          <AdminDetailPanel
+            eyebrow="Workspace summary"
+            title="Cross-tab guardrails"
+            description="These counters keep operational drift visible while you stay focused on one tab."
+            metrics={[
+              {
+                label: "Stockouts",
+                value: formatCount(data.inventory.summary.stockoutCount),
+              },
+              {
+                label: "High-value users",
+                value: formatCount(data.customers.summary.highValueRegisteredCount),
+              },
+              {
+                label: "Feedback records",
+                value: formatCount(data.system.aiQuality.feedbackTotal),
+              },
+              {
+                label: "Correct feedback",
+                value: percent(data.system.aiQuality.feedbackCorrectRate),
+              },
+            ]}
+            links={[
+              { label: "Open inventory", href: "/admin/inventory-adjustments", tone: "accent" },
+              { label: "Open customers", href: "/admin/customers" },
+            ]}
+          />
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default function AdminAnalyticsClient({
@@ -571,85 +1903,22 @@ export default function AdminAnalyticsClient({
     [initialDays, initialStorefrontScope],
   );
 
+  const [overview, setOverview] = useState(initialOverview);
+  const [secondary, setSecondary] = useState<AdminAnalyticsSecondaryPayload>(emptySecondaryPayload);
   const [loading, setLoading] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [error, setError] = useState("");
   const [secondaryError, setSecondaryError] = useState("");
 
-  const [live, setLive] = useState<LiveSnapshot>(initialOverview.live ?? initialLive);
-  const [funnel, setFunnel] = useState<Funnel>(initialOverview.funnel ?? initialFunnel);
-  const [revenue, setRevenue] = useState<Revenue>(initialOverview.revenue ?? initialRevenue);
-  const [trends, setTrends] = useState<Trends>(initialOverview.trends ?? emptyTrends);
-  const [funnelTrend, setFunnelTrend] = useState<FunnelTrendPoint[]>(
-    initialOverview.funnelTrend ?? [],
-  );
-  const [funnelComparison, setFunnelComparison] = useState<FunnelComparison>(
-    initialOverview.funnelComparison ?? initialFunnelComparison,
-  );
-  const [periodComparison, setPeriodComparison] = useState<PeriodComparison>(
-    initialOverview.periodComparison ?? initialPeriodComparison,
-  );
-  const [finance, setFinance] = useState<FinanceSummary>(
-    initialOverview.finance ?? initialFinanceSummary,
-  );
-  const [previousFinance, setPreviousFinance] = useState<FinanceSummary>(
-    initialOverview.previousFinance ?? initialFinanceSummary,
-  );
-  const [vat, setVat] = useState<VatSummary>(initialOverview.vat ?? initialVatSummary);
-  const [expenseMigrationRequired, setExpenseMigrationRequired] = useState(
-    initialOverview.expenseMigrationRequired ?? false,
-  );
-
-  const [topProducts, setTopProducts] = useState<ProductPerformance[]>([]);
-  const [underperformingProducts, setUnderperformingProducts] = useState<ProductPerformance[]>([]);
-  const [stockouts, setStockouts] = useState<Stockout[]>([]);
-  const [inventory, setInventory] = useState<InventorySummary>(initialInventory);
-  const [customers, setCustomers] = useState<CustomerSummary>(initialCustomers);
-  const [aiQuality, setAiQuality] = useState<AiQuality>(initialAiQuality);
-  const [trafficSources, setTrafficSources] = useState<TrafficSource[]>([]);
-  const [discountAnalysis, setDiscountAnalysis] = useState<DiscountInsight[]>([]);
-  const [paymentAnalysis, setPaymentAnalysis] = useState<PaymentInsight[]>([]);
-  const [retention, setRetention] = useState<Retention>(initialRetention);
-
-  const [selectedFunnelStage, setSelectedFunnelStage] = useState("Sessions");
-  const [selectedLivePageId, setSelectedLivePageId] = useState<string | null>(null);
-  const [selectedTrafficSourceLabel, setSelectedTrafficSourceLabel] = useState<string | null>(null);
-  const [merchBoard, setMerchBoard] = useState<"leaders" | "leaks" | "stock">("leaders");
-  const [mixBoard, setMixBoard] = useState<"payments" | "discounts">("payments");
-  const [selectedMerchRowId, setSelectedMerchRowId] = useState<string | null>(null);
-  const [selectedMixRowId, setSelectedMixRowId] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState("Sessions");
+  const [selectedSourceLabel, setSelectedSourceLabel] = useState<string | null>(null);
+  const [activeOperationsTab, setActiveOperationsTab] = useState<OperationsTabId>("products");
+  const [productBoard, setProductBoard] = useState<ProductBoard>("leaders");
   const [productQuery, setProductQuery] = useState("");
-  const deferredProductQuery = useDeferredValue(productQuery);
-
-  const applyOverviewData = (data: Partial<AdminAnalyticsOverviewPayload>) => {
-    setLive(data.live ?? initialLive);
-    setFunnel(data.funnel ?? initialFunnel);
-    setRevenue(data.revenue ?? initialRevenue);
-    setTrends(data.trends ?? emptyTrends);
-    setFunnelTrend(data.funnelTrend ?? []);
-    setFunnelComparison(data.funnelComparison ?? initialFunnelComparison);
-    setPeriodComparison(data.periodComparison ?? initialPeriodComparison);
-    setFinance(data.finance ?? initialFinanceSummary);
-    setPreviousFinance(data.previousFinance ?? initialFinanceSummary);
-    setVat(data.vat ?? initialVatSummary);
-    setExpenseMigrationRequired(data.expenseMigrationRequired ?? false);
-  };
-
-  const applySecondaryData = (data: Partial<AdminAnalyticsSecondaryPayload>) => {
-    setTopProducts(data.topProducts ?? []);
-    setUnderperformingProducts(data.underperformingProducts ?? []);
-    setStockouts(data.stockouts ?? []);
-    setInventory(data.inventory ?? initialInventory);
-    setCustomers(data.customers ?? initialCustomers);
-    setTrafficSources(data.trafficSources ?? []);
-    setDiscountAnalysis(data.discountAnalysis ?? []);
-    setPaymentAnalysis(data.paymentAnalysis ?? []);
-    setRetention(data.retention ?? initialRetention);
-    setAiQuality(data.aiQuality ?? initialAiQuality);
-  };
+  const [selectedOperationRowId, setSelectedOperationRowId] = useState<string | null>(null);
 
   useEffect(() => {
-    applyOverviewData(initialOverview);
+    setOverview(initialOverview);
   }, [initialOverview]);
 
   const loadOverview = useCallback(async () => {
@@ -662,13 +1931,13 @@ export default function AdminAnalyticsClient({
         slowMessage: "Analytics overview is still refreshing.",
         slowDetail: "Core finance and funnel metrics are taking longer than usual to recalculate.",
         failureMessage: "Analytics overview refresh failed.",
-        failureDetail: "The primary scorecards may be stale until the next successful refresh.",
+        failureDetail: "The primary decision surface may be stale until the next successful refresh.",
       },
     );
     if (!response.ok) {
       throw new Error(data.error ?? "Failed to load analytics overview.");
     }
-    applyOverviewData(data);
+    setOverview(data);
   }, [location]);
 
   const loadSecondary = useCallback(async () => {
@@ -678,720 +1947,81 @@ export default function AdminAnalyticsClient({
         method: "GET",
         cache: "no-store",
         slowThresholdMs: 5_500,
-        slowMessage: "Secondary analytics are still loading.",
-        slowDetail: "Product, acquisition, payment, and quality layers are still being assembled.",
-        failureMessage: "Secondary analytics failed to load.",
-        failureDetail: "The control room will keep the top-line view while slower sections retry.",
+        slowMessage: "Supporting workspaces are still loading.",
+        slowDetail: "Products, acquisition, and operational boards are taking longer than usual to resolve.",
+        failureMessage: "Secondary analytics refresh failed.",
+        failureDetail: "The acquisition and operations workspaces may be stale until the next successful refresh.",
       },
     );
     if (!response.ok) {
       throw new Error(data.error ?? "Failed to load secondary analytics.");
     }
-    applySecondaryData(data);
+    setSecondary(data);
   }, [location]);
 
   useEffect(() => {
-    let cancelled = false;
     setSecondaryLoading(true);
     setSecondaryError("");
     void loadSecondary()
-      .catch((secondaryLoadError) => {
-        if (cancelled) return;
+      .catch((loadError) => {
         setSecondaryError(
-          secondaryLoadError instanceof Error
-            ? secondaryLoadError.message
-            : "Failed to load secondary analytics.",
+          loadError instanceof Error ? loadError.message : "Failed to load secondary analytics.",
         );
       })
       .finally(() => {
-        if (cancelled) return;
         setSecondaryLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [loadSecondary]);
 
-  const refreshAnalytics = async () => {
+  const refreshAnalytics = useCallback(async () => {
     setLoading(true);
     setError("");
     setSecondaryError("");
+    setSecondaryLoading(true);
     try {
-      await Promise.all([loadOverview(), loadSecondary()]);
+      await loadOverview();
+      await loadSecondary();
     } catch (refreshError) {
-      setError(
-        refreshError instanceof Error ? refreshError.message : "Failed to load analytics.",
-      );
+      setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh analytics.");
     } finally {
-      setLoading(false);
       setSecondaryLoading(false);
+      setLoading(false);
     }
-  };
+  }, [loadOverview, loadSecondary]);
 
-  const selectedRange = windowCopy[initialDays];
+  const executive = overview.executive ?? emptyExecutive;
+  const revenueConversion = overview.revenueConversion ?? emptyRevenueConversion;
+  const liveSnapshot = overview.acquisition?.live ?? emptyLiveSnapshot;
+  const trafficSources = useMemo(
+    () => secondary.acquisition?.trafficSources ?? secondary.trafficSources ?? [],
+    [secondary],
+  );
+  const operations = secondary.operations ?? emptyOperations;
+
+  const currency = revenueConversion.periodComparison.currency || revenueConversion.finance.currency;
   const selectedStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[initialStorefrontScope];
-  const activeScopeStorefront = initialStorefrontScope === "ALL" ? null : initialStorefrontScope;
-  const currentCurrency = finance.currency || periodComparison.currency;
+  const rangeCopy = windowCopy[initialDays];
 
-  const topPagesRows = useMemo(
-    () =>
-      live.topPages.map((page) => ({
-        id: `${page.pageType}:${page.path}`,
-        ...page,
-      })),
-    [live.topPages],
-  );
-  const selectedTopPage =
-    resolveSelectedRow(topPagesRows, selectedLivePageId) ?? null;
+  useEffect(() => {
+    setSelectedSourceLabel(trafficSources[0]?.label ?? null);
+  }, [initialStorefrontScope, trafficSources]);
 
-  const selectedTrafficSource =
-    trafficSources.find((source) => source.label === selectedTrafficSourceLabel) ??
-    trafficSources[0] ??
-    null;
+  useEffect(() => {
+    setSelectedOperationRowId(null);
+  }, [activeOperationsTab, productBoard, initialStorefrontScope]);
 
-  const merchRows = useMemo<MerchRow[]>(() => {
-    const query = deferredProductQuery.trim().toLowerCase();
-    const baseRows =
-      merchBoard === "leaders"
-        ? topProducts.map((row) => ({ ...row, id: row.productId, kind: "leader" as const }))
-        : merchBoard === "leaks"
-          ? underperformingProducts.map((row) => ({
-              ...row,
-              id: row.productId,
-              kind: "leak" as const,
-            }))
-          : stockouts.map((row) => ({
-              ...row,
-              id: row.variantId,
-              kind: "stockout" as const,
-            }));
-
-    if (!query) return baseRows;
-    return baseRows.filter((row) =>
-      row.kind === "stockout"
-        ? `${row.productTitle} ${row.variantTitle} ${row.sku ?? ""}`.toLowerCase().includes(query)
-        : row.productTitle.toLowerCase().includes(query),
-    );
-  }, [deferredProductQuery, merchBoard, stockouts, topProducts, underperformingProducts]);
-  const selectedMerchRow = resolveSelectedRow(merchRows, selectedMerchRowId);
-
-  const mixRows = useMemo<MixRow[]>(
-    () =>
-      mixBoard === "payments"
-        ? paymentAnalysis.map((row) => ({ ...row, id: row.method, kind: "payment" as const }))
-        : discountAnalysis.map((row) => ({ ...row, id: row.code, kind: "discount" as const })),
-    [discountAnalysis, mixBoard, paymentAnalysis],
-  );
-  const selectedMixRow = resolveSelectedRow(mixRows, selectedMixRowId);
-
-  const topProductsColumns = useMemo<AdminRankingTableColumn<MerchRow>[]>(() => {
-    if (merchBoard === "stock") {
-      return [
-        {
-          key: "product",
-          label: "Variant",
-          render: (row) =>
-            row.kind === "stockout" ? (
-              <div>
-                <div className="font-semibold text-slate-100">{row.productTitle}</div>
-                <div className="mt-1 text-xs text-slate-500">{row.variantTitle}</div>
-              </div>
-            ) : null,
-          sortValue: (row) => row.productTitle,
-        },
-        {
-          key: "sku",
-          label: "SKU",
-          render: (row) => (row.kind === "stockout" ? row.sku ?? "No SKU" : "—"),
-          sortValue: (row) => (row.kind === "stockout" ? row.sku ?? "" : ""),
-        },
-        {
-          key: "available",
-          label: "Available",
-          align: "right",
-          render: (row) => (row.kind === "stockout" ? String(row.available) : "—"),
-          sortValue: (row) => (row.kind === "stockout" ? row.available : 0),
-        },
-      ];
-    }
-
-    return [
-        {
-          key: "product",
-          label: merchBoard === "leaders" ? "Leader" : "Leak",
-        render: (row) =>
-          row.kind !== "stockout" ? (
-            <div>
-              <div className="font-semibold text-slate-100">{row.productTitle}</div>
-              <div className="mt-1 text-xs text-slate-500">
-                {row.views} views · {row.purchases} purchases
-              </div>
-            </div>
-          ) : null,
-          sortValue: (row) =>
-            row.kind === "stockout" ? row.productTitle : row.productTitle,
-        },
-      {
-        key: "revenue",
-        label: merchBoard === "leaders" ? "Revenue" : "Margin",
-        align: "right",
-        render: (row) =>
-          row.kind !== "stockout"
-            ? formatPrice(
-                merchBoard === "leaders" ? row.revenueCents : row.marginCents,
-                currentCurrency,
-              )
-            : "—",
-        sortValue: (row) =>
-          row.kind !== "stockout"
-            ? merchBoard === "leaders"
-              ? row.revenueCents
-              : row.marginCents
-            : 0,
-      },
-      {
-        key: "rate",
-        label: merchBoard === "leaders" ? "Conversion" : "Drop-off signal",
-        align: "right",
-        render: (row) =>
-          row.kind !== "stockout"
-            ? merchBoard === "leaders"
-              ? percent(row.conversionRate)
-              : percent(1 - row.conversionRate)
-            : "—",
-        sortValue: (row) =>
-          row.kind !== "stockout"
-            ? merchBoard === "leaders"
-              ? row.conversionRate
-              : 1 - row.conversionRate
-            : 0,
-      },
-    ];
-  }, [currentCurrency, merchBoard]);
-
-  const mixColumns = useMemo<AdminRankingTableColumn<MixRow>[]>(() => {
-    if (mixBoard === "payments") {
-      return [
-        {
-          key: "method",
-          label: "Method",
-          render: (row) =>
-            row.kind === "payment" ? (
-              <div>
-                <div className="font-semibold text-slate-100">{row.method}</div>
-                <div className="mt-1 text-xs text-slate-500">{row.orders} recognized orders</div>
-              </div>
-            ) : null,
-          sortValue: (row) => (row.kind === "payment" ? row.method : ""),
-        },
-        {
-          key: "revenue",
-          label: "Revenue",
-          align: "right",
-          render: (row) =>
-            row.kind === "payment" ? formatPrice(row.revenueCents, currentCurrency) : "—",
-          sortValue: (row) => (row.kind === "payment" ? row.revenueCents : 0),
-        },
-        {
-          key: "refunds",
-          label: "Refunded",
-          align: "right",
-          render: (row) =>
-            row.kind === "payment" ? formatPrice(row.refundedCents, currentCurrency) : "—",
-          sortValue: (row) => (row.kind === "payment" ? row.refundedCents : 0),
-        },
-      ];
-    }
-
-    return [
-      {
-        key: "code",
-        label: "Code",
-        render: (row) =>
-          row.kind === "discount" ? (
-            <div>
-              <div className="font-semibold text-slate-100">{row.code}</div>
-              <div className="mt-1 text-xs text-slate-500">{row.orders} paid orders</div>
-            </div>
-          ) : null,
-        sortValue: (row) => (row.kind === "discount" ? row.code : ""),
-      },
-      {
-        key: "revenue",
-        label: "Revenue",
-        align: "right",
-        render: (row) =>
-          row.kind === "discount" ? formatPrice(row.revenueCents, currentCurrency) : "—",
-        sortValue: (row) => (row.kind === "discount" ? row.revenueCents : 0),
-      },
-      {
-        key: "discount",
-        label: "Discount cost",
-        align: "right",
-        render: (row) =>
-          row.kind === "discount" ? formatPrice(row.discountCents, currentCurrency) : "—",
-        sortValue: (row) => (row.kind === "discount" ? row.discountCents : 0),
-      },
-    ];
-  }, [currentCurrency, mixBoard]);
-
-  const livePageColumns = useMemo<
-    AdminRankingTableColumn<(typeof topPagesRows)[number]>[]
-  >(
-    () => [
-      {
-        key: "page",
-        label: "Page",
-        render: (row) => (
-          <div>
-            <div className="font-semibold text-slate-100">{row.path}</div>
-            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-              {row.pageType}
-            </div>
-          </div>
-        ),
-        sortValue: (row) => row.path,
-      },
-      {
-        key: "active",
-        label: "Active now",
-        align: "right",
-        render: (row) => String(row.count),
-        sortValue: (row) => row.count,
-      },
-    ],
-    [],
-  );
-
-  const sourceBars = useMemo<AdminChartPoint[]>(
-    () =>
-      trafficSources.map((source) => ({
-        label: source.label,
-        value: source.sessions,
-        secondaryValue: source.beginCheckout,
-      })),
-    [trafficSources],
-  );
-  const trafficSourceMixDonut = useMemo(
-    () =>
-      trafficSources.slice(0, 5).map((source, index) => ({
-        label: source.label,
-        value: source.sessions,
-        colorClassName: ["#22d3ee", "#818cf8", "#34d399", "#f59e0b", "#f87171"][index % 5],
-      })),
-    [trafficSources],
-  );
-  const funnelLabels = useMemo(() => funnelTrend.map((point) => point.label), [funnelTrend]);
-  const funnelSeries = useMemo(
-    () => [
-      {
-        label: "Sessions",
-        color: "#22d3ee",
-        values: funnelTrend.map((point) => point.sessions),
-      },
-      {
-        label: "Checkout starts",
-        color: "#a78bfa",
-        values: funnelTrend.map((point) => point.beginCheckout),
-      },
-      {
-        label: "Paid purchases",
-        color: "#34d399",
-        values: funnelTrend.map((point) => point.purchases),
-      },
-    ],
-    [funnelTrend],
-  );
-  const conversionRateSeries = useMemo(
-    () => [
-      {
-        label: "View to cart",
-        color: "#22d3ee",
-        values: funnelTrend.map((point) =>
-          point.productViews > 0 ? (point.addToCart / point.productViews) * 100 : 0,
-        ),
-      },
-      {
-        label: "Cart to checkout",
-        color: "#a78bfa",
-        values: funnelTrend.map((point) =>
-          point.addToCart > 0 ? (point.beginCheckout / point.addToCart) * 100 : 0,
-        ),
-      },
-      {
-        label: "Session to purchase",
-        color: "#34d399",
-        values: funnelTrend.map((point) => point.sessionConversionRate * 100),
-      },
-    ],
-    [funnelTrend],
-  );
-  const funnelStages = useMemo(
-    () => [
-      {
-        label: "Sessions",
-        value: funnel.sessions,
-        helper: "Traffic entering the storefront",
-        color: "#22d3ee",
-      },
-      {
-        label: "Product views",
-        value: funnel.productViews,
-        helper: percent(funnel.sessions > 0 ? funnel.productViews / funnel.sessions : 0),
-        color: "#60a5fa",
-      },
-      {
-        label: "Add to cart",
-        value: funnel.addToCart,
-        helper: percent(funnel.viewToCartRate),
-        color: "#f59e0b",
-      },
-      {
-        label: "Begin checkout",
-        value: funnel.beginCheckout,
-        helper: percent(funnel.cartToCheckoutRate),
-        color: "#a78bfa",
-      },
-      {
-        label: "Purchases",
-        value: funnel.purchaseSessions > 0 ? funnel.purchaseSessions : funnel.paidOrders,
-        helper: percent(funnel.checkoutToPaidRate),
-        color: "#34d399",
-      },
-    ],
-    [funnel],
-  );
-  const revenueTrend = useMemo<AdminChartPoint[]>(
-    () =>
-      trends.daily.map((point) => ({
-        label: point.label,
-        value: point.revenueCents,
-      })),
-    [trends.daily],
-  );
-  const ordersTrend = useMemo<AdminChartPoint[]>(
-    () =>
-      trends.daily.map((point) => ({
-        label: point.label,
-        value: point.orders,
-      })),
-    [trends.daily],
-  );
-  const customerMixDonut = useMemo(
-    () => [
-      { label: "Registered", value: customers.registeredCount, colorClassName: "#22c55e" },
-      { label: "Guest", value: customers.guestCount, colorClassName: "#f59e0b" },
-      {
-        label: "Repeat buyers",
-        value: customers.repeatRegisteredCount + customers.repeatGuestCount,
-        colorClassName: "#38bdf8",
-      },
-    ],
-    [customers],
-  );
-  const revenueMixDonut = useMemo(
-    () => [
-      { label: "New revenue", value: retention.newRevenueCents, colorClassName: "#22c55e" },
-      {
-        label: "Returning revenue",
-        value: retention.returningRevenueCents,
-        colorClassName: "#818cf8",
-      },
-    ],
-    [retention],
-  );
-  const paymentMixDonut = useMemo(
-    () =>
-      paymentAnalysis.map((item, index) => ({
-        label: item.method,
-        value: item.revenueCents,
-        colorClassName: ["#a78bfa", "#22d3ee", "#34d399", "#f59e0b", "#fb7185"][index % 5],
-      })),
-    [paymentAnalysis],
-  );
-  const discountMixDonut = useMemo(
-    () =>
-      discountAnalysis.map((item, index) => ({
-        label: item.code,
-        value: item.discountCents > 0 ? item.discountCents : item.revenueCents,
-        colorClassName: ["#f59e0b", "#fb7185", "#22d3ee", "#818cf8", "#34d399"][index % 5],
-      })),
-    [discountAnalysis],
-  );
-  const issueBars = useMemo<AdminChartPoint[]>(
-    () =>
-      aiQuality.topIssueLabels.map((item) => ({
-        label: item.label,
-        value: item.count,
-      })),
-    [aiQuality.topIssueLabels],
-  );
-
-  const funnelDetail = useMemo<DetailPanelModel>(() => {
-    const completed = funnel.purchaseSessions > 0 ? funnel.purchaseSessions : funnel.paidOrders;
-    switch (selectedFunnelStage) {
-      case "Product views":
-        return {
-          eyebrow: "Selected funnel stage",
-          title: "Product views",
-          description:
-            "This stage shows how much top-of-funnel traffic reaches actual product intent pages.",
-          metrics: [
-            { label: "View sessions", value: String(funnel.productViews) },
-            { label: "View to cart", value: percent(funnel.viewToCartRate) },
-            { label: "Traffic share", value: percent(funnel.sessions > 0 ? funnel.productViews / funnel.sessions : 0) },
-          ],
-          links: [
-            { label: "Open catalog", href: "/admin/catalog" },
-            { label: "Open reports", href: "/admin/reports" },
-          ],
-        };
-      case "Add to cart":
-        return {
-          eyebrow: "Selected funnel stage",
-          title: "Cart intent",
-          description:
-            "Cart activity shows how effectively viewed products convert into tangible buying intent.",
-          metrics: [
-            { label: "Add to cart", value: String(funnel.addToCart) },
-            { label: "View to cart", value: percent(funnel.viewToCartRate) },
-            { label: "Cart drop", value: percent(funnel.cartAbandonmentRate) },
-          ],
-          links: [
-            { label: "Open catalog", href: "/admin/catalog" },
-            { label: "Open orders", href: "/admin/orders" },
-          ],
-        };
-      case "Begin checkout":
-        return {
-          eyebrow: "Selected funnel stage",
-          title: "Checkout pressure",
-          description:
-            "Checkout starts reveal whether the cart is strong enough to turn into a payment attempt.",
-          metrics: [
-            { label: "Checkout starts", value: String(funnel.beginCheckout) },
-            { label: "Cart to checkout", value: percent(funnel.cartToCheckoutRate) },
-            {
-              label: "Checkout delta",
-              value: formatDelta(funnelComparison.beginCheckout.deltaRatio),
-            },
-          ],
-          links: [
-            { label: "Open orders", href: "/admin/orders", tone: "accent" },
-            { label: "Open reports", href: "/admin/reports" },
-          ],
-        };
-      case "Purchases":
-        return {
-          eyebrow: "Selected funnel stage",
-          title: "Completed purchases",
-          description:
-            "Completed purchase sessions anchor the revenue side of the funnel and should track closely with paid-order truth.",
-          metrics: [
-            { label: "Purchase sessions", value: String(completed) },
-            { label: "Session CVR", value: percent(funnel.sessionToOrderRate) },
-            { label: "Paid orders", value: String(funnel.paidOrders) },
-          ],
-          links: [
-            { label: "Open orders", href: "/admin/orders", tone: "accent" },
-            { label: "Open finance", href: "/admin/finance" },
-          ],
-        };
-      default:
-        return {
-          eyebrow: "Selected funnel stage",
-          title: "Sessions",
-          description:
-            "Session volume is the operating entry point for the current window and frames the rest of the funnel.",
-          metrics: [
-            { label: "Sessions", value: String(funnel.sessions) },
-            {
-              label: "Session delta",
-              value: formatDelta(funnelComparison.sessions.deltaRatio),
-            },
-            { label: "Checkout starts", value: String(funnel.beginCheckout) },
-          ],
-          links: [
-            { label: "Open reports", href: "/admin/reports", tone: "accent" },
-            { label: "Open analytics", href: buildAdminAnalyticsHref(location) },
-          ],
-        };
-    }
-  }, [funnel, funnelComparison, location, selectedFunnelStage]);
-
-  const merchDetail = useMemo<DetailPanelModel>(() => {
-    if (!selectedMerchRow) {
-      return {
-        eyebrow: "Merch detail",
-        title: "No product selected",
-        description: "Choose a row to inspect revenue, conversion, or stock pressure in detail.",
-        metrics: [],
-        links: [{ label: "Open catalog", href: "/admin/catalog" }],
-      };
-    }
-
-    if (selectedMerchRow.kind === "stockout") {
-      return {
-        eyebrow: "Inventory detail",
-        title: `${selectedMerchRow.productTitle} / ${selectedMerchRow.variantTitle}`,
-        description:
-          "This variant is currently unavailable. Use catalog or procurement next depending on whether the issue is merchandising or replenishment.",
-        metrics: [
-          { label: "Available", value: String(selectedMerchRow.available) },
-          { label: "On hand", value: String(selectedMerchRow.quantityOnHand) },
-          { label: "Reserved", value: String(selectedMerchRow.reserved) },
-        ],
-        links: [
-          {
-            label: "Open product",
-            href: selectedMerchRow.productId
-              ? `/admin/catalog/${selectedMerchRow.productId}`
-              : "/admin/catalog",
-            tone: "accent",
-          },
-          { label: "Open procurement", href: "/admin/procurement" },
-        ],
-      };
-    }
-
-    return {
-      eyebrow: selectedMerchRow.kind === "leader" ? "Revenue leader" : "Conversion leak",
-      title: selectedMerchRow.productTitle,
-      description:
-        selectedMerchRow.kind === "leader"
-          ? "This product is leading the current revenue window and is a candidate for deeper margin, traffic-source, and stock checks."
-          : "This product attracts traffic but under-converts, so it should be checked for price, PDP quality, stock, or checkout friction.",
-      metrics: [
-        { label: "Revenue", value: formatPrice(selectedMerchRow.revenueCents, currentCurrency) },
-        { label: "Margin", value: formatPrice(selectedMerchRow.marginCents, currentCurrency) },
-        { label: "Conversion", value: percent(selectedMerchRow.conversionRate) },
-      ],
-      links: [
-        { label: "Open product", href: `/admin/catalog/${selectedMerchRow.productId}`, tone: "accent" },
-        { label: "Open orders", href: "/admin/orders" },
-        { label: "Open reports", href: "/admin/reports" },
-      ],
-    };
-  }, [currentCurrency, selectedMerchRow]);
-
-  const mixDetail = useMemo<DetailPanelModel>(() => {
-    if (!selectedMixRow) {
-      return {
-        eyebrow: "Mix detail",
-        title: "No mix row selected",
-        description: "Select a payment method or discount code to inspect how it is shaping revenue quality.",
-        metrics: [],
-        links: [{ label: "Open finance", href: "/admin/finance" }],
-      };
-    }
-
-    if (selectedMixRow.kind === "payment") {
-      return {
-        eyebrow: "Payment mix",
-        title: selectedMixRow.method,
-        description:
-          "Payment mix affects charge behavior, refunds, and the quality of recognized revenue.",
-        metrics: [
-          { label: "Revenue", value: formatPrice(selectedMixRow.revenueCents, currentCurrency) },
-          { label: "Orders", value: String(selectedMixRow.orders) },
-          { label: "Refunded", value: formatPrice(selectedMixRow.refundedCents, currentCurrency) },
-        ],
-        links: [
-          { label: "Open finance", href: "/admin/finance", tone: "accent" },
-          { label: "Open orders", href: "/admin/orders" },
-        ],
-      };
-    }
-
-    return {
-      eyebrow: "Discount mix",
-      title: selectedMixRow.code,
-      description:
-        "Discount concentration helps determine whether revenue growth is quality-led or being bought through promotion pressure.",
-      metrics: [
-        { label: "Revenue", value: formatPrice(selectedMixRow.revenueCents, currentCurrency) },
-        { label: "Orders", value: String(selectedMixRow.orders) },
-        { label: "Discount cost", value: formatPrice(selectedMixRow.discountCents, currentCurrency) },
-      ],
-      links: [
-        { label: "Open reports", href: "/admin/reports", tone: "accent" },
-        { label: "Open discounts", href: "/admin/discounts" },
-      ],
-    };
-  }, [currentCurrency, selectedMixRow]);
-
-  const topRevenueDelta = getRatioDelta(finance.netRevenueCents, previousFinance.netRevenueCents);
-  const contributionDelta = getRatioDelta(
-    finance.contributionMarginCents,
-    previousFinance.contributionMarginCents,
-  );
   return (
-    <div className="space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#060b14] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_30%),radial-gradient(circle_at_78%_16%,_rgba(250,204,21,0.12),_transparent_18%),radial-gradient(circle_at_72%_78%,_rgba(129,140,248,0.18),_transparent_24%),linear-gradient(135deg,_rgba(6,11,20,0.98),_rgba(10,18,35,0.96)_46%,_rgba(12,17,31,0.96))]" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/65">
-              Admin / Business Details
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold leading-tight text-white md:text-[3rem]">
-              Executive control room for traffic quality, commerce pressure, and recognized revenue
-            </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-              First-party analytics workspace for live demand, conversion efficiency, margin quality,
-              tax readiness, customer mix, merchandising pressure, and payment or discount dependence.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">
-                {selectedRange.adjective} window
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-slate-100">
-                {selectedStorefrontLabel}
-              </span>
-              <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 text-violet-100">
-                {live.activeVisitorCount} live visitors
-              </span>
-              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-100">
-                {formatPrice(finance.contributionMarginCents, currentCurrency)} contribution
-              </span>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.2)]">
-            <SectionHeader
-              eyebrow="Signal board"
-              title="Current operating read"
-              description="Fast interpretation layer for the current scope before drilling into the denser tables below."
-            />
-            <div className="grid gap-3">
-              <ExecutiveMetricCard
-                label="Net revenue"
-                value={formatPrice(finance.netRevenueCents, currentCurrency)}
-                detail={formatDelta(topRevenueDelta)}
-                footnote="recognized top-line after VAT and refunds"
-                tone="emerald"
-              />
-              <ExecutiveMetricCard
-                label="Session CVR"
-                value={percent(funnel.sessionToOrderRate)}
-                detail={formatDelta(funnelComparison.sessionToOrderRate.deltaRatio)}
-                footnote="session to paid purchase"
-                tone="violet"
-              />
-              <ExecutiveMetricCard
-                label="VAT state"
-                value={formatVatStatus(vat.status)}
-                detail={formatPrice(vat.estimatedLiabilityCents, currentCurrency)}
-                footnote={vat.ordersMissingTaxCount > 0 ? `${vat.ordersMissingTaxCount} orders need tax review` : "tax coverage looks complete"}
-                tone="amber"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="space-y-5 pb-10">
+      <CommandDeck
+        metrics={executive.metrics}
+        currency={currency}
+        storefrontLabel={selectedStorefrontLabel}
+        rangeLabel={rangeCopy.label}
+        updatedAt={executive.updatedAt}
+      />
 
       <AdminStickyToolbar>
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div>
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -1412,6 +2042,7 @@ export default function AdminAnalyticsClient({
                 ))}
               </div>
             </div>
+
             <div>
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Storefront
@@ -1434,15 +2065,10 @@ export default function AdminAnalyticsClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
-              {selectedRange.horizon}
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
+              {rangeCopy.horizon}
             </span>
-            <AdminButton
-              type="button"
-              onClick={() => void refreshAnalytics()}
-              className="rounded-full"
-              disabled={loading}
-            >
+            <AdminButton type="button" onClick={() => void refreshAnalytics()} disabled={loading}>
               {loading ? "Refreshing..." : "Refresh"}
             </AdminButton>
           </div>
@@ -1453,514 +2079,46 @@ export default function AdminAnalyticsClient({
       {secondaryError ? <AdminNotice tone="warning">{secondaryError}</AdminNotice> : null}
       {secondaryLoading ? (
         <AdminNotice tone="info">
-          Secondary analytics are still loading. Top-line funnel, finance, and VAT sections are already available while product, acquisition, and mix tables continue to resolve.
+          Supporting workspaces are still loading. Revenue and conversion truth are already available while acquisition and operations continue to resolve.
         </AdminNotice>
       ) : null}
-      {expenseMigrationRequired ? (
-        <AdminNotice tone="warning">
-          Expense-backed VAT and margin support are partially unavailable until the expense migration coverage is complete for this environment.
-        </AdminNotice>
-      ) : null}
-      {activeScopeStorefront ? (
+      {initialStorefrontScope !== "ALL" ? (
         <AdminNotice tone="info">
-          This workspace is scoped to {selectedStorefrontLabel}. Orders, events, and finance rollups are filtered to explicit storefront attribution only.
+          This workspace is scoped to {selectedStorefrontLabel}. Orders, analytics events, and finance rollups are filtered to explicit storefront attribution only.
         </AdminNotice>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ExecutiveMetricCard
-          label="Gross revenue"
-          value={formatPrice(periodComparison.revenue.current, currentCurrency)}
-          detail={formatDelta(periodComparison.revenue.deltaRatio)}
-          footnote={`${selectedRange.label} paid-order top-line`}
-          tone="emerald"
-        />
-        <ExecutiveMetricCard
-          label="Contribution"
-          value={formatPrice(finance.contributionMarginCents, currentCurrency)}
-          detail={formatDelta(contributionDelta)}
-          footnote={`${percent(finance.contributionMarginRatio)} after COGS and fees`}
-          tone="violet"
-        />
-        <ExecutiveMetricCard
-          label="Checkout abandonment"
-          value={percent(funnel.checkoutAbandonmentRate)}
-          detail={formatDelta(funnelComparison.checkoutAbandonmentRate.deltaRatio)}
-          footnote="drop-off after checkout start"
-          tone="amber"
-        />
-        <ExecutiveMetricCard
-          label="AOV"
-          value={formatPrice(periodComparison.aov.current, currentCurrency)}
-          detail={formatDelta(periodComparison.aov.deltaRatio)}
-          footnote="recognized paid-order average"
-          tone="slate"
-        />
-      </section>
+      <RevenueWorkspace
+        data={revenueConversion}
+        days={initialDays}
+        storefrontScope={initialStorefrontScope}
+        selectedStage={selectedStage}
+        onSelectStage={setSelectedStage}
+      />
 
-      <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-        <AdminPanel
-          title="Funnel command layer"
-          description="Track how traffic is translating into cart intent, checkout starts, and completed paid sessions across the current scope."
-        >
-          <SectionHeader
-            eyebrow="Funnel"
-            title="Stage flow and efficiency"
-            description="Use the funnel, trend lines, and delta rows together to see whether demand, product intent, or checkout completion is moving."
-          />
-          <div className="space-y-4">
-            <FunnelChart
-              stages={funnelStages}
-              selectedLabel={selectedFunnelStage}
-              onSelect={setSelectedFunnelStage}
-            />
-            <MultiSeriesTrendChart
-              labels={funnelLabels}
-              series={funnelSeries}
-              valueFormatter={(value) => `${Math.round(value)} sessions`}
-            />
-            <MultiSeriesTrendChart
-              labels={funnelLabels}
-              series={conversionRateSeries}
-              valueFormatter={(value) => `${Math.round(value)}%`}
-            />
-          </div>
-        </AdminPanel>
+      <AcquisitionWorkspace
+        live={liveSnapshot}
+        trafficSources={trafficSources}
+        days={initialDays}
+        storefrontScope={initialStorefrontScope}
+        selectedSourceLabel={selectedSourceLabel}
+        onSelectSourceLabel={setSelectedSourceLabel}
+      />
 
-        <AdminDetailPanel
-          eyebrow={funnelDetail.eyebrow}
-          title={funnelDetail.title}
-          description={funnelDetail.description}
-          metrics={funnelDetail.metrics}
-          links={funnelDetail.links}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <AdminPanel
-          title="Revenue quality"
-          description="Recognized revenue, order flow, and margin quality aligned to the selected window rather than a fixed monthly snapshot."
-        >
-          <SectionHeader
-            eyebrow="Performance"
-            title="Revenue pace and finance truth"
-            description="The sparkline tracks current-window pacing while the finance side keeps money and VAT anchored to server-side order and expense truth."
-          />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Revenue trend
-                  </div>
-                  <div className="mt-1 text-sm text-slate-400">
-                    {selectedRange.horizon}
-                  </div>
-                </div>
-                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-100">
-                  {formatPrice(periodComparison.revenue.current, currentCurrency)}
-                </span>
-              </div>
-              <SparklineChart
-                data={revenueTrend}
-                valueFormatter={(value) => formatPrice(value, currentCurrency)}
-              />
-            </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Order pace
-                  </div>
-                  <div className="mt-1 text-sm text-slate-400">
-                    recognized order volume
-                  </div>
-                </div>
-                <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-2.5 py-1 text-[11px] font-semibold text-violet-100">
-                  {periodComparison.paidOrders.current} orders
-                </span>
-              </div>
-              <SparklineChart
-                data={ordersTrend}
-                strokeClassName="stroke-violet-300"
-                fillClassName="fill-violet-400/10"
-                valueFormatter={(value) => `${Math.round(value)} orders`}
-              />
-            </div>
-          </div>
-        </AdminPanel>
-
-        <AdminDetailPanel
-          eyebrow="Finance detail"
-          title={`${selectedRange.adjective} finance truth`}
-          description="Margin, refunds, VAT, and tax coverage stay server-derived. Use this panel as the bridge between trend perception and accounting-safe truth."
-          metrics={[
-            { label: "Net revenue", value: formatPrice(finance.netRevenueCents, currentCurrency) },
-            { label: "Contribution", value: formatPrice(finance.contributionMarginCents, currentCurrency) },
-            { label: "VAT liability", value: formatPrice(vat.estimatedLiabilityCents, currentCurrency) },
-            { label: "Tax coverage", value: percent(vat.taxCoverageRate) },
-          ]}
-          links={[
-            { label: "Open finance", href: activeScopeStorefront ? `/admin/finance?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/finance?days=${initialDays}`, tone: "accent" },
-            { label: "Open VAT", href: "/admin/vat" },
-            { label: "Open reports", href: activeScopeStorefront ? `/admin/reports?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/reports?days=${initialDays}` },
-          ]}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <AdminPanel
-          title="Live demand and acquisition"
-          description="Combine current active pages with scoped traffic-source quality to understand what is happening now and where it came from."
-        >
-          <SectionHeader
-            eyebrow="Live pulse"
-            title="Active storefront pages"
-            description="Select a live page to interpret current demand concentration, then compare it to broader source quality on the right."
-          />
-          <AdminRankingTable
-            rows={topPagesRows}
-            columns={livePageColumns}
-            emptyCopy="No active storefront sessions in the current window."
-            selectedRowId={selectedTopPage?.id ?? null}
-            onSelectRow={(row) => setSelectedLivePageId(row.id)}
-            initialSortKey="active"
-          />
-        </AdminPanel>
-
-        <AdminDetailPanel
-          eyebrow="Live detail"
-          title={selectedTopPage?.path ?? "No live page selected"}
-          description={
-            selectedTopPage
-              ? "Use the selected page as the fastest read on where live attention is clustering right now."
-              : "No active storefront page is currently available in the rolling live window."
-          }
-          metrics={
-            selectedTopPage
-              ? [
-                  { label: "Page type", value: selectedTopPage.pageType },
-                  { label: "Active visitors", value: String(selectedTopPage.count) },
-                  { label: "Live total", value: String(live.activeVisitorCount) },
-                ]
-              : []
-          }
-          links={[
-            { label: "Open reports", href: activeScopeStorefront ? `/admin/reports?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/reports?days=${initialDays}`, tone: "accent" },
-            { label: "Open orders", href: "/admin/orders" },
-          ]}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <AdminPanel
-          title="Traffic-source quality"
-          description="Pair session volume with checkout starts so source growth can be separated from source quality."
-        >
-          <SectionHeader
-            eyebrow="Acquisition"
-            title="Sessions versus checkout starts"
-            description="The bar chart shows session scale while the donut keeps the acquisition mix legible in one glance."
-          />
-          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            <HorizontalBarsChart
-              data={sourceBars}
-              valueFormatter={(value) => `${value} sessions`}
-              colorClassName="bg-cyan-400"
-              selectedLabel={selectedTrafficSource?.label}
-              onSelect={setSelectedTrafficSourceLabel}
-            />
-            <DonutChart
-              data={trafficSourceMixDonut}
-              totalLabel="Sources"
-              totalValue={String(trafficSources.length)}
-              selectedLabel={selectedTrafficSource?.label}
-              onSelect={setSelectedTrafficSourceLabel}
-            />
-          </div>
-        </AdminPanel>
-
-        <AdminDetailPanel
-          eyebrow="Source detail"
-          title={selectedTrafficSource?.label ?? "No source selected"}
-          description={
-            selectedTrafficSource
-              ? "This source row helps distinguish between top-of-funnel scale and downstream buying intent."
-              : "No source data is available for the current scope."
-          }
-          metrics={
-            selectedTrafficSource
-              ? [
-                  { label: "Sessions", value: String(selectedTrafficSource.sessions) },
-                  { label: "Checkout starts", value: String(selectedTrafficSource.beginCheckout) },
-                  {
-                    label: "Checkout rate",
-                    value: percent(
-                      selectedTrafficSource.sessions > 0
-                        ? selectedTrafficSource.beginCheckout / selectedTrafficSource.sessions
-                        : 0,
-                    ),
-                  },
-                ]
-              : []
-          }
-          links={[
-            { label: "Open reports", href: activeScopeStorefront ? `/admin/reports?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/reports?days=${initialDays}`, tone: "accent" },
-            { label: "Open orders", href: "/admin/orders" },
-          ]}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <AdminPanel
-          title="Merchandising pressure"
-          description="Switch between revenue leaders, conversion leaks, and stockouts without leaving the analytics workspace."
-        >
-          <SectionHeader
-            eyebrow="Merchandising"
-            title="Product detail board"
-            description="Search, rank, and inspect products or variants that deserve the next operational decision."
-            actions={
-              <SegmentButtons
-                value={merchBoard}
-                options={[
-                  { value: "leaders", label: "Revenue leaders" },
-                  { value: "leaks", label: "Conversion leaks" },
-                  { value: "stock", label: "Stockouts" },
-                ]}
-                onChange={(value) => {
-                  setMerchBoard(value);
-                  setSelectedMerchRowId(null);
-                }}
-              />
-            }
-          />
-          <div className="mb-4">
-            <AdminInput
-              value={productQuery}
-              onChange={(event) => setProductQuery(event.target.value)}
-              placeholder="Search product or SKU"
-            />
-          </div>
-          <AdminRankingTable
-            rows={merchRows}
-            columns={topProductsColumns}
-            emptyCopy="No merchandising rows are available for this scope."
-            selectedRowId={selectedMerchRow?.id ?? null}
-            onSelectRow={(row) => setSelectedMerchRowId(row.id)}
-            initialSortKey={merchBoard === "stock" ? "available" : "revenue"}
-          />
-        </AdminPanel>
-
-        <AdminDetailPanel
-          eyebrow={merchDetail.eyebrow}
-          title={merchDetail.title}
-          description={merchDetail.description}
-          metrics={merchDetail.metrics}
-          links={merchDetail.links}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <AdminPanel
-          title="Commerce mix and quality"
-          description="Track whether recognized revenue depends on specific payment behaviors or promotional pressure."
-        >
-          <SectionHeader
-            eyebrow="Mix"
-            title="Payment and discount board"
-            description="Switch boards to inspect how revenue quality is being shaped by payment preference or discount dependence."
-            actions={
-              <SegmentButtons
-                value={mixBoard}
-                options={[
-                  { value: "payments", label: "Payments" },
-                  { value: "discounts", label: "Discounts" },
-                ]}
-                onChange={(value) => {
-                  setMixBoard(value);
-                  setSelectedMixRowId(null);
-                }}
-              />
-            }
-          />
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-            <AdminRankingTable
-              rows={mixRows}
-              columns={mixColumns}
-              emptyCopy="No payment or discount data is available for this scope."
-              selectedRowId={selectedMixRow?.id ?? null}
-              onSelectRow={(row) => setSelectedMixRowId(row.id)}
-              initialSortKey="revenue"
-            />
-            <DonutChart
-              data={mixBoard === "payments" ? paymentMixDonut : discountMixDonut}
-              totalLabel={mixBoard === "payments" ? "Payment mix" : "Promo pressure"}
-              totalValue={String(mixRows.length)}
-            />
-          </div>
-        </AdminPanel>
-
-        <AdminDetailPanel
-          eyebrow={mixDetail.eyebrow}
-          title={mixDetail.title}
-          description={mixDetail.description}
-          metrics={mixDetail.metrics}
-          links={mixDetail.links}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <AdminPanel
-          title="Customer quality"
-          description="Repeat rate and revenue mix indicate whether the current growth is healthy or increasingly dependent on one-off acquisition."
-        >
-          <SectionHeader
-            eyebrow="Customers"
-            title="Customer and retention mix"
-            description="Read customer composition and revenue quality together to understand whether the current window is compounding."
-          />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <DonutChart
-              data={customerMixDonut}
-              totalLabel="Customers"
-              totalValue={String(customers.registeredCount + customers.guestCount)}
-            />
-            <DonutChart
-              data={revenueMixDonut}
-              totalLabel="Revenue"
-              totalValue={formatPrice(retention.newRevenueCents + retention.returningRevenueCents, currentCurrency)}
-            />
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <ExecutiveMetricCard
-              label="Repeat rate"
-              value={percent(retention.repeatCustomerRate)}
-              footnote={`${customers.returningCustomerCount} returning customers`}
-              tone="emerald"
-            />
-            <ExecutiveMetricCard
-              label="High-value users"
-              value={String(customers.highValueRegisteredCount)}
-              footnote="registered customers above revenue threshold"
-              tone="violet"
-            />
-          </div>
-        </AdminPanel>
-
-        <AdminPanel
-          title="System quality"
-          description="This stays visible in the analytics workspace so operator trust in the data and recommendations can be checked without context switching."
-        >
-          <SectionHeader
-            eyebrow="Analyzer"
-            title="Model quality and exception pressure"
-            description="Fallback, low-confidence, and issue concentration help judge whether recommendation quality is a current operational risk."
-          />
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <ExecutiveMetricCard
-              label="Analyses"
-              value={String(aiQuality.totalAnalyses)}
-              footnote="lifetime shared system volume"
-              tone="slate"
-            />
-            <ExecutiveMetricCard
-              label="Fallback rate"
-              value={percent(aiQuality.fallbackRate)}
-              footnote={`${aiQuality.feedbackTotal} feedback records`}
-              tone="amber"
-            />
-            <ExecutiveMetricCard
-              label="Correct feedback"
-              value={percent(aiQuality.feedbackCorrectRate)}
-              footnote={`${percent(aiQuality.lowConfidenceRate)} low-confidence share`}
-              tone="emerald"
-            />
-          </div>
-          <HorizontalBarsChart data={issueBars} colorClassName="bg-amber-400" />
-          <div className="mt-4">
-            <AdminDetailPanel
-              eyebrow="Control actions"
-              title="Next operator paths"
-              description="When model quality moves, the next action usually belongs in the analyzer workflow rather than the storefront workflow."
-              metrics={[
-                { label: "Tracked variants", value: String(inventory.trackedVariants) },
-                { label: "Low stock", value: String(inventory.lowStockCount) },
-                { label: "Stockouts", value: String(inventory.stockoutCount) },
-              ]}
-              links={[
-                { label: "Open analyzer", href: "/admin/analyzer", tone: "accent" },
-                { label: "Open inventory", href: "/admin/inventory-adjustments" },
-                { label: "Open customers", href: "/admin/customers" },
-              ]}
-            />
-          </div>
-        </AdminPanel>
-      </div>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ExecutiveMetricCard
-          label="Paid orders"
-          value={String(periodComparison.paidOrders.current)}
-          detail={formatDelta(periodComparison.paidOrders.deltaRatio)}
-          footnote="recognized paid volume"
-          tone="slate"
-        />
-        <ExecutiveMetricCard
-          label="Refund rate"
-          value={percent(periodComparison.refundRate.current)}
-          detail={formatDelta(periodComparison.refundRate.deltaRatio)}
-          footnote="current window refund pressure"
-          tone="amber"
-        />
-        <ExecutiveMetricCard
-          label="Tax coverage"
-          value={percent(vat.taxCoverageRate)}
-          detail={vat.ordersMissingTaxCount > 0 ? `${vat.ordersMissingTaxCount} missing` : "Complete"}
-          footnote="orders with VAT coverage"
-          tone="amber"
-        />
-        <ExecutiveMetricCard
-          label="Recognized revenue mix"
-          value={formatPrice(revenue.totalCents, currentCurrency)}
-          detail={formatPrice(revenue.last30DaysCents, currentCurrency)}
-          footnote="lifetime versus current scope window"
-          tone="emerald"
-        />
-      </section>
-
-      <div className="flex flex-wrap gap-2 text-xs font-semibold">
-        <Link
-          href="/admin/orders"
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.07]"
-        >
-          Orders
-        </Link>
-        <Link
-          href="/admin/catalog"
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.07]"
-        >
-          Catalog
-        </Link>
-        <Link
-          href={activeScopeStorefront ? `/admin/finance?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/finance?days=${initialDays}`}
-          className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-100 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
-        >
-          Finance
-        </Link>
-        <Link
-          href={activeScopeStorefront ? `/admin/reports?days=${initialDays}&storefront=${activeScopeStorefront}` : `/admin/reports?days=${initialDays}`}
-          className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/15"
-        >
-          Reports
-        </Link>
-        <Link
-          href="/admin/customers"
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.07]"
-        >
-          Customers
-        </Link>
-      </div>
+      <OperationsWorkspace
+        data={operations}
+        currency={currency}
+        days={initialDays}
+        storefrontScope={initialStorefrontScope}
+        activeTab={activeOperationsTab}
+        onChangeTab={setActiveOperationsTab}
+        productBoard={productBoard}
+        onChangeProductBoard={setProductBoard}
+        productQuery={productQuery}
+        onChangeProductQuery={setProductQuery}
+        selectedRowId={selectedOperationRowId}
+        onSelectRowId={setSelectedOperationRowId}
+      />
     </div>
   );
 }
