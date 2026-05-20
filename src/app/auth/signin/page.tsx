@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { getProviders, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
@@ -80,8 +79,7 @@ export default function SignInPage() {
   }, [email, password]);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
+    <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
         <div className="rounded-md border border-black/10 bg-white p-6">
           <div className="text-center">
             <h1
@@ -343,6 +341,5 @@ export default function SignInPage() {
           </section>
         </div>
       </div>
-    </PageLayout>
   );
 }

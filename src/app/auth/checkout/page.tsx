@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
@@ -111,8 +110,7 @@ export default function CheckoutAuthPage() {
   }, [email, password]);
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
+    <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold" style={{ color: "#2f3e36" }}>
             Checkout Login
@@ -633,6 +631,5 @@ export default function CheckoutAuthPage() {
           </section>
         </div>
       </div>
-    </PageLayout>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import PageLayout from "@/components/PageLayout";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 type Props = {
@@ -64,8 +63,7 @@ export default function PasswordResetClient({
   };
 
   return (
-    <PageLayout>
-      <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
+    <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
         <div className="rounded-md border border-black/10 bg-white p-6">
           <div className="text-center">
             <h1
@@ -299,6 +297,5 @@ export default function PasswordResetClient({
           </form>
         </div>
       </div>
-    </PageLayout>
   );
 }
