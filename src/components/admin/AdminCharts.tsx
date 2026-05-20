@@ -19,6 +19,7 @@ type SparklineChartProps = {
 type BarsChartProps = {
   data: Point[];
   valueFormatter?: (value: number) => string;
+  secondaryValueFormatter?: (value: number) => string;
   colorClassName?: string;
   selectedLabel?: string;
   onSelect?: (label: string) => void;
@@ -32,6 +33,7 @@ type DonutChartProps = {
   }>;
   totalLabel?: string;
   totalValue?: string;
+  valueFormatter?: (value: number) => string;
   className?: string;
   selectedLabel?: string;
   onSelect?: (label: string) => void;
@@ -180,6 +182,7 @@ export function SparklineChart({
 export function HorizontalBarsChart({
   data,
   valueFormatter = (value) => String(value),
+  secondaryValueFormatter = valueFormatter,
   colorClassName = "bg-cyan-400",
   selectedLabel,
   onSelect,
@@ -230,7 +233,7 @@ export function HorizontalBarsChart({
               />
             </div>
             {typeof item.secondaryValue === "number" ? (
-              <div className="text-xs text-slate-500">{valueFormatter(item.secondaryValue)}</div>
+              <div className="text-xs text-slate-500">{secondaryValueFormatter(item.secondaryValue)}</div>
             ) : null}
           </button>
         );
@@ -243,6 +246,7 @@ export function DonutChart({
   data,
   totalLabel = "Total",
   totalValue,
+  valueFormatter = (value) => String(value),
   className = "",
   selectedLabel,
   onSelect,
@@ -332,7 +336,7 @@ export function DonutChart({
                 <span className="text-slate-200">{segment.label}</span>
               </div>
               <span className="font-medium text-slate-400">
-                {segment.value}
+                {valueFormatter(segment.value)}
               </span>
             </div>
           </button>
