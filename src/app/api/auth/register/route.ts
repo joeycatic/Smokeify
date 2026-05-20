@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateVerificationCode, hashToken } from "@/lib/security";
 import { sendVerificationCodeEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { resolveStorefrontFromRequest } from "@/lib/userStorefront";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
   const birthDate = birthDateRaw ? new Date(birthDateRaw) : undefined;
   const newsletterOptIn = Boolean(body.newsletterOptIn);
   const privacyAccepted = Boolean(body.privacyAccepted);
+  const registeredStorefront = resolveStorefrontFromRequest(request);
 
   if (!email || !password) {
     return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
@@ -114,7 +116,7 @@ export async function POST(request: Request) {
   const codeHash = hashToken(code);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  const user = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
         email,
@@ -130,6 +132,7 @@ export async function POST(request: Request) {
         passwordHash,
         newsletterOptIn,
         newsletterOptInAt: newsletterOptIn ? new Date() : null,
+        registeredStorefront: registeredStorefront ?? undefined,
       },
     });
 
@@ -162,7 +165,12 @@ export async function POST(request: Request) {
     return created;
   });
 
-  await sendVerificationCodeEmail({ email, code, purpose: "SIGNUP" });
+  await sendVerificationCodeEmail({
+    email,
+    code,
+    purpose: "SIGNUP",
+    storefront: registeredStorefront,
+  });
 
   return NextResponse.json({ ok: true });
 }

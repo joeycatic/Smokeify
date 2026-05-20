@@ -32,7 +32,9 @@ export async function POST(request: Request) {
     );
   }
 
-  await requestPasswordResetByEmail(email, { origin: getAppOrigin(request) });
+  await requestPasswordResetByEmail(email, {
+    fallbackOrigin: getAppOrigin(request),
+  });
 
   return NextResponse.json({ ok: true });
 }

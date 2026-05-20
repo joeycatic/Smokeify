@@ -431,6 +431,7 @@ model User {
   notes                           String?
   newsletterOptIn                 Boolean                    @default(false)
   newsletterOptInAt               DateTime?
+  registeredStorefront            Storefront?
   accounts                        Account[]
   sessions                        Session[]
   wishlistItems                   WishlistItem[]

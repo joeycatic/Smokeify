@@ -4,7 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   decryptSensitiveValue,
   generateVerificationCode,
@@ -19,6 +19,7 @@ import {
   ADMIN_LOGIN_RATE_LIMIT,
   LOGIN_RATE_LIMIT,
 } from "@/lib/rateLimit";
+import { resolveStorefrontFromHeaders } from "@/lib/userStorefront";
 
 const providers: NextAuthOptions["providers"] = [];
 const VERIFY_LOGIN_COOKIE = "smokeify_verify_login";
@@ -39,6 +40,7 @@ type LoginUserRecord = {
   adminTotpSecretEncrypted: string | null;
   adminTotpEnabledAt: Date | null;
   adminAccessDisabledAt: Date | null;
+  registeredStorefront: "MAIN" | "GROW" | null;
 };
 
 type AuthStateRecord = {
@@ -73,6 +75,7 @@ async function findUserForLoginWithGovernance(identifier: string): Promise<Login
         adminTotpSecretEncrypted: true,
         adminTotpEnabledAt: true,
         adminAccessDisabledAt: true,
+        registeredStorefront: true,
       },
     });
   } catch (error) {
@@ -98,6 +101,7 @@ async function findUserForLoginWithGovernance(identifier: string): Promise<Login
         authVersion: true,
         adminTotpSecretEncrypted: true,
         adminTotpEnabledAt: true,
+        registeredStorefront: true,
       },
     });
 
@@ -353,6 +357,7 @@ providers.push(
         email: user.email,
         code,
         purpose: "NEW_DEVICE",
+        storefront: user.registeredStorefront,
       });
 
       throw new Error("NEW_DEVICE");
@@ -378,6 +383,21 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account }) {
+      const requestHeaders = await headers();
+      const resolvedStorefront = resolveStorefrontFromHeaders(requestHeaders);
+
+      if (resolvedStorefront && user?.id) {
+        await prisma.user.updateMany({
+          where: {
+            id: String(user.id),
+            registeredStorefront: null,
+          },
+          data: {
+            registeredStorefront: resolvedStorefront,
+          },
+        });
+      }
+
       if (account?.provider !== "google" || !user?.email) {
         return true;
       }

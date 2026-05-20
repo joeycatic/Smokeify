@@ -40,7 +40,7 @@ export async function POST(
   const { id } = await context.params;
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true },
+    select: { id: true, email: true, registeredStorefront: true },
   });
 
   if (!user) {
@@ -55,8 +55,12 @@ export async function POST(
 
   try {
     await issuePasswordResetForUser(
-      { id: user.id, email: user.email },
-      { origin: getAppOrigin(request) }
+      {
+        id: user.id,
+        email: user.email,
+        registeredStorefront: user.registeredStorefront,
+      },
+      { fallbackOrigin: getAppOrigin(request) }
     );
   } catch {
     return NextResponse.json(

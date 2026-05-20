@@ -38,13 +38,23 @@ export async function POST(request: Request) {
   const identifierLower = identifier.toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email: identifierLower },
-    select: { id: true, email: true, emailVerified: true },
+    select: {
+      id: true,
+      email: true,
+      emailVerified: true,
+      registeredStorefront: true,
+    },
   });
   const resolvedUser =
     user ??
     (await prisma.user.findUnique({
       where: { name: identifier },
-      select: { id: true, email: true, emailVerified: true },
+      select: {
+        id: true,
+        email: true,
+        emailVerified: true,
+        registeredStorefront: true,
+      },
     }));
 
   if (!resolvedUser || !resolvedUser.email) {
@@ -91,6 +101,7 @@ export async function POST(request: Request) {
     email: resolvedUser.email,
     code,
     purpose,
+    storefront: resolvedUser.registeredStorefront,
   });
 
   return NextResponse.json({ ok: true });
