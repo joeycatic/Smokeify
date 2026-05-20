@@ -31,6 +31,7 @@ export default async function PasswordResetPage({ searchParams }: PageProps) {
       initialEmail={initialEmail}
       initialCode={initialCode}
       preferredSignInOrigin={preferredSignInOrigin}
+      storefrontVariant={initialStorefront ?? "MAIN"}
     />
   );
 }

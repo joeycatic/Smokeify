@@ -7,12 +7,14 @@ type Props = {
   initialEmail?: string;
   initialCode?: string;
   preferredSignInOrigin?: string | null;
+  storefrontVariant?: "MAIN" | "GROW";
 };
 
 export default function PasswordResetClient({
   initialEmail = "",
   initialCode = "",
   preferredSignInOrigin = null,
+  storefrontVariant = "MAIN",
 }: Props) {
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const passwordRef = useRef<HTMLInputElement | null>(null);
@@ -21,11 +23,7 @@ export default function PasswordResetClient({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState(
-    initialCode.length === 6
-      ? "Reset link loaded. Enter a new password to finish."
-      : ""
-  );
+  const [notice, setNotice] = useState("");
   const [requestStatus, setRequestStatus] = useState<
     "idle" | "sending" | "sent" | "limited" | "error"
   >("idle");
@@ -34,11 +32,7 @@ export default function PasswordResetClient({
   useEffect(() => {
     setEmail(initialEmail);
     setCode(initialCode);
-    setNotice(
-      initialCode.length === 6
-        ? "Reset link loaded. Enter a new password to finish."
-        : ""
-    );
+    setNotice("");
   }, [initialCode, initialEmail]);
 
   useEffect(() => {
@@ -48,6 +42,7 @@ export default function PasswordResetClient({
   }, [initialCode]);
 
   const prefilledFromLink = code.length === 6 && code === initialCode;
+  const isGrowVariant = storefrontVariant === "GROW";
   const buildSignInDestination = (targetEmail: string) => {
     if (!preferredSignInOrigin) {
       return targetEmail
@@ -62,26 +57,89 @@ export default function PasswordResetClient({
     return url.toString();
   };
 
+  const renderMessage = (
+    tone: "success" | "error",
+    message: string,
+    secondary?: string
+  ) =>
+    isGrowVariant ? (
+      <div
+        className={`rounded-[18px] border px-4 py-3 text-sm leading-6 ${
+          tone === "success"
+            ? "border-[#3c6c49] bg-[#132418] text-[#d8ffe8]"
+            : "border-[#6a2b2b] bg-[#2a1212] text-[#ffd7d7]"
+        }`}
+      >
+        <p>{message}</p>
+        {secondary ? <p className="mt-1 text-sm opacity-90">{secondary}</p> : null}
+      </div>
+    ) : (
+      <p className={tone === "success" ? "text-xs text-green-700" : "text-xs text-red-600"}>
+        {message}
+      </p>
+    );
+
   return (
-    <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
-        <div className="rounded-md border border-black/10 bg-white p-6">
+    <div
+      className={
+        isGrowVariant
+          ? "mx-auto max-w-3xl py-8 text-[#edf2ed] sm:py-10"
+          : "mx-auto max-w-md px-6 py-12 text-stone-800"
+      }
+    >
+      <div className={isGrowVariant ? "mx-auto max-w-[40rem]" : undefined}>
+        <div
+          className={
+            isGrowVariant
+              ? "relative overflow-hidden rounded-[30px] border border-[#243a28] bg-[radial-gradient(circle_at_top_left,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,#101b12,#081109)] px-6 py-6 text-[#edf2ed] shadow-[0_28px_90px_rgba(4,10,5,0.45)] sm:px-7 sm:py-7"
+              : "rounded-md border border-black/10 bg-white p-6"
+          }
+        >
+          {isGrowVariant ? (
+            <>
+              <div className="absolute left-0 top-0 h-32 w-32 -translate-x-8 -translate-y-8 rounded-full bg-[#a3e635]/12 blur-3xl" />
+              <div className="absolute bottom-0 right-0 h-36 w-36 translate-x-8 translate-y-10 rounded-full bg-[#7ddc53]/10 blur-3xl" />
+            </>
+          ) : null}
           <div className="text-center">
-            <h1
-              className="text-3xl font-bold mb-2"
-              style={{ color: "#2f3e36" }}
-            >
-              Passwort zurücksetzen
-            </h1>
-            <p className="text-sm text-stone-600 mb-6">
-              Wir senden dir einen Code, mit dem du dein Passwort ändern kannst.
-            </p>
+            {isGrowVariant ? (
+              <>
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#a3e635]">
+                  GrowVault Access
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[#edf2ed]">
+                  Passwort zurücksetzen
+                </h1>
+                <p className="mt-3 mb-6 text-sm leading-6 text-[#91a191]">
+                  Öffne deinen GrowVault Zugang wieder mit einem Reset-Code und setze direkt ein neues Passwort.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1
+                  className="mb-2 text-3xl font-bold"
+                  style={{ color: "#2f3e36" }}
+                >
+                  Passwort zurücksetzen
+                </h1>
+                <p className="mb-6 text-sm text-stone-600">
+                  Wir senden dir einen Code, mit dem du dein Passwort ändern kannst.
+                </p>
+              </>
+            )}
           </div>
 
           {prefilledFromLink ? (
-            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-              Der Reset-Code wurde aus dem E-Mail-Link übernommen. Du kannst direkt ein neues
-              Passwort setzen.
-            </div>
+            isGrowVariant ? (
+              <div className="mb-4 rounded-[18px] border border-[#3c6c49] bg-[#132418] px-4 py-3 text-sm leading-6 text-[#d8ffe8]">
+                Der Reset-Code wurde aus dem E-Mail-Link übernommen. Du kannst direkt ein neues Passwort setzen.
+              </div>
+            ) : (
+              <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Der Reset-Code wurde aus dem E-Mail-Link übernommen. Du kannst direkt ein neues
+                Passwort setzen.
+              </div>
+            )
           ) : null}
 
           <form
@@ -123,7 +181,13 @@ export default function PasswordResetClient({
             }}
             className="space-y-3"
           >
-            <label className="block text-xs font-semibold text-stone-600">
+            <label
+              className={
+                isGrowVariant
+                  ? "block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#91a191]"
+                  : "block text-xs font-semibold text-stone-600"
+              }
+            >
               Email *
             </label>
             <input
@@ -131,7 +195,11 @@ export default function PasswordResetClient({
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className={
+                isGrowVariant
+                  ? "h-12 w-full rounded-[18px] border border-[#243328] bg-[#0d160f] px-4 text-sm text-[#edf2ed] outline-none placeholder:text-[#91a191] focus:border-[#a3e635]/40 focus:bg-[#132418] focus:ring-2 focus:ring-[#a3e635]/15"
+                  : "w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              }
             />
             <button
               type="button"
@@ -163,7 +231,11 @@ export default function PasswordResetClient({
                   setRequestStatus("error");
                 }
               }}
-              className="h-11 w-full rounded-md border border-black/20 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 disabled:opacity-60"
+              className={
+                isGrowVariant
+                  ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[#243328] bg-[#101a12] px-4 text-sm font-semibold text-[#edf2ed] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#a3e635]/30 hover:bg-[#132418] disabled:cursor-not-allowed disabled:opacity-60"
+                  : "h-11 w-full rounded-md border border-black/20 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90 disabled:opacity-60"
+              }
             >
               {requestStatus === "sending" ? (
                 <span className="inline-flex items-center gap-2">
@@ -175,7 +247,13 @@ export default function PasswordResetClient({
               )}
             </button>
 
-            <label className="block text-xs font-semibold text-stone-600">
+            <label
+              className={
+                isGrowVariant
+                  ? "block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#91a191]"
+                  : "block text-xs font-semibold text-stone-600"
+              }
+            >
               Code *
             </label>
             <div className="grid grid-cols-6 gap-2">
@@ -228,11 +306,21 @@ export default function PasswordResetClient({
                   ref={(el) => {
                     codeRefs.current[index] = el;
                   }}
-                  className="h-12 w-full rounded-md border border-black/10 text-center text-lg font-semibold text-stone-800 outline-none focus:border-black/30"
+                  className={
+                    isGrowVariant
+                      ? "h-12 w-full rounded-[16px] border border-[#243328] bg-[#0d160f] text-center text-lg font-semibold text-[#edf2ed] outline-none focus:border-[#a3e635]/40 focus:bg-[#132418] focus:ring-2 focus:ring-[#a3e635]/15"
+                      : "h-12 w-full rounded-md border border-black/10 text-center text-lg font-semibold text-stone-800 outline-none focus:border-black/30"
+                  }
                 />
               ))}
             </div>
-            <label className="block text-xs font-semibold text-stone-600">
+            <label
+              className={
+                isGrowVariant
+                  ? "block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#91a191]"
+                  : "block text-xs font-semibold text-stone-600"
+              }
+            >
               Neues Passwort *
             </label>
             <input
@@ -241,9 +329,19 @@ export default function PasswordResetClient({
               ref={passwordRef}
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className={
+                isGrowVariant
+                  ? "h-12 w-full rounded-[18px] border border-[#243328] bg-[#0d160f] px-4 text-sm text-[#edf2ed] outline-none placeholder:text-[#91a191] focus:border-[#a3e635]/40 focus:bg-[#132418] focus:ring-2 focus:ring-[#a3e635]/15"
+                  : "w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              }
             />
-            <label className="block text-xs font-semibold text-stone-600">
+            <label
+              className={
+                isGrowVariant
+                  ? "block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#91a191]"
+                  : "block text-xs font-semibold text-stone-600"
+              }
+            >
               Passwort bestätigen *
             </label>
             <input
@@ -251,29 +349,33 @@ export default function PasswordResetClient({
               required
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className={
+                isGrowVariant
+                  ? "h-12 w-full rounded-[18px] border border-[#243328] bg-[#0d160f] px-4 text-sm text-[#edf2ed] outline-none placeholder:text-[#91a191] focus:border-[#a3e635]/40 focus:bg-[#132418] focus:ring-2 focus:ring-[#a3e635]/15"
+                  : "w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              }
             />
 
             {requestStatus === "sent" && (
-              <p className="text-xs text-green-700">Code wurde gesendet.</p>
+              renderMessage("success", "Code wurde gesendet.")
             )}
             {requestStatus === "limited" && (
-              <p className="text-xs text-red-600">
-                Zu viele Anfragen. Bitte später erneut versuchen.
-              </p>
+              renderMessage("error", "Zu viele Anfragen. Bitte später erneut versuchen.")
             )}
             {requestStatus === "error" && (
-              <p className="text-xs text-red-600">
-                Code konnte nicht gesendet werden.
-              </p>
+              renderMessage("error", "Code konnte nicht gesendet werden.")
             )}
-            {notice && <p className="text-xs text-green-700">{notice}</p>}
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {notice ? renderMessage("success", notice) : null}
+            {error ? renderMessage("error", error) : null}
 
             <button
               type="submit"
               disabled={saving}
-              className="h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className={
+                isGrowVariant
+                  ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-[#a3e635] px-4 text-sm font-semibold text-[#081109] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  : "h-12 w-full rounded-md bg-[#3a4b41] px-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              }
             >
               {saving ? (
                 <span className="inline-flex items-center gap-2">
@@ -290,12 +392,17 @@ export default function PasswordResetClient({
             <button
               type="button"
               onClick={() => window.location.assign(buildSignInDestination(email))}
-              className="h-12 w-full rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
+              className={
+                isGrowVariant
+                  ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[#243328] bg-[#101a12] px-4 text-sm font-semibold text-[#edf2ed] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#a3e635]/30 hover:bg-[#132418]"
+                  : "h-12 w-full rounded-md border border-black/20 px-4 text-base font-semibold text-stone-700 transition hover:border-black/30 hover:opacity-90"
+              }
             >
               Zurück zum login
             </button>
           </form>
         </div>
       </div>
+    </div>
   );
 }
