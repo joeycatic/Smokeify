@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AdminButton,
@@ -123,6 +123,9 @@ type CheckoutRecoveryOverview = {
   metrics: {
     totalSessions: number;
     consentedSessions: number;
+    activeSessions: number;
+    suppressedSessions: number;
+    completedSessions: number;
     dueNowCount: number;
     recoveredOrders: number;
     recoveredRevenueCents: number;
@@ -155,6 +158,35 @@ type CheckoutRecoveryOverview = {
     totalCents: number;
     isGuest: boolean;
   }>;
+  sessions: Array<{
+    id: string;
+    stripeSessionId: string;
+    customerEmail: string | null;
+    storefront: "MAIN" | "GROW" | null;
+    totalCents: number;
+    isGuest: boolean;
+    state: "active" | "suppressed" | "completed";
+    suppressedAt: string | null;
+    suppressionReason: string | null;
+    completedAt: string | null;
+    createdAt: string;
+    nextStep: {
+      stepIndex: number;
+      stepLabel: string;
+      scheduledFor: string;
+      isDueNow: boolean;
+    } | null;
+    lastAttempt: {
+      stepIndex: number;
+      status: string;
+      sentAt: string | null;
+      scheduledFor: string;
+      skipReason: string | null;
+      errorMessage: string | null;
+    } | null;
+  }>;
+  sessionPage: number;
+  hasMoreSessions: boolean;
 };
 
 const formatDate = (value: string | null) =>
@@ -182,12 +214,14 @@ export default function AdminOpsClient({
   unresolvedAttributionCount,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const [automationJobs, setAutomationJobs] = useState(initialAutomationJobs);
   const [automationSchedules, setAutomationSchedules] = useState(initialAutomationSchedules);
   const [checkoutRecovery, setCheckoutRecovery] = useState(initialCheckoutRecovery);
   const [failedWebhookEvents, setFailedWebhookEvents] = useState(initialFailedWebhookEvents);
   const [pendingAutomationAction, setPendingAutomationAction] = useState<string | null>(null);
   const [pendingRecoveryAction, setPendingRecoveryAction] = useState<string | null>(null);
+  const [suppressionReasons, setSuppressionReasons] = useState<Record<string, string>>({});
   const [replayingEventId, setReplayingEventId] = useState<string | null>(null);
   const [testRecipient, setTestRecipient] = useState("");
   const [testStepIndex, setTestStepIndex] = useState(String(initialCheckoutRecovery.schedule.payload.steps[0]?.stepIndex ?? 1));
@@ -454,6 +488,34 @@ export default function AdminOpsClient({
     );
   };
 
+  const runRecoverySessionAction = async (
+    sessionId: string,
+    action: "suppress" | "resume" | "send_now",
+  ) => {
+    await runRecoveryAction(
+      `session:${action}:${sessionId}`,
+      () =>
+        fetch(`/api/admin/checkout-recovery/sessions/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            reason: suppressionReasons[sessionId] ?? "",
+          }),
+        }),
+      () => {
+        setNotice(
+          action === "suppress"
+            ? "Checkout recovery session suppressed."
+            : action === "resume"
+              ? "Checkout recovery session resumed."
+              : "Checkout recovery step sent.",
+        );
+        router.refresh();
+      },
+    );
+  };
+
   const linkedRecoverySchedule = automationSchedules.find(
     (schedule) => schedule.key === checkoutRecovery.schedule.key,
   );
@@ -503,7 +565,7 @@ export default function AdminOpsClient({
         title="Checkout recovery control"
         description="Preview, test, configure, and manually run checkout recovery while the underlying schedule stays paused until ops explicitly resumes it."
       >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <AdminMetricCard
             label="Schedule"
             value={checkoutRecovery.schedule.status}
@@ -523,6 +585,16 @@ export default function AdminOpsClient({
             label="Recovered revenue"
             value={formatMoney(checkoutRecovery.metrics.recoveredRevenueCents)}
             detail="linked revenue"
+          />
+          <AdminMetricCard
+            label="Active sessions"
+            value={String(checkoutRecovery.metrics.activeSessions)}
+            detail="eligible and unsuppressed"
+          />
+          <AdminMetricCard
+            label="Suppressed"
+            value={String(checkoutRecovery.metrics.suppressedSessions)}
+            detail="held by ops"
           />
         </div>
 
@@ -780,6 +852,150 @@ export default function AdminOpsClient({
                 >
                   {pendingRecoveryAction === "test-send" ? "Sending..." : "Send test email"}
                 </AdminButton>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-white">Recovery sessions</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Active, suppressed, and completed sessions with direct ops controls.
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400">
+                  Page {checkoutRecovery.sessionPage}
+                </div>
+              </div>
+              <div className="mt-3 space-y-3">
+                {checkoutRecovery.sessions.length === 0 ? (
+                  <div className="text-sm text-slate-400">No recovery sessions found.</div>
+                ) : (
+                  checkoutRecovery.sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-white">
+                            {session.customerEmail || "No email"} · {formatMoney(session.totalCents)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {session.storefront || "Unknown storefront"} ·{" "}
+                            {session.isGuest ? "Guest" : "Logged in"} · created{" "}
+                            {formatDate(session.createdAt)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-400">
+                            State {session.state}
+                            {session.suppressionReason
+                              ? ` · ${session.suppressionReason}`
+                              : session.completedAt
+                                ? ` · completed ${formatDate(session.completedAt)}`
+                                : ""}
+                          </div>
+                          {session.nextStep ? (
+                            <div className="mt-2 text-xs text-cyan-200">
+                              Next {session.nextStep.stepLabel} ·{" "}
+                              {session.nextStep.isDueNow
+                                ? "due now"
+                                : `scheduled ${formatDate(session.nextStep.scheduledFor)}`}
+                            </div>
+                          ) : null}
+                          {session.lastAttempt ? (
+                            <div className="mt-2 text-xs text-slate-400">
+                              Last attempt {session.lastAttempt.stepIndex} · {session.lastAttempt.status}
+                              {session.lastAttempt.skipReason || session.lastAttempt.errorMessage
+                                ? ` · ${session.lastAttempt.skipReason || session.lastAttempt.errorMessage}`
+                                : ""}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="w-full max-w-sm space-y-2">
+                          {session.state === "active" ? (
+                            <>
+                              <AdminField label="Suppress reason">
+                                <AdminInput
+                                  value={suppressionReasons[session.id] ?? ""}
+                                  onChange={(event) =>
+                                    setSuppressionReasons((current) => ({
+                                      ...current,
+                                      [session.id]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Hold this session and explain why"
+                                />
+                              </AdminField>
+                              <div className="flex flex-wrap gap-2">
+                                <AdminButton
+                                  tone="secondary"
+                                  disabled={
+                                    pendingRecoveryAction === `session:send_now:${session.id}` ||
+                                    !session.nextStep
+                                  }
+                                  onClick={() => void runRecoverySessionAction(session.id, "send_now")}
+                                >
+                                  {pendingRecoveryAction === `session:send_now:${session.id}`
+                                    ? "Sending..."
+                                    : "Send now"}
+                                </AdminButton>
+                                <AdminButton
+                                  tone="danger"
+                                  disabled={
+                                    pendingRecoveryAction === `session:suppress:${session.id}` ||
+                                    !(suppressionReasons[session.id] ?? "").trim()
+                                  }
+                                  onClick={() => void runRecoverySessionAction(session.id, "suppress")}
+                                >
+                                  {pendingRecoveryAction === `session:suppress:${session.id}`
+                                    ? "Saving..."
+                                    : "Suppress"}
+                                </AdminButton>
+                              </div>
+                            </>
+                          ) : session.state === "suppressed" ? (
+                            <div className="flex flex-wrap gap-2">
+                              <AdminButton
+                                tone="secondary"
+                                disabled={pendingRecoveryAction === `session:resume:${session.id}`}
+                                onClick={() => void runRecoverySessionAction(session.id, "resume")}
+                              >
+                                {pendingRecoveryAction === `session:resume:${session.id}`
+                                  ? "Resuming..."
+                                  : "Resume"}
+                              </AdminButton>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="text-xs text-slate-500">
+                  Completed sessions: {checkoutRecovery.metrics.completedSessions}
+                </div>
+                <div className="flex gap-2">
+                  {checkoutRecovery.sessionPage > 1 ? (
+                    <Link
+                      href={`${pathname}?recoveryPage=${checkoutRecovery.sessionPage - 1}`}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                    >
+                      Previous
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                  {checkoutRecovery.hasMoreSessions ? (
+                    <Link
+                      href={`${pathname}?recoveryPage=${checkoutRecovery.sessionPage + 1}`}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                    >
+                      Next
+                    </Link>
+                  ) : null}
+                </div>
               </div>
             </div>
 
