@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   GROWVAULT_ANALYZER_BRIDGE_REMOVAL_DATE,
   GROWVAULT_ANALYZER_PATH,
@@ -11,6 +11,46 @@ import {
 } from "@/lib/growvaultPublicStorefront";
 
 vi.mock("server-only", () => ({}));
+
+const ORIGINAL_NEXT_PUBLIC_GROWVAULT_APP_URL =
+  process.env.NEXT_PUBLIC_GROWVAULT_APP_URL;
+const ORIGINAL_GROWVAULT_APP_URL = process.env.GROWVAULT_APP_URL;
+const ORIGINAL_NEXT_PUBLIC_GROW_APP_URL = process.env.NEXT_PUBLIC_GROW_APP_URL;
+const ORIGINAL_GROW_APP_URL = process.env.GROW_APP_URL;
+
+async function loadGrowvaultPublicStorefrontModule() {
+  vi.resetModules();
+  return import("@/lib/growvaultPublicStorefront");
+}
+
+afterEach(() => {
+  vi.resetModules();
+
+  if (typeof ORIGINAL_NEXT_PUBLIC_GROWVAULT_APP_URL === "string") {
+    process.env.NEXT_PUBLIC_GROWVAULT_APP_URL =
+      ORIGINAL_NEXT_PUBLIC_GROWVAULT_APP_URL;
+  } else {
+    delete process.env.NEXT_PUBLIC_GROWVAULT_APP_URL;
+  }
+
+  if (typeof ORIGINAL_GROWVAULT_APP_URL === "string") {
+    process.env.GROWVAULT_APP_URL = ORIGINAL_GROWVAULT_APP_URL;
+  } else {
+    delete process.env.GROWVAULT_APP_URL;
+  }
+
+  if (typeof ORIGINAL_NEXT_PUBLIC_GROW_APP_URL === "string") {
+    process.env.NEXT_PUBLIC_GROW_APP_URL = ORIGINAL_NEXT_PUBLIC_GROW_APP_URL;
+  } else {
+    delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+  }
+
+  if (typeof ORIGINAL_GROW_APP_URL === "string") {
+    process.env.GROW_APP_URL = ORIGINAL_GROW_APP_URL;
+  } else {
+    delete process.env.GROW_APP_URL;
+  }
+});
 
 describe("growvaultPublicStorefront", () => {
   it("keeps the canonical growvault analyzer path stable", () => {
@@ -39,6 +79,19 @@ describe("growvaultPublicStorefront", () => {
   it("builds the canonical growvault customizer url", () => {
     expect(buildGrowvaultCustomizerUrl()).toBe(
       "https://www.growvault.de/customizer",
+    );
+  });
+
+  it("accepts the legacy grow app env alias for the analyzer bridge target", async () => {
+    delete process.env.NEXT_PUBLIC_GROWVAULT_APP_URL;
+    delete process.env.GROWVAULT_APP_URL;
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "http://127.0.0.1:3000";
+
+    const module = await loadGrowvaultPublicStorefrontModule();
+
+    expect(module.GROWVAULT_PUBLIC_URL).toBe("http://127.0.0.1:3000");
+    expect(module.buildGrowvaultAnalyzerUrl()).toBe(
+      "http://127.0.0.1:3000/pflanzen-analyse",
     );
   });
 });

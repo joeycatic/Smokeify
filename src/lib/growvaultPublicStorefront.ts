@@ -24,6 +24,8 @@ function normalizeSearch(search?: string) {
 export const GROWVAULT_PUBLIC_URL = normalizeUrl(
   process.env.NEXT_PUBLIC_GROWVAULT_APP_URL ??
     process.env.GROWVAULT_APP_URL ??
+    process.env.NEXT_PUBLIC_GROW_APP_URL ??
+    process.env.GROW_APP_URL ??
     undefined,
   DEFAULT_GROWVAULT_PUBLIC_URL,
 );

@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import {
   AdminButton,
   AdminInput,
+  AdminNotice,
   AdminPageIntro,
   AdminPanel,
   AdminSelect,
@@ -57,6 +58,13 @@ type AnalyzerRunSummary = {
   lowConfidence: number;
   critical: number;
   submitted: number;
+};
+
+type GrowvaultBridgeStatus = {
+  ok: boolean;
+  targetUrl: string | null;
+  status: number | null;
+  error: string | null;
 };
 
 const REVIEW_STATUS_OPTIONS = [
@@ -118,6 +126,12 @@ export default function AdminAnalyzerClient() {
     submitted: 0,
   });
   const [sourceLabel, setSourceLabel] = useState("growvault");
+  const [growvaultBridge, setGrowvaultBridge] = useState<GrowvaultBridgeStatus>({
+    ok: true,
+    targetUrl: null,
+    status: null,
+    error: null,
+  });
   const [query, setQuery] = useState("");
   const [includeResolved, setIncludeResolved] = useState(false);
   const [reviewStatus, setReviewStatus] = useState("");
@@ -204,6 +218,7 @@ export default function AdminAnalyzerClient() {
         runs?: AnalyzerRunRecord[];
         summary?: AnalyzerRunSummary;
         source?: string;
+        growvaultBridge?: GrowvaultBridgeStatus;
         error?: string;
       };
       if (!response.ok) {
@@ -222,6 +237,14 @@ export default function AdminAnalyzerClient() {
         },
       );
       setSourceLabel(data.source ?? "growvault");
+      setGrowvaultBridge(
+        data.growvaultBridge ?? {
+          ok: true,
+          targetUrl: null,
+          status: null,
+          error: null,
+        },
+      );
       setSelectedId((current) =>
         current && nextRuns.some((run) => run.id === current)
           ? current
@@ -339,6 +362,8 @@ export default function AdminAnalyzerClient() {
     }
   };
 
+  const showGrowvaultBridgeWarning = activeView === "shared" && !growvaultBridge.ok;
+
   return (
     <div className="space-y-5">
       <AdminPageIntro
@@ -406,6 +431,17 @@ export default function AdminAnalyzerClient() {
           </div>
         }
       />
+
+      {showGrowvaultBridgeWarning ? (
+        <AdminNotice tone="warning">
+          Growvault runs are not currently loading into the shared queue.
+          {growvaultBridge.error ? ` ${growvaultBridge.error}` : ""}
+          {growvaultBridge.targetUrl ? ` Bridge target: ${growvaultBridge.targetUrl}.` : ""}
+          {typeof growvaultBridge.status === "number"
+            ? ` Bridge response: ${growvaultBridge.status}.`
+            : ""}
+        </AdminNotice>
+      ) : null}
 
       <AdminPanel
         title="Workflow"

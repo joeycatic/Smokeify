@@ -4,7 +4,17 @@ import {
   getPlantAnalysisReviewPriority,
   normalizePlantAnalysisReviewStatus,
 } from "@/lib/adminPlantAnalysis";
-import { fetchGrowvaultAnalyzerAdminJson } from "@/lib/growvaultAnalyzerAdminBridge";
+import {
+  canPublishAnalyzerRunFromReviewState,
+  getStoredPublicationRequestStatus,
+  mergeAnalyzerAdminFeeds,
+  type AnalyzerAdminRun as AnalyzerRun,
+} from "@/lib/analyzerAdminQueue";
+import {
+  fetchGrowvaultAnalyzerAdminJson,
+  getGrowvaultAnalyzerAdminBridgeTarget,
+  hasGrowvaultAnalyzerAdminBridge,
+} from "@/lib/growvaultAnalyzerAdminBridge";
 import { prisma } from "@/lib/prisma";
 import { parseAdminStorefrontScope, type AdminStorefrontScope } from "@/lib/storefronts";
 
@@ -17,50 +27,17 @@ type AnalyzerSummary = {
   submitted: number;
 };
 
-type AnalyzerRun = {
-  id: string;
-  userId: string | null;
-  userEmail: string | null;
-  provider: string;
-  model: string;
-  latencyMs?: number | null;
-  confidence: number;
-  confidenceBand?: "low" | "medium" | "high";
-  needsHumanReview?: boolean;
-  healthStatus: string;
-  species: string;
-  reviewStatus: string;
-  reviewNotes: string | null;
-  safetyFlags: string[];
-  imageUri: string | null;
-  createdAt: string;
-  priority: number;
-  publicationStatus?: string | null;
-  publicationEligible?: boolean;
-  feedbackCount?: number;
-  incorrectFeedbackCount?: number;
-  lastFeedback?: {
-    id: string;
-    createdAt: string;
-    isCorrect: boolean;
-    label: string | null;
-    comment: string | null;
-    source: string;
-  } | null;
-  issues: Array<{
-    id: string;
-    label: string;
-    confidence: number;
-    severity: string;
-    position?: number;
-  }>;
-};
-
 type AnalyzerQueueResponse = {
   source: string;
   storefront: AdminStorefrontScope;
   summary: AnalyzerSummary;
   runs: AnalyzerRun[];
+  growvaultBridge: {
+    ok: boolean;
+    targetUrl: string | null;
+    status: number | null;
+    error: string | null;
+  };
 };
 
 const clampLimit = (value: string | null) => {
@@ -90,6 +67,7 @@ const finalizeAnalyzerQueue = (
   limit: number,
   source: string,
   storefront: AdminStorefrontScope,
+  growvaultBridge: AnalyzerQueueResponse["growvaultBridge"],
 ): AnalyzerQueueResponse => {
   const visibleRuns = [...runs].sort(sortAnalyzerRunsByDate).slice(0, limit);
   return {
@@ -97,6 +75,7 @@ const finalizeAnalyzerQueue = (
     storefront,
     summary: buildAnalyzerSummary(visibleRuns),
     runs: visibleRuns,
+    growvaultBridge,
   };
 };
 
@@ -185,8 +164,11 @@ async function loadLocalAnalyzerRuns({
         severity: issue.severity,
         position: issue.position,
       })),
-      publicationStatus: null,
-      publicationEligible: run.safetyFlags.length === 0,
+      publicationStatus: getStoredPublicationRequestStatus(run.outputJson),
+      publicationEligible: canPublishAnalyzerRunFromReviewState({
+        reviewStatus: run.reviewStatus,
+        safetyFlags: run.safetyFlags,
+      }),
       feedbackCount: run._count.feedback,
       incorrectFeedbackCount,
       lastFeedback: run.feedback[0]
@@ -205,7 +187,25 @@ async function loadLocalAnalyzerRuns({
 
 async function loadGrowvaultAnalyzerRuns(
   searchParams: URLSearchParams,
-): Promise<{ runs: AnalyzerRun[]; source: string } | null> {
+): Promise<{
+  runs: AnalyzerRun[];
+  source: string;
+  bridge: AnalyzerQueueResponse["growvaultBridge"];
+} | null> {
+  const bridgeTarget = getGrowvaultAnalyzerAdminBridgeTarget();
+  if (!hasGrowvaultAnalyzerAdminBridge()) {
+    return {
+      runs: [],
+      source: "growvault",
+      bridge: {
+        ok: false,
+        targetUrl: bridgeTarget,
+        status: null,
+        error: "Growvault bridge is not configured.",
+      },
+    };
+  }
+
   const bridge = await fetchGrowvaultAnalyzerAdminJson<{
     source: string;
     storefront: string;
@@ -242,7 +242,18 @@ async function loadGrowvaultAnalyzerRuns(
   }>("/api/internal/admin/analyzer/runs", searchParams.toString());
 
   if (!bridge?.ok) {
-    return null;
+    return {
+      runs: [],
+      source: "growvault",
+      bridge: {
+        ok: false,
+        targetUrl: bridgeTarget,
+        status: bridge?.status ?? null,
+        error:
+          bridge?.payload.error ??
+          "Growvault analyzer runs could not be loaded through the shared bridge.",
+      },
+    };
   }
 
   const items = bridge.payload.items ?? [];
@@ -279,6 +290,12 @@ async function loadGrowvaultAnalyzerRuns(
         position: index,
       })),
     })),
+    bridge: {
+      ok: true,
+      targetUrl: bridgeTarget,
+      status: bridge.status,
+      error: null,
+    },
   };
 }
 
@@ -304,32 +321,59 @@ export async function GET(request: Request) {
         });
   const growvaultRunsPromise =
     storefront === "MAIN"
-      ? Promise.resolve<{ runs: AnalyzerRun[]; source: string } | null>(null)
+      ? Promise.resolve<{
+          runs: AnalyzerRun[];
+          source: string;
+          bridge: AnalyzerQueueResponse["growvaultBridge"];
+        } | null>(null)
       : loadGrowvaultAnalyzerRuns(searchParams);
 
   const [localRuns, growvaultRuns] = await Promise.all([
     localRunsPromise,
     growvaultRunsPromise,
   ]);
+  const growvaultBridge =
+    growvaultRuns?.bridge ??
+    ({
+      ok: true,
+      targetUrl: getGrowvaultAnalyzerAdminBridgeTarget(),
+      status: null,
+      error: null,
+    } satisfies AnalyzerQueueResponse["growvaultBridge"]);
 
   if (storefront === "GROW") {
-    if (!growvaultRuns) {
+    if (!growvaultBridge.ok) {
       return NextResponse.json(
-        { error: "Growvault analyzer runs are currently unavailable." },
+        {
+          error: growvaultBridge.error ?? "Growvault analyzer runs are currently unavailable.",
+          growvaultBridge,
+        },
         { status: 502 },
       );
     }
     return NextResponse.json(
-      finalizeAnalyzerQueue(growvaultRuns.runs, limit, growvaultRuns.source, storefront),
+      finalizeAnalyzerQueue(
+        growvaultRuns?.runs ?? [],
+        limit,
+        growvaultRuns?.source ?? "growvault",
+        storefront,
+        growvaultBridge,
+      ),
     );
   }
 
   if (storefront === "MAIN") {
-    return NextResponse.json(finalizeAnalyzerQueue(localRuns, limit, "smokeify", storefront));
+    return NextResponse.json(
+      finalizeAnalyzerQueue(localRuns, limit, "smokeify", storefront, growvaultBridge),
+    );
   }
 
-  const combinedRuns = growvaultRuns ? [...localRuns, ...growvaultRuns.runs] : localRuns;
-  const source = growvaultRuns ? "smokeify + growvault" : "smokeify";
+  const combinedRuns = growvaultBridge.ok
+    ? mergeAnalyzerAdminFeeds(localRuns, growvaultRuns?.runs ?? [])
+    : localRuns;
+  const source = growvaultBridge.ok ? "smokeify + growvault" : "smokeify";
 
-  return NextResponse.json(finalizeAnalyzerQueue(combinedRuns, limit, source, storefront));
+  return NextResponse.json(
+    finalizeAnalyzerQueue(combinedRuns, limit, source, storefront, growvaultBridge),
+  );
 }

@@ -43,6 +43,10 @@ export function hasGrowvaultAnalyzerAdminBridge() {
   return Boolean(GROWVAULT_PUBLIC_URL && SHARED_CONTROL_PLANE_TOKEN);
 }
 
+export function getGrowvaultAnalyzerAdminBridgeTarget() {
+  return GROWVAULT_PUBLIC_URL || null;
+}
+
 export async function fetchGrowvaultAnalyzerAdminJson<T>(
   pathname: string,
   search = "",
