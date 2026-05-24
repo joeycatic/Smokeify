@@ -32,6 +32,7 @@ type LandingPageProduct = {
 };
 
 type LandingPageSection = {
+  storefront: StorefrontCode;
   key: string;
   title: string;
   description: string;
@@ -43,6 +44,14 @@ type LandingPageSection = {
   scheduledPublishAt: string | null;
   publishedRevisionId: string | null;
   scheduledRevisionId: string | null;
+  scheduledDraftDiffers: boolean;
+  scheduledRevision: {
+    id: string;
+    isManual: boolean;
+    productIds: string[];
+    createdAt: string;
+    createdByEmail: string | null;
+  } | null;
   products: LandingPageProduct[];
   draftProducts: LandingPageProduct[];
   revisions: Array<{
@@ -65,6 +74,7 @@ type ProductSearchResult = {
 
 type Props = {
   initialSections: LandingPageSection[];
+  initialScheduledSections: LandingPageSection[];
   initialStorefront: StorefrontCode;
 };
 
@@ -80,6 +90,11 @@ const areDraftsEqual = (left: LandingPageSection, right: LandingPageSection) =>
   left.draftIsManual === right.draftIsManual &&
   left.draftProducts.length === right.draftProducts.length &&
   left.draftProducts.every((product, index) => product.id === right.draftProducts[index]?.id);
+
+const getSectionActionKey = (storefront: StorefrontCode, key: string) => `${storefront}:${key}`;
+
+const pickDefined = <T,>(value: T | undefined, fallback: T) =>
+  value === undefined ? fallback : value;
 
 function LandingPageSectionEditor({
   section,
@@ -178,9 +193,17 @@ function LandingPageSectionEditor({
             <span>Published {new Date(section.lastPublishedAt).toLocaleString("de-DE")}</span>
           ) : null}
           {section.scheduledPublishAt ? (
-            <span className="text-cyan-200">
-              Scheduled {new Date(section.scheduledPublishAt).toLocaleString("de-DE")}
-            </span>
+            <>
+              <span className="text-cyan-200">
+                Scheduled {new Date(section.scheduledPublishAt).toLocaleString("de-DE")}
+              </span>
+              {section.scheduledRevision ? (
+                <span className="text-slate-400">
+                  Revision {section.scheduledRevision.id.slice(0, 8)}
+                  {section.scheduledDraftDiffers ? " · draft changed since scheduling" : ""}
+                </span>
+              ) : null}
+            </>
           ) : null}
         </div>
       }
@@ -378,6 +401,16 @@ function LandingPageSectionEditor({
           <div className="mt-3 text-sm text-slate-400">
             Publishing uses the saved draft state. Save the draft first if you changed products or override mode.
           </div>
+          {section.scheduledRevision ? (
+            <div className="mt-2 text-xs text-cyan-200/80">
+              Scheduled publish is pinned to revision {section.scheduledRevision.id.slice(0, 8)}
+              {" · "}
+              saved {new Date(section.scheduledRevision.createdAt).toLocaleString("de-DE")}
+              {section.scheduledRevision.createdByEmail
+                ? ` by ${section.scheduledRevision.createdByEmail}`
+                : ""}
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
@@ -452,12 +485,15 @@ function LandingPageSectionEditor({
 
 export default function AdminLandingPageClient({
   initialSections,
+  initialScheduledSections,
   initialStorefront,
 }: Props) {
   const [sections, setSections] = useState(initialSections);
   const [savedSections, setSavedSections] = useState(initialSections);
+  const [scheduledSections, setScheduledSections] = useState(initialScheduledSections);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [actingKey, setActingKey] = useState<string | null>(null);
+  const [queueScheduleDrafts, setQueueScheduleDrafts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const storefrontLabel = STOREFRONT_LABELS[initialStorefront];
@@ -465,11 +501,12 @@ export default function AdminLandingPageClient({
   useEffect(() => {
     setSections(initialSections);
     setSavedSections(initialSections);
+    setScheduledSections(initialScheduledSections);
     setSavingKey(null);
     setActingKey(null);
     setMessage("");
     setError("");
-  }, [initialSections, initialStorefront]);
+  }, [initialScheduledSections, initialSections, initialStorefront]);
 
   const sectionsByKey = useMemo(
     () => Object.fromEntries(sections.map((section) => [section.key, section])),
@@ -484,6 +521,23 @@ export default function AdminLandingPageClient({
   const draftManualSectionCount = sections.filter((section) => section.draftIsManual).length;
   const scheduledSectionCount = sections.filter((section) => Boolean(section.scheduledPublishAt)).length;
 
+  const upsertScheduledSection = (
+    storefront: StorefrontCode,
+    key: string,
+    updater: (section: LandingPageSection | null) => LandingPageSection | null,
+  ) => {
+    setScheduledSections((current) => {
+      const existing = current.find(
+        (section) => section.storefront === storefront && section.key === key,
+      ) ?? null;
+      const next = updater(existing);
+      const remaining = current.filter(
+        (section) => !(section.storefront === storefront && section.key === key),
+      );
+      return next && next.scheduledPublishAt ? [...remaining, next] : remaining;
+    });
+  };
+
   const updateSection = (
     key: string,
     updater: (section: LandingPageSection) => LandingPageSection,
@@ -494,6 +548,7 @@ export default function AdminLandingPageClient({
   };
 
   const replaceSection = (
+    storefront: StorefrontCode,
     key: string,
     payload: {
       draftIsManual: boolean;
@@ -505,12 +560,14 @@ export default function AdminLandingPageClient({
       scheduledPublishAt?: string | null;
       publishedRevisionId?: string | null;
       scheduledRevisionId?: string | null;
+      scheduledDraftDiffers?: boolean;
+      scheduledRevision?: LandingPageSection["scheduledRevision"];
       revisions?: LandingPageSection["revisions"];
     },
   ) => {
     setSections((current) =>
       current.map((entry) => {
-        if (entry.key !== key) return entry;
+        if (entry.key !== key || entry.storefront !== storefront) return entry;
         const productById = new Map(
           [...entry.draftProducts, ...entry.products].map((product) => [product.id, product]),
         );
@@ -526,16 +583,22 @@ export default function AdminLandingPageClient({
             .filter((product): product is LandingPageProduct => Boolean(product)),
           updatedAt: payload.updatedAt ?? entry.updatedAt,
           lastPublishedAt: payload.lastPublishedAt ?? entry.lastPublishedAt,
-          scheduledPublishAt: payload.scheduledPublishAt ?? null,
-          publishedRevisionId: payload.publishedRevisionId ?? entry.publishedRevisionId,
-          scheduledRevisionId: payload.scheduledRevisionId ?? entry.scheduledRevisionId,
-          revisions: payload.revisions ?? entry.revisions,
+          scheduledPublishAt: pickDefined(payload.scheduledPublishAt, entry.scheduledPublishAt),
+          publishedRevisionId: pickDefined(payload.publishedRevisionId, entry.publishedRevisionId),
+          scheduledRevisionId: pickDefined(payload.scheduledRevisionId, entry.scheduledRevisionId),
+          scheduledDraftDiffers: pickDefined(
+            payload.scheduledDraftDiffers,
+            entry.scheduledDraftDiffers,
+          ),
+          scheduledRevision: pickDefined(payload.scheduledRevision, entry.scheduledRevision),
+          revisions: pickDefined(payload.revisions, entry.revisions),
         };
       }),
     );
   };
 
   const saveSection = async (key: string) => {
+    const sectionActionKey = getSectionActionKey(initialStorefront, key);
     const section = sectionsByKey[key] as LandingPageSection | undefined;
     if (!section) return;
 
@@ -545,7 +608,7 @@ export default function AdminLandingPageClient({
       return;
     }
 
-    setSavingKey(key);
+    setSavingKey(sectionActionKey);
     setMessage("");
     setError("");
 
@@ -571,6 +634,8 @@ export default function AdminLandingPageClient({
           scheduledPublishAt?: string | null;
           publishedRevisionId?: string | null;
           scheduledRevisionId?: string | null;
+          scheduledDraftDiffers?: boolean;
+          scheduledRevision?: LandingPageSection["scheduledRevision"];
           revisions?: LandingPageSection["revisions"];
         };
       };
@@ -579,21 +644,55 @@ export default function AdminLandingPageClient({
         return;
       }
 
-      replaceSection(key, data.section);
+      replaceSection(initialStorefront, key, data.section);
+      upsertScheduledSection(initialStorefront, key, (existing) => {
+        const source =
+          sectionsByKey[key] ?? savedSectionsByKey[key] ?? existing;
+        if (!source) return existing;
+        return {
+          ...source,
+          storefront: initialStorefront,
+          scheduledPublishAt: pickDefined(data.section?.scheduledPublishAt, source.scheduledPublishAt),
+          scheduledRevisionId: pickDefined(
+            data.section?.scheduledRevisionId,
+            source.scheduledRevisionId,
+          ),
+          scheduledDraftDiffers: pickDefined(
+            data.section?.scheduledDraftDiffers,
+            source.scheduledDraftDiffers,
+          ),
+          scheduledRevision: pickDefined(data.section?.scheduledRevision, source.scheduledRevision),
+          revisions: pickDefined(data.section?.revisions, source.revisions),
+        };
+      });
       setSavedSections((current) =>
         current.map((entry) =>
           entry.key === key
             ? {
                 ...sectionsByKey[key],
                 updatedAt: data.section?.updatedAt ?? entry.updatedAt,
-                scheduledPublishAt:
-                  data.section?.scheduledPublishAt ?? entry.scheduledPublishAt,
+                scheduledPublishAt: pickDefined(
+                  data.section?.scheduledPublishAt,
+                  entry.scheduledPublishAt,
+                ),
                 lastPublishedAt: data.section?.lastPublishedAt ?? entry.lastPublishedAt,
-                publishedRevisionId:
-                  data.section?.publishedRevisionId ?? entry.publishedRevisionId,
-                scheduledRevisionId:
-                  data.section?.scheduledRevisionId ?? entry.scheduledRevisionId,
-                revisions: data.section?.revisions ?? entry.revisions,
+                publishedRevisionId: pickDefined(
+                  data.section?.publishedRevisionId,
+                  entry.publishedRevisionId,
+                ),
+                scheduledRevisionId: pickDefined(
+                  data.section?.scheduledRevisionId,
+                  entry.scheduledRevisionId,
+                ),
+                scheduledDraftDiffers: pickDefined(
+                  data.section?.scheduledDraftDiffers,
+                  entry.scheduledDraftDiffers,
+                ),
+                scheduledRevision: pickDefined(
+                  data.section?.scheduledRevision,
+                  entry.scheduledRevision,
+                ),
+                revisions: pickDefined(data.section?.revisions, entry.revisions),
               }
             : entry,
         ),
@@ -616,8 +715,11 @@ export default function AdminLandingPageClient({
       | "rollback_live",
     scheduledPublishAt?: string,
     revisionId?: string,
+    storefront: StorefrontCode = initialStorefront,
   ) => {
-    setActingKey(key);
+    const sectionActionKey = getSectionActionKey(storefront, key);
+    const targetStorefrontLabel = STOREFRONT_LABELS[storefront];
+    setActingKey(sectionActionKey);
     setMessage("");
     setError("");
 
@@ -626,7 +728,7 @@ export default function AdminLandingPageClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storefront: initialStorefront,
+          storefront,
           action,
           scheduledPublishAt: scheduledPublishAt
             ? new Date(scheduledPublishAt).toISOString()
@@ -646,6 +748,8 @@ export default function AdminLandingPageClient({
           scheduledPublishAt?: string | null;
           publishedRevisionId?: string | null;
           scheduledRevisionId?: string | null;
+          scheduledDraftDiffers?: boolean;
+          scheduledRevision?: LandingPageSection["scheduledRevision"];
           revisions?: LandingPageSection["revisions"];
         };
       };
@@ -654,46 +758,106 @@ export default function AdminLandingPageClient({
         return;
       }
 
-      replaceSection(key, data.section);
-      setSavedSections((current) =>
-        current.map((entry) =>
-          entry.key === key
-            ? {
-                ...entry,
-                isManual: data.section!.isManual,
-                products: data.section!.productIds
-                  .map((id) =>
-                    sectionsByKey[key]?.draftProducts.find((product) => product.id === id) ??
-                    sectionsByKey[key]?.products.find((product) => product.id === id) ??
-                    entry.products.find((product) => product.id === id),
-                  )
-                  .filter((product): product is LandingPageProduct => Boolean(product)),
-                draftIsManual: data.section!.draftIsManual,
-                draftProducts: data.section!.draftProductIds
-                  .map((id) =>
-                    sectionsByKey[key]?.draftProducts.find((product) => product.id === id) ??
-                    entry.draftProducts.find((product) => product.id === id),
-                  )
-                  .filter((product): product is LandingPageProduct => Boolean(product)),
-                updatedAt: data.section!.updatedAt ?? entry.updatedAt,
-                lastPublishedAt: data.section!.lastPublishedAt ?? entry.lastPublishedAt,
-                scheduledPublishAt:
-                  data.section!.scheduledPublishAt ?? entry.scheduledPublishAt,
-                publishedRevisionId:
-                  data.section!.publishedRevisionId ?? entry.publishedRevisionId,
-                scheduledRevisionId:
-                  data.section!.scheduledRevisionId ?? entry.scheduledRevisionId,
-                revisions: data.section!.revisions ?? entry.revisions,
-              }
-            : entry,
-        ),
-      );
+      if (storefront === initialStorefront) {
+        replaceSection(storefront, key, data.section);
+      }
+      upsertScheduledSection(storefront, key, (existing) => {
+        const source =
+          (storefront === initialStorefront ? sectionsByKey[key] : existing) ??
+          existing;
+        if (!source) return existing;
+        return {
+          ...source,
+          storefront,
+          isManual: data.section!.isManual,
+          draftIsManual: data.section!.draftIsManual,
+          updatedAt: data.section!.updatedAt ?? source.updatedAt,
+          lastPublishedAt: data.section!.lastPublishedAt ?? source.lastPublishedAt,
+          scheduledPublishAt: pickDefined(data.section!.scheduledPublishAt, source.scheduledPublishAt),
+          publishedRevisionId: pickDefined(
+            data.section!.publishedRevisionId,
+            source.publishedRevisionId,
+          ),
+          scheduledRevisionId: pickDefined(
+            data.section!.scheduledRevisionId,
+            source.scheduledRevisionId,
+          ),
+          scheduledDraftDiffers: pickDefined(
+            data.section!.scheduledDraftDiffers,
+            source.scheduledDraftDiffers,
+          ),
+          scheduledRevision: pickDefined(
+            data.section!.scheduledRevision,
+            source.scheduledRevision,
+          ),
+          revisions: pickDefined(data.section!.revisions, source.revisions),
+        };
+      });
+      if (storefront === initialStorefront) {
+        setSavedSections((current) =>
+          current.map((entry) =>
+            entry.key === key
+              ? {
+                  ...entry,
+                  isManual: data.section!.isManual,
+                  products: data.section!.productIds
+                    .map((id) =>
+                      sectionsByKey[key]?.draftProducts.find((product) => product.id === id) ??
+                      sectionsByKey[key]?.products.find((product) => product.id === id) ??
+                      entry.products.find((product) => product.id === id),
+                    )
+                    .filter((product): product is LandingPageProduct => Boolean(product)),
+                  draftIsManual: data.section!.draftIsManual,
+                  draftProducts: data.section!.draftProductIds
+                    .map((id) =>
+                      sectionsByKey[key]?.draftProducts.find((product) => product.id === id) ??
+                      entry.draftProducts.find((product) => product.id === id),
+                    )
+                    .filter((product): product is LandingPageProduct => Boolean(product)),
+                  updatedAt: data.section!.updatedAt ?? entry.updatedAt,
+                  lastPublishedAt: data.section!.lastPublishedAt ?? entry.lastPublishedAt,
+                  scheduledPublishAt: pickDefined(
+                    data.section!.scheduledPublishAt,
+                    entry.scheduledPublishAt,
+                  ),
+                  publishedRevisionId: pickDefined(
+                    data.section!.publishedRevisionId,
+                    entry.publishedRevisionId,
+                  ),
+                  scheduledRevisionId: pickDefined(
+                    data.section!.scheduledRevisionId,
+                    entry.scheduledRevisionId,
+                  ),
+                  scheduledDraftDiffers: pickDefined(
+                    data.section!.scheduledDraftDiffers,
+                    entry.scheduledDraftDiffers,
+                  ),
+                  scheduledRevision: pickDefined(
+                    data.section!.scheduledRevision,
+                    entry.scheduledRevision,
+                  ),
+                  revisions: pickDefined(data.section!.revisions, entry.revisions),
+                }
+              : entry,
+          ),
+        );
+      }
+      setQueueScheduleDrafts((current) => {
+        if (!(sectionActionKey in current)) return current;
+        const next = { ...current };
+        delete next[sectionActionKey];
+        return next;
+      });
       setMessage(
         action === "publish_now"
-          ? `Published ${storefrontLabel} landing-page draft.`
+          ? `Published ${targetStorefrontLabel} landing-page draft.`
           : action === "schedule"
-            ? `Scheduled ${storefrontLabel} landing-page draft.`
-            : `Cleared ${storefrontLabel} landing-page schedule.`,
+            ? `Scheduled ${targetStorefrontLabel} landing-page draft.`
+            : action === "clear_schedule"
+              ? `Cleared ${targetStorefrontLabel} landing-page schedule.`
+              : action === "rollback_draft"
+                ? `Restored the ${targetStorefrontLabel} draft from the selected revision.`
+                : `Published the selected ${targetStorefrontLabel} revision.`,
       );
     } catch {
       setError("Landing page action failed.");
@@ -782,6 +946,110 @@ export default function AdminLandingPageClient({
       {message ? <AdminNotice tone="success">{message}</AdminNotice> : null}
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
 
+      <AdminPanel
+        eyebrow="Schedule Queue"
+        title="Scheduled publishes"
+        description="Timed publishes are pinned to a saved revision. Clear or reschedule them here without reopening each editor."
+      >
+        <div className="space-y-3">
+          {scheduledSections.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              No landing-page sections are currently scheduled.
+            </div>
+          ) : (
+            scheduledSections
+              .slice()
+              .sort((left, right) =>
+                new Date(left.scheduledPublishAt ?? 0).getTime() -
+                new Date(right.scheduledPublishAt ?? 0).getTime(),
+              )
+              .map((section) => {
+                const queueKey = `${section.storefront}:${section.key}`;
+                const scheduledValue =
+                  queueScheduleDrafts[queueKey] ??
+                  toLocalDateTimeInput(section.scheduledPublishAt);
+                return (
+                  <div
+                    key={queueKey}
+                    className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4"
+                  >
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {STOREFRONT_LABELS[section.storefront]} · {section.title}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          Scheduled {new Date(section.scheduledPublishAt ?? "").toLocaleString("de-DE")}
+                          {section.scheduledRevision
+                            ? ` · revision ${section.scheduledRevision.id.slice(0, 8)}`
+                            : ""}
+                        </div>
+                        {section.scheduledDraftDiffers ? (
+                          <div className="mt-2 text-xs text-amber-200">
+                            Current draft differs from the frozen scheduled revision.
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+                        <AdminInput
+                          type="datetime-local"
+                          value={scheduledValue}
+                          onChange={(event) =>
+                            setQueueScheduleDrafts((current) => ({
+                              ...current,
+                              [queueKey]: event.target.value,
+                            }))
+                          }
+                        />
+                        <AdminButton
+                          tone="secondary"
+                          disabled={actingKey === queueKey}
+                          onClick={() =>
+                            void runAction(
+                              section.key,
+                              "schedule",
+                              scheduledValue,
+                              section.scheduledRevisionId ?? undefined,
+                              section.storefront,
+                            )
+                          }
+                        >
+                          {actingKey === queueKey ? "Working..." : "Reschedule"}
+                        </AdminButton>
+                        <AdminButton
+                          tone="secondary"
+                          disabled={actingKey === queueKey}
+                          onClick={() =>
+                            void runAction(
+                              section.key,
+                              "clear_schedule",
+                              undefined,
+                              undefined,
+                              section.storefront,
+                            )
+                          }
+                        >
+                          Clear
+                        </AdminButton>
+                        <Link
+                          href={
+                            section.storefront === "MAIN"
+                              ? "/admin/landing-page"
+                              : `/admin/landing-page?storefront=${section.storefront}`
+                          }
+                          className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                        >
+                          Open
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </AdminPanel>
+
       <div className="space-y-6">
         {sections.map((section) => (
           <LandingPageSectionEditor
@@ -790,8 +1058,8 @@ export default function AdminLandingPageClient({
             initialSection={savedSectionsByKey[section.key] as LandingPageSection}
             storefront={initialStorefront}
             storefrontLabel={storefrontLabel}
-            saving={savingKey === section.key}
-            acting={actingKey === section.key}
+            saving={savingKey === getSectionActionKey(initialStorefront, section.key)}
+            acting={actingKey === getSectionActionKey(initialStorefront, section.key)}
             onToggleManual={(value) =>
               updateSection(section.key, (current) => ({ ...current, draftIsManual: value }))
             }

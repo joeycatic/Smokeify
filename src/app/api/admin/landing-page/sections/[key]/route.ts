@@ -53,6 +53,15 @@ async function serializeSection(sectionId: string) {
             productIds: true,
           },
         },
+        scheduledRevision: {
+          select: {
+            id: true,
+            isManual: true,
+            productIds: true,
+            createdAt: true,
+            createdByEmail: true,
+          },
+        },
         revisions: {
           orderBy: { createdAt: "desc" },
           take: 8,
@@ -77,6 +86,22 @@ async function serializeSection(sectionId: string) {
       scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
       scheduledRevisionId: section.scheduledRevisionId,
       publishedRevisionId: section.publishedRevisionId,
+      scheduledDraftDiffers: section.scheduledRevision
+        ? section.draftIsManual !== section.scheduledRevision.isManual ||
+          section.draftProductIds.length !== section.scheduledRevision.productIds.length ||
+          section.draftProductIds.some(
+            (productId, index) => productId !== section.scheduledRevision?.productIds[index],
+          )
+        : false,
+      scheduledRevision: section.scheduledRevision
+        ? {
+            id: section.scheduledRevision.id,
+            isManual: section.scheduledRevision.isManual,
+            productIds: section.scheduledRevision.productIds,
+            createdAt: section.scheduledRevision.createdAt.toISOString(),
+            createdByEmail: section.scheduledRevision.createdByEmail,
+          }
+        : null,
       lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
       updatedAt: section.updatedAt.toISOString(),
       revisions: section.revisions.map((revision) => ({
@@ -117,6 +142,8 @@ async function serializeSection(sectionId: string) {
       scheduledPublishAt: section.scheduledPublishAt?.toISOString() ?? null,
       scheduledRevisionId: null,
       publishedRevisionId: null,
+      scheduledDraftDiffers: false,
+      scheduledRevision: null,
       lastPublishedAt: section.lastPublishedAt?.toISOString() ?? null,
       updatedAt: section.updatedAt.toISOString(),
       revisions: [],

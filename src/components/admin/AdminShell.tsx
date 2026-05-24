@@ -103,6 +103,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
+      { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
       { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
       { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
       { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
@@ -203,6 +204,9 @@ const HIDDEN_ROUTE_TITLES: Array<{ prefix: string; title: string }> = [
 ];
 
 function isActive(pathname: string, item: NavItem) {
+  if (item.href === "/admin/catalog" && pathname.startsWith("/admin/catalog/hygiene")) {
+    return false;
+  }
   if (item.exact) return pathname === item.href;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
