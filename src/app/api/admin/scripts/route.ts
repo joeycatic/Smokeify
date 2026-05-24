@@ -114,7 +114,6 @@ export const POST = withAdminRoute(
     try {
       const automation = await runAutomationJobNow({
         handler: "admin.script.run",
-        dedupeKey: `admin-script::${definition.id}`,
         payload: {
           scriptId: definition.id,
           reason,

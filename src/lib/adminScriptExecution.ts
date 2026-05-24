@@ -319,7 +319,7 @@ async function executeGrowvaultAnalyzerResync(input: {
       : "(none)";
 
   const stdout = [
-    `target=${getGrowvaultAnalyzerAdminBridgeTarget() ?? "unknown"}`,
+    `target=${bridge.targetUrl ?? getGrowvaultAnalyzerAdminBridgeTarget() ?? "unknown"}`,
     `scanned=${bridge.payload.scannedCount}`,
     `candidates=${bridge.payload.candidateCount}`,
     `already_present=${bridge.payload.alreadyPresentCount}`,

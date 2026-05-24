@@ -2,11 +2,16 @@ import "server-only";
 
 import { GROWVAULT_PUBLIC_URL } from "@/lib/growvaultPublicStorefront";
 
+const LOCAL_GROWVAULT_DEV_URL = "http://127.0.0.1:3000";
 const SHARED_CONTROL_PLANE_TOKEN =
   process.env.SHARED_CONTROL_PLANE_TOKEN?.trim() ||
   process.env.INTERNAL_ADMIN_BRIDGE_TOKEN?.trim() ||
   process.env.NEXTAUTH_SECRET?.trim() ||
   process.env.AUTH_SECRET?.trim() ||
+  "";
+const EXPLICIT_GROWVAULT_ADMIN_BRIDGE_URL =
+  process.env.GROWVAULT_ADMIN_BRIDGE_URL?.trim() ||
+  process.env.INTERNAL_GROWVAULT_APP_URL?.trim() ||
   "";
 
 type AdminBridgeFetchOptions = {
@@ -39,12 +44,41 @@ function buildBridgeHeaders(input: AdminBridgeFetchOptions) {
   return headers;
 }
 
+function normalizeUrl(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    return new URL(trimmed).toString().replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function getGrowvaultAnalyzerAdminBridgeTargets() {
+  const explicitTarget = normalizeUrl(EXPLICIT_GROWVAULT_ADMIN_BRIDGE_URL);
+  if (explicitTarget) {
+    return [explicitTarget];
+  }
+
+  const publicTarget = normalizeUrl(GROWVAULT_PUBLIC_URL);
+  if (!publicTarget) {
+    return [];
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return Array.from(new Set([LOCAL_GROWVAULT_DEV_URL, publicTarget]));
+  }
+
+  return [publicTarget];
+}
+
 export function hasGrowvaultAnalyzerAdminBridge() {
-  return Boolean(GROWVAULT_PUBLIC_URL && SHARED_CONTROL_PLANE_TOKEN);
+  return getGrowvaultAnalyzerAdminBridgeTargets().length > 0 && Boolean(SHARED_CONTROL_PLANE_TOKEN);
 }
 
 export function getGrowvaultAnalyzerAdminBridgeTarget() {
-  return GROWVAULT_PUBLIC_URL || null;
+  return getGrowvaultAnalyzerAdminBridgeTargets()[0] ?? null;
 }
 
 export async function fetchGrowvaultAnalyzerAdminJson<T>(
@@ -56,23 +90,37 @@ export async function fetchGrowvaultAnalyzerAdminJson<T>(
     return null;
   }
 
-  const target = new URL(pathname, `${GROWVAULT_PUBLIC_URL}/`);
-  target.search = search;
+  const targets = getGrowvaultAnalyzerAdminBridgeTargets();
+  let lastError: unknown = null;
 
-  const response = await fetch(target, {
-    method: input.method ?? "GET",
-    headers: buildBridgeHeaders(input),
-    body: input.body,
-    cache: "no-store",
-  });
+  for (const baseUrl of targets) {
+    const target = new URL(pathname, `${baseUrl}/`);
+    target.search = search;
 
-  const payload = (await response.json().catch(() => ({}))) as T & {
-    error?: string;
-  };
+    try {
+      const response = await fetch(target, {
+        method: input.method ?? "GET",
+        headers: buildBridgeHeaders(input),
+        body: input.body,
+        cache: "no-store",
+      });
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload,
-  };
+      const payload = (await response.json().catch(() => ({}))) as T & {
+        error?: string;
+      };
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        payload,
+        targetUrl: baseUrl,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Growvault analyzer admin bridge request failed.");
 }
