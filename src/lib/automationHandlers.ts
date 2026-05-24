@@ -7,6 +7,7 @@ import { runAdminPricingAutomation } from "@/lib/adminPricingServer";
 import {
   buildAdminReportDeliveryEmail,
   computeNextAdminReportDelivery,
+  normalizeAdminReportDeliveryRecipients,
 } from "@/lib/adminReportDelivery";
 import {
   getAdminReportSnapshot,
@@ -20,6 +21,7 @@ import { sendSupplierSyncDailyReport } from "@/lib/supplierSyncDailyReport";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import type { AutomationHandler } from "@/lib/automationPolicy";
 import { runCheckoutRecoveryCampaign } from "@/lib/checkoutRecoveryService";
+import { buildCatalogHygieneAlerts } from "@/lib/adminCatalogHygiene";
 
 type AutomationActor = {
   id?: string | null;
@@ -126,11 +128,12 @@ async function runAdminReportDelivery() {
 
   for (const report of reports) {
     try {
-      if (
-        !report.deliveryEmail ||
-        !report.deliveryFrequency ||
-        report.deliveryHour === null
-      ) {
+      const recipients = normalizeAdminReportDeliveryRecipients(
+        report.deliveryRecipients,
+        report.deliveryEmail,
+      );
+
+      if (recipients.length === 0 || !report.deliveryFrequency || report.deliveryHour === null) {
         throw new Error("Report schedule is incomplete.");
       }
 
@@ -155,27 +158,47 @@ async function runAdminReportDelivery() {
         customerCount: snapshot.summary.customers.current,
       });
 
-      await sendResendEmail({
-        to: report.deliveryEmail,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
+      const failedRecipients: string[] = [];
+      let successfulDeliveries = 0;
+      for (const recipient of recipients) {
+        try {
+          await sendResendEmail({
+            to: recipient,
+            subject: email.subject,
+            html: email.html,
+            text: email.text,
+          });
+          successfulDeliveries += 1;
+        } catch (error) {
+          failedRecipients.push(
+            error instanceof Error ? `${recipient}: ${error.message}` : `${recipient}: delivery failed`,
+          );
+        }
+      }
 
       await prisma.adminSavedReport.update({
         where: { id: report.id },
         data: {
-          lastDeliveredAt: now,
+          lastDeliveredAt: successfulDeliveries > 0 ? now : report.lastDeliveredAt,
           nextDeliveryAt: computeNextAdminReportDelivery({
             frequency: report.deliveryFrequency,
             hour: report.deliveryHour,
             weekday: report.deliveryWeekday,
             from: now,
           }),
+          lastDeliveryError: failedRecipients.length > 0 ? failedRecipients.join("\n") : null,
         },
       });
 
-      sent.push(report.id);
+      if (successfulDeliveries > 0) {
+        sent.push(report.id);
+      }
+      if (failedRecipients.length > 0 && successfulDeliveries === 0) {
+        failed.push({
+          id: report.id,
+          error: failedRecipients.join("\n"),
+        });
+      }
     } catch (error) {
       failed.push({
         id: report.id,
@@ -190,6 +213,19 @@ async function runAdminReportDelivery() {
       processed: reports.length,
       sent,
       failed,
+    },
+  } satisfies AutomationHandlerResult;
+}
+
+async function runCatalogHygieneScan() {
+  const alerts = await buildCatalogHygieneAlerts();
+  await syncAdminAlerts(alerts);
+
+  return {
+    summary: `Catalog hygiene scan synced ${alerts.length} alerts.`,
+    data: {
+      alertsSynced: alerts.length,
+      alertTypes: alerts.map((alert) => alert.type),
     },
   } satisfies AutomationHandlerResult;
 }
@@ -355,6 +391,8 @@ export async function executeAutomationHandler(input: {
       return runGrowvaultDiagnosticsSync();
     case "admin.report.delivery":
       return runAdminReportDelivery();
+    case "catalog.hygiene.scan":
+      return runCatalogHygieneScan();
     case "landing_page.publish_scheduled":
       return publishScheduledLandingPageSections(input.actor);
     default:

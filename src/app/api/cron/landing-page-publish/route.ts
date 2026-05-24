@@ -4,7 +4,7 @@ import { runAutomationJobNow } from "@/lib/automationQueue";
 
 export const runtime = "nodejs";
 
-async function runAdminReportsCron(request: Request) {
+export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "CRON_SECRET is required." }, { status: 500 });
@@ -21,16 +21,16 @@ async function runAdminReportsCron(request: Request) {
   }
 
   const automation = await runAutomationJobNow({
-    handler: "admin.report.delivery",
-    scheduleKey: "admin-report-delivery",
-    dedupeKey: `admin-report-delivery::${new Date().toISOString().slice(0, 13)}`,
-    workerId: "cron-admin-report-delivery",
+    handler: "landing_page.publish_scheduled",
+    scheduleKey: "landing-page-scheduled-publish",
+    dedupeKey: `landing-page-publish::${new Date().toISOString().slice(0, 16)}`,
+    workerId: "cron-landing-page-publish",
   });
 
   if (!automation.result) {
     return NextResponse.json(
       {
-        error: automation.error ?? "Admin report delivery failed.",
+        error: automation.error ?? "Scheduled landing page publish failed.",
         job: automation.job,
       },
       { status: 500 },
@@ -42,12 +42,4 @@ async function runAdminReportsCron(request: Request) {
     job: automation.job,
     ...automation.result.data,
   });
-}
-
-export async function GET(request: Request) {
-  return runAdminReportsCron(request);
-}
-
-export async function POST(request: Request) {
-  return runAdminReportsCron(request);
 }

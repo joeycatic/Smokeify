@@ -11,6 +11,18 @@
     {
       "path": "/api/cron/checkout-recovery",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/admin-reports",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/landing-page-publish",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/catalog-hygiene",
+      "schedule": "15 4 * * *"
     }
   ]
 }

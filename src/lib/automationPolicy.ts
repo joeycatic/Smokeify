@@ -14,6 +14,7 @@ export const AUTOMATION_HANDLERS = [
   "pricing.reprice",
   "growvault.diagnostics.sync",
   "admin.report.delivery",
+  "catalog.hygiene.scan",
   "landing_page.publish_scheduled",
 ] as const;
 
@@ -109,14 +110,21 @@ export const AUTOMATION_SCHEDULE_DEFAULTS = [
     key: "admin-report-delivery",
     label: "Admin report delivery",
     handler: "admin.report.delivery" as AutomationHandler,
-    cronExpression: "manual-cron",
+    cronExpression: "0 * * * *",
+    maxAttempts: 3,
+  },
+  {
+    key: "catalog-hygiene-scan",
+    label: "Catalog hygiene scan",
+    handler: "catalog.hygiene.scan" as AutomationHandler,
+    cronExpression: "15 4 * * *",
     maxAttempts: 3,
   },
   {
     key: "landing-page-scheduled-publish",
     label: "Landing page scheduled publish",
     handler: "landing_page.publish_scheduled" as AutomationHandler,
-    cronExpression: "manual-cron",
+    cronExpression: "*/5 * * * *",
     maxAttempts: 3,
   },
 ] as const satisfies readonly AutomationScheduleDefault[];

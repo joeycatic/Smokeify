@@ -12,6 +12,7 @@ import {
   AdminPageIntro,
   AdminPanel,
   AdminSelect,
+  AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
 import { buildAdminSearchHref } from "@/lib/adminTimeRange";
 import type { getAdminReportSnapshot } from "@/lib/adminReports";
@@ -43,7 +44,7 @@ const formatDelta = (value: number) =>
 const formatDeliverySummary = (report: SavedReport) => {
   if (
     !report.deliveryEnabled ||
-    !report.deliveryEmail ||
+    report.deliveryRecipients.length === 0 ||
     !report.deliveryFrequency ||
     report.deliveryHour === null
   ) {
@@ -70,7 +71,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
   const [scheduleDialog, setScheduleDialog] = useState<{
     id: string;
     name: string;
-    deliveryEmail: string;
+    deliveryRecipients: string;
     deliveryFrequency: "DAILY" | "WEEKLY";
     deliveryWeekday: string;
     deliveryHour: string;
@@ -156,7 +157,10 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
     setScheduleDialog({
       id: report.id,
       name: report.name,
-      deliveryEmail: report.deliveryEmail ?? report.createdByEmail ?? "",
+      deliveryRecipients:
+        report.deliveryRecipients.length > 0
+          ? report.deliveryRecipients.join("\n")
+          : report.createdByEmail ?? "",
       deliveryFrequency: report.deliveryFrequency ?? "WEEKLY",
       deliveryWeekday: String(report.deliveryWeekday ?? 1),
       deliveryHour: String(report.deliveryHour ?? 8),
@@ -175,7 +179,10 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         deliveryEnabled: true,
-        deliveryEmail: scheduleDialog.deliveryEmail,
+        deliveryRecipients: scheduleDialog.deliveryRecipients
+          .split(/[\n,;]/g)
+          .map((entry) => entry.trim())
+          .filter(Boolean),
         deliveryFrequency: scheduleDialog.deliveryFrequency,
         deliveryWeekday:
           scheduleDialog.deliveryFrequency === "WEEKLY"
@@ -381,8 +388,25 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                     </div>
                     <div className="mt-1 text-xs text-cyan-200/80">
                       {formatDeliverySummary(report)}
-                      {report.deliveryEmail ? ` · ${report.deliveryEmail}` : ""}
                     </div>
+                    {report.deliveryRecipients.length > 0 ? (
+                      <div className="mt-1 text-xs text-slate-400">
+                        {report.deliveryRecipients.join(", ")}
+                      </div>
+                    ) : null}
+                    {report.nextDeliveryAt ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        Next run {new Date(report.nextDeliveryAt).toLocaleString("de-DE")}
+                        {report.lastDeliveredAt
+                          ? ` · last sent ${new Date(report.lastDeliveredAt).toLocaleString("de-DE")}`
+                          : ""}
+                      </div>
+                    ) : null}
+                    {report.lastDeliveryError ? (
+                      <div className="mt-1 text-xs text-amber-200">
+                        Last delivery error: {report.lastDeliveryError}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Link
@@ -574,18 +598,18 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
             </p>
 
             <div className="mt-5 grid gap-4">
-              <AdminField label="Recipient email">
-                <AdminInput
-                  type="email"
-                  value={scheduleDialog.deliveryEmail}
+              <AdminField label="Recipients">
+                <AdminTextarea
+                  rows={4}
+                  value={scheduleDialog.deliveryRecipients}
                   onChange={(event) =>
                     setScheduleDialog((current) =>
                       current
-                        ? { ...current, deliveryEmail: event.target.value }
+                        ? { ...current, deliveryRecipients: event.target.value }
                         : current
                     )
                   }
-                  placeholder="ops@smokeify.com"
+                  placeholder={"ops@smokeify.com\nfinance@smokeify.com"}
                 />
               </AdminField>
               <div className="grid gap-4 md:grid-cols-3">

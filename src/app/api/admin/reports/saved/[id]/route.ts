@@ -5,6 +5,8 @@ import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import {
   computeNextAdminReportDelivery,
+  isValidAdminReportDeliveryRecipient,
+  normalizeAdminReportDeliveryRecipients,
   parseAdminReportDeliveryFrequency,
   parseAdminReportDeliveryHour,
   parseAdminReportDeliveryWeekday,
@@ -32,6 +34,7 @@ export async function PATCH(
   const body = (await request.json().catch(() => ({}))) as {
     deliveryEnabled?: unknown;
     deliveryEmail?: unknown;
+    deliveryRecipients?: unknown;
     deliveryFrequency?: unknown;
     deliveryWeekday?: unknown;
     deliveryHour?: unknown;
@@ -44,10 +47,12 @@ export async function PATCH(
       data: {
         deliveryEnabled: false,
         deliveryEmail: null,
+        deliveryRecipients: [],
         deliveryFrequency: null,
         deliveryWeekday: null,
         deliveryHour: null,
         nextDeliveryAt: null,
+        lastDeliveryError: null,
       },
     });
 
@@ -62,10 +67,21 @@ export async function PATCH(
     return NextResponse.json({ report: updated });
   }
 
-  const deliveryEmail =
-    typeof body.deliveryEmail === "string" ? body.deliveryEmail.trim().toLowerCase() : "";
-  if (!deliveryEmail) {
-    return NextResponse.json({ error: "Delivery email is required." }, { status: 400 });
+  const deliveryRecipients = normalizeAdminReportDeliveryRecipients(
+    body.deliveryRecipients,
+    typeof body.deliveryEmail === "string" ? body.deliveryEmail : existing.deliveryEmail,
+  );
+  if (deliveryRecipients.length === 0) {
+    return NextResponse.json({ error: "At least one delivery recipient is required." }, { status: 400 });
+  }
+  const invalidRecipient = deliveryRecipients.find(
+    (recipient) => !isValidAdminReportDeliveryRecipient(recipient),
+  );
+  if (invalidRecipient) {
+    return NextResponse.json(
+      { error: `Invalid delivery recipient: ${invalidRecipient}` },
+      { status: 400 },
+    );
   }
 
   const deliveryFrequency = parseAdminReportDeliveryFrequency(
@@ -98,11 +114,13 @@ export async function PATCH(
     where: { id },
     data: {
       deliveryEnabled: true,
-      deliveryEmail,
+      deliveryEmail: deliveryRecipients[0] ?? null,
+      deliveryRecipients,
       deliveryFrequency,
       deliveryWeekday,
       deliveryHour,
       nextDeliveryAt,
+      lastDeliveryError: null,
     },
   });
 
@@ -110,10 +128,10 @@ export async function PATCH(
     actor: { id: session.user.id, email: session.user.email ?? null },
     action: "admin_report.schedule_updated",
     targetType: "admin_saved_report",
-    targetId: id,
-    summary: `Scheduled delivery for ${updated.name}`,
-    metadata: {
-      deliveryEmail,
+      targetId: id,
+      summary: `Scheduled delivery for ${updated.name}`,
+      metadata: {
+      deliveryRecipients,
       deliveryFrequency,
       deliveryWeekday,
       deliveryHour,
