@@ -40,6 +40,7 @@ export type LandingPageAdminProduct = {
 };
 
 export type LandingPageAdminSection = {
+  storefront: Storefront;
   key: LandingPageSectionKey;
   title: string;
   description: string;
@@ -51,6 +52,14 @@ export type LandingPageAdminSection = {
   scheduledPublishAt: string | null;
   publishedRevisionId: string | null;
   scheduledRevisionId: string | null;
+  scheduledDraftDiffers: boolean;
+  scheduledRevision: {
+    id: string;
+    isManual: boolean;
+    productIds: string[];
+    createdAt: string;
+    createdByEmail: string | null;
+  } | null;
   products: LandingPageAdminProduct[];
   draftProducts: LandingPageAdminProduct[];
   revisions: Array<{
@@ -72,7 +81,15 @@ type LandingPageSectionRow = {
   publishedRevisionId: string | null;
   scheduledRevisionId: string | null;
   publishedRevision: { isManual: boolean; productIds: string[] } | null;
-  scheduledRevision: { isManual: boolean; productIds: string[] } | null;
+  scheduledRevision:
+    | {
+        id: string;
+        isManual: boolean;
+        productIds: string[];
+        createdAt: Date;
+        createdByEmail: string | null;
+      }
+    | null;
 };
 
 const HERO_PRODUCT_HANDLES = [
@@ -96,6 +113,9 @@ const NON_HEADSHOP_WHERE = {
 };
 
 const SECTION_KEYS = LANDING_PAGE_SECTION_DEFINITIONS.map((section) => section.key);
+
+const areManualProductIdsEqual = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
 
 type LandingPageSchemaMode = "full" | "legacy" | "missing";
 
@@ -206,7 +226,15 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
     publishedRevisionId: string | null;
     scheduledRevisionId: string | null;
     publishedRevision: { isManual: boolean; productIds: string[] } | null;
-    scheduledRevision: { isManual: boolean; productIds: string[] } | null;
+    scheduledRevision:
+      | {
+          id: string;
+          isManual: boolean;
+          productIds: string[];
+          createdAt: Date;
+          createdByEmail: string | null;
+        }
+      | null;
   }> = [];
   if (schemaMode === "missing") {
     rows = [];
@@ -250,8 +278,11 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
           },
           scheduledRevision: {
             select: {
+              id: true,
               isManual: true,
               productIds: true,
+              createdAt: true,
+              createdByEmail: true,
             },
           },
         },
@@ -487,8 +518,11 @@ export async function loadLandingPageAdminSections(
       productIds: string[];
     } | null;
     scheduledRevision: {
+      id: string;
       isManual: boolean;
       productIds: string[];
+      createdAt: Date;
+      createdByEmail: string | null;
     } | null;
     revisions: Array<{
       id: string;
@@ -542,8 +576,11 @@ export async function loadLandingPageAdminSections(
           },
           scheduledRevision: {
             select: {
+              id: true,
               isManual: true,
               productIds: true,
+              createdAt: true,
+              createdByEmail: true,
             },
           },
           revisions: {
@@ -649,7 +686,12 @@ export async function loadLandingPageAdminSections(
   return LANDING_PAGE_SECTION_DEFINITIONS.map((definition) => {
     const stored = storedByKey.get(definition.key);
     const liveProductIds = stored?.publishedRevision?.productIds ?? stored?.productIds ?? [];
+    const scheduledDraftDiffers = stored?.scheduledRevision
+      ? stored.draftIsManual !== stored.scheduledRevision.isManual ||
+        !areManualProductIdsEqual(stored.draftProductIds, stored.scheduledRevision.productIds)
+      : false;
     return {
+      storefront,
       ...definition,
       isManual: stored?.isManual ?? false,
       draftIsManual: stored?.draftIsManual ?? stored?.isManual ?? false,
@@ -658,6 +700,16 @@ export async function loadLandingPageAdminSections(
       scheduledPublishAt: stored?.scheduledPublishAt?.toISOString() ?? null,
       publishedRevisionId: stored?.publishedRevisionId ?? null,
       scheduledRevisionId: stored?.scheduledRevisionId ?? null,
+      scheduledDraftDiffers,
+      scheduledRevision: stored?.scheduledRevision
+        ? {
+            id: stored.scheduledRevision.id,
+            isManual: stored.scheduledRevision.isManual,
+            productIds: stored.scheduledRevision.productIds,
+            createdAt: stored.scheduledRevision.createdAt.toISOString(),
+            createdByEmail: stored.scheduledRevision.createdByEmail,
+          }
+        : null,
       products: liveProductIds
         .map((id) => productsById.get(id))
         .filter((product): product is LandingPageAdminProduct => Boolean(product)),
@@ -673,4 +725,13 @@ export async function loadLandingPageAdminSections(
       })),
     };
   });
+}
+
+export async function listLandingPageScheduledSections() {
+  const sections = await Promise.all([
+    loadLandingPageAdminSections("MAIN"),
+    loadLandingPageAdminSections("GROW"),
+  ]);
+
+  return sections.flat().filter((section) => section.scheduledPublishAt);
 }

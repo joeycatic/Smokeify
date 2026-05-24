@@ -1167,11 +1167,13 @@ model AdminSavedReport {
   paymentState      String                        @default("all")
   deliveryEnabled   Boolean                       @default(false)
   deliveryEmail     String?
+  deliveryRecipients String[]                     @default([])
   deliveryFrequency AdminReportDeliveryFrequency?
   deliveryWeekday   Int?
   deliveryHour      Int?
   lastDeliveredAt   DateTime?
   nextDeliveryAt    DateTime?
+  lastDeliveryError String?
   createdById       String?
   createdByEmail    String?
   createdAt         DateTime                      @default(now())

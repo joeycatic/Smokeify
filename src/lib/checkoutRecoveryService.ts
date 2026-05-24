@@ -36,6 +36,14 @@ type RecoverySessionMetadata = {
   cartSummary?: CheckoutRecoveryCartSummary;
 };
 
+type RecoverySessionWithAttempts = Prisma.CheckoutRecoverySessionGetPayload<{
+  include: {
+    attempts: {
+      orderBy: [{ stepIndex: "asc" }];
+    };
+  };
+}>;
+
 type RecoverySessionRecord = {
   id: string;
   stripeSessionId: string;
@@ -76,6 +84,9 @@ export type CheckoutRecoveryOverview = {
   metrics: {
     totalSessions: number;
     consentedSessions: number;
+    activeSessions: number;
+    suppressedSessions: number;
+    completedSessions: number;
     dueNowCount: number;
     recoveredOrders: number;
     recoveredRevenueCents: number;
@@ -97,6 +108,9 @@ export type CheckoutRecoveryOverview = {
   }>;
   topSkipReasons: Array<{ reason: string; count: number }>;
   dueCandidates: CheckoutRecoveryCandidatePreview[];
+  sessions: CheckoutRecoverySessionPreview[];
+  sessionPage: number;
+  hasMoreSessions: boolean;
 };
 
 export type CheckoutRecoveryCandidatePreview = {
@@ -120,6 +134,34 @@ export type CheckoutRecoveryRunResult = {
   paused: boolean;
   dueCount: number;
   candidates: CheckoutRecoveryCandidatePreview[];
+};
+
+export type CheckoutRecoverySessionPreview = {
+  id: string;
+  stripeSessionId: string;
+  customerEmail: string | null;
+  storefront: StorefrontCode | null;
+  totalCents: number;
+  isGuest: boolean;
+  state: "active" | "suppressed" | "completed";
+  suppressedAt: string | null;
+  suppressionReason: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  nextStep: {
+    stepIndex: number;
+    stepLabel: string;
+    scheduledFor: string;
+    isDueNow: boolean;
+  } | null;
+  lastAttempt: {
+    stepIndex: number;
+    status: string;
+    sentAt: string | null;
+    scheduledFor: string;
+    skipReason: string | null;
+    errorMessage: string | null;
+  } | null;
 };
 
 const asMetadata = (value: Prisma.JsonValue | null | undefined): RecoverySessionMetadata => {
@@ -195,8 +237,15 @@ const getPriorPaidOrders = async (session: {
   });
 };
 
+async function getCustomerType(
+  session: Pick<RecoverySessionWithAttempts, "userId" | "customerEmail" | "createdAt">,
+): Promise<"FIRST_TIME" | "RETURNING"> {
+  const priorPaidOrders = await getPriorPaidOrders(session);
+  return priorPaidOrders > 0 ? "RETURNING" : "FIRST_TIME";
+}
+
 const serializeCandidate = (input: {
-  session: Awaited<ReturnType<typeof listOpenRecoverySessions>>[number];
+  session: RecoverySessionWithAttempts;
   stepIndex: number;
   scheduledFor: Date;
   customerType: "FIRST_TIME" | "RETURNING";
@@ -229,13 +278,27 @@ async function listOpenRecoverySessions() {
   });
 }
 
-async function resolveDueCandidate(
-  session: Awaited<ReturnType<typeof listOpenRecoverySessions>>[number],
+async function listRecoverySessions(page = 1, pageSize = 12) {
+  const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : 12;
+  return prisma.checkoutRecoverySession.findMany({
+    include: {
+      attempts: {
+        orderBy: [{ stepIndex: "asc" }],
+      },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    skip: (safePage - 1) * safePageSize,
+    take: safePageSize,
+  });
+}
+
+async function resolveNextRecoveryStep(
+  session: RecoverySessionWithAttempts,
   config: CheckoutRecoveryCampaignConfig,
   now: Date,
-): Promise<CheckoutRecoveryCandidatePreview | null> {
-  if (!session.customerEmail?.trim()) return null;
-
+) {
+  const customerType = await getCustomerType(session);
   if (
     config.segmentation.minCartTotalCents > 0 &&
     session.totalCents < config.segmentation.minCartTotalCents
@@ -254,8 +317,6 @@ async function resolveDueCandidate(
     return null;
   }
 
-  const priorPaidOrders = await getPriorPaidOrders(session);
-  const customerType = priorPaidOrders > 0 ? "RETURNING" : "FIRST_TIME";
   if (
     config.segmentation.customerType !== "ANY" &&
     config.segmentation.customerType !== customerType
@@ -264,19 +325,34 @@ async function resolveDueCandidate(
   }
 
   const attemptsByStep = new Set(session.attempts.map((attempt) => attempt.stepIndex));
-
   for (const step of config.steps.filter((entry) => entry.enabled)) {
     if (attemptsByStep.has(step.stepIndex)) continue;
     const scheduledFor = getCheckoutRecoveryScheduledFor(session.createdAt, step.delayMinutes);
-    if (scheduledFor > now) continue;
-    return serializeCandidate({
-      session,
+    return {
+      customerType,
       stepIndex: step.stepIndex,
       scheduledFor,
-      customerType,
-    });
+      isDueNow: scheduledFor <= now,
+    };
   }
 
+  return null;
+}
+
+async function resolveDueCandidate(
+  session: RecoverySessionWithAttempts,
+  config: CheckoutRecoveryCampaignConfig,
+  now: Date,
+): Promise<CheckoutRecoveryCandidatePreview | null> {
+  if (!session.customerEmail?.trim()) return null;
+  const nextStep = await resolveNextRecoveryStep(session, config, now);
+  if (!nextStep || !nextStep.isDueNow) return null;
+  return serializeCandidate({
+    session,
+    stepIndex: nextStep.stepIndex,
+    scheduledFor: nextStep.scheduledFor,
+    customerType: nextStep.customerType,
+  });
   return null;
 }
 
@@ -332,8 +408,16 @@ function getConfiguredStep(
   return step;
 }
 
+function getSessionRecoveryState(
+  session: Pick<RecoverySessionWithAttempts, "suppressedAt" | "completedAt">,
+): CheckoutRecoverySessionPreview["state"] {
+  if (session.completedAt) return "completed";
+  if (session.suppressedAt) return "suppressed";
+  return "active";
+}
+
 async function sendRecoveryEmailForStep(input: {
-  session: Awaited<ReturnType<typeof loadRecoverySessionOrThrow>>;
+  session: RecoverySessionWithAttempts;
   config: CheckoutRecoveryCampaignConfig;
   stepIndex: number;
 }) {
@@ -374,6 +458,103 @@ async function sendRecoveryEmailForStep(input: {
     promoMessage: step.promoMessage,
     storefront,
   };
+}
+
+async function sendRecoveryAttempt(input: {
+  session: RecoverySessionWithAttempts;
+  config: CheckoutRecoveryCampaignConfig;
+  stepIndex: number;
+  scheduledFor: Date;
+  actor?: RecoveryActor | null;
+}) {
+  if (!input.session.customerEmail?.trim()) {
+    await prisma.checkoutRecoveryAttempt.upsert({
+      where: {
+        sessionId_stepIndex: {
+          sessionId: input.session.id,
+          stepIndex: input.stepIndex,
+        },
+      },
+      update: {
+        status: "SKIPPED",
+        skipReason: "missing_email",
+      },
+      create: {
+        sessionId: input.session.id,
+        stepIndex: input.stepIndex,
+        scheduledFor: input.scheduledFor,
+        status: "SKIPPED",
+        skipReason: "missing_email",
+      },
+    });
+    return { status: "SKIPPED" as const, reason: "missing_email" };
+  }
+
+  try {
+    await prisma.checkoutRecoveryAttempt.create({
+      data: {
+        sessionId: input.session.id,
+        stepIndex: input.stepIndex,
+        scheduledFor: input.scheduledFor,
+        status: "PENDING",
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { status: "SKIPPED" as const, reason: "duplicate_attempt" };
+    }
+    throw error;
+  }
+
+  try {
+    const emailResult = await sendRecoveryEmailForStep({
+      session: input.session,
+      config: input.config,
+      stepIndex: input.stepIndex,
+    });
+    await prisma.checkoutRecoveryAttempt.update({
+      where: {
+        sessionId_stepIndex: {
+          sessionId: input.session.id,
+          stepIndex: input.stepIndex,
+        },
+      },
+      data: {
+        status: "SENT",
+        sentAt: new Date(),
+        promoCode: emailResult.promoCode,
+        promoMessage: emailResult.promoMessage,
+        deliveryMetadata: toJson({
+          recoveryUrl: emailResult.recoveryUrl,
+          storefront: emailResult.storefront,
+          actor: input.actor?.email ?? "system",
+        }),
+      },
+    });
+    return { status: "SENT" as const };
+  } catch (error) {
+    await prisma.checkoutRecoveryAttempt.update({
+      where: {
+        sessionId_stepIndex: {
+          sessionId: input.session.id,
+          stepIndex: input.stepIndex,
+        },
+      },
+      data: {
+        status: "FAILED",
+        errorMessage:
+          error instanceof Error ? error.message : "Checkout recovery send failed.",
+      },
+    });
+    return {
+      status: "FAILED" as const,
+      reason:
+        error instanceof Error ? error.message : "Checkout recovery send failed.",
+    };
+  }
 }
 
 export async function persistCheckoutRecoverySession(input: {
@@ -474,11 +655,33 @@ export async function getCheckoutRecoveryRestorePayload(sessionId: string) {
   };
 }
 
-export async function getCheckoutRecoveryOverview(): Promise<CheckoutRecoveryOverview> {
+export async function getCheckoutRecoveryOverview(input?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<CheckoutRecoveryOverview> {
   const { record, config } = await getCheckoutRecoverySchedule();
-  const [totalSessions, consentedSessions, recovered, attempts, due] = await Promise.all([
+  const sessionPage =
+    typeof input?.page === "number" && Number.isFinite(input.page) && input.page > 0
+      ? Math.floor(input.page)
+      : 1;
+  const sessionPageSize =
+    typeof input?.pageSize === "number" &&
+    Number.isFinite(input.pageSize) &&
+    input.pageSize > 0
+      ? Math.floor(input.pageSize)
+      : 12;
+  const [totalSessions, consentedSessions, activeSessions, suppressedSessions, completedSessions, recovered, attempts, due, sessions] = await Promise.all([
     prisma.checkoutRecoverySession.count(),
     prisma.checkoutRecoverySession.count({ where: { consentGranted: true } }),
+    prisma.checkoutRecoverySession.count({
+      where: { consentGranted: true, suppressedAt: null, completedAt: null },
+    }),
+    prisma.checkoutRecoverySession.count({
+      where: { consentGranted: true, suppressedAt: { not: null }, completedAt: null },
+    }),
+    prisma.checkoutRecoverySession.count({
+      where: { consentGranted: true, completedAt: { not: null } },
+    }),
     prisma.order.aggregate({
       _count: { id: true },
       _sum: { amountTotal: true },
@@ -497,6 +700,7 @@ export async function getCheckoutRecoveryOverview(): Promise<CheckoutRecoveryOve
       },
     }),
     getDueCandidates(config),
+    listRecoverySessions(sessionPage, sessionPageSize + 1),
   ]);
 
   const sentAttempts = attempts.filter((attempt) => attempt.status === "SENT").length;
@@ -508,6 +712,46 @@ export async function getCheckoutRecoveryOverview(): Promise<CheckoutRecoveryOve
     if (!reason) continue;
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
   }
+
+  const visibleSessions = sessions.slice(0, sessionPageSize);
+  const sessionPreviews = await Promise.all(
+    visibleSessions.map(async (session) => {
+      const nextStep = await resolveNextRecoveryStep(session, config, new Date());
+      const lastAttempt = session.attempts.at(-1) ?? null;
+
+      return {
+        id: session.id,
+        stripeSessionId: session.stripeSessionId,
+        customerEmail: session.customerEmail,
+        storefront: parseStorefront(session.sourceStorefront ?? null),
+        totalCents: session.totalCents,
+        isGuest: session.isGuest,
+        state: getSessionRecoveryState(session),
+        suppressedAt: session.suppressedAt?.toISOString() ?? null,
+        suppressionReason: session.suppressionReason,
+        completedAt: session.completedAt?.toISOString() ?? null,
+        createdAt: session.createdAt.toISOString(),
+        nextStep: nextStep
+          ? {
+              stepIndex: nextStep.stepIndex,
+              stepLabel: formatCheckoutRecoveryStepLabel(nextStep.stepIndex),
+              scheduledFor: nextStep.scheduledFor.toISOString(),
+              isDueNow: nextStep.isDueNow,
+            }
+          : null,
+        lastAttempt: lastAttempt
+          ? {
+              stepIndex: lastAttempt.stepIndex,
+              status: lastAttempt.status,
+              sentAt: lastAttempt.sentAt?.toISOString() ?? null,
+              scheduledFor: lastAttempt.scheduledFor.toISOString(),
+              skipReason: lastAttempt.skipReason,
+              errorMessage: lastAttempt.errorMessage,
+            }
+          : null,
+      } satisfies CheckoutRecoverySessionPreview;
+    }),
+  );
 
   return {
     schedule: {
@@ -522,6 +766,9 @@ export async function getCheckoutRecoveryOverview(): Promise<CheckoutRecoveryOve
     metrics: {
       totalSessions,
       consentedSessions,
+      activeSessions,
+      suppressedSessions,
+      completedSessions,
       dueNowCount: due.candidates.length,
       recoveredOrders: recovered._count.id ?? 0,
       recoveredRevenueCents: recovered._sum.amountTotal ?? 0,
@@ -546,6 +793,9 @@ export async function getCheckoutRecoveryOverview(): Promise<CheckoutRecoveryOve
       .slice(0, 5)
       .map(([reason, count]) => ({ reason, count })),
     dueCandidates: due.candidates.slice(0, 10),
+    sessions: sessionPreviews,
+    sessionPage,
+    hasMoreSessions: sessions.length > sessionPageSize,
   };
 }
 
@@ -617,92 +867,16 @@ export async function runCheckoutRecoveryCampaign(input: {
 
   for (const candidate of selectedCandidates) {
     const session = await loadRecoverySessionOrThrow(candidate.sessionId);
-    if (!session.customerEmail?.trim()) {
-      await prisma.checkoutRecoveryAttempt.upsert({
-        where: {
-          sessionId_stepIndex: {
-            sessionId: candidate.sessionId,
-            stepIndex: candidate.stepIndex,
-          },
-        },
-        update: {
-          status: "SKIPPED",
-          skipReason: "missing_email",
-        },
-        create: {
-          sessionId: candidate.sessionId,
-          stepIndex: candidate.stepIndex,
-          scheduledFor: new Date(candidate.scheduledFor),
-          status: "SKIPPED",
-          skipReason: "missing_email",
-        },
-      });
-      skipped += 1;
-      continue;
-    }
-
-    try {
-      await prisma.checkoutRecoveryAttempt.create({
-        data: {
-          sessionId: candidate.sessionId,
-          stepIndex: candidate.stepIndex,
-          scheduledFor: new Date(candidate.scheduledFor),
-          status: "PENDING",
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        skipped += 1;
-        continue;
-      }
-      throw error;
-    }
-
-    try {
-      const emailResult = await sendRecoveryEmailForStep({
-        session,
-        config,
-        stepIndex: candidate.stepIndex,
-      });
-      await prisma.checkoutRecoveryAttempt.update({
-        where: {
-          sessionId_stepIndex: {
-            sessionId: candidate.sessionId,
-            stepIndex: candidate.stepIndex,
-          },
-        },
-        data: {
-          status: "SENT",
-          sentAt: new Date(),
-          promoCode: emailResult.promoCode,
-          promoMessage: emailResult.promoMessage,
-          deliveryMetadata: toJson({
-            recoveryUrl: emailResult.recoveryUrl,
-            storefront: emailResult.storefront,
-            actor: input.actor?.email ?? "system",
-          }),
-        },
-      });
-      sent += 1;
-    } catch (error) {
-      await prisma.checkoutRecoveryAttempt.update({
-        where: {
-          sessionId_stepIndex: {
-            sessionId: candidate.sessionId,
-            stepIndex: candidate.stepIndex,
-          },
-        },
-        data: {
-          status: "FAILED",
-          errorMessage:
-            error instanceof Error ? error.message : "Checkout recovery send failed.",
-        },
-      });
-      failed += 1;
-    }
+    const result = await sendRecoveryAttempt({
+      session,
+      config,
+      stepIndex: candidate.stepIndex,
+      scheduledFor: new Date(candidate.scheduledFor),
+      actor: input.actor,
+    });
+    if (result.status === "SENT") sent += 1;
+    if (result.status === "SKIPPED") skipped += 1;
+    if (result.status === "FAILED") failed += 1;
   }
 
   return {
@@ -713,6 +887,87 @@ export async function runCheckoutRecoveryCampaign(input: {
     paused: false,
     dueCount: candidates.length,
     candidates: selectedCandidates,
+  };
+}
+
+export async function suppressCheckoutRecoverySession(input: {
+  sessionId: string;
+  reason: string;
+}) {
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new Error("Suppression reason is required.");
+  }
+
+  const updated = await prisma.checkoutRecoverySession.update({
+    where: { id: input.sessionId },
+    data: {
+      suppressedAt: new Date(),
+      suppressionReason: reason,
+    },
+    include: {
+      attempts: { orderBy: [{ stepIndex: "asc" }] },
+    },
+  });
+
+  return serializeCheckoutRecoverySessionRecord(updated);
+}
+
+export async function resumeCheckoutRecoverySession(sessionId: string) {
+  const updated = await prisma.checkoutRecoverySession.update({
+    where: { id: sessionId },
+    data: {
+      suppressedAt: null,
+      suppressionReason: null,
+    },
+    include: {
+      attempts: { orderBy: [{ stepIndex: "asc" }] },
+    },
+  });
+
+  return serializeCheckoutRecoverySessionRecord(updated);
+}
+
+export async function sendCheckoutRecoverySessionNow(input: {
+  sessionId: string;
+  actor?: RecoveryActor | null;
+}) {
+  const { config } = await getCheckoutRecoverySchedule();
+  const session = await loadRecoverySessionOrThrow(input.sessionId);
+  if (!session.consentGranted) {
+    throw new Error("Recovery consent is required before sending.");
+  }
+  if (session.completedAt) {
+    throw new Error("Completed recovery sessions cannot be sent again.");
+  }
+  if (session.suppressedAt) {
+    throw new Error("Suppressed recovery sessions must be resumed first.");
+  }
+
+  const nextStep = await resolveNextRecoveryStep(session, config, new Date());
+  if (!nextStep) {
+    throw new Error("No eligible recovery step is available for this session.");
+  }
+
+  const result = await sendRecoveryAttempt({
+    session,
+    config,
+    stepIndex: nextStep.stepIndex,
+    scheduledFor: new Date(),
+    actor: input.actor,
+  });
+  if (result.status === "FAILED") {
+    throw new Error(result.reason ?? "Checkout recovery send failed.");
+  }
+  if (result.status === "SKIPPED") {
+    throw new Error(result.reason ?? "Checkout recovery send skipped.");
+  }
+
+  return {
+    session: serializeCheckoutRecoverySessionRecord(
+      await loadRecoverySessionOrThrow(input.sessionId),
+    ),
+    stepIndex: nextStep.stepIndex,
   };
 }
 

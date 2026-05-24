@@ -719,6 +719,15 @@ export default function CatalogWorkspaceClient({
     return queryString ? `/admin/catalog?${queryString}` : "/admin/catalog";
   };
 
+  const buildHygieneHref = () => {
+    const params = new URLSearchParams();
+    if (storefrontFilter) {
+      params.set("storefront", storefrontFilter);
+    }
+    const queryString = params.toString();
+    return queryString ? `/admin/catalog/hygiene?${queryString}` : "/admin/catalog/hygiene";
+  };
+
   const applyBulkEdit = async () => {
     if (!selectedIds.length) {
       setError("Select products to update");
@@ -949,6 +958,12 @@ export default function CatalogWorkspaceClient({
               scroll={false}
             >
               Refresh
+            </Link>
+            <Link
+              href={buildHygieneHref()}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+            >
+              Hygiene
             </Link>
             <AdminButton
               type="button"

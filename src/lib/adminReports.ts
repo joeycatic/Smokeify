@@ -8,6 +8,7 @@ import {
   parseAdminTimeRangeDays,
   type AdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
+import { normalizeAdminReportDeliveryRecipients } from "@/lib/adminReportDelivery";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import { prisma } from "@/lib/prisma";
 
@@ -34,11 +35,13 @@ export type AdminSavedReportSnapshot = {
   createdByEmail: string | null;
   deliveryEnabled: boolean;
   deliveryEmail: string | null;
+  deliveryRecipients: string[];
   deliveryFrequency: AdminReportDeliveryFrequency | null;
   deliveryWeekday: number | null;
   deliveryHour: number | null;
   lastDeliveredAt: string | null;
   nextDeliveryAt: string | null;
+  lastDeliveryError: string | null;
   updatedAt: string;
 };
 
@@ -279,11 +282,16 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
       createdByEmail: report.createdByEmail,
       deliveryEnabled: report.deliveryEnabled,
       deliveryEmail: report.deliveryEmail,
+      deliveryRecipients: normalizeAdminReportDeliveryRecipients(
+        report.deliveryRecipients,
+        report.deliveryEmail,
+      ),
       deliveryFrequency: report.deliveryFrequency,
       deliveryWeekday: report.deliveryWeekday,
       deliveryHour: report.deliveryHour,
       lastDeliveredAt: report.lastDeliveredAt?.toISOString() ?? null,
       nextDeliveryAt: report.nextDeliveryAt?.toISOString() ?? null,
+      lastDeliveryError: report.lastDeliveryError,
       updatedAt: report.updatedAt.toISOString(),
     })),
     summary: {

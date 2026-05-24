@@ -14,8 +14,21 @@ import { getCheckoutRecoveryOverview } from "@/lib/checkoutRecoveryService";
 import { prisma } from "@/lib/prisma";
 import AdminOpsClient from "./AdminOpsClient";
 
-export default async function AdminOpsPage() {
+export default async function AdminOpsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!(await requireAdminScope("ops.read"))) notFound();
+  const resolvedSearchParams = await searchParams;
+  const rawRecoveryPage = Array.isArray(resolvedSearchParams?.recoveryPage)
+    ? resolvedSearchParams?.recoveryPage[0] ?? "1"
+    : resolvedSearchParams?.recoveryPage ?? "1";
+  const parsedRecoveryPage = Number.parseInt(rawRecoveryPage, 10);
+  const recoveryPage =
+    Number.isFinite(parsedRecoveryPage) && parsedRecoveryPage > 0
+      ? parsedRecoveryPage
+      : 1;
 
   const [jobRuns, failedWebhookEvents, automationData, environmentHealth, attributionSnapshot, checkoutRecovery] = await Promise.all([
     listAdminJobRuns(),
@@ -46,7 +59,7 @@ export default async function AdminOpsPage() {
     })(),
     getAdminEnvironmentHealth(),
     listUnresolvedOrderAttributionRows(),
-    getCheckoutRecoveryOverview(),
+    getCheckoutRecoveryOverview({ page: recoveryPage }),
   ]);
 
   return (

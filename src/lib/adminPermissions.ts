@@ -180,6 +180,8 @@ const ADMIN_API_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/api/admin/alerts", scope: "alerts.write" },
   { prefix: "/api/admin/analyzer", scope: "ops.read" },
   { prefix: "/api/admin/categories", scope: "catalog.write" },
+  { prefix: "/api/admin/checkout-recovery", scope: "ops.read", methods: ["GET"] },
+  { prefix: "/api/admin/checkout-recovery", scope: "ops.write" },
   { prefix: "/api/admin/collections", scope: "catalog.write" },
   { prefix: "/api/admin/compliance", scope: "catalog.write" },
   { prefix: "/api/admin/customer-tasks", scope: "crm.write" },

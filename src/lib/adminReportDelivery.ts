@@ -1,5 +1,36 @@
 import type { AdminReportDeliveryFrequency } from "@prisma/client";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeAdminReportDeliveryRecipients(
+  value: unknown,
+  fallbackEmail?: string | null,
+) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[\n,;]/g)
+      : [];
+  const recipients = Array.from(
+    new Set(
+      rawValues
+        .map((entry) => (typeof entry === "string" ? entry.trim().toLowerCase() : ""))
+        .filter(Boolean),
+    ),
+  );
+
+  if (recipients.length > 0) {
+    return recipients;
+  }
+
+  const fallback = typeof fallbackEmail === "string" ? fallbackEmail.trim().toLowerCase() : "";
+  return fallback ? [fallback] : [];
+}
+
+export function isValidAdminReportDeliveryRecipient(value: string) {
+  return EMAIL_REGEX.test(value);
+}
+
 export function parseAdminReportDeliveryFrequency(
   value: string | null | undefined
 ): AdminReportDeliveryFrequency | null {
@@ -71,17 +102,17 @@ export function computeNextAdminReportDelivery({
 export function formatAdminReportDeliveryLabel({
   enabled,
   frequency,
-  email,
+  recipients,
   weekday,
   hour,
 }: {
   enabled: boolean;
   frequency: AdminReportDeliveryFrequency | null;
-  email: string | null;
+  recipients: string[];
   weekday: number | null;
   hour: number | null;
 }) {
-  if (!enabled || !frequency || !email || hour === null) {
+  if (!enabled || !frequency || recipients.length === 0 || hour === null) {
     return "Not scheduled";
   }
 
@@ -89,7 +120,8 @@ export function formatAdminReportDeliveryLabel({
     frequency === "WEEKLY"
       ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][weekday ?? 1]
       : "Daily";
-  return `${frequency === "DAILY" ? "Daily" : weekdayLabel} at ${String(hour).padStart(2, "0")}:00 UTC`;
+  const recipientLabel = recipients.length === 1 ? recipients[0] : `${recipients.length} recipients`;
+  return `${frequency === "DAILY" ? "Daily" : weekdayLabel} at ${String(hour).padStart(2, "0")}:00 UTC · ${recipientLabel}`;
 }
 
 export function buildAdminReportDeliveryEmail({
