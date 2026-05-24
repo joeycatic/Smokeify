@@ -250,6 +250,25 @@ export const ADMIN_SCRIPT_DEFINITIONS: readonly AdminScriptDefinition[] = [
     safetyNote:
       "Dry-run first. Apply mode only classifies orders with exact evidence and leaves ambiguous cases unresolved.",
   },
+  {
+    id: "analyzer:resync-growvault-runs",
+    npmScript: "analyzer:resync-growvault-runs",
+    title: "Resync Growvault analyzer runs",
+    category: "Operations",
+    description:
+      "Repair legacy Growvault analyzer submissions that were stored only as publication requests and never materialized into publication records used by the shared admin workflow.",
+    inputSummary:
+      "Reads persisted Growvault analyzer runs through the shared control-plane bridge. No manual run IDs are required.",
+    outputSummary:
+      "Backfills missing Growvault publication records for saved analyzer runs that already have stored submission intent, then prints repaired IDs and coverage counts.",
+    impact: "Writes missing Growvault analyzer publication records only.",
+    expectedDuration: "15-60 seconds",
+    riskLevel: "write",
+    dryRunByDefault: false,
+    timeoutMs: 2 * 60 * 1000,
+    safetyNote:
+      "This cannot reconstruct analyzer responses that were never saved. It only repairs persisted runs with stored publication requests.",
+  },
 ] as const;
 
 export function getAdminScriptDefinition(scriptId: string) {

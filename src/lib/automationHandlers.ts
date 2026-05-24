@@ -307,6 +307,12 @@ export async function executeAutomationHandler(input: {
       const { definition, normalizedInputs, result } = await runApprovedAdminScriptById({
         scriptId,
         inputs,
+        actor: input.actor
+          ? {
+              id: input.actor.id,
+              email: input.actor.email ?? null,
+            }
+          : undefined,
       });
       if (!result.ok) {
         throw new Error(

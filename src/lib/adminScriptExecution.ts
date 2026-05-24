@@ -8,6 +8,11 @@ import {
   loadLatestBloomtechPreviewPayload,
   saveBloomtechPreviewPayload,
 } from "@/lib/bloomtechAdminPreviewStore";
+import {
+  fetchGrowvaultAnalyzerAdminJson,
+  getGrowvaultAnalyzerAdminBridgeTarget,
+  hasGrowvaultAnalyzerAdminBridge,
+} from "@/lib/growvaultAnalyzerAdminBridge";
 import { prisma } from "@/lib/prisma";
 
 const OUTPUT_LIMIT = 12_000;
@@ -254,9 +259,93 @@ async function executeInternalBloomtechImportPreview() {
   };
 }
 
+async function executeGrowvaultAnalyzerResync(input: {
+  actor?: {
+    id?: string | null;
+    email?: string | null;
+  };
+}) {
+  if (!hasGrowvaultAnalyzerAdminBridge()) {
+    return {
+      ok: false,
+      stdout: "",
+      stderr: `Growvault analyzer bridge is not configured. Target: ${getGrowvaultAnalyzerAdminBridgeTarget() ?? "unconfigured"}`,
+      exitCode: 1,
+      timedOut: false,
+    };
+  }
+
+  const bridge = await fetchGrowvaultAnalyzerAdminJson<{
+    source: string;
+    storefront: string;
+    scannedCount: number;
+    candidateCount: number;
+    repairedCount: number;
+    repairedIds: string[];
+    alreadyPresentCount: number;
+    note?: string;
+    error?: string;
+  }>(
+    "/api/internal/admin/analyzer/publications/backfill",
+    "",
+    input.actor?.id
+      ? {
+          method: "POST",
+          actor: {
+            id: input.actor.id,
+            email: input.actor.email ?? null,
+          },
+        }
+      : {
+          method: "POST",
+        },
+  );
+
+  if (!bridge?.ok) {
+    return {
+      ok: false,
+      stdout: "",
+      stderr:
+        bridge?.payload.error ??
+        "Growvault analyzer publication backfill failed through the shared bridge.",
+      exitCode: bridge?.status ?? 1,
+      timedOut: false,
+    };
+  }
+
+  const repairedIds =
+    bridge.payload.repairedIds.length > 0
+      ? bridge.payload.repairedIds.join(", ")
+      : "(none)";
+
+  const stdout = [
+    `target=${getGrowvaultAnalyzerAdminBridgeTarget() ?? "unknown"}`,
+    `scanned=${bridge.payload.scannedCount}`,
+    `candidates=${bridge.payload.candidateCount}`,
+    `already_present=${bridge.payload.alreadyPresentCount}`,
+    `repaired=${bridge.payload.repairedCount}`,
+    `repaired_ids=${repairedIds}`,
+    bridge.payload.note ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    ok: true,
+    stdout,
+    stderr: "",
+    exitCode: 0,
+    timedOut: false,
+  };
+}
+
 export async function runApprovedAdminScriptById(input: {
   scriptId: string;
   inputs?: Record<string, string>;
+  actor?: {
+    id?: string | null;
+    email?: string | null;
+  };
 }) {
   const definition = getAdminScriptDefinition(input.scriptId);
   if (!definition) {
@@ -271,6 +360,10 @@ export async function runApprovedAdminScriptById(input: {
   const result =
     definition.id === "suppliers:sync-stock"
       ? await executeInternalSupplierSync()
+      : definition.id === "analyzer:resync-growvault-runs"
+        ? await executeGrowvaultAnalyzerResync({
+            actor: input.actor,
+          })
       : definition.id === "bloomtech:scrape-preview" ||
           definition.id === "bloomtech:scrape-category-preview" ||
           definition.id === "bloomtech:scrape-product-preview"
