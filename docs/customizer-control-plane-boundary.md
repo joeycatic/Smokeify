@@ -7,6 +7,7 @@
 - preset management and related catalog operations
 - operational diagnostics and reporting for customizer-backed flows
 - any internal/shared Growvault support contracts that stay admin-owned
+- `/admin/growvault` as the actionable operator surface for Growvault contract health, merchandising coverage, and diagnostics
 
 ## Transitional only
 

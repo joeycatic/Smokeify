@@ -29,6 +29,13 @@ const formatDate = (value: string) =>
     year: "numeric",
   }).format(new Date(value));
 
+const statusToneClass = {
+  ok: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+  warn: "border-amber-400/20 bg-amber-400/10 text-amber-100",
+  fail: "border-rose-400/20 bg-rose-400/10 text-rose-100",
+  unknown: "border-white/10 bg-white/[0.03] text-slate-200",
+} as const;
+
 function ProductList({
   rows,
   emptyCopy,
@@ -346,21 +353,33 @@ export default async function AdminGrowvaultPage({
             {diagnostics.statuses.map((status) => (
               <div
                 key={status.key}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                className={`rounded-2xl border p-4 ${statusToneClass[status.status]}`}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200">
+                  <span className="rounded-full border border-current/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]">
                     {status.status}
                   </span>
-                  <span className="text-xs text-slate-500">{status.key}</span>
+                  <span className="text-xs opacity-75">
+                    {status.category ?? "diagnostics"} · {status.owner ?? status.source}
+                  </span>
                 </div>
-                <p className="mt-3 text-sm text-slate-300">{status.summary}</p>
+                <p className="mt-3 text-sm font-semibold">{status.key}</p>
+                <p className="mt-2 text-sm opacity-85">{status.summary}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs opacity-75">
+                  <span>Updated {formatDate(status.updatedAt)}</span>
+                  {typeof status.affectedCount === "number" ? (
+                    <span>{status.affectedCount} affected</span>
+                  ) : null}
+                </div>
+                {status.impact ? (
+                  <p className="mt-2 text-xs opacity-75">{status.impact}</p>
+                ) : null}
                 {status.actionUrl ? (
                   <a
                     href={status.actionUrl}
-                    className="mt-3 inline-flex text-sm font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                    className="mt-3 inline-flex text-sm font-semibold underline-offset-4 hover:underline"
                   >
-                    Workspace öffnen
+                    {status.actionLabel ?? "Workspace öffnen"}
                   </a>
                 ) : null}
               </div>

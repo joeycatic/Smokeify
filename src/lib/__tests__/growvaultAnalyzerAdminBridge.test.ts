@@ -41,10 +41,10 @@ describe("growvaultAnalyzerAdminBridge", () => {
     delete process.env.GROWVAULT_APP_URL;
     process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.de";
 
-    const module = await loadBridgeModule();
+    const bridgeModule = await loadBridgeModule();
 
-    expect(module.hasGrowvaultAnalyzerAdminBridge()).toBe(true);
-    expect(module.getGrowvaultAnalyzerAdminBridgeTarget()).toBe("http://127.0.0.1:3000");
+    expect(bridgeModule.hasGrowvaultAnalyzerAdminBridge()).toBe(true);
+    expect(bridgeModule.getGrowvaultAnalyzerAdminBridgeTarget()).toBe("http://127.0.0.1:3000");
   });
 
   it("falls back to the public Growvault app when the local dev target is unavailable", async () => {
@@ -67,12 +67,10 @@ describe("growvaultAnalyzerAdminBridge", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const module = await loadBridgeModule();
-    const response = await module.fetchGrowvaultAnalyzerAdminJson<{ repairedCount: number }>(
-      "/api/internal/admin/analyzer/publications/backfill",
-      "",
-      { method: "POST" },
-    );
+    const bridgeModule = await loadBridgeModule();
+    const response = await bridgeModule.fetchGrowvaultAnalyzerAdminJson<{
+      repairedCount: number;
+    }>("/api/internal/admin/analyzer/publications/backfill", "", { method: "POST" });
 
     expect(response).toMatchObject({
       ok: true,
