@@ -8,6 +8,7 @@
 - analyzer review and QA
 - recommendation profiles and guide mappings
 - shared Growvault support contracts under `src/app/api/shared/growvault/*`
+- Growvault-facing diagnostics metadata, actions, and operator links in `/admin/growvault`
 
 ## Transitional only
 

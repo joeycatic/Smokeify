@@ -14,6 +14,11 @@ export type SharedDiagnosticsStatusEntry = {
   updatedAt: string;
   source: string;
   actionUrl?: string;
+  actionLabel?: string;
+  category?: "catalog" | "diagnostics" | "merchandising" | "analyzer" | "compliance" | "alerts";
+  owner?: "smokeify" | "growvault";
+  affectedCount?: number;
+  impact?: string;
 };
 
 export type SharedMerchandisingSlot = {
@@ -75,6 +80,10 @@ function toStatusEntry(
   summary: string,
   updatedAt: Date,
   actionUrl?: string,
+  metadata: Omit<
+    SharedDiagnosticsStatusEntry,
+    "key" | "status" | "summary" | "updatedAt" | "source" | "actionUrl"
+  > = {},
 ): SharedDiagnosticsStatusEntry {
   return {
     key,
@@ -83,6 +92,7 @@ function toStatusEntry(
     updatedAt: updatedAt.toISOString(),
     source: "smokeify",
     actionUrl,
+    ...metadata,
   };
 }
 
@@ -298,6 +308,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : "No GROW storefront products are currently assigned.",
       now,
       buildAdminUrl("/admin/catalog?storefront=GROW"),
+      {
+        actionLabel: "Open Grow catalog",
+        category: "catalog",
+        owner: "smokeify",
+        affectedCount: growProducts,
+        impact: "Stale catalog data can leave Growvault storefront content behind Smokeify.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.collection.completeness",
@@ -307,6 +324,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${growProductsWithCollections}/${growProducts} GROW products have at least one collection assignment.`,
       now,
       buildAdminUrl("/admin/catalog?storefront=GROW"),
+      {
+        actionLabel: "Open catalog collections",
+        category: "merchandising",
+        owner: "smokeify",
+        affectedCount: Math.max(0, growProducts - growProductsWithCollections),
+        impact: "Missing collection coverage reduces Growvault discovery and homepage merchandising.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.assignment.category_required",
@@ -320,6 +344,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${growProductsWithoutAssignedCategory} GROW-assigned products are missing a matching GROW category assignment.`,
       now,
       buildAdminUrl("/admin/catalog?storefront=GROW"),
+      {
+        actionLabel: "Fix category assignment",
+        category: "catalog",
+        owner: "smokeify",
+        affectedCount: growProductsWithoutAssignedCategory,
+        impact: "Products without Grow categories are hard to discover and may fail storefront eligibility.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.assignment.compliance_blocked",
@@ -333,6 +364,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${growProductsBlockedByCompliance} GROW-assigned products are still blocked by compliance or restricted-category checks.`,
       now,
       buildAdminUrl("/admin/compliance"),
+      {
+        actionLabel: "Review compliance",
+        category: "compliance",
+        owner: "smokeify",
+        affectedCount: growProductsBlockedByCompliance,
+        impact: "Blocked products stay hidden or unsafe for Growvault publication until reviewed.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.assignment.empty_categories",
@@ -342,6 +380,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${emptyGrowCategories} GROW-assigned categories do not currently contain any GROW-assigned products.`,
       now,
       buildAdminUrl("/admin/categories"),
+      {
+        actionLabel: "Open categories",
+        category: "merchandising",
+        owner: "smokeify",
+        affectedCount: emptyGrowCategories,
+        impact: "Empty categories create weak discovery pages and broken navigation expectations.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.assignment.category_product_mismatch",
@@ -351,6 +396,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${categoryMismatchCount} category/product storefront mismatches were detected across main and secondary category assignments.`,
       now,
       buildAdminUrl("/admin/catalog?storefront=GROW"),
+      {
+        actionLabel: "Audit assignments",
+        category: "catalog",
+        owner: "smokeify",
+        affectedCount: categoryMismatchCount,
+        impact: "Storefront mismatches make Growvault and Smokeify disagree about product visibility.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.discount.integrity",
@@ -360,6 +412,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : "Stripe-backed discount validation is unavailable until STRIPE_SECRET_KEY is configured.",
       now,
       buildAdminUrl("/admin/discounts"),
+      {
+        actionLabel: "Open discounts",
+        category: "diagnostics",
+        owner: "smokeify",
+        affectedCount: process.env.STRIPE_SECRET_KEY ? 0 : 1,
+        impact: "Stripe configuration controls whether Growvault can validate checkout discounts.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.analyzer.handoff",
@@ -369,6 +428,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${analyzerBacklog} analyzer cases still need review or rerun handling.`,
       now,
       buildAdminUrl("/admin/analyzer"),
+      {
+        actionLabel: "Open analyzer queue",
+        category: "analyzer",
+        owner: "smokeify",
+        affectedCount: analyzerBacklog,
+        impact: "Analyzer cases need review before they can become trusted customer guidance.",
+      },
     ),
     toStatusEntry(
       "smokeify.growvault.alerts.active",
@@ -378,6 +444,13 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
         : `${activeAlertCount} operational alerts are currently active.`,
       now,
       buildAdminUrl("/admin/alerts"),
+      {
+        actionLabel: "Open alerts",
+        category: "alerts",
+        owner: "smokeify",
+        affectedCount: activeAlertCount,
+        impact: "Active operational alerts can indicate unresolved Growvault storefront risk.",
+      },
     ),
   ];
 
