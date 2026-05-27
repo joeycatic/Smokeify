@@ -87,10 +87,10 @@ describe("growvaultPublicStorefront", () => {
     delete process.env.GROWVAULT_APP_URL;
     process.env.NEXT_PUBLIC_GROW_APP_URL = "http://127.0.0.1:3000";
 
-    const module = await loadGrowvaultPublicStorefrontModule();
+    const storefrontModule = await loadGrowvaultPublicStorefrontModule();
 
-    expect(module.GROWVAULT_PUBLIC_URL).toBe("http://127.0.0.1:3000");
-    expect(module.buildGrowvaultAnalyzerUrl()).toBe(
+    expect(storefrontModule.GROWVAULT_PUBLIC_URL).toBe("http://127.0.0.1:3000");
+    expect(storefrontModule.buildGrowvaultAnalyzerUrl()).toBe(
       "http://127.0.0.1:3000/pflanzen-analyse",
     );
   });
