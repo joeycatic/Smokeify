@@ -12,6 +12,11 @@ export type AnalyzerAdminRun = {
   species: string;
   reviewStatus: string;
   reviewNotes: string | null;
+  assignedReviewerId?: string | null;
+  assignedReviewerEmail?: string | null;
+  assignedAt?: string | null;
+  reviewDueAt?: string | null;
+  overdue?: boolean;
   safetyFlags: string[];
   imageUri: string | null;
   createdAt: string;

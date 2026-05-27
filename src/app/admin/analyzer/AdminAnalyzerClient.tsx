@@ -27,6 +27,11 @@ type AnalyzerRunRecord = {
   species: string;
   reviewStatus: string;
   reviewNotes: string | null;
+  assignedReviewerId?: string | null;
+  assignedReviewerEmail?: string | null;
+  assignedAt?: string | null;
+  reviewDueAt?: string | null;
+  overdue?: boolean;
   safetyFlags: string[];
   imageUri: string | null;
   createdAt: string;
@@ -58,6 +63,10 @@ type AnalyzerRunSummary = {
   lowConfidence: number;
   critical: number;
   submitted: number;
+  unassigned?: number;
+  dueToday?: number;
+  overdue?: number;
+  publicationEligible?: number;
 };
 
 type GrowvaultBridgeStatus = {
@@ -135,7 +144,13 @@ export default function AdminAnalyzerClient() {
   const [query, setQuery] = useState("");
   const [includeResolved, setIncludeResolved] = useState(false);
   const [reviewStatus, setReviewStatus] = useState("");
+  const [queueFilter, setQueueFilter] = useState("");
   const [sortMode, setSortMode] = useState("newest");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkReviewerId, setBulkReviewerId] = useState("");
+  const [bulkDueDate, setBulkDueDate] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [overrideRecommendations, setOverrideRecommendations] = useState("");
   const activeView: AnalyzerView =
@@ -213,6 +228,11 @@ export default function AdminAnalyzerClient() {
       params.set("storefront", requestedStorefront);
       if (includeResolved) params.set("includeResolved", "true");
       if (reviewStatus) params.set("reviewStatus", reviewStatus);
+      if (queueFilter === "assigned") params.set("assignedOnly", "true");
+      if (queueFilter === "overdue") params.set("overdueOnly", "true");
+      if (queueFilter === "publication") params.set("publicationEligibleOnly", "true");
+      if (queueFilter === "disputed") params.set("disputedOnly", "true");
+      if (queueFilter === "low-confidence") params.set("lowConfidenceOnly", "true");
       const response = await fetch(`/api/admin/analyzer/runs?${params.toString()}`);
       const data = (await response.json()) as {
         runs?: AnalyzerRunRecord[];
@@ -234,6 +254,13 @@ export default function AdminAnalyzerClient() {
           lowConfidence: nextRuns.filter((run) => run.confidence < 0.65).length,
           critical: nextRuns.filter((run) => run.healthStatus === "CRITICAL").length,
           submitted: nextRuns.filter((run) => run.publicationStatus === "SUBMITTED").length,
+          unassigned: nextRuns.filter((run) => !run.assignedReviewerId).length,
+          dueToday: nextRuns.filter((run) => {
+            if (!run.reviewDueAt || run.reviewStatus === "REVIEWED_OK") return false;
+            return new Date(run.reviewDueAt).toDateString() === new Date().toDateString();
+          }).length,
+          overdue: nextRuns.filter((run) => run.overdue).length,
+          publicationEligible: nextRuns.filter((run) => run.publicationEligible).length,
         },
       );
       setSourceLabel(data.source ?? "growvault");
@@ -250,12 +277,13 @@ export default function AdminAnalyzerClient() {
           ? current
           : nextRuns[0]?.id ?? null,
       );
+      setSelectedIds((current) => current.filter((id) => nextRuns.some((run) => run.id === id)));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Failed to load analyzer runs.");
     } finally {
       setLoading(false);
     }
-  }, [includeResolved, requestedStorefront, reviewStatus]);
+  }, [includeResolved, queueFilter, requestedStorefront, reviewStatus]);
 
   useEffect(() => {
     void loadRuns();
@@ -362,6 +390,37 @@ export default function AdminAnalyzerClient() {
     }
   };
 
+  const applyBulkAction = async () => {
+    if (selectedIds.length === 0) return;
+    setSaving(true);
+    setError(null);
+    setBulkNotice(null);
+    try {
+      const response = await fetch("/api/admin/analyzer/runs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: selectedIds,
+          reviewStatus: bulkStatus || undefined,
+          assignedReviewerId: bulkReviewerId || undefined,
+          reviewDueAt: bulkDueDate ? new Date(bulkDueDate).toISOString() : undefined,
+          reviewNotes: "Bulk analyzer governance update.",
+        }),
+      });
+      const data = (await response.json()) as { updated?: number; error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Bulk update failed.");
+      }
+      setBulkNotice(`${data.updated ?? selectedIds.length} run(s) updated.`);
+      setSelectedIds([]);
+      await loadRuns();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Bulk update failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const showGrowvaultBridgeWarning = activeView === "shared" && !growvaultBridge.ok;
 
   return (
@@ -391,7 +450,7 @@ export default function AdminAnalyzerClient() {
           </div>
         }
         metrics={
-          <div className="grid gap-3 sm:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-8">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Loaded
@@ -426,6 +485,30 @@ export default function AdminAnalyzerClient() {
               </p>
               <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200">
                 {sourceLabel}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Unassigned
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {summary.unassigned ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Due today
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {summary.dueToday ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200">
+                Overdue
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {summary.overdue ?? 0}
               </p>
             </div>
           </div>
@@ -480,7 +563,7 @@ export default function AdminAnalyzerClient() {
           title="Queue"
           description={pageCopy.queueDescription}
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <AdminInput
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -496,6 +579,17 @@ export default function AdminAnalyzerClient() {
                   {option}
                 </option>
               ))}
+            </AdminSelect>
+            <AdminSelect
+              value={queueFilter}
+              onChange={(event) => setQueueFilter(event.target.value)}
+            >
+              <option value="">Filter: all queue reasons</option>
+              <option value="assigned">Assigned reviewer</option>
+              <option value="overdue">Overdue review</option>
+              <option value="publication">Publication eligible</option>
+              <option value="disputed">Disputed cases</option>
+              <option value="low-confidence">Low confidence</option>
             </AdminSelect>
             <AdminSelect value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
               <option value="attention">Sort: attention</option>
@@ -523,6 +617,55 @@ export default function AdminAnalyzerClient() {
                   ? "lowest confidence"
                   : sortMode}
           </div>
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Bulk actions · {selectedIds.length} selected
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedIds(
+                    selectedIds.length === sortedRuns.length
+                      ? []
+                      : sortedRuns.map((run) => run.id),
+                  )
+                }
+                className="text-xs font-semibold text-cyan-200 underline-offset-4 hover:underline"
+              >
+                {selectedIds.length === sortedRuns.length ? "Clear" : "Select visible"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <AdminSelect value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value)}>
+                <option value="">Bulk status: unchanged</option>
+                {REVIEW_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </AdminSelect>
+              <AdminInput
+                value={bulkReviewerId}
+                onChange={(event) => setBulkReviewerId(event.target.value)}
+                placeholder="Reviewer user ID"
+              />
+              <AdminInput
+                type="date"
+                value={bulkDueDate}
+                onChange={(event) => setBulkDueDate(event.target.value)}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <AdminButton
+                onClick={() => void applyBulkAction()}
+                disabled={saving || selectedIds.length === 0}
+              >
+                Apply bulk update
+              </AdminButton>
+              {bulkNotice ? <span className="text-xs text-emerald-200">{bulkNotice}</span> : null}
+            </div>
+          </div>
           <div className="mt-4 space-y-3">
             {loading ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-8 text-sm text-slate-400">
@@ -534,16 +677,37 @@ export default function AdminAnalyzerClient() {
               </div>
             ) : (
               sortedRuns.map((run) => (
-                <button
+                <div
                   key={run.id}
-                  type="button"
-                  onClick={() => setSelectedId(run.id)}
                   className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                     selectedId === run.id
                       ? "border-cyan-400/40 bg-cyan-400/10"
                       : "border-white/10 bg-white/[0.03] hover:border-white/20"
                   }`}
                 >
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(run.id)}
+                        onChange={(event) =>
+                          setSelectedIds((current) =>
+                            event.target.checked
+                              ? [...new Set([...current, run.id])]
+                              : current.filter((id) => id !== run.id),
+                          )
+                        }
+                      />
+                      Select
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(run.id)}
+                      className="text-xs font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                    >
+                      Open case
+                    </button>
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
                       {run.reviewStatus}
@@ -564,6 +728,16 @@ export default function AdminAnalyzerClient() {
                         {(run.incorrectFeedbackCount ?? 0)} dispute
                       </span>
                     ) : null}
+                    {run.assignedReviewerEmail ? (
+                      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        {run.assignedReviewerEmail}
+                      </span>
+                    ) : null}
+                    {run.overdue ? (
+                      <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100">
+                        Overdue
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-3 text-sm font-semibold text-white">
                     {(run.issues[0]?.label ?? run.species) || "Analyzer case"}
@@ -574,6 +748,7 @@ export default function AdminAnalyzerClient() {
                   <p className="mt-1 text-xs text-slate-400">
                     {run.userEmail ?? "Unknown user"} · {Math.round(run.confidence * 100)}% ·{" "}
                     {formatAnalyzerTimestamp(run.createdAt)}
+                    {run.reviewDueAt ? ` · due ${formatAnalyzerTimestamp(run.reviewDueAt)}` : ""}
                   </p>
                   {run.lastFeedback ? (
                     <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
@@ -588,7 +763,7 @@ export default function AdminAnalyzerClient() {
                       ) : null}
                     </div>
                   ) : null}
-                </button>
+                </div>
               ))
             )}
           </div>

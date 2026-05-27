@@ -455,6 +455,7 @@ model User {
   reviewIncentives                ReviewIncentive[]
   plantAnalyses                   PlantAnalysisRun[]
   plantAnalysisFeedback           PlantAnalysisFeedback[]
+  plantAnalysisAssignments        PlantAnalysisRun[]         @relation("PlantAnalysisAssignedReviewer")
   plantAnalysisReviews            PlantAnalysisRun[]         @relation("PlantAnalysisReviewedBy")
   plantAnalysisReviewEvents       PlantAnalysisReviewEvent[] @relation("PlantAnalysisReviewEventActor")
   analyticsSessions               AnalyticsSession[]
@@ -2317,6 +2318,9 @@ model PlantAnalysisRun {
   species             String
   outputJson          Json
   reviewStatus        PlantAnalysisReviewStatus @default(UNREVIEWED)
+  assignedReviewerId  String?
+  assignedAt          DateTime?
+  reviewDueAt         DateTime?
   reviewedById        String?
   reviewedAt          DateTime?
   reviewNotes         String?
@@ -2327,6 +2331,7 @@ model PlantAnalysisRun {
 
   user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   plant        Plant?                     @relation(fields: [plantId], references: [id], onDelete: SetNull)
+  assignedReviewer User?                  @relation("PlantAnalysisAssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
   reviewedBy   User?                      @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   issues       PlantAnalysisIssue[]
   feedback     PlantAnalysisFeedback[]
@@ -2336,6 +2341,8 @@ model PlantAnalysisRun {
   @@index([plantId, createdAt])
   @@index([healthStatus, createdAt])
   @@index([reviewStatus, createdAt])
+  @@index([assignedReviewerId, reviewDueAt])
+  @@index([reviewDueAt])
   @@index([reviewedById, createdAt])
   @@index([imageRetentionUntil])
   @@index([imageHash])
