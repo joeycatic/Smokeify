@@ -377,9 +377,9 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           </nav>
         </aside>
 
-        <div className="min-w-0 flex-1 overflow-x-hidden md:pl-[18rem]">
+        <div className="min-w-0 w-full overflow-x-hidden md:ml-[18rem] md:w-[calc(100%-18rem)]">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-start gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:flex-nowrap lg:items-center lg:px-8">
+            <div className="mx-auto flex max-w-[1600px] flex-wrap items-start gap-3 px-3 py-3 sm:px-6 sm:py-4 xl:flex-nowrap xl:items-center xl:px-8">
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
@@ -389,7 +389,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 <Bars3Icon className="h-5 w-5" />
               </button>
 
-              <div className="min-w-0 flex-1 basis-full lg:basis-auto">
+              <div className="min-w-0 flex-1 basis-full xl:basis-auto">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
                   Internal Console
                 </p>
@@ -398,7 +398,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                     {currentTitle}
                   </h2>
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    className={`inline-flex max-w-full truncate rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                       supportsStorefrontScope
                         ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
                         : "border border-white/10 bg-white/[0.04] text-slate-300"
@@ -406,13 +406,13 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   >
                     {currentStorefrontLabel}
                   </span>
-                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 md:inline-flex">
+                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 xl:inline-flex">
                     Capability-scoped workspace
                   </span>
                 </div>
               </div>
 
-              <div className="admin-header-controls flex w-full min-w-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center lg:ml-auto lg:justify-end">
+              <div className="admin-header-controls flex w-full min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:ml-auto xl:w-auto xl:flex-nowrap xl:justify-end">
                 <AdminCommandBar
                   key={pathname}
                   groups={visibleNavGroups}
