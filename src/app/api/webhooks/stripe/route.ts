@@ -32,6 +32,7 @@ import {
   resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
+import { sendTelegramMessage } from "@/lib/telegram";
 import { recordAutomationEvent } from "@/lib/automationEvents";
 import { markCheckoutRecoveryOrderLinked } from "@/lib/checkoutRecoveryService";
 
@@ -508,24 +509,6 @@ export const releaseReservedInventory = async (
   });
 };
 
-const sendTelegramMessage = async (text: string) => {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return { ok: false, status: 0 };
-
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    });
-    return { ok: response.ok, status: response.status };
-  } catch {
-    // Ignore Telegram errors for webhook processing.
-    return { ok: false, status: 0 };
-  }
-};
-
 export const createOrderFromSession = async (
   stripe: Stripe,
   session: Stripe.Checkout.Session,
@@ -909,8 +892,8 @@ export const createOrderFromSession = async (
     timeStyle: "short",
   });
   const formattedAmount = formatAmountWithComma(created.amountTotal, orderCurrency);
-  const telegramResult = await sendTelegramMessage(
-    [
+  const telegramResult = await sendTelegramMessage({
+    text: [
       "",
       `New order #${orderNumber} (${orderLabel})`,
       "",
@@ -921,8 +904,8 @@ export const createOrderFromSession = async (
       `Customer: ${customer}`,
       `Time: ${orderTime}`,
       "",
-    ].join("\n")
-  );
+    ].join("\n"),
+  });
   if (!telegramResult.ok) {
     console.warn("[stripe webhook] Telegram send failed.", telegramResult);
   }

@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
+import { getAppOrigin } from "@/lib/appOrigin";
+import { notifyGrowvaultReviewCreated } from "@/lib/growvaultReviewNotification";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import { resolveStorefrontFromRequest } from "@/lib/userStorefront";
 
 const parseRating = (value: unknown) => {
   const rating = Number(value);
@@ -147,6 +150,20 @@ export async function POST(
       body: content,
       status: "APPROVED",
     },
+    include: {
+      product: {
+        select: {
+          title: true,
+          handle: true,
+        },
+      },
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
   });
 
   let incentive:
@@ -215,6 +232,27 @@ export async function POST(
       // Review creation must succeed even if incentive creation fails.
       incentive = undefined;
     }
+  }
+
+  const telegramResult = await notifyGrowvaultReviewCreated({
+    storefront: resolveStorefrontFromRequest(request),
+    fallbackOrigin: getAppOrigin(request),
+    product: {
+      title: created.product.title,
+      handle: created.product.handle,
+    },
+    review: {
+      rating: created.rating,
+      title: created.title,
+      body: created.body,
+      guestName: created.guestName,
+      createdAt: created.createdAt,
+    },
+    reviewer: created.user,
+  });
+
+  if (!telegramResult.ok && !telegramResult.skipped) {
+    console.warn("[reviews] GrowVault Telegram send failed.", telegramResult);
   }
 
   return NextResponse.json({
