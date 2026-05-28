@@ -321,7 +321,7 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="hidden min-w-[20rem] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm text-slate-400 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-slate-200 lg:flex"
+        className="hidden min-w-[20rem] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm text-slate-400 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-slate-200 xl:flex"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
@@ -334,7 +334,7 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white lg:hidden"
+        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white xl:hidden"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />

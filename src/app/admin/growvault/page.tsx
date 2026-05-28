@@ -256,7 +256,7 @@ export default async function AdminGrowvaultPage({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1680px] px-3 py-3 text-stone-800 lg:px-5 xl:px-8">
+    <div className="w-full text-stone-800">
       <div className="space-y-5">
         <AdminPageIntro
           eyebrow="GrowVault"
