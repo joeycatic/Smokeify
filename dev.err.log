@@ -1,10 +1,4 @@
-⨯ Failed to start server
-Error: listen EADDRINUSE: address already in use :::3900
-    at <unknown> (Error: listen EADDRINUSE: address already in use :::3900)
-    at new Promise (<anonymous>) {
-  code: 'EADDRINUSE',
-  errno: -4091,
-  syscall: 'listen',
-  address: '::',
-  port: 3900
-}
+Warning: Custom Cache-Control headers detected for the following routes:
+  - /_next/static/:path*
+
+Setting a custom Cache-Control header can break Next.js development behavior.

@@ -20,6 +20,7 @@ import {
   getGrowvaultSharedDiagnosticsFeed,
   getGrowvaultSharedMerchandisingFeed,
 } from "@/lib/growvaultSharedStorefront";
+import { getGrowvaultWishlistAdminAnalytics } from "@/lib/growvaultWishlistAdmin";
 import { getAdminTimeRangeOption, parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 
 const formatDate = (value: string) =>
@@ -27,6 +28,15 @@ const formatDate = (value: string) =>
     day: "2-digit",
     month: "long",
     year: "numeric",
+  }).format(new Date(value));
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 
 const statusToneClass = {
@@ -80,6 +90,88 @@ function ProductList({
   );
 }
 
+function WishlistProductList({
+  rows,
+}: {
+  rows: Awaited<ReturnType<typeof getGrowvaultWishlistAdminAnalytics>>["analytics"]["topProducts"];
+}) {
+  if (rows.length === 0) {
+    return <AdminEmptyState copy="Noch keine Growvault Wishlist-Produktdaten im gewählten Zeitraum." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <Link
+          key={row.productId}
+          href={`/admin/catalog/${row.productId}?storefront=GROW`}
+          className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-white">{row.title}</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+                <span>{row.currentWishlists} aktuell gemerkt</span>
+                <span>{row.addEvents} Add-Events</span>
+                <span>{row.removeEvents} Remove-Events</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right text-xs text-slate-400">
+              <div>Netto {row.netEvents >= 0 ? `+${row.netEvents}` : row.netEvents}</div>
+              <div className="mt-1">
+                {row.lastActivityAt ? formatDate(row.lastActivityAt) : "Keine Aktivität"}
+              </div>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function WishlistUserList({
+  rows,
+}: {
+  rows: Awaited<ReturnType<typeof getGrowvaultWishlistAdminAnalytics>>["analytics"]["topUsers"];
+}) {
+  if (rows.length === 0) {
+    return <AdminEmptyState copy="Noch keine Growvault Wishlist-Nutzeraktivität im gewählten Zeitraum." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div
+          key={row.userId}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-white">
+                {row.name ?? row.email ?? `User ${row.userId.slice(0, 8)}`}
+              </div>
+              <div className="mt-1 truncate text-xs text-slate-500">
+                {row.email ?? "Keine E-Mail verfügbar"}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+                <span>{row.currentWishlistItems} aktuell auf Wishlist</span>
+                <span>{row.addEvents} Adds</span>
+                <span>{row.removeEvents} Removes</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right text-xs text-slate-400">
+              <div>Netto {row.netEvents >= 0 ? `+${row.netEvents}` : row.netEvents}</div>
+              <div className="mt-1">
+                {row.lastActivityAt ? formatDate(row.lastActivityAt) : "Keine Aktivität"}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default async function AdminGrowvaultPage({
   searchParams,
 }: {
@@ -91,10 +183,11 @@ export default async function AdminGrowvaultPage({
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
   const selectedRange = getAdminTimeRangeOption(days);
 
-  const [insights, diagnostics, merchandising] = await Promise.all([
+  const [insights, diagnostics, merchandising, wishlistAnalytics] = await Promise.all([
     getGrowvaultInsights(days),
     getGrowvaultSharedDiagnosticsFeed(),
     getGrowvaultSharedMerchandisingFeed(),
+    getGrowvaultWishlistAdminAnalytics(days),
   ]);
 
   const funnelStages = [
@@ -343,6 +436,133 @@ export default async function AdminGrowvaultPage({
             />
           </AdminPanel>
         </div>
+
+        <AdminPanel
+          eyebrow="Wishlist"
+          title="Growvault Wunschlisten-Aktivität"
+          description="Audited add/remove activity from the Growvault storefront and mobile app, aggregated for product pressure and user behavior."
+        >
+          {!wishlistAnalytics.ok ? (
+            <div className="mb-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              Die Growvault Wishlist-Analytics konnten nicht geladen werden.
+              {wishlistAnalytics.error ? ` ${wishlistAnalytics.error}` : ""}
+              {wishlistAnalytics.targetUrl ? ` Bridge target: ${wishlistAnalytics.targetUrl}.` : ""}
+            </div>
+          ) : null}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <AdminMetricCard
+              label="Aktive Wishlist-Items"
+              value={String(wishlistAnalytics.analytics.summary.activeWishlistItems)}
+              footnote="Aktuell gespeicherte Produkt-User Zuordnungen"
+              tone="slate"
+            />
+            <AdminMetricCard
+              label="Aktive Nutzer"
+              value={String(wishlistAnalytics.analytics.summary.activeWishlistUsers)}
+              footnote="Nutzer mit mindestens einem aktuellen Wishlist-Eintrag"
+              tone="violet"
+            />
+            <AdminMetricCard
+              label="Add-Events"
+              value={String(wishlistAnalytics.analytics.summary.addEvents)}
+              detail={`${wishlistAnalytics.analytics.summary.removeEvents} Removes`}
+              footnote={`${wishlistAnalytics.analytics.summary.uniqueActors} aktive Akteure im Fenster`}
+              tone="emerald"
+            />
+            <AdminMetricCard
+              label="Wishlist-Größe"
+              value={String(wishlistAnalytics.analytics.summary.largestWishlistSize)}
+              detail={`Ø ${wishlistAnalytics.analytics.summary.avgWishlistSize}`}
+              footnote="Größte und durchschnittliche aktuelle Wishlist pro Nutzer"
+              tone="amber"
+            />
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-2">
+            <AdminPanel
+              title="Top gemerkte Produkte"
+              description="Aktuell häufig gemerkte Growvault Produkte mit Event-Kontext."
+              className="p-0 shadow-none"
+            >
+              <div className="p-4 sm:p-5">
+                <WishlistProductList rows={wishlistAnalytics.analytics.topProducts} />
+              </div>
+            </AdminPanel>
+
+            <AdminPanel
+              title="Aktivste Nutzer"
+              description="Wer im Zeitraum am meisten wishlistet oder abbaut."
+              className="p-0 shadow-none"
+            >
+              <div className="p-4 sm:p-5">
+                <WishlistUserList rows={wishlistAnalytics.analytics.topUsers} />
+              </div>
+            </AdminPanel>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-white">Letzte Wishlist-Aktionen</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Zeitraum ab {formatDate(wishlistAnalytics.analytics.window.startsAt)}.
+              </p>
+            </div>
+            {wishlistAnalytics.analytics.recentActivity.length === 0 ? (
+              <AdminEmptyState copy="Keine Wishlist-Aktivität im gewählten Zeitraum." />
+            ) : (
+              <div className="space-y-3">
+                {wishlistAnalytics.analytics.recentActivity.map((row) => (
+                  <div
+                    key={row.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                              row.action === "ADD"
+                                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                                : "border-rose-400/20 bg-rose-400/10 text-rose-200"
+                            }`}
+                          >
+                            {row.action === "ADD" ? "Add" : "Remove"}
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                            {row.source}
+                          </span>
+                        </div>
+                        <div className="mt-3 text-sm font-semibold text-white">
+                          {row.name ?? row.email ?? `User ${row.userId.slice(0, 8)}`}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {row.email ?? "Keine E-Mail verfügbar"}
+                        </div>
+                        <div className="mt-3 text-sm text-slate-300">
+                          {row.productHandle ? (
+                            <Link
+                              href={`/admin/catalog/${row.productId}?storefront=GROW`}
+                              className="font-semibold text-white underline-offset-4 hover:underline"
+                            >
+                              {row.productTitle}
+                            </Link>
+                          ) : (
+                            <span className="font-semibold text-white">{row.productTitle}</span>
+                          )}{" "}
+                          wurde {row.action === "ADD" ? "gemerkt" : "entfernt"}.
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-xs text-slate-400">
+                        {formatDateTime(row.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </AdminPanel>
 
         <AdminPanel
           eyebrow="Diagnostik"
