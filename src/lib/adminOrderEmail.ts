@@ -34,7 +34,10 @@ export async function sendAdminOrderEmailById(input: {
 }) {
   const order = await prisma.order.findUnique({
     where: { id: input.orderId },
-    include: { items: true },
+    include: {
+      items: true,
+      user: { select: { email: true, name: true } },
+    },
   });
   if (!order) {
     throw new Error("Order not found");
@@ -56,6 +59,10 @@ export async function sendAdminOrderEmailForOrder(input: {
     sourceOrigin: string | null;
     customerEmail: string | null;
     shippingName: string | null;
+    user?: {
+      email: string | null;
+      name: string | null;
+    } | null;
     createdAt: Date;
     currency: string;
     amountSubtotal: number;
@@ -78,7 +85,8 @@ export async function sendAdminOrderEmailForOrder(input: {
   type: AdminOrderEmailType;
   requestOrigin: string;
 }) {
-  const recipient = input.order.customerEmail?.trim();
+  const recipient =
+    input.order.user?.email?.trim() || input.order.customerEmail?.trim() || "";
   if (!recipient) {
     throw new Error("Order has no customer email");
   }

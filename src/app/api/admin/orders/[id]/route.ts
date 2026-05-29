@@ -39,7 +39,10 @@ export const PATCH = withAdminRoute(
 
     const existing = await prisma.order.findUnique({
       where: { id },
-      include: { items: true },
+      include: {
+        items: true,
+        user: { select: { email: true, name: true } },
+      },
     });
     if (!existing) {
       return adminJson({ error: "Order not found" }, { status: 404 });
@@ -147,7 +150,10 @@ export const PATCH = withAdminRoute(
       ? await prisma.order.update({
           where: { id },
           data: updates,
-          include: { items: true },
+          include: {
+            items: true,
+            user: { select: { email: true, name: true } },
+          },
         })
       : existing;
 
