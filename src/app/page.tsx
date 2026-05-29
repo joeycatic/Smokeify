@@ -19,7 +19,7 @@ import {
   TruckIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { buildGrowvaultPublicUrl } from "@/lib/growvaultPublicStorefront";
+import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
 
 export const metadata: Metadata = {
   alternates: {
@@ -175,7 +175,7 @@ export default async function StorePage({
                       Sortiment entdecken
                     </Link>
                     <Link
-                      href={buildGrowvaultPublicUrl("/customizer")}
+                      href={SMOKEIFY_ROUTES.customizer}
                       className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
                       Konfigurator öffnen
@@ -267,29 +267,29 @@ export default async function StorePage({
 
             <section className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
               <div className="smk-panel rounded-[32px] p-6 sm:p-7">
-                <p className="smk-kicker">Growvault</p>
+                <p className="smk-kicker">Smokeify Tools</p>
                 <h2 className="smk-heading mt-4 text-3xl leading-[0.96] text-[var(--smk-text)] sm:text-4xl">
-                  Grow-Themen laufen jetzt
+                  Analyzer, Konfigurator
                   <br />
-                  in Growvault weiter.
+                  und Katalog an einem Ort.
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Analyzer, Konfigurator und das kuratierte Grow-Sortiment leben
-                  jetzt im dedizierten Growvault-Storefront. Smokeify bleibt der
-                  gemeinsame Operations- und Admin-Backbone im Hintergrund.
+                  Smokeify bündelt die bewährte Layoutlogik lokal: Produktauswahl,
+                  Setup-Konfiguration und Pflanzenanalyse bleiben direkt im
+                  Smokeify Storefront und nutzen dieselben kuratierten Produkte.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    href={buildGrowvaultPublicUrl("/")}
+                    href={SMOKEIFY_ROUTES.customizer}
                     className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Growvault öffnen
+                    Setup konfigurieren
                   </Link>
                   <Link
-                    href={buildGrowvaultPublicUrl("/pflanzen-analyse")}
+                    href={SMOKEIFY_ROUTES.analyzer}
                     className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Analyzer bei Growvault
+                    Pflanzenanalyse starten
                   </Link>
                 </div>
               </div>
@@ -297,18 +297,18 @@ export default async function StorePage({
               <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
                 {[
                   {
-                    title: "Eigenes Grow-Storefront",
-                    copy: "Growvault ist jetzt die einzige öffentliche Oberfläche für Analyzer, Konfigurator und Grow-Katalog.",
+                    title: "Lokale Smokeify Tools",
+                    copy: "Analyzer, Konfigurator und Grow-Katalog laufen jetzt direkt im Smokeify Storefront.",
                     icon: PhotoIcon,
                   },
                   {
-                    title: "Ein Runtime-Owner",
-                    copy: "Neue Analyzer- und Konfigurator-Features landen nur noch in Growvault statt parallel in zwei Repos.",
+                    title: "Ein Layout-System",
+                    copy: "Shop-Muster werden über Smokeify Tokens gepflegt, statt blind kopiert zu werden.",
                     icon: SparklesIcon,
                   },
                   {
-                    title: "Smokeify im Hintergrund",
-                    copy: "Review, QA, Empfehlungen und Admin-Workflows bleiben im gemeinsamen Control Plane erhalten.",
+                    title: "Checkout bleibt stabil",
+                    copy: "Tools empfehlen Produkte, aber Warenkorb, Preise und Bestände bleiben serverseitig autoritativ.",
                     icon: WrenchScrewdriverIcon,
                   },
                 ].map((item) => (

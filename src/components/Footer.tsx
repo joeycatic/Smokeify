@@ -3,6 +3,7 @@ import Image from "next/image";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import FooterNewsletter from "@/components/FooterNewsletter";
 import { businessDetails } from "@/lib/businessDetails";
+import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
 
 function IconInstagram() {
   return (
@@ -153,9 +154,25 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
-                  href="/pages/about"
+                  href={SMOKEIFY_ROUTES.compare}
                 >
-                  Über uns
+                  Produktvergleich
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
+                  href={SMOKEIFY_ROUTES.customizer}
+                >
+                  Konfigurator
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
+                  href={SMOKEIFY_ROUTES.analyzer}
+                >
+                  Pflanzenanalyse
                 </Link>
               </li>
               <li>

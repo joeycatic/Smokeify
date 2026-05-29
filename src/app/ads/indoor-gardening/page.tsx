@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PageLayout from "@/components/PageLayout";
 
 export const metadata: Metadata = {
   title: "Pflanzenpflege & Beleuchtung",
@@ -22,160 +23,79 @@ export const metadata: Metadata = {
 
 export default function IndoorGardeningAdsPage() {
   return (
-    <main className="min-h-screen bg-stone-50 text-stone-900">
-      <header className="border-b border-stone-200 bg-white/90">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-semibold tracking-tight text-stone-900">
-            Smokeify
-          </span>
-          <Link
-            href="/pages/contact"
-            className="inline-flex items-center justify-center rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          >
-            Beratung anfragen
-          </Link>
-        </div>
-      </header>
-
-      <section className="mx-auto max-w-5xl px-6 pb-10 pt-12 sm:pb-16 sm:pt-16">
-        <div className="rounded-3xl bg-white p-8 shadow-[0_25px_60px_rgba(15,23,42,0.12)] sm:p-12">
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                Pflanzenpflege zuhause
-              </p>
-              <h1 className="text-3xl font-semibold text-stone-900 sm:text-4xl">
-                Licht, Luft und Pflegezubehör für gesunde Zimmerpflanzen.
-              </h1>
-              <p className="text-base text-stone-600 sm:text-lg">
-                Finden Sie passende LED-Beleuchtung, leise Luftzirkulation und
-                praktische Helfer für die tägliche Pflanzenpflege.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/pages/contact"
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Persönliche Beratung
-                </Link>
-                <Link
-                  href="/pages/shipping"
-                  className="inline-flex items-center justify-center rounded-xl border border-stone-300 px-6 py-3 text-base font-semibold text-stone-700 transition hover:border-stone-400 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Versand & Zahlung
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-6 text-sm text-stone-600">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                  LED-Lichtsysteme
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                  Luftzirkulation
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                  Pflege-Zubehör
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-stone-50 p-6">
-              <div className="space-y-5 text-sm text-stone-700">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
-                    Warum Smokeify
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold text-stone-900">
-                    Klar beraten. Schnell geliefert.
-                  </h2>
-                </div>
-                <ul className="space-y-4">
-                  <li className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-                    Passende Lichtstärken für unterschiedliche Pflanzen.
-                  </li>
-                  <li className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-                    Leise Lösungen für angenehmes Raumklima.
-                  </li>
-                  <li className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-                    Praktisches Zubehör für die tägliche Pflege.
-                  </li>
-                </ul>
-                <p className="text-xs text-stone-500">
-                  Fragen? Unser Team unterstützt Sie gerne bei der Auswahl.
-                </p>
-              </div>
-            </div>
+    <PageLayout commerce>
+      <div className="space-y-6 text-[var(--smk-text)]">
+        <section className="rounded-[42px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_14%_16%,rgba(241,198,132,0.18),transparent_30%),linear-gradient(135deg,rgba(23,20,17,0.99),rgba(12,11,10,1))] px-6 py-10 shadow-[0_32px_90px_rgba(0,0,0,0.36)] sm:px-10">
+          <p className="smk-kicker">Smokeify Pflanzenpflege</p>
+          <h1 className="smk-heading mt-4 max-w-4xl text-5xl leading-[0.95] text-[var(--smk-text)] sm:text-6xl">
+            Licht, Luft und Pflegezubehör für stabile Zimmerpflanzen.
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+            Kuratierte LED-Beleuchtung, leise Luftzirkulation und praktische
+            Pflegehelfer. Smokeify führt dich vom ersten Bedarf direkt zu
+            passenden Produkten oder zum Kontakt.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/products" className="smk-button-primary rounded-full px-5 py-3 text-sm font-semibold">
+              Produkte entdecken
+            </Link>
+            <Link href="/pages/contact" className="smk-button-secondary rounded-full px-5 py-3 text-sm font-semibold">
+              Beratung anfragen
+            </Link>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="mx-auto max-w-5xl px-6 pb-14">
-        <div className="grid gap-6 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-3">
           {[
             {
               title: "LED-Beleuchtung",
-              copy: "Effiziente Lichtlösungen für unterschiedliche Räume.",
+              copy: "Effiziente Lichtlösungen für unterschiedliche Räume und Pflanzen.",
+              href: "/licht",
             },
             {
               title: "Raumluft & Klima",
-              copy: "Leise Luftzirkulation für frische, angenehme Räume.",
+              copy: "Leise Luftbewegung und bessere Kontrolle über Hitze und Feuchte.",
+              href: "/luft",
             },
             {
               title: "Pflege-Zubehör",
-              copy: "Tools und Helfer für die tägliche Pflanzenpflege.",
+              copy: "Tools und Helfer, mit denen Routine weniger zufällig wird.",
+              href: "/products",
             },
           ].map((item) => (
-            <div
+            <Link
               key={item.title}
-              className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+              href={item.href}
+              className="group smk-surface rounded-[28px] p-6 transition hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)]"
             >
-              <h3 className="text-lg font-semibold text-stone-900">
+              <h2 className="text-xl font-semibold tracking-[-0.04em] text-[var(--smk-text)] group-hover:text-[var(--smk-accent)]">
                 {item.title}
-              </h3>
-              <p className="mt-2 text-sm text-stone-600">{item.copy}</p>
-            </div>
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
+                {item.copy}
+              </p>
+            </Link>
           ))}
-        </div>
-      </section>
+        </section>
 
-      <section className="mx-auto max-w-5xl px-6 pb-16">
-        <div className="flex flex-col items-start justify-between gap-6 rounded-3xl border border-stone-200 bg-white p-8 shadow-sm sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-2xl font-semibold text-stone-900">
-              Sie brauchen eine Empfehlung?
-            </h2>
-            <p className="mt-2 text-sm text-stone-600">
-              Wir helfen Ihnen, die passenden Produkte für Ihre Pflanzen zu
-              finden.
-            </p>
-          </div>
-          <Link
-            href="/pages/contact"
-            className="inline-flex items-center justify-center rounded-xl bg-stone-900 px-6 py-3 text-base font-semibold text-white transition hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          >
-            Kontakt aufnehmen
-          </Link>
-        </div>
-      </section>
-
-      <footer className="border-t border-stone-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-6 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} Smokeify</span>
-          <div className="flex flex-wrap gap-4 text-xs">
-            <Link className="hover:text-stone-900" href="/pages/imprint">
-              Impressum
-            </Link>
-            <Link className="hover:text-stone-900" href="/pages/privacy">
-              Datenschutz
-            </Link>
-            <Link className="hover:text-stone-900" href="/pages/contact">
-              Kontakt
+        <section className="smk-panel rounded-[34px] p-6 sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="smk-kicker">Empfehlung statt Raten</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--smk-text)]">
+                Du brauchst eine schnelle Auswahl?
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)]">
+                Starte im Katalog, nutze den Vergleich oder frag direkt bei
+                Smokeify an.
+              </p>
+            </div>
+            <Link href="/pages/contact" className="smk-button-primary rounded-full px-6 py-3 text-sm font-semibold">
+              Kontakt aufnehmen
             </Link>
           </div>
-        </div>
-      </footer>
-    </main>
+        </section>
+      </div>
+    </PageLayout>
   );
 }

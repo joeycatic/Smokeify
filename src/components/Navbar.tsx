@@ -22,10 +22,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
-import {
-  buildGrowvaultAnalyzerUrl,
-  buildGrowvaultPublicUrl,
-} from "@/lib/growvaultPublicStorefront";
+import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
 import { getCategoryIcon } from "@/components/navbar/categoryIcons";
@@ -747,14 +744,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         Webshop
                       </Link>
                       <Link
-                        href={buildGrowvaultPublicUrl("/customizer")}
+                        href={SMOKEIFY_ROUTES.customizer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
                         Konfigurator
                       </Link>
                       <Link
-                        href={buildGrowvaultAnalyzerUrl()}
+                        href={SMOKEIFY_ROUTES.analyzer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
@@ -929,13 +926,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     </Link>
                   )}
                   <Link
-                    href={buildGrowvaultPublicUrl("/customizer")}
+                    href={SMOKEIFY_ROUTES.customizer}
                     className={desktopNavLinkClass}
                   >
                     Konfigurator
                   </Link>
                   <Link
-                    href={buildGrowvaultAnalyzerUrl()}
+                    href={SMOKEIFY_ROUTES.analyzer}
                     className={`${desktopNavLinkClass} whitespace-nowrap`}
                   >
                     Pflanzen Analyse
