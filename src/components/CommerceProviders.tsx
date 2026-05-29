@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { CartProvider } from "@/components/CartProvider";
+import { ProductCompareProvider } from "@/hooks/useProductCompare";
 import { WishlistProvider } from "@/hooks/useWishlist";
 
 export default function CommerceProviders({
@@ -11,7 +12,9 @@ export default function CommerceProviders({
 }) {
   return (
     <WishlistProvider>
-      <CartProvider>{children}</CartProvider>
+      <ProductCompareProvider>
+        <CartProvider>{children}</CartProvider>
+      </ProductCompareProvider>
     </WishlistProvider>
   );
 }

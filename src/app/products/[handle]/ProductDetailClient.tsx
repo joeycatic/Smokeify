@@ -20,6 +20,7 @@ import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useCart } from "@/components/CartProvider";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
+import CompareProductButton from "@/components/CompareProductButton";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 
@@ -722,6 +723,10 @@ export default function ProductDetailClient({
               Selber konfigurieren
             </button>
           ) : null}
+          <CompareProductButton
+            productId={product.id}
+            className="mt-1.5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-6 py-3 text-sm font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50"
+          />
 
           <div className="mt-2">
             {selectedVariant?.availableForSale ? (
