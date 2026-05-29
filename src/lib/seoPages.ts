@@ -12,6 +12,16 @@ export type SeoPageConfig = {
   growboxSize?: string;
 };
 
+export function buildCategoryHref(
+  handle: string,
+  options?: { parentHandle?: string | null },
+) {
+  const normalizedHandle = handle.trim().replace(/^\/+|\/+$/g, "");
+  const parentHandle = options?.parentHandle?.trim().replace(/^\/+|\/+$/g, "");
+  if (parentHandle) return `/${parentHandle}/${normalizedHandle}`;
+  return `/${normalizedHandle}`;
+}
+
 export const seoPages: SeoPageConfig[] = [
   {
     slugParts: ["anzucht"],
