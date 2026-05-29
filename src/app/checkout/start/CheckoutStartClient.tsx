@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { StripeCheckoutContact } from "@stripe/stripe-js";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
+  buildCheckoutPaymentStateHash,
   clearCheckoutPaymentState,
   readCheckoutPaymentState,
   writeCheckoutPaymentState,
@@ -311,7 +312,7 @@ export default function CheckoutStartClient({
         shipping_tier: country,
         value: summary.totalCents / 100,
       });
-      writeCheckoutPaymentState({
+      const paymentState = {
         clientSecret: data.clientSecret,
         contact: buildContact({
           city,
@@ -342,8 +343,12 @@ export default function CheckoutStartClient({
         sessionId: data.sessionId,
         successUrl: data.successUrl,
         summary,
-      });
-      router.push("/checkout/payment");
+      };
+      writeCheckoutPaymentState(paymentState);
+      const paymentRoute = readCheckoutPaymentState()
+        ? "/checkout/payment"
+        : `/checkout/payment#${buildCheckoutPaymentStateHash(paymentState)}`;
+      router.push(paymentRoute);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Checkout konnte nicht gestartet werden.");
       setSubmitStatus("idle");

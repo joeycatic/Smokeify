@@ -11,8 +11,11 @@ import {
 import { loadStripe } from "@stripe/stripe-js";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
+  clearCheckoutPaymentStateHash,
   clearCheckoutPaymentState,
   readCheckoutPaymentState,
+  readCheckoutPaymentStateFromHash,
+  writeCheckoutPaymentState,
   type CheckoutPaymentState,
   type CheckoutSummarySnapshot,
 } from "@/app/checkout/shared/paymentState";
@@ -167,11 +170,17 @@ export default function CheckoutPaymentClient({ publishableKey }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     const initialize = async () => {
-      const stored = readCheckoutPaymentState();
+      const hashState = readCheckoutPaymentStateFromHash();
+      const stored = readCheckoutPaymentState() ?? hashState;
       if (!stored) {
         setLoadState("error");
         setPageError("Keine aktive Checkout-Session gefunden.");
         return;
+      }
+
+      if (hashState) {
+        writeCheckoutPaymentState(hashState);
+        clearCheckoutPaymentStateHash();
       }
 
       setPaymentState(stored);
