@@ -34,6 +34,7 @@ type Props = {
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
 type AdminEmailAction = "confirmation" | "shipping" | "refund" | "refund_request";
+type SaveConfirmation = { id: number; message: string };
 type PersistedOrderDraft = {
   version: 2;
   baseUpdatedAt: string;
@@ -254,6 +255,7 @@ export default function AdminOrderDetailClient({
   const [activeTab, setActiveTab] = useState<OrderTabId>("overview");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [saveConfirmation, setSaveConfirmation] = useState<SaveConfirmation | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<AdminEmailAction | null>(null);
   const [replayingWebhookEventId, setReplayingWebhookEventId] = useState<string | null>(null);
@@ -551,12 +553,10 @@ export default function AdminOrderDetailClient({
       setError("You do not have permission to update fulfillment state.");
       return;
     }
-    if (notifyCustomer && !fulfillmentEmailReason.trim()) {
-      setError("A short reason is required before notifying the customer.");
-      return;
-    }
+    const requestedShippingEmail = notifyCustomer && !order.shippingEmailSentAt;
     setError("");
     setNotice("");
+    setSaveConfirmation(null);
     setSaving(true);
     try {
       const response = await fetch(`/api/admin/orders/${order.id}`, {
@@ -580,6 +580,7 @@ export default function AdminOrderDetailClient({
       };
       if (!response.ok) {
         if (data.currentUpdatedAt) setOrder((current) => ({ ...current, updatedAt: data.currentUpdatedAt! }));
+        if (data.order) updateOrderState(data.order);
         setError(data.error ?? "Failed to save order.");
         return;
       }
@@ -595,6 +596,12 @@ export default function AdminOrderDetailClient({
       setNotifyCustomer(false);
       setFulfillmentEmailReason("");
       setNotice(data.warning ?? "Order workspace updated.");
+      setSaveConfirmation({
+        id: Date.now(),
+        message: requestedShippingEmail && !data.warning
+          ? "Shipping email sent and order saved."
+          : "Order saved.",
+      });
     } catch {
       setError("Failed to save order.");
     } finally {
@@ -746,6 +753,17 @@ export default function AdminOrderDetailClient({
 
   return (
     <div className="space-y-6 text-slate-100">
+      <style>{`
+        @keyframes order-save-confirm {
+          0% { opacity: 0; transform: translateY(8px) scale(0.96); box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+          45% { opacity: 1; transform: translateY(0) scale(1.03); box-shadow: 0 0 42px rgba(52, 211, 153, 0.28); }
+          100% { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 28px rgba(52, 211, 153, 0.16); }
+        }
+        @keyframes order-banner-in {
+          0% { opacity: 0; transform: translateY(-6px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       <section className="relative overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0d1723_48%,#0a1220_100%)] p-4 shadow-[0_28px_80px_rgba(2,6,23,0.4)] sm:rounded-[34px] sm:p-5 lg:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_78%_16%,rgba(34,211,238,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_55%)]" />
         <div className="relative grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_360px]">
@@ -862,6 +880,7 @@ export default function AdminOrderDetailClient({
             setNotifyCustomer={setNotifyCustomer}
             fulfillmentEmailReason={fulfillmentEmailReason}
             setFulfillmentEmailReason={setFulfillmentEmailReason}
+            saveConfirmation={saveConfirmation}
           />
         ) : null}
         {activeTab === "refunds" ? (
@@ -1154,6 +1173,7 @@ function FulfillmentTab({
   canSaveFulfillment,
   saveOrder,
   fulfillmentOutcome,
+  saveConfirmation,
   canUpdateFulfillment,
   notifyCustomer,
   setNotifyCustomer,
@@ -1170,6 +1190,7 @@ function FulfillmentTab({
   canSaveFulfillment: boolean;
   saveOrder: () => Promise<void>;
   fulfillmentOutcome: ReturnType<typeof getFulfillmentOutcome>;
+  saveConfirmation: SaveConfirmation | null;
   canUpdateFulfillment: boolean;
   notifyCustomer: boolean;
   setNotifyCustomer: Dispatch<SetStateAction<boolean>>;
@@ -1249,13 +1270,13 @@ function FulfillmentTab({
                 ) : null}
                 <label className="mt-4 block">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Reason for shipping email
+                    Optional shipping email note
                   </span>
                   <textarea
                     value={fulfillmentEmailReason}
                     onChange={(event) => setFulfillmentEmailReason(event.target.value)}
                     className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
-                    placeholder="Explain why this save should notify the customer."
+                    placeholder="Optional internal note for this customer notification."
                     disabled={!canUpdateFulfillment || !notifyCustomer || Boolean(order.shippingEmailSentAt)}
                   />
                 </label>
@@ -1284,6 +1305,17 @@ function FulfillmentTab({
             </p>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Unsaved fulfillment draft</span> : null}
+              {saveConfirmation ? (
+                <span
+                  key={saveConfirmation.id}
+                  role="status"
+                  aria-live="polite"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-300/12 px-3 py-2 text-xs font-semibold text-emerald-100 shadow-[0_0_28px_rgba(52,211,153,0.16)] motion-safe:animate-[order-save-confirm_900ms_ease-out]"
+                >
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-300 text-[11px] text-slate-950">✓</span>
+                  {saveConfirmation.message}
+                </span>
+              ) : null}
               <button type="button" onClick={() => void saveOrder()} disabled={!canUpdateFulfillment || !canSaveFulfillment || saving} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save order changes"}</button>
             </div>
           </div>
@@ -1578,7 +1610,7 @@ function OutcomeCard({ tone, eyebrow, title, detail }: { tone: "success" | "info
 }
 
 function Banner({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
-  return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
+  return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium motion-safe:animate-[order-banner-in_450ms_ease-out] ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
 }
 
 function OverviewSummaryRow({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {

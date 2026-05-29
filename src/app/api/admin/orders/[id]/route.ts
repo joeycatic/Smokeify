@@ -79,6 +79,7 @@ export const PATCH = withAdminRoute(
     const notifyCustomer = body.notifyCustomer === true;
     const emailReason =
       typeof body.emailReason === "string" ? body.emailReason.trim() : "";
+    const emailAuditReason = emailReason || "Fulfillment save notification";
     const nextTrackingNumber =
       typeof updates.trackingNumber !== "undefined"
         ? updates.trackingNumber
@@ -127,12 +128,6 @@ export const PATCH = withAdminRoute(
           { status: 400 },
         );
       }
-      if (!emailReason) {
-        return adminJson(
-          { error: "A short reason is required before sending the shipping email." },
-          { status: 400 },
-        );
-      }
     }
 
     if (!hasOrderUpdates && !notifyCustomer) {
@@ -158,6 +153,7 @@ export const PATCH = withAdminRoute(
       : existing;
 
     let warning: string | undefined;
+    let emailSendError: string | undefined;
 
     if (notifyCustomer) {
       if (existing.shippingEmailSentAt) {
@@ -185,11 +181,11 @@ export const PATCH = withAdminRoute(
               recipient: emailResult.recipient,
               orderNumber: updated.orderNumber,
               source: "admin.orders.patch",
-              reason: emailReason,
+              reason: emailAuditReason,
             },
           });
         } catch (error) {
-          warning =
+          emailSendError =
             error instanceof Error
               ? `Order saved, but the shipping email could not be sent: ${error.message}`
               : "Order saved, but the shipping email could not be sent.";
@@ -204,7 +200,11 @@ export const PATCH = withAdminRoute(
         targetType: "order",
         targetId: id,
         summary: `Updated order fields: ${changedFields.join(", ")}`,
-        metadata: { updates, notifyCustomer, emailReason: emailReason || null },
+        metadata: {
+          updates,
+          notifyCustomer,
+          emailReason: notifyCustomer ? emailAuditReason : null,
+        },
       });
       if (typeof updates.status === "string" && updates.status !== existing.status) {
         await logOrderTimelineEvent({
@@ -219,6 +219,10 @@ export const PATCH = withAdminRoute(
           },
         });
       }
+    }
+
+    if (emailSendError) {
+      return adminJson({ error: emailSendError, order: updated }, { status: 502 });
     }
 
     return adminJson({ order: updated, warning });
