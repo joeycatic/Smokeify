@@ -7,6 +7,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import type { Product } from "@/data/types";
 import { DisplayProductsList } from "@/components/DisplayProducts";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import EmptyState from "@/components/common/EmptyState";
 
 type SortMode = "featured" | "price_asc" | "price_desc" | "name_asc";
 
@@ -101,77 +102,75 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10 text-black/80">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 text-[var(--smk-text)] sm:px-6 sm:py-10">
+        <section className="rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(241,198,132,0.16),transparent_26%),linear-gradient(135deg,rgba(24,20,17,0.99),rgba(12,11,10,1))] px-6 py-8 shadow-[0_30px_80px_rgba(0,0,0,0.32)] sm:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold" style={{ color: "#2f3e36" }}>
+            <p className="smk-kicker">Smokeify Merkliste</p>
+            <h1 className="smk-heading mt-3 text-4xl text-[var(--smk-text)]">
               Wunschliste
             </h1>
-            {isSharedView && (
-              <p className="mt-2 text-sm text-stone-600">
-                Du siehst eine geteilte Wunschliste.
-              </p>
-            )}
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)]">
+              Sammle Produkte für Setup-Entscheidungen, teile deine Auswahl oder
+              schiebe Favoriten später in den Vergleich.
+            </p>
           </div>
           {!isSharedView && ids.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={shareWishlist}
-                className="h-10 rounded-md border border-black/10 bg-white px-4 text-xs font-semibold text-stone-700 hover:border-black/20"
+                className="smk-button-secondary h-10 rounded-full px-4 text-xs font-semibold"
               >
                 Wunschliste teilen
               </button>
               {shareNotice && (
-                <span className="text-xs text-stone-500">{shareNotice}</span>
+                <span className="text-xs text-[var(--smk-text-muted)]">{shareNotice}</span>
               )}
             </div>
           )}
           {isSharedView && (
             <Link
               href="/wishlist"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-xs font-semibold text-stone-700 hover:border-black/20"
+              className="smk-button-secondary inline-flex h-10 items-center justify-center rounded-full px-4 text-xs font-semibold"
             >
               Zur eigenen Wunschliste
             </Link>
           )}
         </div>
+        {isSharedView ? (
+          <p className="mt-4 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-sm text-[var(--smk-text-muted)]">
+            Du siehst eine geteilte Wunschliste.
+          </p>
+        ) : null}
+        </section>
         {loading && (
-          <div className="mt-10 flex min-h-[40vh] items-center justify-center gap-3 text-center text-stone-600">
+          <div className="flex min-h-[40vh] items-center justify-center gap-3 text-center text-[var(--smk-text-muted)]">
             <LoadingSpinner size="sm" />
             <span>Wunschliste wird geladen...</span>
           </div>
         )}
         {!loading && activeIds.length === 0 && (
-          <div className="rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm">
-            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-emerald-50 text-emerald-700 grid place-items-center text-2xl">
-              &#10084;
-            </div>
-            <h2 className="text-lg font-semibold text-stone-800">
-              Noch keine Favoriten
-            </h2>
-            <p className="mt-2 text-sm text-stone-500">
-              Finde Produkte, die dir gefallen, und speichere sie hier.
-            </p>
-            {!isSharedView && (
-              <Link
-                href="/products"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b]"
-              >
-                Produkte entdecken
-              </Link>
-            )}
-          </div>
+          <EmptyState
+            eyebrow="Wunschliste"
+            title="Noch keine Favoriten"
+            description="Finde Produkte, die zu deinem Setup passen, und speichere sie hier für später."
+            actions={
+              isSharedView
+                ? []
+                : [{ label: "Produkte entdecken", href: "/products", tone: "primary" }]
+            }
+          />
         )}
         {!loading && activeIds.length > 0 && (
           <>
-            <div className="mb-4 flex justify-end">
-              <label className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm">
+            <div className="flex justify-end">
+              <label className="inline-flex h-10 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)] px-3 text-xs font-semibold text-[var(--smk-text-muted)] shadow-sm">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortMode)}
                   aria-label="Sortierung"
-                  className="bg-transparent pr-3 text-sm font-semibold text-stone-800 outline-none"
+                  className="bg-transparent pr-3 text-sm font-semibold text-[var(--smk-text)] outline-none"
                 >
                   <option value="featured">Empfohlen</option>
                   <option value="price_asc">Preis aufsteigend</option>

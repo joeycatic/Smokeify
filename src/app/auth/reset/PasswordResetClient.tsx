@@ -117,13 +117,13 @@ export default function PasswordResetClient({
             {isGrowVariant ? (
               <>
                 <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#a3e635]">
-                  GrowVault Access
+                  Smokeify Access
                 </p>
                 <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[#edf2ed]">
                   Passwort zurücksetzen
                 </h1>
                 <p className="mt-3 mb-6 text-sm leading-6 text-[#91a191]">
-                  Öffne deinen GrowVault Zugang wieder mit einem Reset-Code und setze direkt ein neues Passwort.
+                  Öffne deinen Smokeify Zugang wieder mit einem Reset-Code und setze direkt ein neues Passwort.
                 </p>
               </>
             ) : (
