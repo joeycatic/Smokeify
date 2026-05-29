@@ -15,7 +15,14 @@ const APPLY = hasFlag("--apply");
 const LIMIT = Math.max(1, Number(readFlagValue("--limit") ?? 200));
 const ORDER_ID = readFlagValue("--order-id");
 const ONLY_MISSING = !hasFlag("--all");
+const PENDING_SHIPPING_EMAIL = hasFlag("--pending-shipping-email");
+const NEWEST_FIRST = hasFlag("--newest");
 const RAW_FALLBACK_STOREFRONT = readFlagValue("--fallback-storefront");
+
+const KNOWN_STOREFRONT_HOSTS = {
+  MAIN: ["smokeify.de", "www.smokeify.de"],
+  GROW: ["growvault.de", "www.growvault.de"],
+};
 
 const normalizeHost = (value) =>
   value?.split(",")[0]?.trim()?.toLowerCase()?.replace(/:\d+$/, "") ?? null;
@@ -49,6 +56,7 @@ const splitConfiguredHosts = (value) =>
 const getConfiguredHostsByStorefront = () => ({
   MAIN: new Set(
     [
+      ...KNOWN_STOREFRONT_HOSTS.MAIN,
       parseHostFromUrl(process.env.NEXT_PUBLIC_APP_URL),
       parseHostFromUrl(process.env.NEXTAUTH_URL),
       ...splitConfiguredHosts(process.env.MAIN_STOREFRONT_HOSTS),
@@ -56,6 +64,7 @@ const getConfiguredHostsByStorefront = () => ({
   ),
   GROW: new Set(
     [
+      ...KNOWN_STOREFRONT_HOSTS.GROW,
       parseHostFromUrl(process.env.NEXT_PUBLIC_GROW_APP_URL),
       ...splitConfiguredHosts(process.env.GROW_STOREFRONT_HOSTS),
     ].filter(Boolean),
@@ -91,12 +100,15 @@ const resolveSource = ({
   const fallbackOrigin = pickFirst(fallbackUrls.map((value) => sanitizeOrigin(value)));
   const fallbackHost = pickFirst(fallbackUrls.map((value) => parseHostFromUrl(value)));
   const normalizedOrigin = sanitizeOrigin(sourceOrigin) ?? fallbackOrigin;
+  const originHost = parseHostFromUrl(normalizedOrigin);
   const normalizedHost =
-    normalizeHost(sourceHost) ?? parseHostFromUrl(normalizedOrigin) ?? fallbackHost;
+    originHost ?? normalizeHost(sourceHost) ?? fallbackHost;
   const explicitStorefront = parseStorefront(sourceStorefront);
+  const originStorefront = resolveStorefrontFromHost(originHost);
+  const hostStorefront = resolveStorefrontFromHost(normalizedHost);
 
   return {
-    sourceStorefront: explicitStorefront ?? resolveStorefrontFromHost(normalizedHost),
+    sourceStorefront: originStorefront ?? explicitStorefront ?? hostStorefront,
     sourceHost: normalizedHost,
     sourceOrigin: normalizedOrigin,
   };
@@ -134,19 +146,27 @@ const isImprovement = (current, next) =>
 
 const run = async () => {
   const stripe = getStripe();
+  const whereClauses = [];
+  if (ONLY_MISSING) {
+    whereClauses.push({
+      OR: [
+        { sourceStorefront: null },
+        { sourceHost: null },
+        { sourceOrigin: null },
+      ],
+    });
+  }
+  if (PENDING_SHIPPING_EMAIL) {
+    whereClauses.push({ shippingEmailSentAt: null });
+  }
+
   const orders = await prisma.order.findMany({
     where: ORDER_ID
       ? { id: ORDER_ID }
-      : ONLY_MISSING
-        ? {
-            OR: [
-              { sourceStorefront: null },
-              { sourceHost: null },
-              { sourceOrigin: null },
-            ],
-          }
+      : whereClauses.length > 0
+        ? { AND: whereClauses }
         : undefined,
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: NEWEST_FIRST ? "desc" : "asc" },
     take: ORDER_ID ? 1 : LIMIT,
     select: {
       id: true,
@@ -154,6 +174,7 @@ const run = async () => {
       sourceStorefront: true,
       sourceHost: true,
       sourceOrigin: true,
+      shippingEmailSentAt: true,
       createdAt: true,
     },
   });
@@ -167,13 +188,13 @@ const run = async () => {
   let skippedOrders = 0;
 
   for (const order of orders) {
-    const current = resolveSource({
-      sourceStorefront: order.sourceStorefront,
-      sourceHost: order.sourceHost,
-      sourceOrigin: order.sourceOrigin,
-    });
+    const current = {
+      sourceStorefront: parseStorefront(order.sourceStorefront),
+      sourceHost: normalizeHost(order.sourceHost),
+      sourceOrigin: sanitizeOrigin(order.sourceOrigin),
+    };
 
-    let candidate = current;
+    let candidate = resolveSource(current);
 
     if (
       (!candidate.sourceStorefront || !candidate.sourceHost || !candidate.sourceOrigin) &&

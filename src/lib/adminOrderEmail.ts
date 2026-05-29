@@ -11,6 +11,10 @@ import {
   resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
+import {
+  parseStorefrontHostFromUrl,
+  resolveStorefrontFromHost,
+} from "@/lib/storefrontHosts";
 
 export type AdminOrderEmailType =
   | "confirmation"
@@ -26,6 +30,33 @@ export const buildOrderEmailSentAtUpdate = (type: AdminOrderEmailType) =>
       : type === "refund"
         ? { refundEmailSentAt: new Date() }
         : { refundRequestEmailSentAt: new Date() };
+
+const resolveAdminOrderEmailStorefront = (input: {
+  sourceStorefront: string | null;
+  sourceHost: string | null;
+  sourceOrigin: string | null;
+  requestOrigin: string;
+}) => {
+  const originStorefront = resolveStorefrontFromHost(
+    parseStorefrontHostFromUrl(input.sourceOrigin),
+  );
+  const hostStorefront = resolveStorefrontFromHost(input.sourceHost);
+  const explicitStorefront = parseStorefront(input.sourceStorefront ?? null);
+
+  if (originStorefront && originStorefront !== explicitStorefront) {
+    return originStorefront;
+  }
+
+  if (!explicitStorefront && hostStorefront) {
+    return hostStorefront;
+  }
+
+  return resolveStorefrontEmailBrand(explicitStorefront, [
+    input.sourceOrigin,
+    input.sourceHost,
+    input.requestOrigin,
+  ]);
+};
 
 export async function sendAdminOrderEmailById(input: {
   orderId: string;
@@ -91,10 +122,12 @@ export async function sendAdminOrderEmailForOrder(input: {
     throw new Error("Order has no customer email");
   }
 
-  const storefront = resolveStorefrontEmailBrand(
-    parseStorefront(input.order.sourceStorefront ?? null),
-    [input.order.sourceOrigin, input.order.sourceHost, input.requestOrigin],
-  );
+  const storefront = resolveAdminOrderEmailStorefront({
+    sourceStorefront: input.order.sourceStorefront,
+    sourceHost: input.order.sourceHost,
+    sourceOrigin: input.order.sourceOrigin,
+    requestOrigin: input.requestOrigin,
+  });
   const origin = getStorefrontOrigin(
     storefront,
     input.order.sourceOrigin ?? input.requestOrigin,
