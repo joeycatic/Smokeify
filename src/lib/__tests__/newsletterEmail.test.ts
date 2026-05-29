@@ -4,15 +4,22 @@ vi.mock("server-only", () => ({}));
 
 let buildNewsletterCampaignEmail: typeof import("../newsletterEmail").buildNewsletterCampaignEmail;
 const originalUnsubscribeSecret = process.env.UNSUBSCRIBE_SECRET;
+const originalGrowAppUrl = process.env.NEXT_PUBLIC_GROW_APP_URL;
 
 describe("newsletterEmail", () => {
   beforeAll(async () => {
     process.env.UNSUBSCRIBE_SECRET = "test-unsubscribe-secret";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.test";
     ({ buildNewsletterCampaignEmail } = await import("../newsletterEmail"));
   });
 
   afterAll(() => {
     process.env.UNSUBSCRIBE_SECRET = originalUnsubscribeSecret;
+    if (typeof originalGrowAppUrl === "string") {
+      process.env.NEXT_PUBLIC_GROW_APP_URL = originalGrowAppUrl;
+    } else {
+      delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+    }
   });
 
   it("renders GrowVault campaign emails with GrowVault theme tokens", () => {

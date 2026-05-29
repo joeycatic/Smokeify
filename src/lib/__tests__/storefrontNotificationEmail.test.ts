@@ -5,10 +5,12 @@ vi.mock("server-only", () => ({}));
 let buildBackInStockEmail: typeof import("../storefrontNotificationEmail").buildBackInStockEmail;
 let buildCheckoutRecoveryEmail: typeof import("../storefrontNotificationEmail").buildCheckoutRecoveryEmail;
 const originalUnsubscribeSecret = process.env.UNSUBSCRIBE_SECRET;
+const originalGrowAppUrl = process.env.NEXT_PUBLIC_GROW_APP_URL;
 
 describe("storefrontNotificationEmail", () => {
   beforeAll(async () => {
     process.env.UNSUBSCRIBE_SECRET = "test-unsubscribe-secret";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.test";
     ({ buildBackInStockEmail, buildCheckoutRecoveryEmail } = await import(
       "../storefrontNotificationEmail"
     ));
@@ -16,6 +18,11 @@ describe("storefrontNotificationEmail", () => {
 
   afterAll(() => {
     process.env.UNSUBSCRIBE_SECRET = originalUnsubscribeSecret;
+    if (typeof originalGrowAppUrl === "string") {
+      process.env.NEXT_PUBLIC_GROW_APP_URL = originalGrowAppUrl;
+    } else {
+      delete process.env.NEXT_PUBLIC_GROW_APP_URL;
+    }
   });
 
   it("renders GrowVault back-in-stock emails with GrowVault links", () => {
