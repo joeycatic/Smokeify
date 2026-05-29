@@ -49,7 +49,7 @@ describe("orderSource", () => {
     });
   });
 
-  it("still prefers forwarded host headers when present", () => {
+  it("prefers forwarded host headers when no browser origin is present", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
     process.env.NEXTAUTH_URL = "https://smokeify.de";
     process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.eu";
@@ -101,6 +101,27 @@ describe("orderSource", () => {
       sourceStorefront: "GROW",
       sourceHost: "growvault.eu",
       sourceOrigin: "https://growvault.eu",
+    });
+  });
+
+  it("prefers the browser origin over the API host for shared GrowVault checkout calls", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://smokeify.de";
+    process.env.NEXTAUTH_URL = "https://smokeify.de";
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.de";
+
+    const request = new Request("https://smokeify.de/api/checkout", {
+      method: "POST",
+      headers: {
+        origin: "https://www.growvault.de",
+        "x-forwarded-host": "smokeify.de",
+        "x-forwarded-proto": "https",
+      },
+    });
+
+    expect(resolveOrderSourceFromRequest(request)).toEqual({
+      sourceStorefront: "GROW",
+      sourceHost: "www.growvault.de",
+      sourceOrigin: "https://www.growvault.de",
     });
   });
 

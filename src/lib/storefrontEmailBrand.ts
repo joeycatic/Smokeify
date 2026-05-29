@@ -105,6 +105,15 @@ const toOrigin = (value?: string | null) => {
   }
 };
 
+const toStorefrontOrigin = (
+  storefront: StorefrontCode,
+  value?: string | null,
+) => {
+  const origin = toOrigin(value);
+  if (!origin) return null;
+  return resolveStorefrontFromCandidates([origin]) === storefront ? origin : null;
+};
+
 const resolveStorefrontFromCandidates = (
   candidates: Array<string | null | undefined>,
 ): StorefrontCode | null => {
@@ -140,10 +149,8 @@ export const getStorefrontOrigin = (
   if (storefront === "GROW") {
     return (
       toOrigin(process.env.NEXT_PUBLIC_GROW_APP_URL) ??
-      toOrigin(fallbackOrigin) ??
-      toOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
-      toOrigin(process.env.NEXTAUTH_URL) ??
-      "http://localhost:3000"
+      toStorefrontOrigin("GROW", fallbackOrigin) ??
+      "https://www.growvault.de"
     );
   }
 

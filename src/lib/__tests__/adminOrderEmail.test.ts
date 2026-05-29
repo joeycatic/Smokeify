@@ -75,4 +75,52 @@ describe("sendAdminOrderEmailForOrder", () => {
     expect(buildOrderEmail).toHaveBeenCalled();
     expect(result.recipient).toBe("account@example.com");
   });
+
+  it("builds GrowVault shipping emails with GrowVault branding and origin", async () => {
+    await sendAdminOrderEmailForOrder({
+      type: "shipping",
+      requestOrigin: "https://www.smokeify.de",
+      order: {
+        id: "ord_grow",
+        userId: null,
+        user: null,
+        sourceStorefront: "GROW",
+        sourceHost: "www.growvault.de",
+        sourceOrigin: "https://www.growvault.de",
+        customerEmail: "grow@example.com",
+        shippingName: "Grow User",
+        createdAt: new Date("2026-05-29T10:00:00.000Z"),
+        currency: "EUR",
+        amountSubtotal: 1000,
+        amountTax: 190,
+        amountShipping: 490,
+        amountDiscount: 0,
+        amountTotal: 1680,
+        amountRefunded: 0,
+        discountCode: null,
+        trackingCarrier: "DHL",
+        trackingNumber: "TRACK-GROW",
+        trackingUrl: "https://tracking.example/track-grow",
+        items: [
+          {
+            name: "Grow Product",
+            quantity: 1,
+            totalAmount: 1680,
+            currency: "EUR",
+          },
+        ],
+      },
+    });
+
+    expect(buildOrderEmail).toHaveBeenCalledWith(
+      "shipping",
+      expect.objectContaining({ sourceStorefront: "GROW" }),
+      undefined,
+      undefined,
+      expect.objectContaining({
+        storefront: "GROW",
+        fallbackOrigin: "https://www.growvault.de",
+      }),
+    );
+  });
 });

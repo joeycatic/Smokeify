@@ -71,9 +71,9 @@ export const resolveOrderSourceFromRequest = (request: Request): OrderSourceSnap
   const originHeader = sanitizeOrigin(request.headers.get("origin"));
   const originHost = parseStorefrontHostFromUrl(originHeader);
   const host =
+    originHost ??
     forwardedHost ??
     normalizeStorefrontHost(request.headers.get("host")) ??
-    originHost ??
     requestUrl.host;
   const origin =
     originHeader ??
