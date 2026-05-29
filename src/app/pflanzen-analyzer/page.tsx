@@ -1,15 +1,6 @@
 import { permanentRedirect } from "next/navigation";
-import {
-  buildGrowvaultAnalyzerUrl,
-  logGrowvaultAnalyzerBridge,
-} from "@/lib/growvaultPublicStorefront";
+import { PLANT_ANALYZER_PATH } from "@/lib/plantAnalyzerPaths";
 
-export default function PlantAnalyzerPage() {
-  logGrowvaultAnalyzerBridge({
-    sourcePath: "/pflanzen-analyzer",
-    targetPath: "/pflanzen-analyse",
-    method: "GET",
-    mode: "redirect",
-  });
-  permanentRedirect(buildGrowvaultAnalyzerUrl());
+export default function PlantAnalyzerAliasPage() {
+  permanentRedirect(PLANT_ANALYZER_PATH);
 }
