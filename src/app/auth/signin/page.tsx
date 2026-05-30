@@ -7,26 +7,26 @@ import Link from "next/link";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine E-Mail, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
-    "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
-  CredentialsSignin: "Email oder Passwort ist falsch.",
-  AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+    "Neues Gerät erkannt. Code wurde per E-Mail gesendet. Bitte bestätigen.",
+  CredentialsSignin: "E-Mail oder Passwort ist falsch.",
+  AccessDenied: "Zugriff verweigert. Bitte prüfe deine Berechtigung.",
   ADMIN_MFA_REQUIRED:
     "Für diesen Login wird zusätzlich ein Admin-Sicherheitscode benötigt.",
   INVALID_TOTP: "Der Sicherheitscode ist ungültig oder abgelaufen.",
   OAuthSignin: "Google Login konnte nicht gestartet werden.",
-  OAuthCallback: "Google Login Rueckgabe ist fehlgeschlagen.",
+  OAuthCallback: "Google-Login-Rückgabe ist fehlgeschlagen.",
   OAuthCreateAccount: "Google Konto konnte nicht angelegt werden.",
   OAuthAccountNotLinked:
-    "Diese Email ist bereits mit einer anderen Login-Methode verknuepft.",
+    "Diese E-Mail ist bereits mit einer anderen Login-Methode verknüpft.",
   Configuration: "Google Login ist derzeit nicht korrekt konfiguriert.",
 };
 
 const getLoginErrorMessage = (code?: string) => {
   if (!code) {
-    return "Login fehlgeschlagen. Bitte pruefe deine Daten.";
+    return "Login fehlgeschlagen. Bitte prüfe deine Daten.";
   }
   return (
     LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
@@ -52,7 +52,7 @@ export default function SignInPage() {
     setErrorHint("");
     if (paramsError) {
       if (paramsError === "NEW_DEVICE") {
-        setError("Neues Geraet erkannt. Code wurde per Email gesendet.");
+        setError("Neues Gerät erkannt. Code wurde per E-Mail gesendet.");
         setErrorHint("Prüfe dein Postfach und bestätige das neue Gerät.");
       } else {
         setError(getLoginErrorMessage(paramsError));
@@ -65,7 +65,7 @@ export default function SignInPage() {
     const reset = searchParams.get("reset");
     const emailParam = searchParams.get("email");
     if (verified === "1") {
-      setNotice("Email verifiziert. Bitte einloggen.");
+      setNotice("E-Mail verifiziert. Bitte einloggen.");
     }
     if (reset === "1") {
       setNotice("Passwort erfolgreich geändert. Bitte mit dem neuen Passwort einloggen.");
@@ -161,7 +161,7 @@ export default function SignInPage() {
                     if (res.error === "EMAIL_NOT_VERIFIED") {
                       setErrorHint("Nutze den Verifizierungslink aus der letzten E-Mail oder fordere einen neuen Code an.");
                     } else if (res.error === "CredentialsSignin") {
-                      setErrorHint("Prüfe Email/Benutzername und Passwort und versuche es erneut.");
+                      setErrorHint("Prüfe E-Mail/Benutzername und Passwort und versuche es erneut.");
                     } else if (res.error === "ADMIN_MFA_REQUIRED") {
                       setErrorHint("Nutze den Admin-Login, falls du Zugang zum Adminbereich brauchst.");
                     }
@@ -172,7 +172,7 @@ export default function SignInPage() {
                   setLoginStatus("error");
                 } catch {
                   setError(
-                    "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut."
+                    "Login fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut."
                   );
                   setLoginStatus("error");
                 } finally {
@@ -182,14 +182,14 @@ export default function SignInPage() {
               className="space-y-2"
             >
               <label className="block text-xs font-semibold text-stone-600">
-                Email *
+                E-Mail *
               </label>
               <input
                 type="text"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="Email or username"
+                placeholder="E-Mail oder Benutzername"
                 className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
               />
               <label className="block text-xs font-semibold text-stone-600">
@@ -241,7 +241,7 @@ export default function SignInPage() {
                     const providers = await getProviders();
                     if (!providers?.google) {
                       setError(
-                        "Google Login ist nicht aktiviert. Bitte spaeter erneut versuchen."
+                        "Google-Login ist nicht aktiviert. Bitte später erneut versuchen."
                       );
                       setLoginStatus("error");
                       return;
@@ -265,7 +265,7 @@ export default function SignInPage() {
                     setLoginStatus("error");
                   } catch {
                     setError(
-                      "Google Login fehlgeschlagen. Bitte pruefe die Konfiguration."
+                      "Google-Login fehlgeschlagen. Bitte prüfe die Konfiguration."
                     );
                     setLoginStatus("error");
                   } finally {

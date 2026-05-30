@@ -160,7 +160,7 @@ export default function PasswordResetClient({
               setError("");
               setNotice("");
               if (newPassword !== confirmPassword) {
-                setError("Passwoerter stimmen nicht ueberein.");
+                setError("Passwörter stimmen nicht überein.");
                 return;
               }
               setSaving(true);
@@ -204,7 +204,7 @@ export default function PasswordResetClient({
                   : "block text-xs font-semibold text-stone-600"
               }
             >
-              Email *
+              E-Mail *
             </label>
             <input
               type="email"
@@ -224,7 +224,7 @@ export default function PasswordResetClient({
                 setError("");
                 setNotice("");
                 if (!email) {
-                  setError("Bitte Email eingeben.");
+                  setError("Bitte E-Mail eingeben.");
                   return;
                 }
                 setRequestStatus("sending");

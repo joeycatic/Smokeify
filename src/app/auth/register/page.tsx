@@ -79,7 +79,7 @@ export default function RegisterPage() {
               setLoading(true);
               try {
                 if (password !== confirmPassword) {
-                  setError("Passwoerter stimmen nicht ueberein.");
+                  setError("Passwörter stimmen nicht überein.");
                   return;
                 }
                 if (!hasSymbol) {
@@ -197,7 +197,7 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-stone-600">
-                Email *
+                E-Mail *
               </label>
               <input
                 type="email"
@@ -299,7 +299,7 @@ export default function RegisterPage() {
                 <option value="AT">Oesterreich</option>
                 <option value="CH">Schweiz</option>
                 <option value="EU">EU (sonstige)</option>
-                <option value="UK">Vereinigtes Koenigreich</option>
+                <option value="UK">Vereinigtes Königreich</option>
                 <option value="US">USA</option>
                 <option value="OTHER">Andere</option>
               </select>

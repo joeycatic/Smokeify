@@ -49,12 +49,12 @@ export default function PasswordChangeClient() {
     setError("");
 
     if (!currentPassword || !newPassword) {
-      setError("Bitte alle Felder ausfuellen.");
+      setError("Bitte alle Felder ausfüllen.");
       setStatus("error");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwoerter stimmen nicht ueberein.");
+      setError("Passwörter stimmen nicht überein.");
       setStatus("error");
       return;
     }

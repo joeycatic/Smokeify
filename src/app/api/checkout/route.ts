@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -28,11 +27,15 @@ import {
   validateShippingAddress,
 } from "@/lib/shippingAddress";
 import { loadCheckoutUser } from "@/lib/checkoutUser";
+import {
+  normalizeCartOptions,
+  resolveCartItemsForRequest,
+  type ServerCartItem,
+} from "@/lib/serverCartStorage";
 
 export const runtime = "nodejs";
 
 const CURRENCY_CODE = "EUR";
-const COOKIE_NAME = "smokeify_cart";
 const ALLOWED_PAYMENT_METHOD_TYPES = ["card", "paypal", "klarna"] as const;
 const STRIPE_DEFAULT_API_VERSION = "2024-06-20";
 const STRIPE_CUSTOM_CHECKOUT_API_VERSION = "2025-03-31.basil";
@@ -75,12 +78,6 @@ const ALLOWED_COUNTRIES = [
 ] as const;
 
 type AllowedPaymentMethodType = (typeof ALLOWED_PAYMENT_METHOD_TYPES)[number];
-
-type CartItem = {
-  variantId: string;
-  quantity: number;
-  options?: Array<{ name: string; value: string }>;
-};
 
 type CheckoutCartSummaryItem = {
   imageUrl: string | null;
@@ -155,24 +152,6 @@ const parseCheckoutPaymentMethodTypes = (): Stripe.Checkout.SessionCreateParams.
     : undefined;
 };
 
-const normalizeOptions = (
-  options?: Array<{ name?: string | null; value?: string | null }>,
-): Array<{ name: string; value: string }> => {
-  if (!Array.isArray(options)) return [];
-  const seen = new Set<string>();
-  const normalized: Array<{ name: string; value: string }> = [];
-  options.forEach((opt) => {
-    const name = String(opt?.name ?? "").trim();
-    const value = String(opt?.value ?? "").trim();
-    if (!name || !value) return;
-    const key = name.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    normalized.push({ name, value });
-  });
-  return normalized;
-};
-
 const serializeOptionsMetadata = (options?: Array<{ name: string; value: string }>) => {
   if (!options?.length) return "";
   return options
@@ -189,26 +168,6 @@ const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) =>
     .map((opt) => `${opt.name}: ${opt.value}`)
     .filter(Boolean)
     .join(" · ");
-};
-
-const readCartItems = async () => {
-  const store = await cookies();
-  const raw = store.get(COOKIE_NAME)?.value;
-  if (!raw) return [] as CartItem[];
-  try {
-    const parsed = JSON.parse(raw) as CartItem[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item?.variantId && Number.isFinite(item.quantity))
-      .map((item) => ({
-        variantId: String(item.variantId),
-        quantity: Math.max(0, Math.floor(Number(item.quantity))),
-        options: normalizeOptions(item.options),
-      }))
-      .filter((item) => item.quantity > 0);
-  } catch {
-    return [];
-  }
 };
 
 const getSafeCountry = (value: unknown): ShippingCountry => {
@@ -274,7 +233,7 @@ const buildCheckoutItemPresentation = (
       images: Array<{ url: string }>;
     };
   },
-  item: CartItem,
+  item: ServerCartItem,
 ) => {
   const productName = variant.product.title;
   const variantTitle = variant.title?.trim();
@@ -289,7 +248,7 @@ const buildCheckoutItemPresentation = (
     !isDefaultVariant && variantTitle
       ? `${baseName} — ${variantTitle}`
       : baseName;
-  const selectedOptions = normalizeOptions(item.options);
+  const selectedOptions = normalizeCartOptions(item.options);
   const optionsLabel = selectedOptions.length
     ? ` (${formatOptionsLabel(selectedOptions)})`
     : "";
@@ -413,7 +372,7 @@ export async function GET() {
   const authSession = await getServerSession(authOptions);
   const userId = authSession?.user?.id ?? null;
   const user = userId ? await loadCheckoutUser(userId) : null;
-  const items = await readCartItems();
+  const items = await resolveCartItemsForRequest(userId);
   const variants = await prisma.variant.findMany({
     where: { id: { in: items.map((item) => item.variantId) } },
     include: {
@@ -501,7 +460,7 @@ export async function POST(req: Request) {
   const recoverySessionId =
     typeof body?.recoverySessionId === "string" ? body.recoverySessionId.trim() : "";
   if (rawDiscountCode && rawDiscountCode.length > 64) {
-    return jsonNoStore({ error: "Rabattcode ungueltig." }, { status: 400 });
+    return jsonNoStore({ error: "Rabattcode ungültig." }, { status: 400 });
   }
 
   const userId = authSession?.user?.id ?? null;
@@ -603,7 +562,7 @@ export async function POST(req: Request) {
     country,
   );
 
-  const items = await readCartItems();
+  const items = await resolveCartItemsForRequest(userId);
   if (items.length === 0) {
     return jsonNoStore({ error: "Cart is empty." }, { status: 400 });
   }
@@ -724,7 +683,7 @@ export async function POST(req: Request) {
     const promotionCode = promotionCodes.data[0];
     if (!promotionCode || !promotionCode.active || !promotionCode.coupon?.valid) {
       return jsonNoStore(
-        { error: "Rabattcode ungueltig." },
+        { error: "Rabattcode ungültig." },
         { status: 400 },
       );
     }
