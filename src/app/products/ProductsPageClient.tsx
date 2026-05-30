@@ -277,7 +277,7 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
         kicker: "Hersteller",
         title: activeManufacturers.join(", "),
         description:
-          "Markenfokussierte Auswahl mit denselben Filtern, Vergleichen und Produktkarten wie im restlichen Store.",
+          "Markenfokussierte Auswahl mit denselben Filtern und Produktkarten wie im restlichen Store.",
       };
     }
 

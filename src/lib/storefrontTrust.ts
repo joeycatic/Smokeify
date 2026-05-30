@@ -53,8 +53,6 @@ export const CART_SHIPPING_EXPLANATION = `Versandkosten richten sich nach dem Zi
 export const CART_CHECKOUT_EXPLANATION = "Die endgültigen Versandkosten und Rabatte siehst du vor dem Kaufabschluss im Checkout.";
 export const LISTING_DECISION_TRUST_NOTE =
   "Preis, Bestand und Kategoriepfade bleiben servergeführt. Versandkosten und finale Rabatte siehst du erst verbindlich vor dem Kaufabschluss im Checkout.";
-export const COMPARE_TRUST_NOTE =
-  "Vergleiche helfen bei der Vorauswahl. Preis- und Bestandsstand kommen aus dem Katalog, die finale Versand- und Rabattlogik bleibt serverseitig bis zum Checkout.";
 export const PDP_DECISION_TRUST_NOTE =
   "Eignungshinweise helfen bei der Vorauswahl. Preis, Bestand, Versand und Rabatte bleiben bis zum Checkout servergeführt und nachvollziehbar.";
 

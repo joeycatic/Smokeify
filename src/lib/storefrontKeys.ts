@@ -9,7 +9,3 @@ export const LEGACY_VERIFY_LOGIN_COOKIE_NAME = "smokeify_verify_login_legacy";
 
 export const WISHLIST_STORAGE_KEY = "smokeify:wishlist";
 export const LEGACY_WISHLIST_STORAGE_KEY = "wishlist";
-
-export const COMPARE_STORAGE_KEY = "smokeify:compare-products";
-export const LEGACY_COMPARE_STORAGE_KEY = "growvault:compare-products";
-export const MAX_COMPARE_ITEMS = 4;

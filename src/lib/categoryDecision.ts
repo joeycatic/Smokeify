@@ -756,44 +756,9 @@ export function buildCategoryComparePrompt(
   categoryHandle?: string | null,
   categoryTitle?: string | null,
 ): CategoryDecisionPrompt | null {
-  const resolution = resolveDecisionCategory(categoryHandle, categoryTitle);
-
-  switch (resolution.key) {
-    case "tents":
-      return {
-        title: "2 bis 4 Zelte direkt vergleichen",
-        description:
-          "Bei Zeltmaßen, Preis und Bewertungsdichte wird der Unterschied oft erst nebeneinander klar.",
-        href: "/products/compare",
-        ctaLabel: "Vergleich öffnen",
-      };
-    case "lights":
-      return {
-        title: "Top-Optionen nebeneinander prüfen",
-        description:
-          "Vergleich lohnt sich hier besonders bei Leistung, Preis und Formfaktor der Lampen.",
-        href: "/products/compare",
-        ctaLabel: "LEDs vergleichen",
-      };
-    case "ventilation":
-      return {
-        title: "Lautstärke und Reserven nicht blind kaufen",
-        description:
-          "Rohrgröße, Set-Aufbau und Preis werden im Vergleich deutlich schneller lesbar.",
-        href: "/products/compare",
-        ctaLabel: "Abluft vergleichen",
-      };
-    case "measurement":
-      return {
-        title: "Messgeräte lieber nebeneinander abwägen",
-        description:
-          "Bei pH-, EC- und Monitoring-Produkten zeigen sich Preis-Leistungs-Unterschiede erst im direkten Vergleich.",
-        href: "/products/compare",
-        ctaLabel: "Messgeräte vergleichen",
-      };
-    default:
-      return null;
-  }
+  void categoryHandle;
+  void categoryTitle;
+  return null;
 }
 
 export function buildCategorySupportPrompt(
@@ -885,10 +850,10 @@ const buildIntentActions = (
           buildCategoryHref("licht"),
         ),
         buildIntentAction(
-          "light-compare",
-          "Vergleich öffnen",
-          "Gerade bei LEDs wird der Unterschied bei Preis und Leistung im Vergleich klarer.",
-          "/products/compare",
+          "light-customizer",
+          "Setup planen",
+          "Wenn Fläche und Lampenleistung zusammen gedacht werden sollen, ist der Konfigurator der klarere nächste Schritt.",
+          "/customizer",
         ),
       ];
     case "ventilation":
@@ -913,12 +878,6 @@ const buildIntentActions = (
           "Zu Messen & pH",
           "Das bündelt pH-, EC- und Kontrollgeräte in einem klareren Einstieg.",
           buildCategoryHref("messen"),
-        ),
-        buildIntentAction(
-          "measurement-compare",
-          "Messgeräte vergleichen",
-          "Messgeräte lassen sich im Direktvergleich deutlich leichter bewerten.",
-          "/products/compare",
         ),
       ];
     case "watering":
@@ -965,7 +924,7 @@ export function buildSearchIntentGuidance(
     description:
       intent === "analyzer"
         ? "Statt auf einzelne Produktnamen zu raten, kannst du Symptome, Unsicherheit und nächste Schritte direkt strukturieren."
-        : "Wenn du direkt in die passende Kategorie oder in den Konfigurator springst, reduziert das unnötige Vergleichsarbeit.",
+        : "Wenn du direkt in die passende Kategorie oder in den Konfigurator springst, reduziert das unnötige Suchwege.",
     actions,
   };
 }

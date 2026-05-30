@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
 import {
-  COMPARE_STORAGE_KEY,
-  LEGACY_COMPARE_STORAGE_KEY,
-  MAX_COMPARE_ITEMS,
-} from "@/lib/storefrontKeys";
-import {
   buildProductsSearchParams,
   filtersFromProductsUrlState,
   hasProductsUrlState,
@@ -20,14 +15,7 @@ describe("Smokeify storefront revamp helpers", () => {
   it("keeps public route constants local to Smokeify", () => {
     expect(SMOKEIFY_ROUTES.customizer).toBe("/customizer");
     expect(SMOKEIFY_ROUTES.analyzer).toBe("/pflanzen-analyse");
-    expect(SMOKEIFY_ROUTES.compare).toBe("/products/compare");
     expect(Object.values(SMOKEIFY_ROUTES).every((route) => route.startsWith("/"))).toBe(true);
-  });
-
-  it("keeps compare storage isolated with a hard product limit", () => {
-    expect(COMPARE_STORAGE_KEY).toBe("smokeify:compare-products");
-    expect(LEGACY_COMPARE_STORAGE_KEY).toBe("growvault:compare-products");
-    expect(MAX_COMPARE_ITEMS).toBe(4);
   });
 
   it("round-trips product URL state without noisy defaults", () => {

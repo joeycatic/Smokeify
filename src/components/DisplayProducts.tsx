@@ -11,7 +11,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import ProductCardActions from "@/components/ProductCardActions";
-import CompareProductButton from "@/components/CompareProductButton";
 import type { Product } from "@/data/types";
 
 const QuickViewModal = dynamic(() => import("@/components/QuickViewModal"), {
@@ -221,7 +220,7 @@ export default function DisplayProducts({
                   </span>
                 </div>
                 <div className="mt-auto flex w-full items-center pt-3">
-                  <div className="grid w-full grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2">
+                  <div className="grid w-full grid-cols-[2.5rem_1fr] items-center gap-2">
                     <div className="flex items-center justify-start">
                       <ProductCardActions
                         productId={p.id}
@@ -250,9 +249,6 @@ export default function DisplayProducts({
                         itemQuantity={1}
                         itemHandle={p.handle}
                       />
-                    </div>
-                    <div className="flex items-center justify-end">
-                      <CompareProductButton productId={p.id} compact />
                     </div>
                   </div>
                 </div>
@@ -411,7 +407,6 @@ export function DisplayProductsList({
                     itemQuantity={1}
                     itemHandle={p.handle}
                   />
-                  <CompareProductButton productId={p.id} />
                   <Link
                     href={`/products/${p.handle}`}
                     data-gtag-item-id={p.defaultVariantId ?? p.id}

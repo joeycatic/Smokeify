@@ -77,27 +77,18 @@ export default function RecentlyViewedStrip({
 
   return (
     <section className={className}>
-      <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-5 py-4">
+      <div className="overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--smk-border)] px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <span
-              className="h-3.5 w-1 rounded-full"
-              style={{ background: "#E4C56C" }}
-            />
-            <h2
-              className="text-lg font-bold"
-              style={{ color: "#2f3e36" }}
-            >
-              {title}
-            </h2>
+            <span className="h-3.5 w-1 rounded-full bg-[var(--smk-accent-2)]" />
+            <h2 className="smk-heading text-lg font-bold">{title}</h2>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => scrollTrack("left")}
               disabled={!canScrollPrev}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Nach links"
             >
               <ChevronLeftIcon className="h-4 w-4" />
@@ -106,7 +97,7 @@ export default function RecentlyViewedStrip({
               type="button"
               onClick={() => scrollTrack("right")}
               disabled={!canScrollNext}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/50 shadow-sm transition hover:bg-stone-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Nach rechts"
             >
               <ChevronRightIcon className="h-4 w-4" />
@@ -114,7 +105,6 @@ export default function RecentlyViewedStrip({
           </div>
         </div>
 
-        {/* Carousel track */}
         <div
           ref={trackRef}
           className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto"
@@ -123,15 +113,11 @@ export default function RecentlyViewedStrip({
             <Link
               key={item.handle}
               href={`/products/${item.handle}`}
-              className="group relative w-[13rem] shrink-0 snap-start border-r border-black/[0.06] p-4 transition last:border-r-0 hover:bg-stone-50/70 sm:w-[15rem]"
+              className="group relative w-[13rem] shrink-0 snap-start border-r border-[var(--smk-border)] p-4 transition last:border-r-0 hover:bg-[rgba(255,255,255,0.03)] sm:w-[15rem]"
             >
-              {/* Gold hover bar */}
-              <span
-                className="absolute inset-x-0 top-0 h-0.5 scale-x-0 transition-transform duration-200 group-hover:scale-x-100"
-                style={{ background: "#E4C56C", transformOrigin: "left" }}
-              />
+              <span className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-[var(--smk-accent-2)] transition-transform duration-200 group-hover:scale-x-100" />
 
-              <div className="relative h-36 overflow-hidden rounded-xl bg-stone-50 sm:h-44">
+              <div className="smk-white-well relative h-36 overflow-hidden rounded-[20px] sm:h-44">
                 {item.imageUrl ? (
                   <Image
                     src={item.imageUrl}
@@ -146,15 +132,15 @@ export default function RecentlyViewedStrip({
               </div>
 
               {item.manufacturer && (
-                <p className="mt-3 truncate text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                <p className="mt-3 truncate text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--smk-text-muted)]">
                   {item.manufacturer}
                 </p>
               )}
-              <p className={`${item.manufacturer ? "mt-0.5" : "mt-3"} line-clamp-2 text-[13px] font-semibold leading-snug text-stone-800 transition group-hover:text-stone-900`}>
+              <p className={`${item.manufacturer ? "mt-0.5" : "mt-3"} line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--smk-text)] transition group-hover:text-[var(--smk-accent-2)]`}>
                 {item.title}
               </p>
               {item.price ? (
-                <p className="mt-1.5 text-sm font-bold" style={{ color: "#2f3e36" }}>
+                <p className="mt-1.5 text-sm font-bold text-[var(--smk-accent-2)]">
                   {formatPrice(item.price.amount, item.price.currencyCode)}
                 </p>
               ) : null}

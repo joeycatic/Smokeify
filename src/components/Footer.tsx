@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import FooterNewsletter from "@/components/FooterNewsletter";
 import { businessDetails } from "@/lib/businessDetails";
@@ -154,14 +153,6 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
-                  href={SMOKEIFY_ROUTES.compare}
-                >
-                  Produktvergleich
-                </Link>
-              </li>
-              <li>
-                <Link
-                  className="text-[var(--smk-text-muted)] transition hover:text-[var(--smk-text)]"
                   href={SMOKEIFY_ROUTES.customizer}
                 >
                   Konfigurator
@@ -277,13 +268,15 @@ export default function Footer() {
               Versand:
             </span>
             <span className="inline-flex h-9 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element -- small local shipping badge does not benefit from Next image runtime overhead */}
+              <img
                 src="/shipping-provider-logos/dhl-logo.png"
                 alt="DHL"
                 className="h-5 w-auto object-contain"
                 width={60}
                 height={20}
-                sizes="60px"
+                loading="lazy"
+                decoding="async"
               />
             </span>
           </div>

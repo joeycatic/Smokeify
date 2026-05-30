@@ -86,8 +86,8 @@ export default function IndoorGardeningAdsPage() {
                 Du brauchst eine schnelle Auswahl?
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)]">
-                Starte im Katalog, nutze den Vergleich oder frag direkt bei
-                Smokeify an.
+                Starte im Katalog, arbeite dich über die Kategorien vor oder
+                frag direkt bei Smokeify an.
               </p>
             </div>
             <Link href="/pages/contact" className="smk-button-primary rounded-full px-6 py-3 text-sm font-semibold">

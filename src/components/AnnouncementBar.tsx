@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  TruckIcon,
-} from "@heroicons/react/24/outline";
+import { TruckIcon } from "@heroicons/react/24/outline";
 
 const ANNOUNCEMENT_BAR_HEIGHT = 40;
 
@@ -55,7 +53,7 @@ export function AnnouncementBar() {
       }`}
     >
       <div className="mx-auto flex h-10 max-w-[1280px] items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(241,198,132,0.18)] bg-[rgba(255,255,255,0.02)] px-3 py-1 text-[11px] font-semibold text-[var(--smk-accent)]">
+        <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-[var(--smk-accent)]">
           <TruckIcon className="h-4 w-4" />
           <span className="tracking-[0.16em] uppercase">
             Kostenloser Versand ab 69 EUR

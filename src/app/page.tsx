@@ -159,28 +159,28 @@ export default async function StorePage({
               <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-[rgba(207,167,96,0.16)] blur-3xl sm:h-52 sm:w-52" />
               <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[rgba(94,75,57,0.24)] blur-3xl sm:h-60 sm:w-60" />
 
-              <div className="relative grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
-                <div className="max-w-3xl space-y-6">
+              <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.84fr)] lg:items-center lg:gap-10">
+                <div className="max-w-[43rem] space-y-5">
                   <span className="smk-chip">
                     <SparklesIcon className="h-4 w-4" />
-                    Fuer Indoor-Setups mit Plan
+                    Für Indoor-Setups mit Plan
                   </span>
-                  <div className="space-y-4">
-                    <h1 className="smk-heading max-w-4xl text-5xl leading-[0.9] tracking-[-0.06em] text-[var(--smk-text)] sm:text-6xl lg:text-7xl">
+                  <div className="space-y-3">
+                    <h1 className="smk-heading max-w-[12ch] text-[3.2rem] leading-[0.88] tracking-[-0.065em] text-[var(--smk-text)] sm:text-[4.4rem] lg:text-[5.4rem]">
                       Dein Smokeify-Setup.
                       <br />
                       <span className="smk-text-gradient">
-                        Klar gewaehlt. Direkt passend gekauft.
+                        Klar gewählt. Direkt passend gekauft.
                       </span>
                     </h1>
-                    <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                    <p className="max-w-[38rem] text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
                       Shop, Setup-Konfigurator und Pflanzenanalyse greifen in
                       Smokeify direkt ineinander. Weniger Raten, passendere
                       Produkte und ein klarerer Start in dein Setup.
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
                     <Link
                       href={SMOKEIFY_ROUTES.customizer}
                       className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
@@ -195,7 +195,7 @@ export default async function StorePage({
                     </Link>
                   </div>
 
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
                     {[
                       "Versandfrei ab 69 EUR",
                       "Smokeify Auswahl",
@@ -212,23 +212,23 @@ export default async function StorePage({
                   </div>
 
                   <PaymentMethodLogos
-                    className="flex-wrap gap-2.5"
+                    className="border-t border-[var(--smk-border)]/70 pt-4 flex-wrap gap-2"
                     pillClassName="border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)]"
                     logoClassName="brightness-[1.02]"
                   />
                 </div>
 
-                <div className="rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                <div className="self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
+                  <div className="flex flex-col gap-4 border-b border-[var(--smk-border)]/80 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="smk-kicker text-[var(--smk-accent)]">
                         Setup-Vorschau
                       </p>
-                      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--smk-text)] sm:text-4xl">
+                      <h2 className="mt-2 text-[2.2rem] font-semibold tracking-[-0.05em] text-[var(--smk-text)] sm:text-[2.7rem]">
                         Einfacher Start
                       </h2>
                     </div>
-                    <div className="rounded-full border border-[rgba(233,188,116,0.18)] bg-[rgba(233,188,116,0.08)] px-3 py-1 text-xs font-semibold text-[var(--smk-accent)]">
+                    <div className="self-start rounded-full border border-[rgba(233,188,116,0.18)] bg-[rgba(233,188,116,0.08)] px-3 py-1 text-xs font-semibold text-[var(--smk-accent)]">
                       {setupLabel}
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export default async function StorePage({
                         className="group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(233,188,116,0.14)] bg-[rgba(255,255,255,0.03)] p-4 transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] sm:p-5"
                       >
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_32%)] opacity-90" />
-                        <div className="relative flex items-center gap-4">
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
                           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] sm:h-28 sm:w-28">
                             {featuredHeroProduct.featuredImage ? (
                               <Image
@@ -281,18 +281,18 @@ export default async function StorePage({
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="smk-kicker text-[var(--smk-accent)]">
-                              Sinnvoll fuer den Einstieg
+                              Sinnvoll für den Einstieg
                             </p>
                             {featuredHeroProduct.manufacturer ? (
-                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
                                 {featuredHeroProduct.manufacturer}
                               </p>
                             ) : null}
-                            <h2 className="mt-2 text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
+                            <h2 className="mt-2 max-w-[14ch] text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
                               {featuredHeroProduct.title}
                             </h2>
-                            <div className="mt-4 flex items-center justify-between gap-3">
-                              <p className="text-sm font-semibold text-[var(--smk-text)]">
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+                              <p className="text-base font-semibold text-[var(--smk-text)]">
                                 {formattedPrice ?? "Preis aufrufen"}
                               </p>
                               <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-text-muted)] transition group-hover:text-[var(--smk-text)]">
@@ -458,7 +458,7 @@ export default async function StorePage({
                   Kompletten Katalog durchsuchen
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Shoppen, Bestseller vergleichen oder direkt in die gesamte
+                  Shoppen, Bestseller entdecken oder direkt in die gesamte
                   Auswahl springen, wenn das Setup schon klar ist.
                 </p>
               </div>

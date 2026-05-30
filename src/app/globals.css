@@ -183,6 +183,28 @@ textarea {
   backdrop-filter: none;
 }
 
+.smk-analyzer-gv-theme {
+  --gv-forest: var(--smk-bg);
+  --gv-dark: var(--smk-panel);
+  --gv-surface: var(--smk-bg-soft);
+  --gv-surface-2: var(--smk-panel-2);
+  --gv-border: color-mix(in srgb, var(--smk-border) 86%, white 14%);
+  --gv-muted: var(--smk-text-dim);
+  --gv-lime: var(--smk-accent-2);
+  --gv-lime-dim: var(--smk-accent);
+  --gv-lime-glow: rgba(233, 188, 116, 0.16);
+  --gv-text: var(--smk-text);
+  --gv-text-muted: var(--smk-text-muted);
+  --gv-success: var(--smk-success);
+  --gv-warning: var(--smk-warning);
+  --gv-error: var(--smk-error);
+  --gv-shadow: var(--smk-shadow);
+  --gv-grid: var(--smk-grid);
+  --font-syne: var(--font-fraunces);
+  --font-jetbrains-mono: var(--font-manrope);
+  --font-dm-sans: var(--font-manrope);
+}
+
 .brand-page-bg {
   background:
     radial-gradient(
@@ -834,11 +856,17 @@ textarea {
   color: var(--smk-text-dim) !important;
 }
 
-.smk-storefront-legacy .smk-white-well {
-  background: #ffffff !important;
-  border-color: rgba(17, 24, 39, 0.08) !important;
-  color: #1c1510 !important;
+.smk-white-well {
+  background: #ffffff;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  color: #1c1510;
 }
+
+.smk-storefront-legacy .smk-white-well {
+    background: #ffffff !important;
+    border-color: rgba(17, 24, 39, 0.08) !important;
+    color: #1c1510 !important;
+  }
 
 .smk-storefront-legacy [style*="#2f3e36"],
 .smk-storefront-legacy [style*="#20342b"],

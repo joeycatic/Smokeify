@@ -7,7 +7,6 @@ export const SMOKEIFY_ROUTES = {
   analyzer: PLANT_ANALYZER_PATH,
   blog: "/blog",
   cart: "/cart",
-  compare: "/products/compare",
   lab: "/lab",
   checkoutCtaLab: "/lab/checkout-cta",
 } as const;

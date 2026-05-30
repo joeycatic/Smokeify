@@ -6,12 +6,11 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  AdjustmentsHorizontalIcon,
   Bars3Icon,
   HeartIcon,
   MagnifyingGlassIcon,
-  PhotoIcon,
   ShoppingBagIcon,
+  SparklesIcon,
   Squares2X2Icon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
@@ -26,6 +25,7 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
 import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
+import { GrowvaultIcon } from "@/components/icons/GrowvaultIcon";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
 import { getCategoryIcon } from "@/components/navbar/categoryIcons";
@@ -324,10 +324,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
     const update = () => {
       const rect = productsTriggerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      const width = Math.min(660, window.innerWidth - 32);
       const next = {
         top: rect.bottom + 12,
-        left: rect.left,
-        width: 360,
+        left: Math.min(rect.left, window.innerWidth - width - 16),
+        width,
       };
       setProductsPopupStyle((prev) => {
         if (
@@ -500,6 +501,31 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const mainCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
     const preferredOrder = [
+      "headshop",
+      "zelte",
+      "anzucht",
+      "bewaesserung",
+      "licht",
+      "luft",
+      "messen",
+      "substrate-und-zubehoer",
+    ];
+    const sortedRoots = [...roots].sort((a, b) => {
+      const orderA = preferredOrder.indexOf(a.handle);
+      const orderB = preferredOrder.indexOf(b.handle);
+      if (orderA !== -1 || orderB !== -1) {
+        if (orderA === -1) return 1;
+        if (orderB === -1) return -1;
+        return orderA - orderB;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    return sortedRoots.filter((category) => category.handle !== "headshop");
+  }, [categories]);
+  const allRootCategories = useMemo(() => {
+    const roots = categories.filter((category) => !category.parentId);
+    const preferredOrder = [
+      "headshop",
       "zelte",
       "anzucht",
       "bewaesserung",
@@ -517,7 +543,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
         return orderA - orderB;
       }
       return a.name.localeCompare(b.name);
-    }).filter((category) => category.handle !== "headshop");
+    });
   }, [categories]);
 
   useEffect(() => {
@@ -676,17 +702,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
       : null;
   const activeCategories = categoriesByParent.get(activeParentId) ?? [];
   const categoryById = useMemo(() => {
-    const map = new Map<
-      string,
-      { id: string; name: string; handle: string; href: string }
-    >();
+    const map = new Map<string, NavbarCategory>();
     categories.forEach((category) => {
-      map.set(category.id, {
-        id: category.id,
-        name: category.name,
-        handle: category.handle,
-        href: category.href,
-      });
+      map.set(category.id, category);
     });
     return map;
   }, [categories]);
@@ -707,10 +725,56 @@ export function Navbar({ initialCategories }: NavbarProps) {
           category.name.toLowerCase().includes(categoryQuery.toLowerCase()),
         )
       : activeCategories;
+  const activeDesktopRootId = useMemo(() => {
+    const selectedRootId = categoryStack[0];
+    if (selectedRootId && allRootCategories.some((category) => category.id === selectedRootId)) {
+      return selectedRootId;
+    }
+    return allRootCategories[0]?.id ?? null;
+  }, [allRootCategories, categoryStack]);
+  const activeDesktopRootCategory = activeDesktopRootId
+    ? (categoryById.get(activeDesktopRootId) ?? null)
+    : null;
+  const activeDesktopChildren = activeDesktopRootId
+    ? categoriesByParent.get(activeDesktopRootId) ?? []
+    : [];
+  const filteredDesktopRootCategories =
+    categoryQuery.trim().length > 0
+      ? allRootCategories.filter((category) =>
+          getPrimaryCategoryLabel(category)
+            .toLowerCase()
+            .includes(categoryQuery.toLowerCase()),
+        )
+      : allRootCategories;
+  const productsActive = Boolean(
+    productsOpen || pathname?.startsWith(SMOKEIFY_ROUTES.products),
+  );
+  const configuratorActive = Boolean(
+    pathname?.startsWith(SMOKEIFY_ROUTES.customizer),
+  );
+  const analyzerActive = Boolean(
+    pathname?.startsWith(SMOKEIFY_ROUTES.analyzer) ||
+      pathname?.startsWith("/pflanzen-analyzer"),
+  );
   const utilityIconButtonClass =
     "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
-  const desktopNavLinkClass =
-    "inline-flex cursor-pointer items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] shadow-sm shadow-black/10 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
+  const desktopNavLinkClass = (active: boolean) =>
+    `relative isolate inline-flex min-h-[52px] cursor-pointer select-none items-center overflow-hidden rounded-[20px] border px-4 py-2 text-[0.98rem] font-semibold tracking-[-0.02em] shadow-[0_14px_30px_rgba(0,0,0,0.24)] backdrop-blur-md transition-all duration-200 ease-out before:absolute before:inset-x-4 before:top-0 before:h-px before:rounded-full before:bg-white/12 before:content-[''] after:absolute after:bottom-2 after:left-4 after:h-[2px] after:rounded-full after:transition-all after:duration-200 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+      active
+        ? "border-[var(--smk-border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03)_28%,rgba(233,188,116,0.14)_100%)] text-[var(--smk-text)] shadow-[0_20px_42px_rgba(233,188,116,0.14)] ring-1 ring-white/8 after:w-12 after:bg-[var(--smk-accent)]"
+        : "border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0.08))] text-[var(--smk-text-muted)] after:w-8 after:bg-white/8 hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(233,188,116,0.08)_100%)] hover:text-[var(--smk-text)] hover:shadow-[0_22px_38px_rgba(233,188,116,0.1)] hover:after:w-12 hover:after:bg-[var(--smk-accent)]/55"
+    }`;
+  const renderNavLabel = (
+    iconName: "package" | "configurator" | "analyzer",
+    label: string,
+  ) => (
+    <span className="relative z-[1] inline-flex items-center gap-2 whitespace-nowrap">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(233,188,116,0.16)] bg-[rgba(233,188,116,0.08)] text-[var(--smk-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <GrowvaultIcon name={iconName} size={15} />
+      </span>
+      <span>{label}</span>
+    </span>
+  );
 
   return (
     <>
@@ -735,7 +799,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     }`}
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
-                    aria-label="Navigation oeffnen"
+                    aria-label="Navigation öffnen"
                   >
                     <Bars3Icon className="h-5 w-5" />
                   </button>
@@ -756,212 +820,285 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     >
                       <Link
                         href="/products"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setMenuOpen(false);
-                          setProductsOpen(true);
-                        }}
-                        className="block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                      >
-                        Produkte
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setMenuOpen(false);
+                        setProductsOpen(true);
+                      }}
+                      className="block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                    >
+                        {renderNavLabel("package", "Produkte")}
                       </Link>
                       <Link
                         href={SMOKEIFY_ROUTES.customizer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                      >
-                        Setup
+                    >
+                        {renderNavLabel("configurator", "Setup")}
                       </Link>
                       <Link
                         href={SMOKEIFY_ROUTES.analyzer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                      >
-                        Analyse
+                    >
+                        {renderNavLabel("analyzer", "Analyse")}
                       </Link>
                     </div>,
                     document.body,
                   )}
                 <div className="hidden items-center gap-5 text-xs font-semibold text-[var(--smk-text-muted)] sm:flex sm:gap-8 sm:text-base">
-                  {mounted ? (
-                    <div className="relative" ref={productsRef}>
-                      <button
-                        ref={productsTriggerRef}
-                        type="button"
-                        onClick={() =>
-                          setProductsOpen((prev) => {
-                            const next = !prev;
-                            if (!next) {
-                              setCategoryStack([]);
-                            }
-                            return next;
-                          })
-                        }
-                        className={`inline-flex cursor-pointer items-center rounded-full border px-3.5 py-1.5 text-base font-semibold shadow-sm shadow-black/10 transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-                          productsOpen
-                            ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] text-[var(--smk-text)] shadow-lg shadow-black/30"
-                            : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
-                        }`}
-                        aria-expanded={productsOpen}
-                        aria-haspopup="true"
-                      >
-                        <Squares2X2Icon className="mr-2 h-4 w-4 text-[var(--smk-accent)]" />
-                        Produkte
-                      </button>
-                      {productsOpen &&
-                        !isMobile &&
-                        canPortal &&
-                        productsPopupStyle &&
-                        createPortal(
+                  <div className="relative" ref={productsRef}>
+                    <button
+                      ref={productsTriggerRef}
+                      type="button"
+                      onClick={() =>
+                        setProductsOpen((prev) => {
+                          const next = !prev;
+                          if (!next) {
+                            setCategoryStack([]);
+                            setCategoryQuery("");
+                          }
+                          return next;
+                        })
+                      }
+                      className={desktopNavLinkClass(productsActive)}
+                      aria-expanded={productsOpen}
+                      aria-haspopup="true"
+                    >
+                      {renderNavLabel("package", "Produkte")}
+                    </button>
+                    {productsOpen &&
+                      !isMobile &&
+                      canPortal &&
+                      productsPopupStyle &&
+                      createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="webshop-dropdown-in fixed z-[999] mt-3 w-[360px] rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
+                            className="webshop-dropdown-in fixed z-[999] mt-3 max-h-[calc(100vh-8rem)] w-[340px] overflow-hidden rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-2 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
                               width: productsPopupStyle.width,
                             }}
                           >
-                            <div className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-3">
-                              <div className="flex items-center justify-between border-b border-[var(--smk-border)] pb-3">
-                                {categoryStack.length > 0 ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setCategoryStack((prev) =>
-                                        prev.slice(0, -1),
-                                      )
-                                    }
-                                    className="cursor-pointer rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                                  >
-                                    ← Zurück
-                                  </button>
-                                ) : (
-                                  <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--smk-text-dim)]">
-                                    Kategorien
+                            <div className="h-full rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-3">
+                              <div className="flex items-start justify-between gap-3 border-b border-[var(--smk-border)] pb-2.5">
+                                <div>
+                                  <p className="smk-kicker text-[var(--smk-accent)]">
+                                    Katalog
+                                  </p>
+                                  <h3 className="mt-1.5 text-[1.75rem] font-semibold tracking-[-0.05em] text-[var(--smk-text)] lg:text-[1.9rem]">
+                                    Produkte schneller finden
+                                  </h3>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
+                                  <span className="rounded-full bg-[var(--smk-accent)] px-2 py-1 text-[var(--smk-bg)]">
+                                    DE
                                   </span>
-                                )}
+                                  <span>EN</span>
+                                </div>
+                              </div>
+
+                              <div className="mt-2.5 grid gap-2 border-b border-[var(--smk-border)] pb-2.5 sm:grid-cols-2">
                                 <Link
                                   href="/products"
                                   onClick={() => {
                                     setProductsOpen(false);
                                     setCategoryStack([]);
+                                    setCategoryQuery("");
                                   }}
-                                  className="cursor-pointer rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                                  className="flex items-center justify-between rounded-[18px] border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-3.5 py-2 text-[var(--smk-bg)] transition hover:brightness-105"
                                 >
-                                  Alle Produkte
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(28,21,16,0.68)]">
+                                      Sortiment
+                                    </p>
+                                    <p className="mt-1 text-[1rem] font-semibold tracking-[-0.04em] sm:text-[1.28rem]">
+                                      Alle Produkte
+                                    </p>
+                                  </div>
+                                  <span className="flex h-9 w-9 items-center justify-center rounded-[16px] border border-[rgba(28,21,16,0.12)] bg-[rgba(255,255,255,0.18)]">
+                                    <Squares2X2Icon className="h-4.5 w-4.5" />
+                                  </span>
+                                </Link>
+                                <Link
+                                  href="/bestseller"
+                                  onClick={() => {
+                                    setProductsOpen(false);
+                                    setCategoryStack([]);
+                                    setCategoryQuery("");
+                                  }}
+                                  className="flex items-center justify-between rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-2 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)]"
+                                >
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-accent)]">
+                                      Schnellwahl
+                                    </p>
+                                    <p className="mt-1 text-[1rem] font-semibold tracking-[-0.04em] sm:text-[1.28rem]">
+                                      Bestseller
+                                    </p>
+                                  </div>
+                                  <span className="flex h-9 w-9 items-center justify-center rounded-[16px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
+                                    <SparklesIcon className="h-4.5 w-4.5 text-[var(--smk-accent)]" />
+                                  </span>
                                 </Link>
                               </div>
-                              <div className="mt-3 space-y-2">
-                                {categoriesStatus === "error" && (
-                                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-                                    Kategorien konnten nicht geladen werden.
+
+                              <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[196px_minmax(0,1fr)]">
+                                <div className="space-y-2">
+                                  <div className="relative">
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
+                                    <input
+                                      type="search"
+                                      value={categoryQuery}
+                                      onChange={(event) =>
+                                        setCategoryQuery(event.target.value)
+                                      }
+                                      placeholder="Kategorie suchen..."
+                                      className="smk-input h-11 w-full rounded-full pl-11 pr-4 text-sm"
+                                    />
                                   </div>
-                                )}
-                                {categoriesStatus === "idle" &&
-                                  activeCategories.length === 0 && (
+                                  {categoriesStatus === "error" ? (
+                                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                                      Kategorien konnten nicht geladen werden.
+                                    </div>
+                                  ) : null}
+                                  {categoriesStatus === "idle" &&
+                                  filteredDesktopRootCategories.length === 0 ? (
                                     <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs text-[var(--smk-text-muted)]">
                                       Keine Kategorien gefunden.
                                     </div>
-                                  )}
-                                {categoriesStatus === "idle" &&
-                                  activeParentCategory && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        router.push(
-                                          `/products?category=${encodeURIComponent(
-                                            activeParentCategory.handle,
-                                          )}`,
-                                        );
-                                        setProductsOpen(false);
-                                        setCategoryStack([]);
-                                      }}
-                                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                                    >
-                                      <span>
-                                        Alle {activeParentCategory.name}
-                                      </span>
-                                      <span className="text-sm text-[var(--smk-text-dim)]">
-                                        →
-                                      </span>
-                                    </button>
-                                  )}
-                                {categoriesStatus === "idle" &&
-                                  activeCategories.map((category) => {
-                                    const CategoryIcon = getCategoryIcon(
-                                      category.name,
-                                    );
-                                    const childCount =
-                                      categoriesByParent.get(
-                                        String(category.id),
-                                      )?.length ?? 0;
-                                    const isLeaf = childCount === 0;
-                                    return (
-                                      <button
-                                        key={category.id}
-                                        type="button"
-                                        onClick={() => {
-                                          if (isLeaf) {
+                                  ) : null}
+                                  <div className="no-scrollbar max-h-[min(46vh,330px)] space-y-2 overflow-y-auto pr-1">
+                                    {filteredDesktopRootCategories.map((category) => {
+                                      const CategoryIcon = getCategoryIcon(category.name);
+                                      const isActive =
+                                        activeDesktopRootId === category.id;
+                                      return (
+                                        <button
+                                          key={category.id}
+                                          type="button"
+                                          onMouseEnter={() => setCategoryStack([category.id])}
+                                          onFocus={() => setCategoryStack([category.id])}
+                                          onClick={() => setCategoryStack([category.id])}
+                                          className={`flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                                            isActive
+                                              ? "border-[rgba(241,198,132,0.22)] bg-[rgba(241,198,132,0.08)]"
+                                              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                                          }`}
+                                        >
+                                          <span className="flex items-center gap-3">
+                                            <span className="flex h-8.5 w-8.5 items-center justify-center rounded-[15px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
+                                              <CategoryIcon className="h-4 w-4" />
+                                            </span>
+                                            <span className="text-[0.95rem] font-semibold text-[var(--smk-text)]">
+                                              {getPrimaryCategoryLabel(category)}
+                                            </span>
+                                          </span>
+                                          <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
+                                            {category.totalItemCount}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="no-scrollbar max-h-[min(46vh,330px)] overflow-y-auto rounded-[20px] border border-[var(--smk-border)] bg-[rgba(8,8,7,0.18)] p-3.5">
+                                  {activeDesktopRootCategory ? (
+                                    <>
+                                      <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                          <p className="smk-kicker text-[var(--smk-accent)]">
+                                            Aktiv
+                                          </p>
+                                          <h3 className="mt-2 text-[2rem] font-semibold tracking-[-0.06em] text-[var(--smk-text)]">
+                                            {getPrimaryCategoryLabel(activeDesktopRootCategory)}
+                                          </h3>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
                                             router.push(
                                               `/products?category=${encodeURIComponent(
-                                                category.handle,
+                                                activeDesktopRootCategory.handle,
                                               )}`,
                                             );
                                             setProductsOpen(false);
                                             setCategoryStack([]);
-                                            return;
-                                          }
-                                          setCategoryStack((prev) => [
-                                            ...prev,
-                                            category.id,
-                                          ]);
-                                        }}
-                                        className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                                      >
-                                        <span className="flex items-center gap-3">
-                                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
-                                            <CategoryIcon className="h-4 w-4" />
-                                          </span>
-                                          <span>{getPrimaryCategoryLabel(category)}</span>
-                                        </span>
-                                        <span className="flex items-center gap-2 text-sm text-[var(--smk-text-dim)]">
-                                          <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
-                                            {category.totalItemCount}
-                                          </span>
-                                          {!isLeaf && <span>›</span>}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
+                                            setCategoryQuery("");
+                                          }}
+                                          className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-5 py-2 text-sm font-semibold text-[var(--smk-bg)] transition hover:brightness-105"
+                                        >
+                                          Alle ansehen {getPrimaryCategoryLabel(activeDesktopRootCategory)}
+                                        </button>
+                                      </div>
+
+                                      {activeDesktopChildren.length > 0 ? (
+                                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                                          {activeDesktopChildren.map((category) => {
+                                            const CategoryIcon = getCategoryIcon(
+                                              category.name,
+                                            );
+                                            return (
+                                              <Link
+                                                key={category.id}
+                                                href={category.href}
+                                                onClick={() => {
+                                                  setProductsOpen(false);
+                                                  setCategoryStack([]);
+                                                  setCategoryQuery("");
+                                                }}
+                                                className="flex items-center justify-between rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                                              >
+                                                <span className="flex items-center gap-3">
+                                                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
+                                                    <CategoryIcon className="h-5 w-5" />
+                                                  </span>
+                                                  <span className="text-base font-semibold">
+                                                    {getPrimaryCategoryLabel(category)}
+                                                  </span>
+                                                </span>
+                                                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
+                                                  {category.totalItemCount}
+                                                </span>
+                                              </Link>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <div className="mt-6 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-5">
+                                          <p className="text-sm leading-6 text-[var(--smk-text-muted)]">
+                                            Diese Kategorie führt direkt auf die
+                                            Produktliste. Öffne sie, um alle
+                                            zugeordneten Smokeify Produkte zu sehen.
+                                          </p>
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <div className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-5 text-sm text-[var(--smk-text-muted)]">
+                                      Keine Kategorien gefunden.
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>,
                           document.body,
                         )}
-                    </div>
-                  ) : (
-                    <Link
-                      href="/products"
-                      className={desktopNavLinkClass}
-                    >
-                      <Squares2X2Icon className="h-4 w-4 text-[var(--smk-accent)]" />
-                      Produkte
-                    </Link>
-                  )}
+                  </div>
                   <Link
                     href={SMOKEIFY_ROUTES.customizer}
-                    className={desktopNavLinkClass}
+                    className={desktopNavLinkClass(configuratorActive)}
                   >
-                    <AdjustmentsHorizontalIcon className="h-4 w-4 text-[var(--smk-accent)]" />
-                    Setup
+                    {renderNavLabel("configurator", "Setup")}
                   </Link>
                   <Link
                     href={SMOKEIFY_ROUTES.analyzer}
-                    className={`${desktopNavLinkClass} whitespace-nowrap`}
+                    className={`${desktopNavLinkClass(analyzerActive)} whitespace-nowrap`}
                   >
-                    <PhotoIcon className="h-4 w-4 text-[var(--smk-accent)]" />
-                    Analyse
+                    {renderNavLabel("analyzer", "Analyse")}
                   </Link>
                 </div>
               </div>
@@ -1057,7 +1194,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     className={utilityIconButtonClass}
                     aria-expanded={cartOpen}
                     aria-haspopup="true"
-                    aria-label="Warenkorb oeffnen"
+                    aria-label="Warenkorb öffnen"
                   >
                     <ShoppingBagIcon className="h-6 w-6" />
                     {count > 0 && (
