@@ -259,7 +259,7 @@ export default function AdminNewsletterCampaignPanel({
       <AdminPanel
         eyebrow="Preview"
         title="Campaign payload"
-        description="Review the selected storefront and newsletter content before sending."
+        description="Review the selected storefront and newsletter content before sending. Footer links for Kontakt, Datenschutz, AGB and Widerruf are added automatically."
         className="admin-reveal-delay-2"
       >
         <div className="space-y-3">

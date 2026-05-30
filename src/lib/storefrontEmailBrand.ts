@@ -171,7 +171,10 @@ export const getStorefrontLinks = (
   return {
     origin,
     shopUrl: `${origin}/products`,
+    aboutUrl: `${origin}/pages/about`,
+    contactUrl: `${origin}/pages/contact`,
     privacyUrl: `${origin}/pages/privacy`,
     termsUrl: `${origin}/pages/agb`,
+    refundUrl: `${origin}/pages/refund`,
   };
 };

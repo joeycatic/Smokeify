@@ -1,7 +1,13 @@
 import nodemailer from "nodemailer";
+import {
+  escapeHtml,
+  renderEmailFooter,
+  renderPrimaryButtonStyles,
+} from "@/lib/emailTemplateUtils";
 import { sendResendEmail } from "@/lib/resend";
 import {
   getStorefrontEmailBrand,
+  getStorefrontLinks,
   type StorefrontEmailBrandMeta,
 } from "@/lib/storefrontEmailBrand";
 import { type StorefrontCode } from "@/lib/storefronts";
@@ -47,14 +53,6 @@ const purposeMeta = (
   };
 };
 
-const escapeHtml = (value: string) =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-
 const formatDisplayUrl = (value: string) =>
   escapeHtml(value)
     .replaceAll("://", "://<wbr>")
@@ -72,6 +70,7 @@ export async function sendVerificationCodeEmail({
   storefront,
 }: SendCodeInput) {
   const brand = getStorefrontEmailBrand(storefront ?? "MAIN");
+  const links = getStorefrontLinks(storefront ?? "MAIN", actionUrl ?? undefined);
   const meta = purposeMeta(purpose, brand);
   const resolvedActionUrl =
     purpose === "PASSWORD_RESET" && actionUrl?.trim() ? actionUrl.trim() : null;
@@ -95,7 +94,7 @@ export async function sendVerificationCodeEmail({
     : "";
   const actionHtml = escapedActionUrl
     ? `<div style="margin:28px 0 18px;text-align:center;">
-        <a href="${escapedActionUrl}" style="display:inline-block;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:700;border:1px solid ${brand.noticeBorderColor};">
+        <a href="${escapedActionUrl}" style="${renderPrimaryButtonStyles(brand)};padding:14px 22px;border-radius:10px;">
           Passwort direkt zurücksetzen
         </a>
       </div>
@@ -157,19 +156,11 @@ export async function sendVerificationCodeEmail({
 
         </table>
 
-        <!-- Footer -->
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${brand.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${brand.footerTextColor};">
-                © ${new Date().getFullYear()} ${escapeHtml(brand.brandName)} &nbsp;·&nbsp; Alle Rechte vorbehalten
-              </div>
-              <div style="margin-top:8px;font-size:11px;color:${brand.footerMutedTextColor};">
-                ${escapeHtml(brand.footerDescription)}
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand,
+          links,
+          footerReason: `Diese Sicherheits-E-Mail wurde für dein ${brand.brandName} Konto versendet.`,
+        })}
 
       </td>
     </tr>

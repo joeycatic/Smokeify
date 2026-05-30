@@ -2,18 +2,15 @@ import "server-only";
 
 import { buildUnsubscribeUrl } from "@/lib/newsletterToken";
 import {
+  escapeHtml,
+  renderEmailFooter,
+  renderPrimaryButtonStyles,
+} from "@/lib/emailTemplateUtils";
+import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
 } from "@/lib/storefrontEmailBrand";
 import { type StorefrontCode } from "@/lib/storefronts";
-
-const escapeHtml = (text: string) =>
-  text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const toParagraphHtml = (body: string) =>
   body
@@ -77,29 +74,17 @@ export const buildNewsletterCampaignEmail = ({
             <td style="background:${meta.cardBackgroundColor};padding:32px;border:1px solid ${meta.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
               ${bodyHtml}
               <div style="text-align:center;margin:24px 0 0;">
-                <a href="${links.shopUrl}" style="display:inline-block;padding:13px 30px;background:${meta.buttonBackgroundColor};color:${meta.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">${meta.ctaLabel} &rarr;</a>
+                <a href="${escapeHtml(links.shopUrl)}" style="${renderPrimaryButtonStyles(meta)}">${meta.ctaLabel} &rarr;</a>
               </div>
             </td>
           </tr>
         </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${meta.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${meta.footerTextColor};line-height:1.8;">
-                © ${new Date().getFullYear()} ${meta.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${links.shopUrl}" style="color:${meta.footerTextColor};text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${links.privacyUrl}" style="color:${meta.footerTextColor};text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${links.termsUrl}" style="color:${meta.footerTextColor};text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:${meta.footerMutedTextColor};margin-top:10px;line-height:1.6;">
-                ${escapeHtml(meta.footerDescription)}<br />
-                <a href="${unsubscribeUrl}" style="color:${meta.footerTextColor};text-decoration:underline;">Vom Newsletter abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand: meta,
+          links,
+          footerReason: meta.footerDescription,
+          unsubscribeUrl,
+        })}
       </td>
     </tr>
   </table>
@@ -154,29 +139,17 @@ export const buildNewsletterConfirmationEmail = ({
             <td style="background:${meta.cardBackgroundColor};padding:32px;border:1px solid ${meta.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
               <p style="margin:0 0 20px;font-size:15px;color:${meta.mutedTextColor};">Vielen Dank für deine Anmeldung! Du erhältst ab sofort exklusive Angebote, Neuheiten und Aktionen direkt in dein Postfach.</p>
               <div style="text-align:center;margin:28px 0;">
-                <a href="${links.shopUrl}" style="display:inline-block;padding:14px 32px;background:${meta.buttonBackgroundColor};color:${meta.buttonTextColor};text-decoration:none;font-size:15px;font-weight:700;border-radius:999px;">${meta.ctaLabel} &rarr;</a>
+                <a href="${escapeHtml(links.shopUrl)}" style="${renderPrimaryButtonStyles(meta)}">${meta.ctaLabel} &rarr;</a>
               </div>
             </td>
           </tr>
         </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${meta.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${meta.footerTextColor};line-height:1.8;">
-                © ${new Date().getFullYear()} ${meta.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${links.shopUrl}" style="color:${meta.footerTextColor};text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${links.privacyUrl}" style="color:${meta.footerTextColor};text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${links.termsUrl}" style="color:${meta.footerTextColor};text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:${meta.footerMutedTextColor};margin-top:10px;line-height:1.6;">
-                ${escapeHtml(meta.footerDescription)}<br />
-                <a href="${unsubscribeUrl}" style="color:${meta.footerTextColor};text-decoration:underline;">Vom Newsletter abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand: meta,
+          links,
+          footerReason: meta.footerDescription,
+          unsubscribeUrl,
+        })}
       </td>
     </tr>
   </table>

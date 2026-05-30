@@ -45,6 +45,9 @@ describe("orderEmail", () => {
 
     expect(email.html).toContain("Smokeify");
     expect(email.html).toContain("https://smokeify.test/products");
+    expect(email.html).toContain("https://smokeify.test/pages/contact");
+    expect(email.html).toContain("https://smokeify.test/pages/refund");
+    expect(email.html).toContain("Joey Bennett Catic");
     expect(email.text).toContain("bei Smokeify");
     expect(email.html).toContain("Beleg herunterladen");
   });
@@ -109,5 +112,30 @@ describe("orderEmail", () => {
         process.env.NEXT_PUBLIC_GROW_APP_URL = previousGrowUrl;
       }
     }
+  });
+
+  it("escapes item names before rendering HTML", () => {
+    const email = buildOrderEmail(
+      "confirmation",
+      {
+        ...sampleOrder,
+        items: [
+          {
+            name: '<script>alert("x")</script> Tent',
+            quantity: 1,
+            totalAmount: 11016,
+            currency: "EUR",
+          },
+        ],
+      },
+      "https://smokeify.test/account/orders/ord_test_12345678",
+      undefined,
+      {
+        fallbackOrigin: "https://smokeify.test",
+      },
+    );
+
+    expect(email.html).not.toContain('<script>alert("x")</script>');
+    expect(email.html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; Tent");
   });
 });

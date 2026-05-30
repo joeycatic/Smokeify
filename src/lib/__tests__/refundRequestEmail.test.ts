@@ -26,6 +26,7 @@ describe("refundRequestEmail", () => {
 
     expect(email.subject).toContain("Smokeify");
     expect(email.html).toContain("https://smokeify.test/products");
+    expect(email.html).toContain("https://smokeify.test/pages/contact");
     expect(email.html).toContain("Formular auf Smokeify öffnen");
     expect(email.text).toContain("Max Mustermann");
   });
@@ -47,5 +48,21 @@ describe("refundRequestEmail", () => {
     expect(email.html).toContain("GrowVault");
     expect(email.html).toContain("https://growvault.test/products");
     expect(email.html).toContain("Formular auf GrowVault öffnen");
+  });
+
+  it("escapes customer names in refund request emails", () => {
+    const email = buildRefundRequestEmail(
+      {
+        orderId: "ord_test_12345678",
+        customerName: '<b>Max</b>',
+      },
+      {
+        fallbackOrigin: "https://smokeify.test",
+        refundRequestUrl: "https://smokeify.test/returns/request/ord_test_12345678?token=abc",
+      },
+    );
+
+    expect(email.html).not.toContain("<b>Max</b>");
+    expect(email.html).toContain("Hallo &lt;b&gt;Max&lt;/b&gt;,");
   });
 });

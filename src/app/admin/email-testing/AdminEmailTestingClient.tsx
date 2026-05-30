@@ -578,7 +578,7 @@ export default function AdminEmailTestingClient({
           <AdminPanel
             eyebrow="Preview"
             title="Payload summary"
-            description="Live preview of the payload that will be sent to the email testing API."
+            description="Live preview of the payload that will be sent to the email testing API. Final emails add storefront branding, legal footer details, and the relevant policy links automatically."
             className="admin-reveal-delay-2"
           >
             <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4">

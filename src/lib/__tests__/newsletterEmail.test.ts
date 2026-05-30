@@ -33,6 +33,8 @@ describe("newsletterEmail", () => {
 
     expect(email.html).toContain("GrowVault");
     expect(email.html).toContain("https://growvault.test/products");
+    expect(email.html).toContain("https://growvault.test/pages/contact");
+    expect(email.html).toContain("https://growvault.test/pages/refund");
     expect(email.html).toContain("linear-gradient(135deg,#0d2219 0%,#143126 44%,#1d4532 76%,#8ea85f 100%)");
     expect(email.html).toContain("#163a2a");
   });

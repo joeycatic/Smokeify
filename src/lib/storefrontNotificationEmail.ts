@@ -2,19 +2,16 @@ import "server-only";
 
 import { buildUnsubscribeUrl } from "@/lib/newsletterToken";
 import {
+  escapeHtml,
+  renderEmailFooter,
+  renderPrimaryButtonStyles,
+} from "@/lib/emailTemplateUtils";
+import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
 } from "@/lib/storefrontEmailBrand";
 import type { CheckoutRecoveryCartSummary } from "@/lib/checkoutRecovery";
 import { type StorefrontCode } from "@/lib/storefronts";
-
-const escapeHtml = (text: string) =>
-  text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const buildEmailShell = ({
   storefront,
@@ -59,24 +56,12 @@ const buildEmailShell = ({
             </td>
           </tr>
         </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${brand.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${brand.footerTextColor};line-height:1.8;">
-                © ${new Date().getFullYear()} ${brand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${links.shopUrl}" style="color:${brand.footerTextColor};text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${links.privacyUrl}" style="color:${brand.footerTextColor};text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${links.termsUrl}" style="color:${brand.footerTextColor};text-decoration:none;">AGB</a>
-              </div>
-              <div style="font-size:11px;color:${brand.footerMutedTextColor};margin-top:10px;line-height:1.6;">
-                ${escapeHtml(footerReason)}<br />
-                <a href="${unsubscribeUrl}" style="color:${brand.footerTextColor};text-decoration:underline;">E-Mail-Benachrichtigungen abmelden</a>
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand,
+          links,
+          footerReason,
+          unsubscribeUrl,
+        })}
       </td>
     </tr>
   </table>
@@ -129,7 +114,7 @@ export const buildBackInStockEmail = ({
       <div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>
       <p style="margin:0;font-size:14px;color:${brand.mutedTextColor};">Wir senden dir eine E-Mail, sobald dieser Artikel wieder auf Lager ist. Du musst nichts weiter tun.</p>
       <div style="text-align:center;margin:24px 0 0;">
-        <a href="${links.shopUrl}" style="display:inline-block;padding:12px 28px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">Zum Shop &rarr;</a>
+        <a href="${escapeHtml(links.shopUrl)}" style="${renderPrimaryButtonStyles(brand)}">Zum Shop &rarr;</a>
       </div>`,
   });
 
@@ -244,8 +229,8 @@ export const buildCheckoutRecoveryEmail = ({
       </div>
       ${promoBlock}
       <div style="text-align:center;margin:28px 0;">
-        <a href="${resolvedRecoveryUrl}" style="display:inline-block;padding:14px 32px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:15px;font-weight:700;border-radius:999px;">Warenkorb wiederherstellen &rarr;</a>
-      </div>
+                    <a href="${escapeHtml(resolvedRecoveryUrl)}" style="${renderPrimaryButtonStyles(brand)}">Warenkorb wiederherstellen &rarr;</a>
+                  </div>
       <div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>
       <div style="font-size:12px;color:${brand.subtleTextColor};text-align:center;">Referenz: ${escapeHtml(sessionId)}</div>`,
   });

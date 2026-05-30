@@ -1,6 +1,11 @@
 import "server-only";
 
 import {
+  escapeHtml,
+  renderEmailFooter,
+  renderPrimaryButtonStyles,
+} from "@/lib/emailTemplateUtils";
+import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
   resolveStorefrontEmailBrand,
@@ -29,11 +34,14 @@ export function buildRefundRequestEmail(
   const brand = getStorefrontEmailBrand(storefront);
   const links = getStorefrontLinks(storefront, options.fallbackOrigin);
   const orderNumber = input.orderId.slice(0, 8).toUpperCase();
-  const greetingName = input.customerName?.trim() || "there";
+  const greetingName = input.customerName?.trim() || "";
+  const escapedGreetingName = escapeHtml(greetingName);
+  const greetingLine = greetingName ? `Hallo ${greetingName},` : "Hallo,";
+  const greetingLineHtml = greetingName ? `Hallo ${escapedGreetingName},` : "Hallo,";
   const subject = `${brand.brandName} Rückerstattungsformular für ${orderNumber}`;
 
   const text = [
-    `Hallo ${greetingName},`,
+    greetingLine,
     "",
     `für deine Bestellung ${orderNumber} haben wir ein Rückerstattungsformular vorbereitet.`,
     "Öffne den sicheren Link unten und teile uns mit, welche Artikel betroffen sind und warum du die Erstattung anfragen möchtest.",
@@ -67,10 +75,10 @@ export function buildRefundRequestEmail(
           </tr>
           <tr>
             <td style="background:${brand.cardBackgroundColor};padding:32px;border:1px solid ${brand.cardBorderColor};border-top:none;border-radius:0 0 14px 14px;">
-              <div style="font-size:15px;color:${brand.textColor};">Hallo ${greetingName},</div>
+              <div style="font-size:15px;color:${brand.textColor};">${greetingLineHtml}</div>
               <div style="margin-top:16px;font-size:14px;color:${brand.mutedTextColor};">
-                für deine Bestellung <strong style="color:${brand.textColor};">${orderNumber}</strong> haben wir ein Rückerstattungsformular vorbereitet.
-                Nutze den sicheren Link unten, damit wir deine Angaben direkt der richtigen Bestellung auf ${brand.brandName} zuordnen können.
+                für deine Bestellung <strong style="color:${brand.textColor};">${escapeHtml(orderNumber)}</strong> haben wir ein Rückerstattungsformular vorbereitet.
+                Nutze den sicheren Link unten, damit wir deine Angaben direkt der richtigen Bestellung auf ${escapeHtml(brand.brandName)} zuordnen können.
               </div>
 
               <div style="margin-top:24px;border:1px solid ${brand.panelBorderColor};border-radius:14px;background:${brand.panelBackgroundColor};padding:20px;">
@@ -83,8 +91,8 @@ export function buildRefundRequestEmail(
               </div>
 
               <div style="margin-top:28px;text-align:center;">
-                <a href="${options.refundRequestUrl}" style="display:inline-block;padding:13px 28px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">
-                  Formular auf ${brand.brandName} öffnen
+                <a href="${escapeHtml(options.refundRequestUrl)}" style="${renderPrimaryButtonStyles(brand)}">
+                  Formular auf ${escapeHtml(brand.brandName)} öffnen
                 </a>
               </div>
 
@@ -94,20 +102,11 @@ export function buildRefundRequestEmail(
             </td>
           </tr>
         </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${brand.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${brand.footerTextColor};line-height:1.8;">
-                © ${new Date().getFullYear()} ${brand.brandName}<br />
-                <a href="${links.shopUrl}" style="color:${brand.footerTextColor};text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${links.privacyUrl}" style="color:${brand.footerTextColor};text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${links.termsUrl}" style="color:${brand.footerTextColor};text-decoration:none;">AGB</a>
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand,
+          links,
+          footerReason: `Diese Service-E-Mail wurde im Zusammenhang mit deiner Bestellung bei ${brand.brandName} versendet.`,
+        })}
       </td>
     </tr>
   </table>

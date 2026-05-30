@@ -1,6 +1,12 @@
 import "server-only";
 
 import {
+  escapeHtml,
+  renderEmailFooter,
+  renderPrimaryButtonStyles,
+  renderSecondaryButtonStyles,
+} from "@/lib/emailTemplateUtils";
+import {
   getStorefrontEmailBrand,
   getStorefrontLinks,
   resolveStorefrontEmailBrand,
@@ -72,7 +78,7 @@ const renderItemsHtml = (items: OrderItem[], brand: EmailBrand) =>
     .map(
       (item, i) => `
       <tr>
-        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${normalizeItemName(item.name)}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${escapeHtml(normalizeItemName(item.name))}</td>
         <td style="padding:12px 0;font-size:14px;color:${brand.mutedTextColor};text-align:center;width:40px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">×${item.quantity}</td>
         <td style="padding:12px 0;font-size:14px;font-weight:600;color:${brand.textColor};text-align:right;width:110px;border-top:${i === 0 ? "none" : `1px solid ${brand.panelBorderColor}`};">${formatPrice(item.totalAmount, item.currency)}</td>
       </tr>`,
@@ -85,9 +91,7 @@ const emailOuter = (
   cardRows: string,
   options: {
     brand: EmailBrand;
-    shopUrl: string;
-    privacyUrl: string;
-    termsUrl: string;
+    links: ReturnType<typeof getStorefrontLinks>;
   },
 ) => `
 <div style="background:${options.brand.backgroundColor};padding:32px 0;font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:${options.brand.textColor};">
@@ -97,20 +101,12 @@ const emailOuter = (
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
           ${cardRows}
         </table>
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
-          <tr>
-            <td style="padding:20px 0;border-top:1px solid ${options.brand.cardBorderColor};text-align:center;">
-              <div style="font-size:12px;color:${options.brand.footerTextColor};line-height:1.8;">
-                © ${new Date().getFullYear()} ${options.brand.brandName} &nbsp;·&nbsp; Alle Rechte vorbehalten<br />
-                <a href="${options.shopUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Shop</a>
-                &nbsp;·&nbsp;
-                <a href="${options.privacyUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">Datenschutz</a>
-                &nbsp;·&nbsp;
-                <a href="${options.termsUrl}" style="color:${options.brand.footerTextColor};text-decoration:none;">AGB</a>
-              </div>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailFooter({
+          brand: options.brand,
+          links: options.links,
+          footerReason:
+            "Diese Service-E-Mail wurde im Zusammenhang mit deiner Bestellung versendet.",
+        })}
       </td>
     </tr>
   </table>
@@ -130,9 +126,9 @@ const emailHeader = (
   </tr>
   <tr>
     <td style="background:${options.headerBackground};background-color:${options.headerColor};padding:32px 32px 28px;">
-      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.brand.heroLabelColor};margin-bottom:16px;">${options.brand.brandName}</div>
-      <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${title}</div>
-      <div style="font-size:14px;color:${options.brand.heroMutedTextColor};">${subtitle}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${options.brand.heroLabelColor};margin-bottom:16px;">${escapeHtml(options.brand.brandName)}</div>
+      <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:8px;">${escapeHtml(title)}</div>
+      <div style="font-size:14px;color:${options.brand.heroMutedTextColor};">${escapeHtml(subtitle)}</div>
     </td>
   </tr>`;
 
@@ -143,10 +139,10 @@ const divider = (brand: EmailBrand) =>
   `<div style="height:1px;background:${brand.panelBorderColor};margin:24px 0;"></div>`;
 
 const primaryBtn = (href: string, label: string, brand: EmailBrand) =>
-  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
+  `<a href="${escapeHtml(href)}" style="${renderPrimaryButtonStyles(brand)};margin:4px;">${escapeHtml(label)}</a>`;
 
 const secondaryBtn = (href: string, label: string, brand: EmailBrand) =>
-  `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${brand.secondaryButtonBackgroundColor};color:${brand.secondaryButtonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;margin:4px;">${label}</a>`;
+  `<a href="${escapeHtml(href)}" style="${renderSecondaryButtonStyles(brand)};margin:4px;">${escapeHtml(label)}</a>`;
 
 // ─── Main builder ──────────────────────────────────────────────────────────
 
@@ -167,6 +163,7 @@ export function buildOrderEmail(
   const discountLabel = order.discountCode
     ? `Rabatt (${order.discountCode})`
     : "Rabatt";
+  const safeDiscountLabel = escapeHtml(discountLabel);
 
   const headerTitle =
     type === "confirmation"
@@ -236,7 +233,7 @@ export function buildOrderEmail(
 
     const statusNote =
       type !== "confirmation"
-        ? `<div style="margin-bottom:24px;padding:14px 16px;background:${brand.noticeBackgroundColor};border-left:3px solid ${brand.noticeBorderColor};border-radius:0 8px 8px 0;font-size:14px;color:${brand.textColor};">${introLine}</div>`
+        ? `<div style="margin-bottom:24px;padding:14px 16px;background:${brand.noticeBackgroundColor};border-left:3px solid ${brand.noticeBorderColor};border-radius:0 8px 8px 0;font-size:14px;color:${brand.textColor};">${escapeHtml(introLine)}</div>`
         : "";
     const reviewInviteText =
       type === "confirmation"
@@ -275,8 +272,8 @@ export function buildOrderEmail(
               <tr>
                 <td style="vertical-align:top;">
                   ${sectionLabel("Bestellnummer", brand)}
-                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
-                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${escapeHtml(orderNumber)}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${escapeHtml(orderDate)}</div>
                 </td>
                 <td style="vertical-align:top;text-align:right;">
                   ${sectionLabel("Gesamt", brand)}
@@ -304,7 +301,7 @@ export function buildOrderEmail(
                 ${
                   order.amountDiscount > 0
                     ? `<tr>
-                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">${discountLabel}</td>
+                  <td style="font-size:14px;color:${brand.mutedTextColor};padding:4px 0;">${safeDiscountLabel}</td>
                   <td style="font-size:14px;color:#059669;text-align:right;padding:4px 0;">−${formatPrice(order.amountDiscount, order.currency)}</td>
                 </tr>`
                     : ""
@@ -344,9 +341,7 @@ export function buildOrderEmail(
           </td>
         </tr>`, {
         brand,
-        shopUrl: links.shopUrl,
-        privacyUrl: links.privacyUrl,
-        termsUrl: links.termsUrl,
+        links,
       }),
     };
   }
@@ -357,13 +352,13 @@ export function buildOrderEmail(
       order.trackingCarrier
         ? `<tr>
             <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Versanddienst</td>
-            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-weight:600;">${order.trackingCarrier}</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-weight:600;">${escapeHtml(order.trackingCarrier)}</td>
           </tr>`
         : null,
       order.trackingNumber
         ? `<tr>
             <td style="font-size:13px;color:${brand.mutedTextColor};padding:8px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;padding-right:24px;">Trackingnummer</td>
-            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${order.trackingNumber}</td>
+            <td style="font-size:14px;color:${brand.textColor};text-align:right;padding:8px 0;font-family:monospace;font-weight:600;">${escapeHtml(order.trackingNumber)}</td>
           </tr>`
         : null,
     ]
@@ -399,8 +394,8 @@ export function buildOrderEmail(
               <tr>
                 <td style="vertical-align:top;">
                   ${sectionLabel("Bestellnummer", brand)}
-                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
-                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+                  <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${escapeHtml(orderNumber)}</div>
+                  <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${escapeHtml(orderDate)}</div>
                 </td>
               </tr>
             </table>
@@ -417,7 +412,7 @@ export function buildOrderEmail(
                 ${
                   order.trackingUrl
                     ? `<div style="margin-top:18px;">
-                    <a href="${order.trackingUrl}" style="display:inline-block;padding:12px 24px;background:${brand.buttonBackgroundColor};color:${brand.buttonTextColor};text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;">Paket verfolgen &rarr;</a>
+                    <a href="${escapeHtml(order.trackingUrl)}" style="${renderPrimaryButtonStyles(brand)}">Paket verfolgen &rarr;</a>
                   </div>`
                     : ""
                 }
@@ -436,9 +431,7 @@ export function buildOrderEmail(
           </td>
         </tr>`, {
         brand,
-        shopUrl: links.shopUrl,
-        privacyUrl: links.privacyUrl,
-        termsUrl: links.termsUrl,
+        links,
       }),
     };
   }
@@ -467,8 +460,8 @@ export function buildOrderEmail(
             <tr>
               <td style="vertical-align:top;">
                 ${sectionLabel("Bestellnummer", brand)}
-                <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${orderNumber}</div>
-                <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${orderDate}</div>
+                <div style="font-size:22px;font-weight:700;color:${brand.textColor};font-family:monospace;">${escapeHtml(orderNumber)}</div>
+                <div style="font-size:13px;color:${brand.subtleTextColor};margin-top:4px;">${escapeHtml(orderDate)}</div>
               </td>
             </tr>
           </table>
@@ -492,9 +485,7 @@ export function buildOrderEmail(
         </td>
       </tr>`, {
       brand,
-      shopUrl: links.shopUrl,
-      privacyUrl: links.privacyUrl,
-      termsUrl: links.termsUrl,
+      links,
     }),
   };
 }
