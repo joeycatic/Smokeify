@@ -25,9 +25,9 @@ type CustomizerOptionsResponse = {
 };
 
 type SelectionState = {
-  sizeId: string | null;
-  lightId: string | null;
-  ventId: string | null;
+  sizeIds: string[];
+  lightIds: string[];
+  ventIds: string[];
   extras: string[];
 };
 
@@ -43,8 +43,8 @@ const SLOT_LABELS: Record<CustomizerCategoryHandle, string> = {
 
 const SLOT_COPY: Record<CustomizerCategoryHandle, string> = {
   zelte: "Lege zuerst die Fläche fest. Diese Auswahl steuert Licht- und Abluft-Kompatibilität.",
-  licht: "Smokeify zeigt nur Lichtoptionen, die zur ausgewählten Box sinnvoll passen.",
-  luft: "Abluft wird nach Anschlussdurchmesser und Verfügbarkeit eingegrenzt.",
+  licht: "Smokeify zeigt nur Lichtoptionen, die zur gewählten Box sinnvoll passen. Du kannst mehrere davon kombinieren.",
+  luft: "Abluft wird nach Anschlussdurchmesser und Verfügbarkeit eingegrenzt. Mehrere passende Komponenten sind möglich.",
   bewaesserung: "Optionale Automatisierung für stabilere Routinen.",
   anzucht: "Optionale Starthelfer für Stecklinge, Keimung und frühe Phasen.",
 };
@@ -92,6 +92,14 @@ const findOption = (
   return null;
 };
 
+const findOptions = (
+  options: Partial<Record<CustomizerCategoryHandle, CustomizerOption[]>>,
+  ids: string[],
+) =>
+  ids
+    .map((id) => findOption(options, id))
+    .filter((option): option is CustomizerOption => Boolean(option));
+
 const findOptionCategory = (
   options: Partial<Record<CustomizerCategoryHandle, CustomizerOption[]>>,
   id: string | null,
@@ -108,9 +116,9 @@ const findOptionCategory = (
 };
 
 const canAccessStep = (step: StepId, selection: SelectionState) => {
-  const hasTent = Boolean(selection.sizeId);
-  const hasLight = Boolean(selection.lightId);
-  const hasVent = Boolean(selection.ventId);
+  const hasTent = selection.sizeIds.length > 0;
+  const hasLight = selection.lightIds.length > 0;
+  const hasVent = selection.ventIds.length > 0;
 
   switch (step) {
     case "zelte":
@@ -128,9 +136,9 @@ const canAccessStep = (step: StepId, selection: SelectionState) => {
 };
 
 const getInitialStep = (selection: SelectionState): StepId => {
-  if (!selection.sizeId) return "zelte";
-  if (!selection.lightId) return "licht";
-  if (!selection.ventId) return "luft";
+  if (selection.sizeIds.length === 0) return "zelte";
+  if (selection.lightIds.length === 0) return "licht";
+  if (selection.ventIds.length === 0) return "luft";
   return selection.extras.length > 0 ? "summary" : "extras";
 };
 
@@ -231,9 +239,9 @@ export default function CustomizerClient() {
   const searchParams = useSearchParams();
   const { addManyToCart } = useCart();
   const initialSelection: SelectionState = {
-    sizeId: searchParams?.get("sizeId") ?? null,
-    lightId: parseIdList(searchParams?.get("lightId"))[0] ?? null,
-    ventId: parseIdList(searchParams?.get("ventId"))[0] ?? null,
+    sizeIds: parseIdList(searchParams?.get("sizeId")),
+    lightIds: parseIdList(searchParams?.get("lightId")),
+    ventIds: parseIdList(searchParams?.get("ventId")),
     extras: parseIdList(searchParams?.get("extras")),
   };
   const [options, setOptions] = useState<
@@ -266,53 +274,70 @@ export default function CustomizerClient() {
     return () => controller.abort();
   }, []);
 
-  const selectedSize = useMemo(
-    () => findOption(options, selection.sizeId),
-    [options, selection.sizeId],
+  const selectedSizes = useMemo(
+    () => findOptions(options, selection.sizeIds),
+    [options, selection.sizeIds],
   );
+  const selectedLights = useMemo(
+    () => findOptions(options, selection.lightIds),
+    [options, selection.lightIds],
+  );
+  const selectedVents = useMemo(
+    () => findOptions(options, selection.ventIds),
+    [options, selection.ventIds],
+  );
+  const selectedExtras = useMemo(
+    () => findOptions(options, selection.extras),
+    [options, selection.extras],
+  );
+  const selectedSizeAnchor = selectedSizes[0] ?? null;
 
   const compatibleLights = useMemo(
     () =>
       (options.licht ?? []).filter((option) =>
-        isLightOptionCompatibleWithTent(selectedSize?.size ?? selectedSize?.label, option),
+        isLightOptionCompatibleWithTent(
+          selectedSizeAnchor?.size ?? selectedSizeAnchor?.label,
+          option,
+        ),
       ),
-    [options.licht, selectedSize],
+    [options.licht, selectedSizeAnchor],
   );
 
   const compatibleVents = useMemo(
     () =>
       (options.luft ?? []).filter((option) =>
-        isVentOptionCompatibleWithTent(selectedSize?.diametersMm, option),
+        isVentOptionCompatibleWithTent(selectedSizeAnchor?.diametersMm, option),
       ),
-    [options.luft, selectedSize],
+    [options.luft, selectedSizeAnchor],
   );
 
   const selectedOptions = useMemo(
     () =>
-      [
-        findOption(options, selection.sizeId),
-        findOption(options, selection.lightId),
-        findOption(options, selection.ventId),
-        ...selection.extras.map((id) => findOption(options, id)),
-      ].filter((option): option is CustomizerOption => Boolean(option)),
-    [options, selection],
+      Array.from(
+        new Map(
+          [...selectedSizes, ...selectedLights, ...selectedVents, ...selectedExtras].map(
+            (option) => [option.id, option],
+          ),
+        ).values(),
+      ),
+    [selectedExtras, selectedLights, selectedSizes, selectedVents],
   );
 
   const selectedSummaryItems = useMemo(
     () =>
       [
-        {
+        ...selectedSizes.map((option) => ({
           slotLabel: SLOT_LABELS.zelte,
-          option: findOption(options, selection.sizeId),
-        },
-        {
+          option,
+        })),
+        ...selectedLights.map((option) => ({
           slotLabel: SLOT_LABELS.licht,
-          option: findOption(options, selection.lightId),
-        },
-        {
+          option,
+        })),
+        ...selectedVents.map((option) => ({
           slotLabel: SLOT_LABELS.luft,
-          option: findOption(options, selection.ventId),
-        },
+          option,
+        })),
         ...selection.extras.map((id) => {
           const category = findOptionCategory(options, id);
           return {
@@ -328,37 +353,54 @@ export default function CustomizerClient() {
           option: CustomizerOption;
         } => Boolean(entry.option),
       ),
-    [options, selection],
+    [options, selectedLights, selectedSizes, selectedVents, selection.extras],
   );
 
   const total = selectedOptions.reduce((sum, option) => sum + option.price, 0);
-  const completeCore = Boolean(selection.sizeId && selection.lightId && selection.ventId);
+  const completeCore =
+    selection.sizeIds.length > 0 &&
+    selection.lightIds.length > 0 &&
+    selection.ventIds.length > 0;
   const stepIndex = STEP_ORDER.indexOf(activeStep);
 
   useEffect(() => {
     setActiveStep((prev) => getClampedStep(prev, selection));
   }, [selection]);
 
-  const selectSingle = (key: "sizeId" | "lightId" | "ventId", option: CustomizerOption) => {
+  const toggleSelection = (
+    key: keyof SelectionState,
+    option: CustomizerOption,
+  ) => {
     setCartStatus("idle");
     setSelection((prev) => {
-      const nextValue = prev[key] === option.id ? null : option.id;
+      const currentIds = prev[key];
+      const nextIds = currentIds.includes(option.id)
+        ? currentIds.filter((id) => id !== option.id)
+        : [...currentIds, option.id];
+      if (key !== "sizeIds") {
+        return {
+          ...prev,
+          [key]: nextIds,
+        };
+      }
+      const nextSizeAnchor = findOption(options, nextIds[0] ?? null);
       return {
         ...prev,
-        [key]: nextValue,
-        ...(key === "sizeId" ? { lightId: null, ventId: null } : {}),
+        sizeIds: nextIds,
+        lightIds: prev.lightIds.filter((id) =>
+          isLightOptionCompatibleWithTent(
+            nextSizeAnchor?.size ?? nextSizeAnchor?.label,
+            findOption(options, id) ?? {},
+          ),
+        ),
+        ventIds: prev.ventIds.filter((id) =>
+          isVentOptionCompatibleWithTent(
+            nextSizeAnchor?.diametersMm,
+            findOption(options, id) ?? {},
+          ),
+        ),
       };
     });
-  };
-
-  const toggleExtra = (option: CustomizerOption) => {
-    setCartStatus("idle");
-    setSelection((prev) => ({
-      ...prev,
-      extras: prev.extras.includes(option.id)
-        ? prev.extras.filter((id) => id !== option.id)
-        : [...prev.extras, option.id],
-    }));
   };
 
   const addSetupToCart = async () => {
@@ -392,7 +434,7 @@ export default function CustomizerClient() {
   const renderSlot = (
     category: CustomizerCategoryHandle,
     entries: CustomizerOption[],
-    selectedId: string | null,
+    selectedIds: string[],
     onSelect: (option: CustomizerOption) => void,
     footer?: React.ReactNode,
   ) => (
@@ -407,7 +449,12 @@ export default function CustomizerClient() {
             {SLOT_COPY[category]}
           </p>
         </div>
-        <span className="smk-chip">{entries.length} Optionen</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="smk-chip">{entries.length} Optionen</span>
+          <span className="rounded-full border border-[rgba(233,188,116,0.18)] bg-[rgba(233,188,116,0.08)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-accent)]">
+            {selectedIds.length} gewählt
+          </span>
+        </div>
       </div>
       {entries.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -415,7 +462,7 @@ export default function CustomizerClient() {
             <OptionCard
               key={option.id}
               option={option}
-              selected={selectedId === option.id}
+              selected={selectedIds.includes(option.id)}
               disabled={option.outOfStock}
               onSelect={() => onSelect(option)}
               eager={index < 3}
@@ -544,7 +591,7 @@ export default function CustomizerClient() {
                 <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
                   {completeCore
                     ? "Kernsetup komplett. Extras bleiben optional."
-                    : "Wähle mindestens Growbox, Licht und Abluft für ein Kernsetup."}
+                    : "Wähle mindestens je eine Growbox-, Licht- und Abluft-Komponente für ein Kernsetup."}
                 </p>
               </div>
               <div className="mt-5 space-y-2">
@@ -607,10 +654,10 @@ export default function CustomizerClient() {
             ? renderSlot(
                 "zelte",
                 options.zelte ?? [],
-                selection.sizeId,
-                (option) => selectSingle("sizeId", option),
+                selection.sizeIds,
+                (option) => toggleSelection("sizeIds", option),
                 renderStepControls({
-                  canContinue: Boolean(selection.sizeId),
+                  canContinue: selection.sizeIds.length > 0,
                   continueLabel: "Weiter zu Licht",
                   onContinue: () => setActiveStep("licht"),
                 }),
@@ -621,10 +668,10 @@ export default function CustomizerClient() {
             ? renderSlot(
                 "licht",
                 compatibleLights,
-                selection.lightId,
-                (option) => selectSingle("lightId", option),
+                selection.lightIds,
+                (option) => toggleSelection("lightIds", option),
                 renderStepControls({
-                  canContinue: Boolean(selection.lightId),
+                  canContinue: selection.lightIds.length > 0,
                   continueLabel: "Weiter zu Abluft",
                   onContinue: () => setActiveStep("luft"),
                 }),
@@ -635,10 +682,10 @@ export default function CustomizerClient() {
             ? renderSlot(
                 "luft",
                 compatibleVents,
-                selection.ventId,
-                (option) => selectSingle("ventId", option),
+                selection.ventIds,
+                (option) => toggleSelection("ventIds", option),
                 renderStepControls({
-                  canContinue: Boolean(selection.ventId),
+                  canContinue: selection.ventIds.length > 0,
                   continueLabel: "Weiter zu Extras",
                   onContinue: () => setActiveStep("extras"),
                 }),
@@ -653,8 +700,8 @@ export default function CustomizerClient() {
                   Routinen und Startphase ergänzen
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--smk-text-muted)]">
-                  Wähle Zubehör einzeln dazu. Extras sind bewusst optional und
-                  werden nicht automatisch in Checkout- oder Preislogik verschoben.
+                  Wähle beliebig viele Zubehörteile dazu. Extras sind bewusst optional
+                  und werden nicht automatisch in Checkout- oder Preislogik verschoben.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -664,7 +711,7 @@ export default function CustomizerClient() {
                     option={option}
                     selected={selection.extras.includes(option.id)}
                     disabled={option.outOfStock}
-                    onSelect={() => toggleExtra(option)}
+                    onSelect={() => toggleSelection("extras", option)}
                   />
                 ))}
               </div>
@@ -694,7 +741,7 @@ export default function CustomizerClient() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {selectedSummaryItems.map(({ slotLabel, option }) => (
                   <div
-                    key={option.id}
+                    key={`${slotLabel}-${option.id}`}
                     className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4"
                   >
                     <p className="text-xs uppercase tracking-[0.16em] text-[var(--smk-text-dim)]">
