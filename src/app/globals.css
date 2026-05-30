@@ -573,10 +573,6 @@ textarea {
     box-shadow 220ms ease;
 }
 
-.smk-motion-card:hover {
-  transform: translateY(-4px);
-}
-
 .smk-highlight-ring {
   position: relative;
   overflow: hidden;
@@ -595,9 +591,15 @@ textarea {
     box-shadow 220ms ease;
 }
 
-.smk-highlight-ring:hover::after {
-  border-color: rgba(233, 188, 116, 0.26);
-  box-shadow: inset 0 0 40px rgba(233, 188, 116, 0.06);
+@media (hover: hover) and (pointer: fine) {
+  .smk-motion-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .smk-highlight-ring:hover::after {
+    border-color: rgba(233, 188, 116, 0.26);
+    box-shadow: inset 0 0 28px rgba(233, 188, 116, 0.05);
+  }
 }
 
 .smk-selected-pulse {

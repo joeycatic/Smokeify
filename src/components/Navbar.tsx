@@ -501,13 +501,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const mainCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
     const preferredOrder = [
-      "headshop",
+      "messen",
       "zelte",
       "anzucht",
       "bewaesserung",
       "licht",
       "luft",
-      "messen",
+      "headshop",
       "substrate-und-zubehoer",
     ];
     const sortedRoots = [...roots].sort((a, b) => {
@@ -520,18 +520,18 @@ export function Navbar({ initialCategories }: NavbarProps) {
       }
       return a.name.localeCompare(b.name);
     });
-    return sortedRoots.filter((category) => category.handle !== "headshop");
+    return sortedRoots;
   }, [categories]);
   const allRootCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
     const preferredOrder = [
-      "headshop",
+      "messen",
       "zelte",
       "anzucht",
       "bewaesserung",
       "licht",
       "luft",
-      "messen",
+      "headshop",
       "substrate-und-zubehoer",
     ];
     return [...roots].sort((a, b) => {
@@ -874,7 +874,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="webshop-dropdown-in fixed z-[999] mt-3 max-h-[calc(100vh-8rem)] w-[340px] overflow-hidden rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-2 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
+                            className="webshop-dropdown-in fixed z-[999] mt-3 max-h-[calc(100vh-8rem)] w-[340px] overflow-hidden rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-1.5 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
@@ -884,22 +884,22 @@ export function Navbar({ initialCategories }: NavbarProps) {
                             <div className="h-full rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-3">
                               <div className="flex items-start justify-between gap-3 border-b border-[var(--smk-border)] pb-2.5">
                                 <div>
-                                  <p className="smk-kicker text-[var(--smk-accent)]">
+                                  <p className="smk-kicker text-[11px] text-[var(--smk-accent)]">
                                     Katalog
                                   </p>
-                                  <h3 className="mt-1.5 text-[1.75rem] font-semibold tracking-[-0.05em] text-[var(--smk-text)] lg:text-[1.9rem]">
-                                    Produkte schneller finden
+                                  <h3 className="mt-1 text-[1.28rem] font-semibold tracking-[-0.04em] text-[var(--smk-text)] lg:text-[1.45rem]">
+                                    Produkte finden
                                   </h3>
                                 </div>
-                                <div className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
-                                  <span className="rounded-full bg-[var(--smk-accent)] px-2 py-1 text-[var(--smk-bg)]">
+                                <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-1.5 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
+                                  <span className="rounded-full bg-[var(--smk-accent)] px-1.5 py-0.5 text-[var(--smk-bg)]">
                                     DE
                                   </span>
                                   <span>EN</span>
                                 </div>
                               </div>
 
-                              <div className="mt-2.5 grid gap-2 border-b border-[var(--smk-border)] pb-2.5 sm:grid-cols-2">
+                              <div className="mt-2.5 grid grid-cols-2 gap-2 border-b border-[var(--smk-border)] pb-2.5">
                                 <Link
                                   href="/products"
                                   onClick={() => {
@@ -907,17 +907,17 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                     setCategoryStack([]);
                                     setCategoryQuery("");
                                   }}
-                                  className="flex items-center justify-between rounded-[18px] border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-3.5 py-2 text-[var(--smk-bg)] transition hover:brightness-105"
+                                  className="flex min-w-0 items-center justify-between gap-3 rounded-[18px] border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-3 py-2 text-[var(--smk-bg)] transition hover:brightness-105"
                                 >
-                                  <div>
+                                  <div className="min-w-0">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(28,21,16,0.68)]">
                                       Sortiment
                                     </p>
-                                    <p className="mt-1 text-[1rem] font-semibold tracking-[-0.04em] sm:text-[1.28rem]">
+                                    <p className="mt-1 text-[0.95rem] font-semibold leading-tight tracking-[-0.03em]">
                                       Alle Produkte
                                     </p>
                                   </div>
-                                  <span className="flex h-9 w-9 items-center justify-center rounded-[16px] border border-[rgba(28,21,16,0.12)] bg-[rgba(255,255,255,0.18)]">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(28,21,16,0.12)] bg-[rgba(255,255,255,0.18)]">
                                     <Squares2X2Icon className="h-4.5 w-4.5" />
                                   </span>
                                 </Link>
@@ -928,17 +928,17 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                     setCategoryStack([]);
                                     setCategoryQuery("");
                                   }}
-                                  className="flex items-center justify-between rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-2 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)]"
+                                  className="flex min-w-0 items-center justify-between gap-3 rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)]"
                                 >
-                                  <div>
+                                  <div className="min-w-0">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-accent)]">
                                       Schnellwahl
                                     </p>
-                                    <p className="mt-1 text-[1rem] font-semibold tracking-[-0.04em] sm:text-[1.28rem]">
+                                    <p className="mt-1 text-[0.95rem] font-semibold leading-tight tracking-[-0.03em]">
                                       Bestseller
                                     </p>
                                   </div>
-                                  <span className="flex h-9 w-9 items-center justify-center rounded-[16px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
                                     <SparklesIcon className="h-4.5 w-4.5 text-[var(--smk-accent)]" />
                                   </span>
                                 </Link>
@@ -981,21 +981,21 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                           onMouseEnter={() => setCategoryStack([category.id])}
                                           onFocus={() => setCategoryStack([category.id])}
                                           onClick={() => setCategoryStack([category.id])}
-                                          className={`flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                                          className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[20px] border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                             isActive
                                               ? "border-[rgba(241,198,132,0.22)] bg-[rgba(241,198,132,0.08)]"
                                               : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
                                           }`}
                                         >
-                                          <span className="flex items-center gap-3">
-                                            <span className="flex h-8.5 w-8.5 items-center justify-center rounded-[15px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
+                                          <span className="flex min-w-0 items-center gap-3">
+                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
                                               <CategoryIcon className="h-4 w-4" />
                                             </span>
-                                            <span className="text-[0.95rem] font-semibold text-[var(--smk-text)]">
+                                            <span className="truncate text-[0.92rem] font-semibold text-[var(--smk-text)]">
                                               {getPrimaryCategoryLabel(category)}
                                             </span>
                                           </span>
-                                          <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
+                                          <span className="shrink-0 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
                                             {category.totalItemCount}
                                           </span>
                                         </button>
@@ -1007,12 +1007,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                 <div className="no-scrollbar max-h-[min(46vh,330px)] overflow-y-auto rounded-[20px] border border-[var(--smk-border)] bg-[rgba(8,8,7,0.18)] p-3.5">
                                   {activeDesktopRootCategory ? (
                                     <>
-                                      <div className="flex items-center justify-between gap-4">
+                                      <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                           <p className="smk-kicker text-[var(--smk-accent)]">
                                             Aktiv
                                           </p>
-                                          <h3 className="mt-2 text-[2rem] font-semibold tracking-[-0.06em] text-[var(--smk-text)]">
+                                          <h3 className="mt-1.5 text-[1.45rem] font-semibold tracking-[-0.04em] text-[var(--smk-text)] lg:text-[1.6rem]">
                                             {getPrimaryCategoryLabel(activeDesktopRootCategory)}
                                           </h3>
                                         </div>
@@ -1028,9 +1028,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                             setCategoryStack([]);
                                             setCategoryQuery("");
                                           }}
-                                          className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-5 py-2 text-sm font-semibold text-[var(--smk-bg)] transition hover:brightness-105"
+                                          className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-4 py-2 text-sm font-semibold text-[var(--smk-bg)] transition hover:brightness-105"
                                         >
-                                          Alle ansehen {getPrimaryCategoryLabel(activeDesktopRootCategory)}
+                                          Alle ansehen
                                         </button>
                                       </div>
 
@@ -1049,17 +1049,17 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                                   setCategoryStack([]);
                                                   setCategoryQuery("");
                                                 }}
-                                                className="flex items-center justify-between rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                                                className="flex min-w-0 items-start justify-between gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3.5 py-3 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
                                               >
-                                                <span className="flex items-center gap-3">
-                                                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
+                                                <span className="flex min-w-0 items-start gap-3">
+                                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
                                                     <CategoryIcon className="h-5 w-5" />
                                                   </span>
-                                                  <span className="text-base font-semibold">
+                                                  <span className="min-w-0 text-sm font-semibold leading-5 sm:text-[0.95rem]">
                                                     {getPrimaryCategoryLabel(category)}
                                                   </span>
                                                 </span>
-                                                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1 text-xs font-semibold text-[var(--smk-text-muted)]">
+                                                <span className="shrink-0 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
                                                   {category.totalItemCount}
                                                 </span>
                                               </Link>
@@ -1363,14 +1363,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
         )}
         {showCategoryBar && (
           <div className="relative z-10 mt-3 hidden border-t border-[var(--smk-border)] bg-[rgba(20,18,17,0.82)] backdrop-blur-xl sm:block">
-            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-2.5 text-base text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
+            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2.5 px-4 py-3 text-sm text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
               <Link
                 href="/bestseller"
                 onClick={() => {
                   setCategoryNavTarget("/bestseller");
                   setCategoryHoverLocked(true);
                 }}
-                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
+                className="flex min-h-[2.65rem] items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-[15px] font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
               >
                 <span>Bestseller</span>
                 {categoryNavTarget === "/bestseller" && (
@@ -1402,7 +1402,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         setCategoryNavTarget(category.href);
                         setCategoryHoverLocked(true);
                       }}
-                      className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
+                      className="flex min-h-[2.65rem] items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-[15px] font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
                     >
                       <span>{getPrimaryCategoryLabel(category)}</span>
                       <span className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[rgba(241,198,132,0.1)] px-2 py-0.5 text-xs font-semibold text-[var(--smk-accent)]">
@@ -1448,12 +1448,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                       setCategoryNavTarget(child.href);
                                       setCategoryHoverLocked(true);
                                     }}
-                                    className="flex items-center gap-2 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-3 font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
+                                    className="flex min-w-0 items-center gap-2 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
                                   >
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
+                                    <span className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
                                       <ChildIcon className="h-4.5 w-4.5" />
                                     </span>
-                                    <span className="flex-1 whitespace-nowrap">
+                                    <span className="min-w-0 flex-1 truncate">
                                       {child.name}
                                     </span>
                                     {categoryNavTarget === child.href && (
@@ -1475,32 +1475,35 @@ export function Navbar({ initialCategories }: NavbarProps) {
             </div>
           </div>
         )}
-        {cartOpen && !isMobile ? (
-          <NavbarCartDrawer
-            open
-            cart={cart}
-            loading={loading}
-            error={error}
-            canCheckout={canCheckout}
-            checkoutStatus={checkoutStatus}
-            discountCode={drawerDiscountCode}
-            appliedDiscountCode={appliedDrawerDiscountCode}
-            appliedDiscountAmount={appliedDrawerDiscountAmount}
-            onDiscountCodeChange={(value) => {
-              setAppliedDrawerDiscountCode("");
-              setDrawerDiscountCode(value);
-            }}
-            onApplyDiscountCode={applyDrawerDiscountCode}
-            onClose={() => setCartOpen(false)}
-            onStartCheckout={() => void startCheckout()}
-            panelRef={cartPanelRef}
-          />
-        ) : null}
+        {cartOpen && !isMobile && canPortal
+          ? createPortal(
+              <NavbarCartDrawer
+                open
+                cart={cart}
+                loading={loading}
+                error={error}
+                canCheckout={canCheckout}
+                checkoutStatus={checkoutStatus}
+                discountCode={drawerDiscountCode}
+                appliedDiscountCode={appliedDrawerDiscountCode}
+                appliedDiscountAmount={appliedDrawerDiscountAmount}
+                onDiscountCodeChange={(value) => {
+                  setAppliedDrawerDiscountCode("");
+                  setDrawerDiscountCode(value);
+                }}
+                onApplyDiscountCode={applyDrawerDiscountCode}
+                onClose={() => setCartOpen(false)}
+                onStartCheckout={() => void startCheckout()}
+                panelRef={cartPanelRef}
+              />,
+              document.body,
+            )
+          : null}
       </nav>
       <div
         className={
           showCategoryBar
-            ? "h-[calc(var(--smk-announcement-offset)+110px)] sm:h-[calc(var(--smk-announcement-offset)+144px)]"
+            ? "h-[calc(var(--smk-announcement-offset)+110px)] sm:h-[calc(var(--smk-announcement-offset)+154px)]"
             : "h-[calc(var(--smk-announcement-offset)+40px)] sm:h-[calc(var(--smk-announcement-offset)+73px)]"
         }
         aria-hidden="true"

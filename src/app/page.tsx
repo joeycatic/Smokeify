@@ -68,6 +68,13 @@ export default async function StorePage({
     tentProducts,
     heroProducts,
   } = homepageData;
+  const spotlightProducts = [
+    ...new Map(
+      [...heroProducts, ...tentProducts, ...bestSellersFilled]
+        .filter((product) => product?.id)
+        .map((product) => [product.id, product]),
+    ).values(),
+  ].slice(0, 3);
   const setupPreviewProduct = tentProducts[0] ?? heroProducts[0] ?? null;
   const featuredHeroProduct = heroProducts[0] ?? tentProducts[0] ?? null;
   const setupSize = extractSetupSize(
@@ -154,10 +161,10 @@ export default async function StorePage({
           </Suspense>
 
           <div className="space-y-8 sm:space-y-10">
-            <section className="smk-entrance relative overflow-hidden rounded-[36px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(23,20,18,0.98)_0%,rgba(38,30,26,0.98)_38%,rgba(15,15,14,0.99)_100%)] px-5 pb-6 pt-6 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:px-8 sm:pb-8 sm:pt-8 lg:px-10 lg:pb-10 lg:pt-10">
+            <section className="smk-entrance relative overflow-hidden rounded-[36px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(23,20,18,0.98)_0%,rgba(38,30,26,0.98)_38%,rgba(15,15,14,0.99)_100%)] px-5 pb-6 pt-6 shadow-[0_18px_56px_rgba(0,0,0,0.28)] sm:px-8 sm:pb-8 sm:pt-8 lg:px-10 lg:pb-10 lg:pt-10">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_16%,rgba(218,176,106,0.24),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(109,89,68,0.26),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_40%)]" />
-              <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-[rgba(207,167,96,0.16)] blur-3xl sm:h-52 sm:w-52" />
-              <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[rgba(94,75,57,0.24)] blur-3xl sm:h-60 sm:w-60" />
+              <div className="absolute -left-10 top-10 h-32 w-32 rounded-full bg-[rgba(207,167,96,0.14)] blur-2xl sm:h-44 sm:w-44" />
+              <div className="absolute bottom-0 right-0 h-40 w-40 rounded-full bg-[rgba(94,75,57,0.2)] blur-2xl sm:h-52 sm:w-52" />
 
               <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.84fr)] lg:items-center lg:gap-10">
                 <div className="max-w-[43rem] space-y-5">
@@ -173,10 +180,9 @@ export default async function StorePage({
                         Klar gewählt. Direkt passend gekauft.
                       </span>
                     </h1>
-                    <p className="max-w-[38rem] text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                      Shop, Setup-Konfigurator und Pflanzenanalyse greifen in
-                      Smokeify direkt ineinander. Weniger Raten, passendere
-                      Produkte und ein klarerer Start in dein Setup.
+                    <p className="max-w-[32rem] text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                      Kuratierte Produkte, klare Wege und Tools, die schneller
+                      ins passende Setup führen.
                     </p>
                   </div>
 
@@ -199,7 +205,7 @@ export default async function StorePage({
                     {[
                       "Versandfrei ab 69 EUR",
                       "Smokeify Auswahl",
-                      "Einsteigerfreundlich",
+                      "Direkt verfügbar",
                     ].map((item) => (
                       <div
                         key={item}
@@ -218,7 +224,7 @@ export default async function StorePage({
                   />
                 </div>
 
-                <div className="hero-swipe self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
+                <div className="hero-swipe self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.24)] sm:p-6">
                   <div className="flex flex-col gap-4 border-b border-[var(--smk-border)]/80 pb-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="smk-kicker text-[var(--smk-accent)]">
@@ -260,11 +266,11 @@ export default async function StorePage({
                       <Link
                         key={featuredHeroProduct.id}
                         href={`/products/${featuredHeroProduct.handle}`}
-                      className="smk-motion-card smk-highlight-ring group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(233,188,116,0.14)] bg-[rgba(255,255,255,0.03)] p-4 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] sm:p-5"
+                      className="smk-motion-card smk-highlight-ring group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(250,244,232,0.8)] bg-[linear-gradient(135deg,rgba(250,247,240,0.98),rgba(239,233,223,0.96))] p-4 text-[#1e1915] shadow-[0_22px_60px_rgba(0,0,0,0.18)] hover:border-[rgba(255,255,255,0.96)] sm:p-5"
                       >
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_32%)] opacity-90" />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(219,179,111,0.22),transparent_32%),linear-gradient(110deg,rgba(255,255,255,0.56),rgba(255,255,255,0)_48%)] opacity-90" />
                         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
-                          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] sm:h-28 sm:w-28">
+                          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[rgba(66,50,34,0.12)] bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.94),rgba(245,239,229,0.78))] shadow-[0_18px_30px_rgba(72,55,35,0.12)] sm:h-28 sm:w-28">
                             {featuredHeroProduct.featuredImage ? (
                               <Image
                                 src={featuredHeroProduct.featuredImage.url}
@@ -280,22 +286,22 @@ export default async function StorePage({
                             ) : null}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="smk-kicker text-[var(--smk-accent)]">
+                            <p className="smk-kicker text-[rgba(143,96,43,0.92)]">
                               Sinnvoll für den Einstieg
                             </p>
                             {featuredHeroProduct.manufacturer ? (
-                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgba(78,61,43,0.68)]">
                                 {featuredHeroProduct.manufacturer}
                               </p>
                             ) : null}
-                            <h2 className="mt-2 max-w-[14ch] text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
+                            <h2 className="mt-2 max-w-[14ch] text-xl font-semibold leading-tight text-[#1e1915] lg:text-[1.7rem] lg:leading-[1.02]">
                               {featuredHeroProduct.title}
                             </h2>
                             <div className="mt-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
-                              <p className="text-base font-semibold text-[var(--smk-text)]">
+                              <p className="text-base font-semibold text-[#2c2219]">
                                 {formattedPrice ?? "Preis aufrufen"}
                               </p>
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-text-muted)] transition group-hover:text-[var(--smk-text)]">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[rgba(78,61,43,0.72)] transition group-hover:text-[#1e1915]">
                                 Details zum Setup
                                 <ArrowRightIcon className="h-3.5 w-3.5" />
                               </span>
@@ -315,18 +321,73 @@ export default async function StorePage({
               </div>
             </section>
 
+            {spotlightProducts.length > 0 ? (
+              <section className="space-y-4">
+                <header className="space-y-2">
+                  <p className="smk-kicker">Smokeify Picks</p>
+                  <h2 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
+                    Produkte früh im Blick
+                  </h2>
+                </header>
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {spotlightProducts.map((product) => {
+                    const formattedPrice = formatMoney(
+                      product.priceRange?.minVariantPrice.amount,
+                      product.priceRange?.minVariantPrice.currencyCode,
+                    );
+
+                    return (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.handle}`}
+                        className="smk-motion-card smk-highlight-ring group flex min-h-[164px] items-center gap-4 overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 hover:border-[var(--smk-border-strong)]"
+                      >
+                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-white">
+                          {product.featuredImage ? (
+                            <Image
+                              src={product.featuredImage.url}
+                              alt={product.featuredImage.altText ?? product.title}
+                              fill
+                              sizes="96px"
+                              className="object-contain p-3 transition duration-300 group-hover:scale-105"
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {product.manufacturer ? (
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                              {product.manufacturer}
+                            </p>
+                          ) : null}
+                          <h3 className="mt-2 line-clamp-2 text-lg font-semibold leading-tight text-[var(--smk-text)]">
+                            {product.title}
+                          </h3>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <p className="text-base font-semibold text-[var(--smk-accent-2)]">
+                              {formattedPrice ?? "Produkt ansehen"}
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-text-muted)] transition group-hover:text-[var(--smk-text)]">
+                              Ansehen
+                              <ArrowRightIcon className="h-3.5 w-3.5" />
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
             <section className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
               <div className="smk-panel rounded-[32px] p-6 sm:p-7">
                 <p className="smk-kicker">Smokeify Tools</p>
                 <h2 className="smk-heading mt-4 text-3xl leading-[0.96] text-[var(--smk-text)] sm:text-4xl">
-                  Analyzer, Konfigurator
-                  <br />
-                  und Katalog an einem Ort.
+                  Tools und Katalog greifen direkt zusammen.
                 </h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Smokeify bündelt die bewährte Layoutlogik lokal: Produktauswahl,
-                  Setup-Konfiguration und Pflanzenanalyse bleiben direkt im
-                  Smokeify Storefront und nutzen dieselben kuratierten Produkte.
+                <p className="mt-4 max-w-xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                  Weniger springen, schneller entscheiden und direkt mit den
+                  passenden Produkten weitergehen.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
@@ -348,17 +409,17 @@ export default async function StorePage({
                 {[
                   {
                     title: "Lokale Smokeify Tools",
-                    copy: "Analyzer, Konfigurator und Grow-Katalog laufen jetzt direkt im Smokeify Storefront.",
+                    copy: "Analyzer, Konfigurator und Shop nutzen dieselbe Produktauswahl.",
                     icon: PhotoIcon,
                   },
                   {
                     title: "Ein Layout-System",
-                    copy: "Shop-Muster werden über Smokeify Tokens gepflegt, statt blind kopiert zu werden.",
+                    copy: "Kurze Wege statt doppelter Oberflächen.",
                     icon: SparklesIcon,
                   },
                   {
                     title: "Checkout bleibt stabil",
-                    copy: "Tools empfehlen Produkte, aber Warenkorb, Preise und Bestände bleiben serverseitig autoritativ.",
+                    copy: "Warenkorb, Preise und Bestand bleiben serverseitig autoritativ.",
                     icon: WrenchScrewdriverIcon,
                   },
                 ].map((item) => (
@@ -382,8 +443,7 @@ export default async function StorePage({
                   Top Growbox-Deals unter 120 €
                 </h2>
                 <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Preisstarke Einstiege, um schnell eine sinnvolle Basis für
-                  das Setup zu bauen.
+                  Preisstarke Einstiege für ein klares Setup.
                 </p>
               </header>
               <DisplayProducts

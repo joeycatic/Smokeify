@@ -69,6 +69,29 @@ const sizeKeyFrom = (value?: string | null) => {
   return `${numbers[0]}x${numbers[1]}`;
 };
 
+const isHeadshopCategory = (handle?: string | null) =>
+  handle?.trim().toLowerCase() === "headshop";
+
+const isHeadshopProduct = (
+  product: Awaited<ReturnType<typeof getProducts>>[number],
+) =>
+  product.categories?.some(
+    (category) =>
+      isHeadshopCategory(category.handle) ||
+      isHeadshopCategory(category.parent?.handle),
+  ) ?? false;
+
+const isGrowboxCollectionMatch = (
+  product: Awaited<ReturnType<typeof getProducts>>[number],
+  config: SeoPageConfig,
+) => {
+  if (config.categoryHandle !== "zelte") return false;
+  if (isHeadshopProduct(product)) return false;
+  if (!product.growboxSize) return false;
+  if (!config.growboxSize) return true;
+  return sizeKeyFrom(product.growboxSize) === config.growboxSize;
+};
+
 const buildDefaultFaq = (title: string) => [
   {
     question: `Worauf sollte ich bei ${title} achten?`,
@@ -84,6 +107,7 @@ const buildDefaultFaq = (title: string) => [
 
 const filterProductsForConfig = (config: SeoPageConfig) => {
   return (product: Awaited<ReturnType<typeof getProducts>>[number]) => {
+    if (isGrowboxCollectionMatch(product, config)) return true;
     const matchesCategoryFilter =
       product.categories?.some((category) =>
         matchesCategory(

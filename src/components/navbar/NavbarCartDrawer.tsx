@@ -112,13 +112,13 @@ export default function NavbarCartDrawer({
         type="button"
         aria-label="Close cart"
         onClick={onClose}
-        className="fixed inset-0 z-40 cursor-pointer bg-black/38 backdrop-blur-2xl cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+        className="fixed inset-0 z-40 cursor-pointer bg-[rgba(6,6,5,0.56)] backdrop-blur-[10px] cart-overlay-fade focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
       />
       <aside
         ref={(node) => {
           if (panelRef) panelRef.current = node;
         }}
-        className="fixed right-0 top-0 z-50 flex h-dvh w-full max-w-sm flex-col overflow-hidden border-l border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(25,21,18,0.82),rgba(11,11,10,0.9))] text-[var(--smk-text)] shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-3xl cart-slide-in"
+        className="fixed right-0 top-0 z-50 flex h-dvh w-full max-w-sm flex-col overflow-hidden border-l border-[rgba(255,240,220,0.12)] bg-[linear-gradient(180deg,rgba(25,21,18,0.95),rgba(11,11,10,0.985))] text-[var(--smk-text)] shadow-[0_32px_90px_rgba(0,0,0,0.62)] backdrop-blur-2xl cart-slide-in"
       >
         <div className="flex h-16 items-center justify-between border-b border-[var(--smk-border)] px-5">
           <div className="smk-kicker text-[var(--smk-text)]">Warenkorb</div>

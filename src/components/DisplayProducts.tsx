@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -35,7 +35,6 @@ const getProductLowStockState = (product: Product) => {
   return Boolean(product.lowStock || isLowStock);
 };
 const NEW_BADGE_CUTOFF_MS = Date.now() - 30 * 24 * 60 * 60 * 1000;
-
 function ProductRating({ average, count }: { average: number; count: number }) {
   if (count <= 0) return null;
   const rounded = Math.max(0, Math.min(5, Math.round(average)));
@@ -70,13 +69,17 @@ export default function DisplayProducts({
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const gridColsClass =
     cols === 2
-      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2"
+      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2"
       : cols === 3
         ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-        : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4";
+        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
   const titleClampClass = titleLines === 3 ? "line-clamp-3" : "line-clamp-2";
-  const sorted = [...(products ?? [])].sort(
-    (a, b) => Number(b.availableForSale) - Number(a.availableForSale)
+  const sorted = useMemo(
+    () =>
+      [...(products ?? [])].sort(
+        (a, b) => Number(b.availableForSale) - Number(a.availableForSale),
+      ),
+    [products],
   );
   return (
     <>
@@ -110,7 +113,7 @@ export default function DisplayProducts({
                   alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
                   className="aspect-[9/8] overflow-hidden rounded-t-[28px] bg-white sm:aspect-square"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
-                  priority={eagerFirstImages && index < Math.min(cols, 4)}
+                  priority={eagerFirstImages && index < Math.min(cols, 2)}
                 />
                 <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
                   {p.compareAtPrice && (
@@ -212,13 +215,13 @@ export default function DisplayProducts({
                 )}
 
                 {/* Price */}
-                <div className="mt-2 flex items-baseline gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   {p.compareAtPrice && (
                     <span className="text-sm font-semibold text-[var(--smk-text-dim)] line-through">
                       {formatPrice(p.compareAtPrice)}
                     </span>
                   )}
-                  <span className="text-base font-semibold text-[var(--smk-text)]">
+                  <span className="font-[family:var(--font-fraunces)] text-base font-semibold tracking-[0] text-[var(--smk-accent-2)]">
                     {formatPrice(p.priceRange?.minVariantPrice)}
                   </span>
                 </div>
@@ -260,11 +263,13 @@ export default function DisplayProducts({
         );
       })}
     </div>
-    <QuickViewModal
-      product={quickViewProduct}
-      open={quickViewProduct !== null}
-      onClose={() => setQuickViewProduct(null)}
-    />
+    {quickViewProduct ? (
+      <QuickViewModal
+        product={quickViewProduct}
+        open
+        onClose={() => setQuickViewProduct(null)}
+      />
+    ) : null}
     </>
   );
 }
@@ -275,8 +280,12 @@ export function DisplayProductsList({
   showGrowboxSize = false,
   hideCartLabel = false,
 }: Props) {
-  const sorted = [...(products ?? [])].sort(
-    (a, b) => Number(b.availableForSale) - Number(a.availableForSale)
+  const sorted = useMemo(
+    () =>
+      [...(products ?? [])].sort(
+        (a, b) => Number(b.availableForSale) - Number(a.availableForSale),
+      ),
+    [products],
   );
   return (
     <div className="mt-6 grid grid-cols-1 gap-4">
@@ -374,13 +383,15 @@ export function DisplayProductsList({
 
               <div className="mt-auto space-y-2">
                 <div className="text-lg font-semibold text-[var(--smk-text)]">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {p.compareAtPrice && (
                       <span className="text-sm font-semibold text-[var(--smk-text-dim)] line-through">
                         {formatPrice(p.compareAtPrice)}
                       </span>
                     )}
-                    <span>{formatPrice(p.priceRange?.minVariantPrice)}</span>
+                    <span className="font-[family:var(--font-fraunces)] tracking-[0] text-[var(--smk-accent-2)]">
+                      {formatPrice(p.priceRange?.minVariantPrice)}
+                    </span>
                   </div>
                 </div>
                 <div className="flex w-full items-center justify-start gap-3">
@@ -455,9 +466,10 @@ function ProductImageCarousel({
           src={current.url}
           alt={current.altText ?? alt}
           fill
-          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-          quality={70}
+          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+          quality={priority ? 68 : 60}
           priority={priority}
+          loading={priority ? "eager" : "lazy"}
           className={`absolute inset-0 ${imageClassName ?? ""}`}
         />
       </div>

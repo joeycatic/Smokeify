@@ -22,6 +22,7 @@ import PaymentMethodLogos from "@/components/PaymentMethodLogos";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 type ProductVariant = {
   id: string;
@@ -34,7 +35,6 @@ type ProductVariant = {
   price: { amount: string; currencyCode: string };
   compareAt?: { amount: string; currencyCode: string } | null;
 };
-import LoadingSpinner from "@/components/LoadingSpinner";
 
 const formatSelectedOptions = (options?: Array<{ name: string; value: string }>) => {
   if (!options?.length) return "";
@@ -526,13 +526,13 @@ export default function ProductDetailClient({
             {product.title}
           </h1>
           {selectedVariant && (
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {compareAtLabel && (
                 <span className="text-base font-semibold text-[var(--smk-text-dim)] line-through">
                   {compareAtLabel}
                 </span>
               )}
-              <span className="text-lg font-semibold text-[var(--smk-text)] sm:text-xl">
+              <span className="font-[family:var(--font-fraunces)] text-lg font-semibold tracking-[0] text-[var(--smk-accent-2)] sm:text-xl">
                 {priceLabel}
               </span>
             </div>

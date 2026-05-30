@@ -378,10 +378,10 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
 
   return (
     <div className="w-full text-[var(--smk-text)]">
-      <div className="mt-3 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.14),transparent_24%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.14),transparent_26%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:px-10">
+      <div className="mt-3 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_22%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.1),transparent_24%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_18px_48px_rgba(0,0,0,0.28)] sm:px-10">
         <div className="relative text-center">
-          <div className="absolute left-0 top-0 h-28 w-28 rounded-full bg-[rgba(233,188,116,0.12)] blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[rgba(217,119,69,0.12)] blur-3xl" />
+          <div className="absolute left-0 top-0 h-24 w-24 rounded-full bg-[rgba(233,188,116,0.1)] blur-2xl" />
+          <div className="absolute bottom-0 right-0 h-28 w-28 rounded-full bg-[rgba(217,119,69,0.1)] blur-2xl" />
           <div className="relative">
             <p className="smk-kicker">{heroContent.kicker}</p>
             <h1 className="smk-heading mt-4 text-4xl text-[var(--smk-text)] sm:text-5xl">
@@ -444,30 +444,30 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
                   }`}
                   aria-hidden="true"
                 />
-                <button
-                  type="button"
-                  onClick={() => setLayout("grid")}
-                  className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                    layout === "grid"
-                      ? "text-[#1a140f]"
-                      : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                  }`}
-                >
-                  <Squares2X2Icon className="h-4 w-4" />
-                  {isMobile ? "2x" : "4x"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayout("list")}
-                  className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                    layout === "list"
-                      ? "text-[#1a140f]"
-                      : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                  }`}
-                >
-                  <Bars3BottomLeftIcon className="h-4 w-4" />
-                  1x
-                </button>
+              <button
+                type="button"
+                onClick={() => setLayout("grid")}
+                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
+                  layout === "grid"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
+                }`}
+              >
+                <Squares2X2Icon className="h-4 w-4" />
+                {isMobile ? "Cards" : "4x"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayout("list")}
+                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
+                  layout === "list"
+                    ? "text-[#1a140f]"
+                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
+                }`}
+              >
+                <Bars3BottomLeftIcon className="h-4 w-4" />
+                {isMobile ? "List" : "1x"}
+              </button>
               </div>
               <FilterDrawer
                 filters={filters}
@@ -533,7 +533,6 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
-            eagerFirstImages
           />
         ) : (
           <DisplayProductsList
