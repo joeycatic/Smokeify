@@ -382,7 +382,7 @@ function buildSummary(input: {
     return `${input.species}: aktuell kein klarer akuter Befund sichtbar.`;
   }
   if (input.healthStatus === "critical") {
-    return `${input.species}: die sichtbarsten Hinweise sprechen eher fuer ${topIssue} und sollten zeitnah gegengeprueft werden.`;
+    return `${input.species}: die sichtbarsten Hinweise sprechen eher für ${topIssue} und sollten zeitnah gegengeprüft werden.`;
   }
   if (input.healthStatus === "healthy") {
     return `${input.species}: insgesamt wirkt die Pflanze eher stabil, einzelne Hinweise wie ${topIssue} sollten aber beobachtet werden.`;
@@ -399,12 +399,12 @@ function buildPossibleCauses(
     confidence: issue.confidence,
     whyThisFits:
       index === 0
-        ? "Das ist im Foto am deutlichsten sichtbar und passt zur Blattstruktur bzw. Faerbung."
+        ? "Das ist im Foto am deutlichsten sichtbar und passt zur Blattstruktur bzw. Färbung."
         : "Ein Teil der sichtbaren Muster kann ebenfalls dazu passen.",
     whatCouldAlsoExplainIt:
       context?.ph || context?.ec || context?.humidityPercent
-        ? "Aehnliche Spuren koennen auch durch unpassende Setup-Werte entstehen."
-        : "Aehnliche Spuren koennen auch durch Licht, Giessrhythmus oder Naehrstoffbalance entstehen.",
+        ? "Ähnliche Spuren können auch durch unpassende Setup-Werte entstehen."
+        : "Ähnliche Spuren können auch durch Licht, Gießrhythmus oder Nährstoffbalance entstehen.",
   }));
 }
 
@@ -418,7 +418,7 @@ function buildVerificationChecks(
   if (labels.some((label) => label.includes("p")) || typeof context?.ph === "number") {
     checks.push({
       id: "check-ph",
-      title: "pH gegenpruefen",
+      title: "pH gegenprüfen",
       detail: "Miss den aktuellen pH-Wert erneut und vergleiche ihn mit deinem Zielbereich.",
     });
   }
@@ -427,15 +427,15 @@ function buildVerificationChecks(
     checks.push({
       id: "check-pests",
       title: "Blattunterseiten kontrollieren",
-      detail: "Suche Blattunterseiten und neue Triebe gezielt nach Schaedlingen oder Fraßspuren ab.",
+      detail: "Suche Blattunterseiten und neue Triebe gezielt nach Schädlingen oder Fraßspuren ab.",
     });
   }
 
   if (labels.some((label) => label.includes("licht") || label.includes("hitze"))) {
     checks.push({
       id: "check-light",
-      title: "Lichtabstand und Hitze pruefen",
-      detail: "Kontrolliere Lampenabstand, Blattoberflaechentemperatur und Hotspots im Zelt.",
+      title: "Lichtabstand und Hitze prüfen",
+      detail: "Kontrolliere Lampenabstand, Blattoberflächentemperatur und Hotspots im Zelt.",
     });
   }
 
@@ -450,7 +450,7 @@ function buildVerificationChecks(
   checks.push({
     id: "check-photo-repeat",
     title: "Vergleichsfoto aufnehmen",
-    detail: "Mache in 24 bis 48 Stunden ein weiteres Foto aus aehnlichem Winkel fuer den Recheck.",
+    detail: "Mache in 24 bis 48 Stunden ein weiteres Foto aus ähnlichem Winkel für den Recheck.",
   });
 
   return checks.slice(0, 4);
@@ -464,18 +464,18 @@ function buildEnvironmentConsiderations(
     return summary.map((entry) => `Kontext: ${entry}`);
   }
   return [
-    "Ohne Messwerte sollte zuerst Licht, Klima und Giessrhythmus sauber gegengeprueft werden.",
+    "Ohne Messwerte sollte zuerst Licht, Klima und Gießrhythmus sauber gegengeprüft werden.",
   ];
 }
 
 function buildUncertaintyNote(confidenceBand: "low" | "medium" | "high") {
   if (confidenceBand === "low") {
-    return "Die visuelle Sicherheit ist eher niedrig. Nutze die Checks vor jeder staerkeren Korrektur.";
+    return "Die visuelle Sicherheit ist eher niedrig. Nutze die Checks vor jeder stärkeren Korrektur.";
   }
   if (confidenceBand === "medium") {
-    return "Das ist eine vorsichtige Ersteinschaetzung und sollte mit deinem Setup abgeglichen werden.";
+    return "Das ist eine vorsichtige Ersteinschätzung und sollte mit deinem Setup abgeglichen werden.";
   }
-  return "Auch bei hoher Sicherheit bleibt das Ergebnis eine visuelle Ersteinschaetzung und kein sicherer Laborbefund.";
+  return "Auch bei hoher Sicherheit bleibt das Ergebnis eine visuelle Ersteinschätzung und kein sicherer Laborbefund.";
 }
 
 function buildRecommendations(input: {
@@ -591,10 +591,10 @@ export async function analyzePlantImage({
   const immediateActions =
     finalResult.parsed.recommendations.length > 0
       ? finalResult.parsed.recommendations.slice(0, 3)
-      : ["Aktuell nur beobachten und Werte gegenpruefen."];
+      : ["Aktuell nur beobachten und Werte gegenprüfen."];
   const deferActions = [
-    "Nur eine Veraenderung auf einmal vornehmen.",
-    "Den Verlauf mit einem frischen Foto gegenpruefen.",
+    "Nur eine Veränderung auf einmal vornehmen.",
+    "Den Verlauf mit einem frischen Foto gegenprüfen.",
   ];
   const environmentConsiderations =
     buildEnvironmentConsiderations(normalizedContext);

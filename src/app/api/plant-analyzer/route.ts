@@ -5,6 +5,7 @@ import { analyzePlantImage } from "@/lib/plantAnalyzer";
 import { validatePlantAnalyzerImageMeta } from "@/lib/plantAnalyzerRequestValidation";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
+import type { PlantAnalyzerResult } from "@/lib/plantAnalyzer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,14 +52,21 @@ async function parsePlantAnalyzerRequest(request: Request) {
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
-    const image = formData.get("image");
+    const image = formData.get("image") ?? formData.get("file");
     if (!(image instanceof File)) {
       throw new Error("MISSING_IMAGE");
     }
 
+    const visualNotes = readString(formData.get("visualNotes"));
+    const growContextNotes = readString(formData.get("growContextNotes"));
+    const combinedNotes = [visualNotes, growContextNotes]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
     return {
       imageUri: await fileToDataUri(image),
-      notes: readString(formData.get("notes")),
+      notes: combinedNotes || readString(formData.get("notes")),
       previousAnalysisId: readString(formData.get("previousAnalysisId")) || null,
       plantId: readString(formData.get("plantId")) || null,
       analysisContext: normalizeContext({
@@ -101,6 +109,47 @@ async function parsePlantAnalyzerRequest(request: Request) {
         ? (body.analysisContext as Record<string, unknown>)
         : body) ?? {},
     ),
+  };
+}
+
+function toAnalyzerResponse(result: PlantAnalyzerResult) {
+  return {
+    analysisId: result.persisted ? result.id : null,
+    storageWarning: result.persisted
+      ? null
+      : "Die Analyse wurde berechnet, konnte aber nicht im Verlauf gespeichert werden.",
+    diagnosis: {
+      healthStatus: result.healthStatus,
+      species: result.species,
+      confidence: result.confidence,
+      issues: result.issues,
+      recommendations: result.recommendations,
+    },
+    summary: result.summary,
+    observedSymptoms: result.observedSymptoms,
+    possibleCauses: result.possibleCauses,
+    verificationChecks: result.verificationChecks,
+    immediateActions: result.immediateActions,
+    deferActions: result.deferActions,
+    environmentConsiderations: result.environmentConsiderations,
+    uncertaintyNote: result.uncertaintyNote,
+    confidenceBand: result.confidenceBand,
+    needsHumanReview: result.needsHumanReview,
+    analysisContext: result.analysisContext,
+    consideredInputs: [],
+    influenceNotes: [],
+    contextUsed: result.contextUsed,
+    promptVersion: result.promptVersion,
+    reasoningVersion: result.reasoningVersion,
+    followUp: result.followUp,
+    productSuggestions: result.productSuggestions,
+    guideSuggestions: result.guideSuggestions,
+    remediation: result.remediationPlan,
+    lastFeedback: null,
+    reviewedCase: null,
+    publication: null,
+    imageUri: result.imageUri,
+    analyzedAt: result.analyzedAt,
   };
 }
 
@@ -156,7 +205,10 @@ export async function POST(request: Request) {
       userId: session?.user?.id ?? null,
     });
 
-    return NextResponse.json({ result });
+    return NextResponse.json({
+      ...toAnalyzerResponse(result),
+      result,
+    });
   } catch (error) {
     console.error("Smokeify plant analyzer request failed", error);
     return toErrorResponse(error);

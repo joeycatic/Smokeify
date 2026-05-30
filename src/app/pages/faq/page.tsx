@@ -1,4 +1,3 @@
-import PageLayout from "@/components/PageLayout";
 import FaqPageClient from "./FaqPageClient";
 
 type FaqItem = { question: string; answer: string };
@@ -168,9 +167,5 @@ const FAQ_CATEGORIES: FaqCategory[] = [
 ];
 
 export default function FaqPage() {
-  return (
-    <PageLayout commerce={false}>
-      <FaqPageClient categories={FAQ_CATEGORIES} />
-    </PageLayout>
-  );
+  return <FaqPageClient categories={FAQ_CATEGORIES} />;
 }

@@ -32,17 +32,17 @@ export default function AbluftSetupGuide() {
 
       <h2>Smokeify Kaufpfad</h2>
       <p>
-        Wenn du unsicher bist, vergleiche Luft-Sets statt nur Einzelteile. Sets
-        reduzieren Fehlkäufe, Einzelteile geben dir mehr Kontrolle bei Lautstärke
-        und Ausbaugrad.
+        Wenn du unsicher bist, starte mit Luft-Sets statt nur Einzelteilen.
+        Sets reduzieren Fehlkäufe, Einzelteile geben dir mehr Kontrolle bei
+        Lautstärke und Ausbaugrad.
       </p>
 
       <div className="not-prose mt-8 flex flex-wrap gap-3">
         <Link href="/luft" className="smk-button-primary rounded-full px-5 py-2.5 text-sm font-semibold">
           Luft-Kategorie öffnen
         </Link>
-        <Link href="/products/compare" className="smk-button-secondary rounded-full px-5 py-2.5 text-sm font-semibold">
-          Produkte vergleichen
+        <Link href="/customizer" className="smk-button-secondary rounded-full px-5 py-2.5 text-sm font-semibold">
+          Zum Konfigurator
         </Link>
       </div>
     </>

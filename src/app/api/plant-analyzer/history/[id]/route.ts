@@ -6,7 +6,10 @@ import {
   getPlantAnalyzerCachedRemediationPlan,
   getPlantAnalyzerCachedSuggestions,
   getPlantAnalyzerDecisionSupport,
+  getPlantAnalyzerReviewedCase,
   getPlantAnalyzerStoredContext,
+  getPlantAnalyzerStoredFeedback,
+  getPlantAnalyzerStoredOutput,
   getPlantAnalyzerStoredTrendSummary,
 } from "@/lib/plantAnalyzerOutput";
 
@@ -47,28 +50,58 @@ export async function GET(
   const support = getPlantAnalyzerDecisionSupport(run.outputJson);
   const suggestions = getPlantAnalyzerCachedSuggestions(run.outputJson);
   const remediationPlan = getPlantAnalyzerCachedRemediationPlan(run.outputJson);
-
-  return NextResponse.json({
-    item: {
-      id: run.id,
-      createdAt: run.createdAt.toISOString(),
+  const output = getPlantAnalyzerStoredOutput(run.outputJson);
+  const detail = {
+    id: run.id,
+    imageUri: run.imageDeletedAt ? "" : run.imageUri,
+    diagnosis: {
+      healthStatus: toHealthStatus(run.healthStatus),
       species: run.species,
       confidence: run.confidence,
-      healthStatus: toHealthStatus(run.healthStatus),
-      notes: run.notes,
-      imageUri: run.imageDeletedAt ? null : run.imageUri,
       issues: run.issues.map((issue) => ({
         id: issue.sourceIssueId ?? issue.id,
         label: issue.label,
         confidence: issue.confidence,
         severity: toHealthStatus(issue.severity),
       })),
-      support,
-      analysisContext: getPlantAnalyzerStoredContext(run.outputJson),
-      trendSummary: getPlantAnalyzerStoredTrendSummary(run.outputJson),
-      productSuggestions: suggestions?.productSuggestions ?? [],
-      guideSuggestions: suggestions?.guideSuggestions ?? [],
-      remediationPlan,
+      recommendations: output.recommendations ?? [],
     },
+    summary: support?.summary ?? run.notes ?? "Analyse gespeichert",
+    observedSymptoms: support?.observedSymptoms ?? [],
+    possibleCauses: support?.possibleCauses ?? [],
+    verificationChecks: support?.verificationChecks ?? [],
+    immediateActions: support?.immediateActions ?? [],
+    deferActions: support?.deferActions ?? [],
+    environmentConsiderations: support?.environmentConsiderations ?? [],
+    uncertaintyNote: support?.uncertaintyNote ?? "",
+    confidenceBand: output.confidenceBand ?? "medium",
+    needsHumanReview: output.needsHumanReview ?? false,
+    analysisContext: getPlantAnalyzerStoredContext(run.outputJson),
+    consideredInputs: [],
+    influenceNotes: [],
+    contextUsed: output.contextUsed ?? false,
+    promptVersion: output.promptVersion ?? null,
+    reasoningVersion: output.reasoningVersion ?? null,
+    followUp: {
+      recommendedRecheckWindowHoursMin:
+        output.recommendedRecheckWindowHoursMin ?? null,
+      recommendedRecheckWindowHoursMax:
+        output.recommendedRecheckWindowHoursMax ?? null,
+      followUpStatus: output.followUpStatus ?? null,
+      followUpRecordedAt: output.followUpRecordedAt ?? null,
+      previousAnalysisId: output.previousAnalysisId ?? null,
+      trendSummary: getPlantAnalyzerStoredTrendSummary(run.outputJson),
+    },
+    productSuggestions: suggestions?.productSuggestions ?? [],
+    guideSuggestions: suggestions?.guideSuggestions ?? [],
+    remediation: remediationPlan,
+    lastFeedback: getPlantAnalyzerStoredFeedback(run.outputJson),
+    reviewedCase: getPlantAnalyzerReviewedCase(run.outputJson),
+    publication: null,
+  };
+
+  return NextResponse.json({
+    ...detail,
+    item: detail,
   });
 }

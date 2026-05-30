@@ -15,22 +15,25 @@ function FaqAccordion({ items }: { items: FaqItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <div className="divide-y divide-black/6">
+    <div className="space-y-3">
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         return (
-          <div key={index}>
+          <div
+            key={index}
+            className="smk-surface rounded-[22px] px-4 py-3 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+          >
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}
-              className="flex w-full items-center justify-between gap-4 py-4 text-left"
+              className="flex w-full items-center justify-between gap-4 text-left"
               aria-expanded={isOpen}
             >
-              <span className="text-sm font-semibold text-stone-900 sm:text-base">
+              <span className="text-sm font-semibold text-[color:var(--smk-text)] sm:text-base">
                 {item.question}
               </span>
               <ChevronDownIcon
-                className={`h-5 w-5 shrink-0 text-stone-400 transition-transform duration-200 ${
+                className={`h-5 w-5 shrink-0 text-[color:var(--smk-accent)] transition-transform duration-200 ${
                   isOpen ? "rotate-180" : ""
                 }`}
               />
@@ -41,7 +44,7 @@ function FaqAccordion({ items }: { items: FaqItem[] }) {
               }`}
             >
               <div className="overflow-hidden">
-                <p className="text-sm leading-relaxed text-stone-600">
+                <p className="border-t border-[color:var(--smk-border)] pt-3 text-sm leading-relaxed text-[color:var(--smk-text-muted)]">
                   {item.answer}
                 </p>
               </div>
@@ -55,12 +58,15 @@ function FaqAccordion({ items }: { items: FaqItem[] }) {
 
 export default function FaqPageClient({ categories }: Props) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+    <main className="mx-auto w-full max-w-3xl py-12">
       <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
+        <div className="inline-flex items-center rounded-full border border-[color:var(--smk-border)] bg-[color:var(--smk-surface)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--smk-accent)]">
+          Hilfe
+        </div>
+        <h1 className="mt-4 font-[family:var(--font-fraunces)] text-3xl font-bold tracking-[-0.05em] text-[color:var(--smk-text)] sm:text-4xl">
           Häufige Fragen
         </h1>
-        <p className="mt-3 text-base text-stone-500">
+        <p className="mt-3 text-base text-[color:var(--smk-text-muted)]">
           Alles Wichtige rund um Bestellung, Versand und Indoor-Gartenbau.
         </p>
       </div>
@@ -69,24 +75,28 @@ export default function FaqPageClient({ categories }: Props) {
         {categories.map((category) => (
           <section
             key={category.label}
-            className="rounded-2xl border border-black/8 bg-white px-5 shadow-sm"
+            className="smk-panel rounded-[28px] px-5 py-5 shadow-[0_28px_80px_rgba(0,0,0,0.28)]"
           >
-            <h2 className="border-b border-black/6 py-4 text-xs font-bold uppercase tracking-widest text-emerald-800">
+            <h2 className="border-b border-[color:var(--smk-border)] pb-4 text-xs font-bold uppercase tracking-[0.22em] text-[color:var(--smk-accent)]">
               {category.label}
             </h2>
-            <FaqAccordion items={category.items} />
+            <div className="pt-4">
+              <FaqAccordion items={category.items} />
+            </div>
           </section>
         ))}
       </div>
 
-      <div className="mt-10 rounded-2xl bg-[#2f3e36] px-6 py-8 text-center text-white">
-        <p className="text-base font-semibold">Deine Frage ist nicht dabei?</p>
-        <p className="mt-1 text-sm text-white/70">
+      <div className="smk-panel mt-10 rounded-[28px] px-6 py-8 text-center shadow-[0_28px_80px_rgba(0,0,0,0.28)]">
+        <p className="text-base font-semibold text-[color:var(--smk-text)]">
+          Deine Frage ist nicht dabei?
+        </p>
+        <p className="mt-1 text-sm text-[color:var(--smk-text-muted)]">
           Unser Support hilft dir direkt weiter.
         </p>
         <Link
           href="/pages/contact"
-          className="mt-4 inline-flex h-10 items-center rounded-full bg-white px-6 text-sm font-semibold text-[#2f3e36] transition hover:bg-white/90"
+          className="mt-4 inline-flex h-10 items-center rounded-full bg-[color:var(--smk-accent)] px-6 text-sm font-semibold text-[color:var(--smk-bg)] transition hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--smk-bg)]"
         >
           Kontakt aufnehmen
         </Link>

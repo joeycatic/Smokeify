@@ -1,4 +1,4 @@
-import PageLayout from "@/components/PageLayout";
+import InfoPageShell from "@/components/InfoPageShell";
 import { businessDetails } from "@/lib/businessDetails";
 
 const ABOUT_POINTS = [
@@ -21,62 +21,67 @@ export default function AboutPage() {
   } = businessDetails;
 
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Über Smokeify
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-600">
-              Smokeify ist ein deutscher Online-Shop für Technik, Zubehör und
-              Ausstattung rund um Indoor-Gartenbau, Pflanzenpflege und
-              funktionale Home-Grow-Setups. Wir legen Wert auf transparente
-              Produktangaben, erreichbaren Support und nachvollziehbare
-              Shop-Informationen.
-            </p>
-          </div>
+    <InfoPageShell
+      eyebrow="Über uns"
+      title="Über Smokeify"
+      description="Smokeify ist ein deutscher Shop für Indoor-Gartentechnik, Pflanzenpflege und funktionale Home-Grow-Setups. Wir legen Wert auf transparente Produktangaben, erreichbaren Support und nachvollziehbare Shop-Informationen."
+    >
+      <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+        <p className="text-sm leading-7 text-[color:var(--smk-text-muted)]">
+          Smokeify ist die Shop-Marke. Rechtlicher Anbieter und Betreiber
+          dieses Onlineshops ist{" "}
+          <span className="font-semibold text-[color:var(--smk-text)]">
+            {legalName}
+          </span>
+          .
+        </p>
+      </section>
 
-          <div className="grid gap-6 border-b border-black/10 pb-6 md:grid-cols-2">
-            <div className="space-y-2 text-sm text-stone-700">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Anbieter
-              </p>
-              <p className="font-semibold text-stone-900">{companyName}</p>
-              <p>{legalName}</p>
-              <p>{streetLine}</p>
-              <p>{cityPostalLine}</p>
-              <p>{country}</p>
-              {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
-            </div>
-            <div className="space-y-2 text-sm text-stone-700">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Kontakt
-              </p>
-              <p>E-Mail: {contactEmail}</p>
-              {contactPhone ? <p>Telefon: {contactPhone}</p> : null}
-              <p>Website: {websiteLabel}</p>
-              <p>Support über Kontaktformular, E-Mail und Telefon.</p>
-            </div>
-          </div>
-
-          <div className="mt-8 space-y-4">
-            <h2 className="text-xl font-semibold text-stone-900">
-              Wofür wir stehen
-            </h2>
-            <ul className="space-y-3 text-sm leading-relaxed text-stone-700">
-              {ABOUT_POINTS.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-            <p className="text-sm leading-relaxed text-stone-700">
-              Transparente Informationen zu Versand, Rückgabe, Datenschutz,
-              Widerruf und Kontakt findest du jederzeit im Footer sowie auf den
-              entsprechenden Infoseiten unseres Shops.
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Anbieter
+          </p>
+          <div className="mt-4 space-y-2 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <p className="font-semibold text-[color:var(--smk-text)]">
+              {companyName}
             </p>
+            <p>{legalName}</p>
+            <p>{streetLine}</p>
+            <p>{cityPostalLine}</p>
+            <p>{country}</p>
+            {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
           </div>
-        </div>
-      </main>
-    </PageLayout>
+        </section>
+
+        <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Kontakt
+          </p>
+          <div className="mt-4 space-y-2 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <p>E-Mail: {contactEmail}</p>
+            {contactPhone ? <p>Telefon: {contactPhone}</p> : null}
+            <p>Website: {websiteLabel}</p>
+            <p>Support über Kontaktformular, E-Mail und Telefon.</p>
+          </div>
+        </section>
+      </div>
+
+      <section className="mt-5 smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+        <h2 className="text-xl font-semibold text-[color:var(--smk-text)]">
+          Wofür wir stehen
+        </h2>
+        <ul className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+          {ABOUT_POINTS.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+          Transparente Informationen zu Versand, Rückgabe, Datenschutz,
+          Widerruf und Kontakt findest du jederzeit im Footer sowie auf den
+          entsprechenden Infoseiten unseres Shops.
+        </p>
+      </section>
+    </InfoPageShell>
   );
 }

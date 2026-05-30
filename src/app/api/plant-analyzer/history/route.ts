@@ -6,6 +6,9 @@ import {
   getPlantAnalyzerCachedRemediationPlan,
   getPlantAnalyzerCachedSuggestions,
   getPlantAnalyzerDecisionSupport,
+  getPlantAnalyzerReviewedCase,
+  getPlantAnalyzerStoredFeedback,
+  getPlantAnalyzerStoredOutput,
 } from "@/lib/plantAnalyzerOutput";
 
 export const dynamic = "force-dynamic";
@@ -40,18 +43,36 @@ export async function GET(request: Request) {
   });
 
   const items = runs.map((run) => {
+    const output = getPlantAnalyzerStoredOutput(run.outputJson);
     const support = getPlantAnalyzerDecisionSupport(run.outputJson);
     const suggestions = getPlantAnalyzerCachedSuggestions(run.outputJson);
     const remediationPlan = getPlantAnalyzerCachedRemediationPlan(run.outputJson);
     return {
       id: run.id,
-      createdAt: run.createdAt.toISOString(),
+      imageUri: run.imageDeletedAt ? "" : run.imageUri,
       species: run.species,
       confidence: run.confidence,
+      confidenceBand: output.confidenceBand ?? "medium",
       healthStatus: toHealthStatus(run.healthStatus),
-      summary:
-        support?.summary ??
-        `${run.species}: ${run.issues[0]?.label ?? "Analyse gespeichert"}`,
+      recommendations: output.recommendations ?? [],
+      summary: support?.summary ?? `${run.species}: ${run.issues[0]?.label ?? "Analyse gespeichert"}`,
+      observedSymptoms: support?.observedSymptoms ?? [],
+      needsHumanReview: output.needsHumanReview ?? false,
+      analysisContext: output.analysisContext ?? null,
+      followUp: {
+        recommendedRecheckWindowHoursMin:
+          output.recommendedRecheckWindowHoursMin ?? null,
+        recommendedRecheckWindowHoursMax:
+          output.recommendedRecheckWindowHoursMax ?? null,
+        followUpStatus: output.followUpStatus ?? null,
+        followUpRecordedAt: output.followUpRecordedAt ?? null,
+        previousAnalysisId: output.previousAnalysisId ?? null,
+        trendSummary: output.trendSummary ?? null,
+      },
+      analyzedAt: run.createdAt.toISOString(),
+      modelVersion: run.model,
+      reviewedCase: getPlantAnalyzerReviewedCase(run.outputJson),
+      publication: null,
       issues: run.issues.map((issue) => ({
         id: issue.sourceIssueId ?? issue.id,
         label: issue.label,
@@ -61,8 +82,9 @@ export async function GET(request: Request) {
       productSuggestions: suggestions?.productSuggestions ?? [],
       guideSuggestions: suggestions?.guideSuggestions ?? [],
       remediationPlan,
+      lastFeedback: getPlantAnalyzerStoredFeedback(run.outputJson),
     };
   });
 
-  return NextResponse.json({ items });
+  return NextResponse.json({ analyses: items, items });
 }

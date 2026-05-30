@@ -1,4 +1,5 @@
-import PageLayout from "@/components/PageLayout";
+import InfoPageShell from "@/components/InfoPageShell";
+import InfoSections from "@/components/InfoSections";
 
 export const RETURN_POLICY_SECTIONS = [
   {
@@ -66,34 +67,13 @@ export const RETURN_POLICY_SECTIONS = [
 
 export default function ReturnPolicy() {
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Rückgabe & Retouren
-            </h1>
-            <p className="mt-2 text-sm text-stone-500">
-              Stand: 01.02.2026
-            </p>
-          </div>
-
-          <div className="space-y-10">
-            {RETURN_POLICY_SECTIONS.map((section) => (
-              <section key={section.title} className="space-y-3">
-                <h2 className="text-xl font-semibold text-stone-900">
-                  {section.title}
-                </h2>
-                {section.paragraphs.map((p, idx) => (
-                  <p key={idx} className="leading-relaxed text-stone-700">
-                    {p}
-                  </p>
-                ))}
-              </section>
-            ))}
-          </div>
-        </div>
-      </main>
-    </PageLayout>
+    <InfoPageShell
+      eyebrow="Retouren"
+      title="Rückgabe & Retouren"
+      description="Diese Rückgabe- und Retourenrichtlinie ergänzt das gesetzliche Widerrufsrecht und erläutert Rücksendung, Erstattung und Ausschlüsse."
+      meta="Stand: 01.02.2026"
+    >
+      <InfoSections sections={RETURN_POLICY_SECTIONS} />
+    </InfoPageShell>
   );
 }

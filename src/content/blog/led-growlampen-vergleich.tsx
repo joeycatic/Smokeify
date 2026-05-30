@@ -32,17 +32,17 @@ export default function LedGrowlampenVergleich() {
 
       <h2>Vergleichen statt raten</h2>
       <p>
-        Bei ähnlichen LEDs lohnt sich der Smokeify Produktvergleich. Lege zwei bis
-        vier Lampen in den Vergleich und prüfe Preis, Hersteller, Verfügbarkeit und
-        Rolle im Setup nebeneinander.
+        Bei ähnlichen LEDs lohnt sich ein strukturierter Blick auf Fläche,
+        Hersteller, Verfügbarkeit und Rolle im Setup. So fällt die Auswahl auch
+        ohne reine Watt-Fixierung deutlich sauberer aus.
       </p>
 
       <div className="not-prose mt-8 flex flex-wrap gap-3">
         <Link href="/licht" className="smk-button-primary rounded-full px-5 py-2.5 text-sm font-semibold">
           Licht-Kategorie öffnen
         </Link>
-        <Link href="/products/compare" className="smk-button-secondary rounded-full px-5 py-2.5 text-sm font-semibold">
-          Vergleich öffnen
+        <Link href="/customizer" className="smk-button-secondary rounded-full px-5 py-2.5 text-sm font-semibold">
+          Setup planen
         </Link>
       </div>
     </>

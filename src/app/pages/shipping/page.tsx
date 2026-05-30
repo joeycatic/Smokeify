@@ -1,4 +1,5 @@
-import PageLayout from "@/components/PageLayout";
+import InfoPageShell from "@/components/InfoPageShell";
+import InfoSections from "@/components/InfoSections";
 import {
   FREE_SHIPPING_THRESHOLD_EUR,
   SHIPPING_BASE,
@@ -69,63 +70,47 @@ export const VERSAND_ZAHLUNG_SECTIONS = [
 
 export default function ShippingPage() {
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Versand- & Zahlungsbedingungen
-            </h1>
-            <p className="mt-2 text-sm text-stone-500">
-              Stand: 01.02.2026
-            </p>
-          </div>
-
-          <div className="space-y-10">
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-stone-900">
-                Aktuelle Versandkosten
-              </h2>
-              <div className="overflow-hidden rounded-2xl border border-black/10">
-                <table className="w-full border-collapse text-left text-sm text-stone-700">
-                  <thead className="bg-stone-50 text-stone-900">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Zielland</th>
-                      <th className="px-4 py-3 font-semibold">Versandkosten</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(SHIPPING_BASE).map(([country, amount]) => (
-                      <tr key={country} className="border-t border-black/10">
-                        <td className="px-4 py-3">
-                          {
-                            SHIPPING_COUNTRY_LABELS[
-                              country as keyof typeof SHIPPING_COUNTRY_LABELS
-                            ]
-                          }
-                        </td>
-                        <td className="px-4 py-3">{amount.toFixed(2)} EUR</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-            {VERSAND_ZAHLUNG_SECTIONS.map((section) => (
-              <section key={section.title} className="space-y-3">
-                <h2 className="text-xl font-semibold text-stone-900">
-                  {section.title}
-                </h2>
-                {section.paragraphs.map((p, idx) => (
-                  <p key={idx} className="leading-relaxed text-stone-700">
-                    {p}
-                  </p>
-                ))}
-              </section>
-            ))}
-          </div>
+    <InfoPageShell
+      eyebrow="Versand"
+      title="Versand- & Zahlungsbedingungen"
+      description="Alle Informationen zu Liefergebiet, Versandkosten, Zahlungsarten und Rückerstattungen."
+      meta="Stand: 01.02.2026"
+    >
+      <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+        <h2 className="text-xl font-semibold text-[color:var(--smk-text)]">
+          Aktuelle Versandkosten
+        </h2>
+        <div className="mt-4 overflow-hidden rounded-[22px] border border-[color:var(--smk-border)]">
+          <table className="w-full border-collapse text-left text-sm text-[color:var(--smk-text-muted)]">
+            <thead className="bg-[color:var(--smk-panel)] text-[color:var(--smk-text)]">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Zielland</th>
+                <th className="px-4 py-3 font-semibold">Versandkosten</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(SHIPPING_BASE).map(([country, amount]) => (
+                <tr
+                  key={country}
+                  className="border-t border-[color:var(--smk-border)]"
+                >
+                  <td className="px-4 py-3">
+                    {
+                      SHIPPING_COUNTRY_LABELS[
+                        country as keyof typeof SHIPPING_COUNTRY_LABELS
+                      ]
+                    }
+                  </td>
+                  <td className="px-4 py-3">{amount.toFixed(2)} EUR</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </main>
-    </PageLayout>
+      </section>
+      <div className="mt-5">
+        <InfoSections sections={VERSAND_ZAHLUNG_SECTIONS} />
+      </div>
+    </InfoPageShell>
   );
 }

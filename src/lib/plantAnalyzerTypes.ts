@@ -48,6 +48,34 @@ export type PlantAnalyzerAnalysisContext = {
   tentOrRoomSize?: string;
 };
 
+export type PlantAnalyzerUserNotes = {
+  visualNotes?: string;
+  growContextNotes?: string;
+};
+
+export type PlantAnalyzerConsideredInputKey =
+  | keyof PlantAnalyzerAnalysisContext
+  | keyof PlantAnalyzerUserNotes;
+
+export type PlantAnalyzerConsideredInputStage = "visual" | "reasoning";
+
+export type PlantAnalyzerConsideredInput = {
+  key: PlantAnalyzerConsideredInputKey;
+  stage: PlantAnalyzerConsideredInputStage;
+  value: string;
+};
+
+export type PlantAnalyzerInfluenceNoteCode =
+  | "visual_notes_image_only"
+  | "grow_notes_reasoning_only"
+  | "context_changes_reasoning_only"
+  | "context_guides_environment_checks";
+
+export type PlantAnalyzerInfluenceNote = {
+  code: PlantAnalyzerInfluenceNoteCode;
+  sources: PlantAnalyzerConsideredInputKey[];
+};
+
 export type PlantAnalyzerPossibleCause = {
   label: string;
   confidence: number;
@@ -158,7 +186,10 @@ export type PlantAnalyzerStoredOutput = {
   needsHumanReview?: boolean;
   uncertaintyNote?: string;
   analysisContext?: PlantAnalyzerAnalysisContext;
+  inputNotes?: PlantAnalyzerUserNotes;
   contextUsed?: boolean;
+  consideredInputs?: PlantAnalyzerConsideredInput[];
+  influenceNotes?: PlantAnalyzerInfluenceNote[];
   promptVersion?: string;
   reasoningVersion?: string;
   recommendedRecheckWindowHoursMin?: number;
