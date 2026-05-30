@@ -24,6 +24,7 @@ type Props = {
   titleLines?: 2 | 3;
   showGrowboxSize?: boolean;
   hideCartLabel?: boolean;
+  eagerFirstImages?: boolean;
 };
 
 const getProductLowStockState = (product: Product) => {
@@ -64,6 +65,7 @@ export default function DisplayProducts({
   titleLines = 2,
   showGrowboxSize = false,
   hideCartLabel = false,
+  eagerFirstImages = false,
 }: Props) {
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const gridColsClass =
@@ -87,9 +89,9 @@ export default function DisplayProducts({
           <article
             key={p.id}
             className="
-                      group flex h-full w-full flex-col rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))]
+                      smk-motion-card smk-highlight-ring group flex h-full w-full flex-col rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))]
                       [content-visibility:auto] [contain-intrinsic-size:420px]
-                      transition overflow-hidden hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]
+                      overflow-hidden hover:border-[var(--smk-border-strong)] hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]
                   "
           >
               {/* Image */}
@@ -108,6 +110,7 @@ export default function DisplayProducts({
                   alt={[p.manufacturer, p.title].filter(Boolean).join(" ")}
                   className="aspect-[9/8] overflow-hidden rounded-t-[28px] bg-white sm:aspect-square"
                   imageClassName="h-full w-full object-contain transition duration-300 group-hover:scale-105"
+                  priority={eagerFirstImages && index < Math.min(cols, 4)}
                 />
                 <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
                   {p.compareAtPrice && (
@@ -144,7 +147,7 @@ export default function DisplayProducts({
                     e.stopPropagation();
                     setQuickViewProduct(p);
                   }}
-                  className="absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 translate-y-1 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(15,15,14,0.92)] px-3.5 py-1.5 text-xs font-semibold text-[var(--smk-text)] opacity-0 shadow-md transition-all duration-150 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(27,23,20,0.96)] group-hover:translate-y-0 group-hover:opacity-100"
+                  className="absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 translate-y-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(15,15,14,0.92)] px-3.5 py-1.5 text-xs font-semibold text-[var(--smk-text)] opacity-100 shadow-md transition-all duration-150 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(27,23,20,0.96)] sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100"
                   aria-label={`Schnellansicht: ${p.title}`}
                 >
                   <EyeIcon className="h-3.5 w-3.5" />
@@ -288,7 +291,7 @@ export function DisplayProductsList({
         return (
           <article
             key={p.id}
-            className="flex flex-col gap-4 rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-[var(--smk-text)] sm:flex-row [content-visibility:auto] [contain-intrinsic-size:320px]"
+            className="smk-motion-card smk-highlight-ring flex flex-col gap-4 rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-[var(--smk-text)] sm:flex-row [content-visibility:auto] [contain-intrinsic-size:320px]"
           >
             <Link
               href={`/products/${p.handle}`}
@@ -316,7 +319,7 @@ export function DisplayProductsList({
                     )}
                     {p.availableForSale && showLowStock && (
                       <span className="rounded-full bg-[var(--smk-warning)]/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a140f] shadow">
-                        Low stock
+                        Geringer Bestand
                       </span>
                     )}
                   </div>
@@ -436,11 +439,13 @@ function ProductImageCarousel({
   alt,
   className,
   imageClassName,
+  priority = false,
 }: {
   images: Array<{ url: string; altText?: string | null }>;
   alt: string;
   className?: string;
   imageClassName?: string;
+  priority?: boolean;
 }) {
   const current = images[0];
   if (!current) return null;
@@ -452,6 +457,7 @@ function ProductImageCarousel({
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
           quality={70}
+          priority={priority}
           className={`absolute inset-0 ${imageClassName ?? ""}`}
         />
       </div>

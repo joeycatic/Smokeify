@@ -519,7 +519,7 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
             onClick={resetFilters}
             className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
           >
-            Clear all
+            Alle Filter löschen
           </button>
         </div>
       )}
@@ -533,6 +533,7 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
+            eagerFirstImages
           />
         ) : (
           <DisplayProductsList

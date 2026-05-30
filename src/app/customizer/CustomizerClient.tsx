@@ -162,9 +162,10 @@ function OptionCard({
       type="button"
       disabled={disabled}
       onClick={onSelect}
-      className={`group flex h-full flex-col overflow-hidden rounded-[26px] border text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 ${
+      aria-pressed={selected}
+      className={`smk-motion-card smk-highlight-ring group flex h-full flex-col overflow-hidden rounded-[26px] border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 ${
         selected
-          ? "border-[var(--smk-accent)] bg-[rgba(241,198,132,0.14)]"
+          ? "smk-selected-pulse border-[var(--smk-accent)] bg-[rgba(241,198,132,0.14)]"
           : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)]"
       }`}
     >
@@ -216,6 +217,11 @@ function OptionCard({
             {option.outOfStock ? "Ausverkauft" : option.lowStock ? "Knapp" : "Verfügbar"}
           </span>
         </div>
+        {selected ? (
+          <span className="mt-3 inline-flex w-fit rounded-full border border-[rgba(233,188,116,0.26)] bg-[rgba(233,188,116,0.12)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--smk-accent-2)]">
+            Ausgewählt
+          </span>
+        ) : null}
       </div>
     </button>
   );
@@ -526,7 +532,7 @@ export default function CustomizerClient() {
               </p>
               <div className="mt-5 h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.08)]">
                 <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#f1c684_0%,#d97745_100%)] transition-all"
+                  className="smk-progress-sheen h-full rounded-full bg-[linear-gradient(90deg,#f1c684_0%,#d97745_100%)] transition-all"
                   style={{ width: `${((stepIndex + 1) / STEP_ORDER.length) * 100}%` }}
                 />
               </div>
@@ -547,7 +553,7 @@ export default function CustomizerClient() {
                     selectedOptions.map((option) => (
                       <div
                         key={option.id}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs"
+                        className="smk-entrance flex items-center justify-between gap-3 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs"
                       >
                         <span className="line-clamp-1 text-[var(--smk-text-muted)]">
                           {option.label}

@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import CommerceProviders from "@/components/CommerceProviders";
-import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { SessionProvider } from "next-auth/react";
 
 const CookieConsent = dynamic(() => import("@/components/CookieConsent"), {
@@ -14,6 +13,10 @@ const GTMTag = dynamic(() => import("@/components/GTMTag"), {
 });
 const AnalyticsSessionTracker = dynamic(
   () => import("@/components/AnalyticsSessionTracker"),
+  { ssr: false },
+);
+const WebVitalsReporter = dynamic(
+  () => import("@/components/WebVitalsReporter"),
   { ssr: false },
 );
 export default function Providers({

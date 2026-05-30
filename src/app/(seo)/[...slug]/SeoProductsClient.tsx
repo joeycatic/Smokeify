@@ -478,7 +478,7 @@ export default function SeoProductsClient({
             onClick={resetFilters}
             className="text-xs font-semibold text-stone-600 hover:text-stone-800"
           >
-            Clear all
+            Alle Filter löschen
           </button>
         </div>
       )}
@@ -492,6 +492,7 @@ export default function SeoProductsClient({
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
+            eagerFirstImages
           />
         ) : (
           <DisplayProductsList

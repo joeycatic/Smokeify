@@ -154,7 +154,7 @@ export default async function StorePage({
           </Suspense>
 
           <div className="space-y-8 sm:space-y-10">
-            <section className="relative overflow-hidden rounded-[36px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(23,20,18,0.98)_0%,rgba(38,30,26,0.98)_38%,rgba(15,15,14,0.99)_100%)] px-5 pb-6 pt-6 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:px-8 sm:pb-8 sm:pt-8 lg:px-10 lg:pb-10 lg:pt-10">
+            <section className="smk-entrance relative overflow-hidden rounded-[36px] border border-[var(--smk-border)] bg-[linear-gradient(135deg,rgba(23,20,18,0.98)_0%,rgba(38,30,26,0.98)_38%,rgba(15,15,14,0.99)_100%)] px-5 pb-6 pt-6 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:px-8 sm:pb-8 sm:pt-8 lg:px-10 lg:pb-10 lg:pt-10">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_16%,rgba(218,176,106,0.24),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(109,89,68,0.26),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_40%)]" />
               <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-[rgba(207,167,96,0.16)] blur-3xl sm:h-52 sm:w-52" />
               <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[rgba(94,75,57,0.24)] blur-3xl sm:h-60 sm:w-60" />
@@ -165,7 +165,7 @@ export default async function StorePage({
                     <SparklesIcon className="h-4 w-4" />
                     Für Indoor-Setups mit Plan
                   </span>
-                  <div className="space-y-3">
+                  <div className="smk-entrance smk-entrance-delay-1 space-y-3">
                     <h1 className="smk-heading max-w-[12ch] text-[3.2rem] leading-[0.88] tracking-[-0.065em] text-[var(--smk-text)] sm:text-[4.4rem] lg:text-[5.4rem]">
                       Dein Smokeify-Setup.
                       <br />
@@ -180,7 +180,7 @@ export default async function StorePage({
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <div className="smk-entrance smk-entrance-delay-2 flex flex-wrap items-center gap-3 pt-1">
                     <Link
                       href={SMOKEIFY_ROUTES.customizer}
                       className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
@@ -218,7 +218,7 @@ export default async function StorePage({
                   />
                 </div>
 
-                <div className="self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
+                <div className="hero-swipe self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
                   <div className="flex flex-col gap-4 border-b border-[var(--smk-border)]/80 pb-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="smk-kicker text-[var(--smk-accent)]">
@@ -260,7 +260,7 @@ export default async function StorePage({
                       <Link
                         key={featuredHeroProduct.id}
                         href={`/products/${featuredHeroProduct.handle}`}
-                        className="group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(233,188,116,0.14)] bg-[rgba(255,255,255,0.03)] p-4 transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] sm:p-5"
+                      className="smk-motion-card smk-highlight-ring group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(233,188,116,0.14)] bg-[rgba(255,255,255,0.03)] p-4 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] sm:p-5"
                       >
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_32%)] opacity-90" />
                         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -362,7 +362,7 @@ export default async function StorePage({
                     icon: WrenchScrewdriverIcon,
                   },
                 ].map((item) => (
-                  <div key={item.title} className="smk-surface rounded-[24px] p-4">
+                  <div key={item.title} className="smk-motion-card smk-highlight-ring smk-surface rounded-[24px] p-4">
                     <item.icon className="h-5 w-5 text-[var(--smk-accent)]" />
                     <p className="mt-3 text-sm font-semibold text-[var(--smk-text)]">
                       {item.title}
@@ -407,7 +407,7 @@ export default async function StorePage({
                   <Link
                     key={brand.href}
                     href={brand.href}
-                    className="group relative flex min-h-[180px] overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)]"
+                    className="smk-motion-card smk-highlight-ring group relative flex min-h-[180px] overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] hover:border-[var(--smk-border-strong)]"
                   >
                     <div
                       className={`absolute inset-0 bg-gradient-to-br ${brand.glow}`}

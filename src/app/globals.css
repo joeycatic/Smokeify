@@ -538,10 +538,131 @@ textarea {
   }
 }
 
+.smk-entrance {
+  animation: smk-entrance 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.smk-entrance-delay-1 {
+  animation-delay: 80ms;
+}
+
+.smk-entrance-delay-2 {
+  animation-delay: 160ms;
+}
+
+.smk-entrance-delay-3 {
+  animation-delay: 240ms;
+}
+
+@keyframes smk-entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.smk-motion-card {
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.smk-motion-card:hover {
+  transform: translateY(-4px);
+}
+
+.smk-highlight-ring {
+  position: relative;
+  overflow: hidden;
+}
+
+.smk-highlight-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(233, 188, 116, 0);
+  box-shadow: inset 0 0 0 1px rgba(233, 188, 116, 0);
+  pointer-events: none;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.smk-highlight-ring:hover::after {
+  border-color: rgba(233, 188, 116, 0.26);
+  box-shadow: inset 0 0 40px rgba(233, 188, 116, 0.06);
+}
+
+.smk-selected-pulse {
+  animation: smk-selected-pulse 900ms ease-out both;
+}
+
+@keyframes smk-selected-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(233, 188, 116, 0.22);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(233, 188, 116, 0);
+  }
+}
+
+.smk-progress-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.smk-progress-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+  animation: smk-progress-sheen 1.9s ease-in-out infinite;
+  transform: translateX(-120%);
+}
+
+@keyframes smk-progress-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  55%,
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.smk-checkout-focus {
+  box-shadow:
+    0 0 0 1px rgba(233, 188, 116, 0.14),
+    0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-swipe,
-  .hero-progress {
+  .hero-progress,
+  .smk-entrance,
+  .smk-entrance-delay-1,
+  .smk-entrance-delay-2,
+  .smk-entrance-delay-3,
+  .smk-selected-pulse,
+  .smk-progress-sheen::after {
     animation: none;
+  }
+
+  .smk-motion-card,
+  .smk-highlight-ring::after {
+    transition: none;
+  }
+
+  .smk-motion-card:hover {
+    transform: none;
   }
 }
 

@@ -115,7 +115,7 @@ export default function NavbarMobileCategoriesSheet({
             <div className="space-y-3">
               {categoriesStatus === "loading" && (
                 <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-[var(--smk-text-muted)]">
-                  Laedt Kategorien...
+                  Lädt Kategorien...
                 </div>
               )}
               {categoriesStatus === "error" && (

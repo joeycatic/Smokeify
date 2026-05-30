@@ -593,7 +593,7 @@ export default function ProductsClient({
             onClick={resetFilters}
             className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
           >
-            Clear all
+            Alle Filter löschen
           </button>
         </div>
       )}
@@ -607,6 +607,7 @@ export default function ProductsClient({
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
+            eagerFirstImages
           />
         ) : (
           <DisplayProductsList

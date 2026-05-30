@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
+  CheckCircleIcon,
+  LockClosedIcon,
   SparklesIcon,
   TrashIcon,
   TruckIcon,
@@ -773,6 +775,16 @@ export default function CartPage() {
                 Bestellverlauf, Punkte und schnellere Reorders.
               </p>
             ) : null}
+            <div className="smk-checkout-focus grid gap-2 rounded-[22px] border border-[rgba(233,188,116,0.16)] bg-[rgba(233,188,116,0.07)] px-3 py-3 text-xs text-[var(--smk-text-muted)]">
+              <div className="flex items-center gap-2">
+                <LockClosedIcon className="h-4 w-4 text-[var(--smk-accent-2)]" />
+                <span>Checkout prüft Preis, Bestand und Rabatte serverseitig.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircleIcon className="h-4 w-4 text-[var(--smk-success)]" />
+                <span>Warenkorb wird beim Weitergehen erneut synchronisiert.</span>
+              </div>
+            </div>
             <button
               type="button"
               onClick={startCheckout}
