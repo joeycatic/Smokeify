@@ -1,17 +1,14 @@
-import PageLayout from "@/components/PageLayout";
+import { businessDetails } from "@/lib/businessDetails";
 import ContactPageClient from "./ContactPageClient";
 
 export default function ContactPage() {
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "contact@smokeify.de";
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "";
+  const { contactEmail, contactPhone, legalName } = businessDetails;
 
   return (
-    <PageLayout commerce={false}>
-      <ContactPageClient
-        contactEmail={contactEmail}
-        contactPhone={contactPhone}
-      />
-    </PageLayout>
+    <ContactPageClient
+      contactEmail={contactEmail}
+      contactPhone={contactPhone ?? ""}
+      legalBusinessName={legalName}
+    />
   );
 }

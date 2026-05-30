@@ -22,7 +22,7 @@ export default function DeleteAccountButton() {
           setModalOpen(true);
         }}
         disabled={status === "loading"}
-        className="inline-flex h-11 w-full items-center justify-center rounded-md border border-red-200 bg-red-50 px-5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:opacity-90 disabled:opacity-60 sm:h-12 sm:w-auto sm:text-base"
+        className="inline-flex h-12 w-full items-center justify-center rounded-full border border-[rgba(239,143,127,0.28)] bg-[rgba(62,26,24,0.82)] px-5 text-sm font-semibold text-[#ef8f7f] transition hover:-translate-y-0.5 hover:bg-[rgba(76,32,29,0.9)] disabled:opacity-60 sm:w-auto"
       >
         {status === "loading" ? (
           <span className="inline-flex items-center gap-2">
@@ -35,31 +35,31 @@ export default function DeleteAccountButton() {
       </button>
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-4 text-sm text-stone-800 shadow-xl sm:p-5">
-            <h3 className="text-base font-semibold text-stone-900">
+          <div className="smk-panel w-full max-w-sm rounded-[28px] p-4 text-sm text-[var(--smk-text)] shadow-xl sm:p-5">
+            <h3 className="text-base font-semibold text-[var(--smk-text)]">
               Account löschen
             </h3>
-            <p className="mt-2 text-xs text-stone-600">
+            <p className="mt-2 text-xs text-[var(--smk-text-muted)]">
               Tippe{" "}
-              <span className="font-semibold text-red-600">Bestätigen</span>{" "}
+              <span className="font-semibold text-[#ef8f7f]">Bestätigen</span>{" "}
               ein, um den Account endgültig zu löschen.
             </p>
             <input
               type="text"
               value={confirmText}
               onChange={(event) => setConfirmText(event.target.value)}
-              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className="smk-input mt-3 w-full rounded-[18px] px-3 py-2.5 text-sm outline-none"
               placeholder="Bestätigen"
             />
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className="smk-input mt-3 w-full rounded-[18px] px-3 py-2.5 text-sm outline-none"
               placeholder="Passwort"
             />
             {modalError && (
-              <p className="mt-2 text-xs text-red-600">{modalError}</p>
+              <p className="mt-2 text-xs text-[#ef8f7f]">{modalError}</p>
             )}
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
@@ -68,7 +68,7 @@ export default function DeleteAccountButton() {
                   setModalOpen(false);
                   setModalError("");
                 }}
-                className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30"
+                className="smk-button-secondary rounded-full px-3 py-2 text-xs font-semibold"
               >
                 Abbrechen
               </button>
@@ -102,7 +102,7 @@ export default function DeleteAccountButton() {
                   }
                 }}
                 disabled={status === "loading"}
-                className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                className="rounded-full bg-[#8d3a32] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#a2443a] disabled:opacity-60"
               >
                 {status === "loading" ? (
                   <span className="inline-flex items-center gap-2">

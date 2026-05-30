@@ -13,9 +13,11 @@ import FilterDrawer from "@/components/FilterDrawer";
 import { useSearchParams } from "next/navigation";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import type { ProductsQueryResult, SortMode } from "@/lib/productsQuery";
+import type { ProductsUrlState } from "@/lib/productsUrlState";
 
 type Props = {
   initialData: ProductsQueryResult;
+  initialUrlState?: ProductsUrlState;
 };
 
 const PAGE_SIZE = 24;
@@ -26,21 +28,45 @@ const parseCsv = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-export default function ProductsPageClient({ initialData }: Props) {
+export default function ProductsPageClient({ initialData, initialUrlState }: Props) {
   const searchParams = useSearchParams();
-  const categoryParam = searchParams?.get("category") ?? "";
-  const manufacturerParam = searchParams?.get("manufacturer") ?? "";
+  const categoryParam = searchParams?.get("category") ?? initialUrlState?.category ?? "";
+  const categoriesParam =
+    searchParams?.get("categories") ?? initialUrlState?.categories.join(",") ?? "";
+  const manufacturerParam =
+    searchParams?.get("manufacturer") ?? initialUrlState?.manufacturer ?? "";
+  const manufacturersParam =
+    searchParams?.get("manufacturers") ??
+    initialUrlState?.manufacturers.join(",") ??
+    "";
 
-  const [layout, setLayout] = useState<"grid" | "list">("grid");
-  const [sortBy, setSortBy] = useState<SortMode>("featured");
+  const [layout, setLayout] = useState<"grid" | "list">(
+    initialUrlState?.view ?? "grid",
+  );
+  const [sortBy, setSortBy] = useState<SortMode>(
+    initialUrlState?.sortBy ?? "featured",
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   const [filters, setFilters] = useState<ProductFilters>({
-    categories: categoryParam ? [categoryParam] : [],
-    manufacturers: manufacturerParam ? parseCsv(manufacturerParam) : [],
-    priceMin: initialData.priceMinBound,
-    priceMax: initialData.priceMaxBound,
-    searchQuery: "",
+    categories:
+      initialUrlState?.categories.length
+        ? [
+            ...(initialUrlState.category ? [initialUrlState.category] : []),
+            ...initialUrlState.categories,
+          ]
+        : categoryParam
+          ? [categoryParam]
+          : [],
+    manufacturers:
+      initialUrlState?.manufacturers.length
+        ? initialUrlState.manufacturers
+        : manufacturerParam
+          ? parseCsv(manufacturerParam)
+          : [],
+    priceMin: initialUrlState?.priceMin ?? initialData.priceMinBound,
+    priceMax: initialUrlState?.priceMax ?? initialData.priceMaxBound,
+    searchQuery: initialUrlState?.searchQuery ?? "",
   });
 
   const [products, setProducts] = useState<Product[]>(initialData.products);
@@ -69,8 +95,11 @@ export default function ProductsPageClient({ initialData }: Props) {
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
     const apply = () => {
-      setIsMobile(media.matches);
-      setLayout("grid");
+      const mobile = media.matches;
+      setIsMobile(mobile);
+      if (mobile) {
+        setLayout("grid");
+      }
     };
     apply();
     media.addEventListener("change", apply);
@@ -80,16 +109,18 @@ export default function ProductsPageClient({ initialData }: Props) {
   useEffect(() => {
     setFilters((prev) => ({
       ...prev,
-      categories: categoryParam ? [categoryParam] : [],
+      categories: categoryParam ? [categoryParam] : parseCsv(categoriesParam),
     }));
-  }, [categoryParam]);
+  }, [categoriesParam, categoryParam]);
 
   useEffect(() => {
     setFilters((prev) => ({
       ...prev,
-      manufacturers: manufacturerParam ? parseCsv(manufacturerParam) : [],
+      manufacturers: manufacturerParam
+        ? parseCsv(manufacturerParam)
+        : parseCsv(manufacturersParam),
     }));
-  }, [manufacturerParam]);
+  }, [manufacturerParam, manufacturersParam]);
 
   const listName = useMemo(() => {
     const searchTerm = filters.searchQuery?.trim();
@@ -246,7 +277,7 @@ export default function ProductsPageClient({ initialData }: Props) {
         kicker: "Hersteller",
         title: activeManufacturers.join(", "),
         description:
-          "Markenfokussierte Auswahl mit denselben Filtern, Vergleichen und Produktkarten wie im restlichen Store.",
+          "Markenfokussierte Auswahl mit denselben Filtern und Produktkarten wie im restlichen Store.",
       };
     }
 

@@ -13,17 +13,17 @@ type Props = {
 };
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine E-Mail, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
-    "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
-  CredentialsSignin: "Email oder Passwort ist falsch.",
-  AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+    "Neues Gerät erkannt. Code wurde per E-Mail gesendet. Bitte bestätigen.",
+  CredentialsSignin: "E-Mail oder Passwort ist falsch.",
+  AccessDenied: "Zugriff verweigert. Bitte prüfe deine Berechtigung.",
 };
 
 const getLoginErrorMessage = (code?: string) => {
   if (!code) {
-    return "Login fehlgeschlagen. Bitte pruefe deine Daten.";
+    return "Login fehlgeschlagen. Bitte prüfe deine Daten.";
   }
   return (
     LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
@@ -146,7 +146,7 @@ export default function NavbarAccountPanel({
             } catch {
               setLoginStatus("error");
               setLoginMessage(
-                "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut.",
+                "Login fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.",
               );
             } finally {
               setLoginLoading(false);
@@ -158,8 +158,8 @@ export default function NavbarAccountPanel({
             name="email"
             type="text"
             required
-            aria-label="Email oder Username"
-            placeholder="Email oder Username"
+            aria-label="E-Mail oder Benutzername"
+            placeholder="E-Mail oder Benutzername"
             className="smk-input w-full rounded-2xl px-3 py-2 text-sm focus-visible:ring-offset-black"
           />
           <input

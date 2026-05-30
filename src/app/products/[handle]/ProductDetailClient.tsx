@@ -722,7 +722,6 @@ export default function ProductDetailClient({
               Selber konfigurieren
             </button>
           ) : null}
-
           <div className="mt-2">
             {selectedVariant?.availableForSale ? (
               <div className="space-y-1">
@@ -966,13 +965,15 @@ export default function ProductDetailClient({
             logoClassName="h-5"
           />
           <span className="inline-flex h-8 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element -- small local shipping badge does not benefit from Next image runtime overhead */}
+            <img
               src="/shipping-provider-logos/dhl-logo.png"
               alt="DHL"
               className="h-5 w-auto object-contain"
               width={60}
               height={20}
-              sizes="60px"
+              loading="lazy"
+              decoding="async"
             />
           </span>
         </div>

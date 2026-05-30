@@ -1,9 +1,5 @@
-// Widerruf.tsx
-// React / Next.js – ready to paste
-// Hinweis: Bitte deine Firmendaten + Rücksendeadresse einsetzen.
-
-import PageLayout from "@/components/PageLayout";
-import React from "react";
+import InfoPageShell from "@/components/InfoPageShell";
+import InfoSections from "@/components/InfoSections";
 
 export const WIDERRUF_SECTIONS = [
   {
@@ -68,14 +64,16 @@ export const WIDERRUF_SECTIONS = [
 
 export function MusterWiderrufsformular() {
   return (
-    <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6">
-      <h2 className="text-xl font-semibold">Muster-Widerrufsformular</h2>
-      <p className="mt-2 text-neutral-700 leading-relaxed">
+    <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+      <h2 className="text-xl font-semibold text-[color:var(--smk-text)]">
+        Muster-Widerrufsformular
+      </h2>
+      <p className="mt-2 leading-relaxed text-[color:var(--smk-text-muted)]">
         (Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses
         Formular aus und senden Sie es zurück.)
       </p>
 
-      <div className="mt-4 space-y-2 text-neutral-800 leading-relaxed">
+      <div className="mt-4 space-y-2 text-sm leading-7 text-[color:var(--smk-text-muted)]">
         <p>An:</p>
         <p>
           Smokeify
@@ -104,48 +102,26 @@ export function MusterWiderrufsformular() {
           Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier):
         </p>
         <p>Datum:</p>
-        <p className="text-sm text-neutral-500">
+        <p className="text-xs text-[color:var(--smk-text-dim)]">
           (*) Unzutreffendes streichen.
         </p>
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function Widerruf() {
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Widerruf
-            </h1>
-            <p className="mt-2 text-sm text-stone-500">
-              Stand: 01.02.2026
-            </p>
-          </div>
-
-          <div className="space-y-10">
-            {WIDERRUF_SECTIONS.map((section) => (
-              <section key={section.title} className="space-y-3">
-                <h2 className="text-xl font-semibold text-stone-900">
-                  {section.title}
-                </h2>
-                {section.paragraphs.map((p, idx) => (
-                  <p key={idx} className="leading-relaxed text-stone-700">
-                    {p}
-                  </p>
-                ))}
-              </section>
-            ))}
-          </div>
-
-          <div className="mt-10">
-            <MusterWiderrufsformular />
-          </div>
-        </div>
-      </main>
-    </PageLayout>
+    <InfoPageShell
+      eyebrow="Widerruf"
+      title="Widerruf"
+      description="Hier findest du alle Informationen zum gesetzlichen Widerrufsrecht, zur Rücksendung und zum Muster-Widerrufsformular."
+      meta="Stand: 01.02.2026"
+    >
+      <InfoSections sections={WIDERRUF_SECTIONS} />
+      <div className="mt-5">
+        <MusterWiderrufsformular />
+      </div>
+    </InfoPageShell>
   );
 }

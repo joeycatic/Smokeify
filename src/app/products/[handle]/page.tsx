@@ -8,9 +8,6 @@ import ProductDetailClient from "./ProductDetailClient";
 import ProductImageCarousel from "./ProductImageCarousel";
 import RecommendedProductsCarousel from "./RecommendedProductsCarousel";
 import ProductReviews from "./ProductReviews";
-import FrequentlyBoughtTogether, {
-  type FBTProduct,
-} from "./FrequentlyBoughtTogether";
 import PageLayout from "@/components/PageLayout";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { measureServerExecution } from "@/lib/perf";
@@ -195,24 +192,7 @@ export default async function ProductDetailPage({
   const recommendedProducts = productPageData.recommendedProducts;
   const groupProducts = productPageData.groupProducts;
   const reviewSummary = productPageData.reviewSummary;
-  const recommendationResults = productPageData.recommendationResult?.recommendations ?? [];
-  const fbtProducts: FBTProduct[] = recommendationResults
-    .filter((item) => item.availableForSale && item.variantId)
-    .slice(0, 3)
-    .map((item) => {
-    return {
-      id: item.id,
-      title: item.title,
-      handle: item.handle,
-      variantId: item.variantId,
-      imageUrl: item.imageUrl,
-      price: item.price,
-      availableForSale: item.availableForSale,
-    };
-  });
-  const recommendedCarouselItems = recommendedProducts.filter(
-    (item) => !fbtProducts.some((fbtItem) => fbtItem.id === item.id),
-  );
+  const recommendedCarouselItems = recommendedProducts;
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
@@ -284,8 +264,6 @@ export default async function ProductDetailPage({
     ],
   };
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
-  const currentVariant =
-    product.variants.find((variant) => variant.availableForSale) ?? product.variants[0] ?? null;
   return (
     <PageLayout commerce>
       <main className="smk-storefront-legacy smk-pdp-scope mx-auto w-full max-w-7xl px-0 py-6 sm:px-2">
@@ -345,17 +323,6 @@ export default async function ProductDetailPage({
             />
           </div>
         </div>
-
-        <FrequentlyBoughtTogether
-          currentProduct={{
-            title: product.title,
-            imageUrl: primaryImage?.url ?? null,
-            variantId: currentVariant?.id ?? null,
-            price: currentVariant?.price ?? null,
-            availableForSale: currentVariant?.availableForSale ?? false,
-          }}
-          items={fbtProducts}
-        />
 
         {recommendedCarouselItems.length > 0 && (
           <RecommendedProductsCarousel items={recommendedCarouselItems} />

@@ -1,17 +1,47 @@
-import Image from "next/image";
-
 type PaymentMethodLogo = {
   id: string;
   label: string;
   src: string;
+  width: number;
+  height: number;
 };
 
 const PAYMENT_METHODS_BY_ID: Record<string, PaymentMethodLogo> = {
-  card: { id: "card", label: "Kreditkarte", src: "/payment-logos/creditcard@2x.png" },
-  apple_pay: { id: "apple_pay", label: "Apple Pay", src: "/payment-logos/applepay@2x.png" },
-  google_pay: { id: "google_pay", label: "Google Pay", src: "/payment-logos/google-pay-mark.png" },
-  klarna: { id: "klarna", label: "Klarna", src: "/payment-logos/klarnaOne@2x.png" },
-  paypal: { id: "paypal", label: "PayPal", src: "/payment-logos/paypal@2x.png" },
+  card: {
+    id: "card",
+    label: "Kreditkarte",
+    src: "/payment-logos/creditcard@2x.png",
+    width: 64,
+    height: 48,
+  },
+  apple_pay: {
+    id: "apple_pay",
+    label: "Apple Pay",
+    src: "/payment-logos/applepay@2x.png",
+    width: 64,
+    height: 48,
+  },
+  google_pay: {
+    id: "google_pay",
+    label: "Google Pay",
+    src: "/payment-logos/google-pay-mark.png",
+    width: 752,
+    height: 400,
+  },
+  klarna: {
+    id: "klarna",
+    label: "Klarna",
+    src: "/payment-logos/klarnaOne@2x.png",
+    width: 64,
+    height: 48,
+  },
+  paypal: {
+    id: "paypal",
+    label: "PayPal",
+    src: "/payment-logos/paypal@2x.png",
+    width: 64,
+    height: 48,
+  },
 };
 
 const DEFAULT_METHOD_IDS = ["card", "apple_pay", "google_pay"];
@@ -56,15 +86,15 @@ export default function PaymentMethodLogos({
             key={method.id}
             className={`inline-flex h-8 items-center rounded-full border border-white/15 bg-white/5 px-3 ${pillClassName}`}
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element -- small local payment badges are repeated widely and don't benefit from Next image runtime overhead */}
+            <img
               src={method.src}
               alt={method.label}
-              width={56}
-              height={20}
+              width={method.width}
+              height={method.height}
               className={`h-5 w-auto object-contain ${logoClassName}`}
-              style={{ width: "auto" }}
               loading="lazy"
-              quality={70}
+              decoding="async"
             />
           </span>
         ))}

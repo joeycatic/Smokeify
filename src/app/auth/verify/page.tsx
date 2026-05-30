@@ -38,7 +38,7 @@ export default function VerifyPage() {
               Verifizierung
             </h1>
             <p className="text-sm text-stone-600 mb-6">
-              Gib den 6-stelligen Code aus der Email ein.
+              Gib den 6-stelligen Code aus der E-Mail ein.
             </p>
           </div>
 
@@ -61,7 +61,7 @@ export default function VerifyPage() {
                     return;
                   }
                   const data = (await res.json()) as { error?: string };
-                  setError(data.error ?? "Code ungueltig.");
+                  setError(data.error ?? "Code ungültig.");
                   return;
                 }
                 const storedEmail =
@@ -84,7 +84,7 @@ export default function VerifyPage() {
                 }
 
                 setError(
-                  "Code bestaetigt, aber automatischer Login fehlgeschlagen. Bitte manuell einloggen."
+                  "Code bestätigt, aber automatischer Login fehlgeschlagen. Bitte manuell einloggen."
                 );
               } finally {
                 setLoading(false);
@@ -93,7 +93,7 @@ export default function VerifyPage() {
             className="space-y-3"
           >
             <label className="block text-xs font-semibold text-stone-600">
-              Email oder Username *
+              E-Mail oder Benutzername *
             </label>
             <input
               type="text"
@@ -167,12 +167,12 @@ export default function VerifyPage() {
             )}
             {resendStatus === "limited" && (
               <p className="text-xs text-red-600">
-                Zu viele Versuche. Bitte spaeter erneut versuchen.
+                Zu viele Versuche. Bitte später erneut versuchen.
               </p>
             )}
             {resendStatus === "error" && (
               <p className="text-xs text-red-600">
-                Senden fehlgeschlagen. Bitte spaeter erneut versuchen.
+                Senden fehlgeschlagen. Bitte später erneut versuchen.
               </p>
             )}
             <button
@@ -197,7 +197,7 @@ export default function VerifyPage() {
               disabled={resendStatus === "sending"}
               onClick={async () => {
                 if (!identifier) {
-                  setError("Bitte Email oder Username eingeben.");
+                  setError("Bitte E-Mail oder Benutzernamen eingeben.");
                   return;
                 }
                 setResendStatus("sending");

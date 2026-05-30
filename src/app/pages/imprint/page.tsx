@@ -1,4 +1,4 @@
-import PageLayout from "@/components/PageLayout";
+import InfoPageShell from "@/components/InfoPageShell";
 import { businessDetails } from "@/lib/businessDetails";
 
 export default function ImprintPage() {
@@ -16,75 +16,77 @@ export default function ImprintPage() {
   } = businessDetails;
 
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Impressum
-            </h1>
+    <InfoPageShell
+      eyebrow="Impressum"
+      title="Impressum"
+      description="Angaben zum rechtlichen Anbieter, zu Kontaktmöglichkeiten und zur Verantwortlichkeit für diese Website."
+    >
+      <div className="grid gap-5 md:grid-cols-2">
+        <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Anbieter
+          </p>
+          <div className="mt-4 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <p className="font-semibold text-[color:var(--smk-text)]">
+              {companyName}
+            </p>
+            <p>{legalName}</p>
+            <p>{streetLine}</p>
+            <p>{cityPostalLine}</p>
+            <p>{country}</p>
           </div>
+        </section>
 
-          <div className="space-y-8">
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-stone-900">Anbieter</h2>
-              <div className="text-sm text-stone-700 leading-relaxed">
-                <p className="font-semibold text-stone-900">{companyName}</p>
-                <p>{legalName}</p>
-                <p>{streetLine}</p>
-                <p>{cityPostalLine}</p>
-                <p>{country}</p>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-stone-900">Kontakt</h2>
-              <div className="text-sm text-stone-700 leading-relaxed">
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="block font-semibold text-emerald-700 hover:text-emerald-800"
-                >
-                  {contactEmail}
-                </a>
-                {contactPhone ? (
-                  <a
-                    href={`tel:${contactPhone.replace(/\s+/g, "")}`}
-                    className="block text-stone-600 hover:text-stone-700"
-                  >
-                    {contactPhone}
-                  </a>
-                ) : null}
-                <a
-                  href={websiteUrl}
-                  className="block text-stone-600 hover:text-stone-700"
-                >
-                  {websiteLabel}
-                </a>
-              </div>
-            </section>
-
-            {vatId ? (
-              <section className="space-y-3">
-                <h2 className="text-xl font-semibold text-stone-900">
-                  Umsatzsteuer-ID
-                </h2>
-                <p className="text-sm text-stone-700 leading-relaxed">
-                  USt-IdNr.: {vatId}
-                </p>
-              </section>
+        <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Kontakt
+          </p>
+          <div className="mt-4 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <a
+              href={`mailto:${contactEmail}`}
+              className="block font-semibold text-[color:var(--smk-text)] transition hover:text-[color:var(--smk-accent)]"
+            >
+              {contactEmail}
+            </a>
+            {contactPhone ? (
+              <a
+                href={`tel:${contactPhone.replace(/\s+/g, "")}`}
+                className="block transition hover:text-[color:var(--smk-text)]"
+              >
+                {contactPhone}
+              </a>
             ) : null}
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-stone-900">
-                Verantwortlich für den Inhalt
-              </h2>
-              <p className="text-sm text-stone-700 leading-relaxed">
-                {legalName}
-              </p>
-            </section>
+            <a
+              href={websiteUrl}
+              className="block transition hover:text-[color:var(--smk-text)]"
+            >
+              {websiteLabel}
+            </a>
           </div>
-        </div>
-      </main>
-    </PageLayout>
+        </section>
+      </div>
+
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        {vatId ? (
+          <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+            <h2 className="text-xl font-semibold text-[color:var(--smk-text)]">
+              Umsatzsteuer-ID
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+              USt-IdNr.: {vatId}
+            </p>
+          </section>
+        ) : null}
+
+        <section className="smk-surface rounded-[28px] px-5 py-5 sm:px-6">
+          <h2 className="text-xl font-semibold text-[color:var(--smk-text)]">
+            Verantwortlich für den Inhalt
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            {legalName}
+          </p>
+        </section>
+      </div>
+    </InfoPageShell>
   );
 }

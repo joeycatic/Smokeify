@@ -38,7 +38,7 @@ export default function OutOfStockModal({ open, onClose }: Props) {
             onClick={onClose}
             className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
-            Schliessen
+            Schließen
           </button>
         </div>
       </div>

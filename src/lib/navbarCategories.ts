@@ -58,7 +58,8 @@ const buildSeoSlugByKey = () => {
 
 const getNavbarCategoriesCached = unstable_cache(
   async (): Promise<NavbarCategory[]> => {
-    const [categories, productCategoryLinks, mainCategoryLinks] = await Promise.all([
+    const [categories, productCategoryLinks, mainCategoryLinks, growTentCount] =
+      await Promise.all([
       prisma.category.findMany({
         where: { storefronts: { has: "MAIN" } },
         select: { id: true, name: true, handle: true, parentId: true },
@@ -74,6 +75,21 @@ const getNavbarCategoriesCached = unstable_cache(
           mainCategoryId: { not: null },
           storefronts: { has: "MAIN" },
           status: "ACTIVE",
+        },
+      }),
+      prisma.product.count({
+        where: {
+          storefronts: { has: "MAIN" },
+          status: "ACTIVE",
+          growboxSize: { not: null },
+          categories: {
+            none: {
+              OR: [
+                { category: { handle: "headshop" } },
+                { category: { parent: { is: { handle: "headshop" } } } },
+              ],
+            },
+          },
         },
       }),
     ]);
@@ -117,7 +133,7 @@ const getNavbarCategoriesCached = unstable_cache(
       return set;
     };
 
-    return categories.map((category) => ({
+    const resolvedCategories = categories.map((category) => ({
       ...category,
       href: (() => {
         const normalizedHandle = category.handle.trim().toLowerCase();
@@ -140,6 +156,24 @@ const getNavbarCategoriesCached = unstable_cache(
       itemCount: categoryProducts.get(category.id)?.size ?? 0,
       totalItemCount: getSubtreeProducts(category.id).size,
     }));
+
+    const hasGrowTentRoot = resolvedCategories.some(
+      (category) => category.handle === "zelte",
+    );
+
+    if (!hasGrowTentRoot && seoSlugByKey.has("zelte") && growTentCount > 0) {
+      resolvedCategories.push({
+        id: "virtual-main-zelte",
+        name: "Growzelte",
+        handle: "zelte",
+        parentId: null,
+        href: seoSlugByKey.get("zelte") ?? buildCategoryHref("zelte"),
+        itemCount: growTentCount,
+        totalItemCount: growTentCount,
+      });
+    }
+
+    return resolvedCategories;
   },
   ["navbar-categories"],
   { revalidate: 60 },

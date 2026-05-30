@@ -14,12 +14,10 @@ import { Suspense } from "react";
 import {
   ArrowRightIcon,
   PhotoIcon,
-  ShieldCheckIcon,
   SparklesIcon,
-  TruckIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { buildGrowvaultPublicUrl } from "@/lib/growvaultPublicStorefront";
+import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
 
 export const metadata: Metadata = {
   alternates: {
@@ -39,6 +37,12 @@ function formatMoney(amount?: string, currencyCode?: string) {
     currency: currencyCode,
     minimumFractionDigits: 2,
   }).format(value);
+}
+
+function extractSetupSize(productTitle?: string | null, growboxSize?: string | null) {
+  if (growboxSize?.trim()) return growboxSize.trim();
+  const match = productTitle?.match(/\b\d{2,3}x\d{2,3}(?:x\d{2,3})?\b/i);
+  return match?.[0] ?? null;
 }
 
 export default async function StorePage({
@@ -64,22 +68,31 @@ export default async function StorePage({
     tentProducts,
     heroProducts,
   } = homepageData;
-
-  const supportCards = [
+  const setupPreviewProduct = tentProducts[0] ?? heroProducts[0] ?? null;
+  const featuredHeroProduct = heroProducts[0] ?? tentProducts[0] ?? null;
+  const setupSize = extractSetupSize(
+    setupPreviewProduct?.title,
+    setupPreviewProduct?.growboxSize,
+  );
+  const setupLabel = setupSize
+    ? `${setupSize} Smokeify-Setup`
+    : "Einfacher Einstieg";
+  const setupFacts = [
     {
-      title: "Schnell startklar",
-      copy: "Verfügbare Ausrüstung, kurze Wege und klare Produktauswahl für dein nächstes Setup.",
-      icon: TruckIcon,
+      label: "Fläche",
+      value: setupSize ?? "Kompakt",
     },
     {
-      title: "Bewährte Marken",
-      copy: "Licht, Klima und Zubehör von Herstellern, die sich in echten Setups bewährt haben.",
-      icon: ShieldCheckIcon,
+      label: "System",
+      value: "Starter-Setup",
     },
     {
-      title: "Klar ausgewählt",
-      copy: "Weniger Suchen, bessere Entscheidungen und passende Wege vom Einstieg bis zum Upgrade.",
-      icon: SparklesIcon,
+      label: "Marke",
+      value: setupPreviewProduct?.manufacturer ?? "Smokeify Auswahl",
+    },
+    {
+      label: "Fokus",
+      value: "Direkt passend",
     },
   ] as const;
 
@@ -146,150 +159,187 @@ export default async function StorePage({
               <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-[rgba(207,167,96,0.16)] blur-3xl sm:h-52 sm:w-52" />
               <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[rgba(94,75,57,0.24)] blur-3xl sm:h-60 sm:w-60" />
 
-              <div className="relative grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
-                <div className="max-w-3xl space-y-6">
+              <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.84fr)] lg:items-center lg:gap-10">
+                <div className="max-w-[43rem] space-y-5">
                   <span className="smk-chip">
                     <SparklesIcon className="h-4 w-4" />
-                    Smokeify Selection
+                    Für Indoor-Setups mit Plan
                   </span>
-                  <div className="space-y-4">
-                    <h1 className="smk-heading max-w-4xl text-5xl leading-[0.9] tracking-[-0.06em] text-[var(--smk-text)] sm:text-6xl lg:text-7xl">
-                      Indoor-Growing,
+                  <div className="space-y-3">
+                    <h1 className="smk-heading max-w-[12ch] text-[3.2rem] leading-[0.88] tracking-[-0.065em] text-[var(--smk-text)] sm:text-[4.4rem] lg:text-[5.4rem]">
+                      Dein Smokeify-Setup.
                       <br />
                       <span className="smk-text-gradient">
-                        das direkt Sinn ergibt.
+                        Klar gewählt. Direkt passend gekauft.
                       </span>
                     </h1>
-                    <p className="max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                      Entdecke Growboxen, LED-Licht, Abluft und Zubehör, die
-                      wirklich zusammenpassen. Kuratiert für saubere Setups,
-                      bessere Orientierung und einen Start ohne Rätselraten.
+                    <p className="max-w-[38rem] text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
+                      Shop, Setup-Konfigurator und Pflanzenanalyse greifen in
+                      Smokeify direkt ineinander. Weniger Raten, passendere
+                      Produkte und ein klarerer Start in dein Setup.
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
                     <Link
-                      href="/products"
+                      href={SMOKEIFY_ROUTES.customizer}
                       className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
-                      Sortiment entdecken
+                      Setup konfigurieren
                     </Link>
                     <Link
-                      href={buildGrowvaultPublicUrl("/customizer")}
+                      href={SMOKEIFY_ROUTES.analyzer}
                       className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                     >
-                      Konfigurator öffnen
+                      Pflanzenfoto analysieren
                     </Link>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {supportCards.map((item) => (
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                    {[
+                      "Versandfrei ab 69 EUR",
+                      "Smokeify Auswahl",
+                      "Einsteigerfreundlich",
+                    ].map((item) => (
                       <div
-                        key={item.title}
-                        className="smk-surface rounded-[24px] p-4"
+                        key={item}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-2 text-sm font-semibold text-[var(--smk-text)]"
                       >
-                        <item.icon className="h-5 w-5 text-[var(--smk-accent)]" />
-                        <p className="mt-3 text-sm font-semibold text-[var(--smk-text)]">
-                          {item.title}
-                        </p>
-                        <p className="mt-1 text-xs leading-6 text-[var(--smk-text-muted)]">
-                          {item.copy}
-                        </p>
+                        <span className="h-2.5 w-2.5 rounded-full bg-[var(--smk-accent)]" />
+                        <span>{item}</span>
                       </div>
                     ))}
                   </div>
 
                   <PaymentMethodLogos
-                    className="flex-wrap gap-2.5"
+                    className="border-t border-[var(--smk-border)]/70 pt-4 flex-wrap gap-2"
                     pillClassName="border-[var(--smk-border)] bg-[rgba(255,255,255,0.06)]"
                     logoClassName="brightness-[1.02]"
                   />
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-1">
-                  {heroProducts.map((product, index) => {
-                    const formattedPrice = formatMoney(
-                      product.priceRange?.minVariantPrice.amount,
-                      product.priceRange?.minVariantPrice.currencyCode,
-                    );
+                <div className="self-center rounded-[34px] border border-[rgba(233,188,116,0.16)] bg-[linear-gradient(180deg,rgba(34,27,22,0.98),rgba(18,16,14,0.98))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.28)] sm:p-6">
+                  <div className="flex flex-col gap-4 border-b border-[var(--smk-border)]/80 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="smk-kicker text-[var(--smk-accent)]">
+                        Setup-Vorschau
+                      </p>
+                      <h2 className="mt-2 text-[2.2rem] font-semibold tracking-[-0.05em] text-[var(--smk-text)] sm:text-[2.7rem]">
+                        Einfacher Start
+                      </h2>
+                    </div>
+                    <div className="self-start rounded-full border border-[rgba(233,188,116,0.18)] bg-[rgba(233,188,116,0.08)] px-3 py-1 text-xs font-semibold text-[var(--smk-accent)]">
+                      {setupLabel}
+                    </div>
+                  </div>
 
-                    return (
-                      <Link
-                        key={product.id}
-                        href={`/products/${product.handle}`}
-                        className={`group relative overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] p-4 transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] sm:p-5 ${
-                          index === 0 ? "lg:min-h-[220px]" : "lg:min-h-[170px]"
-                        }`}
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {setupFacts.map((fact) => (
+                      <div
+                        key={fact.label}
+                        className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4"
                       >
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(214,177,111,0.16),transparent_34%)] opacity-80" />
-                        <div className="relative flex items-center gap-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--smk-text-dim)]">
+                          {fact.label}
+                        </p>
+                        <p className="mt-3 text-xl font-semibold text-[var(--smk-text)]">
+                          {fact.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {featuredHeroProduct ? (
+                    (() => {
+                      const formattedPrice = formatMoney(
+                        featuredHeroProduct.priceRange?.minVariantPrice.amount,
+                        featuredHeroProduct.priceRange?.minVariantPrice.currencyCode,
+                      );
+
+                      return (
+                      <Link
+                        key={featuredHeroProduct.id}
+                        href={`/products/${featuredHeroProduct.handle}`}
+                        className="group relative mt-5 block overflow-hidden rounded-[28px] border border-[rgba(233,188,116,0.14)] bg-[rgba(255,255,255,0.03)] p-4 transition hover:-translate-y-1 hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] sm:p-5"
+                      >
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_32%)] opacity-90" />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
                           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] sm:h-28 sm:w-28">
-                            {product.featuredImage ? (
+                            {featuredHeroProduct.featuredImage ? (
                               <Image
-                                src={product.featuredImage.url}
-                                alt={product.featuredImage.altText ?? product.title}
+                                src={featuredHeroProduct.featuredImage.url}
+                                alt={
+                                  featuredHeroProduct.featuredImage.altText ??
+                                  featuredHeroProduct.title
+                                }
                                 fill
                                 sizes="112px"
                                 className="object-contain p-3 transition duration-300 group-hover:scale-105"
-                                priority={index === 0}
+                                priority
                               />
                             ) : null}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="smk-kicker text-[var(--smk-accent)]">
-                              Smokeify Pick
+                              Sinnvoll für den Einstieg
                             </p>
-                            {product.manufacturer ? (
-                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
-                                {product.manufacturer}
+                            {featuredHeroProduct.manufacturer ? (
+                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                                {featuredHeroProduct.manufacturer}
                               </p>
                             ) : null}
-                            <h2 className="mt-2 text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
-                              {product.title}
+                            <h2 className="mt-2 max-w-[14ch] text-xl font-semibold leading-tight text-[var(--smk-text)] lg:text-[1.7rem] lg:leading-[1.02]">
+                              {featuredHeroProduct.title}
                             </h2>
-                            <div className="mt-4 flex items-center justify-between gap-3">
-                              <p className="text-sm font-semibold text-[var(--smk-text)]">
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+                              <p className="text-base font-semibold text-[var(--smk-text)]">
                                 {formattedPrice ?? "Preis aufrufen"}
                               </p>
                               <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--smk-text-muted)] transition group-hover:text-[var(--smk-text)]">
-                                Ansehen
+                                Details zum Setup
                                 <ArrowRightIcon className="h-3.5 w-3.5" />
                               </span>
                             </div>
                           </div>
                         </div>
                       </Link>
-                    );
-                  })}
+                      );
+                    })()
+                  ) : (
+                    <div className="mt-5 rounded-[28px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-5 text-sm text-[var(--smk-text-muted)]">
+                      Smokeify baut die Setup-Vorschau aus, sobald passende
+                      Produkte geladen sind.
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
 
             <section className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
               <div className="smk-panel rounded-[32px] p-6 sm:p-7">
-                <p className="smk-kicker">Growvault</p>
+                <p className="smk-kicker">Smokeify Tools</p>
                 <h2 className="smk-heading mt-4 text-3xl leading-[0.96] text-[var(--smk-text)] sm:text-4xl">
-                  Grow-Themen laufen jetzt
+                  Analyzer, Konfigurator
                   <br />
-                  in Growvault weiter.
+                  und Katalog an einem Ort.
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Analyzer, Konfigurator und das kuratierte Grow-Sortiment leben
-                  jetzt im dedizierten Growvault-Storefront. Smokeify bleibt der
-                  gemeinsame Operations- und Admin-Backbone im Hintergrund.
+                  Smokeify bündelt die bewährte Layoutlogik lokal: Produktauswahl,
+                  Setup-Konfiguration und Pflanzenanalyse bleiben direkt im
+                  Smokeify Storefront und nutzen dieselben kuratierten Produkte.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    href={buildGrowvaultPublicUrl("/")}
+                    href={SMOKEIFY_ROUTES.customizer}
                     className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Growvault öffnen
+                    Setup konfigurieren
                   </Link>
                   <Link
-                    href={buildGrowvaultPublicUrl("/pflanzen-analyse")}
+                    href={SMOKEIFY_ROUTES.analyzer}
                     className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
                   >
-                    Analyzer bei Growvault
+                    Pflanzenanalyse starten
                   </Link>
                 </div>
               </div>
@@ -297,18 +347,18 @@ export default async function StorePage({
               <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
                 {[
                   {
-                    title: "Eigenes Grow-Storefront",
-                    copy: "Growvault ist jetzt die einzige öffentliche Oberfläche für Analyzer, Konfigurator und Grow-Katalog.",
+                    title: "Lokale Smokeify Tools",
+                    copy: "Analyzer, Konfigurator und Grow-Katalog laufen jetzt direkt im Smokeify Storefront.",
                     icon: PhotoIcon,
                   },
                   {
-                    title: "Ein Runtime-Owner",
-                    copy: "Neue Analyzer- und Konfigurator-Features landen nur noch in Growvault statt parallel in zwei Repos.",
+                    title: "Ein Layout-System",
+                    copy: "Shop-Muster werden über Smokeify Tokens gepflegt, statt blind kopiert zu werden.",
                     icon: SparklesIcon,
                   },
                   {
-                    title: "Smokeify im Hintergrund",
-                    copy: "Review, QA, Empfehlungen und Admin-Workflows bleiben im gemeinsamen Control Plane erhalten.",
+                    title: "Checkout bleibt stabil",
+                    copy: "Tools empfehlen Produkte, aber Warenkorb, Preise und Bestände bleiben serverseitig autoritativ.",
                     icon: WrenchScrewdriverIcon,
                   },
                 ].map((item) => (
@@ -408,7 +458,7 @@ export default async function StorePage({
                   Kompletten Katalog durchsuchen
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                  Shoppen, Bestseller vergleichen oder direkt in die gesamte
+                  Shoppen, Bestseller entdecken oder direkt in die gesamte
                   Auswahl springen, wenn das Setup schon klar ist.
                 </p>
               </div>

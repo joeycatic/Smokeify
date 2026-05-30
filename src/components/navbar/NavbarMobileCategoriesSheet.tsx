@@ -52,7 +52,7 @@ export default function NavbarMobileCategoriesSheet({
     <div className="fixed inset-0 z-50 sm:hidden">
       <button
         type="button"
-        aria-label="Produkte schliessen"
+        aria-label="Produkte schließen"
         onClick={onClose}
         className="webshop-overlay-fade absolute inset-0 bg-black/68 backdrop-blur-[2px]"
       />
@@ -74,7 +74,7 @@ export default function NavbarMobileCategoriesSheet({
               type="button"
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-3xl text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              aria-label="Schliessen"
+              aria-label="Schließen"
             >
               ×
             </button>

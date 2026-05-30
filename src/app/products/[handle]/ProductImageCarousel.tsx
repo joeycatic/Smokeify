@@ -151,7 +151,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
             </button>
             <button
               type="button"
-              aria-label="Naechstes Bild"
+              aria-label="Nächstes Bild"
               onClick={handleNext}
               className="absolute right-10 top-1/2 -translate-y-1/2 rounded-full bg-black/85 p-2 text-white shadow-lg shadow-black/30 opacity-0 transition hover:bg-black/90 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
@@ -185,7 +185,7 @@ export default function ProductImageCarousel({ images, alt }: Props) {
                     ? "border-emerald-950 ring-2 ring-emerald-950/70"
                     : "border-black/10 hover:border-emerald-600"
                 }`}
-                aria-label={`Bild ${imgIndex + 1} auswaehlen`}
+                aria-label={`Bild ${imgIndex + 1} auswählen`}
               >
                 <Image
                   src={img.url}

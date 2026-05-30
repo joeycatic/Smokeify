@@ -1,5 +1,1 @@
-import { proxyGrowvaultPublicRequest } from "@/lib/growvaultPublicProxy";
-
-export async function POST(request: Request) {
-  return proxyGrowvaultPublicRequest(request);
-}
+export { POST } from "@/app/api/plant-analyzer/feedback/route";

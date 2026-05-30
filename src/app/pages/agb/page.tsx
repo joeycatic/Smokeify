@@ -1,4 +1,5 @@
-import PageLayout from "@/components/PageLayout";
+import InfoPageShell from "@/components/InfoPageShell";
+import InfoSections from "@/components/InfoSections";
 import { businessDetails } from "@/lib/businessDetails";
 
 export const AGB_SECTIONS = [
@@ -137,68 +138,52 @@ export default function AgbPage() {
   } = businessDetails;
 
   return (
-    <PageLayout commerce={false}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-12 text-stone-800">
-        <div className="rounded-3xl border border-black/10 bg-white/90 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#2f3e36]">
-              Allgemeine Geschäftsbedingungen
-            </h1>
-            <p className="mt-2 text-sm text-stone-500">
-              Stand: 11.02.2026
+    <InfoPageShell
+      eyebrow="Rechtliches"
+      title="Allgemeine Geschäftsbedingungen"
+      description="Die AGB regeln Vertragsabschluss, Lieferung, Zahlung, Gewährleistung und weitere rechtliche Grundlagen unseres Shops."
+      meta="Stand: 11.02.2026"
+    >
+      <div className="grid gap-5 md:grid-cols-2">
+        <section className="smk-surface rounded-[28px] px-5 py-5">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Anbieter
+          </p>
+          <div className="mt-4 space-y-1 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <p className="font-semibold text-[color:var(--smk-text)]">
+              {companyName}
             </p>
+            <p>{legalName}</p>
+            <p>{streetLine}</p>
+            <p>{cityPostalLine}</p>
+            <p>{country}</p>
+            {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
           </div>
-
-          <div className="grid gap-6 border-b border-black/10 pb-6 md:grid-cols-2">
-            <div className="space-y-1 text-sm text-stone-700">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Anbieter
-              </p>
-              <p className="font-semibold text-stone-900">{companyName}</p>
-              <p>{legalName}</p>
-              <p>{streetLine}</p>
-              <p>{cityPostalLine}</p>
-              <p>{country}</p>
-              {vatId ? <p>USt-IdNr.: {vatId}</p> : null}
-            </div>
-            <div className="space-y-1 text-sm text-stone-700">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Kontakt
-              </p>
-              <div className="flex flex-col items-start gap-1">
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="font-semibold text-emerald-700 hover:text-emerald-800"
-                >
-                  {contactEmail}
-                </a>
-                {contactPhone ? <span>{contactPhone}</span> : null}
-                <a
-                  href={websiteUrl}
-                  className="text-stone-600 hover:text-stone-700"
-                >
-                  {websiteLabel}
-                </a>
-              </div>
-            </div>
+        </section>
+        <section className="smk-surface rounded-[28px] px-5 py-5">
+          <p className="font-[family:var(--font-manrope)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--smk-accent)]">
+            Kontakt
+          </p>
+          <div className="mt-4 flex flex-col items-start gap-1 text-sm leading-7 text-[color:var(--smk-text-muted)]">
+            <a
+              href={`mailto:${contactEmail}`}
+              className="font-semibold text-[color:var(--smk-text)] transition hover:text-[color:var(--smk-accent)]"
+            >
+              {contactEmail}
+            </a>
+            {contactPhone ? <span>{contactPhone}</span> : null}
+            <a
+              href={websiteUrl}
+              className="transition hover:text-[color:var(--smk-text)]"
+            >
+              {websiteLabel}
+            </a>
           </div>
-
-          <div className="mt-8 space-y-10">
-            {AGB_SECTIONS.map((section) => (
-              <section key={section.title} className="space-y-3">
-                <h2 className="text-xl font-semibold text-stone-900">
-                  {section.title}
-                </h2>
-                {section.paragraphs.map((p, idx) => (
-                  <p key={idx} className="leading-relaxed text-stone-700">
-                    {p}
-                  </p>
-                ))}
-              </section>
-            ))}
-          </div>
-        </div>
-      </main>
-    </PageLayout>
+        </section>
+      </div>
+      <div className="mt-5">
+        <InfoSections sections={AGB_SECTIONS} />
+      </div>
+    </InfoPageShell>
   );
 }

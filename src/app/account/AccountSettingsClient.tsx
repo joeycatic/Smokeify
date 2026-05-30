@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { MapPinIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 import DiscordLinkSection from "./DiscordLinkSection";
 import { SHIPPING_ADDRESS_TYPES } from "@/lib/shippingAddress";
 
@@ -19,6 +20,12 @@ type Props = {
   initialPackstationNumber: string;
   initialPostNumber: string;
 };
+
+const inputClass =
+  "smk-input h-12 w-full rounded-[18px] px-4 text-sm outline-none transition focus:border-[var(--smk-border-strong)] focus:bg-[rgba(255,255,255,0.08)] focus:ring-2 focus:ring-[rgba(233,188,116,0.12)]";
+
+const labelClass =
+  "mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]";
 
 export default function AccountSettingsClient({
   initialName,
@@ -96,26 +103,26 @@ export default function AccountSettingsClient({
     }
   };
 
-  const inputClass =
-    "w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2.5 text-sm text-stone-800 outline-none transition-colors focus:border-[#44584c]/40 focus:bg-white focus:ring-2 focus:ring-[#44584c]/10";
-
-  const labelClass = "block text-[11px] font-semibold tracking-wide text-stone-500 mb-1";
-
   return (
-    <section className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-      <h2 className="mb-6 text-sm font-semibold tracking-widest text-black/70">
-        ACCOUNT AKTUALISIEREN
-      </h2>
-
-      <div className="mx-auto max-w-3xl space-y-6">
-        {/* Personal info */}
-        <div>
-          <p className="mb-3 text-[11px] font-semibold tracking-widest text-stone-400">
-            PERSÖNLICHE DATEN
-          </p>
-          <div className="grid gap-4 md:grid-cols-2">
+    <section className="smk-panel rounded-[30px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="grid gap-5">
+        <div className="smk-surface rounded-[26px] px-4 py-5 sm:px-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[rgba(233,188,116,0.18)] bg-[rgba(233,188,116,0.1)] text-[var(--smk-accent-2)]">
+              <UserCircleIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                Persönlich
+              </p>
+              <p className="text-lg font-semibold text-[var(--smk-text)]">
+                Basisdaten
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClass}>Username *</label>
+              <label className={labelClass}>Username</label>
               <input
                 type="text"
                 value={name}
@@ -124,7 +131,7 @@ export default function AccountSettingsClient({
               />
             </div>
             <div>
-              <label className={labelClass}>Email *</label>
+              <label className={labelClass}>E-Mail</label>
               <input
                 type="email"
                 value={email}
@@ -133,20 +140,18 @@ export default function AccountSettingsClient({
               />
             </div>
             <div>
-              <label className={labelClass}>Vorname *</label>
+              <label className={labelClass}>Vorname</label>
               <input
                 type="text"
-                required
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>Nachname *</label>
+              <label className={labelClass}>Nachname</label>
               <input
                 type="text"
-                required
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
                 className={inputClass}
@@ -155,24 +160,28 @@ export default function AccountSettingsClient({
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-black/6" />
-
-        {/* Address */}
-        <div>
-          <p className="mb-3 text-[11px] font-semibold tracking-widest text-stone-400">
-            LIEFERADRESSE
-          </p>
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="smk-surface rounded-[26px] px-4 py-5 sm:px-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-text)]">
+              <MapPinIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                Versand
+              </p>
+              <p className="text-lg font-semibold text-[var(--smk-text)]">
+                Lieferadresse
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <label className={labelClass}>Adressart</label>
               <div className="grid gap-3 md:grid-cols-2">
                 {SHIPPING_ADDRESS_TYPES.map((value) => {
                   const active = shippingAddressType === value;
                   const title =
-                    value === "PACKSTATION"
-                      ? "DHL Packstation"
-                      : "Straßenadresse";
+                    value === "PACKSTATION" ? "DHL Packstation" : "Straßenadresse";
                   const description =
                     value === "PACKSTATION"
                       ? "Packstation + Postnummer für DHL in Deutschland."
@@ -183,18 +192,20 @@ export default function AccountSettingsClient({
                       type="button"
                       onClick={() => {
                         setShippingAddressType(value);
-                        if (value === "PACKSTATION") {
+                        if (value === "PACKSTATION" && !country.trim()) {
                           setCountry("DE");
                         }
                       }}
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                      className={`rounded-[18px] border px-4 py-4 text-left transition ${
                         active
-                          ? "border-[#44584c]/30 bg-[#44584c]/8"
-                          : "border-black/10 bg-stone-50 hover:border-black/20 hover:bg-white"
+                          ? "border-[rgba(233,188,116,0.32)] bg-[rgba(233,188,116,0.1)]"
+                          : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-stone-900">{title}</p>
-                      <p className="mt-1 text-xs leading-5 text-stone-500">
+                      <p className="break-words text-sm font-semibold text-[var(--smk-text)]">
+                        {title}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--smk-text-muted)]">
                         {description}
                       </p>
                     </button>
@@ -273,50 +284,48 @@ export default function AccountSettingsClient({
                 className={inputClass}
               />
             </div>
-            {shippingAddressType === "PACKSTATION" && (
-              <p className="md:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                Für Packstationen wird im Checkout automatisch
-                {" "}
-                <span className="font-semibold">
-                  Packstation {packstationNumber || "..."}
+            {shippingAddressType === "PACKSTATION" ? (
+              <p className="md:col-span-2 rounded-[18px] border border-[rgba(233,188,116,0.16)] bg-[rgba(233,188,116,0.08)] px-4 py-3 text-sm leading-6 text-[var(--smk-text-muted)]">
+                Stripe Checkout übernimmt für Packstationen die Zeilen
+                <span className="font-semibold text-[var(--smk-text)]">
+                  {" "}Packstation {packstationNumber || "..."}
                 </span>
-                {" "}und{" "}
-                <span className="font-semibold">
-                  Postnummer {postNumber || "..."}
-                </span>
-                {" "}an Stripe übergeben.
+                {" "}und
+                <span className="font-semibold text-[var(--smk-text)]">
+                  {" "}Postnummer {postNumber || "..."}
+                </span>.
               </p>
-            )}
+            ) : null}
           </div>
         </div>
 
-        <div className="border-t border-black/6" />
+        <div className="smk-surface rounded-[26px] px-4 py-5 sm:px-5">
+          <DiscordLinkSection />
+        </div>
 
-        <DiscordLinkSection />
+        {profileError ? (
+          <p className="rounded-[18px] border border-[rgba(239,143,127,0.28)] bg-[rgba(62,26,24,0.82)] px-4 py-3 text-sm text-[#ef8f7f]">
+            {profileError}
+          </p>
+        ) : null}
+        {profileStatus === "ok" ? (
+          <p className="rounded-[18px] border border-[rgba(127,207,150,0.26)] bg-[rgba(22,52,39,0.82)] px-4 py-3 text-sm text-[#9fe3b2]">
+            Änderungen gespeichert.
+          </p>
+        ) : null}
 
-        {/* Actions */}
-        <div className="space-y-3 pt-1">
-          {profileError && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {profileError}
-            </p>
-          )}
-          {profileStatus === "ok" && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              Änderungen gespeichert.
-            </p>
-          )}
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={handleProfileSave}
             disabled={profileStatus === "saving"}
-            className="h-11 w-full rounded-lg bg-[#2f3e36] px-4 text-sm font-semibold text-white transition hover:bg-[#44584c] disabled:opacity-60 sm:h-12 sm:text-base"
+            className="smk-button-primary inline-flex h-12 w-full items-center justify-center rounded-full px-5 text-sm font-semibold disabled:opacity-60 sm:w-auto"
           >
             {profileStatus === "saving" ? "Wird gespeichert..." : "Änderungen speichern"}
           </button>
           <Link
             href="/account/password"
-            className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-black/10 px-4 text-sm font-semibold text-stone-700 transition hover:border-black/20 hover:bg-stone-50 sm:h-12 sm:text-base"
+            className="smk-button-secondary inline-flex h-12 w-full items-center justify-center rounded-full px-5 text-sm font-semibold sm:w-auto"
           >
             Passwort ändern
           </Link>

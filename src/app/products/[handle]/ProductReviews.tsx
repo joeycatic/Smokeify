@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { StarIcon } from "@heroicons/react/24/solid";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -27,7 +27,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
   const [reviewBody, setReviewBody] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
     setReviewLoading(true);
     setReviewError("");
     try {
@@ -56,17 +56,17 @@ export default function ProductReviews({ productId }: { productId: string }) {
     } finally {
       setReviewLoading(false);
     }
-  };
+  }, [productId]);
 
   useEffect(() => {
     void loadReviews();
-  }, [productId]);
+  }, [loadReviews]);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.name && !guestName) {
       setGuestName(session.user.name);
     }
-  }, [status, session?.user?.name]);
+  }, [guestName, status, session?.user?.name]);
 
   const submitReview = async () => {
     setReviewError("");
@@ -113,16 +113,16 @@ export default function ProductReviews({ productId }: { productId: string }) {
   };
 
   return (
-    <div className="rounded-[28px] border border-black/10 bg-white/85 p-6 shadow-sm">
+    <section className="smk-panel rounded-[32px] p-6 text-[var(--smk-text)] shadow-[0_24px_70px_rgba(0,0,0,0.26)] sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <StarIcon className="h-6 w-6 text-emerald-700" />
-            <p className="text-lg font-semibold text-emerald-900 sm:text-xl">
+            <StarIcon className="h-6 w-6 text-[var(--smk-accent)]" />
+            <p className="text-2xl font-semibold tracking-[-0.04em] text-[var(--smk-text)] sm:text-3xl">
               Bewertungen
             </p>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-sm text-black/60">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--smk-text-muted)]">
             <RatingStars rating={reviewSummary.average} />
             <span>
               {reviewSummary.count} Bewertungen ·{" "}
@@ -133,70 +133,74 @@ export default function ProductReviews({ productId }: { productId: string }) {
       </div>
 
       {reviewError && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+        <p className="mt-4 rounded-2xl border border-red-500/24 bg-red-500/10 px-4 py-3 text-xs text-red-100">
           {reviewError}
         </p>
       )}
       {reviewNotice && (
-        <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <p className="mt-4 rounded-2xl border border-emerald-400/24 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100">
           {reviewNotice}
         </p>
       )}
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-6 space-y-3">
         {reviewLoading ? (
-          <div className="flex items-center gap-2 text-sm text-black/60">
+          <div className="flex items-center gap-2 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--smk-text-muted)]">
             <LoadingSpinner size="sm" />
             <span>Bewertungen werden geladen...</span>
           </div>
         ) : reviews.length === 0 ? (
-          <p className="text-sm text-black/60">Noch keine Bewertungen.</p>
+          <p className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--smk-text-muted)]">
+            Noch keine Bewertungen.
+          </p>
         ) : (
           reviews.map((review) => (
             <div
               key={review.id}
-              className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm"
+              className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <RatingStars rating={review.rating} />
-                  <span className="text-xs text-black/50">
-                    {review.userName ?? "Anonymous"}
+                  <span className="text-xs uppercase tracking-[0.16em] text-[var(--smk-text-muted)]">
+                    {review.userName ?? "Anonym"}
                   </span>
                 </div>
-                <span className="text-xs text-black/50">
+                <span className="text-xs uppercase tracking-[0.16em] text-[var(--smk-text-muted)]">
                   {new Date(review.createdAt).toLocaleDateString("de-DE")}
                 </span>
               </div>
               {review.body && (
-                <p className="mt-1 text-black/70">{review.body}</p>
+                <p className="mt-3 leading-7 text-[var(--smk-text-muted)]">
+                  {review.body}
+                </p>
               )}
             </div>
           ))
         )}
       </div>
 
-      <div className="mt-6 rounded-xl border border-black/10 bg-white/70 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/50">
+      <div className="smk-surface mt-6 rounded-[28px] p-5 sm:p-6">
+        <p className="smk-kicker">
           Bewertung schreiben
         </p>
-        <div className="mt-4 grid gap-3">
-          <label className="block text-xs font-semibold text-black/60">
+        <div className="mt-4 grid gap-4">
+          <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
             Name (optional)
             <input
               value={guestName}
               onChange={(event) => setGuestName(event.target.value)}
               placeholder="Dein Name"
               maxLength={64}
-              className="mt-1 h-10 w-full rounded-lg border border-black/15 bg-white px-3 text-sm"
+              className="smk-input mt-2 h-11 w-full rounded-2xl px-4 text-sm"
             />
           </label>
           <div>
-            <label className="block text-xs font-semibold text-black/60">
+            <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
               Sterne
             </label>
             <div
-              className="mt-2 flex items-center gap-1"
+              className="mt-3 flex flex-wrap items-center gap-2"
               onMouseLeave={() => setHoverRating(0)}
             >
               {[1, 2, 3, 4, 5].map((value) => {
@@ -208,12 +212,12 @@ export default function ProductReviews({ productId }: { productId: string }) {
                     onClick={() => setReviewRating(value)}
                     onMouseEnter={() => setHoverRating(value)}
                     aria-label={`${value} Stern${value !== 1 ? "e" : ""}`}
-                    className="transition-transform duration-100 hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded"
+                    className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-1.5 transition hover:-translate-y-0.5 hover:border-[var(--smk-accent)]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                   >
                     <svg
                       viewBox="0 0 24 24"
                       className={`h-9 w-9 transition-colors duration-100 ${
-                        active ? "text-amber-400" : "text-stone-200"
+                        active ? "text-[var(--smk-accent)]" : "text-[var(--smk-border-strong)]"
                       }`}
                       fill="currentColor"
                       aria-hidden="true"
@@ -223,26 +227,26 @@ export default function ProductReviews({ productId }: { productId: string }) {
                   </button>
                 );
               })}
-              <span className="ml-2 text-sm font-semibold text-stone-600">
+              <span className="ml-1 text-sm font-semibold text-[var(--smk-text)]">
                 {["", "Schlecht", "Naja", "Okay", "Gut", "Ausgezeichnet"][hoverRating || reviewRating]}
               </span>
             </div>
           </div>
-          <label className="block text-xs font-semibold text-black/60">
+          <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
             Bewertung
             <textarea
               value={reviewBody}
               onChange={(event) => setReviewBody(event.target.value)}
               placeholder="Was hat dir gefallen?"
               rows={4}
-              className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+              className="smk-input mt-2 w-full rounded-[22px] px-4 py-3 text-sm"
             />
           </label>
           <button
             type="button"
             onClick={submitReview}
             disabled={reviewSubmitting}
-            className="h-10 rounded-lg bg-[#2f3e36] px-4 text-xs font-semibold text-white hover:bg-[#24312b] disabled:opacity-60"
+            className="smk-button-primary h-11 rounded-full px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {reviewSubmitting
               ? "Speichern..."
@@ -252,7 +256,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -260,7 +264,7 @@ function StarGlyph({ filled }: { filled: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className={`h-4 w-4 ${filled ? "text-amber-500" : "text-stone-300"}`}
+      className={`h-4 w-4 ${filled ? "text-[var(--smk-accent)]" : "text-[var(--smk-border-strong)]"}`}
       fill="currentColor"
       aria-hidden="true"
     >

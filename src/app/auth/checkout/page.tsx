@@ -8,17 +8,17 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine Email, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine E-Mail, bevor du dich einloggst.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
-    "Neues Geraet erkannt. Code wurde per Email gesendet. Bitte bestaetigen.",
-  CredentialsSignin: "Email oder Passwort ist falsch.",
-  AccessDenied: "Zugriff verweigert. Bitte pruefe deine Berechtigung.",
+    "Neues Gerät erkannt. Code wurde per E-Mail gesendet. Bitte bestätigen.",
+  CredentialsSignin: "E-Mail oder Passwort ist falsch.",
+  AccessDenied: "Zugriff verweigert. Bitte prüfe deine Berechtigung.",
 };
 
 const getLoginErrorMessage = (code?: string) => {
   if (!code) {
-    return "Login fehlgeschlagen. Bitte pruefe deine Daten.";
+    return "Login fehlgeschlagen. Bitte prüfe deine Daten.";
   }
   return (
     LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
@@ -90,12 +90,12 @@ export default function CheckoutAuthPage() {
   useEffect(() => {
     const paramsError = searchParams.get("error");
     if (paramsError === "NEW_DEVICE") {
-      setLoginError("Neues Geraet erkannt. Code wurde per Email gesendet.");
+      setLoginError("Neues Gerät erkannt. Code wurde per E-Mail gesendet.");
     }
     const verified = searchParams.get("verified");
     const emailParam = searchParams.get("email");
     if (verified === "1") {
-      setLoginNotice("Email verifiziert. Bitte einloggen.");
+      setLoginNotice("E-Mail verifiziert. Bitte einloggen.");
     }
     if (emailParam) {
       setEmail(emailParam);
@@ -211,7 +211,7 @@ export default function CheckoutAuthPage() {
                       setLoginStatus("error");
                     } catch {
                       setLoginError(
-                        "Login fehlgeschlagen. Bitte pruefe deine Verbindung und versuche es erneut."
+                        "Login fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut."
                       );
                       setLoginStatus("error");
                     } finally {
@@ -221,14 +221,14 @@ export default function CheckoutAuthPage() {
                   className="space-y-2"
                 >
                   <label className="block text-xs font-semibold text-stone-600">
-                    Email *
+                    E-Mail *
                   </label>
                   <input
                     type="text"
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="Email oder Username"
+                    placeholder="E-Mail oder Benutzername"
                     className="w-full rounded-md border border-black/15 bg-stone-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5 focus:border-black/40 focus:bg-white focus:ring-2 focus:ring-black/20"
                   />
                   <label className="block text-xs font-semibold text-stone-600">
@@ -323,7 +323,7 @@ export default function CheckoutAuthPage() {
                     setRegisterLoading(true);
                     try {
                       if (regPassword !== regConfirmPassword) {
-                        setRegisterError("Passwoerter stimmen nicht ueberein.");
+                        setRegisterError("Passwörter stimmen nicht überein.");
                         return;
                       }
                       if (!hasSymbol) {
@@ -390,7 +390,7 @@ export default function CheckoutAuthPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="block text-xs font-semibold text-stone-600">
-                      Email *
+                      E-Mail *
                     </label>
                     <input
                       type="email"
@@ -498,7 +498,7 @@ export default function CheckoutAuthPage() {
                       <option value="AT">Oesterreich</option>
                       <option value="CH">Schweiz</option>
                       <option value="EU">EU (sonstige)</option>
-                      <option value="UK">Vereinigtes Koenigreich</option>
+                      <option value="UK">Vereinigtes Königreich</option>
                       <option value="US">USA</option>
                       <option value="OTHER">Andere</option>
                     </select>

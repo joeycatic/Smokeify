@@ -220,7 +220,7 @@ export default function DisplayProducts({
                   </span>
                 </div>
                 <div className="mt-auto flex w-full items-center pt-3">
-                  <div className="grid w-full grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2">
+                  <div className="grid w-full grid-cols-[2.5rem_1fr] items-center gap-2">
                     <div className="flex items-center justify-start">
                       <ProductCardActions
                         productId={p.id}
@@ -250,7 +250,6 @@ export default function DisplayProducts({
                         itemHandle={p.handle}
                       />
                     </div>
-                    <span aria-hidden="true" />
                   </div>
                 </div>
               </div>
