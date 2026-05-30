@@ -136,15 +136,17 @@ export const writeUserCartItems = async (
   userId: string,
   items: ServerCartItem[],
 ) => {
+  const mergedItems = mergeCartItems(items);
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`
         DELETE FROM "UserCartItem"
         WHERE "userId" = ${userId}
       `;
-      if (items.length === 0) return;
+      if (mergedItems.length === 0) return;
 
-      for (const item of items) {
+      for (const item of mergedItems) {
         const options = normalizeCartOptions(item.options);
         const optionsJson = options.length > 0 ? JSON.stringify(options) : null;
         await tx.$executeRaw`
@@ -168,6 +170,11 @@ export const writeUserCartItems = async (
             NOW(),
             NOW()
           )
+          ON CONFLICT ("userId", "variantId", "optionsKey")
+          DO UPDATE SET
+            quantity = EXCLUDED.quantity,
+            options = EXCLUDED.options,
+            "updatedAt" = NOW()
         `;
       }
     });

@@ -135,6 +135,29 @@ const nextConfig = {
     ],
   },
   async headers() {
+    const staticAssetHeaders = isProd
+      ? [
+          {
+            source: "/:path*.svg",
+            headers: [
+              {
+                key: "Cache-Control",
+                value: "public, max-age=31536000, immutable",
+              },
+            ],
+          },
+          {
+            source: "/favicon.ico",
+            headers: [
+              {
+                key: "Cache-Control",
+                value: "public, max-age=31536000, immutable",
+              },
+            ],
+          },
+        ]
+      : [];
+
     return [
       {
         source: "/:path*",
@@ -167,24 +190,7 @@ const nextConfig = {
           },
         ],
       },
-      {
-        source: "/:path*.svg",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/favicon.ico",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+      ...staticAssetHeaders,
     ];
   },
 };
