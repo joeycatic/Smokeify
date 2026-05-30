@@ -6,10 +6,13 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  AdjustmentsHorizontalIcon,
   Bars3Icon,
   HeartIcon,
   MagnifyingGlassIcon,
+  PhotoIcon,
   ShoppingBagIcon,
+  Squares2X2Icon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
@@ -61,6 +64,11 @@ function formatPrice(amount: string, currencyCode: string) {
     minimumFractionDigits: 2,
   }).format(value);
 }
+
+const getPrimaryCategoryLabel = (category: NavbarCategory) => {
+  if (category.handle === "zelte") return "Growzelte";
+  return category.name;
+};
 
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
   cart.lines.map((line) => ({
@@ -491,11 +499,25 @@ export function Navbar({ initialCategories }: NavbarProps) {
 
   const mainCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
+    const preferredOrder = [
+      "zelte",
+      "anzucht",
+      "bewaesserung",
+      "licht",
+      "luft",
+      "messen",
+      "substrate-und-zubehoer",
+    ];
     return [...roots].sort((a, b) => {
-      if (a.handle === "zelte" && b.handle !== "zelte") return -1;
-      if (b.handle === "zelte" && a.handle !== "zelte") return 1;
+      const orderA = preferredOrder.indexOf(a.handle);
+      const orderB = preferredOrder.indexOf(b.handle);
+      if (orderA !== -1 || orderB !== -1) {
+        if (orderA === -1) return 1;
+        if (orderB === -1) return -1;
+        return orderA - orderB;
+      }
       return a.name.localeCompare(b.name);
-    });
+    }).filter((category) => category.handle !== "headshop");
   }, [categories]);
 
   useEffect(() => {
@@ -688,7 +710,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const utilityIconButtonClass =
     "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
   const desktopNavLinkClass =
-    "inline-flex cursor-pointer items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3.5 py-1.5 text-base font-semibold text-[var(--smk-text-muted)] shadow-sm shadow-black/10 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:text-lg";
+    "inline-flex cursor-pointer items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] shadow-sm shadow-black/10 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
   return (
     <>
@@ -741,21 +763,21 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         }}
                         className="block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
-                        Webshop
+                        Produkte
                       </Link>
                       <Link
                         href={SMOKEIFY_ROUTES.customizer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
-                        Konfigurator
+                        Setup
                       </Link>
                       <Link
                         href={SMOKEIFY_ROUTES.analyzer}
                         onClick={() => setMenuOpen(false)}
                         className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                       >
-                        Pflanzen Analyse
+                        Analyse
                       </Link>
                     </div>,
                     document.body,
@@ -778,12 +800,13 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         className={`inline-flex cursor-pointer items-center rounded-full border px-3.5 py-1.5 text-base font-semibold shadow-sm shadow-black/10 transition sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                           productsOpen
                             ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] text-[var(--smk-text)] shadow-lg shadow-black/30"
-                            : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] hover:text-[var(--smk-text)]"
+                            : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
                         }`}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
                       >
-                        Webshop
+                        <Squares2X2Icon className="mr-2 h-4 w-4 text-[var(--smk-accent)]" />
+                        Produkte
                       </button>
                       {productsOpen &&
                         !isMobile &&
@@ -900,7 +923,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                           <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
                                             <CategoryIcon className="h-4 w-4" />
                                           </span>
-                                          <span>{category.name}</span>
+                                          <span>{getPrimaryCategoryLabel(category)}</span>
                                         </span>
                                         <span className="flex items-center gap-2 text-sm text-[var(--smk-text-dim)]">
                                           <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
@@ -922,6 +945,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       href="/products"
                       className={desktopNavLinkClass}
                     >
+                      <Squares2X2Icon className="h-4 w-4 text-[var(--smk-accent)]" />
                       Produkte
                     </Link>
                   )}
@@ -929,13 +953,15 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     href={SMOKEIFY_ROUTES.customizer}
                     className={desktopNavLinkClass}
                   >
-                    Konfigurator
+                    <AdjustmentsHorizontalIcon className="h-4 w-4 text-[var(--smk-accent)]" />
+                    Setup
                   </Link>
                   <Link
                     href={SMOKEIFY_ROUTES.analyzer}
                     className={`${desktopNavLinkClass} whitespace-nowrap`}
                   >
-                    Pflanzen Analyse
+                    <PhotoIcon className="h-4 w-4 text-[var(--smk-accent)]" />
+                    Analyse
                   </Link>
                 </div>
               </div>
@@ -1200,14 +1226,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
         )}
         {showCategoryBar && (
           <div className="relative z-10 mt-3 hidden border-t border-[var(--smk-border)] bg-[rgba(20,18,17,0.82)] backdrop-blur-xl sm:block">
-            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-3 text-base text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
+            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2 px-4 py-2.5 text-base text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
               <Link
                 href="/bestseller"
                 onClick={() => {
                   setCategoryNavTarget("/bestseller");
                   setCategoryHoverLocked(true);
                 }}
-                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-transparent px-4 py-2 text-base font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
+                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
               >
                 <span>Bestseller</span>
                 {categoryNavTarget === "/bestseller" && (
@@ -1239,9 +1265,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                         setCategoryNavTarget(category.href);
                         setCategoryHoverLocked(true);
                       }}
-                      className="flex items-center gap-2 whitespace-nowrap rounded-full border border-transparent px-4 py-2 text-base font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--smk-text)]"
+                      className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-base font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
                     >
-                      <span>{category.name}</span>
+                      <span>{getPrimaryCategoryLabel(category)}</span>
+                      <span className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[rgba(241,198,132,0.1)] px-2 py-0.5 text-xs font-semibold text-[var(--smk-accent)]">
+                        {category.totalItemCount}
+                      </span>
                       {categoryNavTarget === category.href && (
                         <LoadingSpinner
                           size="sm"
