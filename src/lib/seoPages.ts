@@ -707,7 +707,7 @@ export const getSeoLinksForProduct = (product: {
       const categoryMatch = handles.some((handle) => categoryHandles.has(handle));
       const queryMatch =
         page.queryTerms?.some((term) => productText.includes(normalizeTerm(term))) ?? false;
-      return categoryMatch || queryMatch;
+      return page.queryTerms?.length ? queryMatch : categoryMatch;
     })
     .map((page) => ({
       title: page.title,
