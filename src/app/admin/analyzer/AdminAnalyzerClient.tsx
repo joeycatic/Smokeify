@@ -69,6 +69,12 @@ type AnalyzerRunSummary = {
   publicationEligible?: number;
 };
 
+export type AdminAnalyzerInitialQueue = {
+  runs: AnalyzerRunRecord[];
+  summary: AnalyzerRunSummary;
+  source: string;
+};
+
 type GrowvaultBridgeStatus = {
   ok: boolean;
   targetUrl: string | null;
@@ -127,22 +133,30 @@ const getAnalyzerReasonSummary = (run: AnalyzerRunRecord) => {
   return reasons.length > 0 ? reasons.join(", ") : "queued for reviewer confirmation";
 };
 
-export default function AdminAnalyzerClient() {
+export default function AdminAnalyzerClient({
+  initialQueue,
+}: {
+  initialQueue?: AdminAnalyzerInitialQueue;
+}) {
   const searchParams = useSearchParams();
-  const [runs, setRuns] = useState<AnalyzerRunRecord[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [runs, setRuns] = useState<AnalyzerRunRecord[]>(initialQueue?.runs ?? []);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialQueue?.runs[0]?.id ?? null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<AnalyzerRunSummary>({
-    total: 0,
-    unresolved: 0,
-    disputed: 0,
-    lowConfidence: 0,
-    critical: 0,
-    submitted: 0,
-  });
-  const [sourceLabel, setSourceLabel] = useState("not loaded");
+  const [summary, setSummary] = useState<AnalyzerRunSummary>(
+    initialQueue?.summary ?? {
+      total: 0,
+      unresolved: 0,
+      disputed: 0,
+      lowConfidence: 0,
+      critical: 0,
+      submitted: 0,
+    },
+  );
+  const [sourceLabel, setSourceLabel] = useState(initialQueue?.source ?? "not loaded");
   const [growvaultBridge, setGrowvaultBridge] = useState<GrowvaultBridgeStatus>({
     ok: true,
     targetUrl: null,
@@ -270,7 +284,36 @@ export default function AdminAnalyzerClient() {
             },
           };
           fallbackWarning = "Shared analyzer queue returned no rows; showing Smokeify-local runs.";
+        } else if ((initialQueue?.runs ?? []).length > 0) {
+          data = {
+            runs: initialQueue?.runs,
+            summary: initialQueue?.summary,
+            source: initialQueue?.source ?? "smokeify",
+            growvaultBridge: {
+              ok: false,
+              targetUrl: data.growvaultBridge?.targetUrl ?? null,
+              status: data.growvaultBridge?.status ?? null,
+              error:
+                data.growvaultBridge?.error ??
+                "Shared analyzer queue returned no rows, so server-loaded Smokeify runs are shown.",
+            },
+          };
+          fallbackWarning =
+            "Shared analyzer queue returned no rows; showing server-loaded Smokeify runs.";
         }
+      } else if (
+        activeView === "smokeify" &&
+        (data.runs ?? []).length === 0 &&
+        (initialQueue?.runs ?? []).length > 0
+      ) {
+        data = {
+          runs: initialQueue?.runs,
+          summary: initialQueue?.summary,
+          source: initialQueue?.source ?? "smokeify",
+          growvaultBridge: data.growvaultBridge,
+        };
+        fallbackWarning =
+          "Smokeify analyzer API returned no rows; showing server-loaded runs.";
       }
 
       const nextRuns = data.runs ?? [];
@@ -373,7 +416,14 @@ export default function AdminAnalyzerClient() {
     } finally {
       setLoading(false);
     }
-  }, [activeView, includeResolved, queueFilter, requestedStorefront, reviewStatus]);
+  }, [
+    activeView,
+    includeResolved,
+    initialQueue,
+    queueFilter,
+    requestedStorefront,
+    reviewStatus,
+  ]);
 
   useEffect(() => {
     void loadRuns();
@@ -654,20 +704,22 @@ export default function AdminAnalyzerClient() {
         </div>
       </AdminPanel>
 
-      <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(420px,600px)_minmax(0,1fr)]">
         <AdminPanel
           title="Queue"
           description={pageCopy.queueDescription}
         >
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2">
             <AdminInput
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search case, email, issue, feedback"
+              className="min-w-0"
             />
             <AdminSelect
               value={reviewStatus}
               onChange={(event) => setReviewStatus(event.target.value)}
+              className="min-w-0"
             >
               <option value="">All statuses</option>
               {REVIEW_STATUS_OPTIONS.map((option) => (
@@ -679,6 +731,7 @@ export default function AdminAnalyzerClient() {
             <AdminSelect
               value={queueFilter}
               onChange={(event) => setQueueFilter(event.target.value)}
+              className="min-w-0"
             >
               <option value="">Filter: all queue reasons</option>
               <option value="assigned">Assigned reviewer</option>
@@ -687,7 +740,11 @@ export default function AdminAnalyzerClient() {
               <option value="disputed">Disputed cases</option>
               <option value="low-confidence">Low confidence</option>
             </AdminSelect>
-            <AdminSelect value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
+            <AdminSelect
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value)}
+              className="min-w-0"
+            >
               <option value="attention">Sort: attention</option>
               <option value="feedback">Sort: user feedback</option>
               <option value="newest">Sort: newest</option>
@@ -703,17 +760,23 @@ export default function AdminAnalyzerClient() {
             />
             Include resolved
           </label>
-          <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-xs text-slate-400">
-            {sortedRuns.length} visible cases · sorted by{" "}
-            {sortMode === "attention"
-              ? "attention"
-              : sortMode === "feedback"
-                ? "user feedback"
-                : sortMode === "lowest-confidence"
-                  ? "lowest confidence"
-                  : sortMode}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.06] px-4 py-3 text-xs text-slate-300">
+            <span>
+              <span className="font-semibold text-cyan-100">{sortedRuns.length}</span>{" "}
+              visible cases
+            </span>
+            <span className="text-slate-400">
+              Sorted by{" "}
+              {sortMode === "attention"
+                ? "attention"
+                : sortMode === "feedback"
+                  ? "user feedback"
+                  : sortMode === "lowest-confidence"
+                    ? "lowest confidence"
+                    : sortMode}
+            </span>
           </div>
-          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                 Bulk actions · {selectedIds.length} selected
@@ -732,7 +795,7 @@ export default function AdminAnalyzerClient() {
                 {selectedIds.length === sortedRuns.length ? "Clear" : "Select visible"}
               </button>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2">
               <AdminSelect value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value)}>
                 <option value="">Bulk status: unchanged</option>
                 {REVIEW_STATUS_OPTIONS.map((option) => (
