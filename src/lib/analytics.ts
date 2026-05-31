@@ -5,6 +5,7 @@ import {
   ANALYTICS_IDLE_TIMEOUT_MS,
   ANALYTICS_SESSION_STORAGE_KEY,
   deriveAnalyticsPageType,
+  resolveTrafficAttribution,
 } from "@/lib/analyticsShared";
 
 type AnalyticsSessionState = {
@@ -74,12 +75,15 @@ export const canUseAnalytics = (): boolean => {
 const mergeAttribution = (
   session: Pick<AnalyticsSessionState, "utmSource" | "utmMedium" | "utmCampaign"> | null,
 ) => {
-  const currentParams = readUtmParams();
-  return {
-    utmSource: session?.utmSource ?? currentParams.utmSource,
-    utmMedium: session?.utmMedium ?? currentParams.utmMedium,
-    utmCampaign: session?.utmCampaign ?? currentParams.utmCampaign,
-  };
+  if (session?.utmSource || session?.utmMedium || session?.utmCampaign) {
+    return {
+      utmSource: session.utmSource,
+      utmMedium: session.utmMedium,
+      utmCampaign: session.utmCampaign,
+    };
+  }
+
+  return readAttributionParams();
 };
 
 const createAnalyticsSessionId = () => {
@@ -89,16 +93,32 @@ const createAnalyticsSessionId = () => {
   return `smokeify-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const readUtmParams = () => {
+const readAttributionParams = () => {
   if (typeof window === "undefined") {
     return { utmSource: null, utmMedium: null, utmCampaign: null };
   }
   const params = new URLSearchParams(window.location.search);
-  return {
+  const explicit = {
     utmSource: trimTrackingValue(params.get("utm_source"), 120),
     utmMedium: trimTrackingValue(params.get("utm_medium"), 120),
     utmCampaign: trimTrackingValue(params.get("utm_campaign"), 160),
   };
+  const paidClickSource =
+    params.has("gclid") || params.has("gbraid") || params.has("wbraid") || params.has("gad_source")
+      ? "google"
+      : params.has("msclkid")
+        ? "bing"
+        : params.has("fbclid")
+          ? "facebook"
+          : null;
+
+  return resolveTrafficAttribution({
+    ...explicit,
+    paidClickSource,
+    paidClickCampaign: params.get("gad_campaignid"),
+    referrer: document.referrer || null,
+    currentHost: window.location.host,
+  });
 };
 
 const readAnalyticsSession = (): AnalyticsSessionState | null => {

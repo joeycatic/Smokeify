@@ -76,6 +76,7 @@ export default function ProductDetailClient({
   imageUrl,
   imageAlt,
   options,
+  relatedSeoLinks,
 }: {
     product: {
       id: string;
@@ -102,6 +103,11 @@ export default function ProductDetailClient({
   variants: ProductVariant[];
   imageUrl?: string | null;
   imageAlt?: string | null;
+  relatedSeoLinks?: Array<{
+    title: string;
+    description: string;
+    href: string;
+  }>;
   options: Array<{ name: string; values: string[] }>;
 }) {
   const router = useRouter();
@@ -872,6 +878,31 @@ export default function ProductDetailClient({
                 </div>
               </div>
               <ChevronRightIcon className="ml-4 h-5 w-5 text-black/40" />
+            </div>
+          </div>
+        ) : null}
+
+        {relatedSeoLinks && relatedSeoLinks.length > 0 ? (
+          <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-4 shadow-sm">
+            <p className="text-sm font-semibold text-[var(--smk-text)]">
+              Passende Themen
+            </p>
+            <div className="mt-3 grid gap-2">
+              {relatedSeoLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-3 transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                >
+                  <span className="flex items-center justify-between gap-3 text-sm font-semibold text-[var(--smk-text)]">
+                    <span>{link.title}</span>
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--smk-text-dim)] transition group-hover:translate-x-0.5" />
+                  </span>
+                  <span className="mt-1 line-clamp-2 block text-xs text-[var(--smk-text-muted)]">
+                    {link.description}
+                  </span>
+                </Link>
+              ))}
             </div>
           </div>
         ) : null}

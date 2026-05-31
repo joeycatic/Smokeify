@@ -10,6 +10,7 @@ export type SeoPageConfig = {
   subcategoryHandleAliases?: string[];
   parentHandle?: string;
   growboxSize?: string;
+  queryTerms?: string[];
 };
 
 export function buildCategoryHref(
@@ -130,6 +131,58 @@ export const seoPages: SeoPageConfig[] = [
       },
     ],
     categoryHandle: "duenger",
+  },
+  {
+    slugParts: ["vbx-duenger"],
+    title: "VBX Dünger",
+    description:
+      "VBX Dünger und Hydroponic Research Produkte für kontrollierte Nährstoffversorgung im Indoor-Setup.",
+    copy: [
+      "VBX-Produkte werden häufig gezielt gesucht, deshalb bündelt diese Seite passende Dünger und Zusätze an einem Ort.",
+      "Vergleiche Größen, Preise und Verfügbarkeit direkt, bevor du dein Nährstoff-Setup ergänzt.",
+      "Achte bei Konzentraten auf Dosierung, Wasserqualität und die Kombination mit deiner bestehenden Nährstofflinie.",
+    ],
+    faq: [
+      {
+        question: "Wann lohnt sich VBX Dünger?",
+        answer:
+          "VBX Dünger ist interessant, wenn du eine klare, konzentrierte Nährstofflösung für ein kontrolliertes Setup suchst. Prüfe vor dem Kauf immer Dosierung, Gebindegröße und Kompatibilität mit deinem System.",
+      },
+      {
+        question: "Welche VBX Größe passt zu meinem Bedarf?",
+        answer:
+          "Kleine Gebinde eignen sich zum Testen oder für wenige Pflanzen. Größere Gebinde lohnen sich, wenn du regelmäßig düngst und Verbrauch sowie Lagerung gut einschätzen kannst.",
+      },
+    ],
+    categoryHandle: "duenger",
+    categoryHandleAliases: ["substrate-und-zubehoer"],
+    queryTerms: ["vbx", "hydroponic research"],
+  },
+  {
+    slugParts: ["alfa-boost"],
+    title: "Alfa Boost",
+    description:
+      "Alfa Boost Produkte für dein Indoor-Setup vergleichen und direkt bei Smokeify kaufen.",
+    copy: [
+      "Alfa Boost ist ein klarer Suchbegriff mit Kaufabsicht. Diese Seite fasst passende Produkte und relevante Alternativen zusammen.",
+      "Prüfe Gebindegröße, Preis und Anwendung, damit das Produkt zu deinem bestehenden Plan passt.",
+    ],
+    categoryHandle: "duenger",
+    categoryHandleAliases: ["substrate-und-zubehoer"],
+    queryTerms: ["alfa boost", "alfaboost"],
+  },
+  {
+    slugParts: ["root-duenger"],
+    title: "Root Dünger & Wurzelpflege",
+    description:
+      "Root-Produkte, Wurzelstimulatoren und passende Dünger für starke Wurzelentwicklung im Indoor-Garten.",
+    copy: [
+      "Eine stabile Wurzelzone hilft Pflanzen, Wasser und Nährstoffe besser aufzunehmen.",
+      "Hier findest du passende Root-Produkte, Wurzelpflege und Dünger für den Start und die Erholung nach Stressphasen.",
+    ],
+    categoryHandle: "duenger",
+    categoryHandleAliases: ["substrate-und-zubehoer"],
+    queryTerms: ["root", "wurzel"],
   },
   {
     slugParts: ["substrateundzubehoer"],
@@ -567,8 +620,100 @@ export const seoPages: SeoPageConfig[] = [
     subcategoryHandle: "ph-regulatoren",
     parentHandle: "messen",
   },
+  {
+    slugParts: ["ph-regulatoren"],
+    title: "pH-Regulatoren",
+    description:
+      "pH-Regulatoren und pH-Zubehör für stabile Wasserwerte im Indoor-Setup.",
+    copy: [
+      "Stabile pH-Werte machen Nährstoffgabe berechenbarer und reduzieren vermeidbare Pflanzenprobleme.",
+      "Vergleiche pH-Produkte nach Einsatzbereich, Gebindegröße und einfacher Dosierung.",
+    ],
+    subcategoryHandle: "ph-regulatoren",
+    parentHandle: "messen",
+    queryTerms: ["ph", "pH"],
+  },
+  {
+    slugParts: ["toepfe-und-stofftoepfe"],
+    title: "Töpfe & Stofftöpfe",
+    description:
+      "Töpfe, Stofftöpfe und passendes Zubehör für sauberes Umtopfen und stabile Wurzelentwicklung.",
+    copy: [
+      "Der richtige Topf beeinflusst Wurzelraum, Wasserführung und Pflegeaufwand.",
+      "Hier findest du Töpfe, Stofftöpfe und Zubehör für kleine Setups bis größere Indoor-Gärten.",
+    ],
+    categoryHandle: "substrate-und-zubehoer",
+    categoryHandleAliases: ["substrateundzubehoer", "substrate", "zubehoer"],
+    queryTerms: ["topf", "toepfe", "töpfe", "stofftopf", "stofftöpfe"],
+  },
+  {
+    slugParts: ["bewasserung-haehne-und-anschluesse"],
+    title: "Bewässerungshähne & Anschlüsse",
+    description:
+      "Absperrhähne, Anschlüsse und Zubehör für zuverlässige Bewässerungssysteme.",
+    copy: [
+      "Kleine Bewässerungsteile entscheiden oft darüber, ob ein System wartungsarm und dicht läuft.",
+      "Vergleiche Hähne, Anschlüsse und Zubehör passend zu Autopot, Tank und Leitungen.",
+    ],
+    categoryHandle: "bewaesserung",
+    queryTerms: ["hahn", "absperrhahn", "anschluss", "anschlüsse"],
+  },
 ];
 
 export const seoPageBySlug = new Map(
   seoPages.map((page) => [page.slugParts.join("/"), page]),
 );
+
+export type SeoInternalLink = {
+  title: string;
+  description: string;
+  href: string;
+};
+
+const normalizeTerm = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+export const getSeoLinksForProduct = (product: {
+  title: string;
+  manufacturer?: string | null;
+  categories?: Array<{
+    handle: string;
+    parent?: { handle: string } | null;
+  }>;
+}) => {
+  const productText = normalizeTerm(`${product.manufacturer ?? ""} ${product.title}`);
+  const categoryHandles = new Set(
+    product.categories?.flatMap((category) => [
+      normalizeTerm(category.handle),
+      normalizeTerm(category.parent?.handle ?? ""),
+    ]) ?? [],
+  );
+
+  return seoPages
+    .filter((page) => page.categoryHandle || page.subcategoryHandle || page.queryTerms?.length)
+    .filter((page) => {
+      const handles = [
+        page.categoryHandle,
+        ...(page.categoryHandleAliases ?? []),
+        page.subcategoryHandle,
+        ...(page.subcategoryHandleAliases ?? []),
+        page.parentHandle,
+      ]
+        .filter((entry): entry is string => Boolean(entry))
+        .map(normalizeTerm);
+      const categoryMatch = handles.some((handle) => categoryHandles.has(handle));
+      const queryMatch =
+        page.queryTerms?.some((term) => productText.includes(normalizeTerm(term))) ?? false;
+      return categoryMatch || queryMatch;
+    })
+    .map((page) => ({
+      title: page.title,
+      description: page.description,
+      href: `/${page.slugParts.join("/")}`,
+    }))
+    .filter((link, index, links) => links.findIndex((entry) => entry.href === link.href) === index)
+    .slice(0, 6);
+};

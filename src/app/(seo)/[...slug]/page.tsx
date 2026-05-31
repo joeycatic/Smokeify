@@ -105,8 +105,25 @@ const buildDefaultFaq = (title: string) => [
   },
 ];
 
+const normalizeSearchText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 const filterProductsForConfig = (config: SeoPageConfig) => {
   return (product: Awaited<ReturnType<typeof getProducts>>[number]) => {
+    const queryMatch = config.queryTerms?.some((term) => {
+      const haystack = normalizeSearchText([
+        product.title,
+        product.handle,
+        product.manufacturer ?? "",
+        ...(product.tags ?? []),
+      ]
+        .join(" "));
+      return haystack.includes(normalizeSearchText(term));
+    });
+
     if (isGrowboxCollectionMatch(product, config)) return true;
     const matchesCategoryFilter =
       product.categories?.some((category) =>
@@ -116,6 +133,8 @@ const filterProductsForConfig = (config: SeoPageConfig) => {
           category.parent?.handle ?? undefined,
         ),
       ) ?? false;
+    if (config.queryTerms?.length && !queryMatch) return false;
+    if (!config.categoryHandle && !config.subcategoryHandle) return Boolean(queryMatch);
     if (!matchesCategoryFilter) return false;
     if (config.growboxSize) {
       return sizeKeyFrom(product.growboxSize) === config.growboxSize;

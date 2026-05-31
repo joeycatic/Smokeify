@@ -11,6 +11,11 @@ import ProductReviews from "./ProductReviews";
 import PageLayout from "@/components/PageLayout";
 import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import { measureServerExecution } from "@/lib/perf";
+import {
+  buildProductSeoDescription,
+  buildProductSeoTitle,
+} from "@/lib/productSeo";
+import { getSeoLinksForProduct } from "@/lib/seoPages";
 import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 const siteUrl =
@@ -82,15 +87,8 @@ export async function generateMetadata({
     return {};
   }
 
-  const title = product.seoTitle?.trim()
-    ? { absolute: product.seoTitle.trim() }
-    : `${product.title} | Smokeify`;
-  const description = (
-    product.seoDescription?.trim() ||
-    product.shortDescription?.trim() ||
-    stripHtml(product.description || "").slice(0, 160) ||
-    "Produktdetails bei Smokeify"
-  ).trim();
+  const title = { absolute: buildProductSeoTitle(product) };
+  const description = buildProductSeoDescription(product);
   const canonical = `/products/${product.handle}`;
   const image = product.images?.[0]?.url ?? null;
   const noindex = isNoindexProduct(product);
@@ -193,6 +191,7 @@ export default async function ProductDetailPage({
   const groupProducts = productPageData.groupProducts;
   const reviewSummary = productPageData.reviewSummary;
   const recommendedCarouselItems = recommendedProducts;
+  const relatedSeoLinks = getSeoLinksForProduct(product);
 
   const images = product.images ?? [];
   const primaryImage = images[0] ?? null;
@@ -320,6 +319,7 @@ export default async function ProductDetailPage({
               variants={product.variants}
               imageUrl={primaryImage?.url ?? null}
               imageAlt={primaryImage?.altText ?? product.title}
+              relatedSeoLinks={relatedSeoLinks}
             />
           </div>
         </div>

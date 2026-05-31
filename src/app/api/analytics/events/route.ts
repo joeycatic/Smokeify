@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { hasJsonContentType, jsonApi } from "@/lib/apiRoute";
+import { resolveTrafficAttribution } from "@/lib/analyticsShared";
 
 type AnalyticsIngestBody = {
   sessionId?: unknown;
@@ -87,6 +88,12 @@ const normalizeBody = (body: unknown) => {
   return body ? [body as AnalyticsIngestBody] : [];
 };
 
+const getCurrentHost = (request: Request) => {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedHost) return forwardedHost.split(",")[0]?.trim();
+  return request.headers.get("host");
+};
+
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
     return jsonApi({ error: "Forbidden" }, { status: 403 });
@@ -124,6 +131,7 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? undefined;
   const deviceType = getDeviceType(request.headers.get("user-agent"));
+  const currentHost = getCurrentHost(request);
   const normalizedPayloads = payloads
     .map((body) => {
       const sessionId = trimString(body.sessionId, 120);
@@ -133,16 +141,25 @@ export async function POST(request: Request) {
         return null;
       }
 
+      const referrer = trimString(body.referrer, 500);
+      const attribution = resolveTrafficAttribution({
+        utmSource: trimString(body.utmSource, 120),
+        utmMedium: trimString(body.utmMedium, 120),
+        utmCampaign: trimString(body.utmCampaign, 160),
+        referrer,
+        currentHost,
+      });
+
       return {
         sessionId,
         storefront,
         eventName,
         pagePath: normalizePath(body.pagePath),
         pageType: trimString(body.pageType, 50),
-        referrer: trimString(body.referrer, 500),
-        utmSource: trimString(body.utmSource, 120),
-        utmMedium: trimString(body.utmMedium, 120),
-        utmCampaign: trimString(body.utmCampaign, 160),
+        referrer,
+        utmSource: attribution.utmSource ?? undefined,
+        utmMedium: attribution.utmMedium ?? undefined,
+        utmCampaign: attribution.utmCampaign ?? undefined,
         currency: trimString(body.currency, 12),
         valueCents: normalizeInteger(body.valueCents),
         quantity: normalizeInteger(body.quantity),
@@ -199,6 +216,9 @@ export async function POST(request: Request) {
           deviceType,
           ...(userId ? { userId } : {}),
           ...(entry.storefront ? { storefront: entry.storefront } : {}),
+          ...(entry.utmSource ? { utmSource: entry.utmSource } : {}),
+          ...(entry.utmMedium ? { utmMedium: entry.utmMedium } : {}),
+          ...(entry.utmCampaign ? { utmCampaign: entry.utmCampaign } : {}),
         },
       }),
     ),
