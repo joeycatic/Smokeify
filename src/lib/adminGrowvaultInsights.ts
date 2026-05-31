@@ -5,11 +5,12 @@ import { isMissingAnalyticsStorageError } from "@/lib/adminStorageGuards";
 import { buildAdminTimeBuckets, getAdminTimeWindowStart, type AdminTimeRangeDays } from "@/lib/adminTimeRange";
 import { PAID_ORDER_STATUSES } from "@/lib/adminInsights";
 import { prisma } from "@/lib/prisma";
+import type { StorefrontCode } from "@/lib/storefronts";
 
 const GROW_STOREFRONT = "GROW" as const;
 const DEFAULT_LOCALE = "de-DE";
 
-const GROWVAULT_FUNNEL_EVENTS = {
+const STOREFRONT_FUNNEL_EVENTS = {
   addToCart: "add_to_cart",
   beginCheckout: "begin_checkout",
   shippingSubmitted: "add_shipping_info",
@@ -86,6 +87,8 @@ export type GrowvaultInsights = {
   underperformingProducts: GrowvaultProductPerformanceRow[];
   warningStartsAt: string | null;
 };
+
+export type AdminStorefrontInsights = GrowvaultInsights;
 
 let analyticsStorefrontSchemaPromise: Promise<boolean> | null = null;
 
@@ -210,6 +213,7 @@ async function countDistinctSessionsForEvent(
   eventName: string,
   rangeStart: Date,
   storefrontAnalyticsAvailable: boolean,
+  storefront: StorefrontCode,
 ) {
   if (!storefrontAnalyticsAvailable) {
     return 0;
@@ -220,7 +224,7 @@ async function countDistinctSessionsForEvent(
       await prisma.analyticsEvent.groupBy({
         by: ["sessionId"],
         where: {
-          storefront: GROW_STOREFRONT,
+          storefront,
           createdAt: { gte: rangeStart },
           eventName,
         },
@@ -235,8 +239,9 @@ async function countDistinctSessionsForEvent(
   return 0;
 }
 
-async function getGrowvaultLiveSnapshot(
+async function getStorefrontLiveSnapshot(
   storefrontAnalyticsAvailable: boolean,
+  storefront: StorefrontCode,
 ): Promise<GrowvaultLiveSnapshot> {
   if (!storefrontAnalyticsAvailable) {
     return buildEmptyLiveSnapshot();
@@ -253,7 +258,7 @@ async function getGrowvaultLiveSnapshot(
   try {
     activeSessions = await prisma.analyticsSession.findMany({
       where: {
-        storefront: GROW_STOREFRONT,
+        storefront,
         lastSeenAt: { gte: getActiveWindowStart() },
       },
       select: {
@@ -314,9 +319,10 @@ async function getGrowvaultLiveSnapshot(
   };
 }
 
-async function getGrowvaultTrend(
+async function getStorefrontTrend(
   days: AdminTimeRangeDays,
   storefrontAnalyticsAvailable: boolean,
+  storefront: StorefrontCode,
 ): Promise<GrowvaultFunnelTrendPoint[]> {
   const rangeStart = getAdminTimeWindowStart(days);
   const buckets = buildAdminTimeBuckets(days, DEFAULT_LOCALE).map((bucket) => ({
@@ -333,7 +339,7 @@ async function getGrowvaultTrend(
   const paidOrdersPromise = prisma.order.findMany({
     where: {
       createdAt: { gte: rangeStart },
-      sourceStorefront: GROW_STOREFRONT,
+      sourceStorefront: storefront,
       paymentStatus: { in: PAID_ORDER_STATUSES },
     },
     select: {
@@ -347,15 +353,15 @@ async function getGrowvaultTrend(
     try {
       events = await prisma.analyticsEvent.findMany({
         where: {
-          storefront: GROW_STOREFRONT,
+          storefront,
           createdAt: { gte: rangeStart },
           eventName: {
             in: [
-              GROWVAULT_FUNNEL_EVENTS.addToCart,
-              GROWVAULT_FUNNEL_EVENTS.beginCheckout,
-              GROWVAULT_FUNNEL_EVENTS.shippingSubmitted,
-              GROWVAULT_FUNNEL_EVENTS.paymentStarted,
-              GROWVAULT_FUNNEL_EVENTS.purchase,
+              STOREFRONT_FUNNEL_EVENTS.addToCart,
+              STOREFRONT_FUNNEL_EVENTS.beginCheckout,
+              STOREFRONT_FUNNEL_EVENTS.shippingSubmitted,
+              STOREFRONT_FUNNEL_EVENTS.paymentStarted,
+              STOREFRONT_FUNNEL_EVENTS.purchase,
             ],
           },
         },
@@ -380,19 +386,19 @@ async function getGrowvaultTrend(
     const bucket = bucketMap.get(bucketKey);
     if (!bucket) continue;
 
-    if (event.eventName === GROWVAULT_FUNNEL_EVENTS.addToCart) {
+    if (event.eventName === STOREFRONT_FUNNEL_EVENTS.addToCart) {
       bucket.addToCart.add(event.sessionId);
     }
-    if (event.eventName === GROWVAULT_FUNNEL_EVENTS.beginCheckout) {
+    if (event.eventName === STOREFRONT_FUNNEL_EVENTS.beginCheckout) {
       bucket.beginCheckout.add(event.sessionId);
     }
-    if (event.eventName === GROWVAULT_FUNNEL_EVENTS.shippingSubmitted) {
+    if (event.eventName === STOREFRONT_FUNNEL_EVENTS.shippingSubmitted) {
       bucket.shippingSubmitted.add(event.sessionId);
     }
-    if (event.eventName === GROWVAULT_FUNNEL_EVENTS.paymentStarted) {
+    if (event.eventName === STOREFRONT_FUNNEL_EVENTS.paymentStarted) {
       bucket.paymentStarted.add(event.sessionId);
     }
-    if (event.eventName === GROWVAULT_FUNNEL_EVENTS.purchase) {
+    if (event.eventName === STOREFRONT_FUNNEL_EVENTS.purchase) {
       bucket.purchases.add(event.sessionId);
     }
   }
@@ -417,9 +423,10 @@ async function getGrowvaultTrend(
   }));
 }
 
-async function getGrowvaultProductPerformance(
+async function getStorefrontProductPerformance(
   days: AdminTimeRangeDays,
   storefrontAnalyticsAvailable: boolean,
+  storefront: StorefrontCode,
 ): Promise<GrowvaultProductPerformanceRow[]> {
   const rangeStart = getAdminTimeWindowStart(days);
   const salesGroupsPromise = prisma.orderItem.groupBy({
@@ -428,7 +435,7 @@ async function getGrowvaultProductPerformance(
       variantId: { not: null },
       order: {
         createdAt: { gte: rangeStart },
-        sourceStorefront: GROW_STOREFRONT,
+        sourceStorefront: storefront,
         paymentStatus: { in: PAID_ORDER_STATUSES },
       },
     },
@@ -443,14 +450,14 @@ async function getGrowvaultProductPerformance(
         .groupBy({
         by: ["variantId", "eventName"],
         where: {
-          storefront: GROW_STOREFRONT,
+          storefront,
           createdAt: { gte: rangeStart },
           variantId: { not: null },
           eventName: {
             in: [
-              GROWVAULT_FUNNEL_EVENTS.addToCart,
-              GROWVAULT_FUNNEL_EVENTS.beginCheckout,
-              GROWVAULT_FUNNEL_EVENTS.paymentStarted,
+              STOREFRONT_FUNNEL_EVENTS.addToCart,
+              STOREFRONT_FUNNEL_EVENTS.beginCheckout,
+              STOREFRONT_FUNNEL_EVENTS.paymentStarted,
             ],
           },
         },
@@ -489,13 +496,13 @@ async function getGrowvaultProductPerformance(
       purchases: 0,
       revenueCents: 0,
     };
-    if (group.eventName === GROWVAULT_FUNNEL_EVENTS.addToCart) {
+    if (group.eventName === STOREFRONT_FUNNEL_EVENTS.addToCart) {
       entry.addToCart += group._count._all;
     }
-    if (group.eventName === GROWVAULT_FUNNEL_EVENTS.beginCheckout) {
+    if (group.eventName === STOREFRONT_FUNNEL_EVENTS.beginCheckout) {
       entry.beginCheckout += group._count._all;
     }
-    if (group.eventName === GROWVAULT_FUNNEL_EVENTS.paymentStarted) {
+    if (group.eventName === STOREFRONT_FUNNEL_EVENTS.paymentStarted) {
       entry.paymentStarted += group._count._all;
     }
     variantMetrics.set(variantId, entry);
@@ -576,9 +583,10 @@ async function getGrowvaultProductPerformance(
     });
 }
 
-export async function getGrowvaultInsights(
+export async function getAdminStorefrontInsights(
   days: AdminTimeRangeDays,
-): Promise<GrowvaultInsights> {
+  storefront: StorefrontCode,
+): Promise<AdminStorefrontInsights> {
   const rangeStart = getAdminTimeWindowStart(days);
   let storefrontAnalyticsAvailable = await hasAnalyticsStorefrontSchema();
   let firstTaggedEvent: { createdAt: Date } | null = null;
@@ -586,7 +594,7 @@ export async function getGrowvaultInsights(
   if (storefrontAnalyticsAvailable) {
     try {
       firstTaggedEvent = await prisma.analyticsEvent.findFirst({
-        where: { storefront: GROW_STOREFRONT },
+        where: { storefront },
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       });
@@ -609,41 +617,46 @@ export async function getGrowvaultInsights(
     trend,
     productRows,
   ] = await Promise.all([
-    getGrowvaultLiveSnapshot(storefrontAnalyticsAvailable),
+    getStorefrontLiveSnapshot(storefrontAnalyticsAvailable, storefront),
     countDistinctSessionsForEvent(
-      GROWVAULT_FUNNEL_EVENTS.addToCart,
+      STOREFRONT_FUNNEL_EVENTS.addToCart,
       rangeStart,
       storefrontAnalyticsAvailable,
+      storefront,
     ),
     countDistinctSessionsForEvent(
-      GROWVAULT_FUNNEL_EVENTS.beginCheckout,
+      STOREFRONT_FUNNEL_EVENTS.beginCheckout,
       rangeStart,
       storefrontAnalyticsAvailable,
+      storefront,
     ),
     countDistinctSessionsForEvent(
-      GROWVAULT_FUNNEL_EVENTS.shippingSubmitted,
+      STOREFRONT_FUNNEL_EVENTS.shippingSubmitted,
       rangeStart,
       storefrontAnalyticsAvailable,
+      storefront,
     ),
     countDistinctSessionsForEvent(
-      GROWVAULT_FUNNEL_EVENTS.paymentStarted,
+      STOREFRONT_FUNNEL_EVENTS.paymentStarted,
       rangeStart,
       storefrontAnalyticsAvailable,
+      storefront,
     ),
     countDistinctSessionsForEvent(
-      GROWVAULT_FUNNEL_EVENTS.purchase,
+      STOREFRONT_FUNNEL_EVENTS.purchase,
       rangeStart,
       storefrontAnalyticsAvailable,
+      storefront,
     ),
     prisma.order.count({
       where: {
         createdAt: { gte: rangeStart },
-        sourceStorefront: GROW_STOREFRONT,
+        sourceStorefront: storefront,
         paymentStatus: { in: PAID_ORDER_STATUSES },
       },
     }),
-    getGrowvaultTrend(days, storefrontAnalyticsAvailable),
-    getGrowvaultProductPerformance(days, storefrontAnalyticsAvailable),
+    getStorefrontTrend(days, storefrontAnalyticsAvailable, storefront),
+    getStorefrontProductPerformance(days, storefrontAnalyticsAvailable, storefront),
   ]);
 
   const topProducts = productRows.slice(0, 6);
@@ -685,4 +698,10 @@ export async function getGrowvaultInsights(
     underperformingProducts,
     warningStartsAt,
   };
+}
+
+export async function getGrowvaultInsights(
+  days: AdminTimeRangeDays,
+): Promise<GrowvaultInsights> {
+  return getAdminStorefrontInsights(days, GROW_STOREFRONT);
 }

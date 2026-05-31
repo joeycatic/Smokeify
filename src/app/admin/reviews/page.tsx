@@ -4,6 +4,7 @@ import type { Prisma, ReviewStatus } from "@prisma/client";
 import { AdminMetricCard, AdminPanel } from "@/components/admin/AdminWorkspace";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
+import { parseStorefront } from "@/lib/storefronts";
 import AdminReviewsClient, { type AdminReviewListItem } from "./AdminReviewsClient";
 
 const PAGE_SIZE = 20;
@@ -36,10 +37,13 @@ export default async function AdminReviewsPage({
   const query = getParam(resolvedSearchParams?.q).trim();
   const rawStatus = getParam(resolvedSearchParams?.status).trim().toUpperCase();
   const language = getParam(resolvedSearchParams?.lang).trim();
-  const storefront = getParam(resolvedSearchParams?.storefront).trim();
+  const storefront = parseStorefront(getParam(resolvedSearchParams?.storefront));
   const requestedPage = Number(getParam(resolvedSearchParams?.page) || "1");
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const statusFilter = isReviewStatus(rawStatus) ? rawStatus : "ALL";
+  const storefrontWhere: Prisma.ReviewWhereInput = storefront
+    ? { product: { is: { storefronts: { has: storefront } } } }
+    : {};
 
   const queryWhere: Prisma.ReviewWhereInput = query
     ? {
@@ -57,15 +61,16 @@ export default async function AdminReviewsPage({
 
   const where: Prisma.ReviewWhereInput = {
     ...queryWhere,
+    ...storefrontWhere,
     ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
   };
 
   const [totalReviews, pendingReviews, approvedReviews, rejectedReviews, filteredCount] =
     await Promise.all([
-      prisma.review.count(),
-      prisma.review.count({ where: { status: "PENDING" } }),
-      prisma.review.count({ where: { status: "APPROVED" } }),
-      prisma.review.count({ where: { status: "REJECTED" } }),
+      prisma.review.count({ where: storefrontWhere }),
+      prisma.review.count({ where: { ...storefrontWhere, status: "PENDING" } }),
+      prisma.review.count({ where: { ...storefrontWhere, status: "APPROVED" } }),
+      prisma.review.count({ where: { ...storefrontWhere, status: "REJECTED" } }),
       prisma.review.count({ where }),
     ]);
 

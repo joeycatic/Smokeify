@@ -165,6 +165,7 @@ const ADMIN_PAGE_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/admin/collections", scope: "catalog.write" },
   { prefix: "/admin/reviews", scope: "catalog.write" },
   { prefix: "/admin/analytics", scope: "analytics.read" },
+  { prefix: "/admin/smokeify", scope: "analytics.read" },
   { prefix: "/admin/growvault", scope: "analytics.read" },
   { prefix: "/admin/analyzer", scope: "ops.read" },
   { prefix: "/admin/alerts", scope: "alerts.read" },

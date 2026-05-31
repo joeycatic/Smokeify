@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("server-only", () => ({}), { virtual: true });
+vi.mock("server-only", () => ({}));
 
 import { parseCatalogHygieneFilters } from "@/lib/adminCatalogHygiene";
 

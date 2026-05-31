@@ -21,6 +21,7 @@ async function loadBridgeModule() {
 afterEach(() => {
   vi.resetModules();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 
   for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
     if (typeof value === "string") {
@@ -33,7 +34,7 @@ afterEach(() => {
 
 describe("growvaultAnalyzerAdminBridge", () => {
   it("prefers the local Growvault app in development", async () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     process.env.NEXTAUTH_SECRET = "obama420";
     delete process.env.GROWVAULT_ADMIN_BRIDGE_URL;
     delete process.env.INTERNAL_GROWVAULT_APP_URL;
@@ -48,7 +49,7 @@ describe("growvaultAnalyzerAdminBridge", () => {
   });
 
   it("falls back to the public Growvault app when the local dev target is unavailable", async () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     process.env.NEXTAUTH_SECRET = "obama420";
     delete process.env.GROWVAULT_ADMIN_BRIDGE_URL;
     delete process.env.INTERNAL_GROWVAULT_APP_URL;

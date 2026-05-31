@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/growvaultAnalyzerAdminBridge", () => ({
@@ -10,7 +10,7 @@ describe("growvaultWishlistAdmin", () => {
     const { fetchGrowvaultAnalyzerAdminJson } = await import(
       "@/lib/growvaultAnalyzerAdminBridge"
     );
-    vi.mocked(fetchGrowvaultAnalyzerAdminJson).mockResolvedValueOnce({
+    (fetchGrowvaultAnalyzerAdminJson as unknown as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       targetUrl: "https://growvault.de",
@@ -57,7 +57,7 @@ describe("growvaultWishlistAdmin", () => {
     const { fetchGrowvaultAnalyzerAdminJson } = await import(
       "@/lib/growvaultAnalyzerAdminBridge"
     );
-    vi.mocked(fetchGrowvaultAnalyzerAdminJson).mockResolvedValueOnce({
+    (fetchGrowvaultAnalyzerAdminJson as unknown as Mock).mockResolvedValueOnce({
       ok: false,
       status: 503,
       targetUrl: "https://growvault.de",

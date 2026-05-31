@@ -7,6 +7,7 @@ import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { filterAdminCommandActions } from "@/lib/adminCommandActions";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
+  adminPathSupportsAllStorefrontScope,
   adminPathSupportsStorefrontScope,
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
@@ -79,8 +80,12 @@ function buildHref(href: string, currentStorefrontScope: AdminStorefrontScope) {
   if (!adminPathSupportsStorefrontScope(href)) {
     return href;
   }
+  const nextStorefrontScope =
+    adminPathSupportsAllStorefrontScope(href) || currentStorefrontScope !== "ALL"
+      ? currentStorefrontScope
+      : "MAIN";
   const params = new URLSearchParams();
-  params.set("storefront", currentStorefrontScope);
+  params.set("storefront", nextStorefrontScope);
   const query = params.toString();
   return query ? `${href}?${query}` : href;
 }

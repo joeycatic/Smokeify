@@ -17,10 +17,19 @@ export const ADMIN_STOREFRONT_SCOPE_LABELS: Record<AdminStorefrontScope, string>
 
 const ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES = [
   "/admin/analytics",
+  "/admin/catalog",
+  "/admin/customers",
   "/admin/email-testing",
   "/admin/finance",
   "/admin/landing-page",
+  "/admin/orders",
   "/admin/reports",
+  "/admin/reviews",
+] as const;
+
+const ADMIN_CONCRETE_STOREFRONT_SCOPE_ROUTE_PREFIXES = [
+  "/admin/email-testing",
+  "/admin/landing-page",
 ] as const;
 
 export const STOREFRONT_OPTION_ROWS = STOREFRONTS.map((code) => ({
@@ -59,6 +68,12 @@ export const parseAdminStorefrontScope = (
 
 export const adminPathSupportsStorefrontScope = (pathname: string) =>
   ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+export const adminPathSupportsAllStorefrontScope = (pathname: string) =>
+  adminPathSupportsStorefrontScope(pathname) &&
+  !ADMIN_CONCRETE_STOREFRONT_SCOPE_ROUTE_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix),
+  );
 
 export const storefrontScopeToStorefront = (
   storefrontScope: AdminStorefrontScope,

@@ -37,6 +37,7 @@ import {
 } from "@/lib/adminPermissions";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
+  adminPathSupportsAllStorefrontScope,
   adminPathSupportsStorefrontScope,
   parseAdminStorefrontScope,
   type AdminStorefrontScope,
@@ -76,46 +77,51 @@ type NavGroup = {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Home",
+    label: "Control Plane",
     items: [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
-      { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
-    ],
-  },
-  {
-    label: "Revenue",
-    items: [
-      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
-      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
-      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon, scope: "tax.review" },
-      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon, scope: "tax.review" },
       {
-        href: "/admin/profitability",
-        label: "Profitability",
-        icon: PresentationChartLineIcon,
-        scope: "finance.read",
+        href: "/admin/ops",
+        label: "Ops",
+        icon: ClipboardDocumentListIcon,
+        scope: "ops.read",
       },
-      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
       { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
+      {
+        href: "/admin/attribution",
+        label: "Attribution",
+        icon: DocumentTextIcon,
+        scope: "ops.read",
+      },
     ],
   },
   {
-    label: "Catalog",
+    label: "Storefronts",
     items: [
+      {
+        href: "/admin/smokeify",
+        label: "Smokeify",
+        icon: HomeIcon,
+        scope: "analytics.read",
+      },
+      {
+        href: "/admin/growvault",
+        label: "GrowVault",
+        icon: HomeIcon,
+        scope: "analytics.read",
+      },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
       { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
       { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
       { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
-      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
-      { href: "/admin/discounts", label: "Discounts", icon: TagIcon, scope: "discounts.manage" },
       { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
       { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
-    ],
-  },
-  {
-    label: "Orders",
-    items: [
-      { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
       { href: "/admin/returns", label: "Returns", icon: ArchiveBoxIcon, scope: "returns.read" },
       {
         href: "/admin/inventory-adjustments",
@@ -132,33 +138,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "CRM",
+    label: "Growth",
     items: [
-      { href: "/admin/customers", label: "Customers", icon: UsersIcon, scope: "customers.read" },
-      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
-      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
+      { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
+      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
+      { href: "/admin/discounts", label: "Discounts", icon: TagIcon, scope: "discounts.manage" },
       {
         href: "/admin/recommendations",
         label: "Recommendations",
         icon: RectangleGroupIcon,
         scope: "pricing.review",
-      },
-      {
-        href: "/admin/attribution",
-        label: "Attribution",
-        icon: DocumentTextIcon,
-        scope: "ops.read",
-      },
-      {
-        href: "/admin/growvault",
-        label: "Growvault",
-        icon: HomeIcon,
-        scope: "analytics.read",
       },
       {
         href: "/admin/analyzer",
@@ -167,22 +156,35 @@ const NAV_GROUPS: NavGroup[] = [
         scope: "ops.read",
       },
       {
-        href: "/admin/scripts",
-        label: "Scripts",
-        icon: CommandLineIcon,
-        scope: "scripts.execute",
-      },
-      {
-        href: "/admin/ops",
-        label: "Ops",
-        icon: ClipboardDocumentListIcon,
-        scope: "ops.read",
-      },
-      {
         href: "/admin/email-testing",
         label: "Email Testing",
         icon: ArrowTopRightOnSquareIcon,
         scope: "ops.read",
+      },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
+      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
+      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon, scope: "tax.review" },
+      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon, scope: "tax.review" },
+      {
+        href: "/admin/profitability",
+        label: "Profitability",
+        icon: PresentationChartLineIcon,
+        scope: "finance.read",
+      },
+      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
+      { href: "/admin/customers", label: "Customers", icon: UsersIcon, scope: "customers.read" },
+      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
+      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
+      {
+        href: "/admin/scripts",
+        label: "Scripts",
+        icon: CommandLineIcon,
+        scope: "scripts.execute",
       },
     ],
   },
@@ -216,9 +218,14 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
-  const currentStorefrontScope = supportsStorefrontScope
+  const supportsAllStorefrontScope = adminPathSupportsAllStorefrontScope(pathname);
+  const parsedStorefrontScope = supportsStorefrontScope
     ? parseAdminStorefrontScope(searchParams?.get("storefront"))
     : "ALL";
+  const currentStorefrontScope =
+    supportsStorefrontScope && !supportsAllStorefrontScope && parsedStorefrontScope === "ALL"
+      ? "MAIN"
+      : parsedStorefrontScope;
   const currentStorefrontLabel = supportsStorefrontScope
     ? ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope]
     : "Shared workspace";
@@ -249,8 +256,12 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
     if (!adminPathSupportsStorefrontScope(href)) {
       return href;
     }
+    const nextStorefrontScope =
+      adminPathSupportsAllStorefrontScope(href) || currentStorefrontScope !== "ALL"
+        ? currentStorefrontScope
+        : "MAIN";
     const params = new URLSearchParams();
-    params.set("storefront", currentStorefrontScope);
+    params.set("storefront", nextStorefrontScope);
     const query = params.toString();
     return query ? `${href}?${query}` : href;
   };
@@ -421,8 +432,15 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 />
 
                 {supportsStorefrontScope ? (
-                  <div className="grid w-full shrink-0 grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center">
-                    {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
+                  <div
+                    className={`grid w-full shrink-0 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center ${
+                      supportsAllStorefrontScope ? "grid-cols-3" : "grid-cols-2"
+                    }`}
+                  >
+                    {(supportsAllStorefrontScope
+                      ? (["ALL", "MAIN", "GROW"] as const)
+                      : (["MAIN", "GROW"] as const)
+                    ).map((scope) => (
                       <Link
                         key={scope}
                         href={storefrontHref(scope)}
