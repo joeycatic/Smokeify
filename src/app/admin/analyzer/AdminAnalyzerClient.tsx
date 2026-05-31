@@ -76,6 +76,14 @@ type GrowvaultBridgeStatus = {
   error: string | null;
 };
 
+type AnalyzerQueuePayload = {
+  runs?: AnalyzerRunRecord[];
+  summary?: AnalyzerRunSummary;
+  source?: string;
+  growvaultBridge?: GrowvaultBridgeStatus;
+  error?: string;
+};
+
 const REVIEW_STATUS_OPTIONS = [
   "UNREVIEWED",
   "REVIEWED_OK",
@@ -134,7 +142,7 @@ export default function AdminAnalyzerClient() {
     critical: 0,
     submitted: 0,
   });
-  const [sourceLabel, setSourceLabel] = useState("growvault");
+  const [sourceLabel, setSourceLabel] = useState("not loaded");
   const [growvaultBridge, setGrowvaultBridge] = useState<GrowvaultBridgeStatus>({
     ok: true,
     targetUrl: null,
@@ -223,27 +231,48 @@ export default function AdminAnalyzerClient() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.set("limit", "250");
-      params.set("storefront", requestedStorefront);
-      if (includeResolved) params.set("includeResolved", "true");
-      if (reviewStatus) params.set("reviewStatus", reviewStatus);
-      if (queueFilter === "assigned") params.set("assignedOnly", "true");
-      if (queueFilter === "overdue") params.set("overdueOnly", "true");
-      if (queueFilter === "publication") params.set("publicationEligibleOnly", "true");
-      if (queueFilter === "disputed") params.set("disputedOnly", "true");
-      if (queueFilter === "low-confidence") params.set("lowConfidenceOnly", "true");
-      const response = await fetch(`/api/admin/analyzer/runs?${params.toString()}`);
-      const data = (await response.json()) as {
-        runs?: AnalyzerRunRecord[];
-        summary?: AnalyzerRunSummary;
-        source?: string;
-        growvaultBridge?: GrowvaultBridgeStatus;
-        error?: string;
+      const fetchQueue = async (storefront: "ALL" | "MAIN") => {
+        const params = new URLSearchParams();
+        params.set("limit", "250");
+        params.set("storefront", storefront);
+        if (includeResolved) params.set("includeResolved", "true");
+        if (reviewStatus) params.set("reviewStatus", reviewStatus);
+        if (queueFilter === "assigned") params.set("assignedOnly", "true");
+        if (queueFilter === "overdue") params.set("overdueOnly", "true");
+        if (queueFilter === "publication") params.set("publicationEligibleOnly", "true");
+        if (queueFilter === "disputed") params.set("disputedOnly", "true");
+        if (queueFilter === "low-confidence") params.set("lowConfidenceOnly", "true");
+
+        const response = await fetch(`/api/admin/analyzer/runs?${params.toString()}`);
+        const data = (await response.json().catch(() => ({}))) as AnalyzerQueuePayload;
+        if (!response.ok) {
+          throw new Error(data.error ?? "Failed to load analyzer runs.");
+        }
+        return data;
       };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to load analyzer runs.");
+
+      let data = await fetchQueue(requestedStorefront);
+      let fallbackWarning: string | null = null;
+
+      if (activeView === "shared" && (data.runs ?? []).length === 0) {
+        const smokeifyData = await fetchQueue("MAIN");
+        if ((smokeifyData.runs ?? []).length > 0) {
+          data = {
+            ...smokeifyData,
+            source: "smokeify",
+            growvaultBridge: {
+              ok: false,
+              targetUrl: data.growvaultBridge?.targetUrl ?? null,
+              status: data.growvaultBridge?.status ?? null,
+              error:
+                data.growvaultBridge?.error ??
+                "Shared analyzer queue returned no bridged rows, so Smokeify-local runs are shown.",
+            },
+          };
+          fallbackWarning = "Shared analyzer queue returned no rows; showing Smokeify-local runs.";
+        }
       }
+
       const nextRuns = data.runs ?? [];
       setRuns(nextRuns);
       setSummary(
@@ -263,7 +292,7 @@ export default function AdminAnalyzerClient() {
           publicationEligible: nextRuns.filter((run) => run.publicationEligible).length,
         },
       );
-      setSourceLabel(data.source ?? "growvault");
+      setSourceLabel(data.source ?? "unknown");
       setGrowvaultBridge(
         data.growvaultBridge ?? {
           ok: true,
@@ -278,12 +307,73 @@ export default function AdminAnalyzerClient() {
           : nextRuns[0]?.id ?? null,
       );
       setSelectedIds((current) => current.filter((id) => nextRuns.some((run) => run.id === id)));
+      if (fallbackWarning) setError(fallbackWarning);
     } catch (nextError) {
+      if (activeView === "shared") {
+        try {
+          const params = new URLSearchParams();
+          params.set("limit", "250");
+          params.set("storefront", "MAIN");
+          if (includeResolved) params.set("includeResolved", "true");
+          if (reviewStatus) params.set("reviewStatus", reviewStatus);
+          if (queueFilter === "assigned") params.set("assignedOnly", "true");
+          if (queueFilter === "overdue") params.set("overdueOnly", "true");
+          if (queueFilter === "publication") params.set("publicationEligibleOnly", "true");
+          if (queueFilter === "disputed") params.set("disputedOnly", "true");
+          if (queueFilter === "low-confidence") params.set("lowConfidenceOnly", "true");
+
+          const response = await fetch(`/api/admin/analyzer/runs?${params.toString()}`);
+          const data = (await response.json().catch(() => ({}))) as AnalyzerQueuePayload;
+          if (response.ok) {
+            const nextRuns = data.runs ?? [];
+            setRuns(nextRuns);
+            setSummary(
+              data.summary ?? {
+                total: nextRuns.length,
+                unresolved: nextRuns.filter((run) => run.reviewStatus !== "REVIEWED_OK").length,
+                disputed: nextRuns.filter((run) => (run.incorrectFeedbackCount ?? 0) > 0).length,
+                lowConfidence: nextRuns.filter((run) => run.confidence < 0.65).length,
+                critical: nextRuns.filter((run) => run.healthStatus === "CRITICAL").length,
+                submitted: nextRuns.filter((run) => run.publicationStatus === "SUBMITTED").length,
+                unassigned: nextRuns.filter((run) => !run.assignedReviewerId).length,
+                dueToday: nextRuns.filter((run) => {
+                  if (!run.reviewDueAt || run.reviewStatus === "REVIEWED_OK") return false;
+                  return new Date(run.reviewDueAt).toDateString() === new Date().toDateString();
+                }).length,
+                overdue: nextRuns.filter((run) => run.overdue).length,
+                publicationEligible: nextRuns.filter((run) => run.publicationEligible).length,
+              },
+            );
+            setSourceLabel(data.source ?? "smokeify");
+            setGrowvaultBridge({
+              ok: false,
+              targetUrl: null,
+              status: null,
+              error:
+                nextError instanceof Error
+                  ? nextError.message
+                  : "Shared analyzer queue failed; showing Smokeify-local runs.",
+            });
+            setSelectedId((current) =>
+              current && nextRuns.some((run) => run.id === current)
+                ? current
+                : nextRuns[0]?.id ?? null,
+            );
+            setSelectedIds((current) =>
+              current.filter((id) => nextRuns.some((run) => run.id === id)),
+            );
+            setError("Shared analyzer queue failed; showing Smokeify-local runs.");
+            return;
+          }
+        } catch {
+          // Keep the original failure message below.
+        }
+      }
       setError(nextError instanceof Error ? nextError.message : "Failed to load analyzer runs.");
     } finally {
       setLoading(false);
     }
-  }, [includeResolved, queueFilter, requestedStorefront, reviewStatus]);
+  }, [activeView, includeResolved, queueFilter, requestedStorefront, reviewStatus]);
 
   useEffect(() => {
     void loadRuns();
@@ -523,6 +613,12 @@ export default function AdminAnalyzerClient() {
           {typeof growvaultBridge.status === "number"
             ? ` Bridge response: ${growvaultBridge.status}.`
             : ""}
+        </AdminNotice>
+      ) : null}
+
+      {error ? (
+        <AdminNotice tone={error.includes("showing Smokeify-local") ? "warning" : "error"}>
+          {error}
         </AdminNotice>
       ) : null}
 
