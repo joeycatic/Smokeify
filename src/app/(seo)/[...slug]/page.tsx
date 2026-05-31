@@ -114,13 +114,14 @@ const normalizeSearchText = (value: string) =>
 const filterProductsForConfig = (config: SeoPageConfig) => {
   return (product: Awaited<ReturnType<typeof getProducts>>[number]) => {
     const queryMatch = config.queryTerms?.some((term) => {
-      const haystack = normalizeSearchText([
-        product.title,
-        product.handle,
-        product.manufacturer ?? "",
-        ...(product.tags ?? []),
-      ]
-        .join(" "));
+      const haystack = normalizeSearchText(
+        [
+          product.title,
+          product.handle,
+          product.manufacturer ?? "",
+          ...(product.tags ?? []),
+        ].join(" "),
+      );
       return haystack.includes(normalizeSearchText(term));
     });
 
