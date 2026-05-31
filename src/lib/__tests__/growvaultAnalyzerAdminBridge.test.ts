@@ -81,4 +81,33 @@ describe("growvaultAnalyzerAdminBridge", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("returns a non-ok bridge result instead of throwing when all targets fail", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    process.env.NEXTAUTH_SECRET = "obama420";
+    delete process.env.GROWVAULT_ADMIN_BRIDGE_URL;
+    delete process.env.INTERNAL_GROWVAULT_APP_URL;
+    delete process.env.NEXT_PUBLIC_GROWVAULT_APP_URL;
+    delete process.env.GROWVAULT_APP_URL;
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.de";
+
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:3000"))
+      .mockRejectedValueOnce(new Error("public bridge timed out"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const bridgeModule = await loadBridgeModule();
+    const response = await bridgeModule.fetchGrowvaultAnalyzerAdminJson<{
+      items?: unknown[];
+    }>("/api/internal/admin/analyzer/runs", "limit=250");
+
+    expect(response).toMatchObject({
+      ok: false,
+      status: null,
+      payload: { error: "public bridge timed out" },
+      targetUrl: "https://growvault.de",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

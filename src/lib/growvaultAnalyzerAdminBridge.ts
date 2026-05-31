@@ -23,6 +23,8 @@ type AdminBridgeFetchOptions = {
   };
 };
 
+const BRIDGE_FETCH_TIMEOUT_MS = 5000;
+
 function buildBridgeHeaders(input: AdminBridgeFetchOptions) {
   const headers = new Headers({
     Accept: "application/json",
@@ -92,8 +94,10 @@ export async function fetchGrowvaultAnalyzerAdminJson<T>(
 
   const targets = getGrowvaultAnalyzerAdminBridgeTargets();
   let lastError: unknown = null;
+  let lastTargetUrl: string | null = null;
 
   for (const baseUrl of targets) {
+    lastTargetUrl = baseUrl;
     const target = new URL(pathname, `${baseUrl}/`);
     target.search = search;
 
@@ -103,6 +107,7 @@ export async function fetchGrowvaultAnalyzerAdminJson<T>(
         headers: buildBridgeHeaders(input),
         body: input.body,
         cache: "no-store",
+        signal: AbortSignal.timeout(BRIDGE_FETCH_TIMEOUT_MS),
       });
 
       const payload = (await response.json().catch(() => ({}))) as T & {
@@ -120,7 +125,17 @@ export async function fetchGrowvaultAnalyzerAdminJson<T>(
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Growvault analyzer admin bridge request failed.");
+  const message =
+    lastError instanceof Error
+      ? lastError.message
+      : "Growvault analyzer admin bridge request failed.";
+
+  return {
+    ok: false,
+    status: null,
+    payload: {
+      error: message,
+    } as T & { error?: string },
+    targetUrl: lastTargetUrl,
+  };
 }
