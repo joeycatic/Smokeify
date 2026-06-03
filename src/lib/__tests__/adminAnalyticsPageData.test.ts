@@ -16,12 +16,16 @@ const {
   orderAggregate,
   orderFindMany,
   orderGroupBy,
+  orderItemGroupBy,
   variantFindMany,
   analyticsEventGroupBy,
   plantAnalysisRunCount,
   plantAnalysisFeedbackCount,
   plantAnalysisIssueGroupBy,
   userFindMany,
+  checkoutRecoverySessionCount,
+  checkoutRecoveryAttemptCount,
+  returnRequestCount,
 } = vi.hoisted(() => ({
   mockGetActiveSessionSnapshot: vi.fn(),
   mockGetCustomerRevenueMix: vi.fn(),
@@ -36,12 +40,16 @@ const {
   orderAggregate: vi.fn(),
   orderFindMany: vi.fn(),
   orderGroupBy: vi.fn(),
+  orderItemGroupBy: vi.fn(),
   variantFindMany: vi.fn(),
   analyticsEventGroupBy: vi.fn(),
   plantAnalysisRunCount: vi.fn(),
   plantAnalysisFeedbackCount: vi.fn(),
   plantAnalysisIssueGroupBy: vi.fn(),
   userFindMany: vi.fn(),
+  checkoutRecoverySessionCount: vi.fn(),
+  checkoutRecoveryAttemptCount: vi.fn(),
+  returnRequestCount: vi.fn(),
 }));
 
 vi.mock("@/lib/adminInsights", () => ({
@@ -68,6 +76,9 @@ vi.mock("@/lib/prisma", () => ({
       findMany: orderFindMany,
       groupBy: orderGroupBy,
     },
+    orderItem: {
+      groupBy: orderItemGroupBy,
+    },
     variant: {
       findMany: variantFindMany,
     },
@@ -85,6 +96,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     user: {
       findMany: userFindMany,
+    },
+    checkoutRecoverySession: {
+      count: checkoutRecoverySessionCount,
+    },
+    checkoutRecoveryAttempt: {
+      count: checkoutRecoveryAttemptCount,
+    },
+    returnRequest: {
+      count: returnRequestCount,
     },
   },
 }));
@@ -291,8 +311,31 @@ beforeEach(() => {
       },
     ]);
   analyticsEventGroupBy
-    .mockResolvedValueOnce([{ utmSource: "google", utmMedium: "cpc", _count: { _all: 6 } }])
-    .mockResolvedValueOnce([{ utmSource: "google", utmMedium: "cpc", _count: { _all: 2 } }]);
+    .mockResolvedValueOnce([
+      { utmSource: "google", utmMedium: "cpc", utmCampaign: "spring", _count: { _all: 6 } },
+    ])
+    .mockResolvedValueOnce([
+      { utmSource: "google", utmMedium: "cpc", utmCampaign: "spring", _count: { _all: 2 } },
+    ]);
+  orderItemGroupBy.mockResolvedValue([
+    {
+      variantId: "var_1",
+      _sum: { quantity: 0, totalAmount: 0 },
+    },
+  ]);
+  checkoutRecoverySessionCount
+    .mockResolvedValueOnce(4)
+    .mockResolvedValueOnce(3)
+    .mockResolvedValueOnce(1)
+    .mockResolvedValueOnce(1);
+  checkoutRecoveryAttemptCount
+    .mockResolvedValueOnce(2)
+    .mockResolvedValueOnce(1);
+  returnRequestCount
+    .mockResolvedValueOnce(3)
+    .mockResolvedValueOnce(1)
+    .mockResolvedValueOnce(1)
+    .mockResolvedValueOnce(1);
   plantAnalysisRunCount.mockResolvedValue(20);
   plantAnalysisFeedbackCount
     .mockResolvedValueOnce(10)
@@ -380,6 +423,40 @@ describe("adminAnalyticsPageData", () => {
         }),
       }),
     );
+    expect(orderItemGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          order: expect.objectContaining({
+            sourceStorefront: "MAIN",
+          }),
+        }),
+      }),
+    );
+    expect(checkoutRecoverySessionCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceStorefront: "MAIN",
+        }),
+      }),
+    );
+    expect(checkoutRecoveryAttemptCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          session: {
+            sourceStorefront: "MAIN",
+          },
+        }),
+      }),
+    );
+    expect(returnRequestCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          order: {
+            sourceStorefront: "MAIN",
+          },
+        }),
+      }),
+    );
     expect(result.inventory).toEqual({
       stockoutCount: 1,
       lowStockCount: 1,
@@ -387,12 +464,45 @@ describe("adminAnalyticsPageData", () => {
     });
     expect(result.acquisition?.trafficSources).toEqual([
       expect.objectContaining({
-        label: "google / cpc",
+        label: "google / cpc / spring",
         sessions: 6,
         beginCheckout: 2,
         checkoutRate: 2 / 6,
       }),
     ]);
+    expect(result.inventoryRisk.rows[0]).toEqual(
+      expect.objectContaining({
+        variantId: "var_1",
+        available: 0,
+        coverDays: null,
+        riskLevel: "critical",
+      }),
+    );
+    expect(result.checkoutRecovery).toEqual(
+      expect.objectContaining({
+        sessions: 4,
+        consentGrantedSessions: 3,
+        completedSessions: 1,
+        suppressedSessions: 1,
+        recoveredOrders: 3,
+        failedAttempts: 2,
+        dueAttempts: 1,
+      }),
+    );
+    expect(result.returns).toEqual({
+      totalRequests: 3,
+      pendingRequests: 1,
+      approvedRequests: 1,
+      rejectedRequests: 1,
+      pendingRate: 1 / 3,
+    });
+    expect(result.actionCenter.items.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "inventory-stockout-risk",
+        "checkout-recovery-queue",
+        "pending-returns",
+      ]),
+    );
     expect(result.operations?.merchandising.leaders[0]).toEqual(
       expect.objectContaining({
         productTitle: "Control Tent",

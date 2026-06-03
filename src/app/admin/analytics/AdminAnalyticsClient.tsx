@@ -42,6 +42,9 @@ import {
 
 type ExecutiveMetric = NonNullable<AdminAnalyticsOverviewPayload["executive"]>["metrics"][number];
 type RevenueConversionData = NonNullable<AdminAnalyticsOverviewPayload["revenueConversion"]>;
+type ActionCenterData = NonNullable<AdminAnalyticsOverviewPayload["actionCenter"]>;
+type ActionItem = ActionCenterData["items"][number];
+type ActionIssueType = ActionItem["type"];
 type LiveSnapshot = NonNullable<
   NonNullable<AdminAnalyticsOverviewPayload["acquisition"]>["live"]
 >;
@@ -82,11 +85,21 @@ type OperationsTabId =
   | "system";
 
 type ProductBoard = "leaders" | "leaks";
+type ActionIssueFilter = "all" | ActionIssueType;
 
 const emptyExecutive = {
   updatedAt: "",
   metrics: [] as ExecutiveMetric[],
 };
+
+const emptyActionCenter = {
+  items: [] as ActionItem[],
+  counts: {
+    critical: 0,
+    warning: 0,
+    info: 0,
+  },
+} satisfies ActionCenterData;
 
 const emptyRevenueConversion = {
   revenue: {
@@ -214,6 +227,15 @@ const emptyOperations = {
       trackedVariants: 0,
     },
     stockouts: [],
+    risk: {
+      summary: {
+        criticalCount: 0,
+        warningCount: 0,
+        trackedRiskCount: 0,
+        revenueAtRiskCents: 0,
+      },
+      rows: [],
+    },
   },
   customers: {
     summary: {
@@ -235,6 +257,7 @@ const emptyOperations = {
   commerceMix: {
     payments: [],
     discounts: [],
+    discountEfficiency: [],
   },
   system: {
     aiQuality: {
@@ -245,6 +268,26 @@ const emptyOperations = {
       feedbackCorrectRate: 0,
       topIssueLabels: [],
     },
+    checkoutRecovery: {
+      sessions: 0,
+      consentGrantedSessions: 0,
+      completedSessions: 0,
+      suppressedSessions: 0,
+      recoveredOrders: 0,
+      recoveredRevenueCents: 0,
+      failedAttempts: 0,
+      dueAttempts: 0,
+      consentRate: 0,
+      recoveryRate: 0,
+      suppressionRate: 0,
+    },
+    returns: {
+      totalRequests: 0,
+      pendingRequests: 0,
+      approvedRequests: 0,
+      rejectedRequests: 0,
+      pendingRate: 0,
+    },
   },
 } satisfies OperationsData;
 
@@ -252,6 +295,24 @@ const emptySecondaryPayload = {
   scope: {
     days: 30,
     storefront: null,
+    currentStart: new Date(0),
+    currentEnd: new Date(0),
+  },
+  trust: {
+    eventStorage: "event_backed",
+    sourceQualitySource: "analytics_events",
+    moneyAuthority: "server",
+    refreshedAt: "",
+  },
+  actionCenter: emptyActionCenter,
+  inventoryRisk: {
+    summary: {
+      criticalCount: 0,
+      warningCount: 0,
+      trackedRiskCount: 0,
+      revenueAtRiskCents: 0,
+    },
+    rows: [],
   },
   topProducts: [],
   underperformingProducts: [],
@@ -259,12 +320,43 @@ const emptySecondaryPayload = {
   inventory: emptyOperations.inventory.summary,
   customers: emptyOperations.customers.summary,
   trafficSources: [],
+  sourceQuality: {
+    eventStorage: "event_backed",
+    sources: [],
+    weakSources: [],
+  },
   discountAnalysis: [],
+  discountEfficiency: [],
   paymentAnalysis: [],
+  checkoutRecovery: {
+    sessions: 0,
+    consentGrantedSessions: 0,
+    completedSessions: 0,
+    suppressedSessions: 0,
+    recoveredOrders: 0,
+    recoveredRevenueCents: 0,
+    failedAttempts: 0,
+    dueAttempts: 0,
+    consentRate: 0,
+    recoveryRate: 0,
+    suppressionRate: 0,
+  },
+  returns: {
+    totalRequests: 0,
+    pendingRequests: 0,
+    approvedRequests: 0,
+    rejectedRequests: 0,
+    pendingRate: 0,
+  },
   retention: emptyOperations.customers.retention,
   aiQuality: emptyOperations.system.aiQuality,
   acquisition: {
     trafficSources: [] as TrafficSource[],
+    sourceQuality: {
+      eventStorage: "event_backed",
+      sources: [],
+      weakSources: [],
+    },
   },
   operations: emptyOperations,
 } satisfies AdminAnalyticsSecondaryPayload;
@@ -318,6 +410,49 @@ const formatUpdatedAt = (value: string) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+const formatWindowDate = (value: string | Date | undefined) => {
+  if (!value) return "Unknown";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+};
+
+const issueTypeLabel: Record<ActionIssueType, string> = {
+  revenue: "Revenue",
+  conversion: "Conversion",
+  inventory: "Inventory",
+  tax: "Tax",
+  returns: "Returns",
+  recovery: "Recovery",
+  products: "Products",
+  discounts: "Discounts",
+  acquisition: "Acquisition",
+};
+
+const severityClassName: Record<ActionItem["severity"], string> = {
+  critical: "border-rose-400/30 bg-rose-400/10 text-rose-100",
+  warning: "border-amber-400/30 bg-amber-400/10 text-amber-100",
+  info: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
+  success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-100",
+};
+
+const formatActionMetric = (
+  value: number | string | null | undefined,
+  kind: "currency" | "percent" | "count" | "text",
+  currency = "EUR",
+) => {
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return "-";
+  if (kind === "currency") return formatPrice(value, currency);
+  if (kind === "percent") return percent(value);
+  if (kind === "count") return formatCount(value);
+  return String(value);
 };
 
 function resolveSelectedRow<T extends { id: string }>(rows: T[], selectedId: string | null) {
@@ -461,6 +596,245 @@ function CommandDeck({
               <MetricTile key={metric.id} metric={metric} currency={currency} />
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ActionCenter({
+  items,
+  selectedIssueType,
+  onSelectIssueType,
+  selectedActionId,
+  onSelectActionId,
+  currency,
+  overviewTrust,
+  secondaryTrust,
+  marginTrend,
+  currentStart,
+  currentEnd,
+}: {
+  items: ActionItem[];
+  selectedIssueType: ActionIssueFilter;
+  onSelectIssueType: (value: ActionIssueFilter) => void;
+  selectedActionId: string | null;
+  onSelectActionId: (value: string | null) => void;
+  currency: string;
+  overviewTrust?: AdminAnalyticsOverviewPayload["trust"];
+  secondaryTrust?: AdminAnalyticsSecondaryPayload["trust"];
+  marginTrend?: AdminAnalyticsOverviewPayload["marginTrend"];
+  currentStart?: Date;
+  currentEnd?: Date;
+}) {
+  const issueOptions = useMemo(() => {
+    const presentTypes = Array.from(new Set(items.map((item) => item.type)));
+    return [
+      { value: "all" as const, label: "All" },
+      ...presentTypes.map((type) => ({ value: type, label: issueTypeLabel[type] })),
+    ];
+  }, [items]);
+  const filteredItems =
+    selectedIssueType === "all"
+      ? items
+      : items.filter((item) => item.type === selectedIssueType);
+  const selectedAction =
+    filteredItems.find((item) => item.id === selectedActionId) ?? filteredItems[0] ?? null;
+  const criticalCount = items.filter((item) => item.severity === "critical").length;
+  const warningCount = items.filter((item) => item.severity === "warning").length;
+  const infoCount = items.filter((item) => item.severity === "info").length;
+
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+      onSelectActionId(null);
+      return;
+    }
+    if (!selectedActionId || !filteredItems.some((item) => item.id === selectedActionId)) {
+      onSelectActionId(filteredItems[0].id);
+    }
+  }, [filteredItems, onSelectActionId, selectedActionId]);
+
+  return (
+    <section className="space-y-4">
+      <WorkspaceHeader
+        eyebrow="Action center"
+        title="Priority issues and next admin moves"
+        description="Server-ranked issues combine finance, conversion, inventory, returns, recovery, discounts, and acquisition signals."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {issueOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onSelectIssueType(option.value)}
+                className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                  option.value === selectedIssueType
+                    ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
+                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 xl:grid-cols-12">
+        <AdminPanel
+          title="Ranked actions"
+          description="Critical issues sort first. Select a row to see the exact metrics and the next admin destination."
+          className="xl:col-span-8"
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100">
+                {criticalCount} critical
+              </span>
+              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+                {warningCount} warning
+              </span>
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                {infoCount} info
+              </span>
+            </div>
+          }
+        >
+          {filteredItems.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              No action items match this issue type for the selected scope.
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {filteredItems.map((item) => {
+                const active = selectedAction?.id === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onSelectActionId(item.id)}
+                    className={`rounded-[24px] border p-4 text-left transition ${
+                      active
+                        ? "border-cyan-300/30 bg-cyan-300/10"
+                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${severityClassName[item.severity]}`}
+                          >
+                            {item.severity}
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                            {issueTypeLabel[item.type]}
+                          </span>
+                        </div>
+                        <div className="mt-3 text-base font-semibold text-white">
+                          {item.title}
+                        </div>
+                        <div className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                          {item.summary}
+                        </div>
+                      </div>
+                      <div className="grid min-w-[14rem] grid-cols-2 gap-3">
+                        <AdminCompactMetric
+                          label={item.primaryMetricLabel}
+                          value={formatActionMetric(
+                            item.primaryMetricValue,
+                            item.primaryMetricKind,
+                            currency,
+                          )}
+                        />
+                        <AdminCompactMetric
+                          label={item.secondaryMetricLabel ?? "Priority"}
+                          value={
+                            item.secondaryMetricKind
+                              ? formatActionMetric(
+                                  item.secondaryMetricValue,
+                                  item.secondaryMetricKind,
+                                  currency,
+                                )
+                              : formatCount(item.priority)
+                          }
+                        />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </AdminPanel>
+
+        <div className="space-y-4 xl:col-span-4">
+          <AdminDetailPanel
+            eyebrow={selectedAction ? issueTypeLabel[selectedAction.type] : "Action detail"}
+            title={selectedAction?.title ?? "No action selected"}
+            description={
+              selectedAction?.summary ??
+              "Choose an issue from the action list to inspect the server-computed metrics."
+            }
+            metrics={
+              selectedAction?.detailMetrics.map((metric) => ({
+                label: metric.label,
+                value: formatActionMetric(metric.value, metric.kind, currency),
+              })) ?? []
+            }
+            links={selectedAction?.links ?? []}
+          />
+
+          <AdminDetailPanel
+            eyebrow="Trust state"
+            title={`${formatWindowDate(currentStart)}-${formatWindowDate(currentEnd)}`}
+            description="Money, tax, and order state are server-computed. Event-backed acquisition labels are shown when analytics storage is available."
+            metrics={[
+              {
+                label: "Money source",
+                value: overviewTrust?.moneyAuthority ?? "server",
+              },
+              {
+                label: "Revenue source",
+                value: overviewTrust?.revenueSource ?? "orders_and_finance",
+              },
+              {
+                label: "Events",
+                value: secondaryTrust?.eventStorage ?? "event_backed",
+              },
+              {
+                label: "Refreshed",
+                value: formatUpdatedAt(overviewTrust?.refreshedAt ?? ""),
+              },
+            ]}
+            links={[
+              { label: "Open reports", href: "/admin/reports", tone: "accent" },
+              { label: "Open finance", href: "/admin/finance" },
+            ]}
+          />
+
+          {marginTrend ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AdminCompactMetric
+                label="Current margin"
+                value={formatPrice(
+                  marginTrend.currentContributionMarginCents,
+                  marginTrend.currency,
+                )}
+              />
+              <AdminCompactMetric
+                label="Margin delta"
+                value={formatDelta(marginTrend.contributionMarginDeltaRatio)}
+              />
+              <AdminCompactMetric
+                label="Current margin rate"
+                value={percent(marginTrend.currentContributionMarginRatio)}
+              />
+              <AdminCompactMetric
+                label="Rate delta"
+                value={formatDelta(marginTrend.marginRatioDelta)}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -1916,6 +2290,8 @@ export default function AdminAnalyticsClient({
   const [productBoard, setProductBoard] = useState<ProductBoard>("leaders");
   const [productQuery, setProductQuery] = useState("");
   const [selectedOperationRowId, setSelectedOperationRowId] = useState<string | null>(null);
+  const [selectedIssueType, setSelectedIssueType] = useState<ActionIssueFilter>("all");
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
 
   useEffect(() => {
     setOverview(initialOverview);
@@ -1997,6 +2373,17 @@ export default function AdminAnalyticsClient({
     [secondary],
   );
   const operations = secondary.operations ?? emptyOperations;
+  const actionItems = useMemo(
+    () =>
+      [
+        ...(overview.actionCenter?.items ?? []),
+        ...(secondary.actionCenter?.items ?? []),
+      ].sort((left, right) => {
+        if (right.priority !== left.priority) return right.priority - left.priority;
+        return left.title.localeCompare(right.title);
+      }),
+    [overview.actionCenter?.items, secondary.actionCenter?.items],
+  );
 
   const currency = revenueConversion.periodComparison.currency || revenueConversion.finance.currency;
   const selectedStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[initialStorefrontScope];
@@ -2009,6 +2396,11 @@ export default function AdminAnalyticsClient({
   useEffect(() => {
     setSelectedOperationRowId(null);
   }, [activeOperationsTab, productBoard, initialStorefrontScope]);
+
+  useEffect(() => {
+    setSelectedActionId(null);
+    setSelectedIssueType("all");
+  }, [initialDays, initialStorefrontScope]);
 
   return (
     <div className="space-y-5 pb-10">
@@ -2087,6 +2479,20 @@ export default function AdminAnalyticsClient({
           This workspace is scoped to {selectedStorefrontLabel}. Orders, analytics events, and finance rollups are filtered to explicit storefront attribution only.
         </AdminNotice>
       ) : null}
+
+      <ActionCenter
+        items={actionItems}
+        selectedIssueType={selectedIssueType}
+        onSelectIssueType={setSelectedIssueType}
+        selectedActionId={selectedActionId}
+        onSelectActionId={setSelectedActionId}
+        currency={currency}
+        overviewTrust={overview.trust}
+        secondaryTrust={secondary.trust}
+        marginTrend={overview.marginTrend}
+        currentStart={overview.scope?.currentStart}
+        currentEnd={overview.scope?.currentEnd}
+      />
 
       <RevenueWorkspace
         data={revenueConversion}
