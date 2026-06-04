@@ -60,7 +60,7 @@ export default async function AdminAuditPage({
   )}`;
 
   return (
-    <div className="admin-legacy-page space-y-6">
+    <div className="admin-console-page space-y-6">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

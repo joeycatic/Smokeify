@@ -262,7 +262,7 @@ export default async function AdminInventoryAdjustmentsPage({
   };
 
   return (
-    <div className="admin-legacy-page space-y-6">
+    <div className="admin-console-page space-y-6">
       {!inventoryStorageAvailable ? (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
           Inventory-Ledger-Storage ist in der aktuellen Datenbank nicht vollst&auml;ndig
