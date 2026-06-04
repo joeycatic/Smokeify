@@ -63,7 +63,7 @@ export default async function AdminOpsPage({
   ]);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminOpsClient
         automationJobs={automationData.automationJobs}
         automationSchedules={automationData.automationSchedules}

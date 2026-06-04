@@ -75,7 +75,7 @@ export function CategoryManagementDrawer({
     <AdminDrawer
       open={open}
       title="Category management"
-      description="Daily taxonomy work now starts here. Use advanced maintenance only for bulk cleanup and legacy audits."
+      description="Use this drawer for quick catalog edits. Open the taxonomy workspace for hierarchy cleanup, storefront scope, and bulk maintenance."
       onClose={onClose}
       widthClassName="w-full max-w-6xl"
     >
@@ -397,7 +397,7 @@ export function CollectionManagementDrawer({
     <AdminDrawer
       open={open}
       title="Collection management"
-      description="Daily collection work now starts here. Use advanced maintenance only for bulk cleanup and legacy audits."
+      description="Use this drawer for quick merch edits. Open the collections workspace for curation, cleanup, and bulk maintenance."
       onClose={onClose}
       widthClassName="w-full max-w-5xl"
     >
