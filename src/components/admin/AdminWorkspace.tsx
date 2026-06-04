@@ -88,6 +88,54 @@ export function AdminPanel({
   );
 }
 
+export function AdminSurface({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`admin-reveal rounded-[24px] border border-white/10 bg-[#090d12]/90 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ${className}`}
+    >
+      {children}
+    </section>
+  );
+}
+
+export function AdminToolbar({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`sticky top-[5rem] z-10 rounded-[24px] border border-white/10 bg-[#07101b]/88 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.28)] backdrop-blur ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AdminTableShell({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`admin-scroll-x overflow-hidden rounded-[24px] border border-white/10 bg-[#070b11]/92 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function AdminMetricCard({
   label,
   value,
