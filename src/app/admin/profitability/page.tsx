@@ -117,7 +117,6 @@ function StorefrontSummaryCard({
 function OpportunityList({
   rows,
   emptyCopy,
-  currency,
   metricLabel,
   metricValue,
   submetricLabel,
@@ -125,7 +124,6 @@ function OpportunityList({
 }: {
   rows: ProfitabilityRow[];
   emptyCopy: string;
-  currency: string;
   metricLabel: string;
   metricValue: (row: ProfitabilityRow) => string;
   submetricLabel: string;
@@ -258,7 +256,7 @@ export default async function AdminProfitabilityPage({
                   days: String(days),
                   lens: "contribution",
                 })}
-                className={`rounded-full px-3 py-1.5 ${selectedLens === "contribution" ? "bg-white text-[#05070a]" : "text-slate-200"}`}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "contribution" ? "bg-cyan-300 text-slate-950" : "text-slate-200"}`}
               >
                 Contribution
               </Link>
@@ -267,7 +265,7 @@ export default async function AdminProfitabilityPage({
                   days: String(days),
                   lens: "allocated",
                 })}
-                className={`rounded-full px-3 py-1.5 ${selectedLens === "allocated" ? "bg-white text-[#05070a]" : "text-slate-200"}`}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "allocated" ? "bg-cyan-300 text-slate-950" : "text-slate-200"}`}
               >
                 Allocated Profit
               </Link>
@@ -465,7 +463,6 @@ export default async function AdminProfitabilityPage({
           <OpportunityList
             rows={opportunities.priceLiftCandidates}
             emptyCopy="No clear price-lift candidates are available in the selected period."
-            currency={currency}
             metricLabel={selectedLens === "allocated" ? "allocated profit rate" : "current margin rate"}
             metricValue={(row) =>
               formatPercent(
@@ -490,7 +487,6 @@ export default async function AdminProfitabilityPage({
           <OpportunityList
             rows={opportunities.marginLeakCandidates}
             emptyCopy="No obvious high-traffic margin leaks were found in the selected period."
-            currency={currency}
             metricLabel={selectedLens === "allocated" ? "allocated profit rate" : "tracked margin rate"}
             metricValue={(row) =>
               formatPercent(
@@ -517,7 +513,6 @@ export default async function AdminProfitabilityPage({
           <OpportunityList
             rows={opportunities.scaleCandidates}
             emptyCopy="No scale candidates were found with the current thresholds."
-            currency={currency}
             metricLabel="views in window"
             metricValue={(row) => String(row.views)}
             submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
@@ -538,7 +533,6 @@ export default async function AdminProfitabilityPage({
           <OpportunityList
             rows={opportunities.growExpansionCandidates}
             emptyCopy="No Smokeify-only expansion candidates were found in the selected period."
-            currency={currency}
             metricLabel="purchase count"
             metricValue={(row) => String(row.purchases)}
             submetricLabel={selectedLens === "allocated" ? "allocated profit" : "contribution"}
