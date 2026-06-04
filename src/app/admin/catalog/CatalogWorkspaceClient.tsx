@@ -1044,7 +1044,7 @@ export default function CatalogWorkspaceClient({
             onClick={() => setStorefrontFilter("")}
             className={`rounded-xl px-3 py-2 transition ${
               storefrontFilter === ""
-                ? "bg-white text-[#05070a]"
+                ? "bg-cyan-300 text-slate-950"
                 : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
             }`}
           >
@@ -1058,7 +1058,7 @@ export default function CatalogWorkspaceClient({
                 onClick={() => setStorefrontFilter(storefront)}
                 className={`rounded-xl px-3 py-2 transition ${
                   storefrontFilter === storefront
-                    ? "bg-white text-[#05070a]"
+                    ? "bg-cyan-300 text-slate-950"
                     : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                 }`}
               >
