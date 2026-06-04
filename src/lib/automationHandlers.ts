@@ -38,7 +38,9 @@ function getOriginForAutomation() {
 }
 
 async function runSupplierStockSync() {
-  const { runSupplierSync } = await import("@/lib/supplierStockSync.mjs");
+  const { runSupplierSync } = await import(
+    /* turbopackIgnore: true */ "./supplierStockSync.mjs"
+  );
   const result = await runSupplierSync({ prisma });
   const lowStockVariants = await prisma.variant.findMany({
     include: {
@@ -294,7 +296,9 @@ export async function executeAutomationHandler(input: {
 }) {
   switch (input.handler) {
     case "admin.script.run": {
-      const { runApprovedAdminScriptById } = await import("@/lib/adminScriptExecution");
+      const { runApprovedAdminScriptById } = await import(
+        /* turbopackIgnore: true */ "./adminScriptExecution"
+      );
       const scriptId =
         typeof input.payload.scriptId === "string" ? input.payload.scriptId : "";
       if (!scriptId) {
@@ -354,7 +358,9 @@ export async function executeAutomationHandler(input: {
     case "supplier.stock.daily_report":
       return runSupplierStockDailyReport();
     case "supplier.pricing.sync": {
-      const { runApprovedAdminScriptById } = await import("@/lib/adminScriptExecution");
+      const { runApprovedAdminScriptById } = await import(
+        /* turbopackIgnore: true */ "./adminScriptExecution"
+      );
       const { result } = await runApprovedAdminScriptById({
         scriptId: "pricing:seed-bloomtech-profiles",
       });

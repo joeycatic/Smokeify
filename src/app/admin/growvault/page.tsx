@@ -138,7 +138,7 @@ export default async function AdminGrowvaultPage({
   ]);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <div className="space-y-5">
         <AdminStorefrontDashboard data={dashboardData} pathname="/admin/growvault" />
 

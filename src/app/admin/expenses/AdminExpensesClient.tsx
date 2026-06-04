@@ -1484,7 +1484,7 @@ export default function AdminExpensesClient({
               type="button"
               onClick={() => void createExpense()}
               disabled={migrationRequired}
-              className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a]"
+              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
             >
               Create expense
             </button>
@@ -1723,7 +1723,7 @@ export default function AdminExpensesClient({
               type="button"
               onClick={() => void createRecurringExpense()}
               disabled={migrationRequired}
-              className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a]"
+              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
             >
               Create recurring cost
             </button>
@@ -2205,7 +2205,7 @@ export default function AdminExpensesClient({
                           type="button"
                           onClick={() => void updateExpense(expense)}
                           disabled={savingId === expense.id || migrationRequired}
-                          className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a] disabled:opacity-60"
+                          className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
                         >
                           {savingId === expense.id ? "Saving..." : "Save expense"}
                         </button>
@@ -2539,7 +2539,7 @@ export default function AdminExpensesClient({
                         type="button"
                         onClick={() => void updateRecurringExpense(expense)}
                         disabled={savingId === expense.id || migrationRequired}
-                        className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a] disabled:opacity-60"
+                        className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
                       >
                         {savingId === expense.id ? "Saving..." : "Save recurring cost"}
                       </button>

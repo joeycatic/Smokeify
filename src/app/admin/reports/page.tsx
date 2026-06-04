@@ -23,7 +23,7 @@ export default async function AdminReportsPage({
   const snapshot = await getAdminReportSnapshot(filters);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminReportsClient initialSnapshot={snapshot} />
     </div>
   );

@@ -41,7 +41,7 @@ export default async function AdminCustomersPage({
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-2 py-2 text-stone-800">
+    <div className="mx-auto max-w-6xl px-2 py-2 text-slate-100">
       <AdminCustomersClient
         initialData={initialData}
         initialSegmentFilter={initialSegment}

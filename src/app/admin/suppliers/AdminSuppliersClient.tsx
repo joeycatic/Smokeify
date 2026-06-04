@@ -453,7 +453,7 @@ export default function AdminSuppliersClient({
             <button
               type="button"
               onClick={createSupplier}
-              className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a]"
+              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
             >
               Create supplier
             </button>
@@ -652,7 +652,7 @@ export default function AdminSuppliersClient({
                     type="button"
                     onClick={() => void updateSupplier(supplier)}
                     disabled={savingId === supplier.id}
-                    className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#05070a] disabled:opacity-60"
+                    className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
                   >
                     {savingId === supplier.id ? "Saving..." : "Save supplier"}
                   </button>

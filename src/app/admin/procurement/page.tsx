@@ -33,7 +33,7 @@ export default async function AdminProcurementPage() {
   }
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       {!procurementStorageAvailable ? (
         <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
           Procurement-Storage ist in der aktuellen Datenbank noch nicht verf&uuml;gbar.

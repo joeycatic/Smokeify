@@ -33,7 +33,7 @@ export default async function AdminReturnsPage() {
   });
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminReturnsClient
         requests={requests.map((req) => ({
           ...req,

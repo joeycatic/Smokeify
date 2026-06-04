@@ -758,7 +758,7 @@ export default function AdminCustomersClient({
                     onClick={() => updateStorefrontScope(scope)}
                     className={`rounded-full px-3 py-2 transition ${
                       storefrontScope === scope
-                        ? "bg-white text-[#05070a]"
+                        ? "bg-cyan-300 text-slate-950"
                         : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                     }`}
                   >
@@ -989,7 +989,7 @@ export default function AdminCustomersClient({
                   }}
                   className={`px-4 py-2 transition ${
                     tab === value
-                      ? "bg-white text-[#05070a]"
+                      ? "bg-cyan-300 text-slate-950"
                       : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                   }`}
                 >

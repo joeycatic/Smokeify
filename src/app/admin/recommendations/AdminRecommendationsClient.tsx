@@ -672,13 +672,13 @@ export default function AdminRecommendationsClient({
           <AdminPanel
             eyebrow="Manual exceptions"
             title="Per-product overrides"
-            description="Legacy product cross-sells remain the manual override layer. Use them only for exceptions or hero products, not for broad recommendation maintenance."
+            description="Product cross-sells are the manual override layer. Use them for exceptions or hero products, not broad recommendation maintenance."
           >
             <div className="space-y-4 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
               <div className="text-sm text-slate-400">
-                This workspace now edits the same legacy cross-sell rows that the product editor
-                uses. The centralized rule engine reads these overrides first and then fills the
-                remaining slots from matching rules.
+                This workspace edits the same manual cross-sell rows that the product editor uses.
+                The centralized rule engine reads these overrides first and then fills the remaining
+                slots from matching rules.
               </div>
 
               {selectedProduct ? (
@@ -774,7 +774,7 @@ export default function AdminRecommendationsClient({
                       href={`/admin/catalog/${selectedProduct.id}#cross-sells`}
                       className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
                     >
-                      Open legacy editor
+                      Open product editor
                     </Link>
                   </div>
                 </>

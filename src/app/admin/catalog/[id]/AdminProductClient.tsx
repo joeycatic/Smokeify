@@ -1651,7 +1651,7 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className="admin-legacy-page admin-product-redesign space-y-6 rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:space-y-8 md:rounded-[32px] md:p-8 md:pb-40">
+    <div className="admin-console-page admin-product-redesign space-y-6 rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:space-y-8 md:rounded-[32px] md:p-8 md:pb-40">
       <div className="admin-product-hero admin-reveal rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[28px] sm:p-6">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="min-w-0">
@@ -1957,17 +1957,17 @@ export default function AdminProductClient({
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Title
             <input
               value={details.title}
               onChange={(event) =>
                 setDetails((prev) => ({ ...prev, title: event.target.value }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Handle
             <input
               value={details.handle}
@@ -1975,17 +1975,17 @@ export default function AdminProductClient({
                 setHandleError("");
                 setDetails((prev) => ({ ...prev, handle: event.target.value }));
               }}
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
             {handleError && (
-              <span className="mt-1 block text-[11px] font-medium text-red-600">
+              <span className="mt-1 block text-[11px] font-medium text-rose-300">
                 {handleError}
               </span>
             )}
           </label>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Manufacturer
             <input
               value={details.manufacturer}
@@ -1993,10 +1993,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, manufacturer: event.target.value }))
               }
               placeholder="e.g. AC Infinity"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Produktgruppe
             <input
               value={details.productGroup}
@@ -2004,10 +2004,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, productGroup: event.target.value }))
               }
               placeholder="z.B. growbox-60x60"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Lead time (days)
             <input
               type="number"
@@ -2020,10 +2020,10 @@ export default function AdminProductClient({
                 }))
               }
               placeholder="e.g. 3"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Storefront visibility
             <select
               value={details.storefronts.join(",")}
@@ -2036,7 +2036,7 @@ export default function AdminProductClient({
                     .filter(Boolean) as StorefrontCode[],
                 }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
             >
               {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -2047,12 +2047,12 @@ export default function AdminProductClient({
           </label>
         </div>
         {showZelteFields && (
-          <div className="mt-4 rounded-lg border border-emerald-200/70 bg-emerald-50/60 p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+          <div className="mt-4 rounded-lg border border-emerald-400/25 bg-emerald-400/10 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
               Zelte
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Plant count min
                 <input
                   type="number"
@@ -2068,10 +2068,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 2"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Plant count max
                 <input
                   type="number"
@@ -2087,10 +2087,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 6"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Size
                 <input
                   value={details.growboxSize}
@@ -2101,10 +2101,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 80x80x180 cm"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-stone-600 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-400 md:col-span-2">
                 Connection diameters (mm)
                 <input
                   value={details.growboxConnectionDiameterMm.join(", ")}
@@ -2118,7 +2118,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 100, 125, 150"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
             </div>
@@ -2130,7 +2130,7 @@ export default function AdminProductClient({
               Licht
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Light size
                 <input
                   value={details.lightSize}
@@ -2141,7 +2141,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 80x80"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
             </div>
@@ -2153,7 +2153,7 @@ export default function AdminProductClient({
               Luft
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Diameter (mm)
                 <input
                   type="number"
@@ -2169,21 +2169,21 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 125"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
             </div>
           </div>
         )}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Supplier
             <select
               value={details.supplierId}
               onChange={(event) =>
                 setDetails((prev) => ({ ...prev, supplierId: event.target.value }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-black/15 bg-white px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
             >
               <option value="">No supplier</option>
               {suppliers.map((supplier) => (
@@ -2192,7 +2192,7 @@ export default function AdminProductClient({
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-[11px] text-stone-500">
+            <span className="mt-1 block text-[11px] text-slate-500">
               Manage suppliers in{" "}
               <Link href="/admin/suppliers" className="underline">
                 CRM
@@ -2200,7 +2200,7 @@ export default function AdminProductClient({
               .
             </span>
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Seller name
             <input
               value={details.sellerName}
@@ -2208,10 +2208,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
               }
               placeholder="e.g. Smokeify Marketplace"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             Seller link
             <input
               type="url"
@@ -2220,12 +2220,12 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, sellerUrl: event.target.value }))
               }
               placeholder="https://seller.example/product"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
           {legacySupplierName && (
             <div className="rounded-md border border-amber-200/70 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-700 md:col-span-2">
-              Legacy supplier: {legacySupplierName}. Pick a CRM supplier to link.
+              Unlinked supplier: {legacySupplierName}. Pick a CRM supplier to link.
             </div>
           )}
         </div>
@@ -2261,7 +2261,7 @@ export default function AdminProductClient({
           </button>
           {shippingOpen && (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Weight (g)
                 <input
                   type="number"
@@ -2275,10 +2275,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 1200"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-stone-600">
+              <label className="text-xs font-semibold text-slate-400">
                 Shipping class
                 <input
                   value={details.shippingClass}
@@ -2289,11 +2289,11 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. bulky"
-                  className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
               <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
-                <label className="text-xs font-semibold text-stone-600">
+                <label className="text-xs font-semibold text-slate-400">
                   Length (mm)
                   <input
                     type="number"
@@ -2307,10 +2307,10 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 600"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                   />
                 </label>
-                <label className="text-xs font-semibold text-stone-600">
+                <label className="text-xs font-semibold text-slate-400">
                   Width (mm)
                   <input
                     type="number"
@@ -2324,10 +2324,10 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 400"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                   />
                 </label>
-                <label className="text-xs font-semibold text-stone-600">
+                <label className="text-xs font-semibold text-slate-400">
                   Height (mm)
                   <input
                     type="number"
@@ -2341,14 +2341,14 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 300"
-                    className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                   />
                 </label>
               </div>
             </div>
           )}
         </div>
-        <label className="mt-3 block text-xs font-semibold text-stone-600">
+        <label className="mt-3 block text-xs font-semibold text-slate-400">
           Tags
           <input
             value={details.tags}
@@ -2356,9 +2356,9 @@ export default function AdminProductClient({
               setDetails((prev) => ({ ...prev, tags: event.target.value }))
             }
             placeholder="e.g. led, premium, grow"
-            className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+            className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
           />
-          <span className="mt-1 block text-[11px] text-stone-500">
+          <span className="mt-1 block text-[11px] text-slate-500">
             Separate tags with commas.
           </span>
         </label>
@@ -2366,11 +2366,11 @@ export default function AdminProductClient({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
             Merchant metadata
           </p>
-          <p className="mt-1 text-[11px] text-stone-500">
+          <p className="mt-1 text-[11px] text-slate-500">
             Optional metadata for Google Merchant and light certificate feeds.
           </p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Unit pricing measure
               <input
                 value={details.merchantUnitPricingMeasure}
@@ -2381,10 +2381,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 100W"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Unit pricing base measure
               <input
                 value={details.merchantUnitPricingBaseMeasure}
@@ -2395,10 +2395,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 1W"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Certificate authority
               <input
                 value={details.merchantCertificationAuthority}
@@ -2409,10 +2409,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. EU"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Certificate name
               <input
                 value={details.merchantCertificationName}
@@ -2423,10 +2423,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. EPREL"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Certificate code
               <input
                 value={details.merchantCertificationCode}
@@ -2437,10 +2437,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 123456"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-stone-600">
+            <label className="text-xs font-semibold text-slate-400">
               Certificate value
               <input
                 value={details.merchantCertificationValue}
@@ -2451,7 +2451,7 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. A++"
-                className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
               />
             </label>
           </div>
@@ -2460,7 +2460,7 @@ export default function AdminProductClient({
           id="seo"
           className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
         >
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             SEO title
             <input
               value={details.seoTitle}
@@ -2468,10 +2468,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, seoTitle: event.target.value }))
               }
               placeholder="Search result title"
-              className="mt-1 h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-stone-600">
+          <label className="text-xs font-semibold text-slate-400">
             SEO description
             <textarea
               value={details.seoDescription}
@@ -2483,7 +2483,7 @@ export default function AdminProductClient({
               }
               rows={3}
               placeholder="Search result description"
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-white/10 px-3 py-2 text-sm"
             />
           </label>
         </div>
@@ -2525,7 +2525,7 @@ export default function AdminProductClient({
           {descriptionsOpen && (
             <div className="mt-3 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-stone-600">
+                <p className="text-xs font-semibold text-slate-400">
                   Description
                 </p>
                 <RichTextEditor
@@ -2535,12 +2535,12 @@ export default function AdminProductClient({
                   }
                   placeholder="Write a short, clear product description."
                 />
-                <p className="mt-2 text-[11px] text-stone-500">
+                <p className="mt-2 text-[11px] text-slate-500">
                   Use the toolbar to format text. Links and headings are
                   supported.
                 </p>
               </div>
-              <label className="block text-xs font-semibold text-stone-600">
+              <label className="block text-xs font-semibold text-slate-400">
                 Short description
                 <textarea
                   value={details.shortDescription}
@@ -2552,15 +2552,15 @@ export default function AdminProductClient({
                   }
                   rows={3}
                   placeholder="Short summary for product cards and PDP."
-                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-white/10 px-3 py-2 text-sm"
                 />
-                <span className="mt-1 block text-[11px] text-stone-500">
+                <span className="mt-1 block text-[11px] text-slate-500">
                   Plain text only. Use this for the product grid and a quick PDP
                   summary.
                 </span>
               </label>
               <div>
-                <p className="text-xs font-semibold text-stone-600">
+                <p className="text-xs font-semibold text-slate-400">
                   Technical details
                 </p>
                 <RichTextEditor
@@ -2597,7 +2597,7 @@ export default function AdminProductClient({
               key={`footer-${storefront}`}
               className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold ${
                 storefront === "GROW"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
                   : "border-cyan-200 bg-cyan-50 text-cyan-700"
               }`}
             >
@@ -2612,7 +2612,7 @@ export default function AdminProductClient({
                 status: event.target.value as ProductDetail["status"],
               }))
             }
-            className="h-10 rounded-md border border-black/15 bg-white px-3 text-sm"
+            className="h-10 rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -2644,7 +2644,7 @@ export default function AdminProductClient({
         </div>
         <div className="space-y-4">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-300">
               <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                 <path
                   d="M21 21l-4.2-4.2m1.7-5.1a6.8 6.8 0 11-13.6 0 6.8 6.8 0 0113.6 0z"
@@ -2659,7 +2659,7 @@ export default function AdminProductClient({
               value={categorySearch}
               onChange={(event) => setCategorySearch(event.target.value)}
               placeholder="Kategorie / Subkategorie suchen ..."
-              className="h-11 w-full rounded-full border border-black/10 bg-white px-10 text-sm shadow-sm"
+              className="h-11 w-full rounded-full border border-white/10 bg-white/[0.03] px-10 text-sm shadow-sm"
             />
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
@@ -2681,8 +2681,8 @@ export default function AdminProductClient({
                   }
                   className={`h-9 rounded-full border px-4 transition ${
                     active
-                      ? "border-emerald-300 bg-emerald-100 text-emerald-900"
-                      : "border-black/10 bg-white text-stone-600 hover:border-emerald-200 hover:text-emerald-700"
+                      ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
+                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-200"
                   }`}
                 >
                   {item.label}
@@ -2691,8 +2691,8 @@ export default function AdminProductClient({
             })}
           </div>
           <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr_0.9fr]">
-            <div className="rounded-2xl border border-black/10 bg-white p-4">
-              <p className="text-xs font-semibold text-stone-600">Kategorien</p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs font-semibold text-slate-400">Kategorien</p>
               <div className="mt-3 space-y-2">
                 {filteredParentCategories.map((item) => {
                   const selected = categoryIds.has(item.id);
@@ -2702,8 +2702,8 @@ export default function AdminProductClient({
                       key={item.id}
                       className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                         selected
-                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                          ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
+                          : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
                       } ${isActive ? "ring-1 ring-emerald-300" : ""}`}
                       onClick={() => setActiveParentId(item.id)}
                     >
@@ -2734,16 +2734,16 @@ export default function AdminProductClient({
                   );
                 })}
                 {filteredParentCategories.length === 0 && (
-                  <p className="text-xs text-stone-500">No categories yet.</p>
+                  <p className="text-xs text-slate-500">No categories yet.</p>
                 )}
               </div>
             </div>
-            <div className="rounded-2xl border border-black/10 bg-white p-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-700">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-200">
                 <span>Subkategorien für:</span>
-                <span className="text-emerald-700">{activeParentName}</span>
+                <span className="text-emerald-200">{activeParentName}</span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-stone-500">
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
                 <button
                   type="button"
                   onClick={() => {
@@ -2753,11 +2753,11 @@ export default function AdminProductClient({
                       return next;
                     });
                   }}
-                  className="hover:text-emerald-700"
+                  className="hover:text-emerald-200"
                 >
                   Alle auswählen
                 </button>
-                <span className="text-stone-300">|</span>
+                <span className="text-slate-500">|</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -2767,7 +2767,7 @@ export default function AdminProductClient({
                       return next;
                     });
                   }}
-                  className="hover:text-emerald-700"
+                  className="hover:text-emerald-200"
                 >
                   Alle abwählen
                 </button>
@@ -2780,8 +2780,8 @@ export default function AdminProductClient({
                       key={item.id}
                       className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                         selected
-                          ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                          : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                          ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
+                          : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
                       }`}
                     >
                       <input
@@ -2805,7 +2805,7 @@ export default function AdminProductClient({
                   );
                 })}
                 {visibleChildCategories.length === 0 && (
-                  <p className="text-xs text-stone-500">No subcategories yet.</p>
+                  <p className="text-xs text-slate-500">No subcategories yet.</p>
                 )}
               </div>
               <div className="mt-4">
@@ -2819,8 +2819,8 @@ export default function AdminProductClient({
               </div>
             </div>
             <div className="space-y-4">
-              <div className="rounded-2xl border border-black/10 bg-white p-4">
-                <p className="text-xs font-semibold text-stone-600">Collections</p>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-semibold text-slate-400">Collections</p>
                 <div className="mt-3 space-y-2">
                   {collections.map((item) => {
                     const selected = collectionIds.has(item.id);
@@ -2829,8 +2829,8 @@ export default function AdminProductClient({
                         key={item.id}
                         className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                           selected
-                            ? "border-emerald-300 bg-emerald-100/70 text-emerald-900"
-                            : "border-emerald-100 bg-emerald-50/40 text-stone-700 hover:border-emerald-200 hover:bg-emerald-50/80"
+                            ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
+                            : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
                         }`}
                       >
                         <input
@@ -2854,7 +2854,7 @@ export default function AdminProductClient({
                     );
                   })}
                   {collections.length === 0 && (
-                    <p className="text-xs text-stone-500">No collections yet.</p>
+                    <p className="text-xs text-slate-500">No collections yet.</p>
                   )}
                 </div>
                 <div className="mt-4">
@@ -2867,11 +2867,11 @@ export default function AdminProductClient({
                   </button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-black/10 bg-white p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Auswahl Übersicht
                 </p>
-                <div className="mt-3 space-y-2 text-sm text-stone-600">
+                <div className="mt-3 space-y-2 text-sm text-slate-400">
                   <p>Kategorien: {selectedCategoryCount} gewählt</p>
                   <p>Subkategorien: {selectedChildCount} gewählt</p>
                   <p>Collections: {selectedCollectionCount} gewählt</p>
@@ -2916,8 +2916,8 @@ export default function AdminProductClient({
             onDragLeave={() => setUploadDragActive(false)}
             onDrop={handleUploadDrop}
           >
-          <p className="text-xs font-semibold text-stone-600">Upload images</p>
-          <p className="mt-1 text-xs text-stone-500">
+          <p className="text-xs font-semibold text-slate-400">Upload images</p>
+          <p className="mt-1 text-xs text-slate-400">
             JPG, PNG, or WEBP up to 5MB. Stored locally in `public/uploads`.
           </p>
           <input
@@ -2929,17 +2929,17 @@ export default function AdminProductClient({
             className="mt-3 block w-full text-sm"
           />
           {uploading && (
-            <p className="mt-2 text-xs text-stone-500">Uploading...</p>
+            <p className="mt-2 text-xs text-slate-500">Uploading...</p>
           )}
         </div>
-        <p className="mb-3 text-xs text-stone-500">
+        <p className="mb-3 text-xs text-slate-500">
           Drag and drop rows to reorder images.
         </p>
         <div className="space-y-4">
           {images.map((image) => (
             <div
               key={image.id}
-              className="rounded-xl border border-black/10 bg-white p-4"
+              className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingImageId) {
@@ -2951,7 +2951,7 @@ export default function AdminProductClient({
                 <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto]">
                   <div className="flex h-20 items-center justify-center self-start">
                     <span
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-stone-400 shadow-sm cursor-grab select-none"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-slate-500 shadow-sm cursor-grab select-none"
                       draggable
                       onDragStart={() => setDraggingImageId(image.id)}
                       onDragEnd={() => setDraggingImageId(null)}
@@ -2959,7 +2959,7 @@ export default function AdminProductClient({
                       ⋮⋮
                     </span>
                   </div>
-                  <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
+                  <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
                     {image.url ? (
                       <Image
                         src={image.url}
@@ -2970,12 +2970,12 @@ export default function AdminProductClient({
                         sizes="96px"
                       />
                     ) : (
-                      <span className="text-[10px] text-stone-400">
+                      <span className="text-[10px] text-slate-500">
                         No preview
                       </span>
                     )}
                   </div>
-                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                     <span>Image URL</span>
                     <input
                       value={image.url}
@@ -2988,10 +2988,10 @@ export default function AdminProductClient({
                           )
                         )
                       }
-                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                     />
                   </label>
-                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                     <span>Alt text</span>
                     <input
                       value={image.altText ?? ""}
@@ -3005,10 +3005,10 @@ export default function AdminProductClient({
                         )
                       }
                       placeholder="Alt text"
-                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                     />
                   </label>
-                  <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                     <span>Position</span>
                     <input
                       type="number"
@@ -3022,7 +3022,7 @@ export default function AdminProductClient({
                           )
                         )
                       }
-                      className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                     />
                   </label>
                   <div className="flex flex-col gap-1 items-center">
@@ -3043,13 +3043,13 @@ export default function AdminProductClient({
             </div>
           ))}
           {images.length === 0 && (
-            <p className="text-xs text-stone-500">No images yet.</p>
+            <p className="text-xs text-slate-500">No images yet.</p>
           )}
         </div>
         <div className="mt-4">
           <div className="mx-auto w-full max-w-5xl">
             <div className="grid items-start gap-3 md:grid-cols-[96px_1.6fr_1fr_120px_auto]">
-              <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-stone-50">
+              <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
                 {newImage.url ? (
                   <Image
                     src={newImage.url}
@@ -3060,10 +3060,10 @@ export default function AdminProductClient({
                     sizes="96px"
                   />
                 ) : (
-                  <span className="text-[10px] text-stone-400">Preview</span>
+                  <span className="text-[10px] text-slate-500">Preview</span>
                 )}
               </div>
-              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                 <span>Image URL</span>
                 <input
                   value={newImage.url}
@@ -3071,10 +3071,10 @@ export default function AdminProductClient({
                     setNewImage((prev) => ({ ...prev, url: event.target.value }))
                   }
                   placeholder="Image URL"
-                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                 <span>Alt text</span>
                 <input
                   value={newImage.altText}
@@ -3082,10 +3082,10 @@ export default function AdminProductClient({
                     setNewImage((prev) => ({ ...prev, altText: event.target.value }))
                   }
                   placeholder="Alt text"
-                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
-              <label className="text-[11px] font-semibold text-stone-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
                 <span>Position</span>
                 <input
                   type="number"
@@ -3096,7 +3096,7 @@ export default function AdminProductClient({
                       position: Number(event.target.value),
                     }))
                   }
-                  className="h-10 w-full rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
                 />
               </label>
               <div className="flex flex-col gap-1 items-center">
@@ -3140,7 +3140,7 @@ export default function AdminProductClient({
               }}
             >
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 text-xs text-stone-500">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span
                     className="cursor-grab select-none"
                     draggable
@@ -3152,7 +3152,7 @@ export default function AdminProductClient({
                 </div>
                 <div className="space-y-3">
                   <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Variant name
                       <input
                         value={variant.title}
@@ -3165,10 +3165,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Price (EUR)
                       <input
                         value={priceDrafts[variant.id] ?? ""}
@@ -3202,15 +3202,15 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                       {!((priceDrafts[variant.id] ?? "").trim()) && (
-                        <span className="mt-1 block text-[11px] font-medium text-red-600">
+                        <span className="mt-1 block text-[11px] font-medium text-rose-300">
                           Price required
                         </span>
                       )}
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Cost (EUR)
                       <input
                         value={costDrafts[variant.id] ?? ""}
@@ -3254,10 +3254,10 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Compare at
                       <input
                         value={compareDrafts[variant.id] ?? ""}
@@ -3301,12 +3301,12 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
                   </div>
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       SKU (optional)
                       <input
                         value={variant.sku ?? ""}
@@ -3320,10 +3320,10 @@ export default function AdminProductClient({
                           )
                         }
                         placeholder="e.g. GROW-LED-300"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Low stock
                       <input
                         type="number"
@@ -3341,10 +3341,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       On hand
                       <input
                         type="number"
@@ -3364,10 +3364,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
+                    <label className="text-xs font-semibold text-slate-400">
                       Reserved
                       <input
                         type="number"
@@ -3388,16 +3388,16 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-black/15 px-3 text-sm"
+                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
                       />
                     </label>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                  <div className="text-xs text-stone-500">
+                  <div className="text-xs text-slate-500">
                     Available:{" "}
-                    <span className="font-semibold text-stone-800">
+                    <span className="font-semibold text-slate-100">
                       {variant.available}
                     </span>
                   </div>
@@ -3406,20 +3406,20 @@ export default function AdminProductClient({
                       Low stock
                     </span>
                   )}
-                  <div className="text-xs text-stone-500">
+                  <div className="text-xs text-slate-500">
                     Profit:{" "}
                     <span
                       className={`font-semibold ${
                         variant.priceCents - variant.costCents >= 0
-                          ? "text-stone-800"
-                          : "text-red-600"
+                          ? "text-slate-100"
+                          : "text-rose-300"
                       }`}
                     >
                       {toEuro(variant.priceCents - variant.costCents)}
                     </span>
                   </div>
-                  <div className="w-full rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-[11px] text-stone-600">
-                    <div className="mb-1 font-semibold text-stone-700">
+                  <div className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
+                    <div className="mb-1 font-semibold text-slate-200">
                       Cost incl. payment fees
                     </div>
                     <div className="grid gap-1 sm:grid-cols-2">
@@ -3435,7 +3435,7 @@ export default function AdminProductClient({
                             {toEuro(adjusted.adjustedCost)}{" "}
                             <span
                               className={
-                                adjusted.profit >= 0 ? "text-stone-700" : "text-red-600"
+                                adjusted.profit >= 0 ? "text-slate-200" : "text-rose-300"
                               }
                             >
                               (Profit {toEuro(adjusted.profit)})
@@ -3444,7 +3444,7 @@ export default function AdminProductClient({
                         );
                       })}
                     </div>
-                    <div className="mt-1 text-[10px] text-stone-500">
+                    <div className="mt-1 text-[10px] text-slate-500">
                       Shipping fee base estimate: +7.90 EUR only for items {"\u003e="} 100 EUR.
                     </div>
                   </div>
@@ -3466,13 +3466,13 @@ export default function AdminProductClient({
                   </button>
                 </div>
 
-                  <div className="rounded-2xl border border-black/10 bg-white/70 p-4 shadow-sm">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-stone-700">
+                        <p className="text-sm font-semibold text-slate-200">
                           Options
                         </p>
-                        <p className="mt-1 text-xs text-stone-500">
+                        <p className="mt-1 text-xs text-slate-400">
                           Create multiple attribute options for this product.
                         </p>
                       </div>
@@ -3498,21 +3498,21 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-xs font-semibold text-emerald-800 hover:border-emerald-300"
+                        className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 text-xs font-semibold text-emerald-200 hover:border-emerald-300/35"
                       >
                         <span className="text-base leading-none">＋</span>
                         Add value
                       </button>
                     </div>
-                    <div className="mt-4 overflow-hidden rounded-xl border border-black/10 bg-white">
-                      <div className="grid gap-2 border-b border-black/5 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]">
+                    <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                      <div className="grid gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]">
                         <span />
                         <span>Option</span>
                         <span>Value</span>
                         <span>Image position</span>
                         <span className="text-right">Actions</span>
                       </div>
-                      <div className="divide-y divide-black/5">
+                      <div className="divide-y divide-white/10">
                         {variant.options.map((opt, optIndex) => (
                           <div
                             key={opt.id}
@@ -3534,7 +3534,7 @@ export default function AdminProductClient({
                           >
                             <div className="flex h-9 items-center justify-center">
                               <span
-                                className="cursor-grab select-none text-stone-400"
+                                className="cursor-grab select-none text-slate-500"
                                 draggable
                                 onDragStart={() =>
                                   setDraggingOption({
@@ -3568,7 +3568,7 @@ export default function AdminProductClient({
                                 )
                               }
                               placeholder="Option name"
-                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
                             />
                             <input
                               value={opt.value}
@@ -3590,7 +3590,7 @@ export default function AdminProductClient({
                                 )
                               }
                               placeholder="Option value"
-                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
                             />
                             <input
                               type="number"
@@ -3625,7 +3625,7 @@ export default function AdminProductClient({
                                 );
                               }}
                               placeholder="0"
-                              className="h-9 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
                             />
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -3644,7 +3644,7 @@ export default function AdminProductClient({
                                     )
                                   )
                                 }
-                                className="inline-flex h-9 w-10 items-center justify-center rounded-md border border-black/10 text-stone-500 hover:border-red-200 hover:text-red-600"
+                                className="inline-flex h-9 w-10 items-center justify-center rounded-md border border-white/10 text-slate-500 hover:border-rose-300/35 hover:text-rose-300"
                                 aria-label="Remove option"
                               >
                                 <TrashIcon className="h-4 w-4" aria-hidden="true" />
@@ -3659,7 +3659,7 @@ export default function AdminProductClient({
             </div>
           ))}
           {variants.length === 0 && (
-            <p className="text-xs text-stone-500">No variants yet.</p>
+            <p className="text-xs text-slate-500">No variants yet.</p>
           )}
         </div>
 
@@ -3703,10 +3703,10 @@ export default function AdminProductClient({
               {fbtItems.map((item, index) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-slate-400">
                       {index + 1}
                     </span>
                     {item.imageUrl ? (
@@ -3715,16 +3715,16 @@ export default function AdminProductClient({
                         alt={item.title}
                         width={40}
                         height={40}
-                        className="h-10 w-10 rounded-md border border-black/10 object-cover"
+                        className="h-10 w-10 rounded-md border border-white/10 object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-md border border-dashed border-black/10 bg-stone-50" />
+                      <div className="h-10 w-10 rounded-md border border-dashed border-white/10 bg-white/[0.03]" />
                     )}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-stone-800">
+                      <p className="truncate text-sm font-medium text-slate-100">
                         {item.title}
                       </p>
-                      <p className="truncate text-xs text-stone-500">/{item.handle}</p>
+                      <p className="truncate text-xs text-slate-500">/{item.handle}</p>
                     </div>
                   </div>
                   <button
@@ -3741,11 +3741,11 @@ export default function AdminProductClient({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-stone-500">Noch keine manuellen Overrides ausgewählt.</p>
+            <p className="text-xs text-slate-500">Noch keine manuellen Overrides ausgewählt.</p>
           )}
 
-          <div className="rounded-lg border border-black/10 bg-stone-50 p-3">
-            <label className="text-xs font-semibold text-stone-600">
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+            <label className="text-xs font-semibold text-slate-400">
               Produkt suchen
               <input
                 value={fbtSearch}
@@ -3754,16 +3754,16 @@ export default function AdminProductClient({
                   setFbtMessage("");
                 }}
                 placeholder="Titel eingeben..."
-                className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-black/30"
+                className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm outline-none focus:border-cyan-400/35"
               />
             </label>
 
             {fbtSearching ? (
-              <p className="mt-2 text-xs text-stone-500">Suche...</p>
+              <p className="mt-2 text-xs text-slate-500">Suche...</p>
             ) : null}
 
             {!fbtSearching && fbtSearch.trim() && fbtResults.length > 0 ? (
-              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-black/10 bg-white p-1">
+              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-white/10 bg-white/[0.03] p-1">
                 {fbtResults.map((result) => (
                   <button
                     key={result.id}
@@ -3779,13 +3779,13 @@ export default function AdminProductClient({
                       setFbtResults([]);
                       setFbtMessage("");
                     }}
-                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-stone-50"
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-white/[0.03]"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-stone-800">
+                      <span className="block truncate text-sm text-slate-100">
                         {result.title}
                       </span>
-                      <span className="block truncate text-xs text-stone-500">
+                      <span className="block truncate text-xs text-slate-500">
                         /{result.handle}
                       </span>
                     </span>
@@ -3805,7 +3805,7 @@ export default function AdminProductClient({
           {fbtMessage ? (
             <p
               className={`text-xs font-medium ${
-                fbtMessage === "Saved" ? "text-emerald-700" : "text-red-600"
+                fbtMessage === "Saved" ? "text-emerald-200" : "text-rose-300"
               }`}
             >
               {fbtMessage}
@@ -3870,17 +3870,17 @@ export default function AdminProductClient({
           <div className="admin-product-modal relative max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:rounded-[28px] sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-stone-900">
+                <h3 className="text-lg font-semibold text-slate-50">
                   Add variant
                 </h3>
-                <p className="mt-1 text-xs text-stone-500">
+                <p className="mt-1 text-xs text-slate-400">
                   Fill in pricing, inventory, and option details.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
-                className="h-9 rounded-md border border-black/10 px-3 text-xs font-semibold text-stone-700"
+                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
               >
                 Close
               </button>
@@ -3893,7 +3893,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, title: event.target.value }))
                   }
                   placeholder="Title"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.sku}
@@ -3901,7 +3901,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, sku: event.target.value }))
                   }
                   placeholder="SKU"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.price}
@@ -3909,7 +3909,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, price: event.target.value }))
                   }
                   placeholder="Price EUR"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.cost}
@@ -3917,7 +3917,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, cost: event.target.value }))
                   }
                   placeholder="Cost EUR"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
               </div>
               <div className="grid gap-3 md:grid-cols-[minmax(140px,180px)_minmax(140px,180px)]">
@@ -3927,7 +3927,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, compareAt: event.target.value }))
                   }
                   placeholder="Compare at"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
                 <input
                   type="number"
@@ -3940,7 +3940,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="Low stock"
-                  className="h-10 rounded-md border border-black/15 px-3 text-sm"
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                 />
               </div>
             </div>
@@ -3964,7 +3964,7 @@ export default function AdminProductClient({
                         }))
                       }
                       placeholder="Option name"
-                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                     />
                     <input
                       value={opt.value}
@@ -3979,7 +3979,7 @@ export default function AdminProductClient({
                         }))
                       }
                       placeholder="Option value"
-                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                     />
                     <input
                       type="number"
@@ -4007,7 +4007,7 @@ export default function AdminProductClient({
                         }));
                       }}
                       placeholder="Image #"
-                      className="h-9 rounded-md border border-black/15 px-3 text-xs"
+                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
                     />
                     <button
                       type="button"
@@ -4017,7 +4017,7 @@ export default function AdminProductClient({
                           options: prev.options.filter((_, rowIndex) => rowIndex !== index),
                         }))
                       }
-                      className="h-9 rounded-md border border-black/15 px-2 text-xs"
+                      className="h-9 rounded-xl border border-rose-400/20 bg-rose-400/10 px-2 text-xs font-semibold text-rose-200 transition hover:border-rose-300/35 hover:bg-rose-400/15"
                     >
                       Remove
                     </button>
@@ -4032,7 +4032,7 @@ export default function AdminProductClient({
                     options: [...prev.options, { name: "", value: "", imagePosition: null }],
                   }))
                 }
-                className="h-9 rounded-md border border-black/15 px-3 text-xs font-semibold"
+                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
               >
                 New option
               </button>
@@ -4041,7 +4041,7 @@ export default function AdminProductClient({
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
-                className="h-10 rounded-md border border-black/10 px-4 text-xs font-semibold text-stone-700"
+                className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
               >
                 Cancel
               </button>
@@ -4060,14 +4060,14 @@ export default function AdminProductClient({
       {confirmVariantId && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 py-3 sm:items-center sm:px-4">
           <div className="admin-product-modal max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
-            <h3 className="text-base font-semibold text-stone-900">
+            <h3 className="text-base font-semibold text-slate-50">
               Variante löschen
             </h3>
-            <p className="mt-2 text-xs text-stone-600">
+            <p className="mt-2 text-xs text-slate-400">
               Tippe{" "}
-              <span className="font-semibold text-red-600">Bestätigen</span>{" "}
+              <span className="font-semibold text-rose-300">Bestätigen</span>{" "}
               ein, um{" "}
-              <span className="font-semibold text-stone-800">
+              <span className="font-semibold text-slate-100">
                 {confirmVariantTitle}
               </span>{" "}
               zu löschen.
@@ -4076,7 +4076,7 @@ export default function AdminProductClient({
               type="text"
               value={confirmVariantText}
               onChange={(event) => setConfirmVariantText(event.target.value)}
-              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
               placeholder="Bestätigen"
             />
             <textarea
@@ -4088,7 +4088,7 @@ export default function AdminProductClient({
                 }
               }}
               rows={3}
-              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
               placeholder="Grund für das Löschen"
             />
             <input
@@ -4100,14 +4100,14 @@ export default function AdminProductClient({
                   setConfirmVariantPasswordError("");
                 }
               }}
-              className="mt-3 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
               placeholder="Admin-Passwort"
             />
             {confirmVariantError && (
-              <p className="mt-2 text-xs text-red-600">{confirmVariantError}</p>
+              <p className="mt-2 text-xs text-rose-300">{confirmVariantError}</p>
             )}
             {confirmVariantPasswordError && (
-              <p className="mt-2 text-xs text-red-600">
+              <p className="mt-2 text-xs text-rose-300">
                 {confirmVariantPasswordError}
               </p>
             )}
@@ -4123,7 +4123,7 @@ export default function AdminProductClient({
                   setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
-                className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-stone-700 hover:border-black/30 disabled:opacity-60"
+                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-60"
               >
                 Abbrechen
               </button>
@@ -4158,7 +4158,7 @@ export default function AdminProductClient({
                   setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
-                className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                className="rounded-xl border border-rose-400/20 bg-rose-500/85 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-400 disabled:opacity-60"
               >
                 {confirmVariantLoading ? "Löschen..." : "Löschen"}
               </button>
@@ -4198,17 +4198,17 @@ export default function AdminProductClient({
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          :is(.text-stone-500, .text-stone-600) {
+          :is(.text-slate-500, .text-slate-400) {
           color: #94a3b8;
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          :is(.text-stone-700, .text-stone-800, .text-stone-900) {
+          :is(.text-slate-200, .text-slate-100, .text-slate-50) {
           color: #f8fafc;
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          .bg-stone-50 {
+          [class*="bg-white/"] {
           background: rgba(255, 255, 255, 0.04);
         }
 
@@ -4227,11 +4227,11 @@ export default function AdminProductClient({
           box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12);
         }
 
-        .admin-product-redesign .admin-product-modal :is(.text-stone-500, .text-stone-600, .text-stone-700) {
+        .admin-product-redesign .admin-product-modal :is(.text-slate-500, .text-slate-400, .text-slate-200) {
           color: #94a3b8;
         }
 
-        .admin-product-redesign .admin-product-modal :is(.text-stone-800, .text-stone-900) {
+        .admin-product-redesign .admin-product-modal :is(.text-slate-100, .text-slate-50) {
           color: #f8fafc;
         }
       `}</style>

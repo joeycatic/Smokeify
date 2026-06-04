@@ -1222,7 +1222,7 @@ function FulfillmentTab({
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
                   <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} disabled={!canUpdateFulfillment} className={`${SELECT_CLASS} mt-2 h-12`}>
                     {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
-                      <option value={statusDraft}>{statusDraft} (legacy)</option>
+                      <option value={statusDraft}>{statusDraft} (stored status)</option>
                     ) : null}
                     {EDITABLE_ORDER_STATUSES.map((status) => (
                       <option key={status} value={status}>{status}</option>

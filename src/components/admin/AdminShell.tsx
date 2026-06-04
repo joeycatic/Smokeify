@@ -281,7 +281,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   };
 
   return (
-    <div className="admin-shell min-h-screen w-full overflow-x-hidden bg-[#05070a] text-slate-100">
+    <div className="admin-theme admin-dark admin-shell min-h-screen w-full overflow-x-hidden bg-[#05070a] text-slate-100">
       <div className="admin-shell__backdrop" aria-hidden="true" />
       <div className="relative flex min-h-screen">
         {sidebarOpen ? (

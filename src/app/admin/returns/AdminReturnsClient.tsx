@@ -224,7 +224,7 @@ export default function AdminReturnsClient({ requests }: Props) {
   };
 
   return (
-    <div className="admin-legacy-page space-y-6">
+    <div className="admin-console-page space-y-6">
       <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#060b14] text-white shadow-[0_30px_80px_rgba(5,10,20,0.45)]">
         <div className="relative border-b border-white/10 px-6 py-6 lg:px-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.16),_transparent_28%),linear-gradient(135deg,_rgba(8,15,26,0.98),_rgba(12,22,38,0.92))]" />
