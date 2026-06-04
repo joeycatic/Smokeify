@@ -9,7 +9,7 @@ export default async function AdminExpensesPage() {
   const data = await getExpensesPageData(120);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminExpensesClient
         initialSuppliers={data.suppliers}
         initialSummary={data.summary}
