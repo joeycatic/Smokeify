@@ -25,7 +25,7 @@ export default async function AdminPurchaseOrderDetailPage({
   if (!purchaseOrder) notFound();
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminPurchaseOrderDetailClient
         purchaseOrder={purchaseOrder}
         suppliers={suppliers}

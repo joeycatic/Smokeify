@@ -13,7 +13,7 @@ export default async function AdminAttributionPage() {
   ]);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminAttributionClient
         initialRows={attributionSnapshot.rows}
         initialEvidenceCounts={attributionSnapshot.evidenceCounts}

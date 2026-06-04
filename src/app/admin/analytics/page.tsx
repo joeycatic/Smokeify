@@ -25,7 +25,7 @@ export default async function AdminAnalyticsPage({
   );
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminAnalyticsClient
         initialOverview={initialOverview}
         initialDays={days}

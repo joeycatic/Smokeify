@@ -45,7 +45,7 @@ export default async function AdminOrdersPage({
   ]);
 
   return (
-    <div className="w-full text-stone-800">
+    <div className="w-full text-slate-100">
       <AdminOrdersClient
         activeStorefrontScope={storefrontScope}
         initialSearchQuery={initialSearchQuery}
