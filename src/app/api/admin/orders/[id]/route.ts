@@ -221,11 +221,19 @@ export const PATCH = withAdminRoute(
       }
     }
 
-    if (emailSendError) {
-      return adminJson({ error: emailSendError, order: updated }, { status: 502 });
+    const refreshedDetail = await loadAdminOrderDetail(id);
+    if (!refreshedDetail) {
+      return adminJson({ error: "Order not found after update" }, { status: 404 });
     }
 
-    return adminJson({ order: updated, warning });
+    if (emailSendError) {
+      return adminJson(
+        { error: emailSendError, order: refreshedDetail.order },
+        { status: 502 },
+      );
+    }
+
+    return adminJson({ order: refreshedDetail.order, warning });
   },
   {
     action: "order.fulfillment.update",
