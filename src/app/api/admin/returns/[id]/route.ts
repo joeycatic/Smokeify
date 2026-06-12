@@ -126,6 +126,7 @@ export const PATCH = withAdminRoute(
             || message === "Exchange order already exists"
             ? 409
           : message === "Missing payment intent" ||
+                message === "Missing Viva transaction id" ||
                 message === "Refund amount must be greater than zero" ||
                 message === "Refund amount exceeds remaining balance" ||
                 message === "Customer not found." ||

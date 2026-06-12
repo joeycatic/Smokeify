@@ -1,7 +1,5 @@
 "use client";
 
-import type { StripeCheckoutContact } from "@stripe/stripe-js";
-
 const CHECKOUT_PAYMENT_STATE_KEY = "smokeify.checkout.payment-state";
 
 export type CheckoutSummaryItem = {
@@ -36,10 +34,12 @@ export type CheckoutPaymentFormValues = {
 };
 
 export type CheckoutPaymentState = {
-  clientSecret: string;
-  contact: StripeCheckoutContact;
+  checkoutUrl: string;
+  discountCode?: string;
   editToken: string;
+  failureUrl?: string;
   formValues: CheckoutPaymentFormValues;
+  orderCode: string;
   sessionId: string;
   successUrl: string;
   summary: CheckoutSummarySnapshot;
@@ -47,100 +47,21 @@ export type CheckoutPaymentState = {
 
 const canUseWindow = () => typeof window !== "undefined";
 
-const STRIPE_ALLOWED_COUNTRIES = new Set([
-  "AT",
-  "BE",
-  "BG",
-  "CA",
-  "CH",
-  "CY",
-  "CZ",
-  "DE",
-  "DK",
-  "EE",
-  "ES",
-  "FI",
-  "FR",
-  "GB",
-  "GR",
-  "HR",
-  "HU",
-  "IE",
-  "IT",
-  "LT",
-  "LU",
-  "LV",
-  "MT",
-  "NL",
-  "NO",
-  "NZ",
-  "PL",
-  "PT",
-  "RO",
-  "SE",
-  "SI",
-  "SK",
-  "US",
-]);
-
-const normalizeStripeCountryCode = (value?: string | null) => {
-  const normalized = value?.trim().toUpperCase();
-  if (!normalized) return null;
-  const aliases: Record<string, string> = {
-    DEU: "DE",
-    GERMANY: "DE",
-    DEUTSCHLAND: "DE",
-    AUT: "AT",
-    AUSTRIA: "AT",
-    OESTERREICH: "AT",
-    CHE: "CH",
-    SWITZERLAND: "CH",
-    SCHWEIZ: "CH",
-    UK: "GB",
-    GBR: "GB",
-    "UNITED KINGDOM": "GB",
-    "GREAT BRITAIN": "GB",
-    USA: "US",
-    "UNITED STATES": "US",
-  };
-  const candidate = aliases[normalized] ?? normalized;
-  return STRIPE_ALLOWED_COUNTRIES.has(candidate) ? candidate : null;
-};
-
-const sanitizeContact = (contact: CheckoutPaymentState["contact"]) => {
-  const address = contact.address ? { ...contact.address } : undefined;
-  if (!address) return contact;
-
-  const country = normalizeStripeCountryCode(address.country);
-  const sanitizedAddress = country
-    ? { ...address, country }
-    : Object.fromEntries(
-        Object.entries(address).filter(([key]) => key !== "country"),
-      );
-
-  return {
-    ...contact,
-    address: sanitizedAddress as CheckoutPaymentState["contact"]["address"],
-  };
-};
-
 const normalizeCheckoutPaymentState = (value: unknown): CheckoutPaymentState | null => {
   const parsed = value as CheckoutPaymentState | null;
   if (
     !parsed ||
-    typeof parsed.clientSecret !== "string" ||
+    typeof parsed.checkoutUrl !== "string" ||
     typeof parsed.editToken !== "string" ||
-    typeof parsed.sessionId !== "string" ||
+    typeof parsed.orderCode !== "string" ||
     typeof parsed.successUrl !== "string" ||
-    !parsed.contact ||
     !parsed.summary
   ) {
     return null;
   }
-
   return {
     ...parsed,
-    contact: sanitizeContact(parsed.contact),
+    sessionId: parsed.sessionId || parsed.orderCode,
   };
 };
 
@@ -165,7 +86,6 @@ const decodeBase64Url = (value: string) => {
 
 export const readCheckoutPaymentState = (): CheckoutPaymentState | null => {
   if (!canUseWindow()) return null;
-
   try {
     const raw = window.sessionStorage.getItem(CHECKOUT_PAYMENT_STATE_KEY);
     if (!raw) return null;
@@ -178,12 +98,9 @@ export const readCheckoutPaymentState = (): CheckoutPaymentState | null => {
 export const writeCheckoutPaymentState = (value: CheckoutPaymentState) => {
   if (!canUseWindow()) return;
   try {
-    window.sessionStorage.setItem(
-      CHECKOUT_PAYMENT_STATE_KEY,
-      JSON.stringify(value),
-    );
+    window.sessionStorage.setItem(CHECKOUT_PAYMENT_STATE_KEY, JSON.stringify(value));
   } catch {
-    // Some browsers block sessionStorage. The payment page can still recover from the URL fragment.
+    // The payment page can still recover from the URL fragment fallback.
   }
 };
 

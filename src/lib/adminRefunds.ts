@@ -11,6 +11,7 @@ import {
   resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
+import { getVivaSourceCode, refundVivaTransaction } from "@/lib/viva";
 
 type AdminActor = {
   id: string;
@@ -52,11 +53,6 @@ export async function refundAdminOrder(input: {
   source: string;
   origin?: string;
 }) {
-  const stripe = getStripe();
-  if (!stripe) {
-    throw new Error("Stripe secret key not configured.");
-  }
-
   const order = await prisma.order.findUnique({
     where: { id: input.orderId },
     include: { items: true },
@@ -67,7 +63,12 @@ export async function refundAdminOrder(input: {
   if (order.paymentStatus === "refunded") {
     throw new Error("Order already refunded");
   }
-  if (!order.stripePaymentIntent) {
+  const paymentProvider = order.paymentProvider ?? "stripe";
+  if (paymentProvider === "viva") {
+    if (!order.paymentTransactionId) {
+      throw new Error("Missing Viva transaction id");
+    }
+  } else if (!order.stripePaymentIntent) {
     throw new Error("Missing payment intent");
   }
 
@@ -79,17 +80,32 @@ export async function refundAdminOrder(input: {
     throw new Error("Refund amount exceeds remaining balance");
   }
 
-  await stripe.refunds.create({
-    payment_intent: order.stripePaymentIntent,
-    amount: input.refundAmount,
-  }, {
-    idempotencyKey: buildAdminRefundIdempotencyKey({
-      orderId: order.id,
-      previousRefundedAmount: order.amountRefunded,
-      refundAmount: input.refundAmount,
-      source: input.source,
-    }),
-  });
+  if (paymentProvider === "viva") {
+    await refundVivaTransaction({
+      amount: input.refundAmount,
+      sourceCode: getVivaSourceCode(),
+      transactionId: order.paymentTransactionId as string,
+    });
+  } else {
+    const stripe = getStripe();
+    if (!stripe) {
+      throw new Error("Stripe secret key not configured.");
+    }
+    await stripe.refunds.create(
+      {
+        payment_intent: order.stripePaymentIntent as string,
+        amount: input.refundAmount,
+      },
+      {
+        idempotencyKey: buildAdminRefundIdempotencyKey({
+          orderId: order.id,
+          previousRefundedAmount: order.amountRefunded,
+          refundAmount: input.refundAmount,
+          source: input.source,
+        }),
+      },
+    );
+  }
 
   const newRefunded = order.amountRefunded + input.refundAmount;
   const fullyRefunded = newRefunded >= order.amountTotal;

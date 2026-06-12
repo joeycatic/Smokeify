@@ -64,7 +64,11 @@ export const POST = withAdminRoute(
     if (order.paymentStatus === "refunded") {
       return adminJson({ error: "Order already refunded" }, { status: 409 });
     }
-    if (!order.stripePaymentIntent) {
+    if ((order.paymentProvider ?? "stripe") === "viva") {
+      if (!order.paymentTransactionId) {
+        return adminJson({ error: "Missing Viva transaction id" }, { status: 400 });
+      }
+    } else if (!order.stripePaymentIntent) {
       return adminJson({ error: "Missing payment intent" }, { status: 400 });
     }
 
@@ -152,6 +156,7 @@ export const POST = withAdminRoute(
             : message === "Order already refunded"
               ? 409
               : message === "Missing payment intent" ||
+                  message === "Missing Viva transaction id" ||
                   message === "Refund amount must be greater than zero" ||
                   message === "Refund amount exceeds remaining balance"
                 ? 400

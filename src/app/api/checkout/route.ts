@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "crypto";
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,7 @@ import {
 import { createGuestCheckoutAccess } from "@/lib/checkoutAccess";
 import { persistCheckoutRecoverySession } from "@/lib/checkoutRecoveryService";
 import { resolveCheckoutOrigin, resolveOrderSourceFromRequest } from "@/lib/orderSource";
+import { SITE_NAME } from "@/lib/siteConfig";
 import {
   buildShippingAddressLines,
   normalizeShippingAddress,
@@ -32,57 +34,22 @@ import {
   resolveCartItemsForRequest,
   type ServerCartItem,
 } from "@/lib/serverCartStorage";
+import {
+  createVivaPaymentOrder,
+  getVivaCheckoutUrl,
+  getVivaSourceCode,
+} from "@/lib/viva";
 
 export const runtime = "nodejs";
 
 const CURRENCY_CODE = "EUR";
-const ALLOWED_PAYMENT_METHOD_TYPES = ["card", "paypal", "klarna"] as const;
 const STRIPE_DEFAULT_API_VERSION = "2024-06-20";
-const STRIPE_CUSTOM_CHECKOUT_API_VERSION = "2025-03-31.basil";
-
-const ALLOWED_COUNTRIES = [
-  "AT",
-  "BE",
-  "BG",
-  "CH",
-  "CY",
-  "CZ",
-  "DE",
-  "DK",
-  "EE",
-  "ES",
-  "FI",
-  "FR",
-  "GB",
-  "GR",
-  "HR",
-  "HU",
-  "IE",
-  "IT",
-  "LT",
-  "LU",
-  "LV",
-  "MT",
-  "NL",
-  "NO",
-  "PL",
-  "PT",
-  "RO",
-  "SE",
-  "SI",
-  "SK",
-  "US",
-  "CA",
-  "AU",
-  "NZ",
-] as const;
-
-type AllowedPaymentMethodType = (typeof ALLOWED_PAYMENT_METHOD_TYPES)[number];
 
 type CheckoutCartSummaryItem = {
   imageUrl: string | null;
   lineTotalCents: number;
   name: string;
+  options?: Array<{ name: string; value: string }>;
   quantity: number;
   variantId: string;
 };
@@ -114,6 +81,17 @@ const jsonNoStore = (body: unknown, init?: number | ResponseInit) => {
   });
 };
 
+const getStripe = () => {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) return null;
+  return new Stripe(secret, {
+    apiVersion: STRIPE_DEFAULT_API_VERSION as Stripe.LatestApiVersion,
+  });
+};
+
+const hashCheckoutEditorToken = (value: string) =>
+  createHash("sha256").update(value).digest("hex");
+
 const clampCheckoutDiscount = (value: number, subtotalCents: number) =>
   Math.max(0, Math.min(subtotalCents, Math.round(value)));
 
@@ -132,34 +110,6 @@ const getCouponDiscountPreviewCents = (
     );
   }
   return 0;
-};
-
-const parseCheckoutPaymentMethodTypes = (): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined => {
-  const raw =
-    process.env.STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES?.trim() ??
-    process.env.NEXT_PUBLIC_PAYMENT_METHOD_LOGOS?.trim();
-  if (!raw) return undefined;
-  const values = raw
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
-  const deduped = Array.from(new Set(values));
-  const allowed = deduped.filter((entry): entry is AllowedPaymentMethodType =>
-    ALLOWED_PAYMENT_METHOD_TYPES.includes(entry as AllowedPaymentMethodType),
-  );
-  return allowed.length
-    ? (allowed as Stripe.Checkout.SessionCreateParams.PaymentMethodType[])
-    : undefined;
-};
-
-const serializeOptionsMetadata = (options?: Array<{ name: string; value: string }>) => {
-  if (!options?.length) return "";
-  return options
-    .map(
-      (opt) => `${encodeURIComponent(opt.name)}=${encodeURIComponent(opt.value)}`,
-    )
-    .sort()
-    .join("&");
 };
 
 const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
@@ -185,53 +135,40 @@ const getRequestedCountry = (value: unknown): ShippingCountry | null => {
 const normalizeCountryCode = (value?: string | null) => {
   if (!value) return undefined;
   const trimmed = value.trim().toUpperCase();
-  const aliases: Record<string, Stripe.AddressParam["country"]> = {
-    DE: "DE",
-    DEU: "DE",
-    GERMANY: "DE",
-    DEUTSCHLAND: "DE",
+  const aliases: Record<string, string> = {
     AT: "AT",
     AUT: "AT",
     AUSTRIA: "AT",
-    OESTERREICH: "AT",
+    DE: "DE",
+    DEU: "DE",
+    DEUTSCHLAND: "DE",
+    GERMANY: "DE",
     CH: "CH",
     CHE: "CH",
-    SWITZERLAND: "CH",
     SCHWEIZ: "CH",
+    SWITZERLAND: "CH",
     UK: "GB",
     GB: "GB",
     GBR: "GB",
     "UNITED KINGDOM": "GB",
-    "GREAT BRITAIN": "GB",
-    "VEREINIGTES KOENIGREICH": "GB",
     US: "US",
     USA: "US",
     "UNITED STATES": "US",
   };
-  const normalized =
-    trimmed.length === 2
-      ? (trimmed as Stripe.AddressParam["country"])
-      : aliases[trimmed];
-  if (
-    normalized &&
-    ALLOWED_COUNTRIES.includes(normalized as (typeof ALLOWED_COUNTRIES)[number])
-  ) {
-    return normalized;
-  }
-  return undefined;
+  return trimmed.length === 2 ? trimmed : aliases[trimmed];
 };
 
 const buildCheckoutItemPresentation = (
   variant: {
     id: string;
-    title?: string | null;
     priceCents: number;
     product: {
       id: string;
-      title: string;
-      manufacturer?: string | null;
       images: Array<{ url: string }>;
+      manufacturer?: string | null;
+      title: string;
     };
+    title?: string | null;
   },
   item: ServerCartItem,
 ) => {
@@ -260,112 +197,61 @@ const buildCheckoutItemPresentation = (
   };
 };
 
-const buildStripeAddress = (
+const buildCheckoutAddress = (
   user: {
-    shippingAddressType?: string | null;
-    street?: string | null;
-    houseNumber?: string | null;
-    postalCode?: string | null;
     city?: string | null;
     country?: string | null;
+    houseNumber?: string | null;
     packstationNumber?: string | null;
+    postalCode?: string | null;
     postNumber?: string | null;
+    shippingAddressType?: string | null;
+    street?: string | null;
   },
   fallbackCountry?: string | null,
 ) => {
   const { line1, line2 } = buildShippingAddressLines({
-    shippingAddressType: user.shippingAddressType,
-    street: user.street,
     houseNumber: user.houseNumber,
     packstationNumber: user.packstationNumber,
     postNumber: user.postNumber,
+    shippingAddressType: user.shippingAddressType,
+    street: user.street,
   });
-  const address: Stripe.AddressParam = {};
+  const address: {
+    city?: string;
+    country?: string;
+    line1?: string;
+    line2?: string;
+    postalCode?: string;
+  } = {};
   if (line1) address.line1 = line1;
   if (line2) address.line2 = line2;
   if (user.city) address.city = user.city;
-  if (user.postalCode) address.postal_code = user.postalCode;
+  if (user.postalCode) address.postalCode = user.postalCode;
   const country =
     normalizeCountryCode(user.country) ?? normalizeCountryCode(fallbackCountry);
   if (country) address.country = country;
   return Object.keys(address).length ? address : undefined;
 };
 
-const createStripeCustomer = async (
-  stripe: Stripe,
-  user: {
-    email?: string | null;
-    name?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    shippingAddressType?: string | null;
-    street?: string | null;
-    houseNumber?: string | null;
-    postalCode?: string | null;
-    city?: string | null;
-    country?: string | null;
-    packstationNumber?: string | null;
-    postNumber?: string | null;
-  },
-  userId?: string | null,
-  fallbackCountry?: string | null,
-) => {
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  const name = fullName || user.name || undefined;
-  const address = buildStripeAddress(user, fallbackCountry);
-  if (!user.email && !name && !address) return null;
-  const shipping = address && name ? { name, address } : undefined;
-  const customer = await stripe.customers.create({
-    email: user.email ?? undefined,
-    name,
-    address,
-    shipping,
-    metadata: userId ? { userId } : undefined,
-  });
-  return customer.id;
-};
-
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, {
-    apiVersion: STRIPE_DEFAULT_API_VERSION as Stripe.LatestApiVersion,
-  });
-};
-
-const getCustomCheckoutStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, {
-    apiVersion:
-      STRIPE_CUSTOM_CHECKOUT_API_VERSION as unknown as Stripe.LatestApiVersion,
-  });
-};
-
-const hashCheckoutEditorToken = (value: string) =>
-  createHash("sha256").update(value).digest("hex");
-
 const buildCheckoutSuccessUrl = (
   appBaseUrl: string,
   guestCheckoutAccess?: ReturnType<typeof createGuestCheckoutAccess> | null,
-  sessionId?: string,
+  paymentOrderCode?: string,
 ) => {
   const successUrl = new URL("/order/success", appBaseUrl);
-  successUrl.searchParams.set("session_id", sessionId ?? "{CHECKOUT_SESSION_ID}");
+  successUrl.searchParams.set("order_code", paymentOrderCode ?? "{VIVA_ORDER_CODE}");
   if (guestCheckoutAccess) {
     successUrl.searchParams.set("guest_token", guestCheckoutAccess.token);
-    successUrl.searchParams.set(
-      "guest_expires",
-      String(guestCheckoutAccess.expiresAt),
-    );
+    successUrl.searchParams.set("guest_expires", String(guestCheckoutAccess.expiresAt));
   }
   return successUrl.toString();
 };
 
-const buildCustomCheckoutReturnUrl = (appBaseUrl: string) => {
-  const returnUrl = new URL("/checkout/payment", appBaseUrl);
-  returnUrl.searchParams.set("checkout_return", "1");
-  return returnUrl.toString();
+const buildCheckoutFailureUrl = (appBaseUrl: string, paymentOrderCode?: string) => {
+  const failureUrl = new URL("/order/failure", appBaseUrl);
+  failureUrl.searchParams.set("order_code", paymentOrderCode ?? "{VIVA_ORDER_CODE}");
+  return failureUrl.toString();
 };
 
 export async function GET() {
@@ -406,19 +292,19 @@ export async function GET() {
     },
     user: user
       ? {
-          email: user.email,
-          name: user.name,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          street: user.street,
-          houseNumber: user.houseNumber,
-          postalCode: user.postalCode,
           city: user.city,
           country: user.country,
-          shippingAddressType: user.shippingAddressType,
-          packstationNumber: user.packstationNumber,
-          postNumber: user.postNumber,
+          email: user.email,
+          firstName: user.firstName,
+          houseNumber: user.houseNumber,
+          lastName: user.lastName,
           loyaltyPointsBalance: user.loyaltyPointsBalance,
+          name: user.name,
+          packstationNumber: user.packstationNumber,
+          postalCode: user.postalCode,
+          postNumber: user.postNumber,
+          shippingAddressType: user.shippingAddressType,
+          street: user.street,
         }
       : null,
   });
@@ -440,19 +326,9 @@ export async function POST(req: Request) {
       { status: 429 },
     );
   }
+
   const authSession = await getServerSession(authOptions);
   const body = await req.json().catch(() => ({}));
-  const checkoutMode =
-    body?.mode === "custom" ? ("custom" as const) : ("hosted" as const);
-
-  const stripe =
-    checkoutMode === "custom" ? getCustomCheckoutStripe() : getStripe();
-  if (!stripe) {
-    return jsonNoStore(
-      { error: "Stripe secret key not configured." },
-      { status: 500 },
-    );
-  }
   const rawDiscountCode =
     typeof body?.discountCode === "string" ? body.discountCode.trim() : "";
   const useLoyaltyPoints = body?.useLoyaltyPoints === true;
@@ -479,10 +355,7 @@ export async function POST(req: Request) {
       : user?.lastName ?? "";
 
   if (!checkoutEmail) {
-    return jsonNoStore(
-      { error: "E-Mail ist erforderlich." },
-      { status: 400 },
-    );
+    return jsonNoStore({ error: "E-Mail ist erforderlich." }, { status: 400 });
   }
   if (!checkoutFirstName || !checkoutLastName) {
     return jsonNoStore(
@@ -492,38 +365,23 @@ export async function POST(req: Request) {
   }
 
   const normalizedShippingAddress = normalizeShippingAddress({
-    shippingAddressType:
-      typeof body?.shippingAddressType === "string"
-        ? body.shippingAddressType
-        : user?.shippingAddressType,
-    street:
-      typeof body?.street === "string"
-        ? body.street
-        : user?.street,
+    city: typeof body?.city === "string" ? body.city : user?.city,
+    country: typeof body?.country === "string" ? body.country : user?.country,
     houseNumber:
-      typeof body?.houseNumber === "string"
-        ? body.houseNumber
-        : user?.houseNumber,
-    postalCode:
-      typeof body?.postalCode === "string"
-        ? body.postalCode
-        : user?.postalCode,
-    city:
-      typeof body?.city === "string"
-        ? body.city
-        : user?.city,
-    country:
-      typeof body?.country === "string"
-        ? body.country
-        : user?.country,
+      typeof body?.houseNumber === "string" ? body.houseNumber : user?.houseNumber,
     packstationNumber:
       typeof body?.packstationNumber === "string"
         ? body.packstationNumber
         : user?.packstationNumber,
+    postalCode:
+      typeof body?.postalCode === "string" ? body.postalCode : user?.postalCode,
     postNumber:
-      typeof body?.postNumber === "string"
-        ? body.postNumber
-        : user?.postNumber,
+      typeof body?.postNumber === "string" ? body.postNumber : user?.postNumber,
+    shippingAddressType:
+      typeof body?.shippingAddressType === "string"
+        ? body.shippingAddressType
+        : user?.shippingAddressType,
+    street: typeof body?.street === "string" ? body.street : user?.street,
   });
 
   const shippingAddressError = validateShippingAddress(normalizedShippingAddress, {
@@ -542,26 +400,6 @@ export async function POST(req: Request) {
   }
 
   const country = requestedCountry ?? getSafeCountry(body?.country);
-  const customerId = await createStripeCustomer(
-    stripe,
-    {
-      email: checkoutEmail,
-      name: user?.name ?? null,
-      firstName: checkoutFirstName,
-      lastName: checkoutLastName,
-      shippingAddressType: normalizedShippingAddress.shippingAddressType,
-      street: normalizedShippingAddress.street,
-      houseNumber: normalizedShippingAddress.houseNumber,
-      postalCode: normalizedShippingAddress.postalCode,
-      city: normalizedShippingAddress.city,
-      country: normalizedShippingAddress.country,
-      packstationNumber: normalizedShippingAddress.packstationNumber,
-      postNumber: normalizedShippingAddress.postNumber,
-    },
-    userId,
-    country,
-  );
-
   const items = await resolveCartItemsForRequest(userId);
   if (items.length === 0) {
     return jsonNoStore({ error: "Cart is empty." }, { status: 400 });
@@ -570,49 +408,26 @@ export async function POST(req: Request) {
   const variants = await prisma.variant.findMany({
     where: { id: { in: items.map((item) => item.variantId) } },
     include: {
+      inventory: true,
       product: { include: { images: { orderBy: { position: "asc" } } } },
     },
   });
   const variantMap = new Map(variants.map((variant) => [variant.id, variant]));
-
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   const cartSummaryItems: CheckoutCartSummaryItem[] = [];
-  let subtotalCents = 0;
   const variantCounts = new Map<string, number>();
+  let subtotalCents = 0;
 
   for (const item of items) {
     const variant = variantMap.get(item.variantId);
     if (!variant) continue;
     const presentation = buildCheckoutItemPresentation(variant, item);
-    const optionsMeta = serializeOptionsMetadata(presentation.selectedOptions);
-    lineItems.push({
-      quantity: item.quantity,
-      price_data: {
-        currency: CURRENCY_CODE,
-        unit_amount: variant.priceCents,
-        product_data: {
-          name:
-            presentation.name.length > 127
-              ? presentation.name.slice(0, 127)
-              : presentation.name,
-          images:
-            presentation.imageUrl && presentation.imageUrl.startsWith("http")
-              ? [presentation.imageUrl]
-              : undefined,
-          metadata: {
-            variantId: variant.id,
-            productId: variant.product.id,
-            ...(optionsMeta ? { selectedOptions: optionsMeta } : {}),
-          },
-        },
-      },
-    });
     const lineTotalCents = variant.priceCents * item.quantity;
     subtotalCents += lineTotalCents;
     cartSummaryItems.push({
       imageUrl: presentation.imageUrl,
       lineTotalCents,
       name: presentation.name,
+      options: presentation.selectedOptions,
       quantity: item.quantity,
       variantId: variant.id,
     });
@@ -622,11 +437,8 @@ export async function POST(req: Request) {
     );
   }
 
-  if (lineItems.length === 0) {
-    return jsonNoStore(
-      { error: "No valid items in cart." },
-      { status: 400 },
-    );
+  if (cartSummaryItems.length === 0) {
+    return jsonNoStore({ error: "No valid items in cart." }, { status: 400 });
   }
 
   const minOrderCents = toCents(MIN_ORDER_TOTAL_EUR);
@@ -635,6 +447,15 @@ export async function POST(req: Request) {
       { error: `Mindestbestellwert ${MIN_ORDER_TOTAL_EUR.toFixed(2)} EUR.` },
       { status: 400 },
     );
+  }
+
+  for (const [variantId, quantity] of variantCounts) {
+    const variant = variantMap.get(variantId);
+    const onHand = variant?.inventory?.quantityOnHand ?? 0;
+    const reserved = variant?.inventory?.reserved ?? 0;
+    if (Math.max(0, onHand - reserved) < quantity) {
+      return jsonNoStore({ error: "Nicht genug Bestand." }, { status: 409 });
+    }
   }
 
   const orderSource = resolveOrderSourceFromRequest(req);
@@ -670,24 +491,25 @@ export async function POST(req: Request) {
     loyaltyPointsToRedeem = discountCentsToPoints(loyaltyDiscountCents);
   }
 
-  let promotionCodeId: string | undefined;
   let promotionDiscountCents = 0;
-  let couponId: string | undefined;
   let appliedDiscountCode: string | undefined;
   if (rawDiscountCode) {
+    const stripe = getStripe();
+    if (!stripe) {
+      return jsonNoStore(
+        { error: "Stripe secret key is required to validate Rabattcodes." },
+        { status: 500 },
+      );
+    }
     const promotionCodes = await stripe.promotionCodes.list({
-      code: rawDiscountCode,
       active: true,
+      code: rawDiscountCode,
       limit: 1,
     });
     const promotionCode = promotionCodes.data[0];
     if (!promotionCode || !promotionCode.active || !promotionCode.coupon?.valid) {
-      return jsonNoStore(
-        { error: "Rabattcode ungültig." },
-        { status: 400 },
-      );
+      return jsonNoStore({ error: "Rabattcode ungültig." }, { status: 400 });
     }
-    promotionCodeId = promotionCode.id;
     appliedDiscountCode = promotionCode.code ?? rawDiscountCode;
     promotionDiscountCents = getCouponDiscountPreviewCents(
       promotionCode.coupon,
@@ -695,52 +517,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const metadata: Record<string, string> = {
-    country,
-    shippingAddressType: normalizedShippingAddress.shippingAddressType,
-  };
-  if (orderSource.sourceStorefront) {
-    metadata.sourceStorefront = orderSource.sourceStorefront;
-  }
-  if (orderSource.sourceHost) {
-    metadata.sourceHost = orderSource.sourceHost;
-  }
-  if (orderSource.sourceOrigin) {
-    metadata.sourceOrigin = orderSource.sourceOrigin;
-  }
-  if (appliedDiscountCode) {
-    metadata.discountCode = appliedDiscountCode;
-  }
-  if (loyaltyPointsToRedeem > 0) {
-    metadata.discountCode = `Smokeify Punkte (${loyaltyPointsToRedeem} Punkte)`;
-    metadata.loyaltyPointsRedeemed = String(loyaltyPointsToRedeem);
-    metadata.loyaltyDiscountAmount = String(loyaltyDiscountCents);
-  }
-  if (recoverySessionId) {
-    metadata.recoveredFromCheckoutSessionId = recoverySessionId;
-  }
-
+  const effectiveDiscountCents = clampCheckoutDiscount(
+    promotionDiscountCents + loyaltyDiscountCents,
+    subtotalCents,
+  );
+  const totalCents = Math.max(0, subtotalCents + shippingCents - effectiveDiscountCents);
+  const checkoutEditorToken = randomUUID();
   const guestCheckoutAccess = userId ? null : createGuestCheckoutAccess();
-  if (guestCheckoutAccess) {
-    metadata.guestCheckoutAccessHash = guestCheckoutAccess.tokenHash;
-    metadata.guestCheckoutAccessExpiresAt = String(
-      guestCheckoutAccess.expiresAt,
-    );
-  }
-  const checkoutEditorToken =
-    checkoutMode === "custom" ? randomUUID() : null;
-  if (checkoutEditorToken) {
-    metadata.checkoutEditorHash = hashCheckoutEditorToken(checkoutEditorToken);
-  }
-
-  const reservedVariants: Array<{ variantId: string; qty: number }> = [];
+  const shippingAddress =
+    buildCheckoutAddress(normalizedShippingAddress, country) ?? {};
+  const shippingName = [checkoutFirstName, checkoutLastName].filter(Boolean).join(" ").trim();
+  const reservedVariants: Array<{ quantity: number; variantId: string }> = [];
   const releaseReservation = async () => {
     if (reservedVariants.length === 0) return;
     await prisma.$transaction(async (tx) => {
-      for (const { variantId, qty } of reservedVariants) {
+      for (const { quantity, variantId } of reservedVariants) {
         await tx.variantInventory.updateMany({
-          where: { variantId, reserved: { gte: qty } },
-          data: { reserved: { decrement: qty } },
+          where: { variantId, reserved: { gte: quantity } },
+          data: { reserved: { decrement: quantity } },
         });
       }
     });
@@ -748,17 +542,17 @@ export async function POST(req: Request) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      for (const [variantId, qty] of variantCounts) {
+      for (const [variantId, quantity] of variantCounts) {
         const updated = await tx.$executeRaw`
           UPDATE "VariantInventory"
-          SET reserved = reserved + ${qty}
+          SET reserved = reserved + ${quantity}
           WHERE "variantId" = ${variantId}
-            AND ("quantityOnHand" - reserved) >= ${qty}
+            AND ("quantityOnHand" - reserved) >= ${quantity}
         `;
         if (updated === 0) {
           throw Object.assign(new Error("INSUFFICIENT_INVENTORY"), { variantId });
         }
-        reservedVariants.push({ variantId, qty });
+        reservedVariants.push({ quantity, variantId });
       }
     });
   } catch (error) {
@@ -768,91 +562,31 @@ export async function POST(req: Request) {
     throw error;
   }
 
-  let checkoutSession: Stripe.Checkout.Session;
-  const paymentMethodTypes = parseCheckoutPaymentMethodTypes();
+  let vivaOrder: { orderCode: string };
   try {
-    if (loyaltyDiscountCents > 0) {
-      const coupon = await stripe.coupons.create({
-        amount_off: loyaltyDiscountCents,
-        currency: CURRENCY_CODE.toLowerCase(),
-        duration: "once",
-        name: `Smokeify Punkte ${loyaltyPointsToRedeem} Punkte`,
-        metadata: {
-          userId: userId ?? "",
-          loyaltyPointsRedeemed: String(loyaltyPointsToRedeem),
-        },
-      });
-      couponId = coupon.id;
-    }
-
-    const successUrl = buildCheckoutSuccessUrl(appBaseUrl, guestCheckoutAccess);
-    const customReturnUrl = buildCustomCheckoutReturnUrl(appBaseUrl);
-
-    checkoutSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      ...(checkoutMode === "custom"
-        ? {
-            ui_mode:
-              "custom" as unknown as Stripe.Checkout.SessionCreateParams.UiMode,
-          }
-        : {
-            payment_method_types: paymentMethodTypes,
-          }),
-      line_items: lineItems,
-      discounts: promotionCodeId
-        ? [{ promotion_code: promotionCodeId }]
-        : couponId
-          ? [{ coupon: couponId }]
-          : undefined,
-      customer: customerId ?? undefined,
-      customer_email: customerId ? undefined : checkoutEmail,
-      customer_update: customerId
-        ? { address: "auto", name: "auto", shipping: "auto" }
-        : undefined,
-      client_reference_id: userId ?? undefined,
-      shipping_address_collection:
-        checkoutMode === "hosted"
-          ? { allowed_countries: Array.from(ALLOWED_COUNTRIES) }
-          : undefined,
-      shipping_options: [
-        {
-          shipping_rate_data: {
-            display_name: "Versand",
-            type: "fixed_amount",
-            fixed_amount: {
-              amount: shippingCents,
-              currency: CURRENCY_CODE,
-            },
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 5 },
-            },
-          },
-        },
-      ],
-      automatic_tax: { enabled: true },
-      success_url: checkoutMode === "hosted" ? successUrl : undefined,
-      cancel_url:
-        checkoutMode === "hosted"
-          ? `${appBaseUrl}/order/rejected?reason=cancelled`
-          : undefined,
-      return_url: checkoutMode === "custom" ? customReturnUrl : undefined,
-      metadata,
+    vivaOrder = await createVivaPaymentOrder({
+      amount: totalCents,
+      customerTrns: `${SITE_NAME} Bestellung`,
+      customer: {
+        countryCode: country,
+        email: checkoutEmail,
+        fullName: shippingName,
+        requestLang: "de-DE",
+      },
+      merchantTrns: `Smokeify checkout ${checkoutEditorToken}`,
+      paymentTimeout: 1800,
+      sourceCode: getVivaSourceCode(),
+      tags: ["smokeify", "checkout", orderSource.sourceStorefront ?? "main"],
     });
   } catch (error) {
     await releaseReservation();
-    throw error;
-  }
-
-  if (checkoutMode === "custom" && !checkoutSession.client_secret) {
-    await releaseReservation();
-    try {
-      await stripe.checkout.sessions.expire(checkoutSession.id);
-    } catch {
-      // Ignore session expiration failures.
-    }
     return jsonNoStore(
-      { error: "Checkout konnte nicht initialisiert werden." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Viva Checkout konnte nicht initialisiert werden.",
+      },
       { status: 500 },
     );
   }
@@ -861,7 +595,7 @@ export async function POST(req: Request) {
     try {
       await prisma.$transaction(async (tx) => {
         const existing = await tx.loyaltyPointTransaction.findFirst({
-          where: { reason: buildLoyaltyHoldReason(checkoutSession.id) },
+          where: { reason: buildLoyaltyHoldReason(vivaOrder.orderCode) },
           select: { id: true },
         });
         if (existing) return;
@@ -875,37 +609,29 @@ export async function POST(req: Request) {
             loyaltyPointsBalance: { decrement: loyaltyPointsToRedeem },
           },
         });
-
         if (updated.count === 0) {
           throw new Error("LOYALTY_POINTS_UNAVAILABLE");
         }
-
         await tx.loyaltyPointTransaction.create({
           data: {
             userId,
             pointsDelta: -loyaltyPointsToRedeem,
-            reason: buildLoyaltyHoldReason(checkoutSession.id),
+            reason: buildLoyaltyHoldReason(vivaOrder.orderCode),
             metadata: {
-              sessionId: checkoutSession.id,
-              loyaltyPointsRedeemed: loyaltyPointsToRedeem,
-              loyaltyDiscountAmount: loyaltyDiscountCents,
               description: formatRedeemRateLabel(),
+              loyaltyDiscountAmount: loyaltyDiscountCents,
+              loyaltyPointsRedeemed: loyaltyPointsToRedeem,
+              paymentOrderCode: vivaOrder.orderCode,
             },
           },
         });
       });
     } catch (error) {
       await releaseReservation();
-      try {
-        await stripe.checkout.sessions.expire(checkoutSession.id);
-      } catch {
-        // Ignore session expiration failures.
-      }
       return jsonNoStore(
         {
           error:
-            error instanceof Error &&
-            error.message === "LOYALTY_POINTS_UNAVAILABLE"
+            error instanceof Error && error.message === "LOYALTY_POINTS_UNAVAILABLE"
               ? "Smokeify Punkte standen nicht mehr in ausreichender Höhe zur Verfügung."
               : "Smokeify Punkte konnten nicht reserviert werden.",
         },
@@ -914,49 +640,99 @@ export async function POST(req: Request) {
     }
   }
 
-  if (checkoutMode === "custom") {
-    const effectiveDiscountCents = clampCheckoutDiscount(
-      promotionDiscountCents + loyaltyDiscountCents,
-      subtotalCents,
-    );
-    const summary: CheckoutSummarySnapshot = {
+  const draftItems = cartSummaryItems.map((item) => {
+    const variant = variantMap.get(item.variantId);
+    return {
+      ...item,
+      baseCostAmount: Math.max(0, variant?.costCents ?? 0) * item.quantity,
+      currency: CURRENCY_CODE,
+      productId: variant?.product.id ?? null,
+      totalAmount: item.lineTotalCents,
+      unitAmount: item.quantity > 0 ? Math.round(item.lineTotalCents / item.quantity) : 0,
+    };
+  });
+
+  const recoverySession = await persistCheckoutRecoverySession({
+    stripeSessionId: vivaOrder.orderCode,
+    userId,
+    customerEmail: checkoutEmail,
+    customerFirstName: checkoutFirstName,
+    customerLastName: checkoutLastName,
+    sourceStorefront: orderSource.sourceStorefront,
+    sourceHost: orderSource.sourceHost,
+    sourceOrigin: orderSource.sourceOrigin,
+    isGuest: !userId,
+    consentGranted: checkoutRecoveryConsent,
+    cartItems: items,
+    cartSummary: {
       currency: CURRENCY_CODE,
       discountCents: effectiveDiscountCents,
       items: cartSummaryItems,
       shippingCents,
       subtotalCents,
-      totalCents: subtotalCents + shippingCents - effectiveDiscountCents,
-    };
-    await persistCheckoutRecoverySession({
-      stripeSessionId: checkoutSession.id,
+      totalCents,
+    },
+    discountCode: appliedDiscountCode ?? null,
+    shippingCountry: country,
+  });
+
+  await prisma.checkoutPaymentDraft.create({
+    data: {
+      paymentProvider: "viva",
+      paymentOrderCode: vivaOrder.orderCode,
       userId,
+      editTokenHash: hashCheckoutEditorToken(checkoutEditorToken),
+      guestCheckoutAccessHash: guestCheckoutAccess?.tokenHash,
+      guestCheckoutAccessExpiresAt: guestCheckoutAccess
+        ? BigInt(guestCheckoutAccess.expiresAt)
+        : undefined,
+      sourceStorefront: orderSource.sourceStorefront ?? undefined,
+      sourceHost: orderSource.sourceHost ?? undefined,
+      sourceOrigin: orderSource.sourceOrigin ?? undefined,
+      currency: CURRENCY_CODE,
+      amountSubtotal: subtotalCents,
+      amountShipping: shippingCents,
+      amountDiscount: effectiveDiscountCents,
+      amountTotal: totalCents,
+      discountCode: appliedDiscountCode,
+      loyaltyPointsRedeemed: loyaltyPointsToRedeem,
+      loyaltyDiscountAmount: loyaltyDiscountCents,
       customerEmail: checkoutEmail,
-      customerFirstName: checkoutFirstName,
-      customerLastName: checkoutLastName,
-      sourceStorefront: orderSource.sourceStorefront,
-      sourceHost: orderSource.sourceHost,
-      sourceOrigin: orderSource.sourceOrigin,
-      isGuest: !userId,
-      consentGranted: checkoutRecoveryConsent,
-      cartItems: items,
-      cartSummary: summary,
-      discountCode: appliedDiscountCode ?? null,
-      shippingCountry: country,
-    });
-    const successUrl = buildCheckoutSuccessUrl(
-      appBaseUrl,
-      guestCheckoutAccess,
-      checkoutSession.id,
-    );
+      shippingName,
+      shippingLine1: shippingAddress.line1,
+      shippingLine2: shippingAddress.line2,
+      shippingPostalCode: shippingAddress.postalCode,
+      shippingCity: shippingAddress.city,
+      shippingCountry: shippingAddress.country,
+      shippingAddressType: normalizedShippingAddress.shippingAddressType,
+      recoveredFromCheckoutSessionId: recoverySessionId || recoverySession.id,
+      items: draftItems as Prisma.InputJsonValue,
+    },
+  });
 
-    return jsonNoStore({
-      clientSecret: checkoutSession.client_secret,
-      editToken: checkoutEditorToken,
-      sessionId: checkoutSession.id,
-      successUrl,
-      summary,
-    });
-  }
+  const summary: CheckoutSummarySnapshot = {
+    currency: CURRENCY_CODE,
+    discountCents: effectiveDiscountCents,
+    items: cartSummaryItems,
+    shippingCents,
+    subtotalCents,
+    totalCents,
+  };
+  const successUrl = buildCheckoutSuccessUrl(
+    appBaseUrl,
+    guestCheckoutAccess,
+    vivaOrder.orderCode,
+  );
+  const failureUrl = buildCheckoutFailureUrl(appBaseUrl, vivaOrder.orderCode);
 
-  return jsonNoStore({ url: checkoutSession.url });
+  return jsonNoStore({
+    checkoutUrl: getVivaCheckoutUrl(vivaOrder.orderCode),
+    discountCode: appliedDiscountCode,
+    editToken: checkoutEditorToken,
+    failureUrl,
+    orderCode: vivaOrder.orderCode,
+    sessionId: vivaOrder.orderCode,
+    successUrl,
+    summary,
+  });
 }

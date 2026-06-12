@@ -809,9 +809,11 @@ export default function AdminOrderDetailClient({
             </div>
             <div className="mt-5 space-y-3">
               <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
+              <DarkRow label="Payment provider" value={order.paymentProvider ?? "Not stored"} />
+              <DarkRow label="Payment order" value={order.paymentOrderCode ?? "Not linked"} mono={Boolean(order.paymentOrderCode)} />
               <DarkRow label="Tracking posture" value={getTrackingState(order)} />
               <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
-              <DarkRow label="Payment intent" value={order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.stripePaymentIntent)} />
+              <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} />
             </div>
           </aside>
         </div>
@@ -1126,10 +1128,12 @@ function OverviewTab({
         <Panel className={DARK_PANEL} eyebrow="Snapshot" title="Key metadata" dark>
           <div className="space-y-3">
             <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
+            <DarkRow label="Payment provider" value={order.paymentProvider ?? "Not stored"} />
+            <DarkRow label="Payment order" value={order.paymentOrderCode ?? "Not linked"} mono={Boolean(order.paymentOrderCode)} />
             <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
             <DarkRow label="Source host" value={order.sourceHost ?? "No source host stored"} />
             <DarkRow label="Source origin" value={order.sourceOrigin ?? "No source origin stored"} />
-            <DarkRow label="Payment intent" value={order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.stripePaymentIntent)} />
+            <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} />
           </div>
         </Panel>
 

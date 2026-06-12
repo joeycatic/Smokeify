@@ -34,7 +34,7 @@ type UnresolvedOrderRow = {
   sourceStorefront: Storefront | null;
   sourceHost: string | null;
   sourceOrigin: string | null;
-  stripeSessionId: string;
+  stripeSessionId: string | null;
   createdAt: Date;
 };
 
