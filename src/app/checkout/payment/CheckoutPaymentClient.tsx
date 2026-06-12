@@ -1,14 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  CheckoutElementsProvider,
-  PaymentElement,
-  useCheckout,
-} from "@stripe/react-stripe-js/checkout";
-import { loadStripe } from "@stripe/stripe-js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
   clearCheckoutPaymentStateHash,
@@ -21,30 +15,47 @@ import {
 } from "@/app/checkout/shared/paymentState";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
-type Props = { publishableKey: string };
+const PAYMENT_INFO_TRACK_STORAGE_PREFIX = "smokeify.checkout.add-payment-info:";
+const VIVA_AUTO_REDIRECT_STORAGE_PREFIX = "smokeify.checkout.viva-auto-redirect:";
+
+const hasWindow = () => typeof window !== "undefined";
+
+const getVivaAutoRedirectStorageKey = (orderCode: string) =>
+  `${VIVA_AUTO_REDIRECT_STORAGE_PREFIX}${orderCode}`;
 
 type CheckoutSessionSummaryResponse = {
   error?: string;
-  paymentIntentStatus?: string | null;
   paymentStatus?: string | null;
   status?: string | null;
   summary?: CheckoutSummarySnapshot | null;
 };
 
-const appearance = {
-  theme: "night",
-  labels: "floating",
-  variables: {
-    colorBackground: "#12100d",
-    colorDanger: "#ff8a80",
-    colorPrimary: "#e9bc74",
-    colorText: "#f7f2ea",
-    colorTextSecondary: "#b5aa98",
-    borderRadius: "18px",
-    fontFamily: "system-ui, sans-serif",
-    spacingUnit: "6px",
-  },
-} as const;
+function VivaComLogo({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2.5 text-[var(--smk-text)] ${className}`}
+      aria-label="viva.com"
+    >
+      <svg aria-hidden="true" viewBox="0 0 64 40" className="h-8 w-[52px] shrink-0" fill="none">
+        <path
+          d="M3.5 9.7 13 32.8a4.1 4.1 0 0 0 7.6 0l10-23.1M30.6 9.7l10 23.1a4.1 4.1 0 0 0 7.6 0l9.5-23.1"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="6"
+        />
+        <path
+          d="m20.5 7.2 10.1 23.6M40.4 30.8 50.5 7.2"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="6"
+        />
+      </svg>
+      <span className="text-3xl font-bold leading-none tracking-normal">viva.com</span>
+    </span>
+  );
+}
 
 const toAnalyticsItems = (summary: CheckoutSummarySnapshot) =>
   summary.items.map((item) => ({
@@ -62,110 +73,27 @@ const formatMoney = (cents: number, currency = "EUR") =>
     minimumFractionDigits: 2,
   }).format(cents / 100);
 
-function PaymentPane({
-  contact,
-  onSuccess,
-}: {
-  contact: CheckoutPaymentState["contact"];
-  onSuccess: () => void;
-}) {
-  const checkoutState = useCheckout();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  if (checkoutState.type === "loading") {
-    return (
-      <div className="flex min-h-[280px] items-center justify-center">
-        <LoadingSpinner size="md" className="border-white/15 border-t-[var(--smk-accent)]" />
-      </div>
-    );
-  }
-
-  if (checkoutState.type === "error") {
-    return (
-      <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
-        {checkoutState.error.message || "Checkout konnte nicht geladen werden."}
-      </div>
-    );
-  }
-
-  const { checkout } = checkoutState;
-
-  const handleConfirm = async () => {
-    if (submitting) return;
-    setSubmitError(null);
-    setSubmitting(true);
-    const result = await checkout.confirm({
-      redirect: "if_required",
-      shippingAddress: contact,
-    });
-    if (result.type === "error") {
-      setSubmitError(result.error.message || "Zahlung konnte nicht bestätigt werden.");
-      setSubmitting(false);
-      return;
-    }
-    onSuccess();
-  };
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-[28px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4 sm:p-5">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
-          Zahlungsart
-        </p>
-        <PaymentElement
-          options={{
-            layout: {
-              type: "tabs",
-              defaultCollapsed: false,
-              paymentMethodLogoPosition: "start",
-              radios: "always",
-            },
-          }}
-        />
-      </div>
-      {submitError ? (
-        <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
-          {submitError}
-        </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => void handleConfirm()}
-        disabled={submitting || !checkout.canConfirm}
-        className="smk-button-primary inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {submitting ? "Zahlung wird bestätigt..." : "Jetzt bezahlen"}
-      </button>
-    </div>
-  );
-}
-
-export default function CheckoutPaymentClient({ publishableKey }: Props) {
+export default function CheckoutPaymentClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const redirectStarted = useRef(false);
   const [paymentState, setPaymentState] = useState<CheckoutPaymentState | null>(null);
   const [summary, setSummary] = useState<CheckoutSummarySnapshot | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [pageError, setPageError] = useState<string | null>(null);
-  const [paymentReturnNotice, setPaymentReturnNotice] = useState<string | null>(null);
-  const returnedFromStripe = searchParams.get("checkout_return") === "1";
+  const [autoRedirected, setAutoRedirected] = useState(false);
 
-  const stripePromise = useMemo(
-    () => (publishableKey ? loadStripe(publishableKey) : Promise.resolve(null)),
-    [publishableKey],
-  );
+  const markAutoRedirected = useCallback((orderCode: string) => {
+    if (!hasWindow()) return;
+    window.sessionStorage.setItem(getVivaAutoRedirectStorageKey(orderCode), "1");
+    setAutoRedirected(true);
+  }, []);
 
-  const navigateToSuccess = useCallback(
-    (url: string) => {
-      if (typeof window !== "undefined") {
-        window.location.assign(url);
-        return;
-      }
-      router.push(url);
-    },
-    [router],
-  );
+  const startVivaRedirect = useCallback(() => {
+    if (!paymentState?.checkoutUrl || !paymentState.orderCode || !hasWindow()) return;
+    redirectStarted.current = true;
+    markAutoRedirected(paymentState.orderCode);
+    window.location.assign(paymentState.checkoutUrl);
+  }, [markAutoRedirected, paymentState]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -185,17 +113,15 @@ export default function CheckoutPaymentClient({ publishableKey }: Props) {
 
       setPaymentState(stored);
       setSummary(stored.summary);
-
-      if (!publishableKey) {
-        setLoadState("error");
-        setPageError("Stripe Publishable Key fehlt.");
-        return;
-      }
+      setAutoRedirected(
+        hasWindow() &&
+          window.sessionStorage.getItem(getVivaAutoRedirectStorageKey(stored.orderCode)) === "1",
+      );
 
       try {
         const params = new URLSearchParams({
           editToken: stored.editToken,
-          sessionId: stored.sessionId,
+          sessionId: stored.sessionId || stored.orderCode,
         });
         const res = await fetch(`/api/checkout/session?${params.toString()}`, {
           method: "GET",
@@ -207,26 +133,13 @@ export default function CheckoutPaymentClient({ publishableKey }: Props) {
         if (!res.ok || !data?.summary) {
           throw new Error(data?.error ?? "Checkout-Session konnte nicht geladen werden.");
         }
-        if (data.status === "complete") {
+        if (data.status === "paid") {
           clearCheckoutPaymentState();
-          navigateToSuccess(stored.successUrl);
+          window.location.assign(stored.successUrl);
           return;
         }
-        if (data.status === "expired") {
-          throw new Error("Diese Checkout-Session ist abgelaufen.");
-        }
-        if (returnedFromStripe) {
-          const paymentFailed =
-            data.paymentStatus === "unpaid" ||
-            data.paymentIntentStatus === "requires_payment_method" ||
-            data.paymentIntentStatus === "canceled";
-          setPaymentReturnNotice(
-            paymentFailed
-              ? "Die Zahlung wurde nicht abgeschlossen. Bitte versuche es erneut."
-              : "Der Bezahlvorgang wurde unterbrochen. Du kannst hier fortfahren.",
-          );
-        } else {
-          setPaymentReturnNotice(null);
+        if (data.status === "cancelled") {
+          throw new Error("Diese Checkout-Session wurde abgebrochen.");
         }
         setSummary(data.summary);
         setLoadState("ready");
@@ -243,22 +156,60 @@ export default function CheckoutPaymentClient({ publishableKey }: Props) {
 
     void initialize();
     return () => controller.abort();
-  }, [navigateToSuccess, publishableKey, returnedFromStripe]);
+  }, []);
 
   useEffect(() => {
     if (!paymentState || !summary || loadState !== "ready") return;
+    const storageKey = `${PAYMENT_INFO_TRACK_STORAGE_PREFIX}${paymentState.orderCode}`;
+    if (hasWindow() && window.sessionStorage.getItem(storageKey) === "1") return;
+    if (hasWindow()) window.sessionStorage.setItem(storageKey, "1");
     trackAnalyticsEvent("add_payment_info", {
       currency: summary.currency,
       items: toAnalyticsItems(summary),
-      payment_type: "stripe_custom_checkout",
+      payment_type: "viva_smart_checkout",
       value: summary.totalCents / 100,
     });
   }, [loadState, paymentState, summary]);
 
-  const handleSuccess = () => {
-    const successUrl = paymentState?.successUrl ?? "/order/success";
-    clearCheckoutPaymentState();
-    navigateToSuccess(successUrl);
+  useEffect(() => {
+    if (
+      !paymentState?.checkoutUrl ||
+      !paymentState.orderCode ||
+      redirectStarted.current ||
+      autoRedirected ||
+      loadState !== "ready"
+    ) {
+      return;
+    }
+    redirectStarted.current = true;
+    const timer = window.setTimeout(() => {
+      markAutoRedirected(paymentState.orderCode);
+      window.location.assign(paymentState.checkoutUrl);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [autoRedirected, loadState, markAutoRedirected, paymentState]);
+
+  const cancelDraft = async () => {
+    if (!paymentState) {
+      router.push("/cart");
+      return;
+    }
+    try {
+      await fetch("/api/checkout/session", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          editToken: paymentState.editToken,
+          sessionId: paymentState.orderCode,
+        }),
+      });
+    } finally {
+      if (hasWindow()) {
+        window.sessionStorage.removeItem(getVivaAutoRedirectStorageKey(paymentState.orderCode));
+      }
+      clearCheckoutPaymentState();
+      router.push("/cart");
+    }
   };
 
   if (loadState === "error") {
@@ -305,25 +256,57 @@ export default function CheckoutPaymentClient({ publishableKey }: Props) {
           Adresse ändern
         </button>
       </div>
-      {paymentReturnNotice ? (
-        <div className="mb-5 rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
-          {paymentReturnNotice}
-        </div>
-      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
-          <CheckoutElementsProvider
-            key={paymentState.sessionId}
-            stripe={stripePromise}
-            options={{
-              clientSecret: paymentState.clientSecret,
-              defaultValues: { shippingAddress: paymentState.contact },
-              elementsOptions: { appearance },
-            }}
-          >
-            <PaymentPane contact={paymentState.contact} onSuccess={handleSuccess} />
-          </CheckoutElementsProvider>
+          <div className="mb-6 flex items-center justify-between gap-4 border-b border-[var(--smk-border)] pb-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
+                Zahlungsanbieter
+              </p>
+              <VivaComLogo className="mt-2" />
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            {!autoRedirected ? (
+              <LoadingSpinner size="md" className="mt-1 border-white/15 border-t-[var(--smk-accent)]" />
+            ) : null}
+            <div>
+              <h2 className="text-xl font-semibold text-[var(--smk-text)]">
+                {autoRedirected ? "Zahlung fortsetzen" : "Weiter zu Viva Smart Checkout"}
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--smk-text-muted)]">
+                {autoRedirected
+                  ? "Du bist vom Viva Checkout zurückgekehrt. Du kannst die Zahlung erneut öffnen, deine Lieferdaten prüfen oder den Checkout abbrechen."
+                  : "Du wirst zur sicheren Viva-Zahlungsseite weitergeleitet. Dort kannst du mit den für Smokeify aktivierten Zahlungsarten bezahlen."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-wrap gap-3">
+            <a
+              href={paymentState.checkoutUrl}
+              className="smk-button-primary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold"
+              onClick={() => {
+                redirectStarted.current = true;
+                markAutoRedirected(paymentState.orderCode);
+              }}
+            >
+              Jetzt bezahlen
+            </a>
+            <button type="button" onClick={startVivaRedirect} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
+              Weiterleitung erneut starten
+            </button>
+            <button type="button" onClick={() => router.push("/checkout/start")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
+              Lieferdaten prüfen
+            </button>
+            <button type="button" onClick={() => void cancelDraft()} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
+              Abbrechen
+            </button>
+          </div>
         </section>
+
         <aside className="rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Bestellübersicht</p>
           <div className="mt-4 space-y-3">

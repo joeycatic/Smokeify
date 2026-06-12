@@ -35,6 +35,9 @@ export type AdminOrderRecord = {
   sourceOrigin: string | null;
   status: string;
   paymentStatus: string;
+  paymentProvider?: string;
+  paymentOrderCode?: string | null;
+  paymentTransactionId?: string | null;
   paymentMethod: string | null;
   currency: string;
   amountSubtotal: number;
@@ -147,6 +150,9 @@ function serializeAdminOrder(
     sourceOrigin: order.sourceOrigin,
     status: order.status,
     paymentStatus: order.paymentStatus,
+    paymentProvider: order.paymentProvider,
+    paymentOrderCode: order.paymentOrderCode,
+    paymentTransactionId: order.paymentTransactionId,
     paymentMethod: order.paymentMethod,
     currency: order.currency,
     amountSubtotal: order.amountSubtotal,
@@ -232,6 +238,9 @@ function buildAdminOrderListWhere(
     { id: { contains: searchQuery, mode: "insensitive" } },
     { status: { contains: searchQuery, mode: "insensitive" } },
     { paymentStatus: { contains: searchQuery, mode: "insensitive" } },
+    { paymentProvider: { contains: searchQuery, mode: "insensitive" } },
+    { paymentOrderCode: { contains: searchQuery, mode: "insensitive" } },
+    { paymentTransactionId: { contains: searchQuery, mode: "insensitive" } },
     { paymentMethod: { contains: searchQuery, mode: "insensitive" } },
     { customerEmail: { contains: searchQuery, mode: "insensitive" } },
     { shippingName: { contains: searchQuery, mode: "insensitive" } },

@@ -121,7 +121,16 @@ export default function OrderSuccessPage() {
   const { status } = useSession();
   const { refresh } = useCart();
   const purchaseTracked = useRef(false);
-  const sessionId = searchParams.get("session_id") || "";
+  const orderCode =
+    searchParams.get("order_code") ||
+    searchParams.get("s") ||
+    searchParams.get("session_id") ||
+    "";
+  const transactionId =
+    searchParams.get("transaction_id") ||
+    searchParams.get("t") ||
+    searchParams.get("tid") ||
+    "";
   const guestToken = searchParams.get("guest_token") || "";
   const guestExpires = searchParams.get("guest_expires") || "";
   const [order, setOrder] = useState<OrderSummary | null>(null);
@@ -134,7 +143,7 @@ export default function OrderSuccessPage() {
   const retryDelayMs = 8000;
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!orderCode) return;
     if (status === "loading") return;
     if (loadStatus !== "idle") return;
 
@@ -145,7 +154,9 @@ export default function OrderSuccessPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sessionId,
+            orderCode,
+            sessionId: orderCode,
+            transactionId: transactionId || undefined,
             guestToken: guestToken || undefined,
             guestExpires: guestExpires || undefined,
           }),
@@ -172,7 +183,7 @@ export default function OrderSuccessPage() {
     };
 
     void loadOrder();
-  }, [guestExpires, guestToken, loadStatus, sessionId, status]);
+  }, [guestExpires, guestToken, loadStatus, orderCode, status, transactionId]);
 
   useEffect(() => {
     if (loadStatus !== "pending") return;
@@ -262,8 +273,8 @@ export default function OrderSuccessPage() {
                   ? order.provisional
                     ? order.id.slice(0, 12)
                     : order.id.slice(0, 8).toUpperCase()
-                  : sessionId
-                    ? sessionId.slice(0, 12)
+                  : orderCode
+                    ? orderCode.slice(0, 12)
                     : "Wird geladen"}
               </p>
               {order ? (
@@ -279,7 +290,7 @@ export default function OrderSuccessPage() {
             </div>
           </div>
 
-          {!sessionId ? (
+          {!orderCode ? (
             <div className="mt-6 rounded-[24px] border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-5 py-4 text-sm text-[var(--smk-error)]">
               Keine Checkout-Session gefunden. Öffne die Bestellbestätigung erneut
               über den Checkout oder dein Kundenkonto.

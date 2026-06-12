@@ -1,4 +1,3 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,84 +8,117 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { buildReceiptUrl } from "@/lib/receiptLink";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { getAppOrigin } from "@/lib/appOrigin";
-import {
-  calculateVatComponentsFromGross,
-  canApplyDefaultVatFallback,
-} from "@/lib/vat";
+import { createOrderFromVivaDraft } from "@/lib/vivaOrderFulfillment";
+import { normalizeVivaStatus, retrieveVivaTransaction } from "@/lib/viva";
 
 export const runtime = "nodejs";
 
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
+type OrderWithItems = NonNullable<
+  Awaited<ReturnType<typeof prisma.order.findFirst>>
+> & {
+  items: Array<{
+    currency: string;
+    id: string;
+    imageUrl: string | null;
+    name: string;
+    options: unknown;
+    productId: string | null;
+    quantity: number;
+    totalAmount: number;
+    unitAmount: number;
+    variantId: string | null;
+  }>;
+};
+
+const noStoreHeaders = {
+  "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
+  Expires: "0",
+  Pragma: "no-cache",
+};
+
+const jsonNoStore = (body: unknown, init?: number | ResponseInit) => {
+  const responseInit =
+    typeof init === "number" ? { status: init } : (init ?? {});
+  return NextResponse.json(body, {
+    ...responseInit,
+    headers: {
+      ...noStoreHeaders,
+      ...(responseInit.headers ?? {}),
+    },
+  });
+};
+
+const normalizeOptions = (value: unknown) => {
+  if (!Array.isArray(value)) return [] as Array<{ name: string; value: string }>;
+  return value
+    .map((entry) => {
+      const name = typeof entry?.name === "string" ? entry.name : "";
+      const optionValue = typeof entry?.value === "string" ? entry.value : "";
+      return name && optionValue ? { name, value: optionValue } : null;
+    })
+    .filter((entry): entry is { name: string; value: string } => Boolean(entry));
 };
 
 const enrichItemsWithManufacturer = async <
-  T extends { productId?: string | null; variantId?: string | null }
+  T extends { options?: unknown; productId?: string | null }
 >(
-  items: T[]
+  items: T[],
 ): Promise<Array<T & { manufacturer: string | null; options: Array<{ name: string; value: string }> }>> => {
   const productIds = Array.from(
-    new Set(items.map((item) => item.productId).filter(Boolean))
+    new Set(items.map((item) => item.productId).filter(Boolean)),
   ) as string[];
-  const variantIds = Array.from(
-    new Set(items.map((item) => item.variantId).filter(Boolean))
-  ) as string[];
-
   const products = await prisma.product.findMany({
     where: productIds.length ? { id: { in: productIds } } : { id: "__none__" },
     select: { id: true, manufacturer: true },
   });
   const manufacturerMap = new Map(
-    products.map((product) => [product.id, product.manufacturer ?? null])
+    products.map((product) => [product.id, product.manufacturer ?? null]),
   );
-
-  const options = await prisma.variantOption.findMany({
-    where: variantIds.length ? { variantId: { in: variantIds } } : { id: "__none__" },
-    select: { variantId: true, name: true, value: true },
-  });
-  const optionsMap = new Map<string, Array<{ name: string; value: string }>>();
-  options.forEach((opt) => {
-    const list = optionsMap.get(opt.variantId) ?? [];
-    list.push({ name: opt.name, value: opt.value });
-    optionsMap.set(opt.variantId, list);
-  });
 
   return items.map((item) => ({
     ...item,
-    manufacturer: item.productId
-      ? manufacturerMap.get(item.productId) ?? null
-      : null,
-    options: item.variantId ? optionsMap.get(item.variantId) ?? [] : [],
+    manufacturer: item.productId ? manufacturerMap.get(item.productId) ?? null : null,
+    options: normalizeOptions(item.options),
   }));
 };
 
-const parseSelectedOptions = (value?: string | null) => {
-  if (!value) return [] as Array<{ name: string; value: string }>;
-  return value
-    .split("&")
-    .map((pair) => {
-      const [rawName, rawValue] = pair.split("=");
-      const name = decodeURIComponent(rawName ?? "").trim();
-      const val = decodeURIComponent(rawValue ?? "").trim();
-      if (!name || !val) return null;
-      return { name, value: val };
-    })
-    .filter((entry): entry is { name: string; value: string } => Boolean(entry));
-};
-
-const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
-  if (!options?.length) return "";
-  return options
-    .map((opt) => `${opt.name}: ${opt.value}`)
-    .filter(Boolean)
-    .join(" · ");
+const serializeOrder = async (order: OrderWithItems | null, request: Request) => {
+  if (!order) return null;
+  const origin = getAppOrigin(request);
+  const items = await enrichItemsWithManufacturer(
+    order.items.map((item) => ({
+      ...item,
+      options: normalizeOptions(item.options),
+    })),
+  );
+  return {
+    id: order.id,
+    createdAt: order.createdAt,
+    amountSubtotal: order.amountSubtotal,
+    amountTax: order.amountTax,
+    amountShipping: order.amountShipping,
+    amountDiscount: order.amountDiscount,
+    amountTotal: order.amountTotal,
+    currency: order.currency,
+    paymentStatus: order.paymentStatus,
+    status: order.status,
+    discountCode: order.discountCode,
+    customerEmail: order.customerEmail,
+    shippingName: order.shippingName,
+    shippingLine1: order.shippingLine1,
+    shippingLine2: order.shippingLine2,
+    shippingPostalCode: order.shippingPostalCode,
+    shippingCity: order.shippingCity,
+    shippingCountry: order.shippingCountry,
+    invoiceUrl: buildInvoiceUrl(origin, order.id),
+    receiptUrl: order.stripePaymentIntent ? buildReceiptUrl(origin, order.id) : null,
+    items,
+  };
 };
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonNoStore({ error: "Forbidden" }, 403);
   }
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
@@ -95,210 +127,94 @@ export async function POST(request: Request) {
     windowMs: 10 * 60 * 1000,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
+    return jsonNoStore(
       { error: "Zu viele Anfragen. Bitte später erneut versuchen." },
-      { status: 429 }
+      { status: 429 },
     );
   }
+
   const session = await getServerSession(authOptions);
-
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe secret key not configured." },
-      { status: 500 }
-    );
-  }
-
   const body = (await request.json().catch(() => ({}))) as {
-    sessionId?: string;
-    guestToken?: string;
     guestExpires?: number | string;
+    guestToken?: string;
+    orderCode?: string;
+    sessionId?: string;
+    transactionId?: string;
   };
-  const sessionId = body.sessionId?.trim();
+  const paymentOrderCode = (body.orderCode ?? body.sessionId ?? "").trim();
+  const transactionId = body.transactionId?.trim();
   const guestToken = body.guestToken?.trim() ?? "";
   const guestExpiresRaw =
     typeof body.guestExpires === "number" || typeof body.guestExpires === "string"
       ? Number(body.guestExpires)
       : NaN;
-  if (!sessionId) {
-    return NextResponse.json({ error: "Missing session id." }, { status: 400 });
+  if (!paymentOrderCode) {
+    return jsonNoStore({ error: "Missing order code." }, 400);
   }
 
   const isAdmin = session?.user?.role === "ADMIN";
   const userId = session?.user?.id ?? null;
-  let cachedCheckoutSession: Stripe.Checkout.Session | null = null;
-  const loadCheckoutSession = async () => {
-    if (cachedCheckoutSession) return cachedCheckoutSession;
-    cachedCheckoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-    return cachedCheckoutSession;
-  };
-  const isGuestSessionAuthorized = async () => {
-    const checkoutSession = await loadCheckoutSession();
-    const expectedHash = checkoutSession.metadata?.guestCheckoutAccessHash ?? null;
-    const expectedExpires = Number(
-      checkoutSession.metadata?.guestCheckoutAccessExpiresAt ?? NaN
-    );
-    if (!verifyGuestCheckoutAccess({
-      token: guestToken,
-      expiresAt: guestExpiresRaw,
-      expectedHash,
-    })) {
-      return false;
-    }
-    return expectedExpires === guestExpiresRaw;
-  };
 
-  const existing = await prisma.order.findUnique({
-    where: { stripeSessionId: sessionId },
+  const existing = await prisma.order.findFirst({
+    where: {
+      OR: [
+        { paymentOrderCode },
+        { stripeSessionId: paymentOrderCode },
+      ],
+    },
     include: { items: true },
   });
   if (existing) {
     if (existing.userId && !isAdmin && existing.userId !== userId) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return jsonNoStore({ error: "Forbidden." }, 403);
     }
-    if (!existing.userId && !isAdmin && !userId) {
-      const authorized = await isGuestSessionAuthorized();
-      if (!authorized) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    return jsonNoStore({ ok: true, order: await serializeOrder(existing, request) });
+  }
+
+  const draft = await prisma.checkoutPaymentDraft.findUnique({
+    where: { paymentOrderCode },
+  });
+  if (!draft) {
+    return jsonNoStore({ error: "Checkout not found." }, 404);
+  }
+  if (draft.userId && !isAdmin && draft.userId !== userId) {
+    return jsonNoStore({ error: "Forbidden." }, 403);
+  }
+  if (!draft.userId && !isAdmin && !userId) {
+    const expectedExpires = Number(draft.guestCheckoutAccessExpiresAt ?? NaN);
+    const authorized = verifyGuestCheckoutAccess({
+      expectedHash: draft.guestCheckoutAccessHash,
+      expiresAt: guestExpiresRaw,
+      token: guestToken,
+    });
+    if (!authorized || expectedExpires !== guestExpiresRaw) {
+      return jsonNoStore({ error: "Unauthorized" }, 401);
     }
-    const origin = getAppOrigin(request);
-    const items = await enrichItemsWithManufacturer(
-      existing.items.map((item) => ({
-        ...item,
-        options: Array.isArray(item.options) ? item.options : [],
-      }))
+  }
+
+  if (!transactionId && draft.paymentStatus !== "paid") {
+    return jsonNoStore(
+      { ok: true, paymentStatus: draft.paymentStatus, pending: true },
+      { status: 202 },
     );
-    return NextResponse.json({
-      ok: true,
-      order: {
-        id: existing.id,
-        createdAt: existing.createdAt,
-        amountSubtotal: existing.amountSubtotal,
-        amountTax: existing.amountTax,
-        amountShipping: existing.amountShipping,
-        amountDiscount: existing.amountDiscount,
-        amountTotal: existing.amountTotal,
-        currency: existing.currency,
-        paymentStatus: existing.paymentStatus,
-        status: existing.status,
-        discountCode: existing.discountCode,
-        customerEmail: existing.customerEmail,
-        shippingName: existing.shippingName,
-        shippingLine1: existing.shippingLine1,
-        shippingLine2: existing.shippingLine2,
-        shippingPostalCode: existing.shippingPostalCode,
-        shippingCity: existing.shippingCity,
-        shippingCountry: existing.shippingCountry,
-        invoiceUrl: buildInvoiceUrl(origin, existing.id),
-        receiptUrl: buildReceiptUrl(origin, existing.id),
-        items,
-      },
-    });
   }
 
-  const checkoutSession = await loadCheckoutSession();
-  if (!checkoutSession) {
-    return NextResponse.json({ error: "Session not found." }, { status: 404 });
-  }
-
-  if (checkoutSession.client_reference_id) {
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!isAdmin && checkoutSession.client_reference_id !== userId) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
-    }
-  } else if (!isAdmin && !userId) {
-    const authorized = await isGuestSessionAuthorized();
-    if (!authorized) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const transaction = transactionId
+    ? await retrieveVivaTransaction(transactionId).catch(() => null)
+    : null;
+  if (transaction && normalizeVivaStatus(transaction.statusId) === "paid") {
+    const order = await createOrderFromVivaDraft({ draft, request, transaction });
+    if (order) {
+      const reloaded = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: { items: true },
+      });
+      return jsonNoStore({ ok: true, order: await serializeOrder(reloaded, request) });
     }
   }
 
-  if (checkoutSession.payment_status === "paid") {
-    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
-      limit: 100,
-      expand: ["data.price.product"],
-    });
-    const items = await enrichItemsWithManufacturer(
-      (lineItems.data ?? []).map((item) => {
-        const product = item.price?.product as Stripe.Product | null | undefined;
-        const imageUrl = product?.images?.[0] ?? null;
-        const productId =
-          product?.metadata?.productId || item.price?.metadata?.productId || null;
-        const variantId =
-          product?.metadata?.variantId || item.price?.metadata?.variantId || null;
-        const selectedOptions = parseSelectedOptions(
-          product?.metadata?.selectedOptions ||
-            (item.price?.metadata?.selectedOptions as string | undefined) ||
-            undefined
-        );
-        const baseName = item.description ?? "Item";
-        const name = selectedOptions.length
-          ? `${baseName} (${formatOptionsLabel(selectedOptions)})`
-          : baseName;
-        return {
-          id: item.id,
-          name,
-          quantity: item.quantity ?? 0,
-          unitAmount: item.price?.unit_amount ?? 0,
-          totalAmount: item.amount_total ?? 0,
-          currency: (item.currency ?? checkoutSession.currency ?? "eur").toUpperCase(),
-          imageUrl,
-          productId,
-          variantId,
-          options: selectedOptions,
-        };
-      })
-    );
-    return NextResponse.json({
-      ok: true,
-      pending: true,
-      order: {
-        id: sessionId,
-        createdAt: checkoutSession.created
-          ? new Date(checkoutSession.created * 1000).toISOString()
-          : new Date().toISOString(),
-        amountSubtotal: checkoutSession.amount_subtotal ?? 0,
-        amountTax:
-          checkoutSession.total_details?.amount_tax && checkoutSession.total_details.amount_tax > 0
-            ? checkoutSession.total_details.amount_tax
-            : canApplyDefaultVatFallback(
-                  (checkoutSession.currency ?? "eur").toUpperCase(),
-                  checkoutSession.shipping_details?.address?.country ?? null,
-                )
-              ? calculateVatComponentsFromGross(checkoutSession.amount_total ?? 0).vatAmount
-              : 0,
-        amountShipping: checkoutSession.total_details?.amount_shipping ?? 0,
-        amountDiscount: checkoutSession.total_details?.amount_discount ?? 0,
-        amountTotal: checkoutSession.amount_total ?? 0,
-        currency: (checkoutSession.currency ?? "eur").toUpperCase(),
-        paymentStatus: checkoutSession.payment_status ?? "paid",
-        status: checkoutSession.status ?? "open",
-        discountCode: checkoutSession.metadata?.discountCode ?? null,
-        customerEmail: checkoutSession.customer_details?.email ?? null,
-        shippingName: checkoutSession.shipping_details?.name ?? null,
-        shippingLine1: checkoutSession.shipping_details?.address?.line1 ?? null,
-        shippingLine2: checkoutSession.shipping_details?.address?.line2 ?? null,
-        shippingPostalCode:
-          checkoutSession.shipping_details?.address?.postal_code ?? null,
-        shippingCity: checkoutSession.shipping_details?.address?.city ?? null,
-        shippingCountry:
-          checkoutSession.shipping_details?.address?.country ?? null,
-        items,
-        provisional: true,
-      },
-    });
-  }
-
-  return NextResponse.json(
-    {
-      ok: true,
-      pending: true,
-      paymentStatus: checkoutSession.payment_status ?? "unpaid",
-    },
-    { status: 202 }
+  return jsonNoStore(
+    { ok: true, paymentStatus: draft.paymentStatus, pending: true },
+    { status: 202 },
   );
 }

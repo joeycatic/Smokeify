@@ -38,11 +38,6 @@ export default async function CheckoutStartPage({
   const useLoyaltyPoints = Array.isArray(resolvedSearchParams.useLoyaltyPoints)
     ? resolvedSearchParams.useLoyaltyPoints[0] === "1"
     : resolvedSearchParams.useLoyaltyPoints === "1";
-  const publishableKey =
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
-    process.env.STRIPE_PUBLISHABLE_KEY ??
-    "";
-
   return (
     <PageLayout commerce>
       <CheckoutStartClient
@@ -50,7 +45,6 @@ export default async function CheckoutStartPage({
         initialDiscountCode={discountCode}
         initialRecoverySessionId={recoverySessionId}
         initialUseLoyaltyPoints={useLoyaltyPoints}
-        publishableKey={publishableKey}
       />
     </PageLayout>
   );

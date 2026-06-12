@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { StripeCheckoutContact } from "@stripe/stripe-js";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
   buildCheckoutPaymentStateHash,
@@ -19,10 +18,6 @@ import {
 } from "@/lib/checkoutPolicy";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
-  normalizeShippingAddress,
-  type ShippingAddressRecord,
-} from "@/lib/shippingAddress";
-import {
   getShippingAmount,
   SHIPPING_COUNTRY_LABELS,
   type ShippingCountry,
@@ -33,7 +28,6 @@ type Props = {
   initialDiscountCode: string;
   initialRecoverySessionId: string;
   initialUseLoyaltyPoints: boolean;
-  publishableKey: string;
 };
 
 type CheckoutResponse = {
@@ -55,9 +49,12 @@ type CheckoutResponse = {
 };
 
 type CheckoutSessionResponse = {
-  clientSecret?: string | null;
+  checkoutUrl?: string | null;
+  discountCode?: string | null;
   editToken?: string | null;
   error?: string;
+  failureUrl?: string | null;
+  orderCode?: string | null;
   sessionId?: string;
   successUrl?: string;
   summary?: CheckoutSummarySnapshot | null;
@@ -97,45 +94,11 @@ const toAnalyticsItems = (items: CheckoutSummaryItem[]) =>
     quantity: item.quantity,
   }));
 
-const buildContact = (input: {
-  city: string;
-  country: ShippingCountry;
-  firstName: string;
-  houseNumber: string;
-  lastName: string;
-  packstationNumber: string;
-  postalCode: string;
-  postNumber: string;
-  shippingAddressType: "STREET" | "PACKSTATION";
-  street: string;
-}): StripeCheckoutContact => {
-  const address: ShippingAddressRecord = normalizeShippingAddress(input);
-  const line1 =
-    address.shippingAddressType === "PACKSTATION"
-      ? `Packstation ${address.packstationNumber ?? ""}`.trim()
-      : [address.street, address.houseNumber].filter(Boolean).join(" ").trim();
-  const line2 =
-    address.shippingAddressType === "PACKSTATION"
-      ? `Postnummer ${address.postNumber ?? ""}`.trim()
-      : null;
-  return {
-    name: [input.firstName, input.lastName].filter(Boolean).join(" ").trim(),
-    address: {
-      city: address.city ?? null,
-      country: address.country ?? input.country,
-      line1: line1 || null,
-      line2,
-      postal_code: address.postalCode ?? null,
-    },
-  };
-};
-
 export default function CheckoutStartClient({
   initialCountry,
   initialDiscountCode,
   initialRecoverySessionId,
   initialUseLoyaltyPoints,
-  publishableKey,
 }: Props) {
   const router = useRouter();
   const savedState = useMemo(() => readCheckoutPaymentState(), []);
@@ -228,7 +191,6 @@ export default function CheckoutStartClient({
   const shippingLabel = shippingCents === 0 ? "Kostenloser Versand" : formatMoney(shippingCents, currency);
 
   const validate = () => {
-    if (!publishableKey.trim()) return "Stripe Publishable Key fehlt.";
     if (!email.trim()) return "E-Mail ist erforderlich.";
     if (!firstName.trim() || !lastName.trim()) return "Vorname und Nachname sind erforderlich.";
     if (!postalCode.trim() || !city.trim()) return "PLZ und Stadt sind erforderlich.";
@@ -294,7 +256,15 @@ export default function CheckoutStartClient({
         }),
       });
       const data = (await res.json().catch(() => ({}))) as CheckoutSessionResponse;
-      if (!res.ok || !data.clientSecret || !data.sessionId || !data.editToken || !data.successUrl || !data.summary) {
+      if (
+        !res.ok ||
+        !data.checkoutUrl ||
+        !data.orderCode ||
+        !data.sessionId ||
+        !data.editToken ||
+        !data.successUrl ||
+        !data.summary
+      ) {
         throw new Error(data.error ?? "Checkout konnte nicht gestartet werden.");
       }
       const summary: CheckoutSummarySnapshot = {
@@ -313,20 +283,10 @@ export default function CheckoutStartClient({
         value: summary.totalCents / 100,
       });
       const paymentState = {
-        clientSecret: data.clientSecret,
-        contact: buildContact({
-          city,
-          country,
-          firstName,
-          houseNumber,
-          lastName,
-          packstationNumber,
-          postalCode,
-          postNumber,
-          shippingAddressType,
-          street,
-        }),
+        checkoutUrl: data.checkoutUrl,
+        discountCode: data.discountCode ?? undefined,
         editToken: data.editToken,
+        failureUrl: data.failureUrl ?? undefined,
         formValues: {
           city,
           country,
@@ -340,6 +300,7 @@ export default function CheckoutStartClient({
           shippingAddressType,
           street,
         },
+        orderCode: data.orderCode,
         sessionId: data.sessionId,
         successUrl: data.successUrl,
         summary,
@@ -386,7 +347,7 @@ export default function CheckoutStartClient({
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">Checkout</p>
         <h1 className="smk-heading mt-2 text-3xl text-[var(--smk-text)] sm:text-4xl">Lieferdaten bestätigen</h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--smk-text-muted)]">
-          Nach der Adressprüfung geht es auf eine interne Zahlungsseite statt in den gehosteten Stripe Checkout.
+          Nach der Adressprüfung geht es zu Viva Smart Checkout.
         </p>
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
