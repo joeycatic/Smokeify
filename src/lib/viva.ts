@@ -24,15 +24,25 @@ export type VivaOrderResponse = {
 
 export type VivaTransaction = {
   amount?: number;
+  Amount?: number;
   cardNumber?: string | null;
+  CardNumber?: string | null;
   currencyCode?: number | string | null;
+  CurrencyCode?: number | string | null;
   customerTrns?: string | null;
+  CustomerTrns?: string | null;
   email?: string | null;
+  Email?: string | null;
   fullName?: string | null;
+  FullName?: string | null;
   merchantTrns?: string | null;
+  MerchantTrns?: string | null;
   orderCode?: string | number | null;
+  OrderCode?: string | number | null;
   statusId?: string | null;
+  StatusId?: string | null;
   transactionId?: string | null;
+  TransactionId?: string | null;
 };
 
 const tokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
@@ -53,15 +63,25 @@ const getEndpoints = (environment = getEnvironment()) =>
         checkoutBaseUrl: "https://demo.vivapayments.com",
       };
 
-const readRequiredEnv = (name: string) => {
-  const value = process.env[name]?.trim();
+const getEnvValue = (name: string) => process.env[name]?.trim() || undefined;
+
+const getVivaScopedEnvName = (name: string, environment = getEnvironment()) =>
+  environment === "production" ? `VIVA_PRODUCTION_${name}` : `VIVA_DEMO_${name}`;
+
+const readRequiredVivaEnv = (name: string) => {
+  const scopedName = getVivaScopedEnvName(name);
+  const legacyName = `VIVA_${name}`;
+  const value = getEnvValue(scopedName) ?? getEnvValue(legacyName);
   if (!value) {
-    throw new Error(`${name} is not configured.`);
+    throw new Error(`${scopedName} or ${legacyName} is not configured.`);
   }
   return value;
 };
 
-export const getVivaSourceCode = () => readRequiredEnv("VIVA_SOURCE_CODE");
+const readOptionalVivaEnv = (name: string) =>
+  getEnvValue(getVivaScopedEnvName(name)) ?? getEnvValue(`VIVA_${name}`);
+
+export const getVivaSourceCode = () => readRequiredVivaEnv("SOURCE_CODE");
 
 export const getVivaCheckoutUrl = (orderCode: string) => {
   const { checkoutBaseUrl } = getEndpoints();
@@ -72,8 +92,8 @@ export const getVivaCheckoutUrl = (orderCode: string) => {
 
 export const getVivaAccessToken = async () => {
   const environment = getEnvironment();
-  const clientId = readRequiredEnv("VIVA_CLIENT_ID");
-  const clientSecret = readRequiredEnv("VIVA_CLIENT_SECRET");
+  const clientId = readRequiredVivaEnv("CLIENT_ID");
+  const clientSecret = readRequiredVivaEnv("CLIENT_SECRET");
   const cacheKey = `${environment}:${clientId}`;
   const cached = tokenCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now() + 30_000) {
@@ -102,7 +122,7 @@ export const getVivaAccessToken = async () => {
   if (!response.ok || !data?.access_token) {
     if (data?.error === "invalid_client") {
       throw new Error(
-        `Viva credentials were rejected for VIVA_ENVIRONMENT=${environment}. Check VIVA_CLIENT_ID and VIVA_CLIENT_SECRET for that environment.`,
+        `Viva credentials were rejected for VIVA_ENVIRONMENT=${environment}. Check ${getVivaScopedEnvName("CLIENT_ID", environment)} and ${getVivaScopedEnvName("CLIENT_SECRET", environment)} for that environment.`,
       );
     }
     throw new Error(data?.error_description ?? data?.error ?? "Viva access token request failed.");
@@ -148,7 +168,41 @@ export const retrieveVivaTransaction = async (transactionId: string) => {
   if (!response.ok || !data) {
     throw new Error("Viva transaction lookup failed.");
   }
-  return data;
+  return normalizeVivaTransaction(data) as VivaTransaction;
+};
+
+export const normalizeVivaTransaction = (transaction?: VivaTransaction | null) => {
+  if (!transaction) return null;
+  return {
+    ...transaction,
+    amount: transaction.amount ?? transaction.Amount,
+    cardNumber: transaction.cardNumber ?? transaction.CardNumber ?? null,
+    currencyCode: transaction.currencyCode ?? transaction.CurrencyCode ?? null,
+    customerTrns: transaction.customerTrns ?? transaction.CustomerTrns ?? null,
+    email: transaction.email ?? transaction.Email ?? null,
+    fullName: transaction.fullName ?? transaction.FullName ?? null,
+    merchantTrns: transaction.merchantTrns ?? transaction.MerchantTrns ?? null,
+    orderCode: transaction.orderCode ?? transaction.OrderCode ?? null,
+    statusId: transaction.statusId ?? transaction.StatusId ?? null,
+    transactionId: transaction.transactionId ?? transaction.TransactionId ?? null,
+  } satisfies VivaTransaction;
+};
+
+export const normalizeVivaAmountToMinorUnits = (
+  transactionAmount: number | null | undefined,
+  expectedMinorUnits: number,
+) => {
+  if (typeof transactionAmount !== "number" || !Number.isFinite(transactionAmount)) {
+    return expectedMinorUnits;
+  }
+  const absoluteAmount = Math.abs(transactionAmount);
+  if (Math.round(absoluteAmount) === expectedMinorUnits) {
+    return Math.round(absoluteAmount);
+  }
+  if (Math.round(absoluteAmount * 100) === expectedMinorUnits) {
+    return Math.round(absoluteAmount * 100);
+  }
+  return Math.round(absoluteAmount);
 };
 
 export const refundVivaTransaction = async ({
@@ -160,8 +214,8 @@ export const refundVivaTransaction = async ({
   sourceCode?: string;
   transactionId: string;
 }) => {
-  const merchantId = readRequiredEnv("VIVA_MERCHANT_ID");
-  const apiKey = readRequiredEnv("VIVA_API_KEY");
+  const merchantId = readRequiredVivaEnv("MERCHANT_ID");
+  const apiKey = readRequiredVivaEnv("API_KEY");
   const credentials = Buffer.from(`${merchantId}:${apiKey}`).toString("base64");
   const url = new URL(
     `/api/transactions/${encodeURIComponent(transactionId)}/`,
@@ -185,11 +239,12 @@ export const refundVivaTransaction = async ({
 };
 
 export const getVivaWebhookVerificationKey = async () => {
-  if (process.env.VIVA_WEBHOOK_VERIFICATION_KEY?.trim()) {
-    return process.env.VIVA_WEBHOOK_VERIFICATION_KEY.trim();
+  const configuredKey = readOptionalVivaEnv("WEBHOOK_VERIFICATION_KEY");
+  if (configuredKey) {
+    return configuredKey;
   }
-  const merchantId = readRequiredEnv("VIVA_MERCHANT_ID");
-  const apiKey = readRequiredEnv("VIVA_API_KEY");
+  const merchantId = readRequiredVivaEnv("MERCHANT_ID");
+  const apiKey = readRequiredVivaEnv("API_KEY");
   const credentials = Buffer.from(`${merchantId}:${apiKey}`).toString("base64");
   const response = await fetch(`${getEndpoints().checkoutBaseUrl}/api/messages/config/token`, {
     headers: { Authorization: `Basic ${credentials}` },

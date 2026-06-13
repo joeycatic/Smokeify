@@ -32,6 +32,8 @@ import { recordAutomationEvent } from "@/lib/automationEvents";
 import { markCheckoutRecoveryOrderLinked } from "@/lib/checkoutRecoveryService";
 import {
   mapVivaCurrencyCode,
+  normalizeVivaAmountToMinorUnits,
+  normalizeVivaTransaction,
   normalizeVivaStatus,
   type VivaTransaction,
 } from "@/lib/viva";
@@ -70,6 +72,20 @@ const formatAmountWithComma = (amountMinor: number, currency: string) => {
   const sign = total < 0 ? "-" : "";
   return `${sign}${major},${minor.toString().padStart(2, "0")} ${currency}`;
 };
+
+const buildShippingSummary = (order: {
+  shippingCity?: string | null;
+  shippingCountry?: string | null;
+  shippingName?: string | null;
+  shippingPostalCode?: string | null;
+}) =>
+  [
+    order.shippingName,
+    [order.shippingPostalCode, order.shippingCity].filter(Boolean).join(" "),
+    order.shippingCountry,
+  ]
+    .filter((line): line is string => Boolean(line?.trim()))
+    .join(", ");
 
 const resolvePaymentMethod = (transaction?: VivaTransaction | null) =>
   transaction?.cardNumber ? "card" : "viva";
@@ -184,29 +200,30 @@ export const createOrderFromVivaDraft = async ({
   });
   if (existing) return existing;
 
-  const status = normalizeVivaStatus(transaction?.statusId);
+  const vivaTransaction = normalizeVivaTransaction(transaction);
+  const status = normalizeVivaStatus(vivaTransaction?.statusId);
   if (status !== "paid" && status !== "refunded") {
     await prisma.checkoutPaymentDraft.update({
       where: { paymentOrderCode: draft.paymentOrderCode },
       data: {
         paymentStatus: status,
-        paymentTransactionId: transaction?.transactionId ?? draft.paymentTransactionId,
+        paymentTransactionId: vivaTransaction?.transactionId ?? draft.paymentTransactionId,
         status,
       },
     });
     return null;
   }
 
-  const transactionAmount =
-    typeof transaction?.amount === "number"
-      ? Math.round(Math.abs(transaction.amount))
-      : draft.amountTotal;
+  const transactionAmount = normalizeVivaAmountToMinorUnits(
+    vivaTransaction?.amount,
+    draft.amountTotal,
+  );
   if (transactionAmount !== draft.amountTotal) {
     throw new Error("Viva payment amount mismatch.");
   }
 
-  const currency = mapVivaCurrencyCode(transaction?.currencyCode) || draft.currency;
-  const paymentMethod = resolvePaymentMethod(transaction);
+  const currency = mapVivaCurrencyCode(vivaTransaction?.currencyCode) || draft.currency;
+  const paymentMethod = resolvePaymentMethod(vivaTransaction);
   const paymentFeeConfig = PAYMENT_FEE_BY_METHOD[paymentMethod] ?? DEFAULT_PAYMENT_FEE;
   const draftItems = readDraftItems(draft.items);
   const shouldApplyVatFallback =
@@ -257,7 +274,7 @@ export const createOrderFromVivaDraft = async ({
       userId: draft.userId ?? undefined,
       paymentProvider: "viva",
       paymentOrderCode: draft.paymentOrderCode,
-      paymentTransactionId: transaction?.transactionId ?? draft.paymentTransactionId,
+      paymentTransactionId: vivaTransaction?.transactionId ?? draft.paymentTransactionId,
       stripeSessionId: draft.paymentOrderCode,
       sourceStorefront: draft.sourceStorefront ?? undefined,
       sourceHost: draft.sourceHost ?? undefined,
@@ -273,8 +290,8 @@ export const createOrderFromVivaDraft = async ({
       amountTotal: draft.amountTotal,
       discountCode: draft.discountCode ?? undefined,
       recoveredFromCheckoutSessionId: draft.recoveredFromCheckoutSessionId ?? undefined,
-      customerEmail: draft.customerEmail ?? transaction?.email ?? undefined,
-      shippingName: draft.shippingName ?? transaction?.fullName ?? undefined,
+      customerEmail: draft.customerEmail ?? vivaTransaction?.email ?? undefined,
+      shippingName: draft.shippingName ?? vivaTransaction?.fullName ?? undefined,
       shippingLine1: draft.shippingLine1 ?? undefined,
       shippingLine2: draft.shippingLine2 ?? undefined,
       shippingPostalCode: draft.shippingPostalCode ?? undefined,
@@ -290,7 +307,7 @@ export const createOrderFromVivaDraft = async ({
       where: { paymentOrderCode: draft.paymentOrderCode },
       data: {
         paymentStatus: status,
-        paymentTransactionId: transaction?.transactionId ?? draft.paymentTransactionId,
+        paymentTransactionId: vivaTransaction?.transactionId ?? draft.paymentTransactionId,
         status: "paid",
       },
     });
@@ -337,12 +354,12 @@ export const createOrderFromVivaDraft = async ({
     orderId: created.id,
     action: "order.lifecycle.created",
     summary: `Order created from Viva order ${draft.paymentOrderCode}`,
-    metadata: {
-      paymentOrderCode: draft.paymentOrderCode,
-      paymentStatus: created.paymentStatus,
-      paymentTransactionId: transaction?.transactionId ?? null,
-      source: "viva.webhook",
-    },
+      metadata: {
+        paymentOrderCode: draft.paymentOrderCode,
+        paymentStatus: created.paymentStatus,
+        paymentTransactionId: vivaTransaction?.transactionId ?? null,
+        source: "viva.webhook",
+      },
   });
   if (awardedPoints > 0) {
     await logOrderTimelineEvent({
@@ -418,24 +435,37 @@ export const createOrderFromVivaDraft = async ({
         ? manufacturerByProductId.get(item.productId) ?? null
         : null;
       const name = formatOrderItemName(item.name, manufacturer);
-      return item.quantity > 0 ? `${item.quantity}x ${name}` : "";
+      return item.quantity > 0 ? `- ${item.quantity}x ${name}` : "";
     })
     .filter(Boolean)
-    .join("; ");
+    .join("\n");
   const orderTime = new Date(created.createdAt).toLocaleString("de-DE", {
     dateStyle: "short",
     timeStyle: "short",
   });
+  const discountLine =
+    created.amountDiscount > 0
+      ? `Discount: ${formatAmountWithComma(created.amountDiscount, created.currency)}${
+          created.discountCode ? ` (${created.discountCode})` : ""
+        }`
+      : "Discount: none";
+  const shippingSummary = buildShippingSummary(created);
   const telegramResult = await sendTelegramMessage({
     text: [
       "",
       `New order #${created.orderNumber} (${created.id.slice(0, 8).toUpperCase()})`,
       "",
-      `Items: ${itemSummary || "unknown"}`,
       `Amount: ${formatAmountWithComma(created.amountTotal, created.currency)}`,
-      `Payment: ${paymentMethod}`,
+      discountLine,
+      `Payment: ${paymentMethod} via Viva`,
+      `Viva order: ${draft.paymentOrderCode}`,
+      `Viva transaction: ${vivaTransaction?.transactionId ?? "pending"}`,
       `Customer: ${created.customerEmail ?? "unknown"}`,
+      `Ship to: ${shippingSummary || "unknown"}`,
       `Time: ${orderTime}`,
+      "",
+      "Items:",
+      itemSummary || "- unknown",
       "",
     ].join("\n"),
   });

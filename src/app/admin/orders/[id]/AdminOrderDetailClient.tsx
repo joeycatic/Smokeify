@@ -19,6 +19,7 @@ import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import { canReplayWebhookEvent } from "@/lib/adminWebhookReplay";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
+import { getOrderItemSummary } from "@/lib/adminOrderQueue";
 
 type OrderActionPermissions = {
   canUpdateFulfillment: boolean;
@@ -280,6 +281,7 @@ export default function AdminOrderDetailClient({
     () => buildOrderFinanceBreakdown({ ...order, createdAt: new Date(order.createdAt) }),
     [order],
   );
+  const orderItemSummary = useMemo(() => getOrderItemSummary(order), [order]);
   const shippingLines = useMemo(() => buildShippingLines(order), [order]);
   const timeline = useMemo(
     () =>
@@ -808,6 +810,7 @@ export default function AdminOrderDetailClient({
               <p className="mt-2 text-sm text-slate-300">Updated {formatCompactDate(order.updatedAt)}</p>
             </div>
             <div className="mt-5 space-y-3">
+              <DarkRow label="Ordered items" value={orderItemSummary} />
               <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
               <DarkRow label="Payment provider" value={order.paymentProvider ?? "Not stored"} />
               <DarkRow label="Payment order" value={order.paymentOrderCode ?? "Not linked"} mono={Boolean(order.paymentOrderCode)} />
@@ -858,6 +861,7 @@ export default function AdminOrderDetailClient({
             order={order}
             detail={detail}
             financeBreakdown={financeBreakdown}
+            orderItemSummary={orderItemSummary}
             sourceLabel={sourceLabel}
             webhookFailures={webhookFailures}
             canReplayWebhooks={canReplayWebhooks}
@@ -1063,6 +1067,7 @@ function OverviewTab({
   order,
   detail,
   financeBreakdown,
+  orderItemSummary,
   sourceLabel,
   webhookFailures,
   canReplayWebhooks,
@@ -1072,6 +1077,7 @@ function OverviewTab({
   order: AdminOrderRecord;
   detail: AdminOrderDetail;
   financeBreakdown: ReturnType<typeof buildOrderFinanceBreakdown>;
+  orderItemSummary: string;
   sourceLabel: string;
   webhookFailures: AdminOrderDetail["webhookFailures"];
   canReplayWebhooks: boolean;
@@ -1127,6 +1133,7 @@ function OverviewTab({
       <div className="space-y-6 2xl:sticky 2xl:top-[7.75rem] 2xl:self-start">
         <Panel className={DARK_PANEL} eyebrow="Snapshot" title="Key metadata" dark>
           <div className="space-y-3">
+            <DarkRow label="Ordered items" value={orderItemSummary} />
             <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
             <DarkRow label="Payment provider" value={order.paymentProvider ?? "Not stored"} />
             <DarkRow label="Payment order" value={order.paymentOrderCode ?? "Not linked"} mono={Boolean(order.paymentOrderCode)} />

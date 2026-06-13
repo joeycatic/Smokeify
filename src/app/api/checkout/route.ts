@@ -120,6 +120,21 @@ const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) =>
     .join(" · ");
 };
 
+const truncatePaymentText = (value: string, maxLength = 240) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`
+    : normalized;
+};
+
+const buildPaymentItemSummary = (items: CheckoutCartSummaryItem[]) => {
+  const summary = items
+    .filter((item) => item.quantity > 0)
+    .map((item) => `${item.quantity}x ${item.name}`)
+    .join("; ");
+  return truncatePaymentText(summary || "unknown items", 180);
+};
+
 const getSafeCountry = (value: unknown): ShippingCountry => {
   const raw = String(value ?? "").toUpperCase();
   if (raw in SHIPPING_BASE) return raw as ShippingCountry;
@@ -564,6 +579,7 @@ export async function POST(req: Request) {
 
   let vivaOrder: { orderCode: string };
   try {
+    const vivaItemSummary = buildPaymentItemSummary(cartSummaryItems);
     vivaOrder = await createVivaPaymentOrder({
       amount: totalCents,
       customerTrns: `${SITE_NAME} Bestellung`,
@@ -573,7 +589,7 @@ export async function POST(req: Request) {
         fullName: shippingName,
         requestLang: "de-DE",
       },
-      merchantTrns: `Smokeify checkout ${checkoutEditorToken}`,
+      merchantTrns: truncatePaymentText(`${SITE_NAME}: ${vivaItemSummary}`),
       paymentTimeout: 1800,
       sourceCode: getVivaSourceCode(),
       tags: ["smokeify", "checkout", orderSource.sourceStorefront ?? "main"],
