@@ -113,7 +113,7 @@ const readDraftItemsForRelease = (value: Prisma.JsonValue) => {
 export async function GET() {
   try {
     const key = await getVivaWebhookVerificationKey();
-    return NextResponse.json({ key });
+    return NextResponse.json({ Key: key });
   } catch (error) {
     captureException(error, { context: "vivaWebhookVerification" });
     return NextResponse.json(
