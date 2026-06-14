@@ -7,6 +7,7 @@ import {
   getRequiredAdminPageScope,
   hasAdminScope,
 } from "@/lib/adminPermissions";
+import { buildAdminReturnTo, sanitizeAdminReturnTo } from "@/lib/adminReturnTo";
 
 const MAINTENANCE_FLAG = "1";
 
@@ -21,7 +22,7 @@ function applySensitiveHeaders(response: NextResponse) {
 
 function buildAdminLoginUrl(request: NextRequest) {
   const url = request.nextUrl.clone();
-  const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  const returnTo = buildAdminReturnTo(request.nextUrl.pathname, request.nextUrl.search);
   url.pathname = "/auth/admin";
   url.search = `returnTo=${encodeURIComponent(returnTo)}`;
   return url;
@@ -60,8 +61,7 @@ export async function middleware(request: NextRequest) {
     if (isAdminAuthPage) {
       if (hasVerifiedAdminAccess) {
         const requestedTarget = request.nextUrl.searchParams.get("returnTo");
-        const target =
-          requestedTarget && requestedTarget.startsWith("/") ? requestedTarget : "/admin";
+        const target = sanitizeAdminReturnTo(requestedTarget);
         return applySensitiveHeaders(NextResponse.redirect(new URL(target, request.url)));
       }
       return applySensitiveHeaders(NextResponse.next());
@@ -80,6 +80,10 @@ export async function middleware(request: NextRequest) {
       }
 
       const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(
+        "x-admin-return-to",
+        buildAdminReturnTo(request.nextUrl.pathname, request.nextUrl.search),
+      );
       if (requiredScope) {
         requestHeaders.set("x-admin-required-scope", requiredScope);
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { InputHTMLAttributes, ReactNode } from "react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -12,6 +12,7 @@ import {
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { sanitizeAdminReturnTo } from "@/lib/adminReturnTo";
 
 const ADMIN_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_NOT_VERIFIED: "Bitte bestätige zuerst dein Konto.",
@@ -73,18 +74,40 @@ export default function AdminSignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
+  const [referrerReturnTo, setReferrerReturnTo] = useState("");
   const [error, setError] = useState(() =>
     searchError ? getAdminErrorMessage(searchError) : "",
   );
   const [loading, setLoading] = useState(false);
 
-  const returnTo = useMemo(() => {
-    const next = searchParams.get("returnTo");
-    if (!next || !next.startsWith("/")) {
-      return "/admin";
-    }
-    return next;
+  const searchReturnTo = useMemo(() => {
+    return sanitizeAdminReturnTo(searchParams.get("returnTo"));
   }, [searchParams]);
+  const returnTo = referrerReturnTo || searchReturnTo;
+
+  useEffect(() => {
+    if (searchReturnTo !== "/admin" || !document.referrer) {
+      setReferrerReturnTo("");
+      return;
+    }
+
+    try {
+      const referrer = new URL(document.referrer);
+      if (referrer.origin !== window.location.origin) {
+        setReferrerReturnTo("");
+        return;
+      }
+
+      if (referrer.pathname === "/admin" || referrer.pathname.startsWith("/admin/")) {
+        setReferrerReturnTo(`${referrer.pathname}${referrer.search}`);
+        return;
+      }
+    } catch {
+      // Ignore malformed referrer values and keep the safe default.
+    }
+
+    setReferrerReturnTo("");
+  }, [searchReturnTo]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
