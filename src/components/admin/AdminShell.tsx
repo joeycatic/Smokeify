@@ -79,7 +79,7 @@ type NavGroup = {
   items: NavItem[];
 };
 
-const SIDEBAR_STATE_STORAGE_KEY = "smokeify-admin-sidebar-groups:v1";
+const SIDEBAR_STATE_STORAGE_KEY = "smokeify-admin-sidebar-groups:v2";
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -221,7 +221,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const dashboardStorefront = storefrontFromAdminPath(pathname);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
   const supportsAllStorefrontScope = adminPathSupportsAllStorefrontScope(pathname);
@@ -261,7 +261,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
       if (!raw) return;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
-      setCollapsedGroups(
+      setExpandedGroups(
         Object.fromEntries(
           Object.entries(parsed).filter((entry): entry is [string, boolean] => {
             const [, value] = entry;
@@ -275,10 +275,10 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   }, []);
 
   const toggleGroup = (groupId: string, isExpanded: boolean) => {
-    setCollapsedGroups((previous) => {
+    setExpandedGroups((previous) => {
       const next = {
         ...previous,
-        [groupId]: isExpanded,
+        [groupId]: !isExpanded,
       };
       window.localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, JSON.stringify(next));
       return next;
@@ -402,23 +402,25 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           <nav className="mt-3 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {visibleNavGroups.map((group) => {
               const hasActiveItem = activeGroupIds.has(group.id);
-              const expanded = hasActiveItem || collapsedGroups[group.id] === false;
+              const expanded = expandedGroups[group.id] ?? hasActiveItem;
               const panelId = `admin-nav-group-${group.id}`;
               return (
                 <section key={group.id} className="admin-sidebar-group">
                   <button
                     type="button"
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.22em] transition ${
-                      hasActiveItem
-                        ? "bg-cyan-400/10 text-cyan-200"
-                        : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+                    className={`flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition ${
+                      expanded
+                        ? "border-cyan-300/20 bg-cyan-300/10 text-white shadow-[inset_2px_0_0_rgba(103,232,249,0.75)]"
+                        : hasActiveItem
+                          ? "border-cyan-300/20 bg-white/[0.05] text-cyan-100"
+                          : "border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
                     }`}
                     aria-expanded={expanded}
                     aria-controls={panelId}
                     onClick={() => toggleGroup(group.id, expanded)}
                   >
-                    <span>{group.label}</span>
-                    <span className="flex items-center gap-1 text-[10px] tracking-normal">
+                    <span className="font-medium">{group.label}</span>
+                    <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                       {group.items.length}
                       <ChevronDownIcon
                         className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
