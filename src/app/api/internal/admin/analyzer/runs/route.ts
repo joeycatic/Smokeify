@@ -14,6 +14,27 @@ const clampLimit = (value: string | null) => {
   return Math.min(Math.max(Math.floor(parsed), 1), 250);
 };
 
+function formatBridgeError(error: unknown) {
+  if (error instanceof Error) {
+    const prismaError = error as Error & {
+      code?: string;
+      meta?: { column?: string; modelName?: string; table?: string };
+    };
+    const detail = [
+      prismaError.code,
+      prismaError.meta?.modelName,
+      prismaError.meta?.table,
+      prismaError.meta?.column,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return detail
+      ? `GrowVault analyzer bridge failed: ${detail}.`
+      : `GrowVault analyzer bridge failed: ${error.message}`;
+  }
+  return "GrowVault analyzer bridge failed.";
+}
+
 export async function GET(request: Request) {
   if (!isAuthorizedInternalAdminBridgeRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,12 +42,18 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const limit = clampLimit(searchParams.get("limit"));
-  const runs = await loadPlantAnalysisAdminRuns({
-    limit,
-    reviewStatus: searchParams.get("reviewStatus"),
-    includeResolved: searchParams.get("includeResolved") === "true",
-    filters: getAnalyzerQueueFilters(searchParams),
-  });
+  let runs: Awaited<ReturnType<typeof loadPlantAnalysisAdminRuns>>;
+  try {
+    runs = await loadPlantAnalysisAdminRuns({
+      limit,
+      reviewStatus: searchParams.get("reviewStatus"),
+      includeResolved: searchParams.get("includeResolved") === "true",
+      filters: getAnalyzerQueueFilters(searchParams),
+    });
+  } catch (error) {
+    console.error("GrowVault analyzer bridge list failed", error);
+    return NextResponse.json({ error: formatBridgeError(error) }, { status: 500 });
+  }
 
   return NextResponse.json({
     source: "growvault",
@@ -60,4 +87,11 @@ export async function GET(request: Request) {
       lastFeedback: run.lastFeedback ?? null,
     })),
   });
+}
+
+export async function OPTIONS(request: Request) {
+  if (!isAuthorizedInternalAdminBridgeRequest(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json({ ok: true });
 }

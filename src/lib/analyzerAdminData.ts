@@ -40,17 +40,52 @@ export const getAnalyzerQueueFilters = (searchParams: URLSearchParams): Analyzer
 
 const buildCandidateTake = (limit: number) => Math.min(Math.max(limit * 4, limit), 250);
 
-async function hasAnalyzerAssignmentColumns() {
+type AnalyzerRunColumnFlags = {
+  reviewStatus: boolean;
+  reviewNotes: boolean;
+  safetyFlags: boolean;
+  imageDeletedAt: boolean;
+  assignedReviewerId: boolean;
+  assignedAt: boolean;
+  reviewDueAt: boolean;
+};
+
+async function getAnalyzerRunColumnFlags(): Promise<AnalyzerRunColumnFlags> {
   try {
     const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'PlantAnalysisRun'
-        AND column_name IN ('assignedReviewerId', 'assignedAt', 'reviewDueAt')
+        AND column_name IN (
+          'reviewStatus',
+          'reviewNotes',
+          'safetyFlags',
+          'imageDeletedAt',
+          'assignedReviewerId',
+          'assignedAt',
+          'reviewDueAt'
+        )
     `;
-    return columns.length === 3;
+    const columnSet = new Set(columns.map((column) => column.column_name));
+    return {
+      reviewStatus: columnSet.has("reviewStatus"),
+      reviewNotes: columnSet.has("reviewNotes"),
+      safetyFlags: columnSet.has("safetyFlags"),
+      imageDeletedAt: columnSet.has("imageDeletedAt"),
+      assignedReviewerId: columnSet.has("assignedReviewerId"),
+      assignedAt: columnSet.has("assignedAt"),
+      reviewDueAt: columnSet.has("reviewDueAt"),
+    };
   } catch {
-    return false;
+    return {
+      reviewStatus: false,
+      reviewNotes: false,
+      safetyFlags: false,
+      imageDeletedAt: false,
+      assignedReviewerId: false,
+      assignedAt: false,
+      reviewDueAt: false,
+    };
   }
 }
 
@@ -71,13 +106,15 @@ export async function loadPlantAnalysisAdminRuns({
     ? normalizePlantAnalysisReviewStatus(reviewStatus)
     : null;
   const candidateTake = buildCandidateTake(limit);
-  const hasAssignmentColumns = await hasAnalyzerAssignmentColumns();
+  const columns = await getAnalyzerRunColumnFlags();
+  const hasAssignmentColumns =
+    columns.assignedReviewerId && columns.assignedAt && columns.reviewDueAt;
 
   const runs = await prisma.plantAnalysisRun.findMany({
     where: {
-      ...(normalizedReviewStatus
+      ...(columns.reviewStatus && normalizedReviewStatus
         ? { reviewStatus: normalizedReviewStatus }
-        : includeResolved
+        : includeResolved || !columns.reviewStatus
           ? {}
           : { reviewStatus: { not: "REVIEWED_OK" } }),
       ...(hasAssignmentColumns && filters.assignedReviewerId
@@ -105,23 +142,23 @@ export async function loadPlantAnalysisAdminRuns({
       confidence: true,
       healthStatus: true,
       species: true,
-      reviewStatus: true,
-      reviewNotes: true,
-      safetyFlags: true,
       imageUri: true,
-      imageDeletedAt: true,
       outputJson: true,
       createdAt: true,
-      user: { select: { id: true, email: true, name: true } },
+      user: { select: { id: true, email: true } },
       issues: { orderBy: { position: "asc" } },
       feedback: { orderBy: { createdAt: "desc" }, take: 1 },
       _count: { select: { feedback: true } },
+      ...(columns.reviewStatus ? { reviewStatus: true } : {}),
+      ...(columns.reviewNotes ? { reviewNotes: true } : {}),
+      ...(columns.safetyFlags ? { safetyFlags: true } : {}),
+      ...(columns.imageDeletedAt ? { imageDeletedAt: true } : {}),
       ...(hasAssignmentColumns
         ? {
             assignedReviewerId: true,
             assignedAt: true,
             reviewDueAt: true,
-            assignedReviewer: { select: { id: true, email: true, name: true } },
+            assignedReviewer: { select: { id: true, email: true } },
           }
         : {}),
     },
@@ -146,12 +183,20 @@ export async function loadPlantAnalysisAdminRuns({
     .map((run) => {
       const assignment = run as typeof run & {
         assignedReviewerId?: string | null;
-        assignedReviewer?: { id: string; email: string | null; name: string | null } | null;
+        assignedReviewer?: { id: string; email: string | null } | null;
         assignedAt?: Date | null;
         reviewDueAt?: Date | null;
       };
+      const governance = run as typeof run & {
+        reviewStatus?: string | null;
+        reviewNotes?: string | null;
+        safetyFlags?: string[] | null;
+        imageDeletedAt?: Date | null;
+      };
       const incorrectFeedbackCount = incorrectFeedbackCounts.get(run.id) ?? 0;
       const publicationStatus = getStoredPublicationRequestStatus(run.outputJson);
+      const reviewStatus = governance.reviewStatus ?? "UNREVIEWED";
+      const safetyFlags = governance.safetyFlags ?? [];
       return {
         id: run.id,
         userId: run.userId,
@@ -164,12 +209,12 @@ export async function loadPlantAnalysisAdminRuns({
           run.confidence < 0.45 ? "low" : run.confidence < 0.75 ? "medium" : "high",
         needsHumanReview:
           run.confidence < 0.65 ||
-          run.safetyFlags.length > 0 ||
+          safetyFlags.length > 0 ||
           incorrectFeedbackCount > 0,
         healthStatus: run.healthStatus,
         species: run.species,
-        reviewStatus: run.reviewStatus,
-        reviewNotes: run.reviewNotes,
+        reviewStatus,
+        reviewNotes: governance.reviewNotes ?? null,
         assignedReviewerId: assignment.assignedReviewerId ?? null,
         assignedReviewerEmail: assignment.assignedReviewer?.email ?? null,
         assignedAt: assignment.assignedAt?.toISOString() ?? null,
@@ -177,15 +222,15 @@ export async function loadPlantAnalysisAdminRuns({
         overdue:
           Boolean(assignment.reviewDueAt) &&
           assignment.reviewDueAt!.getTime() < Date.now() &&
-          run.reviewStatus !== "REVIEWED_OK",
-        safetyFlags: run.safetyFlags,
-        imageUri: run.imageDeletedAt ? null : run.imageUri,
+          reviewStatus !== "REVIEWED_OK",
+        safetyFlags,
+        imageUri: governance.imageDeletedAt ? null : run.imageUri,
         createdAt: run.createdAt.toISOString(),
         priority: getPlantAnalysisReviewPriority({
           confidence: run.confidence,
           healthStatus: run.healthStatus,
-          reviewStatus: run.reviewStatus,
-          safetyFlags: run.safetyFlags,
+          reviewStatus,
+          safetyFlags,
           createdAt: run.createdAt,
           feedback: incorrectFeedbackCount > 0 ? [{ isCorrect: false }] : [],
         }),
@@ -198,8 +243,8 @@ export async function loadPlantAnalysisAdminRuns({
         })),
         publicationStatus,
         publicationEligible: canPublishAnalyzerRunFromReviewState({
-          reviewStatus: run.reviewStatus,
-          safetyFlags: run.safetyFlags,
+          reviewStatus,
+          safetyFlags,
         }),
         feedbackCount: run._count.feedback,
         incorrectFeedbackCount,
