@@ -1040,47 +1040,6 @@ export default function CatalogWorkspaceClient({
 
       <CatalogErrorNotice error={error} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-[#0b1016] p-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Catalog scope
-          </p>
-          <p className="mt-2 text-sm text-slate-300">
-            Keep the catalog visible across stores by default and only narrow to a storefront when the
-            merchandising view actually needs it.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setStorefrontFilter("")}
-            className={`rounded-xl px-3 py-2 transition ${
-              storefrontFilter === ""
-                ? "bg-cyan-300 text-slate-950"
-                : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
-            }`}
-          >
-            All stores
-          </button>
-          {(Object.entries(STOREFRONT_LABELS) as Array<[StorefrontCode, string]>).map(
-            ([storefront, label]) => (
-              <button
-                key={storefront}
-                type="button"
-                onClick={() => setStorefrontFilter(storefront)}
-                className={`rounded-xl px-3 py-2 transition ${
-                  storefrontFilter === storefront
-                    ? "bg-cyan-300 text-slate-950"
-                    : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
-                }`}
-              >
-                {label}
-              </button>
-            ),
-          )}
-        </div>
-      </div>
-
       <CatalogTablePanel
         products={products}
         totalCount={totalCount}

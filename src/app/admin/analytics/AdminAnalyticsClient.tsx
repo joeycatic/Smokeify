@@ -2435,25 +2435,6 @@ export default function AdminAnalyticsClient({
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Storefront
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(["ALL", "MAIN", "GROW"] as const).map((scope) => (
-                  <AdminScopeChip
-                    key={scope}
-                    href={buildAdminAnalyticsHref({
-                      days: initialDays,
-                      storefront: scope,
-                    })}
-                    active={scope === initialStorefrontScope}
-                  >
-                    {ADMIN_STOREFRONT_SCOPE_LABELS[scope]}
-                  </AdminScopeChip>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

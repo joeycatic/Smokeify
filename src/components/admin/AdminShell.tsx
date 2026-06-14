@@ -18,6 +18,7 @@ import {
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
   CommandLineIcon,
+  Cog6ToothIcon,
   CreditCardIcon,
   CubeIcon,
   DocumentTextIcon,
@@ -228,6 +229,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const dashboardStorefront = storefrontFromAdminPath(pathname);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
@@ -521,35 +523,110 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   currentStorefrontScope={currentStorefrontScope}
                 />
 
-                {supportsStorefrontScope ? (
-                  <div
-                    className={`grid w-full shrink-0 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:flex sm:w-auto sm:items-center ${
-                      supportsAllStorefrontScope ? "grid-cols-3" : "grid-cols-2"
-                    }`}
-                  >
-                    {(supportsAllStorefrontScope
-                      ? (["ALL", "MAIN", "GROW"] as const)
-                      : (["MAIN", "GROW"] as const)
-                    ).map((scope) => (
-                      <Link
-                        key={scope}
-                        href={storefrontHref(scope)}
-                        aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
-                        className={`inline-flex h-10 min-w-0 items-center justify-center rounded-xl px-3 text-xs font-semibold uppercase tracking-[0.14em] transition sm:min-w-[3.25rem] sm:tracking-[0.18em] ${
-                          currentStorefrontScope === scope
-                            ? "bg-cyan-300/90 text-slate-950"
-                            : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                        }`}
-                      >
-                        {scope === "ALL" ? "All" : scope}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.07] sm:w-auto"
+                  aria-haspopup="dialog"
+                  aria-expanded={settingsOpen}
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Cog6ToothIcon className="h-4 w-4" />
+                  <span>Settings</span>
+                </button>
               </div>
             </div>
             <AdminConnectionStatus />
           </header>
+
+          {settingsOpen ? (
+            <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-start sm:justify-end sm:p-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/60"
+                aria-label="Close admin settings"
+                onClick={() => setSettingsOpen(false)}
+              />
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="admin-settings-title"
+                className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:mt-12"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                      Admin Settings
+                    </p>
+                    <h2 id="admin-settings-title" className="mt-1.5 text-lg font-semibold text-white">
+                      Workspace controls
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+                    aria-label="Close settings"
+                    onClick={() => setSettingsOpen(false)}
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Current context
+                    </p>
+                    <div className="mt-2 grid gap-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">Page</span>
+                        <span className="truncate font-medium text-slate-100">{currentTitle}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">Workspace</span>
+                        <span className="truncate font-medium text-slate-100">{currentStorefrontLabel}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">User</span>
+                        <span className="truncate font-medium text-slate-100">{userEmail ?? "admin"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {supportsStorefrontScope ? (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Storefront scope
+                      </p>
+                      <div
+                        className={`mt-3 grid gap-1 rounded-xl border border-white/10 bg-black/20 p-1 text-xs font-semibold ${
+                          supportsAllStorefrontScope ? "grid-cols-3" : "grid-cols-2"
+                        }`}
+                      >
+                        {(supportsAllStorefrontScope
+                          ? (["ALL", "MAIN", "GROW"] as const)
+                          : (["MAIN", "GROW"] as const)
+                        ).map((scope) => (
+                          <Link
+                            key={scope}
+                            href={storefrontHref(scope)}
+                            aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
+                            onClick={() => setSettingsOpen(false)}
+                            className={`inline-flex h-10 min-w-0 items-center justify-center rounded-lg px-3 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+                              currentStorefrontScope === scope
+                                ? "bg-cyan-300/90 text-slate-950"
+                                : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                            }`}
+                          >
+                            {scope === "ALL" ? "All" : scope}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
 
           <main className="relative">
             <div className="mx-auto max-w-[1600px] px-2.5 py-3 sm:px-4 sm:py-4 lg:px-6">
