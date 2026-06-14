@@ -1241,8 +1241,23 @@ textarea {
   min-width: 0;
 }
 
-.admin-sidebar-group [aria-expanded="true"] + div {
-  animation: admin-sidebar-group-in 180ms ease-out both;
+.admin-sidebar-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 160ms ease,
+    transform 180ms ease;
+}
+
+.admin-sidebar-panel-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .admin-shell :where(.space-y-6) > :not([hidden]) ~ :not([hidden]) {
@@ -1337,17 +1352,6 @@ textarea {
   .admin-lift:hover {
     transform: none;
     box-shadow: none;
-  }
-}
-
-@keyframes admin-sidebar-group-in {
-  0% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -2280,6 +2284,10 @@ textarea:focus-visible,
   }
 
   .admin-lift {
+    transition: none;
+  }
+
+  .admin-sidebar-panel {
     transition: none;
   }
 

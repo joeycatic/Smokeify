@@ -76,6 +76,7 @@ type NavItem = {
 type NavGroup = {
   id: string;
   label: string;
+  icon: React.ComponentType<React.ComponentProps<"svg">>;
   items: NavItem[];
 };
 
@@ -85,6 +86,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "control",
     label: "Control Plane",
+    icon: CommandLineIcon,
     items: [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
       {
@@ -105,6 +107,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "storefronts",
     label: "Storefronts",
+    icon: HomeIcon,
     items: getStorefrontConfigs().map((storefront) => ({
       href: storefront.adminPath,
       label: storefront.label,
@@ -115,6 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "commerce",
     label: "Commerce",
+    icon: CreditCardIcon,
     items: [
       { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
@@ -141,6 +145,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "growth",
     label: "Growth",
+    icon: ChartBarSquareIcon,
     items: [
       { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
       { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
@@ -168,6 +173,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "operations",
     label: "Operations",
+    icon: BanknotesIcon,
     items: [
       { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
       { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
@@ -194,6 +200,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "access",
     label: "Access",
+    icon: UsersIcon,
     items: [
       { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
       { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
@@ -404,6 +411,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
               const hasActiveItem = activeGroupIds.has(group.id);
               const expanded = expandedGroups[group.id] ?? hasActiveItem;
               const panelId = `admin-nav-group-${group.id}`;
+              const GroupIcon = group.icon;
               return (
                 <section key={group.id} className="admin-sidebar-group">
                   <button
@@ -419,7 +427,10 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                     aria-controls={panelId}
                     onClick={() => toggleGroup(group.id, expanded)}
                   >
-                    <span className="font-medium">{group.label}</span>
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <GroupIcon className="h-4 w-4 shrink-0" />
+                      <span className="truncate font-medium">{group.label}</span>
+                    </span>
                     <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                       {group.items.length}
                       <ChevronDownIcon
@@ -427,8 +438,12 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                       />
                     </span>
                   </button>
-                  {expanded ? (
-                    <div id={panelId} className="mt-1 space-y-0.5">
+                  <div
+                    id={panelId}
+                    className={`admin-sidebar-panel ${expanded ? "admin-sidebar-panel-open" : ""}`}
+                    aria-hidden={!expanded}
+                  >
+                    <div className="min-h-0 space-y-0.5 overflow-hidden pt-1">
                       {group.items.map((item) => {
                         const active = isActive(pathname, item);
                         const Icon = item.icon;
@@ -442,6 +457,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                                 ? "border border-cyan-300/20 bg-cyan-300/10 text-white shadow-[inset_2px_0_0_rgba(103,232,249,0.75)]"
                                 : "border border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
                             }`}
+                            tabIndex={expanded ? undefined : -1}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
                             <span>{item.label}</span>
@@ -449,7 +465,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                         );
                       })}
                     </div>
-                  ) : null}
+                  </div>
                 </section>
               );
             })}
