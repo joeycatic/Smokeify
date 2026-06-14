@@ -2,46 +2,24 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  ArchiveBoxIcon,
-  ArrowTopRightOnSquareIcon,
   Bars3Icon,
-  BellAlertIcon,
-  BanknotesIcon,
-  CalculatorIcon,
-  BeakerIcon,
-  ChevronDownIcon,
-  CheckBadgeIcon,
-  ChartBarSquareIcon,
-  ChatBubbleLeftRightIcon,
-  ClipboardDocumentListIcon,
-  CommandLineIcon,
   Cog6ToothIcon,
-  CreditCardIcon,
-  CubeIcon,
-  DocumentTextIcon,
-  FolderIcon,
-  HomeIcon,
-  PresentationChartLineIcon,
-  RectangleGroupIcon,
-  RectangleStackIcon,
-  SwatchIcon,
-  TagIcon,
-  TruckIcon,
-  UsersIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
-  hasAdminScope,
-  type AdminScope,
-} from "@/lib/adminPermissions";
+  getActiveAdminNavItem,
+  getActiveAdminWorkspace,
+  getAdminHiddenRouteTitle,
+  getVisibleAdminWorkspaces,
+  isAdminNavItemActive,
+} from "@/components/admin/adminNavigation";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   adminPathSupportsAllStorefrontScope,
   adminPathSupportsStorefrontScope,
-  getStorefrontConfigs,
   parseAdminStorefrontScope,
   storefrontFromAdminPath,
   type AdminStorefrontScope,
@@ -56,9 +34,6 @@ const AdminConnectionStatus = dynamic(
     ssr: false,
   },
 );
-const AdminSavedViews = dynamic(() => import("@/components/admin/AdminSavedViews"), {
-  ssr: false,
-});
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -66,171 +41,11 @@ type AdminShellProps = {
   userRole: "USER" | "ADMIN" | "STAFF";
 };
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: React.ComponentType<React.ComponentProps<"svg">>;
-  exact?: boolean;
-  scope: AdminScope;
-};
-
-type NavGroup = {
-  id: string;
-  label: string;
-  icon: React.ComponentType<React.ComponentProps<"svg">>;
-  items: NavItem[];
-};
-
-const SIDEBAR_STATE_STORAGE_KEY = "smokeify-admin-sidebar-groups:v2";
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    id: "control",
-    label: "Control Plane",
-    icon: CommandLineIcon,
-    items: [
-      { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
-      {
-        href: "/admin/ops",
-        label: "Ops",
-        icon: ClipboardDocumentListIcon,
-        scope: "ops.read",
-      },
-      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
-      {
-        href: "/admin/attribution",
-        label: "Attribution",
-        icon: DocumentTextIcon,
-        scope: "ops.read",
-      },
-    ],
-  },
-  {
-    id: "storefronts",
-    label: "Storefronts",
-    icon: HomeIcon,
-    items: getStorefrontConfigs().map((storefront) => ({
-      href: storefront.adminPath,
-      label: storefront.label,
-      icon: HomeIcon,
-      scope: "analytics.read" as const,
-    })),
-  },
-  {
-    id: "commerce",
-    label: "Commerce",
-    icon: CreditCardIcon,
-    items: [
-      { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
-      { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
-      { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
-      { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
-      { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
-      { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
-      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
-      { href: "/admin/returns", label: "Returns", icon: ArchiveBoxIcon, scope: "returns.read" },
-      {
-        href: "/admin/inventory-adjustments",
-        label: "Inventory",
-        icon: TruckIcon,
-        scope: "inventory.read",
-      },
-      {
-        href: "/admin/procurement",
-        label: "Procurement",
-        icon: TruckIcon,
-        scope: "procurement.read",
-      },
-    ],
-  },
-  {
-    id: "growth",
-    label: "Growth",
-    icon: ChartBarSquareIcon,
-    items: [
-      { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
-      { href: "/admin/landing-page", label: "Landing Page", icon: RectangleStackIcon, scope: "content.landing.manage" },
-      { href: "/admin/discounts", label: "Discounts", icon: TagIcon, scope: "discounts.manage" },
-      {
-        href: "/admin/recommendations",
-        label: "Recommendations",
-        icon: RectangleGroupIcon,
-        scope: "pricing.review",
-      },
-      {
-        href: "/admin/analyzer",
-        label: "Analyzer",
-        icon: BeakerIcon,
-        scope: "ops.read",
-      },
-      {
-        href: "/admin/email-testing",
-        label: "Email Testing",
-        icon: ArrowTopRightOnSquareIcon,
-        scope: "ops.read",
-      },
-    ],
-  },
-  {
-    id: "operations",
-    label: "Operations",
-    icon: BanknotesIcon,
-    items: [
-      { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
-      { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
-      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon, scope: "tax.review" },
-      { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon, scope: "tax.review" },
-      {
-        href: "/admin/profitability",
-        label: "Profitability",
-        icon: PresentationChartLineIcon,
-        scope: "finance.read",
-      },
-      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
-      { href: "/admin/customers", label: "Customers", icon: UsersIcon, scope: "customers.read" },
-      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
-      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
-      {
-        href: "/admin/scripts",
-        label: "Scripts",
-        icon: CommandLineIcon,
-        scope: "scripts.execute",
-      },
-    ],
-  },
-  {
-    id: "access",
-    label: "Access",
-    icon: UsersIcon,
-    items: [
-      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
-      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
-    ],
-  },
-];
-
-const HIDDEN_ROUTE_TITLES: Array<{ prefix: string; title: string }> = [
-  { prefix: "/admin/catalog/", title: "Product Detail" },
-  { prefix: "/admin/users/", title: "User Detail" },
-  { prefix: "/admin/procurement/", title: "Purchase Order" },
-  { prefix: "/admin/orders/", title: "Order Detail" },
-  { prefix: "/admin/compliance/", title: "Compliance Detail" },
-];
-
-function isActive(pathname: string, item: NavItem) {
-  if (item.href === "/admin/catalog" && pathname.startsWith("/admin/catalog/hygiene")) {
-    return false;
-  }
-  if (item.exact) return pathname === item.href;
-  return pathname === item.href || pathname.startsWith(`${item.href}/`);
-}
-
 export default function AdminShell({ children, userEmail, userRole }: AdminShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const dashboardStorefront = storefrontFromAdminPath(pathname);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
   const supportsAllStorefrontScope = adminPathSupportsAllStorefrontScope(pathname);
@@ -246,67 +61,27 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
     : dashboardStorefront
       ? ADMIN_STOREFRONT_SCOPE_LABELS[dashboardStorefront]
     : "All-store workspace";
-  const visibleNavGroups = useMemo(
-    () =>
-      NAV_GROUPS.map((group) => ({
-        ...group,
-        items: group.items.filter((item) => hasAdminScope(userRole, item.scope)),
-      })).filter((group) => group.items.length > 0),
+  const visibleWorkspaces = useMemo(
+    () => getVisibleAdminWorkspaces(userRole),
     [userRole],
   );
-  const activeGroupIds = useMemo(
-    () =>
-      new Set(
-        visibleNavGroups
-          .filter((group) => group.items.some((item) => isActive(pathname, item)))
-          .map((group) => group.id),
-      ),
-    [pathname, visibleNavGroups],
+  const activeWorkspace = useMemo(
+    () => getActiveAdminWorkspace(pathname, visibleWorkspaces),
+    [pathname, visibleWorkspaces],
+  );
+  const activeItem = useMemo(
+    () => getActiveAdminNavItem(pathname, visibleWorkspaces, activeWorkspace),
+    [activeWorkspace, pathname, visibleWorkspaces],
   );
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SIDEBAR_STATE_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
-      setExpandedGroups(
-        Object.fromEntries(
-          Object.entries(parsed).filter((entry): entry is [string, boolean] => {
-            const [, value] = entry;
-            return typeof value === "boolean";
-          }),
-        ),
-      );
-    } catch {
-      window.localStorage.removeItem(SIDEBAR_STATE_STORAGE_KEY);
-    }
-  }, []);
-
-  const toggleGroup = (groupId: string, isExpanded: boolean) => {
-    setExpandedGroups((previous) => {
-      const next = {
-        ...previous,
-        [groupId]: !isExpanded,
-      };
-      window.localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
   const currentTitle = useMemo(() => {
-    const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
-      pathname.startsWith(item.prefix),
-    );
-    if (hiddenMatch) return hiddenMatch.title;
+    const hiddenTitle = getAdminHiddenRouteTitle(pathname);
+    if (hiddenTitle) return hiddenTitle;
 
-    for (const group of visibleNavGroups) {
-      const match = group.items.find((item) => isActive(pathname, item));
-      if (match) return match.label;
-    }
+    if (activeItem) return activeItem.label;
 
     return "Admin";
-  }, [pathname, visibleNavGroups]);
+  }, [activeItem, pathname]);
 
   const navHref = (href: string) => {
     if (!adminPathSupportsStorefrontScope(href)) {
@@ -408,75 +183,39 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </div>
           </div>
 
-          <nav className="mt-3 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {visibleNavGroups.map((group) => {
-              const hasActiveItem = activeGroupIds.has(group.id);
-              const expanded = expandedGroups[group.id] ?? hasActiveItem;
-              const panelId = `admin-nav-group-${group.id}`;
-              const GroupIcon = group.icon;
+          <nav className="mt-3 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {visibleWorkspaces.map((workspace) => {
+              const isWorkspaceActive = activeWorkspace?.id === workspace.id;
+              const WorkspaceIcon = workspace.icon;
               return (
-                <section key={group.id} className="admin-sidebar-group">
-                  <button
-                    type="button"
-                    className={`flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition ${
-                      expanded
-                        ? "border-cyan-300/20 bg-cyan-300/10 text-white shadow-[inset_2px_0_0_rgba(103,232,249,0.75)]"
-                        : hasActiveItem
-                          ? "border-cyan-300/20 bg-white/[0.05] text-cyan-100"
-                          : "border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
+                <Link
+                  key={workspace.id}
+                  href={navHref(workspace.items[0].href)}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`admin-sidebar-workspace ${isWorkspaceActive ? "admin-sidebar-workspace-active" : ""}`}
+                  aria-current={isWorkspaceActive ? "page" : undefined}
+                >
+                  <span className="flex min-w-0 items-start gap-2.5">
+                    <WorkspaceIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{workspace.label}</span>
+                      <span className="mt-0.5 block truncate text-[11px] font-medium text-slate-500">
+                        {workspace.description}
+                      </span>
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                      isWorkspaceActive
+                        ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+                        : "border-white/10 bg-white/[0.03] text-slate-500"
                     }`}
-                    aria-expanded={expanded}
-                    aria-controls={panelId}
-                    onClick={() => toggleGroup(group.id, expanded)}
                   >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <GroupIcon className="h-4 w-4 shrink-0" />
-                      <span className="truncate font-medium">{group.label}</span>
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {group.items.length}
-                      <ChevronDownIcon
-                        className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-                      />
-                    </span>
-                  </button>
-                  <div
-                    id={panelId}
-                    className={`admin-sidebar-panel ${expanded ? "admin-sidebar-panel-open" : ""}`}
-                    aria-hidden={!expanded}
-                  >
-                    <div className="min-h-0 space-y-0.5 overflow-hidden pt-1">
-                      {group.items.map((item) => {
-                        const active = isActive(pathname, item);
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={navHref(item.href)}
-                            onClick={() => setSidebarOpen(false)}
-                            className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
-                              active
-                                ? "border border-cyan-300/20 bg-cyan-300/10 text-white shadow-[inset_2px_0_0_rgba(103,232,249,0.75)]"
-                                : "border border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
-                            }`}
-                            tabIndex={expanded ? undefined : -1}
-                          >
-                            <Icon className="h-4 w-4 shrink-0" />
-                            <span>{item.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
+                    {workspace.items.length}
+                  </span>
+                </Link>
               );
             })}
-            <AdminSavedViews
-              pathname={pathname}
-              searchParamsString={searchParams?.toString() ?? ""}
-              currentTitle={currentTitle}
-              currentStorefrontScope={currentStorefrontScope}
-            />
           </nav>
         </aside>
 
@@ -494,7 +233,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
 
               <div className="min-w-0 flex-1 basis-full xl:basis-auto">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
-                  Internal Console
+                  {activeWorkspace?.label ?? "Internal Console"}
                 </p>
                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                   <h2 className="truncate text-lg font-semibold text-white">
@@ -510,7 +249,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                     {currentStorefrontLabel}
                   </span>
                 <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 2xl:inline-flex">
-                  Capability-scoped workspace
+                  Workspace tabs preserve existing admin routes
                 </span>
                 </div>
               </div>
@@ -518,7 +257,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
               <div className="admin-header-controls flex w-full min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:ml-auto xl:w-auto xl:flex-nowrap xl:justify-end">
                 <AdminCommandBar
                   key={pathname}
-                  groups={visibleNavGroups}
+                  groups={visibleWorkspaces}
                   pathname={pathname}
                   currentStorefrontScope={currentStorefrontScope}
                 />
@@ -535,6 +274,28 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 </button>
               </div>
             </div>
+            {activeWorkspace && activeWorkspace.items.length > 1 ? (
+              <nav
+                className="admin-workspace-tabs mx-auto flex max-w-[1600px] gap-1 overflow-x-auto px-3 pb-2 sm:px-5 xl:px-6"
+                aria-label={`${activeWorkspace.label} workspace sections`}
+              >
+                {activeWorkspace.items.map((item) => {
+                  const active = isAdminNavItemActive(pathname, item);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={navHref(item.href)}
+                      className={`admin-workspace-tab ${active ? "admin-workspace-tab-active" : ""}`}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            ) : null}
             <AdminConnectionStatus />
           </header>
 
@@ -583,7 +344,9 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-400">Workspace</span>
-                        <span className="truncate font-medium text-slate-100">{currentStorefrontLabel}</span>
+                        <span className="truncate font-medium text-slate-100">
+                          {activeWorkspace?.label ?? currentStorefrontLabel}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-400">User</span>
