@@ -6,6 +6,7 @@ import { buildRefundRequestEmail } from "@/lib/refundRequestEmail";
 import { buildRefundRequestUrl } from "@/lib/refundRequestLink";
 import { buildReceiptUrl } from "@/lib/receiptLink";
 import { buildOrderViewUrl } from "@/lib/orderViewLink";
+import { adminOrderSelect } from "@/lib/adminOrders";
 import {
   getStorefrontOrigin,
   resolveStorefrontEmailBrand,
@@ -65,10 +66,7 @@ export async function sendAdminOrderEmailById(input: {
 }) {
   const order = await prisma.order.findUnique({
     where: { id: input.orderId },
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
-    },
+    select: adminOrderSelect,
   });
   if (!order) {
     throw new Error("Order not found");

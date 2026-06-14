@@ -120,6 +120,68 @@ export type AdminOrderListPage = {
 
 export const ADMIN_ORDER_LIST_PAGE_SIZE = 24;
 
+export const adminOrderItemSelect = {
+  id: true,
+  productId: true,
+  variantId: true,
+  name: true,
+  quantity: true,
+  unitAmount: true,
+  totalAmount: true,
+  baseCostAmount: true,
+  paymentFeeAmount: true,
+  adjustedCostAmount: true,
+  taxAmount: true,
+  taxRateBasisPoints: true,
+  currency: true,
+  imageUrl: true,
+  options: true,
+} satisfies Prisma.OrderItemSelect;
+
+export const adminOrderSelect = {
+  id: true,
+  orderNumber: true,
+  createdAt: true,
+  updatedAt: true,
+  sourceStorefront: true,
+  sourceHost: true,
+  sourceOrigin: true,
+  status: true,
+  paymentStatus: true,
+  paymentProvider: true,
+  paymentOrderCode: true,
+  paymentTransactionId: true,
+  stripePaymentIntent: true,
+  paymentMethod: true,
+  currency: true,
+  amountSubtotal: true,
+  amountTax: true,
+  amountShipping: true,
+  amountDiscount: true,
+  amountTotal: true,
+  amountRefunded: true,
+  trackingCarrier: true,
+  trackingNumber: true,
+  trackingUrl: true,
+  shippingName: true,
+  shippingLine1: true,
+  shippingLine2: true,
+  shippingPostalCode: true,
+  shippingCity: true,
+  shippingCountry: true,
+  confirmationEmailSentAt: true,
+  shippingEmailSentAt: true,
+  refundEmailSentAt: true,
+  refundRequestEmailSentAt: true,
+  discountCode: true,
+  customerEmail: true,
+  userId: true,
+  items: { select: adminOrderItemSelect },
+  user: { select: { email: true, name: true } },
+} satisfies Prisma.OrderSelect;
+
+type AdminOrderPayload = Prisma.OrderGetPayload<{ select: typeof adminOrderSelect }>;
+
 export function normalizeOrderItemOptions(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
@@ -132,12 +194,7 @@ export function normalizeOrderItemOptions(value: unknown) {
 }
 
 function serializeAdminOrder(
-  order: Prisma.OrderGetPayload<{
-    include: {
-      items: true;
-      user: { select: { email: true; name: true } };
-    };
-  }>,
+  order: AdminOrderPayload,
   manufacturerByProductId: Map<string, string | null>,
 ): AdminOrderRecord {
   return {
@@ -201,10 +258,7 @@ export async function loadAdminOrders(storefront: Storefront | null = null) {
   const orders = await prisma.order.findMany({
     where: storefront ? { sourceStorefront: storefront } : undefined,
     orderBy: { createdAt: "desc" },
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
-    },
+    select: adminOrderSelect,
   });
   const productIds = Array.from(
     new Set(
@@ -295,10 +349,7 @@ export async function loadAdminOrdersPage(input: {
     orderBy: { createdAt: "desc" },
     skip: (currentPage - 1) * ADMIN_ORDER_LIST_PAGE_SIZE,
     take: ADMIN_ORDER_LIST_PAGE_SIZE,
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
-    },
+    select: adminOrderSelect,
   });
   const productIds = Array.from(
     new Set(
@@ -324,9 +375,8 @@ export async function loadAdminOrdersPage(input: {
 export async function loadAdminOrderDetail(orderId: string): Promise<AdminOrderDetail | null> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: {
-      items: true,
-      user: { select: { email: true, name: true } },
+    select: {
+      ...adminOrderSelect,
       returnRequests: {
         orderBy: { createdAt: "desc" },
         include: {

@@ -3,7 +3,7 @@ import { logAdminAction } from "@/lib/adminAuditLog";
 import { logOrderTimelineEvent } from "@/lib/orderTimeline";
 import { buildAdminOrderPatch } from "@/lib/adminOrderUpdate";
 import { adminJson } from "@/lib/adminApi";
-import { loadAdminOrderDetail } from "@/lib/adminOrders";
+import { adminOrderSelect, loadAdminOrderDetail } from "@/lib/adminOrders";
 import {
   buildOrderEmailSentAtUpdate,
   sendAdminOrderEmailForOrder,
@@ -39,10 +39,7 @@ export const PATCH = withAdminRoute(
 
     const existing = await prisma.order.findUnique({
       where: { id },
-      include: {
-        items: true,
-        user: { select: { email: true, name: true } },
-      },
+      select: adminOrderSelect,
     });
     if (!existing) {
       return adminJson({ error: "Order not found" }, { status: 404 });
@@ -145,10 +142,7 @@ export const PATCH = withAdminRoute(
       ? await prisma.order.update({
           where: { id },
           data: updates,
-          include: {
-            items: true,
-            user: { select: { email: true, name: true } },
-          },
+          select: adminOrderSelect,
         })
       : existing;
 
