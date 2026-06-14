@@ -219,7 +219,7 @@ export default async function AdminProductPage({
   };
 
   return (
-    <div className="mx-auto max-w-[1440px] px-0 py-2 text-slate-100">
+    <div className="admin-route-frame text-slate-100">
       <AdminProductClient
         product={{
           ...product,

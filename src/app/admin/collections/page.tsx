@@ -6,7 +6,7 @@ export default async function AdminCollectionsPage() {
   if (!(await requireAdminScope("catalog.write"))) notFound();
 
   return (
-    <div className="mx-auto max-w-screen-xl px-2 py-2 text-slate-100">
+    <div className="admin-route-frame text-slate-100">
       <AdminCollectionsClient />
     </div>
   );

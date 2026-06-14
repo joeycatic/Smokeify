@@ -1232,6 +1232,69 @@ textarea {
   animation: admin-tab-panel 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.admin-sidebar-group {
+  border-radius: 0.75rem;
+}
+
+.admin-route-frame {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-sidebar-group [aria-expanded="true"] + div {
+  animation: admin-sidebar-group-in 180ms ease-out both;
+}
+
+.admin-shell :where(.space-y-6) > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem !important;
+}
+
+.admin-shell :where(.space-y-5) > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.875rem !important;
+}
+
+.admin-shell :where(.gap-6) {
+  gap: 1rem !important;
+}
+
+.admin-shell :where(.gap-5) {
+  gap: 0.875rem !important;
+}
+
+.admin-shell :where(.p-6) {
+  padding: 1rem !important;
+}
+
+.admin-shell :where(.px-6) {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.admin-shell :where(.py-10, .py-12) {
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+.admin-shell :where([class*="rounded-[32px]"], [class*="rounded-[36px]"]) {
+  border-radius: 1.25rem !important;
+}
+
+.admin-shell :where([class*="rounded-[28px]"], [class*="rounded-[30px]"]) {
+  border-radius: 1rem !important;
+}
+
+.admin-shell :where([class*="shadow-[0_30px"], [class*="shadow-[0_36px"], [class*="shadow-[0_40px"]) {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+
+.admin-shell :where(table) {
+  font-size: 0.875rem;
+}
+
+.admin-shell :where(th, td) {
+  vertical-align: top;
+}
+
 @media (max-width: 767px) {
   .admin-shell {
     overflow-wrap: anywhere;
@@ -1239,10 +1302,15 @@ textarea {
 
   .admin-shell :is(input, select, textarea) {
     max-width: 100%;
+    min-height: 44px;
   }
 
   .admin-shell :is(button, a) {
     max-width: 100%;
+  }
+
+  .admin-shell :is(button, a[href]) {
+    min-height: 44px;
   }
 
   .admin-shell :is(table) {
@@ -1269,6 +1337,17 @@ textarea {
   .admin-lift:hover {
     transform: none;
     box-shadow: none;
+  }
+}
+
+@keyframes admin-sidebar-group-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -1756,7 +1835,7 @@ textarea {
 }
 
 .admin-theme.admin-dark :is(.admin-legacy-page, .admin-console-page) .orders-kpi-card {
-  min-height: 220px;
+  min-height: 0;
   border-color: rgba(148, 163, 184, 0.18) !important;
   background:
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 32%),

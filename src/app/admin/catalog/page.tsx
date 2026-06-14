@@ -230,7 +230,7 @@ export default async function AdminCatalogPage({
   }
 
   return (
-    <div className="mx-auto max-w-screen-2xl px-2 py-2 text-slate-100">
+    <div className="admin-route-frame text-slate-100">
       <AdminCatalogClient
         initialProducts={visibleProducts.map((product) => {
           const {

@@ -28,22 +28,22 @@ export function AdminPageIntro({
   metrics?: ReactNode;
 }) {
   return (
-    <section className="admin-reveal max-w-full overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:rounded-[32px] sm:p-6">
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+    <section className="admin-reveal max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-3.5 shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:p-4">
+      <div className="flex flex-col items-start justify-between gap-3 lg:flex-row">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
             {eyebrow}
           </p>
-          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{title}</h1>
-          <p className="mt-3 max-w-3xl text-sm text-slate-400">{description}</p>
+          <h1 className="mt-2 text-xl font-semibold text-white sm:text-2xl">{title}</h1>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">{description}</p>
         </div>
         {actions ? (
-          <div className="admin-panel-actions flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="admin-panel-actions flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:max-w-[48rem]">
             {actions}
           </div>
         ) : null}
       </div>
-      {metrics ? <div className="mt-6">{metrics}</div> : null}
+      {metrics ? <div className="mt-4">{metrics}</div> : null}
     </section>
   );
 }
@@ -65,17 +65,17 @@ export function AdminPanel({
 }) {
   return (
     <section
-      className={`admin-reveal rounded-[24px] border border-white/10 bg-[#090d12]/90 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)] sm:rounded-[28px] sm:p-5 ${className}`}
+      className={`admin-reveal rounded-2xl border border-white/10 bg-[#090d12]/90 p-3.5 shadow-[0_14px_36px_rgba(0,0,0,0.2)] sm:p-4 ${className}`}
     >
-      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
+      <div className="mb-3 flex flex-col items-start justify-between gap-2.5 sm:flex-row">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               {eyebrow}
             </p>
           ) : null}
-          <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
+          <h2 className="mt-1.5 text-base font-semibold text-white sm:text-lg">{title}</h2>
+          {description ? <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p> : null}
         </div>
         {actions ? (
           <div className="admin-panel-actions flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
@@ -97,7 +97,7 @@ export function AdminSurface({
 }) {
   return (
     <section
-      className={`admin-reveal rounded-[24px] border border-white/10 bg-[#090d12]/90 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ${className}`}
+      className={`admin-reveal rounded-2xl border border-white/10 bg-[#090d12]/90 shadow-[0_14px_36px_rgba(0,0,0,0.2)] ${className}`}
     >
       {children}
     </section>
@@ -113,7 +113,7 @@ export function AdminToolbar({
 }) {
   return (
     <div
-      className={`sticky top-[5rem] z-10 rounded-[24px] border border-white/10 bg-[#07101b]/88 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.28)] backdrop-blur ${className}`}
+      className={`sticky top-[4.25rem] z-10 rounded-2xl border border-white/10 bg-[#07101b]/88 p-2.5 shadow-[0_16px_38px_rgba(0,0,0,0.24)] backdrop-blur ${className}`}
     >
       {children}
     </div>
@@ -129,7 +129,7 @@ export function AdminTableShell({
 }) {
   return (
     <div
-      className={`admin-scroll-x overflow-hidden rounded-[24px] border border-white/10 bg-[#070b11]/92 ${className}`}
+      className={`admin-scroll-x overflow-hidden rounded-2xl border border-white/10 bg-[#070b11]/92 ${className}`}
     >
       {children}
     </div>
@@ -161,7 +161,7 @@ export function AdminMetricCard({
           : "orders-kpi-card-slate";
   return (
     <div
-      className={`admin-lift orders-kpi-card rounded-2xl border border-white/10 bg-white/[0.04] p-4 ${toneClassName}`}
+      className={`admin-lift orders-kpi-card rounded-xl border border-white/10 bg-white/[0.04] p-3.5 ${toneClassName}`}
     >
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <p className="max-w-[14ch] break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:tracking-[0.22em]">
@@ -175,7 +175,7 @@ export function AdminMetricCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-5 text-2xl font-semibold text-white sm:text-3xl">{value}</p>
+      <p className="mt-4 text-2xl font-semibold text-white">{value}</p>
       {footnote ? <p className="mt-2 text-sm text-slate-400">{footnote}</p> : null}
     </div>
   );
@@ -189,7 +189,7 @@ export function AdminCompactMetric({
   value: string;
 }) {
   return (
-    <div className="orders-summary-tile rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+    <div className="orders-summary-tile rounded-xl border border-white/10 bg-white/[0.04] p-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
@@ -210,7 +210,7 @@ export function AdminDeltaRow({
   deltaToneClassName?: string;
 }) {
   return (
-    <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="orders-summary-tile flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
       <div className="min-w-0">
         <div className="text-sm font-semibold text-slate-100">{label}</div>
         <div className="text-xs text-slate-500">vs previous comparable window</div>
@@ -238,7 +238,7 @@ export function AdminNotice({
         : tone === "warning"
           ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
           : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
-  return <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClass}`}>{children}</div>;
+  return <div className={`rounded-xl border px-3.5 py-3 text-sm ${toneClass}`}>{children}</div>;
 }
 
 export function AdminField({
@@ -254,7 +254,7 @@ export function AdminField({
     <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
       {label}
       {optional ? <span className="ml-2 font-normal normal-case text-slate-400">{optional}</span> : null}
-      <div className="mt-2">{children}</div>
+      <div className="mt-1.5">{children}</div>
     </label>
   );
 }
@@ -263,7 +263,7 @@ export function AdminInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+      className={`h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
         props.className ?? ""
       }`}
     />
@@ -274,7 +274,7 @@ export function AdminSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`admin-select h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+      className={`admin-select h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 text-sm text-slate-100 outline-none focus:border-cyan-400/30 focus:bg-white/[0.05] ${
         props.className ?? ""
       }`}
     />
@@ -285,7 +285,7 @@ export function AdminTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>
   return (
     <textarea
       {...props}
-      className={`w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
+      className={`w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] ${
         props.className ?? ""
       }`}
     />
@@ -310,7 +310,7 @@ export function AdminButton({
   return (
     <button
       {...props}
-      className={`inline-flex h-10 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${toneClass} ${className}`}
+      className={`inline-flex h-10 w-full items-center justify-center rounded-lg px-3.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${toneClass} ${className}`}
     >
       {children}
     </button>
@@ -325,7 +325,7 @@ export function AdminIconButton({
   return (
     <button
       {...props}
-      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
@@ -357,11 +357,11 @@ export function AdminDialog({
         onClick={onClose}
         aria-label="Close dialog"
       />
-      <div className="relative max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-[28px] sm:p-6">
+      <div className="relative max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_24px_64px_rgba(0,0,0,0.42)] sm:max-h-[calc(100dvh-1.5rem)]">
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
-        <div className="mt-5">{children}</div>
-        {footer ? <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">{footer}</div> : null}
+        <div className="mt-4">{children}</div>
+        {footer ? <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">{footer}</div> : null}
       </div>
     </div>
   );
@@ -393,13 +393,13 @@ export function AdminDrawer({
         aria-label="Close drawer"
       />
       <div
-        className={`filter-drawer-in relative max-h-[calc(100dvh-0.5rem)] w-full ${widthClassName} max-w-full overflow-y-auto rounded-t-[24px] border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-30px_0_80px_rgba(0,0,0,0.45)] sm:h-full sm:max-h-none sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l sm:p-6`}
+        className={`filter-drawer-in relative max-h-[calc(100dvh-0.5rem)] w-full ${widthClassName} max-w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[-24px_0_64px_rgba(0,0,0,0.42)] sm:h-full sm:max-h-none sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l`}
       >
-        <div className="mb-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <div className="mb-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             Workspace Panel
           </p>
-          <h3 className="mt-2 text-xl font-semibold text-white">{title}</h3>
+          <h3 className="mt-1.5 text-lg font-semibold text-white">{title}</h3>
           {description ? <p className="mt-2 text-sm text-slate-400">{description}</p> : null}
         </div>
         {children}
@@ -419,14 +419,14 @@ export function AdminEmptyState({
 }) {
   if (copy) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-5 text-sm text-slate-500">
         {copy}
       </div>
     );
   }
 
   return (
-    <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center">
+    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-7 text-center">
       <div className="text-sm font-semibold text-slate-200">{title ?? "No data available"}</div>
       <div className="mt-2 text-sm text-slate-500">{description ?? "Nothing is available yet."}</div>
     </div>

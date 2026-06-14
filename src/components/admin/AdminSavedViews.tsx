@@ -179,17 +179,17 @@ export default function AdminSavedViews({
   };
 
   return (
-    <div className="space-y-4 border-t border-white/10 pt-4">
+    <div className="space-y-3 border-t border-white/10 pt-3">
       <div>
-        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
           My Work
         </p>
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 space-y-0.5">
           {MY_WORK_LINKS.map((view) => (
             <Link
               key={view.href}
               href={view.href}
-              className="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-slate-400 transition hover:bg-white/[0.04] hover:text-slate-100"
+              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-400 transition hover:bg-white/[0.04] hover:text-slate-100"
             >
               <BookmarkIcon className="h-4 w-4 shrink-0 text-slate-600" />
               <span className="truncate">{view.label}</span>
@@ -200,7 +200,7 @@ export default function AdminSavedViews({
 
       <div>
         <div className="flex items-center justify-between gap-3 px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             Saved Views
           </p>
           <button
@@ -215,11 +215,11 @@ export default function AdminSavedViews({
           </button>
         </div>
         {error ? <p className="mt-2 px-2 text-xs text-rose-200">{error}</p> : null}
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 space-y-0.5">
           {views.slice(0, 5).map((view) => (
             <div
               key={view.id}
-              className="group flex items-center gap-1 rounded-xl px-2 py-1.5 text-sm text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+              className="group flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
             >
               <button
                 type="button"
@@ -253,15 +253,15 @@ export default function AdminSavedViews({
       </div>
 
       <div>
-        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
           Recent
         </p>
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 space-y-0.5">
           {recentViews.slice(1, 5).map((view) => (
             <Link
               key={view.href}
               href={view.href}
-              className="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-100"
+              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-100"
             >
               <ClockIcon className="h-4 w-4 shrink-0" />
               <span className="truncate">{view.label}</span>

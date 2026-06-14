@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArchiveBoxIcon,
@@ -12,6 +12,7 @@ import {
   BanknotesIcon,
   CalculatorIcon,
   BeakerIcon,
+  ChevronDownIcon,
   CheckBadgeIcon,
   ChartBarSquareIcon,
   ChatBubbleLeftRightIcon,
@@ -39,7 +40,9 @@ import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   adminPathSupportsAllStorefrontScope,
   adminPathSupportsStorefrontScope,
+  getStorefrontConfigs,
   parseAdminStorefrontScope,
+  storefrontFromAdminPath,
   type AdminStorefrontScope,
 } from "@/lib/storefronts";
 
@@ -71,12 +74,16 @@ type NavItem = {
 };
 
 type NavGroup = {
+  id: string;
   label: string;
   items: NavItem[];
 };
 
+const SIDEBAR_STATE_STORAGE_KEY = "smokeify-admin-sidebar-groups:v1";
+
 const NAV_GROUPS: NavGroup[] = [
   {
+    id: "control",
     label: "Control Plane",
     items: [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
@@ -96,23 +103,17 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "storefronts",
     label: "Storefronts",
-    items: [
-      {
-        href: "/admin/smokeify",
-        label: "Smokeify",
-        icon: HomeIcon,
-        scope: "analytics.read",
-      },
-      {
-        href: "/admin/growvault",
-        label: "GrowVault",
-        icon: HomeIcon,
-        scope: "analytics.read",
-      },
-    ],
+    items: getStorefrontConfigs().map((storefront) => ({
+      href: storefront.adminPath,
+      label: storefront.label,
+      icon: HomeIcon,
+      scope: "analytics.read" as const,
+    })),
   },
   {
+    id: "commerce",
     label: "Commerce",
     items: [
       { href: "/admin/orders", label: "Orders", icon: CreditCardIcon, scope: "orders.read" },
@@ -138,6 +139,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "growth",
     label: "Growth",
     items: [
       { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
@@ -164,6 +166,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "operations",
     label: "Operations",
     items: [
       { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
@@ -189,6 +192,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "access",
     label: "Access",
     items: [
       { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
@@ -217,18 +221,22 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const dashboardStorefront = storefrontFromAdminPath(pathname);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
   const supportsAllStorefrontScope = adminPathSupportsAllStorefrontScope(pathname);
   const parsedStorefrontScope = supportsStorefrontScope
     ? parseAdminStorefrontScope(searchParams?.get("storefront"))
-    : "ALL";
+    : dashboardStorefront ?? "ALL";
   const currentStorefrontScope =
     supportsStorefrontScope && !supportsAllStorefrontScope && parsedStorefrontScope === "ALL"
       ? "MAIN"
       : parsedStorefrontScope;
   const currentStorefrontLabel = supportsStorefrontScope
     ? ADMIN_STOREFRONT_SCOPE_LABELS[currentStorefrontScope]
-    : "Shared workspace";
+    : dashboardStorefront
+      ? ADMIN_STOREFRONT_SCOPE_LABELS[dashboardStorefront]
+    : "All-store workspace";
   const visibleNavGroups = useMemo(
     () =>
       NAV_GROUPS.map((group) => ({
@@ -237,6 +245,45 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
       })).filter((group) => group.items.length > 0),
     [userRole],
   );
+  const activeGroupIds = useMemo(
+    () =>
+      new Set(
+        visibleNavGroups
+          .filter((group) => group.items.some((item) => isActive(pathname, item)))
+          .map((group) => group.id),
+      ),
+    [pathname, visibleNavGroups],
+  );
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_STATE_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+      setCollapsedGroups(
+        Object.fromEntries(
+          Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+            const [, value] = entry;
+            return typeof value === "boolean";
+          }),
+        ),
+      );
+    } catch {
+      window.localStorage.removeItem(SIDEBAR_STATE_STORAGE_KEY);
+    }
+  }, []);
+
+  const toggleGroup = (groupId: string, isExpanded: boolean) => {
+    setCollapsedGroups((previous) => {
+      const next = {
+        ...previous,
+        [groupId]: isExpanded,
+      };
+      window.localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const currentTitle = useMemo(() => {
     const hiddenMatch = HIDDEN_ROUTE_TITLES.find((item) =>
@@ -294,20 +341,22 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[18rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur md:translate-x-0 md:p-4 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[16.5rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">
                 {supportsStorefrontScope
                   ? currentStorefrontScope === "ALL"
-                    ? "Shared admin"
+                    ? "All stores"
                     : currentStorefrontLabel
-                  : "Shared admin"}
+                  : dashboardStorefront
+                    ? currentStorefrontLabel
+                    : "All stores"}
               </p>
-              <h1 className="mt-2 text-lg font-semibold text-white">Admin</h1>
+              <h1 className="mt-1.5 text-base font-semibold text-white">Admin</h1>
             </div>
             <button
               type="button"
@@ -319,7 +368,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </button>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -327,7 +376,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 </p>
                 <p className="mt-1 text-xs text-slate-400">{currentStorefrontLabel}</p>
               </div>
-              {supportsStorefrontScope ? (
+              {supportsStorefrontScope || dashboardStorefront ? (
                 <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
                   {currentStorefrontScope}
                 </span>
@@ -350,35 +399,58 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </div>
           </div>
 
-          <nav className="mt-6 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {visibleNavGroups.map((group) => (
-              <div key={group.label}>
-                <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  {group.label}
-                </p>
-                <div className="mt-2 space-y-1">
-                  {group.items.map((item) => {
-                    const active = isActive(pathname, item);
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={navHref(item.href)}
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                          active
-                            ? "border border-white/10 bg-white/10 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
-                            : "border border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          <nav className="mt-3 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {visibleNavGroups.map((group) => {
+              const hasActiveItem = activeGroupIds.has(group.id);
+              const expanded = hasActiveItem || collapsedGroups[group.id] === false;
+              const panelId = `admin-nav-group-${group.id}`;
+              return (
+                <section key={group.id} className="admin-sidebar-group">
+                  <button
+                    type="button"
+                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.22em] transition ${
+                      hasActiveItem
+                        ? "bg-cyan-400/10 text-cyan-200"
+                        : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+                    }`}
+                    aria-expanded={expanded}
+                    aria-controls={panelId}
+                    onClick={() => toggleGroup(group.id, expanded)}
+                  >
+                    <span>{group.label}</span>
+                    <span className="flex items-center gap-1 text-[10px] tracking-normal">
+                      {group.items.length}
+                      <ChevronDownIcon
+                        className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                      />
+                    </span>
+                  </button>
+                  {expanded ? (
+                    <div id={panelId} className="mt-1 space-y-0.5">
+                      {group.items.map((item) => {
+                        const active = isActive(pathname, item);
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={navHref(item.href)}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
+                              active
+                                ? "border border-cyan-300/20 bg-cyan-300/10 text-white shadow-[inset_2px_0_0_rgba(103,232,249,0.75)]"
+                                : "border border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.04] hover:text-slate-100"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
             <AdminSavedViews
               pathname={pathname}
               searchParamsString={searchParams?.toString() ?? ""}
@@ -388,9 +460,9 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           </nav>
         </aside>
 
-        <div className="min-w-0 w-full overflow-x-hidden md:ml-[18rem] md:w-[calc(100%-18rem)]">
+        <div className="min-w-0 w-full overflow-x-hidden md:ml-[16.5rem] md:w-[calc(100%-16.5rem)]">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-start gap-3 px-3 py-3 sm:px-6 sm:py-4 xl:flex-nowrap xl:items-center xl:px-8">
+            <div className="mx-auto flex max-w-[1600px] flex-wrap items-start gap-2.5 px-3 py-2.5 sm:px-5 xl:flex-nowrap xl:items-center xl:px-6">
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
@@ -404,7 +476,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
                   Internal Console
                 </p>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                   <h2 className="truncate text-lg font-semibold text-white">
                     {currentTitle}
                   </h2>
@@ -417,9 +489,9 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                   >
                     {currentStorefrontLabel}
                   </span>
-                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 xl:inline-flex">
-                    Capability-scoped workspace
-                  </span>
+                <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 2xl:inline-flex">
+                  Capability-scoped workspace
+                </span>
                 </div>
               </div>
 
@@ -462,7 +534,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           </header>
 
           <main className="relative">
-            <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+            <div className="mx-auto max-w-[1600px] px-2.5 py-3 sm:px-4 sm:py-4 lg:px-6">
               {children}
             </div>
           </main>
