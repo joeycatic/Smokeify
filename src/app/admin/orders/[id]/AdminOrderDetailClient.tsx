@@ -316,7 +316,7 @@ export default function AdminOrderDetailClient({
     .filter(Boolean)
     .join(" · ");
   const paymentReference =
-    order.paymentOrderCode ?? order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked";
+    order.paymentOrderCode ?? order.paymentTransactionId ?? "Not linked";
   const customerKind = order.userId ? "Signed-in customer" : "Guest checkout";
 
   const emailStatuses = [
@@ -807,7 +807,7 @@ export default function AdminOrderDetailClient({
             <CompactFact label="Payment" value={`${order.paymentMethod ?? "Unknown method"} · ${order.paymentProvider ?? "No provider"}`} detail={paymentReference} monoDetail={paymentReference !== "Not linked"} dark />
             <CompactFact label="Tracking" value={order.trackingNumber ?? trackingState} detail={order.trackingCarrier ?? order.trackingUrl ?? "No tracking link stored"} monoDetail={Boolean(order.trackingNumber ?? order.trackingUrl)} dark />
             <CompactFact label="Discount" value={order.discountCode ?? "No discount used"} detail={formatPrice(order.amountDiscount, order.currency)} dark />
-            <CompactFact label="Transaction" value={order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked"} detail={order.paymentOrderCode ?? "No payment order code"} monoValue={Boolean(order.paymentTransactionId ?? order.stripeSessionId)} monoDetail={Boolean(order.paymentOrderCode)} dark />
+            <CompactFact label="Transaction" value={order.paymentTransactionId ?? "Not linked"} detail={order.paymentOrderCode ?? "No payment order code"} monoValue={Boolean(order.paymentTransactionId)} monoDetail={Boolean(order.paymentOrderCode)} dark />
           </aside>
         </div>
       </section>
@@ -1121,7 +1121,7 @@ function OverviewTab({
             <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
             <DarkRow label="Source host" value={order.sourceHost ?? "No source host stored"} />
             <DarkRow label="Source origin" value={order.sourceOrigin ?? "No source origin stored"} />
-            <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripeSessionId)} />
+            <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? "Not linked"} mono={Boolean(order.paymentTransactionId)} />
           </div>
         </Panel>
 

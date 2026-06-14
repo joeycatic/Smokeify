@@ -18,3 +18,9 @@ ALTER INDEX IF EXISTS "CheckoutRecoverySession_stripeSessionId_key"
 DROP INDEX IF EXISTS "ReviewIncentive_stripePromotionCodeId_key";
 
 ALTER TABLE "ReviewIncentive" DROP COLUMN IF EXISTS "stripePromotionCodeId";
+
+DROP INDEX IF EXISTS "Order_stripeSessionId_key";
+DROP INDEX IF EXISTS "Order_stripePaymentIntent_key";
+
+ALTER TABLE "Order" DROP COLUMN IF EXISTS "stripeSessionId";
+ALTER TABLE "Order" DROP COLUMN IF EXISTS "stripePaymentIntent";

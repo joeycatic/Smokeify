@@ -1013,8 +1013,6 @@ model Order {
   paymentProvider                String            @default("viva")
   paymentOrderCode               String?           @unique
   paymentTransactionId           String?           @unique
-  stripeSessionId                String?           @unique
-  stripePaymentIntent            String?           @unique
   sourceStorefront               Storefront?
   sourceHost                     String?
   sourceOrigin                   String?
