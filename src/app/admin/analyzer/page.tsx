@@ -12,17 +12,54 @@ import AdminAnalyzerClient, {
   type AdminAnalyzerInitialQueue,
 } from "./AdminAnalyzerClient";
 
+async function hasAnalyzerAssignmentColumns() {
+  try {
+    const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'PlantAnalysisRun'
+        AND column_name IN ('assignedReviewerId', 'assignedAt', 'reviewDueAt')
+    `;
+    return columns.length === 3;
+  } catch {
+    return false;
+  }
+}
+
 async function getInitialSmokeifyAnalyzerQueue(): Promise<AdminAnalyzerInitialQueue> {
+  const hasAssignmentColumns = await hasAnalyzerAssignmentColumns();
   const runs = await prisma.plantAnalysisRun.findMany({
     where: { reviewStatus: { not: "REVIEWED_OK" } },
     orderBy: { createdAt: "desc" },
     take: 250,
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      provider: true,
+      model: true,
+      latencyMs: true,
+      confidence: true,
+      healthStatus: true,
+      species: true,
+      reviewStatus: true,
+      reviewNotes: true,
+      safetyFlags: true,
+      imageUri: true,
+      imageDeletedAt: true,
+      outputJson: true,
+      createdAt: true,
       user: { select: { email: true } },
-      assignedReviewer: { select: { email: true } },
       issues: { orderBy: { position: "asc" } },
       feedback: { orderBy: { createdAt: "desc" }, take: 1 },
       _count: { select: { feedback: true } },
+      ...(hasAssignmentColumns
+        ? {
+            assignedReviewerId: true,
+            assignedAt: true,
+            reviewDueAt: true,
+            assignedReviewer: { select: { email: true } },
+          }
+        : {}),
     },
   });
 
@@ -42,6 +79,12 @@ async function getInitialSmokeifyAnalyzerQueue(): Promise<AdminAnalyzerInitialQu
   );
 
   const serializedRuns = runs.map((run) => {
+    const assignment = run as typeof run & {
+      assignedReviewerId?: string | null;
+      assignedReviewer?: { email: string | null } | null;
+      assignedAt?: Date | null;
+      reviewDueAt?: Date | null;
+    };
     const incorrectFeedbackCount = incorrectFeedbackCounts.get(run.id) ?? 0;
     const publicationStatus = getStoredPublicationRequestStatus(run.outputJson);
     const publicationEligible = canPublishAnalyzerRunFromReviewState({
@@ -67,13 +110,13 @@ async function getInitialSmokeifyAnalyzerQueue(): Promise<AdminAnalyzerInitialQu
       species: run.species,
       reviewStatus: run.reviewStatus,
       reviewNotes: run.reviewNotes,
-      assignedReviewerId: run.assignedReviewerId,
-      assignedReviewerEmail: run.assignedReviewer?.email ?? null,
-      assignedAt: run.assignedAt?.toISOString() ?? null,
-      reviewDueAt: run.reviewDueAt?.toISOString() ?? null,
+      assignedReviewerId: assignment.assignedReviewerId ?? null,
+      assignedReviewerEmail: assignment.assignedReviewer?.email ?? null,
+      assignedAt: assignment.assignedAt?.toISOString() ?? null,
+      reviewDueAt: assignment.reviewDueAt?.toISOString() ?? null,
       overdue:
-        Boolean(run.reviewDueAt) &&
-        run.reviewDueAt!.getTime() < Date.now() &&
+        Boolean(assignment.reviewDueAt) &&
+        assignment.reviewDueAt!.getTime() < Date.now() &&
         run.reviewStatus !== "REVIEWED_OK",
       safetyFlags: run.safetyFlags,
       imageUri: run.imageDeletedAt ? null : run.imageUri,

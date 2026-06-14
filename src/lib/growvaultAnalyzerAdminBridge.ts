@@ -114,6 +114,13 @@ export async function fetchGrowvaultAnalyzerAdminJson<T>(
         error?: string;
       };
 
+      if (!response.ok && response.status >= 500 && baseUrl !== targets.at(-1)) {
+        lastError =
+          payload.error ??
+          `Growvault analyzer admin bridge returned ${response.status}.`;
+        continue;
+      }
+
       return {
         ok: response.ok,
         status: response.status,

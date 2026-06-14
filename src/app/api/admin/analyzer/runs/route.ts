@@ -68,6 +68,20 @@ const clampLimit = (value: string | null) => {
 
 const buildCandidateTake = (limit: number) => Math.min(Math.max(limit * 4, limit), 250);
 
+async function hasAnalyzerAssignmentColumns() {
+  try {
+    const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'PlantAnalysisRun'
+        AND column_name IN ('assignedReviewerId', 'assignedAt', 'reviewDueAt')
+    `;
+    return columns.length === 3;
+  } catch {
+    return false;
+  }
+}
+
 const buildAnalyzerSummary = (runs: AnalyzerRun[]): AnalyzerSummary => ({
   total: runs.length,
   unresolved: runs.filter((run) => run.reviewStatus !== "REVIEWED_OK").length,
@@ -153,6 +167,7 @@ async function loadLocalAnalyzerRuns({
     ? normalizePlantAnalysisReviewStatus(reviewStatus)
     : null;
   const candidateTake = buildCandidateTake(limit);
+  const hasAssignmentColumns = await hasAnalyzerAssignmentColumns();
 
   const runs = await prisma.plantAnalysisRun.findMany({
     where: {
@@ -161,12 +176,12 @@ async function loadLocalAnalyzerRuns({
         : includeResolved
           ? {}
           : { reviewStatus: { not: "REVIEWED_OK" } }),
-      ...(filters.assignedReviewerId
+      ...(hasAssignmentColumns && filters.assignedReviewerId
         ? { assignedReviewerId: filters.assignedReviewerId }
-        : filters.assignedOnly
+        : hasAssignmentColumns && filters.assignedOnly
           ? { assignedReviewerId: { not: null } }
           : {}),
-      ...(filters.overdueOnly
+      ...(hasAssignmentColumns && filters.overdueOnly
         ? {
             reviewDueAt: { lt: new Date() },
             reviewStatus: { not: "REVIEWED_OK" },
@@ -177,12 +192,34 @@ async function loadLocalAnalyzerRuns({
     },
     orderBy: { createdAt: "desc" },
     take: candidateTake,
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      provider: true,
+      model: true,
+      latencyMs: true,
+      confidence: true,
+      healthStatus: true,
+      species: true,
+      reviewStatus: true,
+      reviewNotes: true,
+      safetyFlags: true,
+      imageUri: true,
+      imageDeletedAt: true,
+      outputJson: true,
+      createdAt: true,
       user: { select: { id: true, email: true, name: true } },
-      assignedReviewer: { select: { id: true, email: true, name: true } },
       issues: { orderBy: { position: "asc" } },
       feedback: { orderBy: { createdAt: "desc" }, take: 1 },
       _count: { select: { feedback: true } },
+      ...(hasAssignmentColumns
+        ? {
+            assignedReviewerId: true,
+            assignedAt: true,
+            reviewDueAt: true,
+            assignedReviewer: { select: { id: true, email: true, name: true } },
+          }
+        : {}),
     },
   });
 
@@ -202,6 +239,12 @@ async function loadLocalAnalyzerRuns({
   );
 
   return runs.map((run) => {
+    const assignment = run as typeof run & {
+      assignedReviewerId?: string | null;
+      assignedReviewer?: { id: string; email: string | null; name: string | null } | null;
+      assignedAt?: Date | null;
+      reviewDueAt?: Date | null;
+    };
     const incorrectFeedbackCount = incorrectFeedbackCounts.get(run.id) ?? 0;
     return {
       id: run.id,
@@ -221,13 +264,13 @@ async function loadLocalAnalyzerRuns({
       species: run.species,
       reviewStatus: run.reviewStatus,
       reviewNotes: run.reviewNotes,
-      assignedReviewerId: run.assignedReviewerId,
-      assignedReviewerEmail: run.assignedReviewer?.email ?? null,
-      assignedAt: run.assignedAt?.toISOString() ?? null,
-      reviewDueAt: run.reviewDueAt?.toISOString() ?? null,
+      assignedReviewerId: assignment.assignedReviewerId ?? null,
+      assignedReviewerEmail: assignment.assignedReviewer?.email ?? null,
+      assignedAt: assignment.assignedAt?.toISOString() ?? null,
+      reviewDueAt: assignment.reviewDueAt?.toISOString() ?? null,
       overdue:
-        Boolean(run.reviewDueAt) &&
-        run.reviewDueAt!.getTime() < Date.now() &&
+        Boolean(assignment.reviewDueAt) &&
+        assignment.reviewDueAt!.getTime() < Date.now() &&
         run.reviewStatus !== "REVIEWED_OK",
       safetyFlags: run.safetyFlags,
       imageUri: run.imageDeletedAt ? null : run.imageUri,
@@ -335,7 +378,7 @@ async function loadGrowvaultAnalyzerRuns(
       source: "growvault",
       bridge: {
         ok: false,
-        targetUrl: bridgeTarget,
+        targetUrl: bridge?.targetUrl ?? bridgeTarget,
         status: bridge?.status ?? null,
         error:
           bridge?.payload.error ??
@@ -385,7 +428,7 @@ async function loadGrowvaultAnalyzerRuns(
     })),
     bridge: {
       ok: true,
-      targetUrl: bridgeTarget,
+      targetUrl: bridge.targetUrl ?? bridgeTarget,
       status: bridge.status,
       error: null,
     },

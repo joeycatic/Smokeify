@@ -82,6 +82,45 @@ describe("growvaultAnalyzerAdminBridge", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("falls back to the public Growvault app when the local dev target returns a server error", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    process.env.NEXTAUTH_SECRET = "obama420";
+    delete process.env.GROWVAULT_ADMIN_BRIDGE_URL;
+    delete process.env.INTERNAL_GROWVAULT_APP_URL;
+    delete process.env.NEXT_PUBLIC_GROWVAULT_APP_URL;
+    delete process.env.GROWVAULT_APP_URL;
+    process.env.NEXT_PUBLIC_GROW_APP_URL = "https://growvault.de";
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "local bridge failed" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [{ id: "grow-run-1" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const bridgeModule = await loadBridgeModule();
+    const response = await bridgeModule.fetchGrowvaultAnalyzerAdminJson<{
+      items?: Array<{ id: string }>;
+    }>("/api/internal/admin/analyzer/runs", "limit=250");
+
+    expect(response).toMatchObject({
+      ok: true,
+      status: 200,
+      payload: { items: [{ id: "grow-run-1" }] },
+      targetUrl: "https://growvault.de",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("returns a non-ok bridge result instead of throwing when all targets fail", async () => {
     vi.stubEnv("NODE_ENV", "development");
     process.env.NEXTAUTH_SECRET = "obama420";
