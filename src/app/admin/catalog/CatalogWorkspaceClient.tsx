@@ -36,7 +36,9 @@ import {
 import {
   STOREFRONT_ASSIGNMENT_OPTIONS,
   STOREFRONT_LABELS,
+  getDefaultStorefrontAssignmentValue,
   type StorefrontCode,
+  parseStorefront,
   parseStorefrontAssignmentValue,
 } from "@/lib/storefronts";
 
@@ -126,26 +128,30 @@ export default function CatalogWorkspaceClient({
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
   >(initialCollections[0]?.id ?? null);
+  const initialStorefrontForCreate = parseStorefront(initialFilters.storefront);
+  const defaultCreateStorefronts = getDefaultStorefrontAssignmentValue(
+    initialStorefrontForCreate,
+  );
   const [newCategory, setNewCategory] = useState({
     name: "",
     handle: "",
     description: "",
     parentId: "",
-    storefronts: "MAIN",
+    storefronts: defaultCreateStorefronts,
   });
   const [newCollection, setNewCollection] = useState({
     name: "",
     handle: "",
     description: "",
   });
-  const [createStorefronts, setCreateStorefronts] = useState("MAIN");
+  const [createStorefronts, setCreateStorefronts] = useState(defaultCreateStorefronts);
   const lastInitialQueryRef = useRef(initialQuery);
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
   const storefrontScopeLabel = storefrontFilter
     ? STOREFRONT_LABELS[storefrontFilter as StorefrontCode]
-    : "Shared catalog";
+    : "All stores catalog";
 
   useEffect(() => {
     try {
@@ -611,7 +617,7 @@ export default function CatalogWorkspaceClient({
       );
       setTotalCount((previous) => previous + 1);
       setCreateOpen(false);
-      setCreateStorefronts("MAIN");
+      setCreateStorefronts(defaultCreateStorefronts);
     } catch {
       setCreateError("Create failed");
     } finally {
@@ -979,7 +985,13 @@ export default function CatalogWorkspaceClient({
             >
               Collections
             </AdminButton>
-            <AdminButton type="button" onClick={() => setCreateOpen(true)}>
+            <AdminButton
+              type="button"
+              onClick={() => {
+                setCreateStorefronts(defaultCreateStorefronts);
+                setCreateOpen(true);
+              }}
+            >
               Create product
             </AdminButton>
           </>
@@ -1034,7 +1046,7 @@ export default function CatalogWorkspaceClient({
             Catalog scope
           </p>
           <p className="mt-2 text-sm text-slate-300">
-            Keep the catalog shared by default and only narrow to a storefront when the
+            Keep the catalog visible across stores by default and only narrow to a storefront when the
             merchandising view actually needs it.
           </p>
         </div>
@@ -1048,7 +1060,7 @@ export default function CatalogWorkspaceClient({
                 : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
             }`}
           >
-            Shared
+            All stores
           </button>
           {(Object.entries(STOREFRONT_LABELS) as Array<[StorefrontCode, string]>).map(
             ([storefront, label]) => (
@@ -1213,7 +1225,7 @@ export default function CatalogWorkspaceClient({
             handle: "",
             description: "",
             parentId: "",
-            storefronts: "MAIN",
+            storefronts: defaultCreateStorefronts,
           });
         }}
         onUpdateCategory={(id, value) =>

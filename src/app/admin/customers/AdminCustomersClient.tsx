@@ -762,7 +762,7 @@ export default function AdminCustomersClient({
                         : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
                     }`}
                   >
-                    {scope === "ALL" ? "Shared" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
+                    {scope === "ALL" ? "All stores" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
                   </button>
                 ))}
               </div>

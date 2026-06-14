@@ -569,7 +569,7 @@ function CommandDeck({
         <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-              Shared Admin
+              All-store Admin
             </p>
             <h1 className="mt-3 text-[clamp(2rem,3vw,3rem)] font-semibold tracking-tight text-white">
               Analytics

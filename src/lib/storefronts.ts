@@ -4,10 +4,42 @@ export const STOREFRONTS = ["MAIN", "GROW"] as const;
 export type StorefrontCode = (typeof STOREFRONTS)[number];
 export type AdminStorefrontScope = StorefrontCode | "ALL";
 
-export const STOREFRONT_LABELS: Record<StorefrontCode, string> = {
-  MAIN: "Smokeify",
-  GROW: "GrowVault",
+export type StorefrontConfig = {
+  code: StorefrontCode;
+  label: string;
+  adminPath: string;
+  knownHosts: string[];
+  publicOriginEnvKeys: string[];
+  hostEnvKeys: string[];
 };
+
+export const STOREFRONT_CONFIGS: Record<StorefrontCode, StorefrontConfig> = {
+  MAIN: {
+    code: "MAIN",
+    label: "Smokeify",
+    adminPath: "/admin/smokeify",
+    knownHosts: ["smokeify.de", "www.smokeify.de"],
+    publicOriginEnvKeys: ["NEXT_PUBLIC_APP_URL", "NEXTAUTH_URL"],
+    hostEnvKeys: ["MAIN_STOREFRONT_HOSTS"],
+  },
+  GROW: {
+    code: "GROW",
+    label: "GrowVault",
+    adminPath: "/admin/growvault",
+    knownHosts: ["growvault.de", "www.growvault.de"],
+    publicOriginEnvKeys: ["NEXT_PUBLIC_GROW_APP_URL"],
+    hostEnvKeys: ["GROW_STOREFRONT_HOSTS"],
+  },
+};
+
+export const getStorefrontConfig = (storefront: StorefrontCode) =>
+  STOREFRONT_CONFIGS[storefront];
+
+export const getStorefrontConfigs = () => STOREFRONTS.map(getStorefrontConfig);
+
+export const STOREFRONT_LABELS: Record<StorefrontCode, string> = Object.fromEntries(
+  STOREFRONTS.map((code) => [code, STOREFRONT_CONFIGS[code].label]),
+) as Record<StorefrontCode, string>;
 
 export const ADMIN_STOREFRONT_SCOPE_LABELS: Record<AdminStorefrontScope, string> = {
   ALL: "All storefronts",
@@ -75,6 +107,12 @@ export const adminPathSupportsAllStorefrontScope = (pathname: string) =>
     pathname.startsWith(prefix),
   );
 
+export const storefrontFromAdminPath = (pathname: string): StorefrontCode | null =>
+  getStorefrontConfigs().find(
+    (storefront) =>
+      pathname === storefront.adminPath || pathname.startsWith(`${storefront.adminPath}/`),
+  )?.code ?? null;
+
 export const storefrontScopeToStorefront = (
   storefrontScope: AdminStorefrontScope,
 ): StorefrontCode | null => (storefrontScope === "ALL" ? null : storefrontScope);
@@ -108,6 +146,10 @@ export const parseStorefrontAssignmentValue = (value: string): StorefrontCode[] 
   const match = STOREFRONT_ASSIGNMENT_OPTIONS.find((option) => option.value === value);
   return match ? [...match.storefronts] : ["MAIN"];
 };
+
+export const getDefaultStorefrontAssignmentValue = (
+  storefront?: StorefrontCode | null,
+) => storefront ?? "MAIN,GROW";
 
 export const storefrontsToPrisma = (storefronts: StorefrontCode[]): Storefront[] =>
   storefronts as Storefront[];

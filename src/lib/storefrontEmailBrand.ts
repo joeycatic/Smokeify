@@ -1,6 +1,10 @@
 import "server-only";
 
-import { parseStorefront, type StorefrontCode } from "@/lib/storefronts";
+import {
+  getStorefrontConfig,
+  parseStorefront,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 import {
   getConfiguredHostsByStorefront,
   parseStorefrontHostFromUrl,
@@ -146,19 +150,16 @@ export const getStorefrontOrigin = (
   storefront: StorefrontCode,
   fallbackOrigin?: string | null,
 ) => {
-  if (storefront === "GROW") {
-    return (
-      toOrigin(process.env.NEXT_PUBLIC_GROW_APP_URL) ??
-      toStorefrontOrigin("GROW", fallbackOrigin) ??
-      "https://www.growvault.de"
-    );
-  }
+  const configuredOrigin =
+    getStorefrontConfig(storefront).publicOriginEnvKeys
+      .map((key) => toOrigin(process.env[key]))
+      .find((origin): origin is string => Boolean(origin)) ?? null;
+
+  if (configuredOrigin) return configuredOrigin;
 
   return (
-    toOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
-    toOrigin(process.env.NEXTAUTH_URL) ??
-    toOrigin(fallbackOrigin) ??
-    "http://localhost:3000"
+    toStorefrontOrigin(storefront, fallbackOrigin) ??
+    (storefront === "GROW" ? "https://www.growvault.de" : "http://localhost:3000")
   );
 };
 

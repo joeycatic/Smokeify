@@ -1,5 +1,9 @@
 import type { Storefront } from "@prisma/client";
-import { parseStorefront, STOREFRONT_LABELS } from "@/lib/storefronts";
+import {
+  getStorefrontConfig,
+  parseStorefront,
+  STOREFRONT_LABELS,
+} from "@/lib/storefronts";
 import {
   getConfiguredHostsByStorefront,
   normalizeStorefrontHost,
@@ -33,19 +37,13 @@ const sanitizeOrigin = (value?: string | null) => {
 
 export const getConfiguredStorefrontOrigin = (storefront?: string | null) => {
   const normalizedStorefront = parseStorefront(storefront ?? null);
-  if (normalizedStorefront === "GROW") {
-    return sanitizeOrigin(process.env.NEXT_PUBLIC_GROW_APP_URL) ?? null;
-  }
+  if (!normalizedStorefront) return null;
 
-  if (normalizedStorefront === "MAIN") {
-    return (
-      sanitizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
-      sanitizeOrigin(process.env.NEXTAUTH_URL) ??
-      null
-    );
-  }
-
-  return null;
+  return (
+    getStorefrontConfig(normalizedStorefront).publicOriginEnvKeys
+      .map((key) => sanitizeOrigin(process.env[key]))
+      .find((origin): origin is string => Boolean(origin)) ?? null
+  );
 };
 
 const parseRequestUrl = (value?: string | null) => {

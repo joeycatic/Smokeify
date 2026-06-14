@@ -425,7 +425,14 @@ export async function PATCH(
   }
 
   if (typeof body.storefronts !== "undefined") {
-    updates.storefronts = storefrontsToPrisma(parseStorefronts(body.storefronts));
+    const storefronts = parseStorefronts(body.storefronts, []);
+    if (storefronts.length === 0) {
+      return NextResponse.json(
+        { error: "At least one storefront must be selected" },
+        { status: 400 },
+      );
+    }
+    updates.storefronts = storefrontsToPrisma(storefronts);
   }
 
   if (typeof body.leadTimeDays !== "undefined") {

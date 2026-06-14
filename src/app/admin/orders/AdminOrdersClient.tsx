@@ -388,7 +388,7 @@ export default function AdminOrdersClient({
                     : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
                 }`}
               >
-                {scope === "ALL" ? "Shared" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
+                {scope === "ALL" ? "All stores" : scope === "MAIN" ? "Smokeify" : "GrowVault"}
               </Link>
             ))}
           </div>

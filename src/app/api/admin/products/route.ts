@@ -174,7 +174,13 @@ export const POST = withAdminRoute(
   const sanitizedTags = Array.isArray(body.tags)
     ? body.tags.map((tag) => tag.trim()).filter(Boolean)
     : [];
-  const storefronts = parseStorefronts(body.storefronts, ["MAIN"]);
+  const storefronts = parseStorefronts(body.storefronts, []);
+  if (storefronts.length === 0) {
+    return adminJson(
+      { error: "At least one storefront must be selected" },
+      { status: 400 },
+    );
+  }
 
   const violations = collectMerchantPolicyViolations({
     title,

@@ -1,9 +1,8 @@
-import { type StorefrontCode } from "@/lib/storefronts";
-
-const KNOWN_STOREFRONT_HOSTS: Record<StorefrontCode, string[]> = {
-  MAIN: ["smokeify.de", "www.smokeify.de"],
-  GROW: ["growvault.de", "www.growvault.de"],
-};
+import {
+  getStorefrontConfig,
+  STOREFRONTS,
+  type StorefrontCode,
+} from "@/lib/storefronts";
 
 export const normalizeStorefrontHost = (value?: string | null) =>
   value
@@ -34,17 +33,24 @@ export const getConfiguredHostsByStorefront = (): Record<
 > => ({
   MAIN: new Set(
     [
-      ...KNOWN_STOREFRONT_HOSTS.MAIN,
-      parseStorefrontHostFromUrl(process.env.NEXT_PUBLIC_APP_URL),
-      parseStorefrontHostFromUrl(process.env.NEXTAUTH_URL),
-      ...splitConfiguredHosts(process.env.MAIN_STOREFRONT_HOSTS),
+      ...getStorefrontConfig("MAIN").knownHosts,
+      ...getStorefrontConfig("MAIN").publicOriginEnvKeys.map((key) =>
+        parseStorefrontHostFromUrl(process.env[key]),
+      ),
+      ...getStorefrontConfig("MAIN").hostEnvKeys.flatMap((key) =>
+        splitConfiguredHosts(process.env[key]),
+      ),
     ].filter((entry): entry is string => Boolean(entry)),
   ),
   GROW: new Set(
     [
-      ...KNOWN_STOREFRONT_HOSTS.GROW,
-      parseStorefrontHostFromUrl(process.env.NEXT_PUBLIC_GROW_APP_URL),
-      ...splitConfiguredHosts(process.env.GROW_STOREFRONT_HOSTS),
+      ...getStorefrontConfig("GROW").knownHosts,
+      ...getStorefrontConfig("GROW").publicOriginEnvKeys.map((key) =>
+        parseStorefrontHostFromUrl(process.env[key]),
+      ),
+      ...getStorefrontConfig("GROW").hostEnvKeys.flatMap((key) =>
+        splitConfiguredHosts(process.env[key]),
+      ),
     ].filter((entry): entry is string => Boolean(entry)),
   ),
 });
@@ -56,7 +62,7 @@ export const resolveStorefrontFromHost = (
   if (!normalizedHost) return null;
 
   const configuredHosts = getConfiguredHostsByStorefront();
-  for (const storefront of ["MAIN", "GROW"] as const) {
+  for (const storefront of STOREFRONTS) {
     if (configuredHosts[storefront].has(normalizedHost)) {
       return storefront;
     }

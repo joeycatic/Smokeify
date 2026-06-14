@@ -49,13 +49,21 @@ export const POST = withAdminRoute(
     }
   }
 
+  const storefronts = parseStorefronts(body.storefronts, []);
+  if (storefronts.length === 0) {
+    return NextResponse.json(
+      { error: "At least one storefront must be selected" },
+      { status: 400 },
+    );
+  }
+
   const category = await prisma.category.create({
     data: {
       name,
       handle,
       description: body.description?.trim() || null,
       parentId: parentId || null,
-      storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts, ["MAIN"])),
+      storefronts: storefrontsToPrisma(storefronts),
     },
   });
 

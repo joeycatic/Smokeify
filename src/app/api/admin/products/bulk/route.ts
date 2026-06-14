@@ -152,10 +152,17 @@ export const POST = withAdminRoute(
     }
 
     if (typeof body.storefronts !== "undefined") {
+      const storefronts = parseStorefronts(body.storefronts, []);
+      if (storefronts.length === 0) {
+        return adminJson(
+          { error: "At least one storefront must be selected" },
+          { status: 400 },
+        );
+      }
       operations.push(
         prisma.product.updateMany({
           where: { id: { in: productIds } },
-          data: { storefronts: storefrontsToPrisma(parseStorefronts(body.storefronts)) },
+          data: { storefronts: storefrontsToPrisma(storefronts) },
         }),
       );
     }

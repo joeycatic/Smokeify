@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/AdminWorkspace";
 import {
   getStorefrontAssignmentValue,
+  getDefaultStorefrontAssignmentValue,
   parseStorefrontAssignmentValue,
   STOREFRONT_ASSIGNMENT_OPTIONS,
   type StorefrontCode,
@@ -41,7 +42,7 @@ const emptyForm = {
   handle: "",
   description: "",
   parentId: "",
-  storefronts: "MAIN",
+  storefronts: getDefaultStorefrontAssignmentValue(null),
 };
 
 export default function AdminCategoriesClient() {
