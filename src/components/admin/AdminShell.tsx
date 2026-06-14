@@ -387,7 +387,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
               </div>
               {supportsStorefrontScope || dashboardStorefront ? (
                 <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
-                  {currentStorefrontScope}
+                  {currentStorefrontLabel}
                 </span>
               ) : (
                 <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
@@ -617,7 +617,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                                 : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
                             }`}
                           >
-                            {scope === "ALL" ? "All" : scope}
+                            {ADMIN_STOREFRONT_SCOPE_LABELS[scope]}
                           </Link>
                         ))}
                       </div>

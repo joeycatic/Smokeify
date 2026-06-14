@@ -272,14 +272,14 @@ export default function AdminAttributionClient({
                               onClick={() => void applyAttribution(row.id, "MAIN")}
                               disabled={isSaving}
                             >
-                              Set MAIN
+                              Set Smokeify
                             </AdminButton>
                             <AdminButton
                               tone="secondary"
                               onClick={() => void applyAttribution(row.id, "GROW")}
                               disabled={isSaving}
                             >
-                              Set GROW
+                              Set GrowVault
                             </AdminButton>
                           </div>
                         </div>
