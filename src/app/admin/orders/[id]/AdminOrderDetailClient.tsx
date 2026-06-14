@@ -315,6 +315,13 @@ export default function AdminOrderDetailClient({
   const customerCopyText = useMemo(() => buildOrderCustomerCopyText(order), [order]);
   const customerName = order.user.name ?? order.shippingName ?? "Unknown customer";
   const sourceLabel = getOrderSourceLabel(order);
+  const trackingState = getTrackingState(order);
+  const deliverySummary = [order.shippingPostalCode, order.shippingCity, order.shippingCountry]
+    .filter(Boolean)
+    .join(" · ");
+  const paymentReference =
+    order.paymentOrderCode ?? order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked";
+  const customerKind = order.userId ? "Signed-in customer" : "Guest checkout";
 
   const replayWebhook = async (eventId: string) => {
     setReplayingWebhookEventId(eventId);
@@ -766,58 +773,67 @@ export default function AdminOrderDetailClient({
           100% { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      <section className="relative overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0d1723_48%,#0a1220_100%)] p-4 shadow-[0_28px_80px_rgba(2,6,23,0.4)] sm:rounded-[34px] sm:p-5 lg:p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_78%_16%,rgba(34,211,238,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_55%)]" />
-        <div className="relative grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_360px]">
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/admin/orders" className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]">Back to orders</Link>
-              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-100">Order dossier</span>
+      <section className="relative overflow-hidden rounded-[24px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0b1722_52%,#070d18_100%)] p-3 shadow-[0_24px_70px_rgba(2,6,23,0.34)] sm:p-4">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(245,158,11,0.11),transparent_25%),radial-gradient(circle_at_72%_8%,rgba(34,211,238,0.1),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_58%)]" />
+        <div className="relative grid gap-3 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] 2xl:grid-cols-[minmax(0,1.05fr)_minmax(520px,0.95fr)_340px]">
+          <div className="rounded-[20px] border border-white/8 bg-white/[0.035] p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/admin/orders" className="inline-flex h-9 items-center rounded-full border border-white/10 bg-white/[0.06] px-3.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1]">Back</Link>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">Order detail</span>
+              {hasUnsavedChanges ? <span className="rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1.5 text-[11px] font-semibold text-amber-100">Unsaved changes</span> : null}
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-400">Admin / Orders / Detail</p>
-              <div className="mt-4 flex flex-wrap items-end gap-4">
-                <h1 className="text-[clamp(2rem,8vw,4rem)] font-semibold leading-none tracking-tight text-white">#{order.orderNumber}</h1>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{sourceLabel}</span>
-                  <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
-                  <span className={getPaymentBadgeClass(order.paymentStatus)}>{order.paymentStatus}</span>
-                  {hasUnsavedChanges ? <span className="inline-flex items-center rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1.5 text-[11px] font-semibold text-amber-100">Unsaved changes</span> : null}
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Order</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-semibold leading-none tracking-tight text-white">#{order.orderNumber}</h1>
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{sourceLabel}</span>
                 </div>
               </div>
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300"><span className="font-semibold text-white">{customerName}</span> · {customerEmail || "No email on file"} · {order.userId ? "Signed-in customer" : "Guest checkout"} · Created {formatDateTime(order.createdAt)}</p>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
+                <span className={getPaymentBadgeClass(order.paymentStatus)}>{order.paymentStatus}</span>
+                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{trackingState}</span>
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-              {[
-                ["Gross order", formatPrice(financeBreakdown.grossOrderCents, order.currency), `${order.items.length} line items`],
-                ["Net revenue", formatPrice(financeBreakdown.netRevenueCents, order.currency), "after VAT and refunds"],
-                ["Contribution", formatPrice(financeBreakdown.contributionMarginCents, order.currency), "after fees and COGS"],
-                ["Refunded", formatPrice(order.amountRefunded, order.currency), order.amountRefunded > 0 ? "refund recorded" : "no refund recorded"],
-              ].map(([label, value, detail]) => (
-                <div key={label} className="rounded-[24px] border border-white/8 bg-white/[0.04] px-4 py-4 shadow-[0_12px_32px_rgba(2,6,23,0.18)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</p>
-                  <p className="mt-2 text-sm text-slate-300">{detail}</p>
-                </div>
-              ))}
+            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              <CompactFact label="Customer" value={customerName} detail={customerEmail || "No email on file"} />
+              <CompactFact label="Checkout" value={customerKind} detail={`Created ${formatDateTime(order.createdAt)}`} />
+              <CompactFact label="Ship to" value={order.shippingName ?? customerName} detail={deliverySummary || "No delivery address stored"} />
+              <CompactFact label="Items" value={orderItemSummary} detail={`${order.items.length} line item${order.items.length === 1 ? "" : "s"}`} />
             </div>
           </div>
-          <aside className={DARK_PANEL}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Snapshot</p>
-            <div className="mt-4 rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Net collected</p>
-              <p className="mt-3 text-3xl font-semibold tracking-tight text-white">{formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)}</p>
-              <p className="mt-2 text-sm text-slate-300">Updated {formatCompactDate(order.updatedAt)}</p>
-            </div>
-            <div className="mt-5 space-y-3">
-              <DarkRow label="Ordered items" value={orderItemSummary} />
-              <DarkRow label="Payment method" value={order.paymentMethod ?? "No payment method stored"} />
-              <DarkRow label="Payment provider" value={order.paymentProvider ?? "Not stored"} />
-              <DarkRow label="Payment order" value={order.paymentOrderCode ?? "Not linked"} mono={Boolean(order.paymentOrderCode)} />
-              <DarkRow label="Tracking posture" value={getTrackingState(order)} />
-              <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
-              <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} />
-            </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CompactMetric
+              label="Collected"
+              value={formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)}
+              detail={`Updated ${formatCompactDate(order.updatedAt)}`}
+              tone="cyan"
+            />
+            <CompactMetric
+              label="Gross"
+              value={formatPrice(financeBreakdown.grossOrderCents, order.currency)}
+              detail={`${formatPrice(order.amountRefunded, order.currency)} refunded`}
+            />
+            <CompactMetric
+              label="Net revenue"
+              value={formatPrice(financeBreakdown.netRevenueCents, order.currency)}
+              detail="after VAT and refunds"
+            />
+            <CompactMetric
+              label="Contribution"
+              value={formatPrice(financeBreakdown.contributionMarginCents, order.currency)}
+              detail="after fees and COGS"
+              tone={financeBreakdown.contributionMarginCents >= 0 ? "emerald" : "rose"}
+            />
+          </div>
+
+          <aside className="grid gap-2 rounded-[20px] border border-white/8 bg-[#050a15]/80 p-3 sm:grid-cols-2 2xl:grid-cols-1">
+            <CompactFact label="Payment" value={`${order.paymentMethod ?? "Unknown method"} · ${order.paymentProvider ?? "No provider"}`} detail={paymentReference} monoDetail={paymentReference !== "Not linked"} dark />
+            <CompactFact label="Tracking" value={order.trackingNumber ?? trackingState} detail={order.trackingCarrier ?? order.trackingUrl ?? "No tracking link stored"} monoDetail={Boolean(order.trackingNumber ?? order.trackingUrl)} dark />
+            <CompactFact label="Discount" value={order.discountCode ?? "No discount used"} detail={formatPrice(order.amountDiscount, order.currency)} dark />
+            <CompactFact label="Transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} detail={order.paymentOrderCode ?? "No payment order code"} monoValue={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} monoDetail={Boolean(order.paymentOrderCode)} dark />
           </aside>
         </div>
       </section>
@@ -1622,6 +1638,57 @@ function OutcomeCard({ tone, eyebrow, title, detail }: { tone: "success" | "info
 
 function Banner({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium motion-safe:animate-[order-banner-in_450ms_ease-out] ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
+}
+
+function CompactMetric({
+  label,
+  value,
+  detail,
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "slate" | "cyan" | "emerald" | "rose";
+}) {
+  const toneClass = {
+    slate: "border-white/8 bg-white/[0.04]",
+    cyan: "border-cyan-300/20 bg-cyan-300/10",
+    emerald: "border-emerald-300/20 bg-emerald-300/10",
+    rose: "border-rose-300/20 bg-rose-300/10",
+  }[tone];
+
+  return (
+    <div className={`rounded-[20px] border px-4 py-3 ${toneClass}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-2 text-xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-300">{detail}</p>
+    </div>
+  );
+}
+
+function CompactFact({
+  label,
+  value,
+  detail,
+  monoValue,
+  monoDetail,
+  dark,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  monoValue?: boolean;
+  monoDetail?: boolean;
+  dark?: boolean;
+}) {
+  return (
+    <div className={`min-w-0 rounded-2xl border px-3.5 py-3 ${dark ? "border-white/10 bg-white/[0.035]" : "border-white/8 bg-black/10"}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className={`mt-1 truncate text-sm font-semibold text-white ${monoValue ? "font-mono text-[13px]" : ""}`}>{value}</p>
+      <p className={`mt-1 truncate text-xs text-slate-400 ${monoDetail ? "font-mono" : ""}`}>{detail}</p>
+    </div>
+  );
 }
 
 function OverviewSummaryRow({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {
