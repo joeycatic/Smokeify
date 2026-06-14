@@ -39,7 +39,7 @@ export function buildAdminOrderPatch(
 ): AdminOrderPatchResult {
   if (typeof input.paymentStatus !== "undefined") {
     throw new Error(
-      "Payment status is managed by Stripe webhooks and refund flows.",
+      "Payment status is managed by payment webhooks and refund flows.",
     );
   }
 

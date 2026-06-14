@@ -125,6 +125,8 @@ export const PATCH = withAdminRoute(
           : message === "Order already refunded"
             || message === "Exchange order already exists"
             ? 409
+          : message === "Legacy Stripe refunds are disabled after the Viva migration."
+            ? 400
           : message === "Missing payment intent" ||
                 message === "Missing Viva transaction id" ||
                 message === "Refund amount must be greater than zero" ||
@@ -135,9 +137,7 @@ export const PATCH = withAdminRoute(
                 message === "Exchange item variant not found." ||
                 message.includes("missing a variant")
               ? 400
-              : message === "Stripe secret key not configured."
-                ? 500
-                : 500;
+              : 500;
       return NextResponse.json({ error: message }, { status });
     }
   }

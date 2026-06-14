@@ -23,7 +23,7 @@ The repository is intentionally broader than a basic shop demo. It includes chec
 At a high level, this repository represents an e-commerce platform with a strong operational bias:
 
 - Public storefront and account experience
-- Server-side checkout validation and Stripe integration
+- Server-side checkout validation and Viva integration
 - Admin-first workflows for day-to-day operations
 - Finance, expense, VAT, and profitability reporting
 - Inventory, supplier, and procurement support
@@ -40,7 +40,7 @@ The emphasis is not just on selling products. It is on running the system behind
 - Tailwind CSS 4
 - Prisma 6
 - PostgreSQL
-- Stripe
+- Viva
 - NextAuth
 - Vitest
 - ESLint
@@ -69,7 +69,7 @@ The emphasis is not just on selling products. It is on running the system behind
 
 ### Integrations and Automation
 
-- Stripe Checkout and webhook-driven payment confirmation
+- Viva Checkout and webhook-driven payment confirmation
 - Email and notification flows
 - Scripted catalog and order maintenance tasks
 - Scheduled operational jobs
@@ -128,9 +128,6 @@ Typical local configuration includes values such as:
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
 - `NEXT_PUBLIC_APP_URL`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 - `VIVA_ENVIRONMENT` (`demo` or `production`)
 - Demo Viva credentials when `VIVA_ENVIRONMENT=demo`:
   - `VIVA_DEMO_CLIENT_ID`
@@ -177,19 +174,11 @@ npm run lint
 npm test
 ```
 
-## Stripe Webhook Testing
+## Viva Webhook Testing
 
-For local payment-flow testing:
-
-```bash
-stripe listen --forward-to http://localhost:3900/api/webhooks/stripe
-```
-
-Then add the generated signing secret to `STRIPE_WEBHOOK_SECRET` and trigger a sample event:
-
-```bash
-stripe trigger checkout.session.completed
-```
+For local payment-flow testing, configure the Viva demo webhook to call
+`http://localhost:3900/api/webhooks/viva`. The route also supports Viva's
+verification key callback via `GET /api/webhooks/viva`.
 
 ## Operational Scripts
 
@@ -212,7 +201,7 @@ Additional notes are documented in [scripts/README.md](./scripts/README.md).
 These files give a good cross-section of the repository:
 
 - [src/app/api/checkout/route.ts](./src/app/api/checkout/route.ts)
-- [src/app/api/webhooks/stripe/route.ts](./src/app/api/webhooks/stripe/route.ts)
+- [src/app/api/webhooks/viva/route.ts](./src/app/api/webhooks/viva/route.ts)
 - [src/lib/checkoutPolicy.ts](./src/lib/checkoutPolicy.ts)
 - [src/lib/adminFinance.ts](./src/lib/adminFinance.ts)
 - [src/lib/adminAddonData.ts](./src/lib/adminAddonData.ts)

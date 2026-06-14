@@ -1,4 +1,3 @@
-import Stripe from "stripe";
 import nodemailer from "nodemailer";
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
@@ -16,6 +15,10 @@ import {
   isNewsletterOfferActive,
   NEWSLETTER_OFFER_DISCOUNT_CENTS,
 } from "@/lib/newsletterOffer";
+import {
+  normalizeDiscountCode,
+  upsertNewsletterOfferDiscountCode,
+} from "@/lib/discountCodes";
 
 export const runtime = "nodejs";
 
@@ -68,16 +71,9 @@ const markNewsletterOfferClaimed = async (userId: string, email: string) => {
   }
 };
 
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
-};
-
 const createOfferCode = (email: string) => {
   const salt =
     process.env.NEXTAUTH_SECRET?.trim() ||
-    process.env.STRIPE_WEBHOOK_SECRET?.trim() ||
     "smokeify-newsletter-offer";
   const digest = createHash("sha256")
     .update(`${email}:${salt}:offer-v1`)
@@ -188,14 +184,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Das Angebots-System ist gerade nicht verfügbar." },
-      { status: 500 },
-    );
-  }
-
   const ip = getClientIp(request.headers);
   const ipLimit = await checkRateLimit({
     key: `newsletter-offer:ip:${ip}`,
@@ -287,17 +275,22 @@ export async function POST(request: Request) {
     });
   });
 
-  const code = createOfferCode(normalizedEmail);
-  const existingPromotionCodes = await stripe.promotionCodes.list({
+  const code = normalizeDiscountCode(createOfferCode(normalizedEmail));
+  const activeUntil = getNewsletterOfferActiveUntil();
+  const promotionCode = await upsertNewsletterOfferDiscountCode({
+    amountOffCents: NEWSLETTER_OFFER_DISCOUNT_CENTS,
     code,
-    limit: 1,
-    expand: ["data.coupon"],
+    email: normalizedEmail,
+    expiresAt: activeUntil,
   });
-
-  let promotionCode = existingPromotionCodes.data[0] ?? null;
+  const expired = promotionCode.expiresAt
+    ? promotionCode.expiresAt.getTime() <= Date.now()
+    : false;
   if (
-    promotionCode &&
-    ((promotionCode.times_redeemed ?? 0) >= 1 || !promotionCode.coupon?.valid)
+    !promotionCode.active ||
+    expired ||
+    (promotionCode.maxRedemptions !== null &&
+      promotionCode.timesRedeemed >= promotionCode.maxRedemptions)
   ) {
     return NextResponse.json(
       { error: "Diese E-Mail-Adresse hat das 5,00 EUR Angebot bereits genutzt." },
@@ -305,40 +298,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!promotionCode) {
-    const activeUntil = getNewsletterOfferActiveUntil();
-    const coupon = await stripe.coupons.create({
-      amount_off: NEWSLETTER_OFFER_DISCOUNT_CENTS,
-      currency: "eur",
-      duration: "once",
-      name: "Smokeify Newsletter Angebot 5,00 EUR",
-      metadata: {
-        campaign: "newsletter-offer-popup",
-        email: normalizedEmail,
-      },
-    });
-
-    promotionCode = await stripe.promotionCodes.create({
-      code,
-      coupon: coupon.id,
-      max_redemptions: 1,
-      expires_at: activeUntil
-        ? Math.floor(activeUntil.getTime() / 1000)
-        : undefined,
-      active: true,
-      metadata: {
-        campaign: "newsletter-offer-popup",
-        email: normalizedEmail,
-      },
-    });
-  }
-
   const appOrigin = getAppOrigin(request);
   const shopUrl = `${appOrigin}/products`;
   const unsubscribeUrl = buildUnsubscribeUrl(appOrigin, normalizedEmail);
   const mail = buildOfferEmail(
     normalizedEmail,
-    promotionCode.code ?? code,
+    promotionCode.code,
     unsubscribeUrl,
     shopUrl,
   );

@@ -941,7 +941,7 @@ export default function AdminOrderDetailClient({
           <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,21,0.98),rgba(10,16,26,0.96))] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.5)] sm:rounded-[30px] sm:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Refund confirmation</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">Confirm refund</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-300">Refunds are irreversible and Stripe-authoritative. Review the preview, then confirm with your admin password.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-300">Refunds are irreversible and processed through Viva for migrated payments. Review the preview, then confirm with your admin password.</p>
             <div className="mt-5 rounded-[24px] border border-rose-400/20 bg-rose-400/10 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200">Preview</p>
               <p className="mt-2 text-2xl font-semibold text-white">{formatPrice(refundMode === "full" ? fullRefundPreview : selectedItemsRefundPreview, order.currency)}</p>
@@ -1386,7 +1386,7 @@ function RefundsTab({
   return (
     <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Stripe refund confirmation step.</p>
+        <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Viva refund confirmation step.</p>
         <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 lg:max-w-md">
           <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
           <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
@@ -1445,7 +1445,7 @@ function RefundsTab({
             tone="warning"
             eyebrow="Permission"
             title="Refund actions are locked for your role"
-            detail="You can review refund previews here, but only allowed roles can open the Stripe-authoritative refund flow."
+            detail="You can review refund previews here, but only allowed roles can open the Viva refund flow."
           />
         </div>
       ) : null}

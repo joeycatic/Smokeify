@@ -50,7 +50,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Ist meine Zahlung sicher?",
         answer:
-          "Ja. Alle Zahlungen werden über Stripe abgewickelt – einen der weltweit führenden Zahlungsdienstleister. Deine Kartendaten werden ausschließlich verschlüsselt übertragen und nie auf unseren Servern gespeichert.",
+          "Ja. Alle Zahlungen werden über Viva abgewickelt. Deine Zahlungsdaten werden verschlüsselt übertragen und nie auf unseren Servern gespeichert.",
       },
       {
         question: "Kann ich nachträglich die Zahlungsart ändern?",

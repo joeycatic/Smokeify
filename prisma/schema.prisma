@@ -1010,7 +1010,7 @@ model Order {
   id                       String            @id @default(cuid())
   orderNumber              Int               @unique @default(autoincrement())
   userId                   String?
-  paymentProvider          String            @default("stripe")
+  paymentProvider          String            @default("viva")
   paymentOrderCode         String?           @unique
   paymentTransactionId     String?           @unique
   stripeSessionId          String?           @unique
@@ -1277,6 +1277,25 @@ model ReviewIncentive {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+}
+
+model DiscountCode {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  active         Boolean  @default(true)
+  percentOff     Float?
+  amountOffCents Int?
+  currency       String   @default("EUR")
+  maxRedemptions Int?
+  timesRedeemed  Int      @default(0)
+  expiresAt      DateTime?
+  source         String   @default("admin")
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([active, expiresAt])
+  @@index([source, createdAt])
 }
 
 model ReturnRequest {

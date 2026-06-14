@@ -224,7 +224,7 @@ type PaymentFeePreset = {
 };
 
 const CATALOG_PAYMENT_FEES: PaymentFeePreset[] = [
-  { label: "Stripe", percentBasisPoints: 150, fixedCents: 25 },
+  { label: "Viva", percentBasisPoints: 150, fixedCents: 25 },
   { label: "PayPal", percentBasisPoints: 299, fixedCents: 35 },
   { label: "Klarna", percentBasisPoints: 329, fixedCents: 35 },
 ];

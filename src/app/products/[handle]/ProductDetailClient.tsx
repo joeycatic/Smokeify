@@ -329,7 +329,7 @@ export default function ProductDetailClient({
         trackAnalyticsEvent("add_payment_info", {
           currency: selectedVariant?.price.currencyCode,
           value: Number(selectedVariant?.price.amount) * quantity,
-          payment_type: "stripe_checkout",
+          payment_type: "viva_checkout",
           items: [itemPayload],
         });
       }

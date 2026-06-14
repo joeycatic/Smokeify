@@ -525,7 +525,7 @@ export default function AdminOpsClient({
       <AdminPageIntro
         eyebrow="Admin / Ops"
         title="Operational control surface"
-        description="Monitor failed Stripe webhooks, queue-backed automations, schedules, and recent job history from one place."
+        description="Monitor failed payment webhooks, queue-backed automations, schedules, and recent job history from one place."
         metrics={
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <AdminMetricCard label="Failed webhooks" value={String(failedWebhookEvents.length)} />
@@ -1108,14 +1108,14 @@ export default function AdminOpsClient({
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <AdminPanel
           eyebrow="Webhooks"
-          title="Failed Stripe events"
-          description="Supported event types can be replayed directly through the existing admin reprocess endpoint."
+          title="Failed payment events"
+          description="Review failed payment webhook events. Legacy Stripe replay is disabled after the Viva migration."
         >
           <div className="space-y-3">
             {failedWebhookEvents.length === 0 ? (
               <AdminEmptyState
                 title="No failed webhooks"
-                description="The Stripe failure queue is currently clear."
+                description="The payment webhook failure queue is currently clear."
               />
             ) : (
               failedWebhookEvents.map((event) => (

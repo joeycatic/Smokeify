@@ -40,7 +40,7 @@ export const PDP_TRUST_CARDS = [
   },
   {
     title: "Sichere Zahlung",
-    detail: "Stripe Checkout",
+    detail: "Viva Checkout",
   },
   {
     title: `${RETURNS_WINDOW_DAYS} Tage Rückgabe`,
@@ -79,4 +79,3 @@ export const ANNOUNCEMENT_ITEMS = {
     "Secure payment",
   ],
 } as const;
-

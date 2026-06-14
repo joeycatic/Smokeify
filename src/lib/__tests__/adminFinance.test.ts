@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
 
 describe("buildOrderFinanceBreakdown", () => {
-  it("estimates domestic VAT from gross totals when Stripe tax is missing", () => {
+  it("estimates domestic VAT from gross totals when provider tax is missing", () => {
     const breakdown = buildOrderFinanceBreakdown({
       createdAt: new Date("2026-02-13T05:15:23.546Z"),
       currency: "EUR",

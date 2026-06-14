@@ -245,7 +245,7 @@ export default function AdminDiscountsClient() {
       <AdminPageIntro
         eyebrow="Admin / Discounts"
         title="Promotion code console"
-        description="Create and manage Stripe promotion codes from a compact dark operations surface instead of the old stacked form page."
+        description="Create and manage local Viva checkout discount codes from a compact dark operations surface instead of the old stacked form page."
         actions={
           <AdminButton tone="secondary" onClick={() => void loadDiscounts()} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
@@ -272,7 +272,7 @@ export default function AdminDiscountsClient() {
         <AdminPanel
           eyebrow="Create"
           title="New promotion code"
-          description="Build a one-off percent or amount-based Stripe code with redemption and expiry limits."
+          description="Build a one-off percent or amount-based Viva checkout code with redemption and expiry limits."
           className="admin-reveal-delay-1"
         >
           <div className="grid gap-4">

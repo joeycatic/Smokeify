@@ -1,17 +1,17 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { logAdminAction } from "@/lib/adminAuditLog";
+import {
+  createDiscountCode,
+  mapDiscountCode,
+  normalizeDiscountCode,
+  normalizeDiscountCurrency,
+} from "@/lib/discountCodes";
 
 export const runtime = "nodejs";
-
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
-};
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -22,54 +22,19 @@ const toNumber = (value: unknown) => {
   return null;
 };
 
-const normalizeCurrency = (value: unknown) => {
-  if (typeof value !== "string") return "EUR";
-  const trimmed = value.trim().toUpperCase();
-  return trimmed.length === 3 ? trimmed : "EUR";
-};
-
-const mapPromotionCode = (promotion: Stripe.PromotionCode) => ({
-  id: promotion.id,
-  code: promotion.code,
-  active: promotion.active,
-  maxRedemptions: promotion.max_redemptions ?? null,
-  timesRedeemed: promotion.times_redeemed ?? 0,
-  expiresAt: promotion.expires_at ?? null,
-  createdAt: promotion.created
-    ? new Date(promotion.created * 1000).toISOString()
-    : null,
-  coupon: {
-    id: promotion.coupon?.id ?? null,
-    percentOff: promotion.coupon?.percent_off ?? null,
-    amountOff: promotion.coupon?.amount_off ?? null,
-    currency: promotion.coupon?.currency ?? null,
-    duration: promotion.coupon?.duration ?? null,
-    durationInMonths: promotion.coupon?.duration_in_months ?? null,
-    valid: promotion.coupon?.valid ?? null,
-  },
-});
-
 export async function GET() {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe secret key not configured." },
-      { status: 500 }
-    );
-  }
-
-  const promotionCodes = await stripe.promotionCodes.list({
-    limit: 100,
-    expand: ["data.coupon"],
+  const discounts = await prisma.discountCode.findMany({
+    orderBy: [{ active: "desc" }, { createdAt: "desc" }],
+    take: 100,
   });
 
   return NextResponse.json({
-    discounts: promotionCodes.data.map(mapPromotionCode),
+    discounts: discounts.map(mapDiscountCode),
   });
 }
 
@@ -94,14 +59,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe secret key not configured." },
-      { status: 500 }
-    );
-  }
-
   const body = (await request.json().catch(() => ({}))) as {
     code?: string;
     percentOff?: number | string;
@@ -111,7 +68,7 @@ export async function POST(request: Request) {
     expiresAt?: number | string;
   };
 
-  const code = body.code?.trim();
+  const code = normalizeDiscountCode(body.code ?? "");
   if (!code) {
     return NextResponse.json({ error: "Code is required." }, { status: 400 });
   }
@@ -137,32 +94,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const currency = normalizeCurrency(body.currency);
+  const currency = normalizeDiscountCurrency(body.currency);
   const maxRedemptions = toNumber(body.maxRedemptions);
   const expiresAt = toNumber(body.expiresAt);
 
-  const coupon = await stripe.coupons.create({
-    percent_off: percentOff ?? undefined,
-    amount_off: amountOffCents ?? undefined,
-    currency: amountOffCents ? currency.toLowerCase() : undefined,
-    duration: "once",
-  });
+  const existing = await prisma.discountCode.findUnique({ where: { code } });
+  if (existing) {
+    return NextResponse.json({ error: "Code already exists." }, { status: 409 });
+  }
 
-  const promotionCode = await stripe.promotionCodes.create({
+  const discount = await createDiscountCode({
     code,
-    coupon: coupon.id,
-    max_redemptions: maxRedemptions ? Math.floor(maxRedemptions) : undefined,
-    expires_at: expiresAt ? Math.floor(expiresAt) : undefined,
-    active: true,
+    percentOff: percentOff ?? undefined,
+    amountOffCents: amountOffCents ?? undefined,
+    currency,
+    maxRedemptions: maxRedemptions ? Math.floor(maxRedemptions) : undefined,
+    expiresAt: expiresAt ? new Date(Math.floor(expiresAt) * 1000) : undefined,
   });
 
   await logAdminAction({
     actor: { id: session.user.id, email: session.user.email ?? null },
     action: "discount.create",
     targetType: "discount",
-    targetId: promotionCode.id,
-    summary: `Created discount ${promotionCode.code}`,
+    targetId: discount.id,
+    summary: `Created discount ${discount.code}`,
   });
 
-  return NextResponse.json({ discount: mapPromotionCode(promotionCode) });
+  return NextResponse.json({ discount: mapDiscountCode(discount) });
 }

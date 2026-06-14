@@ -170,7 +170,7 @@ const ADMIN_PAGE_COPY = {
         support: "Support",
       },
       webhookFailures: {
-        title: "Stripe-Webhook-Fehler",
+        title: "Webhook-Fehler",
         detail: (count: number) =>
           `${count} fehlgeschlagene Ereignisse müssen geprüft werden, bevor die Zahlungsabstimmung abweicht.`,
         hrefLabel: "Bestellungen öffnen",
@@ -331,7 +331,7 @@ const ADMIN_PAGE_COPY = {
         support: "Support",
       },
       webhookFailures: {
-        title: "Stripe webhook failures",
+        title: "Webhook failures",
         detail: (count: number) =>
           `${count} failed event(s) need review before payment reconciliation drifts.`,
         hrefLabel: "Open orders",

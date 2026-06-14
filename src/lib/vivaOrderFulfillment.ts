@@ -30,6 +30,7 @@ import { parseStorefront } from "@/lib/storefronts";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { recordAutomationEvent } from "@/lib/automationEvents";
 import { markCheckoutRecoveryOrderLinked } from "@/lib/checkoutRecoveryService";
+import { recordDiscountRedemption } from "@/lib/discountCodes";
 import {
   mapVivaCurrencyCode,
   normalizeVivaAmountToMinorUnits,
@@ -349,6 +350,7 @@ export const createOrderFromVivaDraft = async ({
   });
 
   await consumeLoyaltyHoldForPaymentOrder(draft.paymentOrderCode, created.id);
+  await recordDiscountRedemption(created.discountCode);
   const awardedPoints = await awardLoyaltyPointsForOrder(created);
   await logOrderTimelineEvent({
     orderId: created.id,

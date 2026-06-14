@@ -219,9 +219,9 @@ export const ADMIN_SCRIPT_DEFINITIONS: readonly AdminScriptDefinition[] = [
     title: "Backfill payment fees",
     category: "Orders",
     description:
-      "Backfill Stripe payment fee data for historical orders that are missing reconciliation details.",
+      "Backfill payment fee data for historical orders that are missing reconciliation details.",
     inputSummary:
-      "Reads historical order and Stripe reconciliation data for orders that still have missing payment fees.",
+      "Reads historical order reconciliation data for orders that still have missing payment fees.",
     outputSummary:
       "Writes missing historical payment fee values back to affected order records.",
     impact: "Writes historical order finance fields.",

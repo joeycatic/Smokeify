@@ -406,18 +406,16 @@ export async function getGrowvaultSharedDiagnosticsFeed() {
     ),
     toStatusEntry(
       "smokeify.growvault.discount.integrity",
-      process.env.STRIPE_SECRET_KEY ? "ok" : "unknown",
-      process.env.STRIPE_SECRET_KEY
-        ? "Stripe-backed discount management is configured."
-        : "Stripe-backed discount validation is unavailable until STRIPE_SECRET_KEY is configured.",
+      "ok",
+      "Local Viva checkout discount management is configured.",
       now,
       buildAdminUrl("/admin/discounts"),
       {
         actionLabel: "Open discounts",
         category: "diagnostics",
         owner: "smokeify",
-        affectedCount: process.env.STRIPE_SECRET_KEY ? 0 : 1,
-        impact: "Stripe configuration controls whether Growvault can validate checkout discounts.",
+        affectedCount: 0,
+        impact: "Discount validation is managed locally before Viva checkout orders are created.",
       },
     ),
     toStatusEntry(

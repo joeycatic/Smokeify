@@ -64,12 +64,15 @@ export const POST = withAdminRoute(
     if (order.paymentStatus === "refunded") {
       return adminJson({ error: "Order already refunded" }, { status: 409 });
     }
-    if ((order.paymentProvider ?? "stripe") === "viva") {
+    if ((order.paymentProvider ?? "viva") === "viva") {
       if (!order.paymentTransactionId) {
         return adminJson({ error: "Missing Viva transaction id" }, { status: 400 });
       }
-    } else if (!order.stripePaymentIntent) {
-      return adminJson({ error: "Missing payment intent" }, { status: 400 });
+    } else {
+      return adminJson(
+        { error: "Legacy Stripe refunds are disabled after the Viva migration." },
+        { status: 400 },
+      );
     }
 
     let refundAmount = 0;
@@ -149,8 +152,8 @@ export const POST = withAdminRoute(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Refund failed";
       const status =
-        message === "Stripe secret key not configured."
-          ? 500
+        message === "Legacy Stripe refunds are disabled after the Viva migration."
+          ? 400
           : message === "Order not found"
             ? 404
             : message === "Order already refunded"

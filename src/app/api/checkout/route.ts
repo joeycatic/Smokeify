@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "crypto";
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
@@ -39,11 +38,11 @@ import {
   getVivaCheckoutUrl,
   getVivaSourceCode,
 } from "@/lib/viva";
+import { findRedeemableDiscountCode } from "@/lib/discountCodes";
 
 export const runtime = "nodejs";
 
 const CURRENCY_CODE = "EUR";
-const STRIPE_DEFAULT_API_VERSION = "2024-06-20";
 
 type CheckoutCartSummaryItem = {
   imageUrl: string | null;
@@ -81,36 +80,11 @@ const jsonNoStore = (body: unknown, init?: number | ResponseInit) => {
   });
 };
 
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, {
-    apiVersion: STRIPE_DEFAULT_API_VERSION as Stripe.LatestApiVersion,
-  });
-};
-
 const hashCheckoutEditorToken = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
 const clampCheckoutDiscount = (value: number, subtotalCents: number) =>
   Math.max(0, Math.min(subtotalCents, Math.round(value)));
-
-const getCouponDiscountPreviewCents = (
-  coupon: Stripe.Coupon | null | undefined,
-  subtotalCents: number,
-) => {
-  if (!coupon) return 0;
-  if (typeof coupon.amount_off === "number") {
-    return clampCheckoutDiscount(coupon.amount_off, subtotalCents);
-  }
-  if (typeof coupon.percent_off === "number") {
-    return clampCheckoutDiscount(
-      subtotalCents * (coupon.percent_off / 100),
-      subtotalCents,
-    );
-  }
-  return 0;
-};
 
 const formatOptionsLabel = (options?: Array<{ name: string; value: string }>) => {
   if (!options?.length) return "";
@@ -509,27 +483,16 @@ export async function POST(req: Request) {
   let promotionDiscountCents = 0;
   let appliedDiscountCode: string | undefined;
   if (rawDiscountCode) {
-    const stripe = getStripe();
-    if (!stripe) {
-      return jsonNoStore(
-        { error: "Stripe secret key is required to validate Rabattcodes." },
-        { status: 500 },
-      );
-    }
-    const promotionCodes = await stripe.promotionCodes.list({
-      active: true,
+    const promotionCode = await findRedeemableDiscountCode({
       code: rawDiscountCode,
-      limit: 1,
+      currency: CURRENCY_CODE,
+      subtotalCents,
     });
-    const promotionCode = promotionCodes.data[0];
-    if (!promotionCode || !promotionCode.active || !promotionCode.coupon?.valid) {
+    if (!promotionCode) {
       return jsonNoStore({ error: "Rabattcode ungültig." }, { status: 400 });
     }
-    appliedDiscountCode = promotionCode.code ?? rawDiscountCode;
-    promotionDiscountCents = getCouponDiscountPreviewCents(
-      promotionCode.coupon,
-      subtotalCents,
-    );
+    appliedDiscountCode = promotionCode.discount.code;
+    promotionDiscountCents = promotionCode.discountCents;
   }
 
   const effectiveDiscountCents = clampCheckoutDiscount(

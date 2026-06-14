@@ -1,5 +1,3 @@
-import crypto from "crypto";
-import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { logOrderTimelineEvent } from "@/lib/orderTimeline";
@@ -17,31 +15,6 @@ type AdminActor = {
   id: string;
   email: string | null;
 };
-
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
-};
-
-const buildAdminRefundIdempotencyKey = (input: {
-  orderId: string;
-  previousRefundedAmount: number;
-  refundAmount: number;
-  source: string;
-}) =>
-  crypto
-    .createHash("sha256")
-    .update(
-      [
-        "admin-order-refund",
-        input.orderId,
-        String(input.previousRefundedAmount),
-        String(input.refundAmount),
-        input.source,
-      ].join(":"),
-    )
-    .digest("hex");
 
 export async function refundAdminOrder(input: {
   orderId: string;
@@ -63,13 +36,13 @@ export async function refundAdminOrder(input: {
   if (order.paymentStatus === "refunded") {
     throw new Error("Order already refunded");
   }
-  const paymentProvider = order.paymentProvider ?? "stripe";
+  const paymentProvider = order.paymentProvider ?? "viva";
   if (paymentProvider === "viva") {
     if (!order.paymentTransactionId) {
       throw new Error("Missing Viva transaction id");
     }
-  } else if (!order.stripePaymentIntent) {
-    throw new Error("Missing payment intent");
+  } else {
+    throw new Error("Legacy Stripe refunds are disabled after the Viva migration.");
   }
 
   const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
@@ -86,25 +59,6 @@ export async function refundAdminOrder(input: {
       sourceCode: getVivaSourceCode(),
       transactionId: order.paymentTransactionId as string,
     });
-  } else {
-    const stripe = getStripe();
-    if (!stripe) {
-      throw new Error("Stripe secret key not configured.");
-    }
-    await stripe.refunds.create(
-      {
-        payment_intent: order.stripePaymentIntent as string,
-        amount: input.refundAmount,
-      },
-      {
-        idempotencyKey: buildAdminRefundIdempotencyKey({
-          orderId: order.id,
-          previousRefundedAmount: order.amountRefunded,
-          refundAmount: input.refundAmount,
-          source: input.source,
-        }),
-      },
-    );
   }
 
   const newRefunded = order.amountRefunded + input.refundAmount;

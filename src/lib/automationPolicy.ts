@@ -131,6 +131,6 @@ export const AUTOMATION_SCHEDULE_DEFAULTS = [
 
 export function assertAutomationCommerceGuardrail(action: CommerceGuardrailAction) {
   throw new Error(
-    `Automation guardrail blocked "${action}". Money-sensitive order, refund, return, and checkout mutations require explicit human action or Stripe webhook authority.`,
+    `Automation guardrail blocked "${action}". Money-sensitive order, refund, return, and checkout mutations require explicit human action or payment webhook authority.`,
   );
 }

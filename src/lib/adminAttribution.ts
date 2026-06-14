@@ -54,7 +54,7 @@ export function deriveOrderAttributionCandidate(input: {
     return {
       storefront: metadataStorefront,
       sourceType: "metadata",
-      detail: `Stripe metadata sourceStorefront = ${metadataStorefront}`,
+      detail: `Payment metadata sourceStorefront = ${metadataStorefront}`,
       exact: true,
     };
   }

@@ -7,7 +7,7 @@ describe("buildAdminOrderPatch", () => {
       buildAdminOrderPatch({
         paymentStatus: "paid",
       }),
-    ).toThrow(/Payment status is managed by Stripe webhooks/i);
+    ).toThrow(/Payment status is managed by payment webhooks/i);
   });
 
   it("allows operational status and tracking updates", () => {

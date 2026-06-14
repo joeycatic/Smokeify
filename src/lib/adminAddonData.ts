@@ -955,7 +955,7 @@ export async function getAlertsPageData() {
     failedWebhookCount > 0
       ? {
           type: "webhook_failures",
-          title: "Stripe webhook failures need review",
+          title: "Payment webhook failures need review",
           detail: `${failedWebhookCount} failed events can block payment and order reconciliation.`,
           priority: "critical",
           actionLabel: "Open orders",

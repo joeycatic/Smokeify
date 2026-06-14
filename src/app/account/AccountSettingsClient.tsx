@@ -286,7 +286,7 @@ export default function AccountSettingsClient({
             </div>
             {shippingAddressType === "PACKSTATION" ? (
               <p className="md:col-span-2 rounded-[18px] border border-[rgba(233,188,116,0.16)] bg-[rgba(233,188,116,0.08)] px-4 py-3 text-sm leading-6 text-[var(--smk-text-muted)]">
-                Stripe Checkout übernimmt für Packstationen die Zeilen
+                Viva Checkout übernimmt für Packstationen die Zeilen
                 <span className="font-semibold text-[var(--smk-text)]">
                   {" "}Packstation {packstationNumber || "..."}
                 </span>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import Stripe from "stripe";
+import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/auth";
 import { getAppOrigin } from "@/lib/appOrigin";
 import { notifyGrowvaultReviewCreated } from "@/lib/growvaultReviewNotification";
@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
 import { resolveStorefrontFromRequest } from "@/lib/userStorefront";
+import { createDiscountCode } from "@/lib/discountCodes";
 
 const parseRating = (value: unknown) => {
   const rating = Number(value);
@@ -20,12 +21,6 @@ const parseRating = (value: unknown) => {
 const normalizeText = (value: unknown) => {
   if (typeof value !== "string") return "";
   return value.trim();
-};
-
-const getStripe = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return null;
-  return new Stripe(secret, { apiVersion: "2024-06-20" });
 };
 
 const randomCodePart = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -172,7 +167,6 @@ export async function POST(
         percentOff: number;
       }
     | undefined;
-  const stripe = getStripe();
   const percentOff = Math.max(
     1,
     Math.min(100, Math.floor(Number(process.env.REVIEW_INCENTIVE_PERCENT_OFF ?? "5") || 5))
@@ -187,18 +181,14 @@ export async function POST(
         select: { id: true },
       })
     : null;
-  if (stripe && eligibleForIncentive) {
+  if (eligibleForIncentive) {
     try {
-      const coupon = await stripe.coupons.create({
-        percent_off: percentOff,
-        duration: "once",
-        name: `Review thank-you ${percentOff}%`,
-      });
       const code = `REVIEW-${randomCodePart()}`;
-      const promotion = await stripe.promotionCodes.create({
-        coupon: coupon.id,
+      await createDiscountCode({
         code,
-        max_redemptions: 1,
+        maxRedemptions: 1,
+        percentOff,
+        source: "product_review",
         metadata: {
           source: "product_review",
           reviewId: created.id,
@@ -218,12 +208,12 @@ export async function POST(
           "createdAt"
         )
         VALUES (
-          ${crypto.randomUUID()},
+          ${randomUUID()},
           ${created.id},
           ${userId},
           ${session?.user?.email ?? null},
           ${code},
-          ${promotion.id},
+          ${null},
           NOW()
         )
       `;

@@ -60,7 +60,7 @@ describe("shippingAddress", () => {
     ).toBe("Straße, Hausnummer, PLZ, Stadt und Land sind erforderlich.");
   });
 
-  it("builds stripe address lines for packstation addresses", () => {
+  it("builds payment address lines for packstation addresses", () => {
     expect(
       buildShippingAddressLines({
         shippingAddressType: "PACKSTATION",
