@@ -34,7 +34,7 @@ type UnresolvedOrderRow = {
   sourceStorefront: Storefront | null;
   sourceHost: string | null;
   sourceOrigin: string | null;
-  stripeSessionId: string | null;
+  paymentOrderCode: string | null;
   createdAt: Date;
 };
 
@@ -150,7 +150,7 @@ export async function listUnresolvedOrderAttributionRows() {
       sourceStorefront: true,
       sourceHost: true,
       sourceOrigin: true,
-      stripeSessionId: true,
+      paymentOrderCode: true,
       createdAt: true,
     },
     take: 200,

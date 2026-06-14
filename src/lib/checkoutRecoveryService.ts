@@ -46,7 +46,7 @@ type RecoverySessionWithAttempts = Prisma.CheckoutRecoverySessionGetPayload<{
 
 type RecoverySessionRecord = {
   id: string;
-  stripeSessionId: string;
+  paymentOrderCode: string;
   userId: string | null;
   customerEmail: string | null;
   customerFirstName: string | null;
@@ -115,7 +115,7 @@ export type CheckoutRecoveryOverview = {
 
 export type CheckoutRecoveryCandidatePreview = {
   sessionId: string;
-  stripeSessionId: string;
+  paymentOrderCode: string;
   customerEmail: string | null;
   storefront: StorefrontCode | null;
   customerType: "FIRST_TIME" | "RETURNING";
@@ -138,7 +138,7 @@ export type CheckoutRecoveryRunResult = {
 
 export type CheckoutRecoverySessionPreview = {
   id: string;
-  stripeSessionId: string;
+  paymentOrderCode: string;
   customerEmail: string | null;
   storefront: StorefrontCode | null;
   totalCents: number;
@@ -251,7 +251,7 @@ const serializeCandidate = (input: {
   customerType: "FIRST_TIME" | "RETURNING";
 }) => ({
   sessionId: input.session.id,
-  stripeSessionId: input.session.stripeSessionId,
+  paymentOrderCode: input.session.paymentOrderCode,
   customerEmail: input.session.customerEmail,
   storefront: parseStorefront(input.session.sourceStorefront ?? null),
   customerType: input.customerType,
@@ -436,7 +436,7 @@ async function sendRecoveryEmailForStep(input: {
   const email = buildCheckoutRecoveryEmail({
     storefront,
     recipientEmail: input.session.customerEmail ?? "",
-    sessionId: input.session.stripeSessionId,
+    sessionId: input.session.paymentOrderCode,
     step: input.stepIndex,
     recoveryUrl,
     cartSummary: getCartSummaryForEmail(input.session),
@@ -558,7 +558,7 @@ async function sendRecoveryAttempt(input: {
 }
 
 export async function persistCheckoutRecoverySession(input: {
-  stripeSessionId: string;
+  paymentOrderCode: string;
   userId?: string | null;
   customerEmail?: string | null;
   customerFirstName?: string | null;
@@ -575,7 +575,7 @@ export async function persistCheckoutRecoverySession(input: {
 }) {
   const now = new Date();
   return prisma.checkoutRecoverySession.upsert({
-    where: { stripeSessionId: input.stripeSessionId },
+    where: { paymentOrderCode: input.paymentOrderCode },
     update: {
       userId: input.userId ?? null,
       customerEmail: input.customerEmail ?? null,
@@ -599,7 +599,7 @@ export async function persistCheckoutRecoverySession(input: {
       metadata: toJson({ cartSummary: input.cartSummary }),
     },
     create: {
-      stripeSessionId: input.stripeSessionId,
+      paymentOrderCode: input.paymentOrderCode,
       userId: input.userId ?? null,
       customerEmail: input.customerEmail ?? null,
       customerFirstName: input.customerFirstName ?? null,
@@ -625,13 +625,13 @@ export async function persistCheckoutRecoverySession(input: {
 }
 
 export async function markCheckoutRecoveryOrderLinked(input: {
-  stripeSessionId?: string | null;
+  paymentOrderCode?: string | null;
   recoverySessionId?: string | null;
   orderId: string;
 }) {
   const where: Prisma.CheckoutRecoverySessionWhereInput = {
     OR: [
-      ...(input.stripeSessionId ? [{ stripeSessionId: input.stripeSessionId }] : []),
+      ...(input.paymentOrderCode ? [{ paymentOrderCode: input.paymentOrderCode }] : []),
       ...(input.recoverySessionId ? [{ id: input.recoverySessionId }] : []),
     ],
   };
@@ -721,7 +721,7 @@ export async function getCheckoutRecoveryOverview(input?: {
 
       return {
         id: session.id,
-        stripeSessionId: session.stripeSessionId,
+        paymentOrderCode: session.paymentOrderCode,
         customerEmail: session.customerEmail,
         storefront: parseStorefront(session.sourceStorefront ?? null),
         totalCents: session.totalCents,
@@ -988,7 +988,7 @@ export async function sendCheckoutRecoveryTestEmail(input: {
   const email = buildCheckoutRecoveryEmail({
     storefront: input.storefront,
     recipientEmail: input.to,
-    sessionId: "cs_test_checkout_recovery",
+    sessionId: "viva_test_checkout_recovery",
     step: input.stepIndex,
     recoveryUrl,
     cartSummary:
@@ -1023,7 +1023,7 @@ export function serializeCheckoutRecoverySessionRecord(
 ): RecoverySessionRecord {
   return {
     id: session.id,
-    stripeSessionId: session.stripeSessionId,
+    paymentOrderCode: session.paymentOrderCode,
     userId: session.userId,
     customerEmail: session.customerEmail,
     customerFirstName: session.customerFirstName,

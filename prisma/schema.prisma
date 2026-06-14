@@ -680,8 +680,8 @@ model Expense {
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
 
-  supplier      Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier      Supplier?                     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder?                @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   allocations   ExpenseStorefrontAllocation[]
 
   @@index([supplierId])
@@ -713,7 +713,7 @@ model RecurringExpense {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  supplier    Supplier?                           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier    Supplier?                              @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   allocations RecurringExpenseStorefrontAllocation[]
 
   @@index([supplierId])
@@ -895,18 +895,18 @@ model VariantInventory {
 }
 
 model InventoryAdjustment {
-  id            String   @id @default(cuid())
-  variantId     String
-  productId     String
-  orderId       String?
-  sourceType    String?
-  sourceId      String?
-  actorId       String?
-  note          String?
+  id              String   @id @default(cuid())
+  variantId       String
+  productId       String
+  orderId         String?
+  sourceType      String?
+  sourceId        String?
+  actorId         String?
+  note            String?
   sourceReference String?
-  quantityDelta Int
-  reason        String
-  createdAt     DateTime @default(now())
+  quantityDelta   Int
+  reason          String
+  createdAt       DateTime @default(now())
 
   variant             Variant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
   product             Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -922,12 +922,12 @@ model InventoryAdjustment {
 }
 
 model ExpenseStorefrontAllocation {
-  id        String     @id @default(cuid())
-  expenseId String
+  id         String     @id @default(cuid())
+  expenseId  String
   storefront Storefront
-  percent   Int
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  percent    Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
@@ -1007,68 +1007,68 @@ model ProductCollection {
 }
 
 model Order {
-  id                       String            @id @default(cuid())
-  orderNumber              Int               @unique @default(autoincrement())
-  userId                   String?
-  paymentProvider          String            @default("viva")
-  paymentOrderCode         String?           @unique
-  paymentTransactionId     String?           @unique
-  stripeSessionId          String?           @unique
-  stripePaymentIntent      String?           @unique
-  sourceStorefront         Storefront?
-  sourceHost               String?
-  sourceOrigin             String?
-  paymentMethod            String?
-  status                   String
-  paymentStatus            String
-  currency                 String
-  amountSubtotal           Int
-  amountTax                Int               @default(0)
-  amountShipping           Int
-  amountDiscount           Int               @default(0)
-  amountTotal              Int
-  discountCode             String?
-  amountRefunded           Int               @default(0)
-  customerEmail            String?
-  shippingName             String?
-  shippingLine1            String?
-  shippingLine2            String?
-  shippingPostalCode       String?
-  shippingCity             String?
-  shippingCountry          String?
-  trackingCarrier          String?
-  trackingNumber           String?
-  trackingUrl              String?
-  confirmationEmailSentAt  DateTime?
-  shippingEmailSentAt      DateTime?
-  refundEmailSentAt        DateTime?
-  refundRequestEmailSentAt DateTime?
-  riskStatus               OrderRiskStatus   @default(CLEAR)
-  riskScore                Int?
-  riskReviewedAt           DateTime?
-  riskReviewedById         String?
-  riskNotes                String?
+  id                             String            @id @default(cuid())
+  orderNumber                    Int               @unique @default(autoincrement())
+  userId                         String?
+  paymentProvider                String            @default("viva")
+  paymentOrderCode               String?           @unique
+  paymentTransactionId           String?           @unique
+  stripeSessionId                String?           @unique
+  stripePaymentIntent            String?           @unique
+  sourceStorefront               Storefront?
+  sourceHost                     String?
+  sourceOrigin                   String?
+  paymentMethod                  String?
+  status                         String
+  paymentStatus                  String
+  currency                       String
+  amountSubtotal                 Int
+  amountTax                      Int               @default(0)
+  amountShipping                 Int
+  amountDiscount                 Int               @default(0)
+  amountTotal                    Int
+  discountCode                   String?
+  amountRefunded                 Int               @default(0)
+  customerEmail                  String?
+  shippingName                   String?
+  shippingLine1                  String?
+  shippingLine2                  String?
+  shippingPostalCode             String?
+  shippingCity                   String?
+  shippingCountry                String?
+  trackingCarrier                String?
+  trackingNumber                 String?
+  trackingUrl                    String?
+  confirmationEmailSentAt        DateTime?
+  shippingEmailSentAt            DateTime?
+  refundEmailSentAt              DateTime?
+  refundRequestEmailSentAt       DateTime?
+  riskStatus                     OrderRiskStatus   @default(CLEAR)
+  riskScore                      Int?
+  riskReviewedAt                 DateTime?
+  riskReviewedById               String?
+  riskNotes                      String?
   recoveredFromCheckoutSessionId String?           @unique
-  taxRegime                TaxRegime         @default(NORMAL)
-  germanVatRate            GermanVatRate     @default(UNKNOWN)
-  taxClassification        TaxClassification @default(UNKNOWN)
-  taxReviewStatus          TaxReviewStatus   @default(ENTWURF)
-  taxSnapshot              Json?
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
+  taxRegime                      TaxRegime         @default(NORMAL)
+  germanVatRate                  GermanVatRate     @default(UNKNOWN)
+  taxClassification              TaxClassification @default(UNKNOWN)
+  taxReviewStatus                TaxReviewStatus   @default(ENTWURF)
+  taxSnapshot                    Json?
+  createdAt                      DateTime          @default(now())
+  updatedAt                      DateTime          @updatedAt
 
-  user                     User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items                    OrderItem[]
-  returnRequests           ReturnRequest[]          @relation("ReturnRequestsOrder")
-  exchangeForReturnRequest ReturnRequest?           @relation("ReturnExchangeOrder")
-  inventoryAdjustments     InventoryAdjustment[]
-  loyaltyPointTransaction  LoyaltyPointTransaction?
-  storeCreditTransactions  StoreCreditTransaction[]
-  supportCases             SupportCase[]
-  shipments                Shipment[]
-  setupSnapshots           OrderSetupSnapshot[]
-  riskEvents               OrderRiskEvent[]
-  riskReviewedBy           User?                    @relation("OrderRiskReviewedBy", fields: [riskReviewedById], references: [id], onDelete: SetNull)
+  user                             User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items                            OrderItem[]
+  returnRequests                   ReturnRequest[]          @relation("ReturnRequestsOrder")
+  exchangeForReturnRequest         ReturnRequest?           @relation("ReturnExchangeOrder")
+  inventoryAdjustments             InventoryAdjustment[]
+  loyaltyPointTransaction          LoyaltyPointTransaction?
+  storeCreditTransactions          StoreCreditTransaction[]
+  supportCases                     SupportCase[]
+  shipments                        Shipment[]
+  setupSnapshots                   OrderSetupSnapshot[]
+  riskEvents                       OrderRiskEvent[]
+  riskReviewedBy                   User?                    @relation("OrderRiskReviewedBy", fields: [riskReviewedById], references: [id], onDelete: SetNull)
   recoveredCheckoutRecoverySession CheckoutRecoverySession? @relation("RecoveredOrder", fields: [recoveredFromCheckoutSessionId], references: [id], onDelete: SetNull)
 
   @@index([status])
@@ -1079,42 +1079,42 @@ model Order {
 }
 
 model CheckoutPaymentDraft {
-  id                           String      @id @default(cuid())
-  paymentProvider              String      @default("viva")
-  paymentOrderCode             String      @unique
-  paymentTransactionId         String?     @unique
-  userId                       String?
-  editTokenHash                String
-  guestCheckoutAccessHash      String?
-  guestCheckoutAccessExpiresAt BigInt?
-  sourceStorefront             Storefront?
-  sourceHost                   String?
-  sourceOrigin                 String?
-  status                       String      @default("pending")
-  paymentStatus                String      @default("pending")
-  currency                     String
-  amountSubtotal               Int
-  amountTax                    Int         @default(0)
-  amountShipping               Int
-  amountDiscount               Int         @default(0)
-  amountTotal                  Int
-  discountCode                 String?
-  loyaltyPointsRedeemed        Int         @default(0)
-  loyaltyDiscountAmount        Int         @default(0)
-  customerEmail                String?
-  customerPhone                String?
-  shippingName                 String?
-  shippingLine1                String?
-  shippingLine2                String?
-  shippingPostalCode           String?
-  shippingCity                 String?
-  shippingCountry              String?
-  shippingAddressType          String?
+  id                             String      @id @default(cuid())
+  paymentProvider                String      @default("viva")
+  paymentOrderCode               String      @unique
+  paymentTransactionId           String?     @unique
+  userId                         String?
+  editTokenHash                  String
+  guestCheckoutAccessHash        String?
+  guestCheckoutAccessExpiresAt   BigInt?
+  sourceStorefront               Storefront?
+  sourceHost                     String?
+  sourceOrigin                   String?
+  status                         String      @default("pending")
+  paymentStatus                  String      @default("pending")
+  currency                       String
+  amountSubtotal                 Int
+  amountTax                      Int         @default(0)
+  amountShipping                 Int
+  amountDiscount                 Int         @default(0)
+  amountTotal                    Int
+  discountCode                   String?
+  loyaltyPointsRedeemed          Int         @default(0)
+  loyaltyDiscountAmount          Int         @default(0)
+  customerEmail                  String?
+  customerPhone                  String?
+  shippingName                   String?
+  shippingLine1                  String?
+  shippingLine2                  String?
+  shippingPostalCode             String?
+  shippingCity                   String?
+  shippingCountry                String?
+  shippingAddressType            String?
   recoveredFromCheckoutSessionId String?
-  items                        Json
-  metadata                     Json?
-  createdAt                    DateTime    @default(now())
-  updatedAt                    DateTime    @updatedAt
+  items                          Json
+  metadata                       Json?
+  createdAt                      DateTime    @default(now())
+  updatedAt                      DateTime    @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1124,8 +1124,8 @@ model CheckoutPaymentDraft {
 }
 
 model CheckoutRecoverySession {
-  id                String   @id @default(cuid())
-  stripeSessionId   String   @unique
+  id                String      @id @default(cuid())
+  paymentOrderCode  String      @unique
   userId            String?
   customerEmail     String?
   customerFirstName String?
@@ -1133,24 +1133,24 @@ model CheckoutRecoverySession {
   sourceStorefront  Storefront?
   sourceHost        String?
   sourceOrigin      String?
-  isGuest           Boolean  @default(false)
-  consentGranted    Boolean  @default(false)
+  isGuest           Boolean     @default(false)
+  consentGranted    Boolean     @default(false)
   consentCapturedAt DateTime?
   cartItems         Json
   currency          String
   subtotalCents     Int
-  discountCents     Int      @default(0)
+  discountCents     Int         @default(0)
   shippingCents     Int
   totalCents        Int
-  cartLineCount     Int      @default(0)
+  cartLineCount     Int         @default(0)
   discountCode      String?
   shippingCountry   String?
   metadata          Json?
   suppressedAt      DateTime?
   suppressionReason String?
   completedAt       DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   user           User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
   recoveredOrder Order?                    @relation("RecoveredOrder")
@@ -1209,25 +1209,25 @@ model LandingPageSection {
 }
 
 model AdminSavedReport {
-  id                String                        @id @default(cuid())
-  name              String
-  reportType        String                        @default("overview")
-  days              Int                           @default(30)
-  sourceStorefront  Storefront?
-  paymentState      String                        @default("all")
-  deliveryEnabled   Boolean                       @default(false)
-  deliveryEmail     String?
-  deliveryRecipients String[]                     @default([])
-  deliveryFrequency AdminReportDeliveryFrequency?
-  deliveryWeekday   Int?
-  deliveryHour      Int?
-  lastDeliveredAt   DateTime?
-  nextDeliveryAt    DateTime?
-  lastDeliveryError String?
-  createdById       String?
-  createdByEmail    String?
-  createdAt         DateTime                      @default(now())
-  updatedAt         DateTime                      @updatedAt
+  id                 String                        @id @default(cuid())
+  name               String
+  reportType         String                        @default("overview")
+  days               Int                           @default(30)
+  sourceStorefront   Storefront?
+  paymentState       String                        @default("all")
+  deliveryEnabled    Boolean                       @default(false)
+  deliveryEmail      String?
+  deliveryRecipients String[]                      @default([])
+  deliveryFrequency  AdminReportDeliveryFrequency?
+  deliveryWeekday    Int?
+  deliveryHour       Int?
+  lastDeliveredAt    DateTime?
+  nextDeliveryAt     DateTime?
+  lastDeliveryError  String?
+  createdById        String?
+  createdByEmail     String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -1266,13 +1266,12 @@ model LoyaltyPointTransaction {
 }
 
 model ReviewIncentive {
-  id                    String   @id @default(cuid())
-  reviewId              String   @unique
-  userId                String?
-  email                 String?
-  promotionCode         String   @unique
-  stripePromotionCodeId String?  @unique
-  createdAt             DateTime @default(now())
+  id            String   @id @default(cuid())
+  reviewId      String   @unique
+  userId        String?
+  email         String?
+  promotionCode String   @unique
+  createdAt     DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1280,19 +1279,19 @@ model ReviewIncentive {
 }
 
 model DiscountCode {
-  id             String   @id @default(cuid())
-  code           String   @unique
-  active         Boolean  @default(true)
+  id             String    @id @default(cuid())
+  code           String    @unique
+  active         Boolean   @default(true)
   percentOff     Float?
   amountOffCents Int?
-  currency       String   @default("EUR")
+  currency       String    @default("EUR")
   maxRedemptions Int?
-  timesRedeemed  Int      @default(0)
+  timesRedeemed  Int       @default(0)
   expiresAt      DateTime?
-  source         String   @default("admin")
+  source         String    @default("admin")
   metadata       Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([active, expiresAt])
   @@index([source, createdAt])
@@ -1424,15 +1423,15 @@ model RateLimit {
 }
 
 model ProcessedWebhookEvent {
-  id          String    @id @default(cuid())
-  eventId     String    @unique
-  type        String
-  status      String    @default("processing")
+  id           String    @id @default(cuid())
+  eventId      String    @unique
+  type         String
+  status       String    @default("processing")
   errorMessage String?
   errorContext Json?
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  processedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([status])
   @@index([status, createdAt])
@@ -2397,13 +2396,13 @@ model PlantAnalysisRun {
   imageDeletedAt      DateTime?
   createdAt           DateTime                  @default(now())
 
-  user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  plant        Plant?                     @relation(fields: [plantId], references: [id], onDelete: SetNull)
-  assignedReviewer User?                  @relation("PlantAnalysisAssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
-  reviewedBy   User?                      @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  issues       PlantAnalysisIssue[]
-  feedback     PlantAnalysisFeedback[]
-  reviewEvents PlantAnalysisReviewEvent[]
+  user             User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  plant            Plant?                     @relation(fields: [plantId], references: [id], onDelete: SetNull)
+  assignedReviewer User?                      @relation("PlantAnalysisAssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  reviewedBy       User?                      @relation("PlantAnalysisReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  issues           PlantAnalysisIssue[]
+  feedback         PlantAnalysisFeedback[]
+  reviewEvents     PlantAnalysisReviewEvent[]
 
   @@index([userId, createdAt])
   @@index([plantId, createdAt])

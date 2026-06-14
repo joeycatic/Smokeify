@@ -96,9 +96,9 @@ export async function createAdminExchangeOrder({
 
     const exchangeOrder = await tx.order.create({
       data: {
-        stripeSessionId: `exchange_${request.id}`,
+        paymentProvider: "exchange",
+        paymentOrderCode: `exchange_${request.id}`,
         userId: request.order.userId,
-        stripePaymentIntent: null,
         sourceStorefront: request.order.sourceStorefront,
         sourceHost: request.order.sourceHost,
         sourceOrigin: request.order.sourceOrigin,

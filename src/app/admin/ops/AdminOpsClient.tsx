@@ -23,7 +23,6 @@ type FailedWebhookEvent = {
   type: string;
   status: string;
   createdAt: string;
-  supportedReplay: boolean;
 };
 
 type JobRun = {
@@ -148,7 +147,7 @@ type CheckoutRecoveryOverview = {
   topSkipReasons: Array<{ reason: string; count: number }>;
   dueCandidates: Array<{
     sessionId: string;
-    stripeSessionId: string;
+    paymentOrderCode: string;
     customerEmail: string | null;
     storefront: "MAIN" | "GROW" | null;
     customerType: "FIRST_TIME" | "RETURNING";
@@ -160,7 +159,7 @@ type CheckoutRecoveryOverview = {
   }>;
   sessions: Array<{
     id: string;
-    stripeSessionId: string;
+    paymentOrderCode: string;
     customerEmail: string | null;
     storefront: "MAIN" | "GROW" | null;
     totalCents: number;
@@ -218,42 +217,15 @@ export default function AdminOpsClient({
   const [automationJobs, setAutomationJobs] = useState(initialAutomationJobs);
   const [automationSchedules, setAutomationSchedules] = useState(initialAutomationSchedules);
   const [checkoutRecovery, setCheckoutRecovery] = useState(initialCheckoutRecovery);
-  const [failedWebhookEvents, setFailedWebhookEvents] = useState(initialFailedWebhookEvents);
+  const [failedWebhookEvents] = useState(initialFailedWebhookEvents);
   const [pendingAutomationAction, setPendingAutomationAction] = useState<string | null>(null);
   const [pendingRecoveryAction, setPendingRecoveryAction] = useState<string | null>(null);
   const [suppressionReasons, setSuppressionReasons] = useState<Record<string, string>>({});
-  const [replayingEventId, setReplayingEventId] = useState<string | null>(null);
   const [testRecipient, setTestRecipient] = useState("");
   const [testStepIndex, setTestStepIndex] = useState(String(initialCheckoutRecovery.schedule.payload.steps[0]?.stepIndex ?? 1));
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [recoveryConfig, setRecoveryConfig] = useState(initialCheckoutRecovery.schedule.payload);
-
-  const replayWebhook = async (eventId: string) => {
-    setReplayingEventId(eventId);
-    setError("");
-    setNotice("");
-    try {
-      const response = await fetch("/api/admin/webhooks/stripe/reprocess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
-      });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Webhook replay failed.");
-      }
-
-      setFailedWebhookEvents((current) =>
-        current.filter((event) => event.eventId !== eventId),
-      );
-      setNotice(`Reprocessed ${eventId}.`);
-    } catch (replayError) {
-      setError(replayError instanceof Error ? replayError.message : "Webhook replay failed.");
-    } finally {
-      setReplayingEventId(null);
-    }
-  };
 
   const runAutomationAction = async (
     key: string,
@@ -1109,7 +1081,7 @@ export default function AdminOpsClient({
         <AdminPanel
           eyebrow="Webhooks"
           title="Failed payment events"
-          description="Review failed payment webhook events. Legacy Stripe replay is disabled after the Viva migration."
+          description="Review failed Viva payment webhook events and resolve them from the payment provider or webhook logs."
         >
           <div className="space-y-3">
             {failedWebhookEvents.length === 0 ? (
@@ -1133,18 +1105,9 @@ export default function AdminOpsClient({
                         Failed {formatDate(event.createdAt)}
                       </div>
                     </div>
-                    {event.supportedReplay ? (
-                      <AdminButton
-                        onClick={() => replayWebhook(event.eventId)}
-                        disabled={replayingEventId === event.eventId}
-                      >
-                        {replayingEventId === event.eventId ? "Reprocessing..." : "Replay"}
-                      </AdminButton>
-                    ) : (
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-400">
-                        Unsupported replay type
-                      </div>
-                    )}
+                    <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-semibold text-rose-100">
+                      Manual review
+                    </div>
                   </div>
                 </div>
               ))

@@ -27,7 +27,7 @@ function buildOrder(overrides: Partial<AdminOrderRecord> = {}): AdminOrderRecord
     amountDiscount: 0,
     amountTotal: 12390,
     amountRefunded: 0,
-    stripePaymentIntent: "pi_123",
+    stripeSessionId: "legacy_order_session_123",
     trackingCarrier: null,
     trackingNumber: null,
     trackingUrl: null,

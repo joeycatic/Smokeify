@@ -204,7 +204,6 @@ export async function POST(
           "userId",
           email,
           "promotionCode",
-          "stripePromotionCodeId",
           "createdAt"
         )
         VALUES (
@@ -213,7 +212,6 @@ export async function POST(
           ${userId},
           ${session?.user?.email ?? null},
           ${code},
-          ${null},
           NOW()
         )
       `;

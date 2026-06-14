@@ -8,8 +8,8 @@ import {
 
 describe("checkoutRecovery", () => {
   it("builds stable event ids", () => {
-    expect(getCheckoutRecoveryEventId("cs_test_123")).toBe(
-      "checkout_recovery:cs_test_123"
+    expect(getCheckoutRecoveryEventId("viva_order_123")).toBe(
+      "checkout_recovery:viva_order_123"
     );
   });
 

@@ -191,12 +191,7 @@ export const createOrderFromVivaDraft = async ({
   transaction?: VivaTransaction | null;
 }) => {
   const existing = await prisma.order.findFirst({
-    where: {
-      OR: [
-        { paymentOrderCode: draft.paymentOrderCode },
-        { stripeSessionId: draft.paymentOrderCode },
-      ],
-    },
+    where: { paymentOrderCode: draft.paymentOrderCode },
     include: { items: true },
   });
   if (existing) return existing;
@@ -276,7 +271,6 @@ export const createOrderFromVivaDraft = async ({
       paymentProvider: "viva",
       paymentOrderCode: draft.paymentOrderCode,
       paymentTransactionId: vivaTransaction?.transactionId ?? draft.paymentTransactionId,
-      stripeSessionId: draft.paymentOrderCode,
       sourceStorefront: draft.sourceStorefront ?? undefined,
       sourceHost: draft.sourceHost ?? undefined,
       sourceOrigin: draft.sourceOrigin ?? undefined,
@@ -385,7 +379,7 @@ export const createOrderFromVivaDraft = async ({
     },
   });
   await markCheckoutRecoveryOrderLinked({
-    stripeSessionId: draft.paymentOrderCode,
+    paymentOrderCode: draft.paymentOrderCode,
     recoverySessionId: draft.recoveredFromCheckoutSessionId,
     orderId: created.id,
   });

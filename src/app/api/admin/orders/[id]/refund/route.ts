@@ -70,7 +70,7 @@ export const POST = withAdminRoute(
       }
     } else {
       return adminJson(
-        { error: "Legacy Stripe refunds are disabled after the Viva migration." },
+        { error: "Only Viva refunds are supported from the admin console." },
         { status: 400 },
       );
     }
@@ -152,7 +152,7 @@ export const POST = withAdminRoute(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Refund failed";
       const status =
-        message === "Legacy Stripe refunds are disabled after the Viva migration."
+        message === "Only Viva refunds are supported from the admin console."
           ? 400
           : message === "Order not found"
             ? 404

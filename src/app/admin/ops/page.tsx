@@ -9,7 +9,6 @@ import {
 } from "@/lib/automationQueue";
 import { listUnresolvedOrderAttributionRows } from "@/lib/adminAttribution";
 import { getAdminEnvironmentHealth } from "@/lib/adminEnvironmentHealth";
-import { canReplayWebhookEvent } from "@/lib/adminWebhookReplay";
 import { getCheckoutRecoveryOverview } from "@/lib/checkoutRecoveryService";
 import { prisma } from "@/lib/prisma";
 import AdminOpsClient from "./AdminOpsClient";
@@ -77,7 +76,6 @@ export default async function AdminOpsPage({
           type: event.type,
           status: event.status,
           createdAt: event.createdAt.toISOString(),
-          supportedReplay: canReplayWebhookEvent(event.type),
         }))}
         jobRuns={jobRuns}
       />

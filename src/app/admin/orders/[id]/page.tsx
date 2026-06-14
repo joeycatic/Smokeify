@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAdminScope } from "@/lib/adminCatalog";
-import { getOrderAdminActionPermissions, hasAdminScope } from "@/lib/adminPermissions";
+import { getOrderAdminActionPermissions } from "@/lib/adminPermissions";
 import { loadAdminOrderDetail } from "@/lib/adminOrders";
 import AdminOrderDetailClient from "./AdminOrderDetailClient";
 
@@ -21,7 +21,6 @@ export default async function AdminOrderDetailPage({
       <AdminOrderDetailClient
         detail={detail}
         actionPermissions={getOrderAdminActionPermissions(session.user.role)}
-        canReplayWebhooks={hasAdminScope(session.user.role, "ops.write")}
       />
     </div>
   );

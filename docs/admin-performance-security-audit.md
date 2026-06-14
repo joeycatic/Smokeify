@@ -86,7 +86,7 @@ High-traffic or security-sensitive admin API groups currently shipped:
 - `/api/admin/users/*`
 - `/api/admin/variants/*`
 - `/api/admin/vat/*`
-- `/api/admin/webhooks/stripe/reprocess`
+- Viva webhook failure review
 
 ## Authorization and Wrapper Model
 

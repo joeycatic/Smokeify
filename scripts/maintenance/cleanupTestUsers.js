@@ -3,13 +3,15 @@ const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-const TEST_SESSION_PREFIX = "test_session_";
+const TEST_PAYMENT_ORDER_PREFIX = "test_payment_order_";
 
 async function main() {
   const candidates = await prisma.user.findMany({
     where: {
-      orders: { some: { stripeSessionId: { startsWith: TEST_SESSION_PREFIX } } },
-      orders: { every: { stripeSessionId: { startsWith: TEST_SESSION_PREFIX } } },
+      AND: [
+        { orders: { some: { paymentOrderCode: { startsWith: TEST_PAYMENT_ORDER_PREFIX } } } },
+        { orders: { every: { paymentOrderCode: { startsWith: TEST_PAYMENT_ORDER_PREFIX } } } },
+      ],
       accounts: { none: {} },
       sessions: { none: {} },
       wishlistItems: { none: {} },

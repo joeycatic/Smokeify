@@ -49,7 +49,7 @@ Secondary surfaces:
 - Do not remove current functionality.
 - Do not trust client-side values for revenue, conversion truth, stock, discount totals, or paid state.
 - Do not mark orders paid from redirects or client callbacks.
-- Keep Stripe webhooks as payment source of truth.
+- Keep Viva webhooks as payment source of truth.
 - Keep changes additive and reviewable.
 - No paid third-party analytics vendor.
 - Use first-party event collection built into the existing stack.
@@ -118,7 +118,7 @@ Already available in the database:
 - `AdminAuditLog`
 - `BackInStockRequest`
 - `Supplier`
-- `Discount` data via current Stripe-backed flows
+- `Discount` data via current Viva-backed flows
 
 Already available in the frontend tracking layer:
 

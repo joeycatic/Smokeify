@@ -149,7 +149,7 @@ describe("orderSource", () => {
 
     expect(
       resolveOrderSourceFromMetadata({}, [
-        "https://growvault.eu/order/success?session_id=cs_test_123",
+        "https://growvault.eu/order/success?order_code=viva_order_123",
         "https://growvault.eu/cart?checkout=cancel",
       ]),
     ).toEqual({

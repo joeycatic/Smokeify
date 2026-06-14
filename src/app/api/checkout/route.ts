@@ -632,7 +632,7 @@ export async function POST(req: Request) {
   });
 
   const recoverySession = await persistCheckoutRecoverySession({
-    stripeSessionId: vivaOrder.orderCode,
+    paymentOrderCode: vivaOrder.orderCode,
     userId,
     customerEmail: checkoutEmail,
     customerFirstName: checkoutFirstName,

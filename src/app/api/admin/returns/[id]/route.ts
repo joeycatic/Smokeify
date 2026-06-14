@@ -125,7 +125,7 @@ export const PATCH = withAdminRoute(
           : message === "Order already refunded"
             || message === "Exchange order already exists"
             ? 409
-          : message === "Legacy Stripe refunds are disabled after the Viva migration."
+          : message === "Only Viva refunds are supported from the admin console."
             ? 400
           : message === "Missing payment intent" ||
                 message === "Missing Viva transaction id" ||

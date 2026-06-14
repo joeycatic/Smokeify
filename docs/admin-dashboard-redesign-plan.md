@@ -251,8 +251,8 @@ Current functionality that must remain:
 - item-based refund with quantity selection
 - optional shipping refund
 - delete order with explicit `DELETE` confirmation
-- show failed Stripe webhook events
-- manually reprocess failed webhook events
+- show failed Viva webhook events
+- review failed webhook events
 
 ### 5. Customers
 
@@ -309,7 +309,7 @@ Supplier fields:
 
 Current functionality that must remain:
 
-- list Stripe promotion codes
+- list discount codes
 - create percent discount
 - create fixed amount discount
 - currency
@@ -725,7 +725,7 @@ The redesign is only done when:
 - all current product create / edit fields are preserved
 - bulk catalog actions still work
 - image, variant, and cross-sell flows still work
-- orders still support status edits, tracking edits, refunds, emails, and webhook reprocessing
+- orders still support status edits, tracking edits, refunds, emails, and webhook failure visibility
 - users, suppliers, discounts, returns, customers, analytics, audit, inventory, and email testing all retain parity
 - the new UI is dark-first, easy to scan, and faster to use than the current one
 

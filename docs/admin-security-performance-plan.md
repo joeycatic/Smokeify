@@ -25,7 +25,7 @@ This plan is intentionally phased. Security and data-integrity work comes first.
 - Same-origin protection is used on many admin mutation routes via `src/lib/requestSecurity.ts`
 - Rate limit infrastructure exists in `src/lib/rateLimit.ts`
 - Admin audit storage exists via `AdminAuditLog`
-- Stripe webhook idempotency storage exists via `ProcessedWebhookEvent`
+- Viva webhook idempotency storage exists via `ProcessedWebhookEvent`
 - Upload validation already checks file type and size in `src/app/api/admin/uploads/route.ts`
 
 ## 2.2 Main gaps found
@@ -62,7 +62,7 @@ These rules should drive every implementation decision in this plan.
 
 - Orders must never become paid because of a manual UI state flip
 - Payment success remains webhook-confirmed only
-- Refund state changes must be backed by a Stripe-backed refund flow or a dedicated audited workflow
+- Refund state changes must be backed by a Viva-backed refund flow or a dedicated audited workflow
 - Historical order totals and item values remain snapshot-based
 
 ### Audit rules
@@ -142,7 +142,7 @@ Split admin order operations into two categories:
 - `paymentStatus = paid`
 - `paymentStatus = refunded`
 - any change that implies external payment confirmation
-- any transition that should only come from Stripe webhooks or audited refund workflows
+- any transition that should only come from Viva webhooks or audited refund workflows
 
 ### Dedicated workflows
 
@@ -254,7 +254,7 @@ Goal: close the current high-risk gaps without changing the admin UX more than n
 - `src/app/api/admin/email-testing/route.ts`
 - `src/app/api/admin/orders/[id]/email/route.ts`
 - `src/app/api/admin/products/[id]/cross-sells/route.ts`
-- `src/app/api/admin/webhooks/stripe/reprocess/route.ts`
+- Viva webhook failure review
 - any other admin mutation route missing `logAdminAction(...)`
 
 #### Work
@@ -300,7 +300,7 @@ This removes repeated boilerplate and prevents future routes from forgetting sec
 #### Priority routes
 
 - order email send
-- webhook reprocess
+- webhook failure review
 - uploads
 - user role changes
 - refund operations
@@ -453,7 +453,7 @@ Existing indexes already cover some important paths:
 
 - side-effect routes create `AdminAuditLog` rows
 - user role changes create audit rows
-- webhook reprocess creates audit rows
+- webhook failure handling creates audit rows
 
 ### Performance-adjacent correctness
 
@@ -467,7 +467,7 @@ Existing indexes already cover some important paths:
 - verify stale admin session gets redirected back to admin reauth
 - try editing an order and confirm paid/refunded states cannot be forged
 - send admin order emails and confirm audit entries appear
-- replay a failed Stripe webhook and confirm audit + timeline behavior
+- review a failed Viva webhook and confirm failure visibility
 - open admin dashboard and orders on seeded large data and compare responsiveness before and after
 
 ---

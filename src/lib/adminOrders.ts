@@ -38,6 +38,7 @@ export type AdminOrderRecord = {
   paymentProvider?: string;
   paymentOrderCode?: string | null;
   paymentTransactionId?: string | null;
+  stripeSessionId?: string | null;
   paymentMethod: string | null;
   currency: string;
   amountSubtotal: number;
@@ -46,7 +47,6 @@ export type AdminOrderRecord = {
   amountDiscount: number;
   amountTotal: number;
   amountRefunded: number;
-  stripePaymentIntent: string | null;
   trackingCarrier: string | null;
   trackingNumber: string | null;
   trackingUrl: string | null;
@@ -151,6 +151,7 @@ export const adminOrderSelect = {
   paymentProvider: true,
   paymentOrderCode: true,
   paymentTransactionId: true,
+  stripeSessionId: true,
   paymentMethod: true,
   currency: true,
   amountSubtotal: true,
@@ -209,6 +210,7 @@ function serializeAdminOrder(
     paymentProvider: order.paymentProvider,
     paymentOrderCode: order.paymentOrderCode,
     paymentTransactionId: order.paymentTransactionId,
+    stripeSessionId: order.stripeSessionId,
     paymentMethod: order.paymentMethod,
     currency: order.currency,
     amountSubtotal: order.amountSubtotal,
@@ -217,7 +219,6 @@ function serializeAdminOrder(
     amountDiscount: order.amountDiscount,
     amountTotal: order.amountTotal,
     amountRefunded: order.amountRefunded,
-    stripePaymentIntent: null,
     trackingCarrier: order.trackingCarrier,
     trackingNumber: order.trackingNumber,
     trackingUrl: order.trackingUrl,

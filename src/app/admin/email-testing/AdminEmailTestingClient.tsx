@@ -109,7 +109,7 @@ export default function AdminEmailTestingClient({
   );
   const [productTitle, setProductTitle] = useState("Beispiel-Shisha");
   const [variantTitle, setVariantTitle] = useState("Schwarz / Medium");
-  const [sessionId, setSessionId] = useState("cs_test_XXXXXXXXXXXXXXXX");
+  const [sessionId, setSessionId] = useState("viva_order_XXXXXXXXXXXXXXXX");
   const [recoveryStep, setRecoveryStep] = useState("1");
   const [recoveryUrl, setRecoveryUrl] = useState("");
   const [recoveryPromoCode, setRecoveryPromoCode] = useState("");

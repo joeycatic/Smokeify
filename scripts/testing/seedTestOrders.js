@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 const TOTAL_ORDERS = 150;
 const TOTAL_CENTS = 2_300_000;
 const CURRENCY = "EUR";
-const TEST_SESSION_PREFIX = "test_session_";
+const TEST_PAYMENT_ORDER_PREFIX = "test_payment_order_";
 const START_DATE = new Date("2026-01-06T08:00:00");
 const END_DATE = new Date("2026-01-27T20:00:00");
 
@@ -249,15 +249,11 @@ const buildLineItems = (variants) => {
   if (!cheapest) return items;
 
   const maxItems = 1 + (Math.random() < 0.35 ? 1 : 0) + (Math.random() < 0.1 ? 1 : 0);
-  let subtotal = 0;
-
   for (let i = 0; i < maxItems; i += 1) {
     let variant = pickRandom(variants);
     const maxQty = Math.min(3, Math.max(1, Math.floor(50000 / variant.priceCents)));
     const quantity = Math.min(1 + (Math.random() < 0.2 ? 1 : 0), maxQty);
-    const lineTotal = variant.priceCents * quantity;
     items.push({ variant, quantity });
-    subtotal += lineTotal;
   }
 
   if (items.length === 0) {
@@ -288,7 +284,7 @@ const toOrderItem = (entry) => {
 
 async function main() {
   const existing = await prisma.order.findMany({
-    where: { stripeSessionId: { startsWith: TEST_SESSION_PREFIX } },
+    where: { paymentOrderCode: { startsWith: TEST_PAYMENT_ORDER_PREFIX } },
     select: { id: true },
   });
   if (existing.length > 0) {
@@ -344,8 +340,7 @@ async function main() {
     const created = await prisma.order.create({
       data: {
         userId: user.id,
-        stripeSessionId: `${TEST_SESSION_PREFIX}${randomUUID()}`,
-        stripePaymentIntent: null,
+        paymentOrderCode: `${TEST_PAYMENT_ORDER_PREFIX}${randomUUID()}`,
         sourceStorefront: DEFAULT_SOURCE_STOREFRONT,
         sourceHost: DEFAULT_SOURCE_HOST,
         sourceOrigin: DEFAULT_SOURCE_ORIGIN,

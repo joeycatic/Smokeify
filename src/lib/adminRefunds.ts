@@ -42,7 +42,7 @@ export async function refundAdminOrder(input: {
       throw new Error("Missing Viva transaction id");
     }
   } else {
-    throw new Error("Legacy Stripe refunds are disabled after the Viva migration.");
+    throw new Error("Only Viva refunds are supported from the admin console.");
   }
 
   const remaining = Math.max(0, order.amountTotal - order.amountRefunded);

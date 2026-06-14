@@ -6,7 +6,6 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   ...(isProd ? [] : ["'unsafe-eval'"]),
-  "https://js.stripe.com",
   "https://va.vercel-scripts.com",
   "https://www.googletagmanager.com",
   "https://googleads.g.doubleclick.net",
@@ -15,7 +14,6 @@ const scriptSrc = [
 const adminReportOnlyScriptSrc = [
   "'self'",
   ...(isProd ? [] : ["'unsafe-eval'"]),
-  "https://js.stripe.com",
   "https://va.vercel-scripts.com",
   "https://www.googletagmanager.com",
   "https://googleads.g.doubleclick.net",
@@ -23,7 +21,7 @@ const adminReportOnlyScriptSrc = [
 ].join(" ");
 const adminReportOnlyCsp =
   "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
-  "form-action 'self' https://checkout.stripe.com; " +
+  "form-action 'self'; " +
   "manifest-src 'self'; " +
   "object-src 'none'; " +
   "script-src-attr 'none'; " +
@@ -33,8 +31,8 @@ const adminReportOnlyCsp =
   "style-src 'self'; " +
   "style-src-attr 'none'; " +
   "font-src 'self' data:; " +
-  "connect-src 'self' https://api.stripe.com https://*.stripe.com https://vitals.vercel-insights.com https://*.vercel-insights.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
-  "frame-src https://js.stripe.com https://*.stripe.com; " +
+  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
+  "frame-src 'none'; " +
   "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
   (isProd ? " upgrade-insecure-requests;" : "");
 
@@ -80,7 +78,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value:
       "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; " +
-      "form-action 'self' https://checkout.stripe.com; " +
+      "form-action 'self'; " +
       "manifest-src 'self'; " +
       "object-src 'none'; " +
       "script-src-attr 'none'; " +
@@ -90,8 +88,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'; " +
       "style-src-attr 'unsafe-inline'; " +
       "font-src 'self' data:; " +
-      "connect-src 'self' https://api.stripe.com https://*.stripe.com https://vitals.vercel-insights.com https://*.vercel-insights.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
-      "frame-src https://js.stripe.com https://*.stripe.com; " +
+      "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.ingest.sentry.io; " +
+      "frame-src 'none'; " +
       "media-src 'self' https://pdgpa612bwysfijp.public.blob.vercel-storage.com;" +
       (isProd ? " upgrade-insecure-requests;" : ""),
   },

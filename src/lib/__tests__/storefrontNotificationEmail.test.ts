@@ -44,13 +44,13 @@ describe("storefrontNotificationEmail", () => {
     const email = buildCheckoutRecoveryEmail({
       storefront: "GROW",
       recipientEmail: "grow@example.com",
-      sessionId: "cs_test_grow_123",
+      sessionId: "viva_order_grow_123",
       fallbackOrigin: "https://growvault.test",
     });
 
     expect(email.subject).toContain("GrowVault");
     expect(email.html).toContain("https://growvault.test/cart");
-    expect(email.text).toContain("cs_test_grow_123");
+    expect(email.text).toContain("viva_order_grow_123");
     expect(email.html).toContain("#163a2a");
   });
 });

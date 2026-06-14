@@ -42,7 +42,6 @@
 - `overrideGtinsFromPreview.mjs`: sync GTIN into product `technicalDetails` for Bloomtech + B2B Headshop (`--source live` default via stored `sellerUrl`, optional `--source preview`/`--source auto`, dry-run by default, `--apply` to write).
 
 ## `scripts/orders`
-- `backfillOrderPaymentFees.mjs`: backfill Stripe payment fee data on historical orders.
 - `backfillOrderAttribution.mjs`: dry-run or apply exact storefront attribution repairs for unresolved historical orders.
 
 ## `scripts/market`

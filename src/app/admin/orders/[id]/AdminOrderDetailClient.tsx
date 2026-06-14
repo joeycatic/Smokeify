@@ -16,7 +16,6 @@ import Link from "next/link";
 import { buildOrderFinanceBreakdown } from "@/lib/adminFinance";
 import { buildOrderCustomerCopyText, getOrderCustomerEmail } from "@/lib/adminOrderCustomer";
 import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
-import { canReplayWebhookEvent } from "@/lib/adminWebhookReplay";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 import { getOrderItemSummary } from "@/lib/adminOrderQueue";
@@ -30,7 +29,6 @@ type OrderActionPermissions = {
 type Props = {
   detail: AdminOrderDetail;
   actionPermissions: OrderActionPermissions;
-  canReplayWebhooks: boolean;
 };
 type OrderTabId = "overview" | "fulfillment" | "refunds" | "customer" | "timeline";
 type TrackingDraft = { carrier: string; number: string; url: string };
@@ -243,10 +241,9 @@ const getFulfillmentOutcome = (
 export default function AdminOrderDetailClient({
   detail,
   actionPermissions,
-  canReplayWebhooks,
 }: Props) {
   const [order, setOrder] = useState(detail.order);
-  const [webhookFailures, setWebhookFailures] = useState(detail.webhookFailures);
+  const [webhookFailures] = useState(detail.webhookFailures);
   const [statusDraft, setStatusDraft] = useState(detail.order.status);
   const [trackingDraft, setTrackingDraft] = useState<TrackingDraft>({
     carrier: detail.order.trackingCarrier ?? "",
@@ -259,7 +256,6 @@ export default function AdminOrderDetailClient({
   const [saveConfirmation, setSaveConfirmation] = useState<SaveConfirmation | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<AdminEmailAction | null>(null);
-  const [replayingWebhookEventId, setReplayingWebhookEventId] = useState<string | null>(null);
   const [refundSelection, setRefundSelection] = useState<Record<string, number>>({});
   const [refundIncludeShipping, setRefundIncludeShipping] = useState(false);
   const [refundPassword, setRefundPassword] = useState("");
@@ -320,31 +316,9 @@ export default function AdminOrderDetailClient({
     .filter(Boolean)
     .join(" · ");
   const paymentReference =
-    order.paymentOrderCode ?? order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked";
+    order.paymentOrderCode ?? order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked";
   const customerKind = order.userId ? "Signed-in customer" : "Guest checkout";
 
-  const replayWebhook = async (eventId: string) => {
-    setReplayingWebhookEventId(eventId);
-    setError("");
-    setNotice("");
-    try {
-      const response = await fetch("/api/admin/webhooks/stripe/reprocess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
-      });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to replay webhook.");
-      }
-      setWebhookFailures((current) => current.filter((event) => event.eventId !== eventId));
-      setNotice(`Webhook ${eventId} reprocessed.`);
-    } catch (replayError) {
-      setError(replayError instanceof Error ? replayError.message : "Failed to replay webhook.");
-    } finally {
-      setReplayingWebhookEventId(null);
-    }
-  };
   const emailStatuses = [
     { label: "Confirmation", sentAt: order.confirmationEmailSentAt },
     { label: "Shipping", sentAt: order.shippingEmailSentAt },
@@ -833,7 +807,7 @@ export default function AdminOrderDetailClient({
             <CompactFact label="Payment" value={`${order.paymentMethod ?? "Unknown method"} · ${order.paymentProvider ?? "No provider"}`} detail={paymentReference} monoDetail={paymentReference !== "Not linked"} dark />
             <CompactFact label="Tracking" value={order.trackingNumber ?? trackingState} detail={order.trackingCarrier ?? order.trackingUrl ?? "No tracking link stored"} monoDetail={Boolean(order.trackingNumber ?? order.trackingUrl)} dark />
             <CompactFact label="Discount" value={order.discountCode ?? "No discount used"} detail={formatPrice(order.amountDiscount, order.currency)} dark />
-            <CompactFact label="Transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} detail={order.paymentOrderCode ?? "No payment order code"} monoValue={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} monoDetail={Boolean(order.paymentOrderCode)} dark />
+            <CompactFact label="Transaction" value={order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked"} detail={order.paymentOrderCode ?? "No payment order code"} monoValue={Boolean(order.paymentTransactionId ?? order.stripeSessionId)} monoDetail={Boolean(order.paymentOrderCode)} dark />
           </aside>
         </div>
       </section>
@@ -880,9 +854,6 @@ export default function AdminOrderDetailClient({
             orderItemSummary={orderItemSummary}
             sourceLabel={sourceLabel}
             webhookFailures={webhookFailures}
-            canReplayWebhooks={canReplayWebhooks}
-            replayingWebhookEventId={replayingWebhookEventId}
-            onReplayWebhook={replayWebhook}
           />
         ) : null}
         {activeTab === "fulfillment" ? (
@@ -1086,9 +1057,6 @@ function OverviewTab({
   orderItemSummary,
   sourceLabel,
   webhookFailures,
-  canReplayWebhooks,
-  replayingWebhookEventId,
-  onReplayWebhook,
 }: {
   order: AdminOrderRecord;
   detail: AdminOrderDetail;
@@ -1096,9 +1064,6 @@ function OverviewTab({
   orderItemSummary: string;
   sourceLabel: string;
   webhookFailures: AdminOrderDetail["webhookFailures"];
-  canReplayWebhooks: boolean;
-  replayingWebhookEventId: string | null;
-  onReplayWebhook: (eventId: string) => void | Promise<void>;
 }) {
   return (
     <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.45fr)_390px]">
@@ -1156,7 +1121,7 @@ function OverviewTab({
             <DarkRow label="Discount code" value={order.discountCode ?? "No discount used"} />
             <DarkRow label="Source host" value={order.sourceHost ?? "No source host stored"} />
             <DarkRow label="Source origin" value={order.sourceOrigin ?? "No source origin stored"} />
-            <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripePaymentIntent ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripePaymentIntent)} />
+            <DarkRow label="Payment transaction" value={order.paymentTransactionId ?? order.stripeSessionId ?? "Not linked"} mono={Boolean(order.paymentTransactionId ?? order.stripeSessionId)} />
           </div>
         </Panel>
 
@@ -1170,16 +1135,6 @@ function OverviewTab({
                   <p className="mt-2 text-xs leading-5 text-rose-100/80">{event.errorMessage}</p>
                 ) : null}
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
-                {canReplayWebhooks && canReplayWebhookEvent(event.type) ? (
-                  <button
-                    type="button"
-                    onClick={() => void onReplayWebhook(event.eventId)}
-                    disabled={replayingWebhookEventId === event.eventId}
-                    className="mt-3 inline-flex h-9 items-center justify-center rounded-xl border border-rose-100/20 bg-rose-100/10 px-3 text-xs font-semibold text-rose-50 transition hover:bg-rose-100/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {replayingWebhookEventId === event.eventId ? "Reprocessing..." : "Replay webhook"}
-                  </button>
-                ) : null}
               </div>
             )) : <Empty text="No failed webhook events in the recent queue." dark />}
           </div>

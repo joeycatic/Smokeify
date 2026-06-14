@@ -111,7 +111,7 @@ const serializeOrder = async (order: OrderWithItems | null, request: Request) =>
     shippingCity: order.shippingCity,
     shippingCountry: order.shippingCountry,
     invoiceUrl: buildInvoiceUrl(origin, order.id),
-    receiptUrl: order.stripePaymentIntent ? buildReceiptUrl(origin, order.id) : null,
+    receiptUrl: order.paymentStatus === "paid" ? buildReceiptUrl(origin, order.id) : null,
     items,
   };
 };
@@ -156,12 +156,7 @@ export async function POST(request: Request) {
   const userId = session?.user?.id ?? null;
 
   const existing = await prisma.order.findFirst({
-    where: {
-      OR: [
-        { paymentOrderCode },
-        { stripeSessionId: paymentOrderCode },
-      ],
-    },
+    where: { paymentOrderCode },
     include: { items: true },
   });
   if (existing) {

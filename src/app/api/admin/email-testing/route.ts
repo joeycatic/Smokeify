@@ -206,7 +206,7 @@ export const POST = withAdminRoute(
   }
 
   if (type === "checkout_recovery") {
-    const sessionId = toSafeString(body.sessionId) || "cs_test_XXXXXXXXXXXXXXXX";
+    const sessionId = toSafeString(body.sessionId) || "viva_order_XXXXXXXXXXXXXXXX";
     const step =
       typeof body.step === "number" && Number.isFinite(body.step)
         ? Math.max(1, Math.floor(body.step))

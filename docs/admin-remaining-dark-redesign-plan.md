@@ -296,7 +296,7 @@ Do not ship the redesign unless all of these still work:
 
 ### Discounts
 
-- list existing Stripe promotion codes
+- list existing discount codes
 - create percent code
 - create amount code
 - currency

@@ -195,12 +195,7 @@ export async function POST(request: Request) {
       await releaseLoyaltyHoldForPaymentOrder(paymentOrderCode);
 
       const order = await prisma.order.findFirst({
-        where: {
-          OR: [
-            { paymentOrderCode },
-            { stripeSessionId: paymentOrderCode },
-          ],
-        },
+        where: { paymentOrderCode },
         select: { id: true, paymentStatus: true, status: true },
       });
       if (order) {
