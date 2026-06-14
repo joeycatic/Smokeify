@@ -487,6 +487,21 @@ export default function AdminAnalyzerClient({
     return nextRuns;
   }, [filteredRuns, sortMode]);
 
+  const selectAnalyzerRun = useCallback((id: string) => {
+    setSelectedId(id);
+    setError(null);
+  }, []);
+
+  useEffect(() => {
+    if (sortedRuns.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !sortedRuns.some((run) => run.id === selectedId)) {
+      setSelectedId(sortedRuns[0].id);
+    }
+  }, [selectedId, sortedRuns]);
+
   const selectedUserRuns = useMemo(() => {
     if (!selectedRun) return [];
 
@@ -838,6 +853,15 @@ export default function AdminAnalyzerClient({
               sortedRuns.map((run) => (
                 <div
                   key={run.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectAnalyzerRun(run.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      selectAnalyzerRun(run.id);
+                    }
+                  }}
                   className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                     selectedId === run.id
                       ? "border-cyan-400/40 bg-cyan-400/10"
@@ -849,6 +873,7 @@ export default function AdminAnalyzerClient({
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(run.id)}
+                        onClick={(event) => event.stopPropagation()}
                         onChange={(event) =>
                           setSelectedIds((current) =>
                             event.target.checked
@@ -861,7 +886,10 @@ export default function AdminAnalyzerClient({
                     </label>
                     <button
                       type="button"
-                      onClick={() => setSelectedId(run.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        selectAnalyzerRun(run.id);
+                      }}
                       className="text-xs font-semibold text-cyan-200 underline-offset-4 hover:underline"
                     >
                       Open case
@@ -1036,7 +1064,7 @@ export default function AdminAnalyzerClient({
                         <button
                           key={run.id}
                           type="button"
-                          onClick={() => setSelectedId(run.id)}
+                          onClick={() => selectAnalyzerRun(run.id)}
                           className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
                             run.id === selectedRun.id
                               ? "border-cyan-400/40 bg-cyan-400/10"
