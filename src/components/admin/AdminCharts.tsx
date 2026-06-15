@@ -108,11 +108,11 @@ export function SparklineChart({
 
   return (
     <div
-      className={`admin-lift rounded-2xl border border-white/10 bg-white/[0.02] p-3 ${className}`}
+      className={`admin-lift rounded-xl border border-white/10 bg-white/[0.02] p-2.5 sm:rounded-2xl sm:p-3 ${className}`}
     >
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-28 w-full"
+        className="h-24 w-full sm:h-28"
         onMouseLeave={() => setActiveIndex(data.length - 1)}
       >
         <path d={areaPath} className={fillClassName} />
@@ -153,9 +153,9 @@ export function SparklineChart({
           </g>
         ))}
       </svg>
-      <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs">
+      <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs sm:gap-3 sm:px-3">
         <div className="min-w-0">
-          <div className="truncate font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="truncate font-semibold uppercase tracking-[0.12em] text-slate-500 sm:tracking-[0.18em]">
             {activePoint?.label ?? "Point"}
           </div>
           <div className="mt-1 text-sm font-semibold text-slate-100">
@@ -167,7 +167,7 @@ export function SparklineChart({
         </div>
       </div>
       <div className="admin-scroll-x mt-2">
-        <div className="grid min-w-[22rem] grid-cols-7 gap-2 text-[9px] uppercase tracking-[0.14em] text-slate-500 sm:min-w-0 sm:text-[10px] sm:tracking-[0.2em]">
+        <div className="grid min-w-[18rem] grid-cols-7 gap-1.5 text-[8px] uppercase tracking-[0.1em] text-slate-500 sm:min-w-0 sm:gap-2 sm:text-[10px] sm:tracking-[0.2em]">
           {data.slice(-7).map((point) => (
             <span key={point.label} className="truncate text-center">
               {point.label}
@@ -289,30 +289,30 @@ export function DonutChart({
 
   return (
     <div
-      className={`admin-lift flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/[0.02] p-4 ${className}`}
+      className={`admin-lift flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 sm:gap-5 sm:rounded-2xl sm:p-4 ${className}`}
     >
       <div className="flex items-center justify-center">
         <div
-          className="relative flex h-40 w-40 items-center justify-center rounded-full"
+          className="relative flex h-32 w-32 items-center justify-center rounded-full sm:h-40 sm:w-40"
           style={{ backgroundImage: conicGradient }}
         >
           <div className="absolute inset-[18%] rounded-full border border-white/10 bg-[#090d12]" />
           <div className="relative z-10 text-center">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px] sm:tracking-[0.28em]">
               {totalLabel}
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
+            <div className="mt-1.5 text-xl font-semibold text-white sm:mt-2 sm:text-2xl">
               {totalValue ?? String(total)}
             </div>
             {activeSegment ? (
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="mt-1.5 text-[11px] text-slate-400 sm:mt-2 sm:text-xs">
                 {activeSegment.label} · {Math.round((activeSegment.value / total) * 100)}%
               </div>
             ) : null}
           </div>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2">
         {normalized.map((segment) => (
           <button
             key={segment.label}
@@ -321,21 +321,21 @@ export function DonutChart({
               setInternalSelectedLabel(segment.label);
               onSelect?.(segment.label);
             }}
-            className={`rounded-xl border px-3 py-2 text-left transition ${
+            className={`rounded-xl border px-2.5 py-2 text-left transition sm:px-3 ${
               activeSegment?.label === segment.label
                 ? "border-cyan-400/25 bg-cyan-400/10"
                 : "border-white/10 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
             }`}
           >
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 text-xs sm:gap-3 sm:text-sm">
+              <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: segment.colorClassName }}
                 />
-                <span className="text-slate-200">{segment.label}</span>
+                <span className="truncate text-slate-200">{segment.label}</span>
               </div>
-              <span className="font-medium text-slate-400">
+              <span className="shrink-0 font-medium text-slate-400">
                 {valueFormatter(segment.value)}
               </span>
             </div>
@@ -381,7 +381,7 @@ export function FunnelChart({
               setInternalSelectedLabel(stage.label);
               onSelect?.(stage.label);
             }}
-            className={`relative block w-full space-y-2 overflow-hidden rounded-[22px] border px-3 py-3 text-left transition ${
+            className={`relative block w-full space-y-2 overflow-hidden rounded-xl border px-2.5 py-2.5 text-left transition sm:rounded-[22px] sm:px-3 sm:py-3 ${
               active
                 ? "border-cyan-400/25 bg-white/[0.04] shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
                 : "border-white/10 bg-transparent hover:border-white/15 hover:bg-white/[0.03]"
@@ -391,16 +391,16 @@ export function FunnelChart({
               className="absolute inset-y-0 left-0 w-1"
               style={{ backgroundColor: stage.color }}
             />
-            <div className="flex items-end justify-between gap-3">
-              <div>
+            <div className="flex items-end justify-between gap-2 sm:gap-3">
+              <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-100">{stage.label}</div>
                 {stage.helper ? (
-                  <div className="text-xs text-slate-500">{stage.helper}</div>
+                  <div className="line-clamp-2 text-xs text-slate-500">{stage.helper}</div>
                 ) : null}
               </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-white">{stage.value}</div>
-                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">
+              <div className="shrink-0 text-right">
+                <div className="text-base font-semibold text-white sm:text-lg">{stage.value}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500 sm:text-[11px] sm:tracking-[0.22em]">
                   Stage {index + 1}
                 </div>
               </div>
@@ -467,13 +467,13 @@ export function MultiSeriesTrendChart({
 
   return (
     <div
-      className={`admin-lift overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-4 ${className}`}
+      className={`admin-lift overflow-hidden rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-3 sm:rounded-[24px] sm:p-4 ${className}`}
     >
-      <div className="mb-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <div className="mb-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2.5 sm:mb-3 sm:rounded-[18px] sm:px-3 sm:py-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px] sm:tracking-[0.2em]">
           {labels[boundedActiveIndex] ?? "Trend point"}
         </div>
-        <div className="mt-2 flex flex-wrap gap-3 text-sm">
+        <div className="mt-2 flex flex-wrap gap-2 text-xs sm:gap-3 sm:text-sm">
           {activeValues.map((entry) => (
             <div key={entry.label} className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -487,7 +487,7 @@ export function MultiSeriesTrendChart({
       </div>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-44 w-full"
+        className="h-36 w-full sm:h-44"
         onMouseLeave={() => setActiveIndex(labels.length - 1)}
       >
         {[0.25, 0.5, 0.75].map((ratio) => {
@@ -552,7 +552,7 @@ export function MultiSeriesTrendChart({
         })}
       </svg>
       <div className="admin-scroll-x">
-        <div className="grid min-w-[22rem] grid-cols-7 gap-2 text-[9px] uppercase tracking-[0.14em] text-slate-500 sm:min-w-0 sm:text-[10px] sm:tracking-[0.2em]">
+        <div className="grid min-w-[18rem] grid-cols-7 gap-1.5 text-[8px] uppercase tracking-[0.1em] text-slate-500 sm:min-w-0 sm:gap-2 sm:text-[10px] sm:tracking-[0.2em]">
           {labels.slice(-7).map((label) => (
             <span key={label} className="truncate text-center">
               {label}
@@ -560,22 +560,22 @@ export function MultiSeriesTrendChart({
           ))}
         </div>
       </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4">
         {validSeries.map((entry) => {
           const latest = entry.values.at(-1) ?? 0;
           return (
             <div
               key={entry.label}
-              className="rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3"
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2.5 sm:rounded-[18px] sm:px-3 sm:py-3"
             >
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 sm:gap-2 sm:text-xs sm:tracking-[0.2em]">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: entry.color }}
                 />
-                {entry.label}
+                <span className="truncate">{entry.label}</span>
               </div>
-              <div className="mt-2 text-lg font-semibold text-white">
+              <div className="mt-1.5 truncate text-base font-semibold text-white sm:mt-2 sm:text-lg">
                 {valueFormatter(latest)}
               </div>
             </div>
