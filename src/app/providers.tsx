@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import CommerceProviders from "@/components/CommerceProviders";
 import AnalyticsSessionTracker from "@/components/AnalyticsSessionTracker";
@@ -17,7 +18,9 @@ export default function Providers({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [enhancementsReady, setEnhancementsReady] = useState(false);
+  const isAdminAuthPage = pathname === "/auth/admin";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -46,10 +49,10 @@ export default function Providers({
   return (
     <SessionProvider>
       <CommerceProviders>{children}</CommerceProviders>
-      <CookieConsent />
-      {enhancementsReady ? <WebVitalsReporter /> : null}
-      {enhancementsReady ? <GTMTag /> : null}
-      {enhancementsReady ? <AnalyticsSessionTracker /> : null}
+      {isAdminAuthPage ? null : <CookieConsent />}
+      {enhancementsReady && !isAdminAuthPage ? <WebVitalsReporter /> : null}
+      {enhancementsReady && !isAdminAuthPage ? <GTMTag /> : null}
+      {enhancementsReady && !isAdminAuthPage ? <AnalyticsSessionTracker /> : null}
     </SessionProvider>
   );
 }

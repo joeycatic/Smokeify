@@ -5,12 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import {
-  ArrowRightIcon,
-  KeyIcon,
-  LockClosedIcon,
-  ShieldCheckIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { sanitizeAdminReturnTo } from "@/lib/adminReturnTo";
 
@@ -42,11 +37,11 @@ function SmokeifyField({
   children: ReactNode;
 }) {
   return (
-    <label className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
-      <span>
+    <label className="block text-sm font-medium text-zinc-200">
+      <span className="flex items-baseline justify-between gap-3">
         {label}
         {optional ? (
-          <span className="ml-2 font-normal normal-case tracking-normal text-[var(--smk-text-muted)]">
+          <span className="text-xs font-normal text-zinc-500">
             {optional}
           </span>
         ) : null}
@@ -60,7 +55,7 @@ function SmokeifyInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-12 w-full rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 text-sm text-[var(--smk-text)] outline-none transition placeholder:text-[var(--smk-text-dim)] focus:border-[rgba(241,198,132,0.34)] focus:bg-[rgba(255,255,255,0.06)] ${
+      className={`h-11 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-300/45 focus:bg-white/[0.065] focus:ring-4 focus:ring-emerald-300/10 ${
         props.className ?? ""
       }`}
     />
@@ -139,150 +134,100 @@ export default function AdminSignInPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#140f0c_0%,#0b0908_100%)] text-[var(--smk-text)]">
+    <main className="fixed inset-0 z-50 flex min-h-dvh items-center justify-center overflow-y-auto bg-[#090b0c] px-4 py-8 text-white">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(241,198,132,0.18),transparent_24%),radial-gradient(circle_at_78%_12%,rgba(217,119,69,0.14),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.045),transparent_32%),repeating-linear-gradient(90deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0.035)_1px,transparent_1px,transparent_88px)]"
       />
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(24rem,29rem)] lg:gap-6">
-          <section className="overflow-hidden rounded-[34px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_10%_18%,rgba(241,198,132,0.18),transparent_26%),linear-gradient(135deg,rgba(31,25,20,0.98),rgba(13,11,10,0.98))] p-6 shadow-[0_32px_90px_rgba(0,0,0,0.38)] sm:p-8">
-            <div className="max-w-xl">
-              <p className="smk-kicker">Smokeify Intern</p>
-              <h1 className="smk-heading mt-4 text-4xl leading-[0.95] text-[var(--smk-text)] sm:text-5xl">
-                Geschützter
-                <span className="smk-text-gradient block">Zugang für das Team.</span>
-              </h1>
-              <p className="mt-4 max-w-[34rem] text-sm leading-7 text-[var(--smk-text-muted)] sm:text-base">
-                Melde dich mit deinem freigegebenen Konto an, um in den internen
-                Bereich zu wechseln. Die Oberfläche bleibt bewusst knapp und
-                zurückhaltend.
-              </p>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
-                <ShieldCheckIcon className="h-5 w-5 text-[var(--smk-accent)]" />
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
-                  Zugang
-                </p>
-                <p className="mt-2 text-sm font-medium text-[var(--smk-text)]">
-                  Nur für freigegebene Konten
-                </p>
-              </div>
-              <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
-                <LockClosedIcon className="h-5 w-5 text-[var(--smk-accent)]" />
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
-                  Anmeldung
-                </p>
-                <p className="mt-2 text-sm font-medium text-[var(--smk-text)]">
-                  Konto und Passwort erneut eingeben
-                </p>
-              </div>
-              <div className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
-                <KeyIcon className="h-5 w-5 text-[var(--smk-accent)]" />
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
-                  Bestätigung
-                </p>
-                <p className="mt-2 text-sm font-medium text-[var(--smk-text)]">
-                  Zusätzlicher Code nur bei aktivierter App
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-[26px] border border-[rgba(241,198,132,0.16)] bg-[rgba(241,198,132,0.08)] px-5 py-4 text-sm text-[var(--smk-text-muted)]">
-              <p className="font-semibold text-[var(--smk-text)]">Hinweis</p>
-              <p className="mt-2 leading-6">
-                Wenn dein Konto einen zusätzlichen Bestätigungscode verwendet,
-                gib ihn nach Passwort und Benutzerkennung mit ein.
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-[34px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(24,20,17,0.96),rgba(13,11,10,0.98))] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:p-7">
+      <section className="relative w-full max-w-[25rem] overflow-hidden rounded-lg border border-white/10 bg-[#111416]/95 shadow-[0_24px_80px_rgba(0,0,0,0.52)]">
+        <div className="h-1 w-full bg-[linear-gradient(90deg,#34d399,#f5d48b)]" />
+        <div className="p-6 sm:p-7">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-200">
+              <LockClosedIcon className="h-5 w-5" />
+            </span>
             <div>
-              <p className="smk-kicker">Anmeldung</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--smk-text)]">
-                Intern einloggen
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--smk-text-muted)]">
-                Verwende deine internen Zugangsdaten. Der zusätzliche Code ist nur
-                nötig, wenn dein Konto ihn nutzt.
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/70">
+                Smokeify
               </p>
+              <h1 className="text-2xl font-semibold tracking-normal text-white">
+                Admin Login
+              </h1>
             </div>
+          </div>
 
-            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-              <SmokeifyField label="E-Mail oder Benutzername">
-                <SmokeifyInput
-                  type="text"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  placeholder="name@smokeify.de"
-                />
-              </SmokeifyField>
+          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
+            <SmokeifyField label="E-Mail oder Benutzername">
+              <SmokeifyInput
+                type="text"
+                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                placeholder="name@smokeify.de"
+              />
+            </SmokeifyField>
 
-              <SmokeifyField label="Passwort">
-                <SmokeifyInput
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  placeholder="Passwort eingeben"
-                />
-              </SmokeifyField>
+            <SmokeifyField label="Passwort">
+              <SmokeifyInput
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                placeholder="Passwort eingeben"
+              />
+            </SmokeifyField>
 
-              <SmokeifyField label="Authenticator-Code" optional="Optional">
-                <SmokeifyInput
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={totpCode}
-                  onChange={(event) =>
-                    setTotpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))
-                  }
-                  placeholder="6-stelliger Code"
-                />
-              </SmokeifyField>
+            <SmokeifyField label="Authenticator-Code" optional="Optional">
+              <SmokeifyInput
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totpCode}
+                onChange={(event) =>
+                  setTotpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))
+                }
+                placeholder="6-stelliger Code"
+              />
+            </SmokeifyField>
 
-              {error ? (
-                <div className="rounded-[22px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                  {error}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="smk-button-primary inline-flex h-12 w-full items-center justify-center rounded-[20px] px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-400/20 bg-red-400/10 px-3.5 py-3 text-sm text-red-100"
               >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <LoadingSpinner size="sm" className="border-[#1a140f]/25 border-t-[#1a140f]" />
-                    Anmeldung wird geprüft
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-2">
-                    Weiter
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </span>
-                )}
-              </button>
-            </form>
+                {error}
+              </div>
+            ) : null}
 
-            <div className="mt-6 flex flex-col gap-3 border-t border-[rgba(255,255,255,0.08)] pt-5 text-sm text-[var(--smk-text-muted)] sm:flex-row sm:items-center sm:justify-between">
-              <Link href="/auth/reset" className="transition hover:text-[var(--smk-text)]">
-                Passwort zurücksetzen
-              </Link>
-              <Link href="/" className="transition hover:text-[var(--smk-text)]">
-                Zurück zum Shop
-              </Link>
-            </div>
-          </section>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-300 px-4 text-sm font-semibold text-zinc-950 shadow-[0_12px_30px_rgba(52,211,153,0.18)] hover:bg-emerald-200 focus:outline-none focus:ring-4 focus:ring-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner size="sm" className="border-zinc-950/25 border-t-zinc-950" />
+                  Anmeldung wird geprüft
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  Weiter
+                  <ArrowRightIcon className="h-4 w-4" />
+                </span>
+              )}
+            </button>
+          </form>
+
+          <Link
+            href="/auth/reset"
+            className="mt-5 inline-flex text-sm font-medium text-zinc-400 hover:text-white focus:outline-none focus:ring-4 focus:ring-emerald-300/15"
+          >
+            Passwort vergessen?
+          </Link>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
