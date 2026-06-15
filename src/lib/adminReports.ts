@@ -48,6 +48,84 @@ export type AdminSavedReportSnapshot = {
 const PAID_STATUS_SET = new Set(PAID_ORDER_STATUSES);
 const REFUNDED_STATUSES = new Set(["refunded", "partially_refunded"]);
 
+type AdminSavedReportColumnFlags = {
+  deliveryRecipients: boolean;
+  lastDeliveryError: boolean;
+};
+
+type AdminSavedReportRow = {
+  id: string;
+  name: string;
+  reportType: string;
+  days: number;
+  sourceStorefront: Storefront | null;
+  paymentState: string;
+  createdByEmail: string | null;
+  deliveryEnabled: boolean;
+  deliveryEmail: string | null;
+  deliveryRecipients?: string[] | null;
+  deliveryFrequency: AdminReportDeliveryFrequency | null;
+  deliveryWeekday: number | null;
+  deliveryHour: number | null;
+  lastDeliveredAt: Date | null;
+  nextDeliveryAt: Date | null;
+  lastDeliveryError?: string | null;
+  updatedAt: Date;
+};
+
+let adminSavedReportColumnFlagsPromise: Promise<AdminSavedReportColumnFlags> | null = null;
+
+async function getAdminSavedReportColumnFlags(): Promise<AdminSavedReportColumnFlags> {
+  if (!adminSavedReportColumnFlagsPromise) {
+    adminSavedReportColumnFlagsPromise = (async () => {
+      try {
+        const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = 'AdminSavedReport'
+            AND column_name IN ('deliveryRecipients', 'lastDeliveryError')
+        `;
+        const columnSet = new Set(columns.map((column) => column.column_name));
+        return {
+          deliveryRecipients: columnSet.has("deliveryRecipients"),
+          lastDeliveryError: columnSet.has("lastDeliveryError"),
+        };
+      } catch {
+        return {
+          deliveryRecipients: false,
+          lastDeliveryError: false,
+        };
+      }
+    })();
+  }
+
+  return adminSavedReportColumnFlagsPromise;
+}
+
+function buildAdminSavedReportSelect(
+  columns: AdminSavedReportColumnFlags,
+) {
+  return {
+    id: true,
+    name: true,
+    reportType: true,
+    days: true,
+    sourceStorefront: true,
+    paymentState: true,
+    createdByEmail: true,
+    deliveryEnabled: true,
+    deliveryEmail: true,
+    ...(columns.deliveryRecipients ? { deliveryRecipients: true } : {}),
+    deliveryFrequency: true,
+    deliveryWeekday: true,
+    deliveryHour: true,
+    lastDeliveredAt: true,
+    nextDeliveryAt: true,
+    ...(columns.lastDeliveryError ? { lastDeliveryError: true } : {}),
+    updatedAt: true,
+  };
+}
+
 export function parseAdminReportType(value: string | string[] | undefined): AdminReportType {
   const normalized = Array.isArray(value) ? value[0] : value;
   return ADMIN_REPORT_TYPES.includes(normalized as AdminReportType)
@@ -161,6 +239,7 @@ const buildDelta = (current: number, previous: number) => ({
 export async function getAdminReportSnapshot(filters: AdminReportFilters) {
   const currentStart = getDateDaysAgo(filters.days - 1);
   const previousStart = getDateDaysAgo(filters.days * 2 - 1);
+  const savedReportColumns = await getAdminSavedReportColumnFlags();
   const [orders, topProducts, latestOrders, financeData, savedReports] = await Promise.all([
     prisma.order.findMany({
       where: buildOrderWhere(previousStart, undefined, filters),
@@ -218,7 +297,8 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
     prisma.adminSavedReport.findMany({
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       take: 20,
-    }),
+      select: buildAdminSavedReportSelect(savedReportColumns),
+    }) as Promise<AdminSavedReportRow[]>,
   ]);
 
   const currentOrders = orders.filter((order) => order.createdAt >= currentStart);
@@ -283,7 +363,7 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
       deliveryEnabled: report.deliveryEnabled,
       deliveryEmail: report.deliveryEmail,
       deliveryRecipients: normalizeAdminReportDeliveryRecipients(
-        report.deliveryRecipients,
+        report.deliveryRecipients ?? undefined,
         report.deliveryEmail,
       ),
       deliveryFrequency: report.deliveryFrequency,
@@ -291,7 +371,7 @@ export async function getAdminReportSnapshot(filters: AdminReportFilters) {
       deliveryHour: report.deliveryHour,
       lastDeliveredAt: report.lastDeliveredAt?.toISOString() ?? null,
       nextDeliveryAt: report.nextDeliveryAt?.toISOString() ?? null,
-      lastDeliveryError: report.lastDeliveryError,
+      lastDeliveryError: report.lastDeliveryError ?? null,
       updatedAt: report.updatedAt.toISOString(),
     })),
     summary: {

@@ -36,13 +36,18 @@ type RecoverySessionMetadata = {
   cartSummary?: CheckoutRecoveryCartSummary;
 };
 
-type RecoverySessionWithAttempts = Prisma.CheckoutRecoverySessionGetPayload<{
-  include: {
-    attempts: {
-      orderBy: [{ stepIndex: "asc" }];
+type RecoverySessionWithAttempts = Omit<
+  Prisma.CheckoutRecoverySessionGetPayload<{
+    include: {
+      attempts: {
+        orderBy: [{ stepIndex: "asc" }];
+      };
     };
-  };
-}>;
+  }>,
+  "paymentOrderCode"
+> & {
+  paymentOrderCode?: string | null;
+};
 
 type RecoverySessionRecord = {
   id: string;
@@ -171,6 +176,80 @@ const asMetadata = (value: Prisma.JsonValue | null | undefined): RecoverySession
   return value as RecoverySessionMetadata;
 };
 
+type CheckoutRecoverySessionColumnFlags = {
+  paymentOrderCode: boolean;
+};
+
+let checkoutRecoverySessionColumnFlagsPromise:
+  | Promise<CheckoutRecoverySessionColumnFlags>
+  | null = null;
+
+async function getCheckoutRecoverySessionColumnFlags(): Promise<CheckoutRecoverySessionColumnFlags> {
+  if (!checkoutRecoverySessionColumnFlagsPromise) {
+    checkoutRecoverySessionColumnFlagsPromise = (async () => {
+      try {
+        const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = 'CheckoutRecoverySession'
+            AND column_name IN ('paymentOrderCode')
+        `;
+        const columnSet = new Set(columns.map((column) => column.column_name));
+        return {
+          paymentOrderCode: columnSet.has("paymentOrderCode"),
+        };
+      } catch {
+        return {
+          paymentOrderCode: false,
+        };
+      }
+    })();
+  }
+
+  return checkoutRecoverySessionColumnFlagsPromise;
+}
+
+function buildCheckoutRecoverySessionSelect(
+  columns: CheckoutRecoverySessionColumnFlags,
+): Prisma.CheckoutRecoverySessionSelect {
+  return {
+    id: true,
+    ...(columns.paymentOrderCode ? { paymentOrderCode: true } : {}),
+    userId: true,
+    customerEmail: true,
+    customerFirstName: true,
+    customerLastName: true,
+    sourceStorefront: true,
+    sourceHost: true,
+    sourceOrigin: true,
+    isGuest: true,
+    consentGranted: true,
+    consentCapturedAt: true,
+    cartItems: true,
+    currency: true,
+    subtotalCents: true,
+    discountCents: true,
+    shippingCents: true,
+    totalCents: true,
+    cartLineCount: true,
+    discountCode: true,
+    shippingCountry: true,
+    metadata: true,
+    suppressedAt: true,
+    suppressionReason: true,
+    completedAt: true,
+    createdAt: true,
+    updatedAt: true,
+    attempts: {
+      orderBy: [{ stepIndex: "asc" }],
+    },
+  };
+}
+
+const getRecoveryPaymentOrderCode = (
+  session: Pick<RecoverySessionWithAttempts, "id" | "paymentOrderCode">,
+) => session.paymentOrderCode ?? session.id;
+
 const toJson = (value: unknown) => value as Prisma.InputJsonValue;
 
 const defaultSchedulePayload = serializeCheckoutRecoveryConfig(
@@ -251,7 +330,7 @@ const serializeCandidate = (input: {
   customerType: "FIRST_TIME" | "RETURNING";
 }) => ({
   sessionId: input.session.id,
-  paymentOrderCode: input.session.paymentOrderCode,
+  paymentOrderCode: getRecoveryPaymentOrderCode(input.session),
   customerEmail: input.session.customerEmail,
   storefront: parseStorefront(input.session.sourceStorefront ?? null),
   customerType: input.customerType,
@@ -263,34 +342,28 @@ const serializeCandidate = (input: {
 });
 
 async function listOpenRecoverySessions() {
+  const columns = await getCheckoutRecoverySessionColumnFlags();
   return prisma.checkoutRecoverySession.findMany({
     where: {
       consentGranted: true,
       suppressedAt: null,
       completedAt: null,
     },
-    include: {
-      attempts: {
-        orderBy: [{ stepIndex: "asc" }],
-      },
-    },
+    select: buildCheckoutRecoverySessionSelect(columns),
     orderBy: { createdAt: "asc" },
-  });
+  }) as Promise<RecoverySessionWithAttempts[]>;
 }
 
 async function listRecoverySessions(page = 1, pageSize = 12) {
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : 12;
+  const columns = await getCheckoutRecoverySessionColumnFlags();
   return prisma.checkoutRecoverySession.findMany({
-    include: {
-      attempts: {
-        orderBy: [{ stepIndex: "asc" }],
-      },
-    },
+    select: buildCheckoutRecoverySessionSelect(columns),
     orderBy: [{ createdAt: "desc" }],
     skip: (safePage - 1) * safePageSize,
     take: safePageSize,
-  });
+  }) as Promise<RecoverySessionWithAttempts[]>;
 }
 
 async function resolveNextRecoveryStep(
@@ -369,12 +442,11 @@ async function getDueCandidates(
 }
 
 async function loadRecoverySessionOrThrow(sessionId: string) {
+  const columns = await getCheckoutRecoverySessionColumnFlags();
   const session = await prisma.checkoutRecoverySession.findUnique({
     where: { id: sessionId },
-    include: {
-      attempts: { orderBy: [{ stepIndex: "asc" }] },
-    },
-  });
+    select: buildCheckoutRecoverySessionSelect(columns),
+  }) as RecoverySessionWithAttempts | null;
   if (!session) {
     throw new Error("Checkout recovery session not found.");
   }
@@ -436,7 +508,7 @@ async function sendRecoveryEmailForStep(input: {
   const email = buildCheckoutRecoveryEmail({
     storefront,
     recipientEmail: input.session.customerEmail ?? "",
-    sessionId: input.session.paymentOrderCode,
+    sessionId: getRecoveryPaymentOrderCode(input.session),
     step: input.stepIndex,
     recoveryUrl,
     cartSummary: getCartSummaryForEmail(input.session),
@@ -721,7 +793,7 @@ export async function getCheckoutRecoveryOverview(input?: {
 
       return {
         id: session.id,
-        paymentOrderCode: session.paymentOrderCode,
+        paymentOrderCode: getRecoveryPaymentOrderCode(session),
         customerEmail: session.customerEmail,
         storefront: parseStorefront(session.sourceStorefront ?? null),
         totalCents: session.totalCents,
@@ -899,31 +971,29 @@ export async function suppressCheckoutRecoverySession(input: {
     throw new Error("Suppression reason is required.");
   }
 
+  const columns = await getCheckoutRecoverySessionColumnFlags();
   const updated = await prisma.checkoutRecoverySession.update({
     where: { id: input.sessionId },
     data: {
       suppressedAt: new Date(),
       suppressionReason: reason,
     },
-    include: {
-      attempts: { orderBy: [{ stepIndex: "asc" }] },
-    },
-  });
+    select: buildCheckoutRecoverySessionSelect(columns),
+  }) as RecoverySessionWithAttempts;
 
   return serializeCheckoutRecoverySessionRecord(updated);
 }
 
 export async function resumeCheckoutRecoverySession(sessionId: string) {
+  const columns = await getCheckoutRecoverySessionColumnFlags();
   const updated = await prisma.checkoutRecoverySession.update({
     where: { id: sessionId },
     data: {
       suppressedAt: null,
       suppressionReason: null,
     },
-    include: {
-      attempts: { orderBy: [{ stepIndex: "asc" }] },
-    },
-  });
+    select: buildCheckoutRecoverySessionSelect(columns),
+  }) as RecoverySessionWithAttempts;
 
   return serializeCheckoutRecoverySessionRecord(updated);
 }
@@ -1023,7 +1093,7 @@ export function serializeCheckoutRecoverySessionRecord(
 ): RecoverySessionRecord {
   return {
     id: session.id,
-    paymentOrderCode: session.paymentOrderCode,
+    paymentOrderCode: getRecoveryPaymentOrderCode(session),
     userId: session.userId,
     customerEmail: session.customerEmail,
     customerFirstName: session.customerFirstName,

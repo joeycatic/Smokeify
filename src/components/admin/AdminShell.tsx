@@ -125,7 +125,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[16.5rem] max-w-[calc(100vw-1rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:translate-x-0 ${
+          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[16.5rem] max-w-[calc(100vw-0.5rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-3 md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-200 ease-out`}
         >
@@ -152,7 +152,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </button>
           </div>
 
-          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="mt-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 sm:mt-3 sm:p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -183,7 +183,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </div>
           </div>
 
-          <nav className="mt-3 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="mt-2.5 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] sm:mt-3 sm:space-y-1.5 [&::-webkit-scrollbar]:hidden">
             {visibleWorkspaces.map((workspace) => {
               const isWorkspaceActive = activeWorkspace?.id === workspace.id;
               const WorkspaceIcon = workspace.icon;
@@ -221,26 +221,26 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
 
         <div className="min-w-0 w-full overflow-x-hidden md:ml-[16.5rem] md:w-[calc(100%-16.5rem)]">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
-            <div className="flex w-full flex-wrap items-start gap-2.5 px-3 py-2.5 sm:px-5 xl:flex-nowrap xl:items-center xl:px-6">
+            <div className="flex w-full flex-wrap items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-5 sm:py-2.5 xl:flex-nowrap xl:px-6">
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
                 aria-label="Open navigation"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Bars3Icon className="h-5 w-5" />
               </button>
 
-              <div className="min-w-0 flex-1 basis-full xl:basis-auto">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
+              <div className="min-w-0 flex-1 basis-0 xl:basis-auto">
+                <p className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:block xl:tracking-[0.3em]">
                   {activeWorkspace?.label ?? "Internal Console"}
                 </p>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                  <h2 className="truncate text-lg font-semibold text-white">
+                <div className="flex min-w-0 items-center gap-1.5 sm:mt-1 sm:flex-wrap sm:gap-2">
+                  <h2 className="min-w-0 truncate text-sm font-semibold text-white sm:text-lg">
                     {currentTitle}
                   </h2>
                   <span
-                    className={`inline-flex max-w-full truncate rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    className={`hidden max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-semibold sm:inline-flex sm:px-2.5 sm:py-1 sm:text-[11px] ${
                       supportsStorefrontScope
                         ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
                         : "border border-white/10 bg-white/[0.04] text-slate-300"
@@ -254,7 +254,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                 </div>
               </div>
 
-              <div className="admin-header-controls flex w-full min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:ml-auto xl:w-auto xl:flex-nowrap xl:justify-end">
+              <div className="admin-header-controls flex min-w-0 shrink-0 items-center gap-1.5 sm:ml-auto sm:gap-2 xl:w-auto xl:flex-nowrap xl:justify-end">
                 <AdminCommandBar
                   key={pathname}
                   groups={visibleWorkspaces}
@@ -264,19 +264,19 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
 
                 <button
                   type="button"
-                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.07] sm:w-auto"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-0 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.07] sm:h-10 sm:w-auto sm:px-3"
                   aria-haspopup="dialog"
                   aria-expanded={settingsOpen}
                   onClick={() => setSettingsOpen(true)}
                 >
                   <Cog6ToothIcon className="h-4 w-4" />
-                  <span>Settings</span>
+                  <span className="hidden sm:inline">Settings</span>
                 </button>
               </div>
             </div>
             {activeWorkspace && activeWorkspace.items.length > 1 ? (
               <nav
-                className="admin-workspace-tabs flex w-full gap-1 overflow-x-auto px-3 pb-2 sm:px-5 xl:px-6"
+                className="admin-workspace-tabs flex w-full gap-1 overflow-x-auto px-2.5 pb-1.5 sm:px-5 sm:pb-2 xl:px-6"
                 aria-label={`${activeWorkspace.label} workspace sections`}
               >
                 {activeWorkspace.items.map((item) => {
@@ -392,7 +392,7 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           ) : null}
 
           <main className="relative">
-            <div className="w-full px-2.5 py-3 sm:px-4 sm:py-4 lg:px-6">
+            <div className="w-full px-2 py-2.5 sm:px-4 sm:py-4 lg:px-6">
               {children}
             </div>
           </main>

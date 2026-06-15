@@ -339,15 +339,15 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white xl:hidden"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-0 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white sm:h-10 sm:w-auto sm:rounded-xl sm:px-3 xl:hidden"
         aria-label="Open admin command bar"
       >
-        <MagnifyingGlassIcon className="h-5 w-5" />
-        <span className="hidden min-[360px]:inline">Search</span>
+        <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+        <span className="hidden sm:inline">Search</span>
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center px-3 py-4 sm:px-4 sm:pt-[10vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-2.5 py-3 sm:px-4 sm:pt-[10vh]">
           <button
             type="button"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -359,9 +359,9 @@ export default function AdminCommandBar({
             role="dialog"
             aria-modal="true"
             aria-label="Admin command bar"
-            className="relative z-10 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#090d12]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]"
+            className="relative z-10 flex max-h-[calc(100dvh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#090d12]/95 shadow-[0_22px_64px_rgba(0,0,0,0.42)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px] sm:shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
           >
-            <div className="flex min-w-0 items-center gap-3 border-b border-white/10 px-3 py-3 sm:px-4 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5 border-b border-white/10 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-4">
               <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-slate-500" />
               <input
                 ref={inputRef}
@@ -381,7 +381,7 @@ export default function AdminCommandBar({
                     ? "Search pages, orders, customers, products, suppliers..."
                     : "Search admin pages and actions"
                 }
-                className="h-11 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+                className="h-10 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500 sm:h-11"
                 aria-label="Search admin commands"
               />
               <span className="hidden rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500 sm:inline-flex">
@@ -389,7 +389,7 @@ export default function AdminCommandBar({
               </span>
             </div>
 
-            <div className="min-h-0 overflow-y-auto p-3">
+            <div className="min-h-0 overflow-y-auto p-2.5 sm:p-3">
               {notice ? (
                 <div className="mb-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-100">
                   {notice}
@@ -421,18 +421,18 @@ export default function AdminCommandBar({
                         onClick={() => {
                           void selectCommand(command);
                         }}
-                        className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition sm:px-4 ${
+                        className={`flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2.5 text-left transition sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
                           active
                             ? "border-cyan-400/20 bg-cyan-400/10"
                             : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
                         }`}
                       >
                         {Icon ? (
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300">
-                            <Icon className="h-5 w-5" />
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 sm:h-10 sm:w-10 sm:rounded-xl">
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                           </span>
                         ) : (
-                          <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:h-10 sm:min-w-10 sm:rounded-xl sm:px-2 sm:text-[10px] sm:tracking-[0.16em]">
                             {command.group.slice(0, 2)}
                           </span>
                         )}

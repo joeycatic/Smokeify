@@ -137,17 +137,17 @@ export default function AdminConnectionStatus() {
       : "border-amber-400/25 bg-amber-400/15 text-amber-100";
 
   return (
-    <div className={`border-t px-3 py-2 text-sm sm:px-6 lg:px-8 ${toneClass}`}>
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`border-t px-2.5 py-1.5 text-xs sm:px-6 sm:py-2 sm:text-sm lg:px-8 ${toneClass}`}>
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
         <div className="min-w-0">
           <p className="font-semibold">{state.title}</p>
-          <p className="mt-0.5 text-xs opacity-85">{state.detail}</p>
+          <p className="mt-0.5 line-clamp-2 text-[11px] opacity-85 sm:text-xs">{state.detail}</p>
         </div>
         {visibleProblem ? (
           <button
             type="button"
             onClick={() => setDismissedProblemId(visibleProblem.id)}
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-white/10 bg-black/10 px-3 text-xs font-semibold"
+            className="inline-flex h-8 items-center justify-center rounded-lg border border-white/10 bg-black/10 px-3 text-xs font-semibold sm:h-9"
           >
             Dismiss
           </button>
