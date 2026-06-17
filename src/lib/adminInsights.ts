@@ -36,14 +36,44 @@ export type FunnelSnapshot = {
   sessions: number;
   productViews: number;
   addToCart: number;
+  viewCart: number;
   beginCheckout: number;
+  checkoutAddressView: number;
+  checkoutSubmitAttempt: number;
+  checkoutSubmitError: number;
+  shippingInfo: number;
+  checkoutPaymentView: number;
+  paymentInfo: number;
+  paymentRedirectStarted: number;
   purchaseSessions: number;
   paidOrders: number;
   sessionToOrderRate: number;
+  sessionToProductRate: number;
   viewToCartRate: number;
+  cartToViewCartRate: number;
+  viewCartToCheckoutRate: number;
   cartToCheckoutRate: number;
+  checkoutToAddressViewRate: number;
+  addressViewToSubmitRate: number;
+  checkoutToShippingRate: number;
+  shippingToPaymentViewRate: number;
+  paymentViewToHandoffRate: number;
+  shippingToPaymentRate: number;
+  handoffToRedirectRate: number;
+  paymentToPaidRate: number;
   checkoutToPaidRate: number;
+  productAbandonmentRate: number;
+  cartToViewCartDropoffRate: number;
+  viewCartAbandonmentRate: number;
   cartAbandonmentRate: number;
+  checkoutAddressViewDropoffRate: number;
+  addressSubmitDropoffRate: number;
+  checkoutStepAbandonmentRate: number;
+  shippingToPaymentViewDropoffRate: number;
+  paymentHandoffDropoffRate: number;
+  shippingAbandonmentRate: number;
+  handoffRedirectDropoffRate: number;
+  paymentAbandonmentRate: number;
   checkoutAbandonmentRate: number;
 };
 
@@ -231,7 +261,15 @@ async function getFunnelSnapshotForRange(
     "page_view",
     "view_item",
     "add_to_cart",
+    "view_cart",
     "begin_checkout",
+    "checkout_address_view",
+    "checkout_submit_attempt",
+    "checkout_submit_error",
+    "add_shipping_info",
+    "checkout_payment_view",
+    "add_payment_info",
+    "payment_redirect_started",
     "purchase",
   ] as const;
   const paidOrdersPromise = prisma.order.count({
@@ -266,37 +304,107 @@ async function getFunnelSnapshotForRange(
   const sessionStarts = new Set<string>();
   const productViews = new Set<string>();
   const addToCart = new Set<string>();
+  const viewCart = new Set<string>();
   const beginCheckout = new Set<string>();
+  const checkoutAddressView = new Set<string>();
+  const checkoutSubmitAttempt = new Set<string>();
+  const checkoutSubmitError = new Set<string>();
+  const shippingInfo = new Set<string>();
+  const checkoutPaymentView = new Set<string>();
+  const paymentInfo = new Set<string>();
+  const paymentRedirectStarted = new Set<string>();
   const purchaseSessions = new Set<string>();
 
   for (const event of analyticsEvents) {
     if (event.eventName === "page_view") sessionStarts.add(event.sessionId);
     if (event.eventName === "view_item") productViews.add(event.sessionId);
     if (event.eventName === "add_to_cart") addToCart.add(event.sessionId);
+    if (event.eventName === "view_cart") viewCart.add(event.sessionId);
     if (event.eventName === "begin_checkout") beginCheckout.add(event.sessionId);
+    if (event.eventName === "checkout_address_view") checkoutAddressView.add(event.sessionId);
+    if (event.eventName === "checkout_submit_attempt") checkoutSubmitAttempt.add(event.sessionId);
+    if (event.eventName === "checkout_submit_error") checkoutSubmitError.add(event.sessionId);
+    if (event.eventName === "add_shipping_info") shippingInfo.add(event.sessionId);
+    if (event.eventName === "checkout_payment_view") checkoutPaymentView.add(event.sessionId);
+    if (event.eventName === "add_payment_info") paymentInfo.add(event.sessionId);
+    if (event.eventName === "payment_redirect_started") paymentRedirectStarted.add(event.sessionId);
     if (event.eventName === "purchase") purchaseSessions.add(event.sessionId);
   }
 
   const sessionCount = sessionStarts.size;
   const productViewCount = productViews.size;
   const addToCartCount = addToCart.size;
+  const viewCartCount = viewCart.size;
   const beginCheckoutCount = beginCheckout.size;
+  const checkoutAddressViewCount = checkoutAddressView.size;
+  const checkoutSubmitAttemptCount = checkoutSubmitAttempt.size;
+  const checkoutSubmitErrorCount = checkoutSubmitError.size;
+  const shippingInfoCount = shippingInfo.size;
+  const checkoutPaymentViewCount = checkoutPaymentView.size;
+  const paymentInfoCount = paymentInfo.size;
+  const paymentRedirectStartedCount = paymentRedirectStarted.size;
   const purchaseSessionCount = purchaseSessions.size;
   const effectiveCompletedCount = purchaseSessionCount > 0 ? purchaseSessionCount : paidOrders;
+  const stageRate = (current: number, previous: number) =>
+    previous > 0 ? current / previous : 0;
+  const stageDropoff = (current: number, previous: number) =>
+    previous > 0 ? Math.max(previous - current, 0) / previous : 0;
 
   return {
     sessions: sessionCount,
     productViews: productViewCount,
     addToCart: addToCartCount,
+    viewCart: viewCartCount,
     beginCheckout: beginCheckoutCount,
+    checkoutAddressView: checkoutAddressViewCount,
+    checkoutSubmitAttempt: checkoutSubmitAttemptCount,
+    checkoutSubmitError: checkoutSubmitErrorCount,
+    shippingInfo: shippingInfoCount,
+    checkoutPaymentView: checkoutPaymentViewCount,
+    paymentInfo: paymentInfoCount,
+    paymentRedirectStarted: paymentRedirectStartedCount,
     purchaseSessions: purchaseSessionCount,
     paidOrders,
     sessionToOrderRate: sessionCount > 0 ? effectiveCompletedCount / sessionCount : 0,
-    viewToCartRate: productViewCount > 0 ? addToCartCount / productViewCount : 0,
-    cartToCheckoutRate: addToCartCount > 0 ? beginCheckoutCount / addToCartCount : 0,
+    sessionToProductRate: stageRate(productViewCount, sessionCount),
+    viewToCartRate: stageRate(addToCartCount, productViewCount),
+    cartToViewCartRate: stageRate(viewCartCount, addToCartCount),
+    viewCartToCheckoutRate: stageRate(beginCheckoutCount, viewCartCount),
+    cartToCheckoutRate: stageRate(beginCheckoutCount, addToCartCount),
+    checkoutToAddressViewRate: stageRate(checkoutAddressViewCount, beginCheckoutCount),
+    addressViewToSubmitRate: stageRate(
+      shippingInfoCount,
+      checkoutAddressViewCount || beginCheckoutCount,
+    ),
+    checkoutToShippingRate: stageRate(shippingInfoCount, beginCheckoutCount),
+    shippingToPaymentViewRate: stageRate(checkoutPaymentViewCount, shippingInfoCount),
+    paymentViewToHandoffRate: stageRate(
+      paymentInfoCount,
+      checkoutPaymentViewCount || shippingInfoCount,
+    ),
+    shippingToPaymentRate: stageRate(paymentInfoCount, shippingInfoCount),
+    handoffToRedirectRate: stageRate(paymentRedirectStartedCount, paymentInfoCount),
+    paymentToPaidRate: stageRate(effectiveCompletedCount, paymentInfoCount),
     checkoutToPaidRate:
       beginCheckoutCount > 0 ? effectiveCompletedCount / beginCheckoutCount : 0,
+    productAbandonmentRate: stageDropoff(addToCartCount, productViewCount),
+    cartToViewCartDropoffRate: stageDropoff(viewCartCount, addToCartCount),
+    viewCartAbandonmentRate: stageDropoff(beginCheckoutCount, viewCartCount),
     cartAbandonmentRate: addToCartCount > 0 ? 1 - beginCheckoutCount / addToCartCount : 0,
+    checkoutAddressViewDropoffRate: stageDropoff(checkoutAddressViewCount, beginCheckoutCount),
+    addressSubmitDropoffRate: stageDropoff(
+      shippingInfoCount,
+      checkoutAddressViewCount || beginCheckoutCount,
+    ),
+    checkoutStepAbandonmentRate: stageDropoff(shippingInfoCount, beginCheckoutCount),
+    shippingToPaymentViewDropoffRate: stageDropoff(checkoutPaymentViewCount, shippingInfoCount),
+    paymentHandoffDropoffRate: stageDropoff(
+      paymentInfoCount,
+      checkoutPaymentViewCount || shippingInfoCount,
+    ),
+    shippingAbandonmentRate: stageDropoff(paymentInfoCount, shippingInfoCount),
+    handoffRedirectDropoffRate: stageDropoff(paymentRedirectStartedCount, paymentInfoCount),
+    paymentAbandonmentRate: stageDropoff(effectiveCompletedCount, paymentInfoCount),
     checkoutAbandonmentRate:
       beginCheckoutCount > 0
         ? Math.max(beginCheckoutCount - effectiveCompletedCount, 0) / beginCheckoutCount

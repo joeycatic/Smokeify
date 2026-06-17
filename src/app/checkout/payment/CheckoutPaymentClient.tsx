@@ -16,6 +16,8 @@ import {
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const PAYMENT_INFO_TRACK_STORAGE_PREFIX = "smokeify.checkout.add-payment-info:";
+const PAYMENT_VIEW_TRACK_STORAGE_PREFIX = "smokeify.checkout.payment-view:";
+const PAYMENT_REDIRECT_TRACK_STORAGE_PREFIX = "smokeify.checkout.payment-redirect:";
 const VIVA_AUTO_REDIRECT_STORAGE_PREFIX = "smokeify.checkout.viva-auto-redirect:";
 
 const hasWindow = () => typeof window !== "undefined";
@@ -88,12 +90,29 @@ export default function CheckoutPaymentClient() {
     setAutoRedirected(true);
   }, []);
 
+  const trackPaymentRedirectStarted = useCallback(
+    (state: CheckoutPaymentState, currentSummary: CheckoutSummarySnapshot | null) => {
+      if (!hasWindow()) return;
+      const storageKey = `${PAYMENT_REDIRECT_TRACK_STORAGE_PREFIX}${state.orderCode}`;
+      if (window.sessionStorage.getItem(storageKey) === "1") return;
+      window.sessionStorage.setItem(storageKey, "1");
+      trackAnalyticsEvent("payment_redirect_started", {
+        currency: currentSummary?.currency ?? state.summary.currency,
+        items: currentSummary ? toAnalyticsItems(currentSummary) : toAnalyticsItems(state.summary),
+        payment_type: "viva_smart_checkout",
+        value: (currentSummary?.totalCents ?? state.summary.totalCents) / 100,
+      });
+    },
+    [],
+  );
+
   const startVivaRedirect = useCallback(() => {
     if (!paymentState?.checkoutUrl || !paymentState.orderCode || !hasWindow()) return;
     redirectStarted.current = true;
+    trackPaymentRedirectStarted(paymentState, summary);
     markAutoRedirected(paymentState.orderCode);
     window.location.assign(paymentState.checkoutUrl);
-  }, [markAutoRedirected, paymentState]);
+  }, [markAutoRedirected, paymentState, summary, trackPaymentRedirectStarted]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -160,6 +179,16 @@ export default function CheckoutPaymentClient() {
 
   useEffect(() => {
     if (!paymentState || !summary || loadState !== "ready") return;
+    const viewStorageKey = `${PAYMENT_VIEW_TRACK_STORAGE_PREFIX}${paymentState.orderCode}`;
+    if (hasWindow() && window.sessionStorage.getItem(viewStorageKey) !== "1") {
+      window.sessionStorage.setItem(viewStorageKey, "1");
+      trackAnalyticsEvent("checkout_payment_view", {
+        currency: summary.currency,
+        items: toAnalyticsItems(summary),
+        payment_type: "viva_smart_checkout",
+        value: summary.totalCents / 100,
+      });
+    }
     const storageKey = `${PAYMENT_INFO_TRACK_STORAGE_PREFIX}${paymentState.orderCode}`;
     if (hasWindow() && window.sessionStorage.getItem(storageKey) === "1") return;
     if (hasWindow()) window.sessionStorage.setItem(storageKey, "1");
@@ -183,11 +212,19 @@ export default function CheckoutPaymentClient() {
     }
     redirectStarted.current = true;
     const timer = window.setTimeout(() => {
+      trackPaymentRedirectStarted(paymentState, summary);
       markAutoRedirected(paymentState.orderCode);
       window.location.assign(paymentState.checkoutUrl);
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [autoRedirected, loadState, markAutoRedirected, paymentState]);
+  }, [
+    autoRedirected,
+    loadState,
+    markAutoRedirected,
+    paymentState,
+    summary,
+    trackPaymentRedirectStarted,
+  ]);
 
   const cancelDraft = async () => {
     if (!paymentState) {

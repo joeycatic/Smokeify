@@ -112,14 +112,44 @@ const emptyRevenueConversion = {
     sessions: 0,
     productViews: 0,
     addToCart: 0,
+    viewCart: 0,
     beginCheckout: 0,
+    checkoutAddressView: 0,
+    checkoutSubmitAttempt: 0,
+    checkoutSubmitError: 0,
+    shippingInfo: 0,
+    checkoutPaymentView: 0,
+    paymentInfo: 0,
+    paymentRedirectStarted: 0,
     purchaseSessions: 0,
     paidOrders: 0,
     sessionToOrderRate: 0,
+    sessionToProductRate: 0,
     viewToCartRate: 0,
+    cartToViewCartRate: 0,
+    viewCartToCheckoutRate: 0,
     cartToCheckoutRate: 0,
+    checkoutToAddressViewRate: 0,
+    addressViewToSubmitRate: 0,
+    checkoutToShippingRate: 0,
+    shippingToPaymentViewRate: 0,
+    paymentViewToHandoffRate: 0,
+    shippingToPaymentRate: 0,
+    handoffToRedirectRate: 0,
+    paymentToPaidRate: 0,
     checkoutToPaidRate: 0,
+    productAbandonmentRate: 0,
+    cartToViewCartDropoffRate: 0,
+    viewCartAbandonmentRate: 0,
     cartAbandonmentRate: 0,
+    checkoutAddressViewDropoffRate: 0,
+    addressSubmitDropoffRate: 0,
+    checkoutStepAbandonmentRate: 0,
+    shippingToPaymentViewDropoffRate: 0,
+    paymentHandoffDropoffRate: 0,
+    shippingAbandonmentRate: 0,
+    handoffRedirectDropoffRate: 0,
+    paymentAbandonmentRate: 0,
     checkoutAbandonmentRate: 0,
     totalOrders: 0,
     fulfilledOrders: 0,
@@ -1095,91 +1125,275 @@ function FunnelRail({
   selectedLabel: string;
   onSelect: (value: string) => void;
 }) {
+  const addressViewValue = data.checkoutAddressView || data.beginCheckout;
+  const submitAttemptValue = data.checkoutSubmitAttempt || data.shippingInfo;
+  const paymentPageValue = data.checkoutPaymentView || data.paymentInfo;
+  const redirectValue = data.paymentRedirectStarted || data.paymentInfo;
   const stages = [
     {
       label: "Sessions",
       value: data.sessions,
+      previousValue: null,
       helper: "Entry volume",
-      ratio: data.sessionToOrderRate,
+      ratio: 1,
+      dropoff: 0,
       color: "#22d3ee",
+      meaning: "Tracked visits with consent in the selected window.",
     },
     {
       label: "Product views",
       value: data.productViews,
+      previousValue: data.sessions,
       helper: percent(data.sessions > 0 ? data.productViews / data.sessions : 0),
-      ratio: data.sessions > 0 ? data.productViews / data.sessions : 0,
+      ratio: data.sessionToProductRate,
+      dropoff: data.sessions > 0 ? Math.max(data.sessions - data.productViews, 0) / data.sessions : 0,
       color: "#60a5fa",
+      meaning: "Users who reached a product detail page.",
     },
     {
       label: "Add to cart",
       value: data.addToCart,
+      previousValue: data.productViews,
       helper: percent(data.viewToCartRate),
       ratio: data.viewToCartRate,
+      dropoff: data.productAbandonmentRate,
       color: "#f59e0b",
+      meaning: "Product viewers who showed buying intent.",
+    },
+    {
+      label: "Cart viewed",
+      value: data.viewCart,
+      previousValue: data.addToCart,
+      helper: percent(data.cartToViewCartRate),
+      ratio: data.cartToViewCartRate,
+      dropoff: data.cartToViewCartDropoffRate,
+      color: "#fb7185",
+      meaning: "Cart adders who opened the cart surface.",
     },
     {
       label: "Begin checkout",
       value: data.beginCheckout,
-      helper: percent(data.cartToCheckoutRate),
-      ratio: data.cartToCheckoutRate,
+      previousValue: data.viewCart || data.addToCart,
+      helper: percent(data.viewCart > 0 ? data.viewCartToCheckoutRate : data.cartToCheckoutRate),
+      ratio: data.viewCart > 0 ? data.viewCartToCheckoutRate : data.cartToCheckoutRate,
+      dropoff: data.viewCart > 0 ? data.viewCartAbandonmentRate : data.cartAbandonmentRate,
       color: "#c084fc",
+      meaning: "Sessions that crossed into the checkout funnel.",
+    },
+    {
+      label: "Address submitted",
+      value: data.shippingInfo,
+      previousValue: submitAttemptValue || addressViewValue,
+      helper: percent(data.addressViewToSubmitRate || data.checkoutToShippingRate),
+      ratio: data.addressViewToSubmitRate || data.checkoutToShippingRate,
+      dropoff: data.addressSubmitDropoffRate || data.checkoutStepAbandonmentRate,
+      color: "#a3e635",
+      meaning: "Checkout starters who submitted delivery information.",
+    },
+    {
+      label: "Payment handoff",
+      value: data.paymentInfo,
+      previousValue: paymentPageValue || data.shippingInfo,
+      helper: percent(data.paymentViewToHandoffRate || data.shippingToPaymentRate),
+      ratio: data.paymentViewToHandoffRate || data.shippingToPaymentRate,
+      dropoff: data.paymentHandoffDropoffRate || data.shippingAbandonmentRate,
+      color: "#2dd4bf",
+      meaning: "Address-submitters who reached Viva/payment handoff.",
     },
     {
       label: "Paid orders",
       value: data.paidOrders,
-      helper: percent(data.checkoutToPaidRate),
-      ratio: data.checkoutToPaidRate,
+      previousValue: redirectValue || data.paymentInfo || data.beginCheckout,
+      helper: percent(
+        redirectValue > 0
+          ? data.paidOrders / Math.max(redirectValue, 1)
+          : data.paymentInfo > 0
+            ? data.paymentToPaidRate
+            : data.checkoutToPaidRate,
+      ),
+      ratio:
+        redirectValue > 0
+          ? data.paidOrders / Math.max(redirectValue, 1)
+          : data.paymentInfo > 0
+            ? data.paymentToPaidRate
+            : data.checkoutToPaidRate,
+      dropoff:
+        redirectValue > 0
+          ? Math.max(redirectValue - data.paidOrders, 0) / Math.max(redirectValue, 1)
+          : data.paymentInfo > 0
+            ? data.paymentAbandonmentRate
+            : data.checkoutAbandonmentRate,
       color: "#34d399",
+      meaning: "Recognized paid orders, with purchase events as the first fallback.",
     },
   ];
+  stages.splice(
+    5,
+    0,
+    {
+      label: "Address page",
+      value: addressViewValue,
+      previousValue: data.beginCheckout,
+      helper: percent(data.checkoutToAddressViewRate || (data.beginCheckout > 0 ? 1 : 0)),
+      ratio: data.checkoutToAddressViewRate || (data.beginCheckout > 0 ? 1 : 0),
+      dropoff: data.checkoutAddressViewDropoffRate,
+      color: "#818cf8",
+      meaning: "Checkout starters who loaded the delivery form.",
+    },
+    {
+      label: "Submit attempted",
+      value: submitAttemptValue,
+      previousValue: addressViewValue,
+      helper: percent(
+        data.checkoutSubmitAttempt > 0
+          ? data.checkoutSubmitAttempt / Math.max(addressViewValue, 1)
+          : data.addressViewToSubmitRate,
+      ),
+      ratio:
+        data.checkoutSubmitAttempt > 0
+          ? data.checkoutSubmitAttempt / Math.max(addressViewValue, 1)
+          : data.addressViewToSubmitRate,
+      dropoff:
+        data.checkoutSubmitAttempt > 0
+          ? Math.max(addressViewValue - data.checkoutSubmitAttempt, 0) /
+            Math.max(addressViewValue, 1)
+          : data.addressSubmitDropoffRate,
+      color: "#facc15",
+      meaning: "Visitors who pressed the address form submit button.",
+    },
+  );
+  stages.splice(
+    8,
+    0,
+    {
+      label: "Payment page",
+      value: paymentPageValue,
+      previousValue: data.shippingInfo,
+      helper: percent(data.shippingToPaymentViewRate || (data.shippingInfo > 0 ? 1 : 0)),
+      ratio: data.shippingToPaymentViewRate || (data.shippingInfo > 0 ? 1 : 0),
+      dropoff: data.shippingToPaymentViewDropoffRate,
+      color: "#38bdf8",
+      meaning: "Address-submitters who loaded the payment handoff page.",
+    },
+  );
+  stages.splice(
+    10,
+    0,
+    {
+      label: "Viva redirect",
+      value: redirectValue,
+      previousValue: data.paymentInfo,
+      helper: percent(data.handoffToRedirectRate || (data.paymentInfo > 0 ? 1 : 0)),
+      ratio: data.handoffToRedirectRate || (data.paymentInfo > 0 ? 1 : 0),
+      dropoff: data.handoffRedirectDropoffRate,
+      color: "#14b8a6",
+      meaning: "Payment handoffs that actually started the external Viva redirect.",
+    },
+  );
 
   const maxValue = Math.max(...stages.map((stage) => stage.value), 1);
+  const selectedStage = stages.find((stage) => stage.label === selectedLabel) ?? stages[0];
+  const worstDropoff = [...stages]
+    .filter((stage) => stage.previousValue !== null)
+    .sort((left, right) => right.dropoff - left.dropoff)[0];
 
   return (
-    <div className="grid gap-3 lg:grid-cols-5">
-      {stages.map((stage) => {
-        const active = stage.label === selectedLabel;
-        return (
-          <button
-            key={stage.label}
-            type="button"
-            onClick={() => onSelect(stage.label)}
-            className={`rounded-[24px] border p-4 text-left transition duration-200 ${
-              active
-                ? "border-cyan-300/28 bg-cyan-300/10"
-                : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {stage.label}
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
+      <div className="space-y-2">
+        {stages.map((stage, index) => {
+          const active = stage.label === selectedLabel;
+          const width = Math.max(3, Math.round((stage.value / maxValue) * 100));
+          const lostCount =
+            stage.previousValue === null ? 0 : Math.max(stage.previousValue - stage.value, 0);
+          return (
+            <button
+              key={stage.label}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onSelect(stage.label)}
+              className={`grid w-full gap-3 rounded-[18px] border px-3 py-3 text-left transition duration-200 md:grid-cols-[144px_minmax(0,1fr)_112px] md:items-center ${
+                active
+                  ? "border-cyan-300/35 bg-cyan-300/10 shadow-[0_16px_42px_rgba(34,211,238,0.08)]"
+                  : "border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]"
+              }`}
+            >
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  {String(index + 1).padStart(2, "0")} / {stage.label}
                 </div>
-                <div className="mt-2 text-2xl font-semibold text-white">
+                <div className="mt-1 text-lg font-semibold text-white">
                   {formatCount(stage.value)}
                 </div>
               </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                {stage.helper}
-              </span>
-            </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full transition-[width] duration-500 ease-out"
-                style={{
-                  width: `${Math.max(8, Math.round((stage.value / maxValue) * 100))}%`,
-                  backgroundColor: stage.color,
-                }}
-              />
-            </div>
-            <div className="mt-3 text-xs text-slate-400">
-              {stage.label === "Sessions"
-                ? `${percent(stage.ratio)} session to paid conversion`
-                : `${percent(stage.ratio)} from prior step`}
-            </div>
-          </button>
-        );
-      })}
+              <div className="min-w-0">
+                <div className="h-3 overflow-hidden rounded-full bg-white/[0.07]">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500 ease-out"
+                    style={{
+                      width: `${width}%`,
+                      background: `linear-gradient(90deg, ${stage.color}, rgba(255,255,255,0.72))`,
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+                  <span>{stage.previousValue === null ? "baseline" : `${stage.helper} retained`}</span>
+                  {stage.previousValue !== null ? (
+                    <span className={stage.dropoff >= 0.4 ? "text-rose-200" : "text-slate-500"}>
+                      {formatCount(lostCount)} lost
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 md:block md:text-right">
+                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">drop-off</div>
+                <div className={`mt-1 text-base font-semibold ${
+                  stage.dropoff >= 0.5
+                    ? "text-rose-200"
+                    : stage.dropoff >= 0.25
+                      ? "text-amber-200"
+                      : "text-emerald-200"
+                }`}>
+                  {stage.previousValue === null ? "-" : percent(stage.dropoff)}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.13),transparent_34%),rgba(255,255,255,0.035)] p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">
+          Selected step
+        </div>
+        <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
+          {selectedStage.label}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{selectedStage.meaning}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <AdminCompactMetric label="Sessions" value={formatCount(selectedStage.value)} />
+          <AdminCompactMetric
+            label="Retained"
+            value={selectedStage.previousValue === null ? "100%" : percent(selectedStage.ratio)}
+          />
+          <AdminCompactMetric
+            label="Lost here"
+            value={
+              selectedStage.previousValue === null
+                ? "-"
+                : formatCount(Math.max(selectedStage.previousValue - selectedStage.value, 0))
+            }
+          />
+          <AdminCompactMetric
+            label="Drop-off"
+            value={selectedStage.previousValue === null ? "-" : percent(selectedStage.dropoff)}
+          />
+        </div>
+        {worstDropoff ? (
+          <div className="mt-4 rounded-[18px] border border-amber-300/18 bg-amber-300/8 px-3 py-3 text-xs leading-5 text-amber-100">
+            Biggest leak: <span className="font-semibold">{worstDropoff.label}</span>{" "}
+            loses {percent(worstDropoff.dropoff)} from the previous step.
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -1280,6 +1494,23 @@ function RevenueWorkspace({
             { label: "Open reports", href: `/admin/reports?${query}` },
           ],
         };
+      case "Cart viewed":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Cart viewed",
+          description:
+            "This shows whether cart intent turns into cart review. A weak read here usually means add-to-cart feedback or drawer/cart access needs attention.",
+          metrics: [
+            { label: "Cart views", value: formatCount(data.funnel.viewCart) },
+            { label: "Cart add to cart view", value: percent(data.funnel.cartToViewCartRate) },
+            { label: "Lost after add", value: percent(data.funnel.cartToViewCartDropoffRate) },
+            { label: "Checkout starts", value: formatCount(data.funnel.beginCheckout) },
+          ],
+          links: [
+            { label: "Open cart recovery", href: "/admin/reports", tone: "accent" },
+            { label: "Open orders", href: "/admin/orders" },
+          ],
+        };
       case "Begin checkout":
         return {
           eyebrow: "Selected funnel step",
@@ -1295,6 +1526,108 @@ function RevenueWorkspace({
           links: [
             { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
             { label: "Open reports", href: `/admin/reports?${query}` },
+          ],
+        };
+      case "Address page":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Address page",
+          description:
+            "This confirms users reached the checkout form. If this drops below checkout starts, inspect page load errors, auth redirects, and stale checkout state.",
+          metrics: [
+            { label: "Address page views", value: formatCount(data.funnel.checkoutAddressView || data.funnel.beginCheckout) },
+            { label: "Checkout to page", value: percent(data.funnel.checkoutToAddressViewRate || (data.funnel.beginCheckout > 0 ? 1 : 0)) },
+            { label: "Checkout starts", value: formatCount(data.funnel.beginCheckout) },
+            { label: "Submit attempts", value: formatCount(data.funnel.checkoutSubmitAttempt || data.funnel.shippingInfo) },
+          ],
+          links: [
+            { label: "Open support", href: "/admin/support", tone: "accent" },
+            { label: "Open alerts", href: "/admin/alerts" },
+          ],
+        };
+      case "Submit attempted":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Submit attempted",
+          description:
+            "This is the form intent line. Compare attempts, validation errors, and successful address submissions to isolate checkout-form friction.",
+          metrics: [
+            { label: "Submit attempts", value: formatCount(data.funnel.checkoutSubmitAttempt || data.funnel.shippingInfo) },
+            { label: "Submit errors", value: formatCount(data.funnel.checkoutSubmitError) },
+            { label: "Address submitted", value: formatCount(data.funnel.shippingInfo) },
+            { label: "Submit drop", value: percent(data.funnel.addressSubmitDropoffRate || data.funnel.checkoutStepAbandonmentRate) },
+          ],
+          links: [
+            { label: "Open support", href: "/admin/support", tone: "accent" },
+            { label: "Open reports", href: `/admin/reports?${query}` },
+          ],
+        };
+      case "Address submitted":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Address submitted",
+          description:
+            "This isolates address form friction. If checkout starts are high but address submissions are low, inspect validation, shipping country, Packstation, and minimum-order blockers.",
+          metrics: [
+            { label: "Address submits", value: formatCount(data.funnel.shippingInfo) },
+            { label: "Checkout to address", value: percent(data.funnel.checkoutToShippingRate) },
+            { label: "Address-form drop", value: percent(data.funnel.checkoutStepAbandonmentRate) },
+            { label: "Payment handoff", value: formatCount(data.funnel.paymentInfo) },
+          ],
+          links: [
+            { label: "Open support", href: "/admin/support", tone: "accent" },
+            { label: "Open orders", href: "/admin/orders" },
+          ],
+        };
+      case "Payment page":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Payment page",
+          description:
+            "This is the local payment handoff page before Viva. A leak here can mean stored checkout state, payment-page rendering, or checkout-session loading issues.",
+          metrics: [
+            { label: "Payment page views", value: formatCount(data.funnel.checkoutPaymentView || data.funnel.paymentInfo) },
+            { label: "Address to payment page", value: percent(data.funnel.shippingToPaymentViewRate || (data.funnel.shippingInfo > 0 ? 1 : 0)) },
+            { label: "Payment handoffs", value: formatCount(data.funnel.paymentInfo) },
+            { label: "Payment-page drop", value: percent(data.funnel.paymentHandoffDropoffRate || data.funnel.shippingAbandonmentRate) },
+          ],
+          links: [
+            { label: "Open alerts", href: "/admin/alerts", tone: "accent" },
+            { label: "Open finance", href: `/admin/finance?${query}` },
+          ],
+        };
+      case "Payment handoff":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Payment handoff",
+          description:
+            "This is the Viva handoff. A large leak after this point is usually payment authorization, return URL, webhook, or payment-method trust friction.",
+          metrics: [
+            { label: "Payment handoffs", value: formatCount(data.funnel.paymentInfo) },
+            { label: "Shipping to payment", value: percent(data.funnel.shippingToPaymentRate) },
+            { label: "Payment to paid", value: percent(data.funnel.paymentToPaidRate) },
+            { label: "Payment drop", value: percent(data.funnel.paymentAbandonmentRate) },
+          ],
+          links: [
+            { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
+            { label: "Open alerts", href: "/admin/alerts" },
+          ],
+        };
+      case "Viva redirect":
+        return {
+          eyebrow: "Selected funnel step",
+          title: "Viva redirect",
+          description:
+            "This tracks whether the customer actually left for Viva after the local payment handoff. If handoffs exceed redirects, inspect auto-redirect blocking or client-side errors.",
+          metrics: [
+            { label: "Viva redirects", value: formatCount(data.funnel.paymentRedirectStarted || data.funnel.paymentInfo) },
+            { label: "Handoff to redirect", value: percent(data.funnel.handoffToRedirectRate || (data.funnel.paymentInfo > 0 ? 1 : 0)) },
+            { label: "Redirect drop", value: percent(data.funnel.handoffRedirectDropoffRate) },
+            { label: "Paid orders", value: formatCount(data.funnel.paidOrders) },
+          ],
+          links: [
+            { label: "Open finance", href: `/admin/finance?${query}`, tone: "accent" },
+            { label: "Open alerts", href: "/admin/alerts" },
           ],
         };
       case "Paid orders":
@@ -1395,10 +1728,10 @@ function RevenueWorkspace({
               <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Funnel rail
+                    Abandonment explorer
                   </div>
                   <div className="mt-2 text-lg font-semibold text-white">
-                    Each stage stays readable without turning the page into five large cards.
+                    Click each stage to see where users leak before purchase.
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-slate-400">
@@ -1406,7 +1739,7 @@ function RevenueWorkspace({
                     Session CVR {percent(data.funnel.sessionToOrderRate)}
                   </span>
                   <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
-                    Checkout abandonment {percent(data.funnel.checkoutAbandonmentRate)}
+                    Payment handoff {percent(data.funnel.shippingToPaymentRate)}
                   </span>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
@@ -131,6 +131,7 @@ export default function CheckoutStartClient({
   const [checkoutRecoveryConsent, setCheckoutRecoveryConsent] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const checkoutAddressViewTrackedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,6 +191,17 @@ export default function CheckoutStartClient({
   const meetsMinOrder = subtotalCents >= minOrderCents;
   const shippingLabel = shippingCents === 0 ? "Kostenloser Versand" : formatMoney(shippingCents, currency);
 
+  useEffect(() => {
+    if (loadStatus !== "ready" || checkoutAddressViewTrackedRef.current) return;
+    checkoutAddressViewTrackedRef.current = true;
+    trackAnalyticsEvent("checkout_address_view", {
+      currency,
+      items: toAnalyticsItems(items),
+      shipping_tier: country,
+      value: totalCents / 100,
+    });
+  }, [country, currency, items, loadStatus, totalCents]);
+
   const validate = () => {
     if (!email.trim()) return "E-Mail ist erforderlich.";
     if (!firstName.trim() || !lastName.trim()) return "Vorname und Nachname sind erforderlich.";
@@ -220,8 +232,20 @@ export default function CheckoutStartClient({
   };
 
   const handleSubmit = async () => {
+    trackAnalyticsEvent("checkout_submit_attempt", {
+      currency,
+      items: toAnalyticsItems(items),
+      shipping_tier: country,
+      value: totalCents / 100,
+    });
     const validationError = validate();
     if (validationError) {
+      trackAnalyticsEvent("checkout_submit_error", {
+        error_message: validationError,
+        error_type: "validation",
+        shipping_address_type: shippingAddressType,
+        shipping_tier: country,
+      });
       setSubmitError(validationError);
       return;
     }
@@ -311,7 +335,15 @@ export default function CheckoutStartClient({
         : `/checkout/payment#${buildCheckoutPaymentStateHash(paymentState)}`;
       router.push(paymentRoute);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Checkout konnte nicht gestartet werden.");
+      const message =
+        error instanceof Error ? error.message : "Checkout konnte nicht gestartet werden.";
+      trackAnalyticsEvent("checkout_submit_error", {
+        error_message: message,
+        error_type: "api",
+        shipping_address_type: shippingAddressType,
+        shipping_tier: country,
+      });
+      setSubmitError(message);
       setSubmitStatus("idle");
     }
   };
