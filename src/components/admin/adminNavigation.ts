@@ -72,6 +72,12 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
         icon: ClipboardDocumentListIcon,
         scope: "ops.read",
       },
+      {
+        href: "/admin/page-previews",
+        label: "Page Previews",
+        icon: RectangleStackIcon,
+        scope: "ops.read",
+      },
       { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
       {
         href: "/admin/scripts",

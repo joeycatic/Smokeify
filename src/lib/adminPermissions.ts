@@ -171,6 +171,7 @@ const ADMIN_PAGE_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/admin/alerts", scope: "alerts.read" },
   { prefix: "/admin/procurement", scope: "procurement.read" },
   { prefix: "/admin/support", scope: "support.read" },
+  { prefix: "/admin/page-previews", scope: "ops.read" },
   { prefix: "/admin/ops", scope: "ops.read" },
   { prefix: "/admin", scope: "dashboard.read" },
 ];

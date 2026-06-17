@@ -21,6 +21,9 @@ describe("adminNavigation", () => {
       expect.arrayContaining([expect.objectContaining({ href: "/admin/alerts" })]),
     );
     expect(workspaces.find((workspace) => workspace.id === "action-center")?.items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: "/admin/page-previews" })]),
+    );
+    expect(workspaces.find((workspace) => workspace.id === "action-center")?.items).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ href: "/admin/scripts" })]),
     );
   });
@@ -46,5 +49,14 @@ describe("adminNavigation", () => {
 
     expect(workspace?.id).toBe("growth");
     expect(item?.label).toBe("Pricing");
+  });
+
+  it("exposes page previews in the admin action center", () => {
+    const workspaces = getVisibleAdminWorkspaces("ADMIN");
+    const workspace = getActiveAdminWorkspace("/admin/page-previews", workspaces);
+    const item = getActiveAdminNavItem("/admin/page-previews", workspaces, workspace);
+
+    expect(workspace?.id).toBe("action-center");
+    expect(item?.label).toBe("Page Previews");
   });
 });
