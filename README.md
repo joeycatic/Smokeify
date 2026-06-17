@@ -167,12 +167,20 @@ Useful commands:
 
 ```bash
 npm run dev
+npm run check
 npm run build
 npm run vercel-build
 npm run start
 npm run lint
 npm test
 ```
+
+`npm run check` is the supported local quality gate. It runs lint, unit tests,
+and a production build.
+
+`npm run test:e2e` runs storefront smoke checks. Set
+`SMOKEIFY_E2E_PRODUCT_PATH=/products/<handle>` to enable the mutating
+product -> cart -> checkout-start path against a known purchasable product.
 
 ## Viva Webhook Testing
 
@@ -195,6 +203,9 @@ npm run testing:seed-orders
 ```
 
 Additional notes are documented in [scripts/README.md](./scripts/README.md).
+Cross-storefront ownership, GrowVault shared-feed failure modes, and release
+checks are documented in
+[docs/cross-storefront-operating-runbook.md](./docs/cross-storefront-operating-runbook.md).
 
 ## Suggested Review Path
 
@@ -208,6 +219,7 @@ These files give a good cross-section of the repository:
 - [src/lib/pricingAutomationEngine.ts](./src/lib/pricingAutomationEngine.ts)
 - [prisma/schema.prisma](./prisma/schema.prisma)
 - [scripts/README.md](./scripts/README.md)
+- [docs/cross-storefront-operating-runbook.md](./docs/cross-storefront-operating-runbook.md)
 
 ## Notes
 
