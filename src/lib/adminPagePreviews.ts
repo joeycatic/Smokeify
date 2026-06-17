@@ -65,9 +65,9 @@ const sourceStorefrontWhere = (storefront: StorefrontCode) =>
     ? { OR: [{ sourceStorefront: "MAIN" as Storefront }, { sourceStorefront: null }] }
     : { sourceStorefront: storefront as Storefront };
 
-async function getPreviewContext(storefront: StorefrontCode): Promise<PreviewContext> {
-  const [latestGuestOrder, latestPendingDraft] = await Promise.all([
-    prisma.order.findFirst({
+async function readLatestGuestOrderCode(storefront: StorefrontCode) {
+  try {
+    const latestGuestOrder = await prisma.order.findFirst({
       where: {
         ...sourceStorefrontWhere(storefront),
         paymentOrderCode: { not: null },
@@ -75,8 +75,18 @@ async function getPreviewContext(storefront: StorefrontCode): Promise<PreviewCon
       },
       orderBy: { createdAt: "desc" },
       select: { paymentOrderCode: true },
-    }),
-    prisma.checkoutPaymentDraft.findFirst({
+    });
+
+    return latestGuestOrder?.paymentOrderCode ?? null;
+  } catch (error) {
+    console.warn("Failed to read admin preview order context", { storefront, error });
+    return null;
+  }
+}
+
+async function readLatestPendingDraftCode(storefront: StorefrontCode) {
+  try {
+    const latestPendingDraft = await prisma.checkoutPaymentDraft.findFirst({
       where: {
         ...sourceStorefrontWhere(storefront),
         paymentStatus: "pending",
@@ -84,12 +94,24 @@ async function getPreviewContext(storefront: StorefrontCode): Promise<PreviewCon
       },
       orderBy: { createdAt: "desc" },
       select: { paymentOrderCode: true },
-    }),
+    });
+
+    return latestPendingDraft?.paymentOrderCode ?? null;
+  } catch (error) {
+    console.warn("Failed to read admin preview checkout context", { storefront, error });
+    return null;
+  }
+}
+
+async function getPreviewContext(storefront: StorefrontCode): Promise<PreviewContext> {
+  const [latestGuestOrderCode, latestPendingDraftCode] = await Promise.all([
+    readLatestGuestOrderCode(storefront),
+    readLatestPendingDraftCode(storefront),
   ]);
 
   return {
-    latestGuestOrderCode: latestGuestOrder?.paymentOrderCode ?? null,
-    latestPendingDraftCode: latestPendingDraft?.paymentOrderCode ?? null,
+    latestGuestOrderCode,
+    latestPendingDraftCode,
   };
 }
 
