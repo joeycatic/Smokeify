@@ -23,6 +23,8 @@ export type VivaOrderResponse = {
 };
 
 export type VivaTransaction = {
+  id?: string | null;
+  Id?: string | null;
   amount?: number;
   Amount?: number;
   cardNumber?: string | null;
@@ -44,6 +46,15 @@ export type VivaTransaction = {
   transactionId?: string | null;
   TransactionId?: string | null;
 };
+
+type VivaTransactionsResponse =
+  | VivaTransaction[]
+  | {
+      Data?: VivaTransaction[];
+      Transactions?: VivaTransaction[];
+      data?: VivaTransaction[];
+      transactions?: VivaTransaction[];
+    };
 
 const tokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
 
@@ -171,7 +182,15 @@ export const retrieveVivaTransaction = async (transactionId: string) => {
   return normalizeVivaTransaction(data) as VivaTransaction;
 };
 
-export const normalizeVivaTransaction = (transaction?: VivaTransaction | null) => {
+const getTransactionsFromResponse = (data: VivaTransactionsResponse | null) => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return data.transactions ?? data.Transactions ?? data.data ?? data.Data ?? [];
+};
+
+export const normalizeVivaTransaction = (
+  transaction?: VivaTransaction | null,
+): VivaTransaction | null => {
   if (!transaction) return null;
   return {
     ...transaction,
@@ -184,8 +203,62 @@ export const normalizeVivaTransaction = (transaction?: VivaTransaction | null) =
     merchantTrns: transaction.merchantTrns ?? transaction.MerchantTrns ?? null,
     orderCode: transaction.orderCode ?? transaction.OrderCode ?? null,
     statusId: transaction.statusId ?? transaction.StatusId ?? null,
-    transactionId: transaction.transactionId ?? transaction.TransactionId ?? null,
+    transactionId:
+      transaction.transactionId ??
+      transaction.TransactionId ??
+      transaction.id ??
+      transaction.Id ??
+      null,
   } satisfies VivaTransaction;
+};
+
+export const retrieveVivaTransactionByOrderCode = async (
+  orderCode: string,
+): Promise<VivaTransaction | null> => {
+  const merchantId = readRequiredVivaEnv("MERCHANT_ID");
+  const apiKey = readRequiredVivaEnv("API_KEY");
+  const credentials = Buffer.from(`${merchantId}:${apiKey}`).toString("base64");
+  const url = new URL("/api/transactions/", getEndpoints().checkoutBaseUrl);
+  url.searchParams.set("ordercode", orderCode);
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Basic ${credentials}` },
+    cache: "no-store",
+  });
+  const data = (await response.json().catch(() => null)) as VivaTransactionsResponse | null;
+  if (!response.ok) {
+    throw new Error("Viva transaction lookup by order code failed.");
+  }
+
+  const transactions = getTransactionsFromResponse(data)
+    .map((transaction) => normalizeVivaTransaction(transaction))
+    .filter((transaction): transaction is VivaTransaction => Boolean(transaction?.transactionId));
+  const paidExactMatch = transactions.find(
+    (transaction) =>
+      String(transaction.orderCode ?? "").trim() === orderCode &&
+      ["F", "C"].includes(String(transaction.statusId ?? "").toUpperCase()),
+  );
+  const exactMatch = transactions.find(
+    (transaction) => String(transaction.orderCode ?? "").trim() === orderCode,
+  );
+  const paidMatch = transactions.find((transaction) =>
+    ["F", "C"].includes(String(transaction.statusId ?? "").toUpperCase()),
+  );
+  return paidExactMatch ?? exactMatch ?? paidMatch ?? transactions[0] ?? null;
+};
+
+export const vivaAmountMatches = (
+  transactionAmount: number | null | undefined,
+  expectedMinorUnits: number,
+) => {
+  if (typeof transactionAmount !== "number" || !Number.isFinite(transactionAmount)) {
+    return false;
+  }
+  const absoluteAmount = Math.abs(transactionAmount);
+  return (
+    Math.round(absoluteAmount) === expectedMinorUnits ||
+    Math.round(absoluteAmount * 100) === expectedMinorUnits
+  );
 };
 
 export const normalizeVivaAmountToMinorUnits = (

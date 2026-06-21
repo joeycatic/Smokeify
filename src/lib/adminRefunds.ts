@@ -9,12 +9,61 @@ import {
   resolveStorefrontEmailBrand,
 } from "@/lib/storefrontEmailBrand";
 import { parseStorefront } from "@/lib/storefronts";
-import { getVivaSourceCode, refundVivaTransaction } from "@/lib/viva";
+import {
+  getVivaSourceCode,
+  normalizeVivaStatus,
+  refundVivaTransaction,
+  retrieveVivaTransactionByOrderCode,
+  vivaAmountMatches,
+} from "@/lib/viva";
 
 type AdminActor = {
   id: string;
   email: string | null;
 };
+
+const orderCodeMatches = (returnedOrderCode: unknown, expectedOrderCode: string) => {
+  const normalized = String(returnedOrderCode ?? "").trim();
+  if (!normalized) return true;
+  if (normalized === expectedOrderCode) return true;
+  return normalized.length >= 10 && expectedOrderCode.startsWith(normalized);
+};
+
+async function resolveVivaTransactionId(order: {
+  amountTotal: number;
+  id: string;
+  paymentOrderCode: string | null;
+  paymentTransactionId: string | null;
+}) {
+  if (order.paymentTransactionId) return order.paymentTransactionId;
+  if (!order.paymentOrderCode) {
+    throw new Error("Missing Viva transaction id");
+  }
+
+  const transaction = await retrieveVivaTransactionByOrderCode(order.paymentOrderCode);
+  const transactionId = transaction?.transactionId?.trim();
+  const status = normalizeVivaStatus(transaction?.statusId);
+  const matchesOrderCode = orderCodeMatches(transaction?.orderCode, order.paymentOrderCode);
+  const matchesAmount = vivaAmountMatches(transaction?.amount, order.amountTotal);
+
+  if (!transactionId || status !== "paid" || !matchesOrderCode || !matchesAmount) {
+    throw new Error("Missing Viva transaction id");
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { paymentTransactionId: transactionId },
+  });
+  await prisma.checkoutPaymentDraft.updateMany({
+    where: {
+      paymentOrderCode: order.paymentOrderCode,
+      paymentTransactionId: null,
+    },
+    data: { paymentTransactionId: transactionId },
+  });
+
+  return transactionId;
+}
 
 export async function refundAdminOrder(input: {
   orderId: string;
@@ -37,13 +86,10 @@ export async function refundAdminOrder(input: {
     throw new Error("Order already refunded");
   }
   const paymentProvider = order.paymentProvider ?? "viva";
-  if (paymentProvider === "viva") {
-    if (!order.paymentTransactionId) {
-      throw new Error("Missing Viva transaction id");
-    }
-  } else {
+  if (paymentProvider !== "viva") {
     throw new Error("Only Viva refunds are supported from the admin console.");
   }
+  const paymentTransactionId = await resolveVivaTransactionId(order);
 
   const remaining = Math.max(0, order.amountTotal - order.amountRefunded);
   if (input.refundAmount <= 0) {
@@ -53,13 +99,11 @@ export async function refundAdminOrder(input: {
     throw new Error("Refund amount exceeds remaining balance");
   }
 
-  if (paymentProvider === "viva") {
-    await refundVivaTransaction({
-      amount: input.refundAmount,
-      sourceCode: getVivaSourceCode(),
-      transactionId: order.paymentTransactionId as string,
-    });
-  }
+  await refundVivaTransaction({
+    amount: input.refundAmount,
+    sourceCode: getVivaSourceCode(),
+    transactionId: paymentTransactionId,
+  });
 
   const newRefunded = order.amountRefunded + input.refundAmount;
   const fullyRefunded = newRefunded >= order.amountTotal;

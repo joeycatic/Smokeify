@@ -64,11 +64,7 @@ export const POST = withAdminRoute(
     if (order.paymentStatus === "refunded") {
       return adminJson({ error: "Order already refunded" }, { status: 409 });
     }
-    if ((order.paymentProvider ?? "viva") === "viva") {
-      if (!order.paymentTransactionId) {
-        return adminJson({ error: "Missing Viva transaction id" }, { status: 400 });
-      }
-    } else {
+    if ((order.paymentProvider ?? "viva") !== "viva") {
       return adminJson(
         { error: "Only Viva refunds are supported from the admin console." },
         { status: 400 },
