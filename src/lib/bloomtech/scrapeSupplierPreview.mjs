@@ -394,7 +394,7 @@ export const extractBloomtechPricingFromHtml = (html) => {
   };
 };
 
-const extractSupplierImagesFromHtml = (html, pageUrl) => {
+export const extractSupplierImagesFromHtml = (html, pageUrl) => {
   const extractFromBloomtechGallery = () => {
     const extractDivBlockById = (markup, id) => {
       const openRegex = new RegExp(
@@ -455,29 +455,11 @@ const extractSupplierImagesFromHtml = (html, pageUrl) => {
     ];
     if (!gallerySignals.some(Boolean)) return [];
 
-    const indexedGalleryImages = new Map();
-    const dataHrefRegex =
-      /<a[^>]*data-href=["']([^"']+)["'][^>]*data-index=["']([^"']+)["'][^>]*>/gi;
-    let dataHrefMatch;
-    while ((dataHrefMatch = dataHrefRegex.exec(galleryHtml))) {
-      const rawUrl = dataHrefMatch[1];
-      const rawIndex = Number(dataHrefMatch[2]);
-      addUrl(rawUrl);
-      if (!Number.isFinite(rawIndex)) continue;
-      try {
-        const absolute = new URL(rawUrl, pageUrl);
-        absolute.hash = "";
-        const pathname = absolute.pathname.toLowerCase();
-        if (
-          /^https?:$/i.test(absolute.protocol) &&
-          pathname.includes("/media/image/product/") &&
-          /\.(jpe?g|png|webp|avif)$/i.test(pathname)
-        ) {
-          indexedGalleryImages.set(rawIndex, absolute.toString());
-        }
-      } catch {
-        // ignore invalid URLs
-      }
+    const galleryUrlAttributeRegex =
+      /\b(?:data-href|data-big-webp|data-big|data-src)=["']([^"']+)["']/gi;
+    let galleryUrlAttributeMatch;
+    while ((galleryUrlAttributeMatch = galleryUrlAttributeRegex.exec(galleryHtml))) {
+      addUrl(galleryUrlAttributeMatch[1]);
     }
 
     const imgCtRegex =
@@ -502,12 +484,6 @@ const extractSupplierImagesFromHtml = (html, pageUrl) => {
     let pictureImgMatch;
     while ((pictureImgMatch = pictureImgRegex.exec(galleryHtml))) {
       addUrl(pictureImgMatch[1]);
-    }
-
-    if (indexedGalleryImages.size > 0) {
-      return Array.from(indexedGalleryImages.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map((entry) => entry[1]);
     }
 
     return Array.from(urls);

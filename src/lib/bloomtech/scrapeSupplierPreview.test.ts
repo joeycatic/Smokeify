@@ -66,6 +66,54 @@ describe("Bloomtech supplier pricing", () => {
   });
 });
 
+describe("Bloomtech supplier images", () => {
+  it("extracts every full-size image from the product gallery", async () => {
+    const { extractSupplierImagesFromHtml } = await loadScraper();
+    const html = `
+      <div id="gallery">
+        <div class="inner">
+          <a data-href="/media/image/product/123/lg/example.jpg">
+            <div class="img-ct" data-src="/media/image/product/123/lg/example.jpg">
+              <img
+                class="product-image"
+                data-big="/media/image/product/123/lg/example.jpg"
+                data-big-webp="/media/image/product/123/lg/example.webp"
+                data-index="0"
+              >
+            </div>
+          </a>
+          <a data-href="/media/image/product/123/lg/example~2.jpg">
+            <div class="img-ct" data-src="/media/image/product/123/lg/example~2.jpg">
+              <img
+                class="product-image"
+                data-big-webp="/media/image/product/123/lg/example~2.webp"
+                data-index="1"
+              >
+            </div>
+          </a>
+          <a data-href="/media/image/product/123/lg/example~3.jpg">
+            <div class="img-ct" data-src="/media/image/product/123/lg/example~3.jpg">
+              <img
+                class="product-image"
+                data-big-webp="/media/image/product/123/lg/example~3.webp"
+                data-index="2"
+              >
+            </div>
+          </a>
+        </div>
+      </div>
+    `;
+
+    expect(
+      extractSupplierImagesFromHtml(html, "https://bloomtech.de/example"),
+    ).toEqual([
+      "https://bloomtech.de/media/image/product/123/lg/example.webp",
+      "https://bloomtech.de/media/image/product/123/lg/example~2.webp",
+      "https://bloomtech.de/media/image/product/123/lg/example~3.webp",
+    ]);
+  });
+});
+
 describe("Bloomtech authentication detection", () => {
   it("does not mistake the guest Mein Konto page for an authenticated session", async () => {
     const { isBloomtechAuthenticatedHtml } = await loadScraper();
