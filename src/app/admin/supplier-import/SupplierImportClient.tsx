@@ -634,10 +634,50 @@ export default function SupplierImportClient({
               </AdminSelect>
             </AdminField>
 
-            <div className={styles.categoryPicker}>
-              <div className={styles.categoryPickerHeader}>
-                <span>Additional categories</span>
-                {selectedAdditionalCategories.length ? (
+            <div className={styles.additionalCategoryField}>
+              <AdminField
+                label="Additional categories"
+                optional={
+                  selectedAdditionalCategories.length
+                    ? `${selectedAdditionalCategories.length} selected`
+                    : "Optional"
+                }
+              >
+                <AdminSelect
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      toggleAdditionalCategory(event.target.value);
+                    }
+                  }}
+                  disabled={fetching}
+                  className={styles.mainSelect}
+                  aria-label="Add or remove an additional category"
+                >
+                  <option value="">
+                    {selectedAdditionalCategories.length
+                      ? "Choose another category"
+                      : "Choose additional category"}
+                  </option>
+                  {data.categories
+                    .filter((category) => category.id !== mainCategoryId)
+                    .map((category) => {
+                      const selected = additionalCategoryIds.includes(category.id);
+                      return (
+                        <option key={category.id} value={category.id}>
+                          {selected ? `✓ ${category.name}` : category.name}
+                        </option>
+                      );
+                    })}
+                </AdminSelect>
+              </AdminField>
+              {selectedAdditionalCategories.length ? (
+                <div className={styles.additionalSelection}>
+                  <span>
+                    {selectedAdditionalCategories
+                      .map((category) => category.name)
+                      .join(", ")}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setAdditionalCategoryIds([])}
@@ -645,27 +685,8 @@ export default function SupplierImportClient({
                   >
                     Clear
                   </button>
-                ) : null}
-              </div>
-              <div className={styles.categoryChips}>
-                {data.categories
-                  .filter((category) => category.id !== mainCategoryId)
-                  .map((category) => {
-                    const selected = additionalCategoryIds.includes(category.id);
-                    return (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => toggleAdditionalCategory(category.id)}
-                        disabled={fetching}
-                        className={selected ? styles.categoryChipSelected : ""}
-                        aria-pressed={selected}
-                      >
-                        {category.name}
-                      </button>
-                    );
-                  })}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
