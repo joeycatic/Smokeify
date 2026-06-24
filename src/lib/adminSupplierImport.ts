@@ -269,9 +269,7 @@ export async function createBloomtechImportBatch(input: {
   });
 
   try {
-    const bloomtechModule = await import(
-      /* turbopackIgnore: true */ "../../scripts/bloomtech/scrapeSupplierPreview.mjs"
-    );
+    const bloomtechModule = await import("./bloomtech/scrapeSupplierPreview.mjs");
     const runBloomtechSupplierPreview = bloomtechModule.runBloomtechSupplierPreview as (
       options: Record<string, unknown>,
     ) => Promise<{ items?: ScrapedBloomtechItem[] }>;
