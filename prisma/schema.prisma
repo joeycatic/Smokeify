@@ -44,6 +44,20 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum SupplierImportBatchStatus {
+  FETCHING
+  READY
+  PARTIAL
+  FAILED
+}
+
+enum SupplierImportItemStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  IMPORT_ERROR
+}
+
 enum CustomerGroup {
   NORMAL
   VIP
@@ -798,6 +812,7 @@ model Product {
   purchaseOrderItems        PurchaseOrderItem[]        @relation("PurchaseOrderItemProduct")
   purchaseOrderReceiptItems PurchaseOrderReceiptItem[] @relation("PurchaseOrderReceiptItemProduct")
   searchBoostRules          SearchBoostRule[]
+  supplierImportItems       SupplierImportItem[]       @relation("SupplierImportLinkedProduct")
 
   @@index([status])
   @@index([supplierId])
@@ -810,6 +825,63 @@ model Product {
   @@index([complianceAdsEligible, updatedAt])
   @@index([bestsellerScore])
   @@index([status, bestsellerScore])
+}
+
+model SupplierImportBatch {
+  id                    String                    @id @default(cuid())
+  supplierKey           String
+  sourceUrl             String
+  mainCategoryId        String
+  additionalCategoryIds String[]                  @default([])
+  status                SupplierImportBatchStatus @default(FETCHING)
+  fetchedCount          Int                       @default(0)
+  skippedCount          Int                       @default(0)
+  errorMessage          String?
+  createdById           String?
+  createdByEmail        String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  completedAt           DateTime?
+
+  items SupplierImportItem[]
+
+  @@index([supplierKey, createdAt])
+  @@index([status, updatedAt])
+}
+
+model SupplierImportItem {
+  id               String                   @id @default(cuid())
+  batchId          String
+  sourceUrl        String                   @unique
+  sourcePayload    Json
+  title            String
+  manufacturer     String?
+  handle           String
+  shortDescription String?
+  description      String?
+  technicalDetails String?
+  gtin             String?
+  sku              String?
+  costCents        Int?
+  priceCents       Int?
+  stockQuantity    Int                      @default(0)
+  weightGrams      Int?
+  imageUrls        String[]                 @default([])
+  status           SupplierImportItemStatus @default(PENDING)
+  linkedProductId  String?
+  importError      String?
+  decidedById      String?
+  decidedByEmail   String?
+  decidedAt        DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  batch         SupplierImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  linkedProduct Product?            @relation("SupplierImportLinkedProduct", fields: [linkedProductId], references: [id], onDelete: SetNull)
+
+  @@index([batchId, status, createdAt])
+  @@index([linkedProductId])
+  @@index([status, updatedAt])
 }
 
 model ProductComplianceEvent {

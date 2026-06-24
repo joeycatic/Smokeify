@@ -1,0 +1,50 @@
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+import {
+  calculateSupplierSellPriceCents,
+  normalizeBloomtechCategoryUrl,
+  normalizeSupplierImportEdits,
+} from "@/lib/adminSupplierImport";
+
+describe("adminSupplierImport", () => {
+  it("accepts and normalizes Bloomtech category URLs", () => {
+    expect(
+      normalizeBloomtechCategoryUrl("https://bloomtech.de/Biobizz_1#products"),
+    ).toBe("https://bloomtech.de/Biobizz_1");
+  });
+
+  it("rejects non-Bloomtech hosts", () => {
+    expect(() =>
+      normalizeBloomtechCategoryUrl("https://example.com/category"),
+    ).toThrow("bloomtech.de");
+  });
+
+  it("uses the importer-compatible 20 percent margin and 99-cent rounding", () => {
+    expect(calculateSupplierSellPriceCents(1000)).toBe(1299);
+    expect(calculateSupplierSellPriceCents(2500)).toBe(3099);
+  });
+
+  it("normalizes editable numeric values and image URLs", () => {
+    expect(
+      normalizeSupplierImportEdits({
+        title: "  Product  ",
+        handle: "My Product",
+        stockQuantity: 4.6,
+        costCents: 1234.4,
+        imageUrls: [
+          "https://bloomtech.de/image.webp",
+          "https://bloomtech.de/image.webp",
+          "javascript:alert(1)",
+        ],
+      }),
+    ).toEqual({
+      title: "Product",
+      handle: "my-product",
+      stockQuantity: 5,
+      costCents: 1234,
+      imageUrls: ["https://bloomtech.de/image.webp"],
+    });
+  });
+});

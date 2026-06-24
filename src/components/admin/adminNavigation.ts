@@ -19,6 +19,7 @@ import {
   PresentationChartLineIcon,
   RectangleGroupIcon,
   RectangleStackIcon,
+  Squares2X2Icon,
   SwatchIcon,
   TagIcon,
   TruckIcon,
@@ -123,6 +124,12 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
     icon: CubeIcon,
     items: [
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
+      {
+        href: "/admin/supplier-import",
+        label: "Supplier Import",
+        icon: Squares2X2Icon,
+        scope: "catalog.write",
+      },
       { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
       { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
       { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
