@@ -7,11 +7,6 @@ import { ensureReturnRequestSupportCase } from "@/lib/adminSupport";
 import { prisma } from "@/lib/prisma";
 import type { AutomationEffectType, AutomationEventType } from "@/lib/automationPolicy";
 
-type AutomationActor = {
-  id?: string | null;
-  email?: string | null;
-};
-
 const toJsonValue = (value: Record<string, unknown> | undefined) =>
   (value ?? {}) as Prisma.InputJsonValue;
 

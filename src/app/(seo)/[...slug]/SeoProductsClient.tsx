@@ -113,7 +113,6 @@ export default function SeoProductsClient({
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilters((prev) => ({
       ...prev,
       priceMin: priceMinBound,
@@ -161,7 +160,6 @@ export default function SeoProductsClient({
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(pageSize);
   }, [filters, sortBy, pageSize]);
 

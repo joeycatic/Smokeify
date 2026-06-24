@@ -1,4 +1,3 @@
-import { type NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
 import {
   listAdminCustomerTasks,
@@ -25,4 +24,3 @@ export const GET = withAdminRoute(
     action: "crm.write",
   },
 );
-

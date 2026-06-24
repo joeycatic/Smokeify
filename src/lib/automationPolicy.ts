@@ -41,15 +41,12 @@ export const AUTOMATION_EFFECT_TYPES = [
 
 export type AutomationEffectType = (typeof AUTOMATION_EFFECT_TYPES)[number];
 
-const COMMERCE_GUARDRAIL_ACTIONS = [
-  "order.mark_paid",
-  "order.change_payment_state",
-  "order.change_checkout_totals",
-  "refund.issue",
-  "return.approve",
-] as const;
-
-export type CommerceGuardrailAction = (typeof COMMERCE_GUARDRAIL_ACTIONS)[number];
+export type CommerceGuardrailAction =
+  | "order.mark_paid"
+  | "order.change_payment_state"
+  | "order.change_checkout_totals"
+  | "refund.issue"
+  | "return.approve";
 
 type AutomationScheduleDefault = {
   key: string;

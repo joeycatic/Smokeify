@@ -160,7 +160,6 @@ export default function ProductsClient({
   );
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(PAGE_SIZE);
   }, [filters, sortBy, layout, categoryParam, manufacturerParam]);
 
@@ -282,7 +281,6 @@ export default function ProductsClient({
   useEffect(() => {
     if (!categoryParam) {
       lastCategoryParamRef.current = "";
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters((prev) =>
         prev.categories.length === 0 ? prev : { ...prev, categories: [] },
       );
@@ -299,7 +297,6 @@ export default function ProductsClient({
 
   useEffect(() => {
     if (!manufacturerParam) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters((prev) =>
         prev.manufacturers.length === 0 ? prev : { ...prev, manufacturers: [] },
       );

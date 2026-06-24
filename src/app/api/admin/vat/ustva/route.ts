@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { adminAttachmentHeaders, adminJson } from "@/lib/adminApi";
 import { getVatPageData } from "@/lib/adminAddonData";
 import { buildUstvaPreparation } from "@/lib/adminUstva";

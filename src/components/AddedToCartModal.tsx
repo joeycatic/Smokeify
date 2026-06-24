@@ -104,7 +104,6 @@ export default function AddedToCartModal({ open, item, onClose, cartSubtotal }: 
     if (!open) return;
     const handle = item?.productHandle?.trim();
     if (!handle) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRecommendations([]);
       return;
     }
@@ -143,7 +142,6 @@ export default function AddedToCartModal({ open, item, onClose, cartSubtotal }: 
   }, [open, recommendations, updateRecScrollState]);
 
   const modalResetKey = `${open ? "1" : "0"}:${item?.productHandle ?? item?.title ?? ""}`;
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     setVariantError(null);
@@ -186,8 +184,7 @@ export default function AddedToCartModal({ open, item, onClose, cartSubtotal }: 
       }
     });
     setSelectedOptions(defaults);
-  }, [modalResetKey, open]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [item?.variantChoices, modalResetKey, open]);
 
   const variantLabelMap = (() => {
     if (!item?.variantChoices) return new Map<string, string>();

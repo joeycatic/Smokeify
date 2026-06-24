@@ -219,7 +219,6 @@ function nextRetryRunAfter(attemptCount: number) {
 async function recordDerivedEvents(
   handler: AutomationHandler,
   result: AutomationHandlerResult,
-  _payload: Record<string, unknown>,
 ) {
   if (handler === "supplier.stock.sync") {
     const lowStockCount =
@@ -369,7 +368,6 @@ export async function runAutomationJobById(input: {
     await recordDerivedEvents(
       job.handler as AutomationHandler,
       handlerResult,
-      (job.payload as Record<string, unknown> | null) ?? {},
     );
 
     return {

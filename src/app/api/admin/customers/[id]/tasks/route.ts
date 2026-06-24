@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { adminJson } from "@/lib/adminApi";
 import {
   createAdminCustomerTask,

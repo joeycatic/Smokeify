@@ -89,8 +89,8 @@ export default function ProductCardActions({
   const [variantChoices, setVariantChoices] = useState<VariantChoice[] | null>(
     null
   );
-  const [variantLoading, setVariantLoading] = useState(false);
-  const [variantError, setVariantError] = useState<string | null>(null);
+  const [, setVariantLoading] = useState(false);
+  const [, setVariantError] = useState<string | null>(null);
   const wishlisted = isWishlisted(productId);
   const iconClass = size === "lg" ? "h-5 w-5" : "h-5 w-5";
   const cartIconClass = size === "lg" ? "h-6 w-6" : "h-5 w-5";

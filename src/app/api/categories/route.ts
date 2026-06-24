@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getNavbarCategories } from "@/lib/navbarCategories";
 
-export async function GET(request: Request) {
+export async function GET() {
   const categories = await getNavbarCategories();
   const response = NextResponse.json({ categories });
   response.headers.set(
