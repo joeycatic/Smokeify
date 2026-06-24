@@ -209,6 +209,80 @@ export const supplierImportItemInclude = {
   },
 } satisfies Prisma.SupplierImportItemInclude;
 
+type SupplierImportItemWithInclude = Prisma.SupplierImportItemGetPayload<{
+  include: typeof supplierImportItemInclude;
+}>;
+
+async function addCatalogMatchesToImportItems(
+  items: SupplierImportItemWithInclude[],
+) {
+  if (items.length === 0) return [];
+
+  const sourceUrls = Array.from(new Set(items.map((item) => item.sourceUrl)));
+  const handles = Array.from(new Set(items.map((item) => item.handle).filter(Boolean)));
+  const skus = Array.from(
+    new Set(items.map((item) => item.sku).filter((sku): sku is string => Boolean(sku))),
+  );
+
+  const products = await prisma.product.findMany({
+    where: {
+      OR: [
+        sourceUrls.length ? { sellerUrl: { in: sourceUrls } } : undefined,
+        handles.length ? { handle: { in: handles } } : undefined,
+        skus.length ? { variants: { some: { sku: { in: skus } } } } : undefined,
+      ].filter(Boolean) as Prisma.ProductWhereInput[],
+    },
+    select: {
+      id: true,
+      title: true,
+      handle: true,
+      status: true,
+      sellerUrl: true,
+      variants: skus.length
+        ? {
+            where: { sku: { in: skus } },
+            select: { sku: true },
+          }
+        : false,
+    },
+  });
+
+  const productSummary = (product: (typeof products)[number]) => ({
+    id: product.id,
+    title: product.title,
+    handle: product.handle,
+    status: product.status,
+  });
+  const bySellerUrl = new Map(
+    products
+      .filter((product) => product.sellerUrl)
+      .map((product) => [product.sellerUrl!, productSummary(product)]),
+  );
+  const byHandle = new Map(
+    products.map((product) => [product.handle, productSummary(product)]),
+  );
+  const bySku = new Map(
+    products.flatMap((product) =>
+      ("variants" in product && Array.isArray(product.variants)
+        ? product.variants
+        : []
+      ).flatMap((variant) =>
+        variant.sku ? [[variant.sku, productSummary(product)] as const] : [],
+      ),
+    ),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    catalogProduct:
+      item.linkedProduct ??
+      bySellerUrl.get(item.sourceUrl) ??
+      byHandle.get(item.handle) ??
+      (item.sku ? bySku.get(item.sku) : null) ??
+      null,
+  }));
+}
+
 export async function getSupplierImportWorkspaceData() {
   const [categories, batches, items] = await Promise.all([
     prisma.category.findMany({
@@ -229,7 +303,7 @@ export async function getSupplierImportWorkspaceData() {
     }),
   ]);
 
-  return { categories, batches, items };
+  return { categories, batches, items: await addCatalogMatchesToImportItems(items) };
 }
 
 export async function createBloomtechImportBatch(input: {
@@ -586,8 +660,10 @@ export async function updateSupplierImportItem(input: {
     }
   }
 
-  return prisma.supplierImportItem.findUniqueOrThrow({
+  const item = await prisma.supplierImportItem.findUniqueOrThrow({
     where: { id: existing.id },
     include: supplierImportItemInclude,
   });
+  const [itemWithCatalogMatch] = await addCatalogMatchesToImportItems([item]);
+  return itemWithCatalogMatch;
 }

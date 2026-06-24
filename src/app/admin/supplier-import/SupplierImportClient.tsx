@@ -10,6 +10,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  FlagIcon,
   InboxStackIcon,
   LinkIcon,
   PhotoIcon,
@@ -80,6 +81,7 @@ type ImportItem = {
   status: "PENDING" | "APPROVED" | "DECLINED" | "IMPORT_ERROR";
   linkedProductId: string | null;
   linkedProduct: LinkedProduct | null;
+  catalogProduct: LinkedProduct | null;
   importError: string | null;
   updatedAt: string | Date;
   batch: Batch;
@@ -381,6 +383,7 @@ export default function SupplierImportClient({
     "--drag-y": `${drag.y}px`,
     "--drag-rotate": `${drag.x / 22}deg`,
   } as CSSProperties;
+  const currentCatalogProduct = currentItem?.catalogProduct ?? null;
 
   return (
     <div className={`${styles.workspace} space-y-6`}>
@@ -590,6 +593,15 @@ export default function SupplierImportClient({
               >
                 <article className={styles.cardSurface}>
                   <div className="relative h-[58%] min-h-72 bg-[#101820] sm:h-[61%]">
+                    {currentCatalogProduct ? (
+                      <div
+                        className={styles.existingProductFlag}
+                        title={`Matched catalog product: ${currentCatalogProduct.title}`}
+                      >
+                        <FlagIcon className="h-3.5 w-3.5" />
+                        <span>Already in catalog</span>
+                      </div>
+                    ) : null}
                     {currentItem.imageUrls[0] ? (
                       <Image
                         src={currentItem.imageUrls[0]}
