@@ -13,21 +13,55 @@ describe("Bloomtech supplier pricing", () => {
           <span>67,23 EUR</span>
         </strong>
       </div>
+      <div class="discount">Rabatt: <span class="value">20%</span></div>
     `;
 
     expect(extractBloomtechPricingFromHtml(html)).toEqual({
       currentNetCents: 6723,
       compareAtNetCents: 8403,
+      discounted: true,
+      discountPercent: 20,
     });
   });
 
-  it("does not create a compare-at price without a real discount", async () => {
+  it("does not treat a crossed-out manufacturer recommendation as a discount", async () => {
     const { extractBloomtechPricingFromHtml } = await loadScraper();
-    const html = '<meta itemprop="price" content="67.23">';
+    const html = `
+      <div class="price-row">
+        <meta itemprop="price" content="67.23">
+        <strong class="price text-nowrap">
+          <del class="old-price">84.03 EUR</del>
+          <span>67.23 EUR</span>
+        </strong>
+      </div>
+      <div class="suggested-price">
+        Unverbindliche Preisempfehlung des Herstellers: 84.03 EUR
+      </div>
+    `;
 
     expect(extractBloomtechPricingFromHtml(html)).toEqual({
       currentNetCents: 6723,
       compareAtNetCents: null,
+      discounted: false,
+      discountPercent: null,
+    });
+  });
+
+  it("ignores discount markers belonging to recommended products", async () => {
+    const { extractBloomtechPricingFromHtml } = await loadScraper();
+    const html = `
+      <meta itemprop="price" content="67.23">
+      <div class="suggested-price">UVP: 84.03 EUR</div>
+      ${"x".repeat(2500)}
+      <div class="discount">Rabatt: <span>15%</span></div>
+      <del class="old-price">99.00 EUR</del>
+    `;
+
+    expect(extractBloomtechPricingFromHtml(html)).toEqual({
+      currentNetCents: 6723,
+      compareAtNetCents: null,
+      discounted: false,
+      discountPercent: null,
     });
   });
 });

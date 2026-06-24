@@ -25,6 +25,10 @@ type ScrapedBloomtechItem = {
   gtin?: string;
   price?: number | null;
   compareAtPrice?: number | null;
+  supplierPricing?: {
+    discounted?: boolean;
+    discountPercent?: number | null;
+  };
   stock?: {
     quantity?: number | null;
   };
@@ -178,6 +182,7 @@ export function mapScrapedItem(item: ScrapedBloomtechItem) {
       ? Math.max(0, Math.round(item.price * 100))
       : null;
   const originalCostCents =
+    item.supplierPricing?.discounted === true &&
     typeof item.compareAtPrice === "number" &&
     Number.isFinite(item.compareAtPrice) &&
     item.compareAtPrice > (item.price ?? 0)

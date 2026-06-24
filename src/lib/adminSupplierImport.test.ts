@@ -58,12 +58,33 @@ describe("adminSupplierImport", () => {
       title: "Discounted product",
       price: 80,
       compareAtPrice: 100,
+      supplierPricing: {
+        discounted: true,
+      },
     });
 
     expect(mapped).toMatchObject({
       costCents: 8000,
       priceCents: calculateSupplierSellPriceCents(8000),
       compareAtCents: calculateSupplierSellPriceCents(10000),
+    });
+  });
+
+  it("ignores a compare-at price without an explicit supplier discount", () => {
+    const mapped = mapScrapedItem({
+      sourceUrl: "https://bloomtech.de/reference-price-only",
+      title: "Reference price only",
+      price: 80,
+      compareAtPrice: 100,
+      supplierPricing: {
+        discounted: false,
+      },
+    });
+
+    expect(mapped).toMatchObject({
+      costCents: 8000,
+      priceCents: calculateSupplierSellPriceCents(8000),
+      compareAtCents: null,
     });
   });
 

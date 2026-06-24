@@ -176,6 +176,9 @@ export default function SupplierImportClient({
   const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(null);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const swipeAxis = useRef<"x" | "y" | null>(null);
+  const pendingDeckDecisions = useRef(
+    new Map<string, "APPROVED" | "DECLINED">(),
+  );
   const [historyFilter, setHistoryFilter] = useState<"ALL" | ImportItem["status"]>("ALL");
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -234,12 +237,42 @@ export default function SupplierImportClient({
   const allVisibleSelected =
     visibleItemIds.length > 0 &&
     visibleItemIds.every((itemId) => selectedItemIds.has(itemId));
+  const selectedHasPendingDecision = data.items.some(
+    (item) =>
+      selectedItemIds.has(item.id) &&
+      pendingDeckDecisions.current.has(item.id),
+  );
 
   const refreshWorkspace = async () => {
     const response = await fetch("/api/admin/supplier-import", { cache: "no-store" });
     const next = (await response.json()) as WorkspaceData & { error?: string };
     if (!response.ok) throw new Error(next.error ?? "Could not refresh supplier imports.");
-    setData(next);
+    setData({
+      ...next,
+      items: next.items.map((item) => {
+        const pendingDecision = pendingDeckDecisions.current.get(item.id);
+        return pendingDecision ? { ...item, status: pendingDecision } : item;
+      }),
+    });
+  };
+
+  const requestItemUpdate = async (
+    item: ImportItem,
+    payload: {
+      decision?: "APPROVED" | "DECLINED" | "PENDING";
+      edits?: Record<string, unknown>;
+    },
+  ) => {
+    const response = await fetch(`/api/admin/supplier-import/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = (await response.json()) as { item?: ImportItem; error?: string };
+    if (!response.ok || !result.item) {
+      throw new Error(result.error ?? "Item update failed.");
+    }
+    return result.item;
   };
 
   const fetchCategory = async () => {
@@ -288,18 +321,14 @@ export default function SupplierImportClient({
   ) => {
     setBusyItemId(item.id);
     try {
-      const response = await fetch(`/api/admin/supplier-import/items/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = (await response.json()) as { item?: ImportItem; error?: string };
-      if (!response.ok || !result.item) throw new Error(result.error ?? "Item update failed.");
+      const updatedItem = await requestItemUpdate(item, payload);
       setData((current) => ({
         ...current,
-        items: current.items.map((entry) => (entry.id === result.item!.id ? result.item! : entry)),
+        items: current.items.map((entry) =>
+          entry.id === updatedItem.id ? updatedItem : entry,
+        ),
       }));
-      return result.item;
+      return updatedItem;
     } catch (error) {
       await refreshWorkspace().catch(() => undefined);
       setNotice({
@@ -314,6 +343,13 @@ export default function SupplierImportClient({
 
   const removeItems = async (items: ImportItem[]) => {
     if (items.length === 0 || deleting) return;
+    if (items.some((item) => pendingDeckDecisions.current.has(item.id))) {
+      setNotice({
+        tone: "info",
+        text: "Wait for the pending swipe decision before removing this item.",
+      });
+      return;
+    }
 
     const confirmation =
       items.length === 1
@@ -394,36 +430,63 @@ export default function SupplierImportClient({
   };
 
   const decideCurrent = async (decision: "APPROVED" | "DECLINED") => {
-    if (!currentItem || busyItemId || exitDirection) return;
+    if (
+      !currentItem ||
+      exitDirection ||
+      pendingDeckDecisions.current.has(currentItem.id)
+    ) {
+      return;
+    }
+    const decidedItem = currentItem;
     const direction = decision === "APPROVED" ? "right" : "left";
+    pendingDeckDecisions.current.set(decidedItem.id, decision);
     setExitDirection(direction);
-    window.setTimeout(async () => {
+    window.setTimeout(() => {
       setData((current) => ({
         ...current,
         items: current.items.map((item) =>
-          item.id === currentItem.id ? { ...item, status: decision } : item,
+          item.id === decidedItem.id ? { ...item, status: decision } : item,
         ),
       }));
       setExitDirection(null);
       setDrag({ x: 0, y: 0, active: false });
 
-      try {
-        await updateItem(currentItem, { decision });
-        setNotice({
-          tone: "success",
-          text:
-            decision === "APPROVED"
-              ? `${currentItem.title} was transferred to Catalog as a draft.`
-              : `${currentItem.title} was declined and retained in review history.`,
+      void requestItemUpdate(decidedItem, { decision })
+        .then((updatedItem) => {
+          pendingDeckDecisions.current.delete(decidedItem.id);
+          setData((current) => ({
+            ...current,
+            items: current.items.map((item) =>
+              item.id === updatedItem.id ? updatedItem : item,
+            ),
+          }));
+          setNotice({
+            tone: "success",
+            text:
+              decision === "APPROVED"
+                ? `${decidedItem.title} was transferred to Catalog as a draft.`
+                : `${decidedItem.title} was declined and retained in review history.`,
+          });
+        })
+        .catch(async (error) => {
+          pendingDeckDecisions.current.delete(decidedItem.id);
+          await refreshWorkspace().catch(() => undefined);
+          setNotice({
+            tone: "error",
+            text: error instanceof Error ? error.message : "Item update failed.",
+          });
         });
-      } catch {
-        // The API error is already surfaced and the refreshed item remains available.
-      }
     }, 230);
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!currentItem || busyItemId) return;
+    if (
+      !currentItem ||
+      exitDirection ||
+      pendingDeckDecisions.current.has(currentItem.id)
+    ) {
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerStart.current = { x: event.clientX, y: event.clientY };
     swipeAxis.current = null;
@@ -913,7 +976,7 @@ export default function SupplierImportClient({
             <button
               type="button"
               onClick={() => void decideCurrent("DECLINED")}
-              disabled={!currentItem || Boolean(busyItemId) || deleting}
+              disabled={!currentItem || Boolean(exitDirection) || deleting}
               className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 font-bold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <XMarkIcon className="mr-2 h-5 w-5" /> Decline
@@ -921,7 +984,7 @@ export default function SupplierImportClient({
             <button
               type="button"
               onClick={() => void decideCurrent("APPROVED")}
-              disabled={!currentItem || Boolean(busyItemId) || deleting}
+              disabled={!currentItem || Boolean(exitDirection) || deleting}
               className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-emerald-300/30 bg-emerald-300 px-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <CheckIcon className="mr-2 h-5 w-5" /> Approve draft
@@ -1045,7 +1108,12 @@ export default function SupplierImportClient({
                   data.items.filter((item) => selectedItemIds.has(item.id)),
                 )
               }
-              disabled={selectedItemIds.size === 0 || deleting || Boolean(busyItemId)}
+              disabled={
+                selectedItemIds.size === 0 ||
+                selectedHasPendingDecision ||
+                deleting ||
+                Boolean(busyItemId)
+              }
             >
               <TrashIcon className="mr-2 h-4 w-4" />
               {deleting ? "Removing…" : "Remove selected"}
@@ -1129,25 +1197,55 @@ export default function SupplierImportClient({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
-                      <AdminButton tone="secondary" onClick={() => openEditor(item)}>Edit fields</AdminButton>
+                      <AdminButton
+                        tone="secondary"
+                        onClick={() => openEditor(item)}
+                        disabled={pendingDeckDecisions.current.has(item.id)}
+                      >
+                        Edit fields
+                      </AdminButton>
                       {item.status !== "APPROVED" ? (
-                        <AdminButton onClick={() => void updateItem(item, { decision: "APPROVED" })} disabled={busyItemId === item.id}>
+                        <AdminButton
+                          onClick={() => void updateItem(item, { decision: "APPROVED" })}
+                          disabled={
+                            busyItemId === item.id ||
+                            pendingDeckDecisions.current.has(item.id)
+                          }
+                        >
                           {item.status === "IMPORT_ERROR" ? "Retry import" : "Approve"}
                         </AdminButton>
                       ) : null}
                       {item.status !== "DECLINED" ? (
-                        <AdminButton tone="danger" onClick={() => void updateItem(item, { decision: "DECLINED" })} disabled={busyItemId === item.id}>
+                        <AdminButton
+                          tone="danger"
+                          onClick={() => void updateItem(item, { decision: "DECLINED" })}
+                          disabled={
+                            busyItemId === item.id ||
+                            pendingDeckDecisions.current.has(item.id)
+                          }
+                        >
                           Decline
                         </AdminButton>
                       ) : (
-                        <AdminButton tone="secondary" onClick={() => void updateItem(item, { decision: "PENDING" })} disabled={busyItemId === item.id}>
+                        <AdminButton
+                          tone="secondary"
+                          onClick={() => void updateItem(item, { decision: "PENDING" })}
+                          disabled={
+                            busyItemId === item.id ||
+                            pendingDeckDecisions.current.has(item.id)
+                          }
+                        >
                           Return to queue
                         </AdminButton>
                       )}
                       <AdminButton
                         tone="danger"
                         onClick={() => void removeItems([item])}
-                        disabled={deleting || busyItemId === item.id}
+                        disabled={
+                          deleting ||
+                          busyItemId === item.id ||
+                          pendingDeckDecisions.current.has(item.id)
+                        }
                       >
                         <TrashIcon className="mr-2 h-4 w-4" />
                         Remove

@@ -37,6 +37,7 @@
     "orders:backfill-attribution": "node scripts/orders/backfillOrderAttribution.mjs",
     "orders:backfill-viva-transaction-ids": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/orders/backfillVivaTransactionIds.mjs",
     "suppliers:sync-stock": "node scripts/suppliers/syncSupplierStock.mjs",
+    "suppliers:backfill-import-discounts": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/suppliers/backfillSupplierImportDiscounts.mjs",
     "testing:seed-orders": "node scripts/testing/seedTestOrders.js",
     "video:studio": "cd remotion && npm run studio",
     "video:render": "cd remotion && npm run render",

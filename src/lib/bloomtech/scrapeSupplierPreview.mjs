@@ -300,17 +300,12 @@ const extractDescription = (text) => {
 
 const PRICE_META_TAG_REGEX =
   /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/gi;
-const COMPARE_AT_PRICE_PATTERNS = [
-  /"compare_at_price"\s*:\s*"([^"]+)"/gi,
-  /"compareAtPrice"\s*:\s*"([^"]+)"/gi,
-  /"listPrice"\s*:\s*"([^"]+)"/gi,
-  /"regularPrice"\s*:\s*"([^"]+)"/gi,
-  /"originalPrice"\s*:\s*"([^"]+)"/gi,
-  /"priceBefore"\s*:\s*"([^"]+)"/gi,
+const EXPLICIT_DISCOUNT_PRICE_PATTERNS = [
   /<span[^>]*class=["'][^"']*(?:old-price|price-old|was-price|price-compare|compare-price)[^"']*["'][^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
-  /<del[^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
-  /(?:UVP|Statt|Listenpreis|Originalpreis|Regul(?:aer|är)er Preis)[^0-9€]{0,40}(?:€\s*)?([0-9][0-9.,]*)/gi,
+  /<del[^>]*class=["'][^"']*old-price[^"']*["'][^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
 ];
+const EXPLICIT_DISCOUNT_MARKER_REGEX =
+  /<div[^>]*class=["'][^"']*\bdiscount\b[^"']*["'][^>]*>[\s\S]{0,300}?Rabatt\s*:\s*[\s\S]{0,120}?([0-9]+(?:[.,][0-9]+)?)\s*%/i;
 
 const parsePriceToCents = (rawValue) => {
   if (typeof rawValue !== "string") return null;
@@ -357,24 +352,45 @@ export const extractBloomtechPricingFromHtml = (html) => {
     return {
       currentNetCents: null,
       compareAtNetCents: null,
+      discounted: false,
+      discountPercent: null,
     };
   }
 
-  const contextStart = Math.max(0, (currentPriceMatch?.index ?? 0) - 1800);
+  const contextStart = Math.max(0, (currentPriceMatch?.index ?? 0) - 300);
   const contextEnd = Math.min(
     html.length,
-    (currentPriceMatch?.index ?? 0) + 4500,
+    (currentPriceMatch?.index ?? 0) + 2200,
   );
   const priceContext = html.slice(contextStart, contextEnd);
+  const discountMarker = EXPLICIT_DISCOUNT_MARKER_REGEX.exec(priceContext);
+  const discountPercent = discountMarker
+    ? Number.parseFloat(discountMarker[1].replace(",", "."))
+    : null;
+  const discounted =
+    typeof discountPercent === "number" &&
+    Number.isFinite(discountPercent) &&
+    discountPercent > 0;
+  if (!discounted) {
+    return {
+      currentNetCents,
+      compareAtNetCents: null,
+      discounted: false,
+      discountPercent: null,
+    };
+  }
+
   const compareAtCandidates = collectPriceCandidates(
     priceContext,
-    COMPARE_AT_PRICE_PATTERNS,
+    EXPLICIT_DISCOUNT_PRICE_PATTERNS,
   ).filter((candidate) => candidate > currentNetCents);
 
   return {
     currentNetCents,
     compareAtNetCents:
       compareAtCandidates.length > 0 ? Math.max(...compareAtCandidates) : null,
+    discounted: compareAtCandidates.length > 0,
+    discountPercent,
   };
 };
 
@@ -1336,6 +1352,8 @@ export const runBloomtechSupplierPreview = async ({
         supplierPricing: {
           currentNetCents: supplierPricing.currentNetCents,
           compareAtNetCents: supplierPricing.compareAtNetCents,
+          discounted: supplierPricing.discounted,
+          discountPercent: supplierPricing.discountPercent,
           currentGrossCents:
             typeof supplierPricing.currentNetCents === "number"
               ? Math.round(supplierPricing.currentNetCents * 1.19)
