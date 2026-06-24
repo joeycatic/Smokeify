@@ -1,11 +1,19 @@
 const DEFAULT_MAX_RUNTIME_MS = 240000;
-const DEFAULT_MAX_PRODUCTS = 120;
+const DEFAULT_MAX_PRODUCTS = 0;
 const DEFAULT_REQUEST_DELAY_MS = 1000;
 const DEFAULT_PAGE_SIZE = 50;
 const STATUS_REGEX = /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 const PLANTPLANET_STATUS_REGEX =
   /<div[^>]*class=["'][^"']*status[^"']*["'][^"']*["'][^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/i;
 const TELEGRAM_MESSAGE_LIMIT = 3500;
+const DROPSHIP_DEMAND_PAYMENT_STATUSES = ["paid", "succeeded", "partially_refunded"];
+const DROPSHIP_DEMAND_FINAL_ORDER_STATUSES = [
+  "shipped",
+  "fulfilled",
+  "canceled",
+  "cancelled",
+  "refunded",
+];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -54,7 +62,53 @@ const sendTelegramMessage = async ({ env, text }) => {
 export const formatSupplierSyncChangeLine = (change) => {
   const diff = change.next - change.previous;
   const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
-  return `${change.supplier} ${change.title} ${change.previous} -> ${change.next} (${diffLabel})`;
+  const supplierStock =
+    typeof change.supplierReportedStock === "number"
+      ? ` supplier=${change.supplierReportedStock}`
+      : "";
+  const pendingDemand =
+    typeof change.pendingDropshipDemand === "number" && change.pendingDropshipDemand > 0
+      ? ` pending=${change.pendingDropshipDemand}`
+      : "";
+  return `${change.supplier} ${change.title} ${change.previous} -> ${change.next} (${diffLabel})${supplierStock}${pendingDemand}`;
+};
+
+export const calculateDropshipSellableStock = ({
+  supplierReportedStock,
+  pendingDropshipDemand = 0,
+}) => {
+  const parsedSupplierStock = Number(supplierReportedStock);
+  const parsedPendingDemand = Number(pendingDropshipDemand);
+  const supplierStock = Number.isFinite(parsedSupplierStock)
+    ? Math.max(0, Math.floor(parsedSupplierStock))
+    : 0;
+  const pendingDemand = Number.isFinite(parsedPendingDemand)
+    ? Math.max(0, Math.floor(parsedPendingDemand))
+    : 0;
+  return Math.max(0, supplierStock - pendingDemand);
+};
+
+const getPendingDropshipDemandByVariant = async (prisma, variantIds) => {
+  const uniqueVariantIds = Array.from(new Set(variantIds.filter(Boolean)));
+  if (uniqueVariantIds.length === 0) return new Map();
+
+  const rows = await prisma.orderItem.groupBy({
+    by: ["variantId"],
+    where: {
+      variantId: { in: uniqueVariantIds },
+      order: {
+        paymentStatus: { in: DROPSHIP_DEMAND_PAYMENT_STATUSES },
+        status: { notIn: DROPSHIP_DEMAND_FINAL_ORDER_STATUSES },
+      },
+    },
+    _sum: { quantity: true },
+  });
+
+  return new Map(
+    rows
+      .filter((row) => typeof row.variantId === "string")
+      .map((row) => [row.variantId, Math.max(0, row._sum.quantity ?? 0)]),
+  );
 };
 
 const parseStockFromHtml = (html) => {
@@ -158,22 +212,47 @@ const updateProductStock = async ({ prisma, product, quantity, isDryRun }) => {
   const byVariant = new Map(
     product.variants.map((variant) => [
       variant.id,
-      variant.inventory?.quantityOnHand ?? 0,
+      {
+        quantityOnHand: variant.inventory?.quantityOnHand ?? 0,
+        supplierReportedStock: variant.inventory?.supplierReportedStock ?? null,
+      },
     ]),
+  );
+  const pendingDropshipDemandByVariant = await getPendingDropshipDemandByVariant(
+    prisma,
+    variantIds,
   );
 
   let updatedCount = 0;
   const changes = [];
+  const syncedAt = new Date();
   if (isDryRun) {
     for (const variantId of variantIds) {
-      const previous = byVariant.get(variantId) ?? 0;
-      if (previous === quantity) continue;
+      const previousSnapshot = byVariant.get(variantId) ?? {
+        quantityOnHand: 0,
+        supplierReportedStock: null,
+      };
+      const previous = previousSnapshot.quantityOnHand;
+      const pendingDropshipDemand = pendingDropshipDemandByVariant.get(variantId) ?? 0;
+      const next = calculateDropshipSellableStock({
+        supplierReportedStock: quantity,
+        pendingDropshipDemand,
+      });
+      if (
+        previous === next &&
+        previousSnapshot.supplierReportedStock === quantity
+      ) {
+        continue;
+      }
       changes.push({
         productId: product.id,
         variantId,
         title: product.title,
         previous,
-        next: quantity,
+        next,
+        supplierReportedStock: quantity,
+        previousSupplierReportedStock: previousSnapshot.supplierReportedStock,
+        pendingDropshipDemand,
       });
       updatedCount += 1;
     }
@@ -182,27 +261,63 @@ const updateProductStock = async ({ prisma, product, quantity, isDryRun }) => {
 
   await prisma.$transaction(async (tx) => {
     for (const variantId of variantIds) {
-      const previous = byVariant.get(variantId) ?? 0;
-      if (previous === quantity) continue;
+      const previousSnapshot = byVariant.get(variantId) ?? {
+        quantityOnHand: 0,
+        supplierReportedStock: null,
+      };
+      const previous = previousSnapshot.quantityOnHand;
+      const pendingDropshipDemand = pendingDropshipDemandByVariant.get(variantId) ?? 0;
+      const next = calculateDropshipSellableStock({
+        supplierReportedStock: quantity,
+        pendingDropshipDemand,
+      });
+      if (
+        previous === next &&
+        previousSnapshot.supplierReportedStock === quantity
+      ) {
+        continue;
+      }
       await tx.variantInventory.upsert({
         where: { variantId },
-        update: { quantityOnHand: quantity },
-        create: { variantId, quantityOnHand: quantity, reserved: 0 },
-      });
-      await tx.inventoryAdjustment.create({
-        data: {
+        update: {
+          quantityOnHand: next,
+          supplierReportedStock: quantity,
+          supplierStockSyncedAt: syncedAt,
+          supplierStockSource: product.sellerUrl,
+        },
+        create: {
           variantId,
-          productId: product.id,
-          quantityDelta: quantity - previous,
-          reason: "supplier_scrape",
+          quantityOnHand: next,
+          reserved: 0,
+          supplierReportedStock: quantity,
+          supplierStockSyncedAt: syncedAt,
+          supplierStockSource: product.sellerUrl,
         },
       });
+      if (next !== previous) {
+        await tx.inventoryAdjustment.create({
+          data: {
+            variantId,
+            productId: product.id,
+            quantityDelta: next - previous,
+            reason: "supplier_scrape",
+            sourceType: "SUPPLIER_STOCK_SYNC",
+            sourceReference: product.sellerUrl,
+            note:
+              `Supplier reported ${quantity}; pending dropship demand ${pendingDropshipDemand}; ` +
+              `sellable stock reconciled from ${previous} to ${next}.`,
+          },
+        });
+      }
       changes.push({
         productId: product.id,
         variantId,
         title: product.title,
         previous,
-        next: quantity,
+        next,
+        supplierReportedStock: quantity,
+        previousSupplierReportedStock: previousSnapshot.supplierReportedStock,
+        pendingDropshipDemand,
       });
       updatedCount += 1;
     }
@@ -281,7 +396,12 @@ export async function runSupplierSync({
         variants: {
           select: {
             id: true,
-            inventory: { select: { quantityOnHand: true } },
+            inventory: {
+              select: {
+                quantityOnHand: true,
+                supplierReportedStock: true,
+              },
+            },
           },
         },
       },

@@ -961,11 +961,14 @@ model VariantOption {
 }
 
 model VariantInventory {
-  id             String   @id @default(cuid())
-  variantId      String   @unique
-  quantityOnHand Int      @default(0)
-  reserved       Int      @default(0)
-  updatedAt      DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  variantId             String    @unique
+  quantityOnHand        Int       @default(0)
+  reserved              Int       @default(0)
+  supplierReportedStock Int?
+  supplierStockSyncedAt DateTime?
+  supplierStockSource   String?
+  updatedAt             DateTime  @updatedAt
 
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 }
