@@ -394,10 +394,19 @@ export default function SupplierImportClient({
   };
 
   const decideCurrent = async (decision: "APPROVED" | "DECLINED") => {
-    if (!currentItem || busyItemId) return;
+    if (!currentItem || busyItemId || exitDirection) return;
     const direction = decision === "APPROVED" ? "right" : "left";
     setExitDirection(direction);
     window.setTimeout(async () => {
+      setData((current) => ({
+        ...current,
+        items: current.items.map((item) =>
+          item.id === currentItem.id ? { ...item, status: decision } : item,
+        ),
+      }));
+      setExitDirection(null);
+      setDrag({ x: 0, y: 0, active: false });
+
       try {
         await updateItem(currentItem, { decision });
         setNotice({
@@ -409,9 +418,6 @@ export default function SupplierImportClient({
         });
       } catch {
         // The API error is already surfaced and the refreshed item remains available.
-      } finally {
-        setExitDirection(null);
-        setDrag({ x: 0, y: 0, active: false });
       }
     }, 230);
   };
@@ -724,7 +730,18 @@ export default function SupplierImportClient({
                   "--deck-scale": String(0.96 - index * 0.035),
                 } as CSSProperties}
                 aria-hidden="true"
-              />
+              >
+                {item.imageUrls[0] ? (
+                  <Image
+                    src={item.imageUrls[0]}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 100vw, 540px"
+                    className={styles.ghostImage}
+                    loading="eager"
+                  />
+                ) : null}
+              </div>
             ))}
 
             {currentItem ? (
@@ -893,14 +910,6 @@ export default function SupplierImportClient({
           </div>
 
           <div className={styles.swipeActions}>
-            <button
-              type="button"
-              onClick={() => currentItem && void removeItems([currentItem])}
-              disabled={!currentItem || Boolean(busyItemId) || deleting}
-              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-4 font-bold text-slate-300 disabled:cursor-not-allowed disabled:opacity-40`}
-            >
-              <TrashIcon className="mr-2 h-5 w-5" /> Remove
-            </button>
             <button
               type="button"
               onClick={() => void decideCurrent("DECLINED")}

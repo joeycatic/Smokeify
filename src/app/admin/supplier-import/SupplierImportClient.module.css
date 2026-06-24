@@ -421,6 +421,7 @@
 .ghostCard {
   position: absolute;
   inset: 18px 50%;
+  overflow: hidden;
   width: min(100%, 520px);
   height: min(565px, calc(100% - 55px));
   transform: translateX(-50%) translateY(var(--deck-offset)) scale(var(--deck-scale));
@@ -428,6 +429,12 @@
   border-radius: 28px;
   background: rgba(13, 20, 26, 0.82);
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.32);
+}
+
+.ghostImage {
+  object-fit: contain;
+  padding: 28px;
+  opacity: 0.08;
 }
 
 .card {
