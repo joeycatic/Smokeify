@@ -337,6 +337,10 @@ export default function SupplierImportClient({
     else setDrag({ x: 0, y: 0, active: false });
   };
 
+  const openSupplierProduct = () => {
+    window.open(currentItem?.sourceUrl, "_blank", "noopener,noreferrer");
+  };
+
   const toggleAdditionalCategory = (categoryId: string) => {
     setAdditionalCategoryIds((current) =>
       current.includes(categoryId)
@@ -653,16 +657,20 @@ export default function SupplierImportClient({
                           {currentItem.title}
                         </h3>
                       </div>
-                      <a
-                        href={currentItem.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openSupplierProduct();
+                        }}
                         onPointerDown={(event) => event.stopPropagation()}
+                        onPointerUp={(event) => event.stopPropagation()}
                         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur hover:bg-black/60"
                         aria-label="Open supplier product"
+                        title="Open original Bloomtech product"
                       >
                         <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                      </a>
+                      </button>
                     </div>
                   </div>
                   <div className="grid h-[42%] content-between gap-3 p-5 sm:h-[39%]">
