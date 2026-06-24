@@ -61,6 +61,12 @@ type LinkedProduct = {
   status: string;
 };
 
+type CatalogChange = {
+  label: string;
+  currentValue: string;
+  incomingValue: string;
+};
+
 type ImportItem = {
   id: string;
   batchId: string;
@@ -82,6 +88,7 @@ type ImportItem = {
   linkedProductId: string | null;
   linkedProduct: LinkedProduct | null;
   catalogProduct: LinkedProduct | null;
+  catalogChanges: CatalogChange[];
   importError: string | null;
   updatedAt: string | Date;
   batch: Batch;
@@ -388,6 +395,7 @@ export default function SupplierImportClient({
     "--drag-rotate": `${drag.x / 22}deg`,
   } as CSSProperties;
   const currentCatalogProduct = currentItem?.catalogProduct ?? null;
+  const currentCatalogChanges = currentItem?.catalogChanges ?? [];
 
   return (
     <div className={`${styles.workspace} space-y-6`}>
@@ -686,9 +694,36 @@ export default function SupplierImportClient({
                         </div>
                       ))}
                     </div>
-                    <p className="line-clamp-3 text-sm leading-5 text-slate-400">
-                      {currentItem.shortDescription || currentItem.technicalDetails || "No supplier description available."}
-                    </p>
+                    {currentCatalogProduct ? (
+                      <div className={styles.changePreview}>
+                        <div className={styles.changePreviewHeader}>
+                          <span>Approve overwrites</span>
+                          <strong>
+                            {currentCatalogChanges.length}{" "}
+                            {currentCatalogChanges.length === 1 ? "change" : "changes"}
+                          </strong>
+                        </div>
+                        {currentCatalogChanges.length ? (
+                          <div className={styles.changeRows}>
+                            {currentCatalogChanges.map((change) => (
+                              <div key={change.label} className={styles.changeRow}>
+                                <span>{change.label}</span>
+                                <p>
+                                  <del>{change.currentValue}</del>
+                                  <strong>{change.incomingValue}</strong>
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className={styles.noChangeCopy}>No catalog fields would change.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="line-clamp-3 text-sm leading-5 text-slate-400">
+                        {currentItem.shortDescription || currentItem.technicalDetails || "No supplier description available."}
+                      </p>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       <span>SKU {currentItem.sku || "—"}</span>
                       <span>•</span>

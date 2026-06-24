@@ -213,6 +213,48 @@ type SupplierImportItemWithInclude = Prisma.SupplierImportItemGetPayload<{
   include: typeof supplierImportItemInclude;
 }>;
 
+type CatalogChange = {
+  label: string;
+  currentValue: string;
+  incomingValue: string;
+};
+
+type CatalogMatchedProduct = {
+  id: string;
+  title: string;
+  handle: string;
+  status: string;
+};
+
+const formatCatalogText = (value: string | null | undefined) => {
+  const normalized = value?.trim();
+  return normalized || "—";
+};
+
+const formatCatalogCents = (value: number | null | undefined) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+      }).format(value / 100)
+    : "—";
+
+const formatCatalogInteger = (value: number | null | undefined, suffix = "") =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${Math.round(value)}${suffix}`
+    : "—";
+
+const addCatalogChange = (
+  changes: CatalogChange[],
+  label: string,
+  currentValue: string,
+  incomingValue: string,
+) => {
+  if (currentValue !== incomingValue) {
+    changes.push({ label, currentValue, incomingValue });
+  }
+};
+
 async function addCatalogMatchesToImportItems(
   items: SupplierImportItemWithInclude[],
 ) {
@@ -223,10 +265,18 @@ async function addCatalogMatchesToImportItems(
   const skus = Array.from(
     new Set(items.map((item) => item.sku).filter((sku): sku is string => Boolean(sku))),
   );
+  const linkedProductIds = Array.from(
+    new Set(
+      items
+        .map((item) => item.linkedProductId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
 
   const products = await prisma.product.findMany({
     where: {
       OR: [
+        linkedProductIds.length ? { id: { in: linkedProductIds } } : undefined,
         sourceUrls.length ? { sellerUrl: { in: sourceUrls } } : undefined,
         handles.length ? { handle: { in: handles } } : undefined,
         skus.length ? { variants: { some: { sku: { in: skus } } } } : undefined,
@@ -238,49 +288,144 @@ async function addCatalogMatchesToImportItems(
       handle: true,
       status: true,
       sellerUrl: true,
-      variants: skus.length
-        ? {
-            where: { sku: { in: skus } },
-            select: { sku: true },
-          }
-        : false,
+      manufacturer: true,
+      weightGrams: true,
+      images: {
+        orderBy: { position: "asc" },
+        select: { url: true },
+      },
+      categories: {
+        orderBy: { position: "asc" },
+        select: { categoryId: true },
+      },
+      variants: {
+        orderBy: { position: "asc" },
+        take: 10,
+        select: {
+          sku: true,
+          costCents: true,
+          priceCents: true,
+          inventory: {
+            select: {
+              quantityOnHand: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  const productSummary = (product: (typeof products)[number]) => ({
+  const productSummary = (product: (typeof products)[number]): CatalogMatchedProduct => ({
     id: product.id,
     title: product.title,
     handle: product.handle,
     status: product.status,
   });
+  const productChanges = (
+    item: SupplierImportItemWithInclude,
+    product: (typeof products)[number],
+  ) => {
+    const matchedVariant = item.sku
+      ? product.variants.find((entry) => entry.sku === item.sku)
+      : null;
+    const variant = matchedVariant ?? product.variants[0];
+    const categoryIds = Array.from(
+      new Set([item.batch.mainCategoryId, ...item.batch.additionalCategoryIds]),
+    );
+    const currentCategoryIds = product.categories.map((entry) => entry.categoryId);
+    const changes: CatalogChange[] = [];
+
+    addCatalogChange(changes, "Title", product.title, item.title);
+    addCatalogChange(changes, "Handle", product.handle, item.handle);
+    addCatalogChange(
+      changes,
+      "Manufacturer",
+      formatCatalogText(product.manufacturer),
+      formatCatalogText(item.manufacturer),
+    );
+    addCatalogChange(
+      changes,
+      "SKU",
+      formatCatalogText(variant?.sku),
+      formatCatalogText(item.sku || item.handle),
+    );
+    addCatalogChange(
+      changes,
+      "Supplier cost",
+      formatCatalogCents(variant?.costCents),
+      formatCatalogCents(item.costCents),
+    );
+    addCatalogChange(
+      changes,
+      "Sell price",
+      formatCatalogCents(variant?.priceCents),
+      formatCatalogCents(item.priceCents),
+    );
+    addCatalogChange(
+      changes,
+      "Stock",
+      formatCatalogInteger(variant?.inventory?.quantityOnHand),
+      formatCatalogInteger(item.stockQuantity),
+    );
+    addCatalogChange(
+      changes,
+      "Weight",
+      formatCatalogInteger(product.weightGrams, " g"),
+      formatCatalogInteger(item.weightGrams, " g"),
+    );
+    addCatalogChange(
+      changes,
+      "Images",
+      formatCatalogInteger(product.images.length),
+      formatCatalogInteger(item.imageUrls.length),
+    );
+    addCatalogChange(
+      changes,
+      "Categories",
+      `${currentCategoryIds.length} assigned`,
+      `${categoryIds.length} assigned`,
+    );
+
+    return changes;
+  };
   const bySellerUrl = new Map(
     products
       .filter((product) => product.sellerUrl)
-      .map((product) => [product.sellerUrl!, productSummary(product)]),
+      .map((product) => [product.sellerUrl!, product]),
   );
-  const byHandle = new Map(
-    products.map((product) => [product.handle, productSummary(product)]),
-  );
+  const byId = new Map(products.map((product) => [product.id, product]));
+  const byHandle = new Map(products.map((product) => [product.handle, product]));
   const bySku = new Map(
     products.flatMap((product) =>
-      ("variants" in product && Array.isArray(product.variants)
-        ? product.variants
-        : []
-      ).flatMap((variant) =>
-        variant.sku ? [[variant.sku, productSummary(product)] as const] : [],
+      product.variants.flatMap((variant) =>
+        variant.sku ? [[variant.sku, product] as const] : [],
       ),
     ),
   );
 
-  return items.map((item) => ({
-    ...item,
-    catalogProduct:
-      item.linkedProduct ??
+  return items.map((item) => {
+    const matchedProduct =
+      (item.linkedProductId ? byId.get(item.linkedProductId) : null) ??
       bySellerUrl.get(item.sourceUrl) ??
       byHandle.get(item.handle) ??
       (item.sku ? bySku.get(item.sku) : null) ??
-      null,
-  }));
+      null;
+    const linkedProduct = item.linkedProduct
+      ? {
+          id: item.linkedProduct.id,
+          title: item.linkedProduct.title,
+          handle: item.linkedProduct.handle,
+          status: item.linkedProduct.status,
+        }
+      : null;
+
+    return {
+      ...item,
+      catalogProduct:
+        linkedProduct ?? (matchedProduct ? productSummary(matchedProduct) : null),
+      catalogChanges: matchedProduct ? productChanges(item, matchedProduct) : [],
+    };
+  });
 }
 
 export async function getSupplierImportWorkspaceData() {
@@ -453,10 +598,19 @@ async function syncApprovedItemToCatalog(
   }
   if (!product) {
     const handleMatch = await prisma.product.findUnique({ where: { handle: item.handle } });
-    if (handleMatch) {
-      throw new Error(
-        `The handle "${item.handle}" is already used by another catalog product.`,
-      );
+    if (handleMatch) product = handleMatch;
+  }
+  if (!product && item.sku) {
+    const skuMatch = await prisma.variant.findUnique({
+      where: { sku: item.sku },
+      select: { product: true },
+    });
+    if (skuMatch) product = skuMatch.product;
+  }
+  if (product) {
+    const handleMatch = await prisma.product.findUnique({ where: { handle: item.handle } });
+    if (handleMatch && handleMatch.id !== product.id) {
+      throw new Error(`The handle "${item.handle}" is already used by another product.`);
     }
   }
 
@@ -525,13 +679,22 @@ async function syncApprovedItemToCatalog(
       });
     }
 
-    const variant = await tx.variant.findFirst({
-      where: { productId: savedProduct.id },
-      orderBy: { position: "asc" },
-    });
-    const savedVariant = variant
+    const variant =
+      item.sku
+        ? await tx.variant.findFirst({
+            where: { productId: savedProduct.id, sku: item.sku },
+            orderBy: { position: "asc" },
+          })
+        : null;
+    const fallbackVariant =
+      variant ??
+      (await tx.variant.findFirst({
+        where: { productId: savedProduct.id },
+        orderBy: { position: "asc" },
+      }));
+    const savedVariant = fallbackVariant
       ? await tx.variant.update({
-          where: { id: variant.id },
+          where: { id: fallbackVariant.id },
           data: {
             sku: item.sku || item.handle,
             costCents,

@@ -539,6 +539,103 @@
   white-space: nowrap;
 }
 
+.changePreview {
+  overflow: hidden;
+  border: 1px solid rgba(255, 184, 77, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(255, 184, 77, 0.08), transparent 55%),
+    rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.changePreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(255, 217, 149, 0.9);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.changePreviewHeader span,
+.changeRow > span {
+  text-transform: uppercase;
+}
+
+.changePreviewHeader strong {
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.changeRows {
+  margin-top: 8px;
+  display: grid;
+  max-height: 128px;
+  overflow: auto;
+  padding-right: 2px;
+  gap: 6px;
+}
+
+.changeRow {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.changeRow > span {
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.changeRow p {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.changeRow del,
+.changeRow strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changeRow del {
+  max-width: 42%;
+  color: rgba(248, 113, 113, 0.84);
+  text-decoration-color: rgba(248, 113, 113, 0.78);
+}
+
+.changeRow strong {
+  max-width: 54%;
+  color: #b7fff8;
+}
+
+.changeRow p::before {
+  content: "→";
+  order: 2;
+  color: rgba(255, 184, 77, 0.82);
+}
+
+.changeRow strong {
+  order: 3;
+}
+
+.noChangeCopy {
+  margin-top: 8px;
+  color: rgba(203, 213, 225, 0.78);
+  font-size: 12px;
+}
+
 .approveWash,
 .declineWash {
   position: absolute;
