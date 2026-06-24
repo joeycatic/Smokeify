@@ -483,6 +483,52 @@ export async function getSupplierImportWorkspaceData() {
   return { categories, batches, items: await addCatalogMatchesToImportItems(items) };
 }
 
+export function normalizeSupplierImportItemIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  const itemIds = Array.from(
+    new Set(
+      value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (itemIds.length > 250) {
+    throw new Error("Select no more than 250 supplier import items at once.");
+  }
+
+  return itemIds;
+}
+
+export async function deleteSupplierImportItems(input: { itemIds: string[] }) {
+  const itemIds = normalizeSupplierImportItemIds(input.itemIds);
+  if (itemIds.length === 0) throw new Error("Select at least one supplier import item.");
+
+  const items = await prisma.supplierImportItem.findMany({
+    where: { id: { in: itemIds } },
+    select: {
+      id: true,
+      title: true,
+      sourceUrl: true,
+      status: true,
+      linkedProductId: true,
+      batchId: true,
+    },
+  });
+
+  if (items.length !== itemIds.length) {
+    throw new Error("One or more supplier import items no longer exist.");
+  }
+
+  await prisma.supplierImportItem.deleteMany({
+    where: { id: { in: itemIds } },
+  });
+
+  return items;
+}
+
 export async function createBloomtechImportBatch(input: {
   sourceUrl: string;
   mainCategoryId: string;

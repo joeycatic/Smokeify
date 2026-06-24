@@ -16,6 +16,7 @@ import {
   PhotoIcon,
   QueueListIcon,
   Squares2X2Icon,
+  TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -180,6 +181,10 @@ export default function SupplierImportClient({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ImportItem | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [deleting, setDeleting] = useState(false);
 
   const pendingItems = useMemo(
     () => data.items.filter((item) => item.status === "PENDING"),
@@ -225,6 +230,10 @@ export default function SupplierImportClient({
     : counts.pending > 0
       ? "Reviewing"
       : "Clear";
+  const visibleItemIds = visibleHistory.map((item) => item.id);
+  const allVisibleSelected =
+    visibleItemIds.length > 0 &&
+    visibleItemIds.every((itemId) => selectedItemIds.has(itemId));
 
   const refreshWorkspace = async () => {
     const response = await fetch("/api/admin/supplier-import", { cache: "no-store" });
@@ -301,6 +310,87 @@ export default function SupplierImportClient({
     } finally {
       setBusyItemId(null);
     }
+  };
+
+  const removeItems = async (items: ImportItem[]) => {
+    if (items.length === 0 || deleting) return;
+
+    const confirmation =
+      items.length === 1
+        ? `Remove "${items[0].title}" from the supplier import queue?\n\nLinked catalog products will not be deleted.`
+        : `Remove ${items.length} selected items from the supplier import queue?\n\nLinked catalog products will not be deleted.`;
+    if (!window.confirm(confirmation)) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/admin/supplier-import/items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: items.map((item) => item.id) }),
+      });
+      const result = (await response.json()) as {
+        deletedCount?: number;
+        deletedIds?: string[];
+        error?: string;
+      };
+      if (!response.ok || !result.deletedIds) {
+        throw new Error(result.error ?? "Queue items could not be removed.");
+      }
+
+      const deletedIds = new Set(result.deletedIds);
+      setData((current) => ({
+        ...current,
+        items: current.items.filter((item) => !deletedIds.has(item.id)),
+      }));
+      setSelectedItemIds((current) => {
+        const next = new Set(current);
+        result.deletedIds!.forEach((itemId) => next.delete(itemId));
+        return next;
+      });
+      if (expandedId && deletedIds.has(expandedId)) setExpandedId(null);
+      if (editingItem && deletedIds.has(editingItem.id)) {
+        setEditingItem(null);
+        setEditDraft(null);
+      }
+      setNotice({
+        tone: "success",
+        text: `${result.deletedCount ?? result.deletedIds.length} ${
+          result.deletedIds.length === 1 ? "item was" : "items were"
+        } removed from the queue. Linked catalog products were kept.`,
+      });
+    } catch (error) {
+      await refreshWorkspace().catch(() => undefined);
+      setNotice({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Queue items could not be removed.",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        visibleItemIds.forEach((itemId) => next.delete(itemId));
+      } else {
+        visibleItemIds.forEach((itemId) => next.add(itemId));
+      }
+      return next;
+    });
   };
 
   const decideCurrent = async (decision: "APPROVED" | "DECLINED") => {
@@ -784,8 +874,16 @@ export default function SupplierImportClient({
           <div className={styles.swipeActions}>
             <button
               type="button"
+              onClick={() => currentItem && void removeItems([currentItem])}
+              disabled={!currentItem || Boolean(busyItemId) || deleting}
+              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-4 font-bold text-slate-300 disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              <TrashIcon className="mr-2 h-5 w-5" /> Remove
+            </button>
+            <button
+              type="button"
               onClick={() => void decideCurrent("DECLINED")}
-              disabled={!currentItem || Boolean(busyItemId)}
+              disabled={!currentItem || Boolean(busyItemId) || deleting}
               className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 font-bold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <XMarkIcon className="mr-2 h-5 w-5" /> Decline
@@ -793,7 +891,7 @@ export default function SupplierImportClient({
             <button
               type="button"
               onClick={() => void decideCurrent("APPROVED")}
-              disabled={!currentItem || Boolean(busyItemId)}
+              disabled={!currentItem || Boolean(busyItemId) || deleting}
               className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-emerald-300/30 bg-emerald-300 px-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <CheckIcon className="mr-2 h-5 w-5" /> Approve draft
@@ -885,14 +983,67 @@ export default function SupplierImportClient({
           />
         </div>
 
+        <div className="mt-4 flex min-h-12 flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-300">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={toggleVisibleSelection}
+              disabled={visibleHistory.length === 0 || deleting}
+              className="h-4 w-4 rounded border-white/20 bg-black/30 accent-cyan-300"
+            />
+            Select all visible ({visibleHistory.length})
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">
+              {selectedItemIds.size} selected
+            </span>
+            {selectedItemIds.size > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelectedItemIds(new Set())}
+                disabled={deleting}
+                className="rounded-lg px-3 py-2 text-xs font-bold text-slate-400 hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
+              >
+                Clear selection
+              </button>
+            ) : null}
+            <AdminButton
+              tone="danger"
+              onClick={() =>
+                void removeItems(
+                  data.items.filter((item) => selectedItemIds.has(item.id)),
+                )
+              }
+              disabled={selectedItemIds.size === 0 || deleting || Boolean(busyItemId)}
+            >
+              <TrashIcon className="mr-2 h-4 w-4" />
+              {deleting ? "Removing…" : "Remove selected"}
+            </AdminButton>
+          </div>
+        </div>
+
         <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-          <div className="hidden grid-cols-[minmax(260px,1fr)_130px_120px_120px_150px_48px] gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 xl:grid">
-            <span>Product</span><span>Status</span><span>Cost</span><span>Sell price</span><span>Catalog</span><span />
+          <div className="hidden grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 xl:grid">
+            <span /><span>Product</span><span>Status</span><span>Cost</span><span>Sell price</span><span>Catalog</span><span />
           </div>
           <div className="divide-y divide-white/10">
             {visibleHistory.map((item) => (
               <div key={item.id}>
-                <div className="grid gap-3 bg-[#070b10] px-3 py-3 xl:grid-cols-[minmax(260px,1fr)_130px_120px_120px_150px_48px] xl:items-center xl:px-4">
+                <div className="grid gap-3 bg-[#070b10] px-3 py-3 xl:grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] xl:items-center xl:px-4">
+                  <label className="flex items-center xl:justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedItemIds.has(item.id)}
+                      onChange={() => toggleItemSelection(item.id)}
+                      disabled={deleting}
+                      className="h-4 w-4 rounded border-white/20 bg-black/30 accent-cyan-300"
+                      aria-label={`Select ${item.title}`}
+                    />
+                    <span className="ml-2 text-xs font-semibold text-slate-500 xl:hidden">
+                      Select
+                    </span>
+                  </label>
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
                       {item.imageUrls[0] ? (
@@ -963,6 +1114,14 @@ export default function SupplierImportClient({
                           Return to queue
                         </AdminButton>
                       )}
+                      <AdminButton
+                        tone="danger"
+                        onClick={() => void removeItems([item])}
+                        disabled={deleting || busyItemId === item.id}
+                      >
+                        <TrashIcon className="mr-2 h-4 w-4" />
+                        Remove
+                      </AdminButton>
                     </div>
                   </div>
                 ) : null}

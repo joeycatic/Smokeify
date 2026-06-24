@@ -6,6 +6,7 @@ import {
   calculateSupplierSellPriceCents,
   mapScrapedItem,
   normalizeBloomtechCategoryUrl,
+  normalizeSupplierImportItemIds,
   normalizeSupplierImportEdits,
 } from "@/lib/adminSupplierImport";
 
@@ -64,5 +65,11 @@ describe("adminSupplierImport", () => {
       priceCents: calculateSupplierSellPriceCents(8000),
       compareAtCents: calculateSupplierSellPriceCents(10000),
     });
+  });
+
+  it("normalizes unique supplier import item IDs for bulk removal", () => {
+    expect(
+      normalizeSupplierImportItemIds([" item-1 ", "item-2", "item-1", "", null]),
+    ).toEqual(["item-1", "item-2"]);
   });
 });
