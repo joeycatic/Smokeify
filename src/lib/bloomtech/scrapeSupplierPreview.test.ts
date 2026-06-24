@@ -37,6 +37,7 @@ describe("Bloomtech supplier pricing", () => {
       <div class="suggested-price">
         Unverbindliche Preisempfehlung des Herstellers: 84.03 EUR
       </div>
+      <div class="discount">Rabatt: <span class="value">10%</span></div>
     `;
 
     expect(extractBloomtechPricingFromHtml(html)).toEqual({

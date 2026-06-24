@@ -54,10 +54,15 @@ const mapWithConcurrency = async (items, mapper) => {
 const main = async () => {
   const items = await prisma.supplierImportItem.findMany({
     where: {
-      status: "APPROVED",
-      linkedProduct: {
-        status: "DRAFT",
-      },
+      OR: [
+        { status: { in: ["PENDING", "IMPORT_ERROR"] } },
+        {
+          status: "APPROVED",
+          linkedProduct: {
+            status: "DRAFT",
+          },
+        },
+      ],
     },
     orderBy: { updatedAt: "desc" },
     select: {
@@ -95,6 +100,12 @@ const main = async () => {
         !Array.isArray(item.sourcePayload)
           ? item.sourcePayload
           : {};
+      const payloadSupplierPricing =
+        payload.supplierPricing &&
+        typeof payload.supplierPricing === "object" &&
+        !Array.isArray(payload.supplierPricing)
+          ? payload.supplierPricing
+          : {};
       const sourcePrice = Number(payload.price);
       const sourceCompareAt = Number(payload.compareAtPrice);
       const hasStoredSupplierDiscount =
@@ -120,6 +131,19 @@ const main = async () => {
         item,
         variant,
         livePricing,
+        sourcePayload: {
+          ...payload,
+          compareAtPrice:
+            livePricing.discounted && hasStoredSupplierDiscount
+              ? sourceCompareAt
+              : null,
+          supplierPricing: {
+            ...payloadSupplierPricing,
+            discounted: livePricing.discounted,
+            discountPercent: livePricing.discountPercent,
+            compareAtNetCents: livePricing.compareAtNetCents,
+          },
+        },
         priceCents,
         compareAtCents:
           priceCents !== null &&
@@ -127,6 +151,16 @@ const main = async () => {
           compareAtCents > priceCents
             ? compareAtCents
             : null,
+        sourcePayloadChanged:
+          (payload.compareAtPrice ?? null) !==
+            (livePricing.discounted && hasStoredSupplierDiscount
+              ? sourceCompareAt
+              : null) ||
+          payloadSupplierPricing.discounted !== livePricing.discounted ||
+          (payloadSupplierPricing.discountPercent ?? null) !==
+            livePricing.discountPercent ||
+          (payloadSupplierPricing.compareAtNetCents ?? null) !==
+            livePricing.compareAtNetCents,
       };
     } catch (error) {
       return {
@@ -142,8 +176,10 @@ const main = async () => {
     (entry) =>
       entry.item.priceCents !== entry.priceCents ||
       entry.item.compareAtCents !== entry.compareAtCents ||
-      entry.variant?.priceCents !== entry.priceCents ||
-      entry.variant?.compareAtCents !== entry.compareAtCents,
+      entry.sourcePayloadChanged ||
+      (entry.variant !== null &&
+        (entry.variant.priceCents !== entry.priceCents ||
+          entry.variant.compareAtCents !== entry.compareAtCents)),
   );
 
   console.log(
@@ -169,6 +205,7 @@ const main = async () => {
         data: {
           priceCents: entry.priceCents,
           compareAtCents: entry.compareAtCents,
+          sourcePayload: entry.sourcePayload,
         },
       }),
       ...(entry.variant

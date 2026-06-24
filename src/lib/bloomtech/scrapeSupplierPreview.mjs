@@ -306,6 +306,8 @@ const EXPLICIT_DISCOUNT_PRICE_PATTERNS = [
 ];
 const EXPLICIT_DISCOUNT_MARKER_REGEX =
   /<div[^>]*class=["'][^"']*\bdiscount\b[^"']*["'][^>]*>[\s\S]{0,300}?Rabatt\s*:\s*[\s\S]{0,120}?([0-9]+(?:[.,][0-9]+)?)\s*%/i;
+const MANUFACTURER_RECOMMENDATION_REGEX =
+  /<div[^>]*class=["'][^"']*\bsuggested-price\b[^"']*["'][^>]*>[\s\S]{0,300}?Unverbindliche Preisempfehlung des Herstellers\s*:\s*(?:€\s*)?([0-9][0-9.,]*)/i;
 
 const parsePriceToCents = (rawValue) => {
   if (typeof rawValue !== "string") return null;
@@ -380,17 +382,26 @@ export const extractBloomtechPricingFromHtml = (html) => {
     };
   }
 
+  const manufacturerRecommendationMatch =
+    MANUFACTURER_RECOMMENDATION_REGEX.exec(priceContext);
+  const manufacturerRecommendationCents = parsePriceToCents(
+    manufacturerRecommendationMatch?.[1] ?? "",
+  );
   const compareAtCandidates = collectPriceCandidates(
     priceContext,
     EXPLICIT_DISCOUNT_PRICE_PATTERNS,
-  ).filter((candidate) => candidate > currentNetCents);
+  ).filter(
+    (candidate) =>
+      candidate > currentNetCents &&
+      candidate !== manufacturerRecommendationCents,
+  );
+  const hasSalePrice = compareAtCandidates.length > 0;
 
   return {
     currentNetCents,
-    compareAtNetCents:
-      compareAtCandidates.length > 0 ? Math.max(...compareAtCandidates) : null,
-    discounted: compareAtCandidates.length > 0,
-    discountPercent,
+    compareAtNetCents: hasSalePrice ? Math.max(...compareAtCandidates) : null,
+    discounted: hasSalePrice,
+    discountPercent: hasSalePrice ? discountPercent : null,
   };
 };
 

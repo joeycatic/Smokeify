@@ -2,8 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import {
+  ArrowLeftIcon,
+  ChartBarSquareIcon,
+  CircleStackIcon,
+  CurrencyEuroIcon,
+  CubeIcon,
+  LinkIcon,
+  PhotoIcon,
+  Squares2X2Icon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import type { VariantPricingProfileRecord } from "@/lib/adminPricingIntegration";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import AdminVariantPricingProfiles from "./AdminVariantPricingProfiles";
@@ -400,18 +415,49 @@ const serializeVariantSnapshot = (
   );
 
 const PRODUCT_EDITOR_SECTIONS = [
-  { id: "performance", label: "Performance" },
-  { id: "overview", label: "Overview" },
-  { id: "seo", label: "SEO" },
-  { id: "content", label: "Content" },
-  { id: "associations", label: "Associations" },
-  { id: "media", label: "Media" },
-  { id: "variants", label: "Variants" },
-  { id: "pricing", label: "Pricing" },
-  { id: "cross-sells", label: "Manual overrides" },
+  {
+    id: "performance",
+    label: "Performance",
+    description: "Demand, margin, returns",
+  },
+  {
+    id: "overview",
+    label: "Product",
+    description: "Details, content, SEO",
+  },
+  {
+    id: "associations",
+    label: "Organization",
+    description: "Categories, collections",
+  },
+  {
+    id: "media",
+    label: "Media",
+    description: "Images and ordering",
+  },
+  {
+    id: "variants",
+    label: "Variants",
+    description: "Inventory and options",
+  },
+  {
+    id: "pricing",
+    label: "Pricing",
+    description: "Automation profiles",
+  },
+  {
+    id: "cross-sells",
+    label: "Related",
+    description: "Manual overrides",
+  },
 ] as const;
 
 type ProductEditorSectionId = (typeof PRODUCT_EDITOR_SECTIONS)[number]["id"];
+
+const isProductEditorSectionId = (
+  value: unknown
+): value is ProductEditorSectionId =>
+  PRODUCT_EDITOR_SECTIONS.some((section) => section.id === value);
 
 type PersistedProductDraft = {
   version: 1;
@@ -524,7 +570,7 @@ export default function AdminProductClient({
   const [draftMessage, setDraftMessage] = useState("");
   const [staleConflictMessage, setStaleConflictMessage] = useState("");
   const [activeSection, setActiveSection] =
-    useState<ProductEditorSectionId>("performance");
+    useState<ProductEditorSectionId>("overview");
   const [confirmVariantId, setConfirmVariantId] = useState<string | null>(null);
   const [confirmVariantTitle, setConfirmVariantTitle] = useState("");
   const [confirmVariantText, setConfirmVariantText] = useState("");
@@ -813,10 +859,13 @@ export default function AdminProductClient({
       setCategoryIds(new Set(draft.categoryIds));
       setCollectionIds(new Set(draft.collectionIds));
       setFbtItems(draft.fbtItems);
-      setActiveSection(draft.activeSection);
+      const restoredSection = isProductEditorSectionId(draft.activeSection)
+        ? draft.activeSection
+        : "overview";
+      setActiveSection(restoredSection);
       setDraftMessage("Recovered local draft from this browser session.");
       window.requestAnimationFrame(() => {
-        document.getElementById(draft.activeSection)?.scrollIntoView({
+        document.getElementById("product-editor-workspace")?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
@@ -1643,22 +1692,100 @@ export default function AdminProductClient({
     );
   }, [details.supplierId, suppliers]);
 
-  const scrollToSection = (sectionId: ProductEditorSectionId) => {
+  const selectSection = (sectionId: ProductEditorSectionId) => {
     setActiveSection(sectionId);
-    document
-      .getElementById(sectionId)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(
+          sectionId === "pricing" ? "product-editor-pricing-panel" : sectionId
+        )
+        ?.focus({ preventScroll: true });
+    });
+  };
+
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    sectionId: ProductEditorSectionId
+  ) => {
+    const currentIndex = PRODUCT_EDITOR_SECTIONS.findIndex(
+      (section) => section.id === sectionId
+    );
+    if (currentIndex === -1) return;
+    const direction =
+      event.key === "ArrowRight" || event.key === "ArrowDown"
+        ? 1
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+          ? -1
+          : 0;
+    if (direction === 0) return;
+    event.preventDefault();
+    const nextIndex =
+      (currentIndex + direction + PRODUCT_EDITOR_SECTIONS.length) %
+      PRODUCT_EDITOR_SECTIONS.length;
+    const nextSection = PRODUCT_EDITOR_SECTIONS[nextIndex];
+    selectSection(nextSection.id);
+    document.getElementById(`product-editor-tab-${nextSection.id}`)?.focus();
+  };
+
+  const sectionIsDirty = (sectionId: ProductEditorSectionId) => {
+    if (sectionId === "overview") return detailsDirty;
+    if (sectionId === "associations") {
+      return categoriesDirty || collectionsDirty;
+    }
+    if (sectionId === "media") return imagesDirty;
+    if (sectionId === "variants") return variantsDirty;
+    if (sectionId === "cross-sells") return crossSellsDirty;
+    return false;
+  };
+
+  const sectionSummary = (sectionId: ProductEditorSectionId) => {
+    if (sectionId === "performance") return `${insights.views30d} views`;
+    if (sectionId === "overview") return details.status;
+    if (sectionId === "associations") {
+      return `${selectedCategoryCount + selectedCollectionCount} assigned`;
+    }
+    if (sectionId === "media") return `${images.length} images`;
+    if (sectionId === "variants") return `${variants.length} variants`;
+    if (sectionId === "pricing") return `${variants.length} profiles`;
+    return `${fbtItems.length}/3 selected`;
+  };
+
+  const sectionIcon = (sectionId: ProductEditorSectionId) => {
+    const className = "h-4 w-4";
+    if (sectionId === "performance") {
+      return <ChartBarSquareIcon className={className} aria-hidden="true" />;
+    }
+    if (sectionId === "overview") {
+      return <CubeIcon className={className} aria-hidden="true" />;
+    }
+    if (sectionId === "associations") {
+      return <Squares2X2Icon className={className} aria-hidden="true" />;
+    }
+    if (sectionId === "media") {
+      return <PhotoIcon className={className} aria-hidden="true" />;
+    }
+    if (sectionId === "variants") {
+      return <CircleStackIcon className={className} aria-hidden="true" />;
+    }
+    if (sectionId === "pricing") {
+      return <CurrencyEuroIcon className={className} aria-hidden="true" />;
+    }
+    return <LinkIcon className={className} aria-hidden="true" />;
   };
 
   return (
-    <div className="admin-console-page admin-product-redesign space-y-6 rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.08),transparent_28%),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:space-y-8 md:rounded-[32px] md:p-8 md:pb-40">
-      <div className="admin-product-hero admin-reveal rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[28px] sm:p-6">
+    <div className="admin-console-page admin-product-redesign space-y-4 rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_8%_0%,rgba(34,211,238,0.11),transparent_26%),radial-gradient(circle_at_94%_4%,rgba(245,158,11,0.08),transparent_25%),repeating-linear-gradient(135deg,rgba(255,255,255,0.012)_0,rgba(255,255,255,0.012)_1px,transparent_1px,transparent_12px),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:rounded-[30px] md:p-6 md:pb-40">
+      <header className="admin-product-hero admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(125deg,rgba(10,14,20,0.98),rgba(12,20,29,0.94)_58%,rgba(16,19,24,0.98))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[26px] sm:p-5">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-[0.3em] text-cyan-200/80">
-              CATALOG / PRODUCT
-            </p>
-            <h1 className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{details.title}</h1>
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/75">
+              <span>Catalog</span>
+              <span className="h-px w-5 bg-cyan-300/30" />
+              <span>Product workspace</span>
+            </div>
+            <h1 className="mt-2 max-w-4xl break-words text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+              {details.title}
+            </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
               <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
                 {details.status}
@@ -1686,78 +1813,79 @@ export default function AdminProductClient({
           <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
             <Link
               href="/admin/catalog"
-              className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
             >
+              <ArrowLeftIcon className="mr-2 h-4 w-4" aria-hidden="true" />
               Back to catalog
             </Link>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <div className="admin-product-stat admin-lift rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] p-4">
+        <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="admin-product-stat admin-lift rounded-xl border border-cyan-400/20 bg-cyan-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
               Availability
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">{totalAvailableInventory}</div>
-            <div className="mt-1 text-sm text-cyan-100/75">Units available across all variants</div>
+            <div className="mt-2 text-2xl font-semibold text-white">{totalAvailableInventory}</div>
+            <div className="mt-1 text-xs text-cyan-100/70">Units across all variants</div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-violet-400/20 bg-violet-400/[0.08] p-4">
+          <div className="admin-product-stat admin-lift rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
               Variants
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">{variants.length}</div>
-            <div className="mt-1 text-sm text-violet-100/75">
+            <div className="mt-2 text-2xl font-semibold text-white">{variants.length}</div>
+            <div className="mt-1 text-xs text-violet-100/70">
               {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4">
+          <div className="admin-product-stat admin-lift rounded-xl border border-emerald-400/20 bg-emerald-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
               30d Revenue
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-white">
               {formatCurrency(insights.revenue30dCents)}
             </div>
-            <div className="mt-1 text-sm text-emerald-100/75">
+            <div className="mt-1 text-xs text-emerald-100/70">
               Margin {formatPercent(insights.marginRate30d)}
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-4">
+          <div className="admin-product-stat admin-lift rounded-xl border border-amber-400/20 bg-amber-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
               Conversion
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-white">
               {formatPercent(insights.conversionRate30d)}
             </div>
-            <div className="mt-1 text-sm text-amber-100/75">
+            <div className="mt-1 text-xs text-amber-100/70">
               {insights.views30d} views / {insights.purchases30d} purchases
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-rose-400/20 bg-rose-400/[0.08] p-4">
+          <div className="admin-product-stat admin-lift rounded-xl border border-rose-400/20 bg-rose-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200">
               Returns
             </div>
-            <div className="mt-3 text-3xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-white">
               {formatPercent(insights.returnRate30d)}
             </div>
-            <div className="mt-1 text-sm text-rose-100/75">
+            <div className="mt-1 text-xs text-rose-100/70">
               {insights.returnedUnits30d} returned units in the last 30 days
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+          <div className="admin-product-stat admin-lift col-span-2 rounded-xl border border-white/10 bg-white/[0.05] p-3 sm:col-span-1">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
               Compliance
             </div>
-            <div className="mt-3 text-2xl font-semibold text-white">
+            <div className="mt-2 text-lg font-semibold text-white">
               {product.complianceStatus.replace("_", " ")}
             </div>
-            <div className="mt-1 text-sm text-slate-300/75">
+            <div className="mt-1 text-xs text-slate-300/70">
               Feed {product.complianceFeedEligible ? "on" : "off"} · Ads{" "}
               {product.complianceAdsEligible ? "on" : "off"} ·{" "}
               {product.complianceOwnerEmail ?? "Unassigned"}
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {(message || error) && (
         <div
@@ -1801,20 +1929,62 @@ export default function AdminProductClient({
         </div>
       ) : null}
 
-      <div className="sticky top-[4.75rem] z-20 rounded-[20px] border border-white/10 bg-[#05070a]/88 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur sm:top-20 sm:rounded-[24px] sm:p-3">
-        <div className="admin-scroll-x flex items-center gap-2 sm:flex-wrap">
+      <div
+        id="product-editor-workspace"
+        className="sticky top-[4.75rem] z-20 rounded-[18px] border border-white/10 bg-[#05070a]/92 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:top-20 sm:rounded-[22px]"
+      >
+        <div
+          className="admin-scroll-x grid auto-cols-[minmax(154px,1fr)] grid-flow-col gap-2 overflow-x-auto lg:grid-flow-row lg:grid-cols-7"
+          role="tablist"
+          aria-label="Product editor sections"
+        >
           {PRODUCT_EDITOR_SECTIONS.map((section) => (
             <button
               key={section.id}
+              id={`product-editor-tab-${section.id}`}
               type="button"
-              onClick={() => scrollToSection(section.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+              role="tab"
+              aria-selected={activeSection === section.id}
+              aria-controls={
+                section.id === "pricing"
+                  ? "product-editor-pricing-panel"
+                  : section.id
+              }
+              tabIndex={activeSection === section.id ? 0 : -1}
+              onClick={() => selectSection(section.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, section.id)}
+              className={`group relative min-h-[62px] rounded-[14px] border px-3 py-2.5 text-left transition ${
                 activeSection === section.id
-                  ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
-                  : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+                  ? "border-cyan-300/35 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(34,211,238,0.06))] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(8,145,178,0.12)]"
+                  : "border-white/[0.08] bg-white/[0.025] text-slate-300 hover:border-cyan-400/25 hover:bg-cyan-400/[0.07] hover:text-cyan-100"
               }`}
             >
-              {section.label}
+              <span className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-xs font-semibold">
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
+                      activeSection === section.id
+                        ? "border-cyan-200/25 bg-cyan-200/10 text-cyan-100"
+                        : "border-white/10 bg-black/20 text-slate-400 group-hover:text-cyan-200"
+                    }`}
+                  >
+                    {sectionIcon(section.id)}
+                  </span>
+                  {section.label}
+                </span>
+                {sectionIsDirty(section.id) ? (
+                  <span
+                    className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.7)]"
+                    aria-label="Unsaved changes"
+                  />
+                ) : null}
+              </span>
+              <span className="mt-1.5 flex items-center justify-between gap-2 pl-9 text-[10px] text-slate-500">
+                <span className="truncate">{section.description}</span>
+                <span className="shrink-0 font-semibold text-slate-400">
+                  {sectionSummary(section.id)}
+                </span>
+              </span>
             </button>
           ))}
         </div>
@@ -1822,7 +1992,11 @@ export default function AdminProductClient({
 
       <section
         id="performance"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-performance"
+        hidden={activeSection !== "performance"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -1931,7 +2105,11 @@ export default function AdminProductClient({
 
       <section
         id="overview"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-overview"
+        hidden={activeSection !== "overview"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -2633,7 +2811,11 @@ export default function AdminProductClient({
 
       <section
         id="associations"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-associations"
+        hidden={activeSection !== "associations"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm font-semibold text-amber-200">02</span>
@@ -2894,7 +3076,11 @@ export default function AdminProductClient({
 
       <section
         id="media"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-media"
+        hidden={activeSection !== "media"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sm font-semibold text-sky-200">03</span>
@@ -3118,7 +3304,11 @@ export default function AdminProductClient({
 
       <section
         id="variants"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-variants"
+        hidden={activeSection !== "variants"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
@@ -3665,20 +3855,33 @@ export default function AdminProductClient({
 
       </section>
 
-      <AdminVariantPricingProfiles
-        variants={variants.map((variant) => ({
-          id: variant.id,
-          title: variant.title,
-          sku: variant.sku,
-          priceCents: variant.priceCents,
-        }))}
-        pricingProfilesByVariantId={pricingProfilesByVariantId}
-        pricingIntegrationError={pricingIntegrationError}
-      />
+      <div
+        id="product-editor-pricing-panel"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-pricing"
+        hidden={activeSection !== "pricing"}
+        className="admin-tab-panel"
+      >
+        <AdminVariantPricingProfiles
+          variants={variants.map((variant) => ({
+            id: variant.id,
+            title: variant.title,
+            sku: variant.sku,
+            priceCents: variant.priceCents,
+          }))}
+          pricingProfilesByVariantId={pricingProfilesByVariantId}
+          pricingIntegrationError={pricingIntegrationError}
+        />
+      </div>
 
       <section
         id="cross-sells"
-        className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+        role="tabpanel"
+        tabIndex={-1}
+        aria-labelledby="product-editor-tab-cross-sells"
+        hidden={activeSection !== "cross-sells"}
+        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -3814,10 +4017,10 @@ export default function AdminProductClient({
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-4 sm:px-4 sm:pb-0">
-        <div className="mx-auto w-full max-w-6xl rounded-[20px] border border-white/10 bg-[#05070a]/92 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[24px] sm:p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+      <div className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:bottom-4 sm:px-4 sm:pb-0">
+        <div className="mx-auto w-full max-w-6xl rounded-[18px] border border-white/10 bg-[#05070a]/94 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[24px] sm:p-3">
+          <div className="flex items-center gap-2 sm:gap-3 lg:justify-between">
+            <div className="hidden flex-wrap items-center gap-2 text-xs font-semibold sm:flex">
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               </span>
@@ -3830,29 +4033,53 @@ export default function AdminProductClient({
                 </span>
               ))}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <span
+              className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:hidden ${
+                hasUnsavedChanges
+                  ? "border-amber-300/20 bg-amber-300/10 text-amber-200"
+                  : "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
+              }`}
+              aria-label={hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
+              title={hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  hasUnsavedChanges ? "bg-amber-300" : "bg-emerald-300"
+                }`}
+              />
+            </span>
+            <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none sm:flex-wrap sm:gap-2">
               <button
                 type="button"
                 onClick={discardLocalDraft}
                 disabled={!hasUnsavedChanges}
-                className="w-full rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-400 sm:w-auto"
+                className="min-h-10 truncate rounded-xl border border-amber-300/20 bg-amber-300/10 px-2 text-[11px] font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-500 sm:rounded-full sm:px-4 sm:text-xs"
               >
-                Discard local draft
+                <span className="sm:hidden">Discard</span>
+                <span className="hidden sm:inline">Discard local draft</span>
               </button>
               <button
                 type="button"
                 onClick={saveAllChanges}
                 disabled={!hasUnsavedChanges || savingAllChanges}
-                className="w-full rounded-full bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:w-auto"
+                className="min-h-10 truncate rounded-xl bg-cyan-300 px-2 text-[11px] font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:rounded-full sm:px-4 sm:text-xs"
               >
-                {savingAllChanges ? "Saving..." : "Save all changes"}
+                {savingAllChanges ? (
+                  "Saving..."
+                ) : (
+                  <>
+                    <span className="sm:hidden">Save</span>
+                    <span className="hidden sm:inline">Save all changes</span>
+                  </>
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="w-full rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-200 sm:w-auto"
+                className="min-h-10 truncate rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-2 text-[11px] font-semibold text-cyan-200 sm:rounded-full sm:px-4 sm:text-xs"
               >
-                Reload latest
+                <span className="sm:hidden">Reload</span>
+                <span className="hidden sm:inline">Reload latest</span>
               </button>
             </div>
           </div>
@@ -4168,6 +4395,25 @@ export default function AdminProductClient({
       )}
 
       <style jsx>{`
+        .admin-product-redesign .admin-tab-panel[hidden] {
+          display: none !important;
+        }
+
+        .admin-product-redesign .admin-tab-panel:not([hidden]) {
+          animation: product-tab-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes product-tab-enter {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
           :is(input:not([type="file"]), textarea, select) {
           border-color: rgba(255, 255, 255, 0.1);
@@ -4233,6 +4479,12 @@ export default function AdminProductClient({
 
         .admin-product-redesign .admin-product-modal :is(.text-slate-100, .text-slate-50) {
           color: #f8fafc;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .admin-product-redesign .admin-tab-panel:not([hidden]) {
+            animation: none;
+          }
         }
       `}</style>
     </div>
