@@ -3,12 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BoltIcon,
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
+  ArchiveBoxArrowDownIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  InboxStackIcon,
+  LinkIcon,
   PhotoIcon,
+  QueueListIcon,
+  Squares2X2Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -22,9 +28,7 @@ import {
   AdminButton,
   AdminField,
   AdminInput,
-  AdminMetricCard,
   AdminNotice,
-  AdminPageIntro,
   AdminPanel,
   AdminSelect,
   AdminTextarea,
@@ -139,6 +143,9 @@ const statusTone = (status: ImportItem["status"]) => {
   return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
 };
 
+const compactNumber = (value: number) =>
+  new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(value);
+
 export default function SupplierImportClient({
   initialData,
 }: {
@@ -185,6 +192,25 @@ export default function SupplierImportClient({
     }),
     [data.items],
   );
+  const selectedMainCategory = useMemo(
+    () => data.categories.find((category) => category.id === mainCategoryId) ?? null,
+    [data.categories, mainCategoryId],
+  );
+  const selectedAdditionalCategories = useMemo(
+    () => data.categories.filter((category) => additionalCategoryIds.includes(category.id)),
+    [data.categories, additionalCategoryIds],
+  );
+  const latestBatch = data.batches[0] ?? null;
+  const reviewedCount = counts.approved + counts.declined + counts.errors;
+  const reviewCompletion = data.items.length
+    ? Math.round((reviewedCount / data.items.length) * 100)
+    : 0;
+  const intakeReady = Boolean(sourceUrl.trim() && mainCategoryId);
+  const deckStatus = fetching
+    ? "Scanning"
+    : counts.pending > 0
+      ? "Reviewing"
+      : "Clear";
 
   const refreshWorkspace = async () => {
     const response = await fetch("/api/admin/supplier-import", { cache: "no-store" });
@@ -309,6 +335,14 @@ export default function SupplierImportClient({
     else setDrag({ x: 0, y: 0, active: false });
   };
 
+  const toggleAdditionalCategory = (categoryId: string) => {
+    setAdditionalCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId],
+    );
+  };
+
   const openEditor = (item: ImportItem) => {
     setEditingItem(item);
     setEditDraft(toEditDraft(item));
@@ -350,82 +384,170 @@ export default function SupplierImportClient({
 
   return (
     <div className={`${styles.workspace} space-y-6`}>
-      <AdminPageIntro
-        eyebrow="Catalog / Supplier Import"
-        title="Bloomtech review deck"
-        description="Pull a supplier category into a controlled review queue. Swipe products into the draft catalog or decline them without losing the source record."
-        metrics={
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <AdminMetricCard label="Pending" value={String(counts.pending)} detail="Ready to review" tone="violet" />
-            <AdminMetricCard label="Approved" value={String(counts.approved)} detail="Linked drafts" tone="emerald" />
-            <AdminMetricCard label="Declined" value={String(counts.declined)} detail="Retained" />
-            <AdminMetricCard label="Import errors" value={String(counts.errors)} detail="Needs attention" tone="amber" />
+      <section className={styles.hero} aria-labelledby="supplier-import-title">
+        <div className={styles.heroGlow} aria-hidden="true" />
+        <div className={styles.heroGrid}>
+          <div className={styles.heroCopy}>
+            <div className={styles.kicker}>
+              <ArchiveBoxArrowDownIcon className="h-4 w-4" />
+              <span>Catalog / Supplier Import</span>
+            </div>
+            <h1 id="supplier-import-title">Bloomtech review deck</h1>
+            <p>
+              Controlled supplier intake with draft creation, traceable decisions, and
+              queue telemetry in one workspace.
+            </p>
+            <div className={styles.heroChips} aria-label="Supplier import status">
+              <span className={fetching ? styles.liveChip : ""}>
+                <BoltIcon className="h-3.5 w-3.5" />
+                {deckStatus}
+              </span>
+              <span>
+                <QueueListIcon className="h-3.5 w-3.5" />
+                {compactNumber(counts.pending)} pending
+              </span>
+              <span>
+                <Squares2X2Icon className="h-3.5 w-3.5" />
+                {reviewCompletion}% reviewed
+              </span>
+            </div>
           </div>
-        }
-      />
+          <div className={styles.heroPanel} aria-label="Review queue summary">
+            <div className={styles.heroPanelTop}>
+              <div>
+                <p>Active queue</p>
+                <strong>{compactNumber(counts.pending)}</strong>
+              </div>
+              <div className={styles.orbitBadge}>
+                <InboxStackIcon className="h-5 w-5" />
+              </div>
+            </div>
+            <div className={styles.progressTrack} aria-hidden="true">
+              <span style={{ width: `${reviewCompletion}%` }} />
+            </div>
+            <div className={styles.metricGrid}>
+              {[
+                ["Approved", counts.approved, "emerald"],
+                ["Declined", counts.declined, "rose"],
+                ["Errors", counts.errors, "amber"],
+              ].map(([label, value, tone]) => (
+                <div key={label} className={styles.metricTile} data-tone={tone}>
+                  <span>{label}</span>
+                  <strong>{compactNumber(value as number)}</strong>
+                </div>
+              ))}
+            </div>
+            <div className={styles.latestBatch}>
+              <span>Latest batch</span>
+              <strong>
+                {latestBatch
+                  ? `${latestBatch.status} · ${compactNumber(latestBatch.fetchedCount)} added`
+                  : "No supplier scans yet"}
+              </strong>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {notice ? <AdminNotice tone={notice.tone}>{notice.text}</AdminNotice> : null}
 
       <AdminPanel
         eyebrow="01 / Intake"
         title="Fetch a Bloomtech category"
-        description="The selected Smokeify categories are applied to every product approved from this batch."
+        description="Batch category mapping is attached before review so approved products land in the right catalog draft state."
         className={styles.intake}
       >
-        <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr_1fr_auto] xl:items-end">
-          <AdminField label="Bloomtech category URL">
-            <AdminInput
-              type="url"
-              value={sourceUrl}
-              onChange={(event) => setSourceUrl(event.target.value)}
-              placeholder="https://bloomtech.de/Biobizz_1"
-              disabled={fetching}
-            />
-          </AdminField>
-          <AdminField label="Main category">
-            <AdminSelect
-              value={mainCategoryId}
-              onChange={(event) => {
-                setMainCategoryId(event.target.value);
-                setAdditionalCategoryIds((current) =>
-                  current.filter((id) => id !== event.target.value),
-                );
-              }}
-              disabled={fetching}
-            >
-              <option value="">Choose category</option>
-              {data.categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </AdminSelect>
-          </AdminField>
-          <AdminField label="Additional categories" optional="Ctrl/Cmd for multiple">
-            <select
-              multiple
-              value={additionalCategoryIds}
-              onChange={(event) =>
-                setAdditionalCategoryIds(
-                  Array.from(event.currentTarget.selectedOptions, (option) => option.value),
-                )
-              }
-              disabled={fetching}
-              className="min-h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400/30"
-            >
-              {data.categories
-                .filter((category) => category.id !== mainCategoryId)
-                .map((category) => (
+        <div className={styles.intakeGrid}>
+          <div className={styles.sourceColumn}>
+            <AdminField label="Bloomtech category URL">
+              <div className={styles.inputShell}>
+                <LinkIcon className="h-4 w-4" aria-hidden="true" />
+                <AdminInput
+                  type="url"
+                  value={sourceUrl}
+                  onChange={(event) => setSourceUrl(event.target.value)}
+                  placeholder="https://bloomtech.de/Biobizz_1"
+                  disabled={fetching}
+                  className={styles.decoratedInput}
+                />
+              </div>
+            </AdminField>
+            <div className={styles.intakeMeta}>
+              <span>{sourceUrl.trim() ? "Source locked" : "Waiting for source"}</span>
+              <span>{selectedMainCategory ? selectedMainCategory.name : "No main category"}</span>
+              <span>{selectedAdditionalCategories.length} extra</span>
+            </div>
+          </div>
+
+          <div className={styles.categoryColumn}>
+            <AdminField label="Main category">
+              <AdminSelect
+                value={mainCategoryId}
+                onChange={(event) => {
+                  setMainCategoryId(event.target.value);
+                  setAdditionalCategoryIds((current) =>
+                    current.filter((id) => id !== event.target.value),
+                  );
+                }}
+                disabled={fetching}
+                className={styles.mainSelect}
+              >
+                <option value="">Choose category</option>
+                {data.categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
-            </select>
-          </AdminField>
-          <AdminButton
-            onClick={() => void fetchCategory()}
-            disabled={fetching}
-            className="min-w-36"
-          >
-            <ArrowPathIcon className={`mr-2 h-4 w-4 ${fetching ? "animate-spin" : ""}`} />
-            {fetching ? "Fetching…" : "Fetch products"}
-          </AdminButton>
+              </AdminSelect>
+            </AdminField>
+
+            <div className={styles.categoryPicker}>
+              <div className={styles.categoryPickerHeader}>
+                <span>Additional categories</span>
+                {selectedAdditionalCategories.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalCategoryIds([])}
+                    disabled={fetching}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+              <div className={styles.categoryChips}>
+                {data.categories
+                  .filter((category) => category.id !== mainCategoryId)
+                  .map((category) => {
+                    const selected = additionalCategoryIds.includes(category.id);
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => toggleAdditionalCategory(category.id)}
+                        disabled={fetching}
+                        className={selected ? styles.categoryChipSelected : ""}
+                        aria-pressed={selected}
+                      >
+                        {category.name}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.launchColumn}>
+            <div className={styles.launchState} data-ready={intakeReady}>
+              <span>{intakeReady ? "Ready" : "Missing input"}</span>
+              <strong>{fetching ? "Scanning Bloomtech" : "Create review batch"}</strong>
+            </div>
+            <AdminButton
+              onClick={() => void fetchCategory()}
+              disabled={fetching}
+              className={styles.fetchButton}
+            >
+              <ArrowPathIcon className={`mr-2 h-4 w-4 ${fetching ? "animate-spin" : ""}`} />
+              {fetching ? "Fetching…" : "Fetch products"}
+            </AdminButton>
+          </div>
         </div>
       </AdminPanel>
 
