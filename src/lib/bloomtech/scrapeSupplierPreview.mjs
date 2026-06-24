@@ -10,8 +10,7 @@ const DEFAULT_PASSWORD_FIELD = "passwort";
 const DEFAULT_LOGIN_URL = "https://bloomtech.de/Konto";
 const DEFAULT_LOGIN_SUBMIT_FIELD = "login";
 const DEFAULT_LOGIN_SUBMIT_VALUE = "1";
-const DEFAULT_LOGIN_CHECK_REGEX =
-  /(abmelden|logout|mein konto|mein kundenkonto)/i;
+const DEFAULT_LOGIN_CHECK_REGEX = /(abmelden|logout)/i;
 const STATUS_REGEX =
   /<span[^>]*class=["'][^"']*status[^"']*["'][^>]*>([\s\S]*?)<\/span>/i;
 const PLANTPLANET_STATUS_REGEX =
@@ -299,14 +298,84 @@ const extractDescription = (text) => {
     .trim();
 };
 
-const extractPriceFromHtml = (html) => {
-  const match = html.match(
-    /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/i,
+const PRICE_META_TAG_REGEX =
+  /<meta[^>]*itemprop=["']price["'][^>]*content=["']([^"']+)["'][^>]*>/gi;
+const COMPARE_AT_PRICE_PATTERNS = [
+  /"compare_at_price"\s*:\s*"([^"]+)"/gi,
+  /"compareAtPrice"\s*:\s*"([^"]+)"/gi,
+  /"listPrice"\s*:\s*"([^"]+)"/gi,
+  /"regularPrice"\s*:\s*"([^"]+)"/gi,
+  /"originalPrice"\s*:\s*"([^"]+)"/gi,
+  /"priceBefore"\s*:\s*"([^"]+)"/gi,
+  /<span[^>]*class=["'][^"']*(?:old-price|price-old|was-price|price-compare|compare-price)[^"']*["'][^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
+  /<del[^>]*>\s*(?:€\s*)?([0-9][0-9.,]*)/gi,
+  /(?:UVP|Statt|Listenpreis|Originalpreis|Regul(?:aer|är)er Preis)[^0-9€]{0,40}(?:€\s*)?([0-9][0-9.,]*)/gi,
+];
+
+const parsePriceToCents = (rawValue) => {
+  if (typeof rawValue !== "string") return null;
+  const cleaned = rawValue.replace(/[^0-9,.-]/g, "").trim();
+  if (!cleaned) return null;
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+  let normalized = cleaned;
+  if (lastComma !== -1 && lastDot !== -1) {
+    normalized =
+      lastComma > lastDot
+        ? cleaned.replace(/\./g, "").replace(",", ".")
+        : cleaned.replace(/,/g, "");
+  } else if (lastComma !== -1) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if ((cleaned.match(/\./g) ?? []).length > 1) {
+    const parts = cleaned.split(".");
+    normalized = `${parts.slice(0, -1).join("")}.${parts.at(-1)}`;
+  }
+  const amount = Number.parseFloat(normalized);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+};
+
+const collectPriceCandidates = (html, patterns) => {
+  const prices = [];
+  for (const pattern of patterns) {
+    const regex = new RegExp(
+      pattern.source,
+      pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
+    );
+    for (const match of html.matchAll(regex)) {
+      const cents = parsePriceToCents(match[1]);
+      if (cents !== null) prices.push(cents);
+    }
+  }
+  return prices;
+};
+
+export const extractBloomtechPricingFromHtml = (html) => {
+  PRICE_META_TAG_REGEX.lastIndex = 0;
+  const currentPriceMatch = PRICE_META_TAG_REGEX.exec(html);
+  const currentNetCents = parsePriceToCents(currentPriceMatch?.[1] ?? "");
+  if (currentNetCents === null) {
+    return {
+      currentNetCents: null,
+      compareAtNetCents: null,
+    };
+  }
+
+  const contextStart = Math.max(0, (currentPriceMatch?.index ?? 0) - 1800);
+  const contextEnd = Math.min(
+    html.length,
+    (currentPriceMatch?.index ?? 0) + 4500,
   );
-  if (!match) return null;
-  const normalized = match[1].replace(",", ".").trim();
-  const amount = Number(normalized);
-  return Number.isFinite(amount) ? amount : null;
+  const priceContext = html.slice(contextStart, contextEnd);
+  const compareAtCandidates = collectPriceCandidates(
+    priceContext,
+    COMPARE_AT_PRICE_PATTERNS,
+  ).filter((candidate) => candidate > currentNetCents);
+
+  return {
+    currentNetCents,
+    compareAtNetCents:
+      compareAtCandidates.length > 0 ? Math.max(...compareAtCandidates) : null,
+  };
 };
 
 const extractSupplierImagesFromHtml = (html, pageUrl) => {
@@ -929,17 +998,53 @@ const findLoginFormHtml = (html, { emailField, passwordField, submitField }) => 
   return null;
 };
 
-const loginBloomtech = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) => {
+export const isBloomtechAuthenticatedHtml = (
+  html,
+  {
+    emailField = DEFAULT_EMAIL_FIELD,
+    passwordField = DEFAULT_PASSWORD_FIELD,
+    loginCheckRegex = DEFAULT_LOGIN_CHECK_REGEX,
+  } = {},
+) =>
+  loginCheckRegex.test(html) &&
+  !findLoginFormHtml(html, {
+    emailField,
+    passwordField,
+    submitField:
+      process.env.BLOOMTECH_LOGIN_SUBMIT_FIELD ?? DEFAULT_LOGIN_SUBMIT_FIELD,
+  });
+
+const verifyBloomtechLogin = async (cookieJar) => {
+  const loginUrl = process.env.BLOOMTECH_LOGIN_URL ?? DEFAULT_LOGIN_URL;
+  const loginCheckRegex = new RegExp(
+    process.env.BLOOMTECH_LOGIN_CHECK_REGEX ?? DEFAULT_LOGIN_CHECK_REGEX,
+  );
+  const accountHtml = await fetchHtml(loginUrl, cookieJar);
+  return {
+    authenticated: isBloomtechAuthenticatedHtml(accountHtml, {
+      emailField: process.env.BLOOMTECH_EMAIL_FIELD ?? DEFAULT_EMAIL_FIELD,
+      passwordField:
+        process.env.BLOOMTECH_PASSWORD_FIELD ?? DEFAULT_PASSWORD_FIELD,
+      loginCheckRegex,
+    }),
+    accountHtml,
+  };
+};
+
+const loginBloomtech = async (
+  cookieJar,
+  { dumpLogin, dumpLoginResponse, logger = console } = {},
+) => {
   const loginUrl = process.env.BLOOMTECH_LOGIN_URL ?? DEFAULT_LOGIN_URL;
   const email = process.env.BLOOMTECH_EMAIL;
   const password = process.env.BLOOMTECH_PASSWORD;
   if (!loginUrl || !email || !password) {
     if (process.env.BLOOMTECH_DEBUG === "1") {
-      console.log(
+      logger.log(
         "[preview] Login skipped. Missing BLOOMTECH_EMAIL or BLOOMTECH_PASSWORD."
       );
     }
-    return;
+    return { authenticated: false, accountHtml: null };
   }
 
   const emailField = process.env.BLOOMTECH_EMAIL_FIELD ?? DEFAULT_EMAIL_FIELD;
@@ -949,10 +1054,6 @@ const loginBloomtech = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) 
     process.env.BLOOMTECH_LOGIN_SUBMIT_FIELD ?? DEFAULT_LOGIN_SUBMIT_FIELD;
   const submitValue =
     process.env.BLOOMTECH_LOGIN_SUBMIT_VALUE ?? DEFAULT_LOGIN_SUBMIT_VALUE;
-  const loginCheckRegex = new RegExp(
-    process.env.BLOOMTECH_LOGIN_CHECK_REGEX ?? DEFAULT_LOGIN_CHECK_REGEX
-  );
-
   const loginPageHtml = await fetchHtml(loginUrl, cookieJar);
   if (dumpLogin) {
     await fs.promises.writeFile(dumpLogin, loginPageHtml, "utf8");
@@ -995,12 +1096,9 @@ const loginBloomtech = async (cookieJar, { dumpLogin, dumpLoginResponse } = {}) 
     await fs.promises.writeFile(dumpLoginResponse, responseHtml, "utf8");
   }
   if (process.env.BLOOMTECH_DEBUG === "1") {
-    console.log(`[preview] cookie names after login: ${cookieJar.names().join(", ")}`);
+    logger.log(`[preview] cookie names after login: ${cookieJar.names().join(", ")}`);
   }
-  const accountHtml = await fetchHtml(loginUrl, cookieJar);
-  if (!loginCheckRegex.test(accountHtml)) {
-    console.warn("[preview] Login check failed. Prices may be guest prices.");
-  }
+  return verifyBloomtechLogin(cookieJar);
 };
 
 export const parseArgs = () => {
@@ -1034,6 +1132,7 @@ export const parseArgs = () => {
     dumpAccount,
     dumpLogin,
     dumpLoginResponse,
+    requireAuthenticated: !args.includes("--allow-guest"),
   };
 };
 
@@ -1074,6 +1173,7 @@ export const runBloomtechSupplierPreview = async ({
   dumpLoginResponse = null,
   loadEnvFile = true,
   persistOutput = true,
+  requireAuthenticated = true,
   logger = console,
 } = {}) => {
   if (loadEnvFile) {
@@ -1081,16 +1181,32 @@ export const runBloomtechSupplierPreview = async ({
   }
   const cookieJar = createCookieJar();
   const cookieOverride = process.env.BLOOMTECH_COOKIE;
+  let authResult = { authenticated: false, accountHtml: null };
   if (cookieOverride) {
     cookieJar.setFromCookieString(cookieOverride);
     if (process.env.BLOOMTECH_DEBUG === "1") {
       logger.log("[preview] Using BLOOMTECH_COOKIE auth.");
     }
+    authResult = await verifyBloomtechLogin(cookieJar);
   } else {
-    await loginBloomtech(cookieJar, { dumpLogin, dumpLoginResponse });
+    authResult = await loginBloomtech(cookieJar, {
+      dumpLogin,
+      dumpLoginResponse,
+      logger,
+    });
+  }
+  if (requireAuthenticated && !authResult.authenticated) {
+    throw new Error(
+      "Bloomtech authentication is required for supplier pricing. Configure BLOOMTECH_EMAIL and BLOOMTECH_PASSWORD, or provide a valid BLOOMTECH_COOKIE.",
+    );
+  }
+  if (!authResult.authenticated) {
+    logger.warn("[preview] Continuing with guest pricing because --allow-guest was used.");
   }
   if (dumpAccount) {
-    const accountHtml = await fetchHtml(DEFAULT_LOGIN_URL, cookieJar);
+    const accountHtml =
+      authResult.accountHtml ??
+      (await fetchHtml(process.env.BLOOMTECH_LOGIN_URL ?? DEFAULT_LOGIN_URL, cookieJar));
     await fs.promises.writeFile(dumpAccount, accountHtml, "utf8");
   }
   const categoryHtml = await fetchHtml(url, cookieJar);
@@ -1168,10 +1284,14 @@ export const runBloomtechSupplierPreview = async ({
         extractTechnicalDetailsFromHtml(html) || buildTechnicalDetails(text);
       const gtin =
         extractGtinFromTechnicalDetails(technicalDetails) || extractGtinFromText(text);
-      const basePrice = extractPriceFromHtml(html);
+      const supplierPricing = extractBloomtechPricingFromHtml(html);
       const price =
-        typeof basePrice === "number"
-          ? Math.round(basePrice * 1.19 * 100) / 100
+        typeof supplierPricing.currentNetCents === "number"
+          ? Math.round(supplierPricing.currentNetCents * 1.19) / 100
+          : null;
+      const compareAtPrice =
+        typeof supplierPricing.compareAtNetCents === "number"
+          ? Math.round(supplierPricing.compareAtNetCents * 1.19) / 100
           : null;
       const manufacturer = extractManufacturerFromHtml(html);
       const normalizedManufacturer = manufacturer.trim();
@@ -1212,6 +1332,19 @@ export const runBloomtechSupplierPreview = async ({
         technicalDetails,
         gtin,
         price,
+        compareAtPrice,
+        supplierPricing: {
+          currentNetCents: supplierPricing.currentNetCents,
+          compareAtNetCents: supplierPricing.compareAtNetCents,
+          currentGrossCents:
+            typeof supplierPricing.currentNetCents === "number"
+              ? Math.round(supplierPricing.currentNetCents * 1.19)
+              : null,
+          compareAtGrossCents:
+            typeof supplierPricing.compareAtNetCents === "number"
+              ? Math.round(supplierPricing.compareAtNetCents * 1.19)
+              : null,
+        },
         stock,
         supplierWeight,
         supplierImages,

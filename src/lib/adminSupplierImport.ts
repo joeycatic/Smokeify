@@ -24,6 +24,7 @@ type ScrapedBloomtechItem = {
   technicalDetails?: string;
   gtin?: string;
   price?: number | null;
+  compareAtPrice?: number | null;
   stock?: {
     quantity?: number | null;
   };
@@ -44,6 +45,7 @@ export type SupplierImportEditableFields = {
   sku?: string | null;
   costCents?: number | null;
   priceCents?: number | null;
+  compareAtCents?: number | null;
   stockQuantity?: number;
   weightGrams?: number | null;
   imageUrls?: string[];
@@ -147,7 +149,12 @@ export function normalizeSupplierImportEdits(
     updates.description = sanitizeProductDescription(value.description);
   }
 
-  for (const key of ["costCents", "priceCents", "weightGrams"] as const) {
+  for (const key of [
+    "costCents",
+    "priceCents",
+    "compareAtCents",
+    "weightGrams",
+  ] as const) {
     const normalized = normalizeNullableInteger(value[key]);
     if (normalized !== undefined) updates[key] = normalized;
   }
@@ -159,7 +166,7 @@ export function normalizeSupplierImportEdits(
   return updates;
 }
 
-function mapScrapedItem(item: ScrapedBloomtechItem) {
+export function mapScrapedItem(item: ScrapedBloomtechItem) {
   const sourceUrl =
     typeof item.sourceUrl === "string"
       ? normalizeSupplierProductUrl(item.sourceUrl)
@@ -170,6 +177,18 @@ function mapScrapedItem(item: ScrapedBloomtechItem) {
     typeof item.price === "number" && Number.isFinite(item.price)
       ? Math.max(0, Math.round(item.price * 100))
       : null;
+  const originalCostCents =
+    typeof item.compareAtPrice === "number" &&
+    Number.isFinite(item.compareAtPrice) &&
+    item.compareAtPrice > (item.price ?? 0)
+      ? Math.max(0, Math.round(item.compareAtPrice * 100))
+      : null;
+  const priceCents =
+    costCents === null ? null : calculateSupplierSellPriceCents(costCents);
+  const compareAtCents =
+    originalCostCents === null
+      ? null
+      : calculateSupplierSellPriceCents(originalCostCents);
 
   return {
     sourceUrl,
@@ -183,7 +202,13 @@ function mapScrapedItem(item: ScrapedBloomtechItem) {
     gtin: item.gtin?.trim() || null,
     sku: parseSupplierSku(item),
     costCents,
-    priceCents: costCents === null ? null : calculateSupplierSellPriceCents(costCents),
+    priceCents,
+    compareAtCents:
+      priceCents !== null &&
+      compareAtCents !== null &&
+      compareAtCents > priceCents
+        ? compareAtCents
+        : null,
     stockQuantity:
       typeof item.stock?.quantity === "number" && Number.isFinite(item.stock.quantity)
         ? Math.max(0, Math.floor(item.stock.quantity))
@@ -305,6 +330,7 @@ async function addCatalogMatchesToImportItems(
           sku: true,
           costCents: true,
           priceCents: true,
+          compareAtCents: true,
           inventory: {
             select: {
               quantityOnHand: true,
@@ -360,6 +386,12 @@ async function addCatalogMatchesToImportItems(
       "Sell price",
       formatCatalogCents(variant?.priceCents),
       formatCatalogCents(item.priceCents),
+    );
+    addCatalogChange(
+      changes,
+      "Compare-at price",
+      formatCatalogCents(variant?.compareAtCents),
+      formatCatalogCents(item.compareAtCents),
     );
     addCatalogChange(
       changes,
@@ -496,6 +528,7 @@ export async function createBloomtechImportBatch(input: {
       mode: "category",
       url: sourceUrl,
       persistOutput: false,
+      requireAuthenticated: true,
       logger: console,
     });
     const mapped = (payload.items ?? []).map(mapScrapedItem).filter(Boolean) as Array<
@@ -579,6 +612,10 @@ async function syncApprovedItemToCatalog(
   }
   const costCents = item.costCents;
   const priceCents = item.priceCents;
+  const compareAtCents =
+    typeof item.compareAtCents === "number" && item.compareAtCents > priceCents
+      ? item.compareAtCents
+      : null;
 
   const supplier = await resolveBloomtechSupplier();
   const categoryIds = Array.from(
@@ -699,6 +736,7 @@ async function syncApprovedItemToCatalog(
             sku: item.sku || item.handle,
             costCents,
             priceCents,
+            compareAtCents,
           },
         })
       : await tx.variant.create({
@@ -708,6 +746,7 @@ async function syncApprovedItemToCatalog(
             sku: item.sku || item.handle,
             costCents,
             priceCents,
+            compareAtCents,
             position: 0,
           },
         });

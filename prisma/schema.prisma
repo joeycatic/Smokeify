@@ -864,6 +864,7 @@ model SupplierImportItem {
   sku              String?
   costCents        Int?
   priceCents       Int?
+  compareAtCents   Int?
   stockQuantity    Int                      @default(0)
   weightGrams      Int?
   imageUrls        String[]                 @default([])

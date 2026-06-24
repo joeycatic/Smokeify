@@ -81,6 +81,7 @@ type ImportItem = {
   sku: string | null;
   costCents: number | null;
   priceCents: number | null;
+  compareAtCents: number | null;
   stockQuantity: number;
   weightGrams: number | null;
   imageUrls: string[];
@@ -111,6 +112,7 @@ type EditDraft = {
   sku: string;
   cost: string;
   price: string;
+  compareAt: string;
   stockQuantity: string;
   weightGrams: string;
   imageUrls: string;
@@ -135,6 +137,8 @@ const toEditDraft = (item: ImportItem): EditDraft => ({
   sku: item.sku ?? "",
   cost: item.costCents === null ? "" : (item.costCents / 100).toFixed(2),
   price: item.priceCents === null ? "" : (item.priceCents / 100).toFixed(2),
+  compareAt:
+    item.compareAtCents === null ? "" : (item.compareAtCents / 100).toFixed(2),
   stockQuantity: String(item.stockQuantity),
   weightGrams: item.weightGrams === null ? "" : String(item.weightGrams),
   imageUrls: item.imageUrls.join("\n"),
@@ -399,6 +403,7 @@ export default function SupplierImportClient({
       sku: editDraft.sku || null,
       costCents: editDraft.cost ? parseEuroCents(editDraft.cost) : null,
       priceCents: editDraft.price ? parseEuroCents(editDraft.price) : null,
+      compareAtCents: editDraft.compareAt ? parseEuroCents(editDraft.compareAt) : null,
       stockQuantity: Number(editDraft.stockQuantity),
       weightGrams: editDraft.weightGrams ? Number(editDraft.weightGrams) : null,
       imageUrls: editDraft.imageUrls.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean),
@@ -717,6 +722,9 @@ export default function SupplierImportClient({
                         <div key={label} className={styles.cardStat}>
                           <p>{label}</p>
                           <strong>{value}</strong>
+                          {label === "Sell price" && currentItem.compareAtCents ? (
+                            <del>{formatMoney(currentItem.compareAtCents)}</del>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -901,7 +909,15 @@ export default function SupplierImportClient({
                   </div>
                   <div><span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] ${statusTone(item.status)}`}>{item.status.replace("_", " ")}</span></div>
                   <p className="text-sm font-semibold text-slate-200"><span className="mr-2 text-xs text-slate-500 xl:hidden">Cost</span>{formatMoney(item.costCents)}</p>
-                  <p className="text-sm font-semibold text-slate-200"><span className="mr-2 text-xs text-slate-500 xl:hidden">Sell</span>{formatMoney(item.priceCents)}</p>
+                  <p className="text-sm font-semibold text-slate-200">
+                    <span className="mr-2 text-xs text-slate-500 xl:hidden">Sell</span>
+                    {formatMoney(item.priceCents)}
+                    {item.compareAtCents ? (
+                      <del className="ml-2 text-xs font-medium text-slate-500">
+                        {formatMoney(item.compareAtCents)}
+                      </del>
+                    ) : null}
+                  </p>
                   <div>
                     {item.linkedProduct ? (
                       <Link href={`/admin/catalog/${item.linkedProduct.id}`} className="inline-flex items-center text-xs font-semibold text-cyan-300 hover:text-cyan-200">
@@ -982,6 +998,7 @@ export default function SupplierImportClient({
               <AdminField label="Weight (grams)"><AdminInput type="number" min="0" value={editDraft.weightGrams} onChange={(event) => setEditDraft({ ...editDraft, weightGrams: event.target.value })} /></AdminField>
               <AdminField label="Supplier cost (€)"><AdminInput inputMode="decimal" value={editDraft.cost} onChange={(event) => setEditDraft({ ...editDraft, cost: event.target.value })} /></AdminField>
               <AdminField label="Sell price (€)"><AdminInput inputMode="decimal" value={editDraft.price} onChange={(event) => setEditDraft({ ...editDraft, price: event.target.value })} /></AdminField>
+              <AdminField label="Compare-at price (€)" optional="Original price before discount"><AdminInput inputMode="decimal" value={editDraft.compareAt} onChange={(event) => setEditDraft({ ...editDraft, compareAt: event.target.value })} /></AdminField>
               <AdminField label="Stock quantity"><AdminInput type="number" min="0" value={editDraft.stockQuantity} onChange={(event) => setEditDraft({ ...editDraft, stockQuantity: event.target.value })} /></AdminField>
               <AdminField label="Image URLs" optional="One per line"><AdminTextarea rows={4} value={editDraft.imageUrls} onChange={(event) => setEditDraft({ ...editDraft, imageUrls: event.target.value })} /></AdminField>
               <div className="md:col-span-2"><AdminField label="Short description"><AdminTextarea rows={3} value={editDraft.shortDescription} onChange={(event) => setEditDraft({ ...editDraft, shortDescription: event.target.value })} /></AdminField></div>

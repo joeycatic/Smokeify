@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import {
   calculateSupplierSellPriceCents,
+  mapScrapedItem,
   normalizeBloomtechCategoryUrl,
   normalizeSupplierImportEdits,
 } from "@/lib/adminSupplierImport";
@@ -33,6 +34,7 @@ describe("adminSupplierImport", () => {
         handle: "My Product",
         stockQuantity: 4.6,
         costCents: 1234.4,
+        compareAtCents: 1699.4,
         imageUrls: [
           "https://bloomtech.de/image.webp",
           "https://bloomtech.de/image.webp",
@@ -44,7 +46,23 @@ describe("adminSupplierImport", () => {
       handle: "my-product",
       stockQuantity: 5,
       costCents: 1234,
+      compareAtCents: 1699,
       imageUrls: ["https://bloomtech.de/image.webp"],
+    });
+  });
+
+  it("transfers a supplier discount into active and compare-at sell prices", () => {
+    const mapped = mapScrapedItem({
+      sourceUrl: "https://bloomtech.de/discounted-product",
+      title: "Discounted product",
+      price: 80,
+      compareAtPrice: 100,
+    });
+
+    expect(mapped).toMatchObject({
+      costCents: 8000,
+      priceCents: calculateSupplierSellPriceCents(8000),
+      compareAtCents: calculateSupplierSellPriceCents(10000),
     });
   });
 });
