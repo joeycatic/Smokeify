@@ -19,6 +19,7 @@ import {
   Squares2X2Icon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+import styles from "./AdminProductClient.module.css";
 import type { VariantPricingProfileRecord } from "@/lib/adminPricingIntegration";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import AdminVariantPricingProfiles from "./AdminVariantPricingProfiles";
@@ -1774,7 +1775,7 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className="admin-console-page admin-product-redesign space-y-4 rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_8%_0%,rgba(34,211,238,0.11),transparent_26%),radial-gradient(circle_at_94%_4%,rgba(245,158,11,0.08),transparent_25%),repeating-linear-gradient(135deg,rgba(255,255,255,0.012)_0,rgba(255,255,255,0.012)_1px,transparent_1px,transparent_12px),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:rounded-[30px] md:p-6 md:pb-40">
+    <div className={`${styles.workspace} admin-console-page admin-product-redesign space-y-4 rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_8%_0%,rgba(34,211,238,0.11),transparent_26%),radial-gradient(circle_at_94%_4%,rgba(245,158,11,0.08),transparent_25%),repeating-linear-gradient(135deg,rgba(255,255,255,0.012)_0,rgba(255,255,255,0.012)_1px,transparent_1px,transparent_12px),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:rounded-[30px] md:p-6 md:pb-40`}>
       <header className="admin-product-hero admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(125deg,rgba(10,14,20,0.98),rgba(12,20,29,0.94)_58%,rgba(16,19,24,0.98))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[26px] sm:p-5">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="min-w-0">
@@ -1934,7 +1935,7 @@ export default function AdminProductClient({
         className="sticky top-[4.75rem] z-20 rounded-[18px] border border-white/10 bg-[#05070a]/92 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:top-20 sm:rounded-[22px]"
       >
         <div
-          className="admin-scroll-x grid auto-cols-[minmax(154px,1fr)] grid-flow-col gap-2 overflow-x-auto lg:grid-flow-row lg:grid-cols-7"
+          className={`${styles.tabList} admin-scroll-x grid auto-cols-[minmax(154px,1fr)] grid-flow-col gap-2 overflow-x-auto lg:grid-flow-row lg:grid-cols-7`}
           role="tablist"
           aria-label="Product editor sections"
         >
@@ -1953,7 +1954,7 @@ export default function AdminProductClient({
               tabIndex={activeSection === section.id ? 0 : -1}
               onClick={() => selectSection(section.id)}
               onKeyDown={(event) => handleTabKeyDown(event, section.id)}
-              className={`group relative min-h-[62px] rounded-[14px] border px-3 py-2.5 text-left transition ${
+              className={`${styles.tab} group relative min-h-[62px] rounded-[14px] border px-3 py-2.5 text-left transition ${
                 activeSection === section.id
                   ? "border-cyan-300/35 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(34,211,238,0.06))] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(8,145,178,0.12)]"
                   : "border-white/[0.08] bg-white/[0.025] text-slate-300 hover:border-cyan-400/25 hover:bg-cyan-400/[0.07] hover:text-cyan-100"
@@ -1996,7 +1997,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-performance"
         hidden={activeSection !== "performance"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -2109,7 +2110,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-overview"
         hidden={activeSection !== "overview"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -2815,7 +2816,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-associations"
         hidden={activeSection !== "associations"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm font-semibold text-amber-200">02</span>
@@ -3080,7 +3081,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-media"
         hidden={activeSection !== "media"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sm font-semibold text-sky-200">03</span>
@@ -3308,14 +3309,23 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-variants"
         hidden={activeSection !== "variants"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Variants & stock</p>
-            <p className="text-xs text-slate-400">Pricing, inventory, and options.</p>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Variants & stock</p>
+              <p className="text-xs text-slate-400">Pricing, inventory, and options.</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setAddVariantOpen(true)}
+            className="min-h-10 rounded-xl border border-violet-400/25 bg-violet-400/10 px-4 text-xs font-semibold text-violet-100 shadow-[0_10px_28px_rgba(76,29,149,0.16)] hover:border-violet-300/40 hover:bg-violet-400/15"
+          >
+            Add variant
+          </button>
         </div>
         <div className="space-y-6">
           {variantRows.map((variant) => (
@@ -3861,7 +3871,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-pricing"
         hidden={activeSection !== "pricing"}
-        className="admin-tab-panel"
+        className={`${styles.pricingPanel} admin-tab-panel`}
       >
         <AdminVariantPricingProfiles
           variants={variants.map((variant) => ({
@@ -3881,7 +3891,7 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-cross-sells"
         hidden={activeSection !== "cross-sells"}
-        className="admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5"
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -4400,7 +4410,7 @@ export default function AdminProductClient({
         }
 
         .admin-product-redesign .admin-tab-panel:not([hidden]) {
-          animation: product-tab-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: product-tab-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
         }
 
         @keyframes product-tab-enter {

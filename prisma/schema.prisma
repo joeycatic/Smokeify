@@ -835,6 +835,7 @@ model SupplierImportBatch {
   additionalCategoryIds String[]                  @default([])
   status                SupplierImportBatchStatus @default(FETCHING)
   fetchedCount          Int                       @default(0)
+  changedCount          Int                       @default(0)
   skippedCount          Int                       @default(0)
   errorMessage          String?
   createdById           String?
@@ -868,6 +869,8 @@ model SupplierImportItem {
   stockQuantity    Int                      @default(0)
   weightGrams      Int?
   imageUrls        String[]                 @default([])
+  sourceChanges    Json?
+  sourceChangedAt  DateTime?
   status           SupplierImportItemStatus @default(PENDING)
   linkedProductId  String?
   importError      String?

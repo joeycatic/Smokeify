@@ -55,6 +55,13 @@ export type SupplierImportEditableFields = {
   imageUrls?: string[];
 };
 
+export type SupplierImportSourceChange = {
+  field: string;
+  label: string;
+  currentValue: string;
+  incomingValue: string;
+};
+
 export function normalizeBloomtechCategoryUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) throw new Error("A Bloomtech category URL is required.");
@@ -226,6 +233,157 @@ export function mapScrapedItem(item: ScrapedBloomtechItem) {
     imageUrls: normalizeHttpUrls(item.supplierImages),
   };
 }
+
+type MappedScrapedItem = NonNullable<ReturnType<typeof mapScrapedItem>>;
+
+const summarizeSourceText = (value: string | null | undefined) => {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  if (!normalized) return "—";
+  return normalized.length > 140 ? `${normalized.slice(0, 137)}…` : normalized;
+};
+
+const SOURCE_CHANGE_FIELDS = [
+  ["title", "Title", (value: unknown) => summarizeSourceText(value as string | null)],
+  [
+    "manufacturer",
+    "Manufacturer",
+    (value: unknown) => summarizeSourceText(value as string | null),
+  ],
+  ["handle", "Handle", (value: unknown) => summarizeSourceText(value as string | null)],
+  [
+    "shortDescription",
+    "Short description",
+    (value: unknown) => summarizeSourceText(value as string | null),
+  ],
+  [
+    "description",
+    "Description",
+    (value: unknown) => summarizeSourceText(value as string | null),
+  ],
+  [
+    "technicalDetails",
+    "Technical details",
+    (value: unknown) => summarizeSourceText(value as string | null),
+  ],
+  ["gtin", "GTIN", (value: unknown) => summarizeSourceText(value as string | null)],
+  ["sku", "SKU", (value: unknown) => summarizeSourceText(value as string | null)],
+  ["costCents", "Supplier cost", (value: unknown) => formatCatalogCents(value as number | null)],
+  ["priceCents", "Sell price", (value: unknown) => formatCatalogCents(value as number | null)],
+  [
+    "compareAtCents",
+    "Compare-at price",
+    (value: unknown) => formatCatalogCents(value as number | null),
+  ],
+  [
+    "stockQuantity",
+    "Stock",
+    (value: unknown) => formatCatalogInteger(value as number | null),
+  ],
+  [
+    "weightGrams",
+    "Weight",
+    (value: unknown) => formatCatalogInteger(value as number | null, " g"),
+  ],
+  [
+    "imageUrls",
+    "Images",
+    (value: unknown) =>
+      `${Array.isArray(value) ? value.length : 0} image${
+        Array.isArray(value) && value.length === 1 ? "" : "s"
+      }`,
+  ],
+] as const;
+
+export function buildSupplierImportSourceChanges(
+  current: SupplierImportEditableFields & { sourcePayload?: Prisma.JsonValue },
+  incoming: MappedScrapedItem,
+): SupplierImportSourceChange[] {
+  const changes: SupplierImportSourceChange[] = [];
+
+  for (const [field, label, format] of SOURCE_CHANGE_FIELDS) {
+    const currentValue = current[field];
+    const incomingValue = incoming[field];
+    const equal =
+      field === "imageUrls"
+        ? JSON.stringify(currentValue ?? []) === JSON.stringify(incomingValue ?? [])
+        : currentValue === incomingValue;
+    if (equal) continue;
+    changes.push({
+      field,
+      label,
+      currentValue: format(currentValue),
+      incomingValue: format(incomingValue),
+    });
+  }
+
+  const asJsonRecord = (value: unknown): Record<string, unknown> =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const currentPayload = asJsonRecord(current.sourcePayload);
+  const incomingPayload = asJsonRecord(incoming.sourcePayload);
+  const currentPricing =
+    currentPayload.supplierPricing &&
+    typeof currentPayload.supplierPricing === "object" &&
+    !Array.isArray(currentPayload.supplierPricing)
+      ? (currentPayload.supplierPricing as Record<string, unknown>)
+      : {};
+  const incomingPricing =
+    incomingPayload.supplierPricing &&
+    typeof incomingPayload.supplierPricing === "object" &&
+    !Array.isArray(incomingPayload.supplierPricing)
+      ? (incomingPayload.supplierPricing as Record<string, unknown>)
+      : {};
+  const formatSupplierDiscount = (pricing: Record<string, unknown>) =>
+    pricing.discounted === true
+      ? `Discounted${
+          typeof pricing.discountPercent === "number"
+            ? ` (${pricing.discountPercent}%)`
+            : ""
+        }`
+      : "Regular price";
+  const currentDiscount = formatSupplierDiscount(currentPricing);
+  const incomingDiscount = formatSupplierDiscount(incomingPricing);
+  if (currentDiscount !== incomingDiscount) {
+    changes.push({
+      field: "supplierDiscount",
+      label: "Supplier discount",
+      currentValue: currentDiscount,
+      incomingValue: incomingDiscount,
+    });
+  }
+
+  return changes;
+}
+
+const normalizeStoredSourceChanges = (
+  value: Prisma.JsonValue,
+): SupplierImportSourceChange[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const field = entry.field;
+    const label = entry.label;
+    const currentValue = entry.currentValue;
+    const incomingValue = entry.incomingValue;
+    if (
+      typeof field !== "string" ||
+      typeof label !== "string" ||
+      typeof currentValue !== "string" ||
+      typeof incomingValue !== "string"
+    ) {
+      return [];
+    }
+    return [
+      {
+        field,
+        label,
+        currentValue,
+        incomingValue,
+      },
+    ];
+  });
+};
 
 export const supplierImportItemInclude = {
   batch: true,
@@ -458,6 +616,7 @@ async function addCatalogMatchesToImportItems(
 
     return {
       ...item,
+      sourceChanges: normalizeStoredSourceChanges(item.sourceChanges),
       catalogProduct:
         linkedProduct ?? (matchedProduct ? productSummary(matchedProduct) : null),
       catalogChanges: matchedProduct ? productChanges(item, matchedProduct) : [],
@@ -585,15 +744,20 @@ export async function createBloomtechImportBatch(input: {
     const mapped = (payload.items ?? []).map(mapScrapedItem).filter(Boolean) as Array<
       NonNullable<ReturnType<typeof mapScrapedItem>>
     >;
-    const seenUrls = new Set(
-      (
-        await prisma.supplierImportItem.findMany({
-          where: { sourceUrl: { in: mapped.map((item) => item.sourceUrl) } },
-          select: { sourceUrl: true },
-        })
-      ).map((item) => item.sourceUrl),
+    const existingItems = await prisma.supplierImportItem.findMany({
+      where: { sourceUrl: { in: mapped.map((item) => item.sourceUrl) } },
+    });
+    const existingBySourceUrl = new Map(
+      existingItems.map((item) => [item.sourceUrl, item]),
     );
-    const newItems = mapped.filter((item) => !seenUrls.has(item.sourceUrl));
+    const newItems = mapped.filter((item) => !existingBySourceUrl.has(item.sourceUrl));
+    const changedItems = mapped.flatMap((item) => {
+      const existing = existingBySourceUrl.get(item.sourceUrl);
+      if (!existing) return [];
+      const sourceChanges = buildSupplierImportSourceChanges(existing, item);
+      return sourceChanges.length > 0 ? [{ existing, item, sourceChanges }] : [];
+    });
+    const skippedCount = mapped.length - newItems.length - changedItems.length;
 
     await prisma.$transaction([
       ...newItems.map((item) =>
@@ -604,12 +768,29 @@ export async function createBloomtechImportBatch(input: {
           },
         }),
       ),
+      ...changedItems.map(({ existing, item, sourceChanges }) =>
+        prisma.supplierImportItem.update({
+          where: { id: existing.id },
+          data: {
+            batchId: batch.id,
+            ...item,
+            sourceChanges: sourceChanges as unknown as Prisma.InputJsonValue,
+            sourceChangedAt: new Date(),
+            status: "PENDING",
+            importError: null,
+            decidedAt: null,
+            decidedById: null,
+            decidedByEmail: null,
+          },
+        }),
+      ),
       prisma.supplierImportBatch.update({
         where: { id: batch.id },
         data: {
           fetchedCount: newItems.length,
-          skippedCount: mapped.length - newItems.length,
-          status: newItems.length === mapped.length ? "READY" : "PARTIAL",
+          changedCount: changedItems.length,
+          skippedCount,
+          status: skippedCount === 0 ? "READY" : "PARTIAL",
           completedAt: new Date(),
         },
       }),
@@ -849,6 +1030,8 @@ export async function updateSupplierImportItem(input: {
           status: "APPROVED",
           linkedProductId: linkedProduct.id,
           importError: null,
+          sourceChanges: Prisma.DbNull,
+          sourceChangedAt: null,
           decidedAt: new Date(),
           decidedById: input.actor.id ?? null,
           decidedByEmail: input.actor.email ?? null,
@@ -880,6 +1063,8 @@ export async function updateSupplierImportItem(input: {
       data: {
         status: "DECLINED",
         importError: null,
+        sourceChanges: Prisma.DbNull,
+        sourceChangedAt: null,
         decidedAt: new Date(),
         decidedById: input.actor.id ?? null,
         decidedByEmail: input.actor.email ?? null,

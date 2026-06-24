@@ -395,11 +395,27 @@ export const extractBloomtechPricingFromHtml = (html) => {
       candidate > currentNetCents &&
       candidate !== manufacturerRecommendationCents,
   );
-  const hasSalePrice = compareAtCandidates.length > 0;
+  const matchingCompareAtCandidates = compareAtCandidates
+    .map((candidate) => ({
+      candidate,
+      calculatedPercent: ((candidate - currentNetCents) / candidate) * 100,
+    }))
+    .filter(
+      ({ calculatedPercent }) =>
+        Math.abs(calculatedPercent - discountPercent) <=
+        Math.max(0.75, discountPercent * 0.15),
+    )
+    .sort(
+      (left, right) =>
+        Math.abs(left.calculatedPercent - discountPercent) -
+        Math.abs(right.calculatedPercent - discountPercent),
+    );
+  const compareAtNetCents = matchingCompareAtCandidates[0]?.candidate ?? null;
+  const hasSalePrice = compareAtNetCents !== null;
 
   return {
     currentNetCents,
-    compareAtNetCents: hasSalePrice ? Math.max(...compareAtCandidates) : null,
+    compareAtNetCents,
     discounted: hasSalePrice,
     discountPercent: hasSalePrice ? discountPercent : null,
   };

@@ -119,6 +119,30 @@ const buildSellPriceCents = (costCents, pricingConfig) => {
   return roundToNearest99(targetSellCents, costCents);
 };
 
+const buildImportedPricing = (item, pricingConfig) => {
+  const costCents = toCents(item?.price);
+  const originalCostCents =
+    costCents !== null &&
+    item?.supplierPricing?.discounted === true &&
+    typeof item?.compareAtPrice === "number" &&
+    Number.isFinite(item.compareAtPrice) &&
+    item.compareAtPrice > item.price
+      ? toCents(item.compareAtPrice)
+      : null;
+  const priceCents =
+    costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
+  const candidateCompareAtCents =
+    originalCostCents === null
+      ? null
+      : buildSellPriceCents(originalCostCents, pricingConfig);
+  const compareAtCents =
+    candidateCompareAtCents !== null && candidateCompareAtCents > priceCents
+      ? candidateCompareAtCents
+      : null;
+
+  return { costCents, priceCents, compareAtCents };
+};
+
 const formatCents = (cents) => (cents / 100).toFixed(2);
 
 const toHttpUrl = (value) => {
@@ -393,7 +417,8 @@ export const runBloomtechImportPreview = async ({
       },
     });
     if (existingByHandle) {
-      const costCents = toCents(item.price);
+      const { costCents, priceCents: sellPriceCents, compareAtCents } =
+        buildImportedPricing(item, pricingConfig);
       if (costCents === null && !allowMissingPrice) {
         results.missingPrice += 1;
         results.skipped += 1;
@@ -425,14 +450,13 @@ export const runBloomtechImportPreview = async ({
         continue;
       }
       const supplierImageUrls = extractSupplierImageUrls(item);
-      const sellPriceCents = costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
       const variantSku = supplierSku || primaryVariant.sku || handle;
       if (!apply || !allowWrite) {
         const costLabel = costCents === null ? "missing" : formatCents(costCents);
         const priceLabel =
           costCents === null ? "0.00" : formatCents(sellPriceCents);
         logger.log(
-          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} sku=${variantSku} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length}`
+          `[import] dry-run update handle=${handle} variant=${primaryVariant.title} sku=${variantSku} cost=${costLabel} price=${priceLabel} compareAt=${compareAtCents === null ? "-" : formatCents(compareAtCents)} currency=${pricingConfig.currency} images=${supplierImageUrls.length}`
         );
         continue;
       }
@@ -443,6 +467,7 @@ export const runBloomtechImportPreview = async ({
             sku: variantSku,
             costCents: costCents ?? 0,
             priceCents: sellPriceCents,
+            compareAtCents,
           },
         }),
         prisma.product.update({
@@ -483,16 +508,14 @@ export const runBloomtechImportPreview = async ({
       }
     }
 
-    const costCents = toCents(item.price);
+    const { costCents, priceCents: sellPriceCents, compareAtCents } =
+      buildImportedPricing(item, pricingConfig);
     if (costCents === null && !allowMissingPrice) {
       results.missingPrice += 1;
       results.skipped += 1;
       skippedItems.push({ handle, title, reason: "missing_price" });
       continue;
     }
-    const sellPriceCents =
-      costCents === null ? 0 : buildSellPriceCents(costCents, pricingConfig);
-
     const inventoryQuantity = buildInventoryQuantity(item.stock);
     const supplierImageUrls = extractSupplierImageUrls(item);
     const weightGrams =
@@ -506,7 +529,7 @@ export const runBloomtechImportPreview = async ({
       const priceLabel =
         costCents === null ? "0.00" : formatCents(sellPriceCents);
       logger.log(
-        `[import] dry-run pricing handle=${handle} sku=${variantSku} cost=${costLabel} price=${priceLabel} currency=${pricingConfig.currency} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
+        `[import] dry-run pricing handle=${handle} sku=${variantSku} cost=${costLabel} price=${priceLabel} compareAt=${compareAtCents === null ? "-" : formatCents(compareAtCents)} currency=${pricingConfig.currency} images=${supplierImageUrls.length} mainCategory=${categorySelection.mainCategory?.handle ?? "-"} categories=${categorySelection.categories.length}`
       );
       continue;
     }
@@ -560,6 +583,7 @@ export const runBloomtechImportPreview = async ({
             sku: variantSku,
             priceCents: sellPriceCents,
             costCents: costCents ?? 0,
+            compareAtCents,
             position: 0,
             inventory: {
               create: {

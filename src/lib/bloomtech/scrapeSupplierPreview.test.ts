@@ -65,6 +65,22 @@ describe("Bloomtech supplier pricing", () => {
       discountPercent: null,
     });
   });
+
+  it("rejects a crossed-out price when it does not match the stated discount", async () => {
+    const { extractBloomtechPricingFromHtml } = await loadScraper();
+    const pricing = extractBloomtechPricingFromHtml(`
+      <meta itemprop="price" content="80.00">
+      <strong class="price"><del class="old-price">200,00 €</del></strong>
+      <div class="discount">Rabatt: <span class="value">5%</span></div>
+    `);
+
+    expect(pricing).toEqual({
+      currentNetCents: 8000,
+      compareAtNetCents: null,
+      discounted: false,
+      discountPercent: null,
+    });
+  });
 });
 
 describe("Bloomtech supplier images", () => {

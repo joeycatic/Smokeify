@@ -1,0 +1,566 @@
+.workspace {
+  --product-accent: #55e6d8;
+  --product-accent-strong: #8af8ee;
+  --product-warm: #ffbd66;
+  --product-panel: rgba(7, 12, 18, 0.96);
+  --product-surface: rgba(255, 255, 255, 0.035);
+  --product-surface-hover: rgba(255, 255, 255, 0.055);
+  --product-line: rgba(255, 255, 255, 0.095);
+  --product-line-strong: rgba(85, 230, 216, 0.3);
+  --product-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  --product-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  isolation: isolate;
+}
+
+.workspace::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(rgba(85, 230, 216, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(85, 230, 216, 0.025) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+  content: "";
+  pointer-events: none;
+}
+
+.tabList {
+  scrollbar-color: rgba(85, 230, 216, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+.tab {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tab::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    112deg,
+    transparent 15%,
+    rgba(255, 255, 255, 0.08) 48%,
+    transparent 80%
+  );
+  content: "";
+  opacity: 0;
+  transform: translateX(-110%);
+  transition:
+    transform 500ms var(--product-ease),
+    opacity 220ms ease;
+}
+
+.tab:hover::before,
+.tab[aria-selected="true"]::before {
+  opacity: 1;
+  transform: translateX(110%);
+}
+
+.tab[aria-selected="true"] {
+  transform: translateY(-1px);
+}
+
+.panel,
+.pricingPanel {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--product-line-strong) !important;
+  background:
+    radial-gradient(circle at 0 0, rgba(85, 230, 216, 0.065), transparent 30%),
+    linear-gradient(180deg, rgba(10, 16, 23, 0.98), rgba(5, 9, 14, 0.97)) !important;
+  box-shadow:
+    var(--product-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.pricingPanel:not([hidden]) {
+  animation: none !important;
+}
+
+.panel::before,
+.pricingPanel::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--product-accent),
+    rgba(85, 230, 216, 0.08) 48%,
+    transparent
+  );
+  content: "";
+}
+
+.panel::after,
+.pricingPanel::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 120px;
+  border-top: 1px solid rgba(85, 230, 216, 0.18);
+  border-right: 1px solid rgba(85, 230, 216, 0.18);
+  border-radius: 0 22px 0 100%;
+  content: "";
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.panel > :global(div:first-child),
+.pricingPanel :global(#pricing > div:first-child) {
+  position: relative;
+  min-height: 54px;
+  margin: -0.25rem -0.25rem 1.25rem;
+  padding: 0.25rem 0.25rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.panel > :global(div:first-child)::after,
+.pricingPanel :global(#pricing > div:first-child)::after {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: min(180px, 42%);
+  height: 1px;
+  background: linear-gradient(90deg, var(--product-accent), transparent);
+  content: "";
+}
+
+.workspace :global([role="tabpanel"] label) {
+  color: #b7c4d3 !important;
+  font-size: 0.69rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.025em;
+}
+
+.workspace
+  :global([role="tabpanel"])
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    textarea,
+    select
+  ) {
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.105) !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 90%),
+    rgba(2, 7, 12, 0.78) !important;
+  color: #f8fafc !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 8px 22px rgba(0, 0, 0, 0.12);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.workspace
+  :global([role="tabpanel"])
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    textarea,
+    select
+  ):hover {
+  border-color: rgba(85, 230, 216, 0.19) !important;
+  background:
+    linear-gradient(180deg, rgba(85, 230, 216, 0.035), transparent 90%),
+    rgba(3, 9, 15, 0.9) !important;
+}
+
+.workspace
+  :global([role="tabpanel"])
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    textarea,
+    select
+  ):focus {
+  border-color: rgba(85, 230, 216, 0.62) !important;
+  background: rgba(4, 13, 20, 0.98) !important;
+  box-shadow:
+    0 0 0 3px rgba(85, 230, 216, 0.1),
+    0 16px 36px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  outline: none !important;
+  transform: translateY(-1px);
+}
+
+.workspace :global([role="tabpanel"] textarea) {
+  min-height: 96px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.workspace :global([role="tabpanel"] input[type="checkbox"]) {
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  accent-color: var(--product-accent);
+}
+
+.workspace :global([role="tabpanel"] input[type="file"]) {
+  border: 1px dashed rgba(85, 230, 216, 0.25);
+  border-radius: 12px;
+  background: rgba(85, 230, 216, 0.035);
+  padding: 0.7rem;
+  color: #94a3b8;
+}
+
+.workspace :global([role="tabpanel"] input[type="file"])::file-selector-button {
+  margin-right: 0.75rem;
+  border: 1px solid rgba(85, 230, 216, 0.24);
+  border-radius: 9px;
+  background: rgba(85, 230, 216, 0.1);
+  padding: 0.45rem 0.7rem;
+  color: #cffff9;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workspace :global([role="tabpanel"] button),
+.workspace :global([role="tabpanel"] a) {
+  transition:
+    transform 180ms var(--product-ease),
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+}
+
+.workspace :global([role="tabpanel"] button:not(:disabled):hover),
+.workspace :global([role="tabpanel"] a:hover) {
+  transform: translateY(-1px);
+}
+
+.workspace :global([role="tabpanel"] button:not(:disabled):active),
+.workspace :global([role="tabpanel"] a:active) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.workspace
+  :global([role="tabpanel"])
+  :is(.rounded-lg, .rounded-xl, .rounded-2xl):not(button):not(a):not(label) {
+  border-color: var(--product-line) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 50%),
+    rgba(7, 13, 19, 0.78) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 14px 35px rgba(0, 0, 0, 0.13);
+}
+
+.workspace :global(#overview > .grid),
+.workspace :global(#overview > label),
+.workspace :global(#overview > #seo),
+.workspace :global(#overview > #content) {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 55%),
+    rgba(3, 8, 13, 0.52);
+  padding: 0.9rem;
+}
+
+.workspace :global(#overview > #seo),
+.workspace :global(#overview > #content) {
+  margin-top: 0.9rem !important;
+}
+
+.workspace :global(#overview > .grid + .grid) {
+  margin-top: 0.7rem !important;
+}
+
+.workspace :global(#overview > label) {
+  margin-top: 0.8rem !important;
+}
+
+.workspace :global(#overview #seo)::before,
+.workspace :global(#overview #content)::before {
+  display: block;
+  grid-column: 1 / -1;
+  margin-bottom: 0.75rem;
+  color: var(--product-accent);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  content: "Search appearance";
+}
+
+.workspace :global(#overview #content)::before {
+  content: "Storefront content";
+}
+
+.workspace :global(#overview .rich-text-editor),
+.workspace :global(#overview .ProseMirror) {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+  background: rgba(2, 7, 12, 0.72) !important;
+}
+
+.workspace :global(#associations > .space-y-4 > .grid > div),
+.workspace :global(#associations > .space-y-4 > .grid > .space-y-4 > div) {
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+  border-radius: 18px !important;
+}
+
+.workspace :global(#associations label:has(input[type="checkbox"])) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  box-shadow: none !important;
+}
+
+.workspace :global(#associations label:has(input[type="checkbox"]):hover) {
+  border-color: rgba(85, 230, 216, 0.26) !important;
+  background: rgba(85, 230, 216, 0.07) !important;
+  transform: translateX(2px);
+}
+
+.workspace :global(#media > div:nth-of-type(2)) {
+  position: relative;
+  overflow: hidden;
+  min-height: 122px;
+  border: 1px dashed rgba(85, 230, 216, 0.34) !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(circle at 10% 0, rgba(85, 230, 216, 0.1), transparent 36%),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 10px
+    ),
+    rgba(4, 10, 15, 0.8) !important;
+  padding: 1.1rem !important;
+}
+
+.workspace :global(#media > .space-y-4 > div) {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px !important;
+  transition:
+    transform 220ms var(--product-ease),
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.workspace :global(#media > .space-y-4 > div:hover) {
+  border-color: rgba(85, 230, 216, 0.28) !important;
+  box-shadow:
+    0 20px 45px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+.workspace :global(#media img) {
+  transition: transform 350ms var(--product-ease);
+}
+
+.workspace :global(#media > .space-y-4 > div:hover img) {
+  transform: scale(1.045);
+}
+
+.workspace :global(#variants > .space-y-6 > div) {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(139, 92, 246, 0.2) !important;
+  border-radius: 20px !important;
+  background:
+    radial-gradient(circle at 100% 0, rgba(139, 92, 246, 0.08), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 48%),
+    rgba(5, 10, 16, 0.88) !important;
+  box-shadow:
+    0 22px 55px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition:
+    transform 220ms var(--product-ease),
+    border-color 220ms ease;
+}
+
+.workspace :global(#variants > .space-y-6 > div)::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, #a78bfa, transparent 70%);
+  content: "";
+}
+
+.workspace :global(#variants > .space-y-6 > div:hover) {
+  border-color: rgba(167, 139, 250, 0.34) !important;
+  transform: translateY(-2px);
+}
+
+.workspace :global(#variants .rounded-2xl) {
+  border-radius: 16px !important;
+}
+
+.workspace :global(#pricing) {
+  border-color: rgba(85, 230, 216, 0.25) !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at 0 0, rgba(85, 230, 216, 0.065), transparent 30%),
+    linear-gradient(180deg, rgba(10, 16, 23, 0.98), rgba(5, 9, 14, 0.97)) !important;
+  box-shadow: var(--product-shadow) !important;
+}
+
+.pricingPanel :global(#pricing) {
+  animation: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transform: none !important;
+}
+
+.workspace :global(#pricing > .space-y-4 > .space-y-3 > div) {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px !important;
+  transition:
+    transform 220ms var(--product-ease),
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.workspace :global(#pricing > .space-y-4 > .space-y-3 > div:hover) {
+  border-color: rgba(85, 230, 216, 0.28) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.workspace :global(#cross-sells > .mt-4 > .space-y-2 > div) {
+  border-radius: 15px !important;
+  transition:
+    transform 200ms var(--product-ease),
+    border-color 200ms ease,
+    background 200ms ease;
+}
+
+.workspace :global(#cross-sells > .mt-4 > .space-y-2 > div:hover) {
+  border-color: rgba(85, 230, 216, 0.24) !important;
+  background: rgba(85, 230, 216, 0.05) !important;
+  transform: translateX(3px);
+}
+
+.workspace :global(#cross-sells > .mt-4 > .rounded-lg) {
+  border-radius: 18px !important;
+  background:
+    radial-gradient(circle at 0 0, rgba(85, 230, 216, 0.075), transparent 32%),
+    rgba(4, 10, 15, 0.8) !important;
+  padding: 1rem !important;
+}
+
+.workspace :global(.admin-product-modal) {
+  border-color: rgba(85, 230, 216, 0.22) !important;
+  background:
+    radial-gradient(circle at top left, rgba(85, 230, 216, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(9, 15, 22, 0.99), rgba(4, 8, 12, 0.99)) !important;
+  box-shadow: 0 34px 100px rgba(0, 0, 0, 0.58) !important;
+}
+
+.workspace :global(.fixed.inset-0.z-50) {
+  z-index: 100;
+}
+
+.workspace:has(:global(.fixed.inset-0.z-50)) {
+  z-index: 100;
+}
+
+.workspace :global(.fixed.inset-0.z-50 > button.absolute.inset-0) {
+  background: rgba(1, 5, 9, 0.72) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.workspace :global(.filter-drawer-in) {
+  width: min(100%, 48rem) !important;
+  border-color: rgba(85, 230, 216, 0.2) !important;
+  background:
+    radial-gradient(circle at 100% 0, rgba(85, 230, 216, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(9, 15, 22, 0.995), rgba(4, 8, 12, 0.995)) !important;
+  box-shadow:
+    -28px 0 90px rgba(0, 0, 0, 0.58),
+    inset 1px 0 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+.panel:not([hidden]) > *,
+.pricingPanel:not([hidden]) :global(#pricing > :not(.fixed)) {
+  animation: panel-item-enter 360ms var(--product-ease) both;
+}
+
+.panel:not([hidden]) > :nth-child(2),
+.pricingPanel:not([hidden]) :global(#pricing > :not(.fixed):nth-child(2)) {
+  animation-delay: 45ms;
+}
+
+.panel:not([hidden]) > :nth-child(3),
+.pricingPanel:not([hidden]) :global(#pricing > :not(.fixed):nth-child(3)) {
+  animation-delay: 90ms;
+}
+
+.panel:not([hidden]) > :nth-child(4) {
+  animation-delay: 135ms;
+}
+
+@keyframes panel-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 767px) {
+  .workspace
+    :global([role="tabpanel"])
+    :is(
+      input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+      textarea,
+      select
+    ) {
+    min-height: 48px;
+    font-size: 16px !important;
+  }
+
+  .panel,
+  .pricingPanel {
+    border-radius: 18px !important;
+  }
+
+  .workspace :global(#overview > .grid),
+  .workspace :global(#overview > label),
+  .workspace :global(#overview > #seo),
+  .workspace :global(#overview > #content) {
+    padding: 0.75rem;
+  }
+
+  .workspace :global(#media > .space-y-4 > div:hover),
+  .workspace :global(#variants > .space-y-6 > div:hover),
+  .workspace :global(#pricing > .space-y-4 > .space-y-3 > div:hover) {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace *,
+  .workspace *::before,
+  .workspace *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

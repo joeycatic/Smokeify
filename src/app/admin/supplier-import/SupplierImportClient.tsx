@@ -49,6 +49,7 @@ type Batch = {
   sourceUrl: string;
   status: "FETCHING" | "READY" | "PARTIAL" | "FAILED";
   fetchedCount: number;
+  changedCount: number;
   skippedCount: number;
   errorMessage: string | null;
   createdAt: string | Date;
@@ -66,6 +67,10 @@ type CatalogChange = {
   label: string;
   currentValue: string;
   incomingValue: string;
+};
+
+type SourceChange = CatalogChange & {
+  field: string;
 };
 
 type ImportItem = {
@@ -86,6 +91,8 @@ type ImportItem = {
   stockQuantity: number;
   weightGrams: number | null;
   imageUrls: string[];
+  sourceChanges: SourceChange[] | null;
+  sourceChangedAt: string | Date | null;
   status: "PENDING" | "APPROVED" | "DECLINED" | "IMPORT_ERROR";
   linkedProductId: string | null;
   linkedProduct: LinkedProduct | null;
@@ -211,6 +218,9 @@ export default function SupplierImportClient({
       approved: data.items.filter((item) => item.status === "APPROVED").length,
       declined: data.items.filter((item) => item.status === "DECLINED").length,
       errors: data.items.filter((item) => item.status === "IMPORT_ERROR").length,
+      changed: data.items.filter(
+        (item) => Array.isArray(item.sourceChanges) && item.sourceChanges.length > 0,
+      ).length,
     }),
     [data.items],
   );
@@ -298,7 +308,7 @@ export default function SupplierImportClient({
       await refreshWorkspace();
       setNotice({
         tone: "success",
-        text: `${result.batch.fetchedCount} products added to review. ${result.batch.skippedCount} previously reviewed products skipped.`,
+        text: `${result.batch.fetchedCount} products added, ${result.batch.changedCount} changed products flagged for review, and ${result.batch.skippedCount} unchanged products skipped.`,
       });
       setSourceUrl("");
     } catch (error) {
@@ -585,6 +595,7 @@ export default function SupplierImportClient({
   } as CSSProperties;
   const currentCatalogProduct = currentItem?.catalogProduct ?? null;
   const currentCatalogChanges = currentItem?.catalogChanges ?? [];
+  const currentSourceChanges = currentItem?.sourceChanges ?? [];
 
   return (
     <div className={`${styles.workspace} space-y-6`}>
@@ -614,6 +625,10 @@ export default function SupplierImportClient({
                 <Squares2X2Icon className="h-3.5 w-3.5" />
                 {reviewCompletion}% reviewed
               </span>
+              <span>
+                <FlagIcon className="h-3.5 w-3.5" />
+                {compactNumber(counts.changed)} changed
+              </span>
             </div>
           </div>
           <div className={styles.heroPanel} aria-label="Review queue summary">
@@ -634,6 +649,7 @@ export default function SupplierImportClient({
                 ["Approved", counts.approved, "emerald"],
                 ["Declined", counts.declined, "rose"],
                 ["Errors", counts.errors, "amber"],
+                ["Changed", counts.changed, "cyan"],
               ].map(([label, value, tone]) => (
                 <div key={label} className={styles.metricTile} data-tone={tone}>
                   <span>{label}</span>
@@ -645,7 +661,7 @@ export default function SupplierImportClient({
               <span>Latest batch</span>
               <strong>
                 {latestBatch
-                  ? `${latestBatch.status} · ${compactNumber(latestBatch.fetchedCount)} added`
+                  ? `${latestBatch.status} · ${compactNumber(latestBatch.fetchedCount)} added · ${compactNumber(latestBatch.changedCount)} changed`
                   : "No supplier scans yet"}
               </strong>
             </div>
@@ -827,9 +843,20 @@ export default function SupplierImportClient({
               >
                 <article className={styles.cardSurface}>
                   <div className={styles.cardMedia}>
+                    {currentSourceChanges.length ? (
+                      <div
+                        className={`${styles.existingProductFlag} ${styles.sourceChangeFlag}`}
+                        title={`${currentSourceChanges.length} supplier fields changed since the previous scan`}
+                      >
+                        <FlagIcon className="h-3.5 w-3.5" />
+                        <span>{currentSourceChanges.length} source changes</span>
+                      </div>
+                    ) : null}
                     {currentCatalogProduct ? (
                       <div
-                        className={styles.existingProductFlag}
+                        className={`${styles.existingProductFlag} ${
+                          currentSourceChanges.length ? styles.secondaryFlag : ""
+                        }`}
                         title={`Matched catalog product: ${currentCatalogProduct.title}`}
                       >
                         <FlagIcon className="h-3.5 w-3.5" />
@@ -919,6 +946,28 @@ export default function SupplierImportClient({
                         </div>
                       ))}
                     </div>
+                    {currentSourceChanges.length ? (
+                      <div className={styles.changePreview}>
+                        <div className={styles.changePreviewHeader}>
+                          <span>Supplier changed since last scan</span>
+                          <strong>
+                            {currentSourceChanges.length}{" "}
+                            {currentSourceChanges.length === 1 ? "field" : "fields"}
+                          </strong>
+                        </div>
+                        <div className={styles.changeRows}>
+                          {currentSourceChanges.map((change) => (
+                            <div key={change.field} className={styles.changeRow}>
+                              <span>{change.label}</span>
+                              <p>
+                                <del>{change.currentValue}</del>
+                                <strong>{change.incomingValue}</strong>
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {currentCatalogProduct ? (
                       <div className={styles.changePreview}>
                         <div className={styles.changePreviewHeader}>
@@ -1027,9 +1076,12 @@ export default function SupplierImportClient({
                     {batch.status}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div className="rounded-lg bg-black/20 px-3 py-2 text-slate-400">
                     Added <strong className="float-right text-white">{batch.fetchedCount}</strong>
+                  </div>
+                  <div className="rounded-lg bg-amber-400/[0.06] px-3 py-2 text-amber-200/75">
+                    Changed <strong className="float-right text-amber-100">{batch.changedCount}</strong>
                   </div>
                   <div className="rounded-lg bg-black/20 px-3 py-2 text-slate-400">
                     Skipped <strong className="float-right text-white">{batch.skippedCount}</strong>
@@ -1149,7 +1201,18 @@ export default function SupplierImportClient({
                       ) : <PhotoIcon className="m-4 h-6 w-6 text-slate-600" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                        {item.sourceChanges?.length ? (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200"
+                            title={`${item.sourceChanges.length} supplier fields changed`}
+                          >
+                            <FlagIcon className="h-3 w-3" />
+                            {item.sourceChanges.length} changed
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 truncate text-xs text-slate-500">
                         {item.manufacturer || "Bloomtech"} · {item.sku || item.handle}
                       </p>

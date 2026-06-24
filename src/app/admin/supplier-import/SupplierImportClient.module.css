@@ -190,7 +190,7 @@
 
 .metricGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -220,6 +220,10 @@
 
 .metricTile[data-tone="amber"] {
   border-color: rgba(251, 191, 36, 0.2);
+}
+
+.metricTile[data-tone="cyan"] {
+  border-color: rgba(85, 230, 216, 0.2);
 }
 
 .latestBatch {
@@ -591,6 +595,16 @@
   white-space: nowrap;
 }
 
+.sourceChangeFlag {
+  border-color: rgba(85, 230, 216, 0.42);
+  background: rgba(5, 39, 43, 0.88);
+  color: #a7fff6;
+}
+
+.secondaryFlag {
+  top: 54px;
+}
+
 .changePreview {
   overflow: hidden;
   border: 1px solid rgba(255, 184, 77, 0.22);
@@ -790,7 +804,7 @@
   }
 
   .metricGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .latestBatch {
