@@ -441,9 +441,14 @@
   box-shadow: 0 12px 28px rgba(85, 230, 216, 0.16);
 }
 
+.reviewPanel {
+  isolation: isolate;
+}
+
 .deck {
   position: relative;
-  min-height: 620px;
+  height: 620px;
+  min-height: 0;
   perspective: 1400px;
 }
 
@@ -451,7 +456,7 @@
   position: absolute;
   inset: 18px 50%;
   width: min(100%, 520px);
-  height: 565px;
+  height: min(565px, calc(100% - 55px));
   transform: translateX(-50%) translateY(var(--deck-offset)) scale(var(--deck-scale));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 28px;
@@ -463,8 +468,8 @@
   position: absolute;
   inset: 0 50%;
   width: min(100%, 540px);
-  height: 600px;
-  touch-action: none;
+  height: min(600px, calc(100% - 20px));
+  touch-action: pan-y;
   user-select: none;
   transform: translateX(calc(-50% + var(--drag-x, 0px)))
     translateY(var(--drag-y, 0px))
@@ -501,6 +506,67 @@
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.cardMedia {
+  position: relative;
+  height: 61%;
+  min-height: 280px;
+  background: #101820;
+}
+
+.cardBody {
+  display: grid;
+  height: 39%;
+  align-content: space-between;
+  gap: 12px;
+  padding: 20px;
+}
+
+.cardStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cardStat {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.cardStat p {
+  margin: 0;
+  color: rgba(100, 116, 139, 0.95);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.cardStat strong {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMetaLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: rgba(100, 116, 139, 0.95);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .imageShade {
@@ -697,6 +763,14 @@
   transform: translateY(1px) scale(0.98);
 }
 
+.swipeActions {
+  margin: 4px auto 0;
+  display: grid;
+  max-width: 576px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .pulse {
   animation: importPulse 1.4s ease-in-out infinite;
 }
@@ -747,15 +821,107 @@
   }
 
   .deck {
-    min-height: 570px;
+    height: clamp(500px, calc(100svh - 168px), 585px);
+    overflow: visible;
   }
 
   .card {
-    height: 535px;
+    width: min(100%, calc(100vw - 30px));
+    height: calc(100% - 16px);
+    max-height: 568px;
   }
 
   .ghostCard {
-    height: 505px;
+    width: min(96%, calc(100vw - 42px));
+    height: calc(100% - 50px);
+    border-radius: 22px;
+  }
+
+  .cardSurface {
+    border-radius: 22px;
+  }
+
+  .cardMedia {
+    height: 53%;
+    min-height: 220px;
+  }
+
+  .cardBody {
+    height: 47%;
+    gap: 9px;
+    padding: 14px;
+  }
+
+  .cardStats {
+    gap: 6px;
+  }
+
+  .cardStat {
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .cardStat p {
+    font-size: 8px;
+  }
+
+  .cardStat strong {
+    font-size: 12px;
+  }
+
+  .changePreview {
+    border-radius: 12px;
+    padding: 9px;
+  }
+
+  .changePreviewHeader {
+    font-size: 9px;
+  }
+
+  .changeRows {
+    max-height: 106px;
+  }
+
+  .changeRow {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .changeRow p {
+    font-size: 10px;
+  }
+
+  .cardMetaLine {
+    gap: 6px;
+    font-size: 9px;
+  }
+
+  .existingProductFlag {
+    top: 12px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .stamp {
+    top: 28px;
+    border-width: 2px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .swipeActions {
+    position: sticky;
+    bottom: 8px;
+    z-index: 12;
+    margin-top: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(6, 10, 14, 0.86);
+    padding: 8px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(14px);
   }
 }
 

@@ -170,6 +170,7 @@ export default function SupplierImportClient({
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
   const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(null);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const swipeAxis = useRef<"x" | "y" | null>(null);
   const [historyFilter, setHistoryFilter] = useState<"ALL" | ImportItem["status"]>("ALL");
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -325,23 +326,47 @@ export default function SupplierImportClient({
     if (!currentItem || busyItemId) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerStart.current = { x: event.clientX, y: event.clientY };
+    swipeAxis.current = null;
     setDrag({ x: 0, y: 0, active: true });
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!pointerStart.current || !drag.active) return;
+    const deltaX = event.clientX - pointerStart.current.x;
+    const deltaY = event.clientY - pointerStart.current.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (!swipeAxis.current) {
+      if (Math.max(absX, absY) < 8) return;
+      swipeAxis.current = absX > absY * 1.15 ? "x" : "y";
+    }
+    if (swipeAxis.current === "y") {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      pointerStart.current = null;
+      swipeAxis.current = null;
+      setDrag({ x: 0, y: 0, active: false });
+      return;
+    }
+    event.preventDefault();
     setDrag({
-      x: event.clientX - pointerStart.current.x,
-      y: (event.clientY - pointerStart.current.y) * 0.24,
+      x: deltaX,
+      y: deltaY * 0.18,
       active: true,
     });
   };
 
   const finishPointer = () => {
     pointerStart.current = null;
-    if (drag.x > 105) void decideCurrent("APPROVED");
-    else if (drag.x < -105) void decideCurrent("DECLINED");
+    const threshold =
+      typeof window === "undefined"
+        ? 105
+        : Math.min(105, Math.max(72, window.innerWidth * 0.24));
+    if (swipeAxis.current === "x" && drag.x > threshold) void decideCurrent("APPROVED");
+    else if (swipeAxis.current === "x" && drag.x < -threshold) void decideCurrent("DECLINED");
     else setDrag({ x: 0, y: 0, active: false });
+    swipeAxis.current = null;
   };
 
   const openSupplierProduct = () => {
@@ -571,6 +596,7 @@ export default function SupplierImportClient({
           eyebrow="02 / Review"
           title={currentItem ? `${pendingItems.length} products waiting` : "Review queue complete"}
           description="Drag right to approve, left to decline, or use the accessible controls below."
+          className={styles.reviewPanel}
         >
           <div className={styles.deck} aria-live="polite">
             {pendingItems.slice(1, 3).map((item, index) => (
@@ -604,7 +630,7 @@ export default function SupplierImportClient({
                 aria-label={`${currentItem.title}. Press right arrow to approve or left arrow to decline.`}
               >
                 <article className={styles.cardSurface}>
-                  <div className="relative h-[58%] min-h-72 bg-[#101820] sm:h-[61%]">
+                  <div className={styles.cardMedia}>
                     {currentCatalogProduct ? (
                       <div
                         className={styles.existingProductFlag}
@@ -681,16 +707,16 @@ export default function SupplierImportClient({
                       </button>
                     </div>
                   </div>
-                  <div className="grid h-[42%] content-between gap-3 p-5 sm:h-[39%]">
-                    <div className="grid grid-cols-3 gap-2">
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardStats}>
                       {[
                         ["Supplier cost", formatMoney(currentItem.costCents)],
                         ["Sell price", formatMoney(currentItem.priceCents)],
                         ["Stock", String(currentItem.stockQuantity)],
                       ].map(([label, value]) => (
-                        <div key={label} className="rounded-xl border border-white/10 bg-white/[0.035] p-2.5">
-                          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                          <p className="mt-1 text-sm font-bold text-white">{value}</p>
+                        <div key={label} className={styles.cardStat}>
+                          <p>{label}</p>
+                          <strong>{value}</strong>
                         </div>
                       ))}
                     </div>
@@ -724,7 +750,7 @@ export default function SupplierImportClient({
                         {currentItem.shortDescription || currentItem.technicalDetails || "No supplier description available."}
                       </p>
                     )}
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <div className={styles.cardMetaLine}>
                       <span>SKU {currentItem.sku || "—"}</span>
                       <span>•</span>
                       <span>GTIN {currentItem.gtin || "—"}</span>
@@ -747,7 +773,7 @@ export default function SupplierImportClient({
             )}
           </div>
 
-          <div className="mx-auto mt-1 grid max-w-xl grid-cols-2 gap-3">
+          <div className={styles.swipeActions}>
             <button
               type="button"
               onClick={() => void decideCurrent("DECLINED")}
