@@ -5,7 +5,7 @@ import { getNewsletterAttributionDiagnostics } from "@/lib/adminNewsletter";
 import AdminAttributionClient from "./AdminAttributionClient";
 
 export default async function AdminAttributionPage() {
-  if (!(await requireAdminScope("ops.read"))) notFound();
+  if (!(await requireAdminScope(["ops.read", "marketing.read"]))) notFound();
 
   const [attributionSnapshot, newsletterDiagnostics] = await Promise.all([
     listUnresolvedOrderAttributionRows(),

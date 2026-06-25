@@ -168,6 +168,30 @@ enum Storefront {
   GROW
 }
 
+enum MarketingStorefrontScope {
+  ALL
+  MAIN
+  GROW
+}
+
+enum MarketingCampaignStatus {
+  DRAFT
+  READY
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  FAILED
+  ARCHIVED
+}
+
+enum MarketingAutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  FAILED
+}
+
 enum ProductComplianceStatus {
   DRAFT_REVIEW
   APPROVED
@@ -1737,6 +1761,131 @@ model AdminCustomerTask {
   @@index([customerId, status, updatedAt])
   @@index([ownerId, status, dueAt])
   @@index([sourceCohortId])
+}
+
+model MarketingContactProfile {
+  id                 String                   @id @default(cuid())
+  userId             String?                  @unique
+  email              String                   @unique
+  normalizedEmail    String                   @unique
+  name               String?
+  storefrontScope    MarketingStorefrontScope @default(ALL)
+  storefrontAffinity Storefront?
+  lifecycleStage     String                   @default("UNKNOWN")
+  consentStatus      String                   @default("UNKNOWN")
+  source             String                   @default("manual")
+  tags               String[]                 @default([])
+  totalOrders        Int                      @default(0)
+  totalRevenueCents  Int                      @default(0)
+  averageOrderCents  Int                      @default(0)
+  lastOrderAt        DateTime?
+  lastActivityAt     DateTime?
+  metadata           Json?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  activities MarketingActivity[]
+
+  @@index([storefrontScope, lifecycleStage])
+  @@index([storefrontAffinity, updatedAt])
+  @@index([consentStatus, updatedAt])
+  @@index([lastActivityAt])
+}
+
+model MarketingAudience {
+  id              String                   @id @default(cuid())
+  name            String
+  description     String?
+  storefrontScope MarketingStorefrontScope @default(ALL)
+  filters         Json
+  computedCount   Int                      @default(0)
+  status          String                   @default("ACTIVE")
+  createdById     String?
+  createdByEmail  String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  campaigns  MarketingCampaign[]
+  activities MarketingActivity[]
+
+  @@index([storefrontScope, status, updatedAt])
+  @@index([createdAt])
+}
+
+model MarketingCampaign {
+  id              String                   @id @default(cuid())
+  name            String
+  channel         String                   @default("EMAIL")
+  storefrontScope MarketingStorefrontScope @default(ALL)
+  audienceId      String?
+  status          MarketingCampaignStatus  @default(DRAFT)
+  subject         String?
+  body            String?
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  attemptedCount  Int                      @default(0)
+  sentCount       Int                      @default(0)
+  failedCount     Int                      @default(0)
+  summary         Json?
+  createdById     String?
+  createdByEmail  String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  audience   MarketingAudience?  @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  activities MarketingActivity[]
+
+  @@index([storefrontScope, status, updatedAt])
+  @@index([audienceId, updatedAt])
+  @@index([scheduledAt])
+}
+
+model MarketingAutomationFlow {
+  id              String                    @id @default(cuid())
+  key             String                    @unique
+  name            String
+  type            String
+  storefrontScope MarketingStorefrontScope  @default(ALL)
+  status          MarketingAutomationStatus @default(DRAFT)
+  config          Json
+  metrics         Json?
+  createdById     String?
+  createdByEmail  String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([storefrontScope, status, updatedAt])
+  @@index([type, updatedAt])
+}
+
+model MarketingActivity {
+  id               String                   @id @default(cuid())
+  contactProfileId String?
+  campaignId       String?
+  audienceId       String?
+  storefrontScope  MarketingStorefrontScope @default(ALL)
+  storefront       Storefront?
+  activityType     String
+  title            String
+  summary          String?
+  metadata         Json?
+  dueAt            DateTime?
+  completedAt      DateTime?
+  actorId          String?
+  actorEmail       String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  contactProfile MarketingContactProfile? @relation(fields: [contactProfileId], references: [id], onDelete: SetNull)
+  campaign       MarketingCampaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  audience       MarketingAudience?       @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
+  @@index([contactProfileId, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([audienceId, createdAt])
+  @@index([storefrontScope, activityType, createdAt])
+  @@index([storefront, createdAt])
+  @@index([dueAt, completedAt])
 }
 
 model PurchaseOrder {

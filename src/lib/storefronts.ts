@@ -54,9 +54,11 @@ const ADMIN_STOREFRONT_SCOPE_ROUTE_PREFIXES = [
   "/admin/email-testing",
   "/admin/finance",
   "/admin/landing-page",
+  "/admin/mcc",
   "/admin/orders",
   "/admin/reports",
   "/admin/reviews",
+  "/admin/attribution",
 ] as const;
 
 const ADMIN_CONCRETE_STOREFRONT_SCOPE_ROUTE_PREFIXES = [

@@ -26,6 +26,10 @@ export type AdminScope =
   | "pricing.review"
   | "pricing.run"
   | "pricing.write"
+  | "marketing.read"
+  | "marketing.write"
+  | "marketing.send"
+  | "marketing.automation.manage"
   | "catalog.read"
   | "catalog.write"
   | "discounts.manage"
@@ -70,6 +74,9 @@ const STAFF_SCOPES: AdminScope[] = [
   "returns.read",
   "customers.read",
   "crm.write",
+  "marketing.read",
+  "marketing.write",
+  "marketing.send",
   "suppliers.read",
   "suppliers.write",
   "procurement.read",
@@ -103,6 +110,10 @@ const ALL_SCOPES: AdminScope[] = [
   "returns.read",
   "customers.read",
   "crm.write",
+  "marketing.read",
+  "marketing.write",
+  "marketing.send",
+  "marketing.automation.manage",
   "suppliers.read",
   "suppliers.write",
   "users.manage",
@@ -146,6 +157,8 @@ const ADMIN_PAGE_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/admin/vat", scope: "tax.review" },
   { prefix: "/admin/expenses", scope: "tax.review" },
   { prefix: "/admin/profitability", scope: "finance.read" },
+  { prefix: "/admin/mcc", scope: "marketing.read" },
+  { prefix: "/admin/growth", scope: "marketing.read" },
   { prefix: "/admin/pricing", scope: "pricing.read" },
   { prefix: "/admin/discounts", scope: "discounts.manage" },
   { prefix: "/admin/landing-page", scope: "content.landing.manage" },
@@ -192,20 +205,30 @@ const ADMIN_API_SCOPE_MATCHERS: ScopeMatcher[] = [
   { prefix: "/api/admin/customers", scope: "customers.read", methods: ["GET"] },
   { prefix: "/api/admin/customers", scope: "crm.write" },
   { prefix: "/api/admin/discounts", scope: "discounts.manage" },
-  { prefix: "/api/admin/email-testing", scope: "ops.read", methods: ["GET"] },
-  { prefix: "/api/admin/email-testing", scope: "ops.write" },
+  { prefix: "/api/admin/email-testing", scope: "marketing.send", methods: ["GET"] },
+  { prefix: "/api/admin/email-testing", scope: "marketing.send" },
   { prefix: "/api/admin/expenses/export", scope: "tax.review" },
   { prefix: "/api/admin/expenses/recurring", scope: "tax.review" },
   { prefix: "/api/admin/expenses", scope: "tax.review" },
   { prefix: "/api/admin/images", scope: "catalog.write" },
   { prefix: "/api/admin/landing-page", scope: "content.publish" },
+  { prefix: "/api/admin/growth", scope: "marketing.read", methods: ["GET"] },
+  { prefix: "/api/admin/growth", scope: "marketing.automation.manage" },
+  {
+    prefix: "/api/admin/mcc/automations",
+    scope: "marketing.automation.manage",
+    methods: ["POST", "PATCH", "PUT", "DELETE"],
+  },
+  { prefix: "/api/admin/mcc/campaigns", scope: "marketing.send", methods: ["POST"] },
+  { prefix: "/api/admin/mcc", scope: "marketing.read", methods: ["GET"] },
+  { prefix: "/api/admin/mcc", scope: "marketing.write" },
   { prefix: "/api/admin/newsletters", scope: "ops.write" },
   { prefix: "/api/admin/orders", scope: "orders.read", methods: ["GET"] },
   { prefix: "/api/admin/orders", scope: "orders.fulfillment.write" },
   { prefix: "/api/admin/inventory-adjustments", scope: "inventory.read", methods: ["GET"] },
   { prefix: "/api/admin/inventory-adjustments", scope: "inventory.write" },
-  { prefix: "/api/admin/attribution", scope: "ops.read", methods: ["GET"] },
-  { prefix: "/api/admin/attribution", scope: "ops.write" },
+  { prefix: "/api/admin/attribution", scope: "marketing.read", methods: ["GET"] },
+  { prefix: "/api/admin/attribution", scope: "marketing.write" },
   { prefix: "/api/admin/pricing/run", scope: "pricing.run" },
   { prefix: "/api/admin/pricing/recommendations", scope: "pricing.review" },
   { prefix: "/api/admin/pricing/variants", scope: "pricing.write" },
@@ -319,6 +342,10 @@ export function getAdminCapabilitySnapshot(role: unknown) {
     canReviewPricing: hasAdminScope(role, "pricing.review"),
     canRunPricing: hasAdminScope(role, "pricing.run"),
     canWritePricing: hasAdminScope(role, "pricing.write"),
+    canReadMarketing: hasAdminScope(role, "marketing.read"),
+    canWriteMarketing: hasAdminScope(role, "marketing.write"),
+    canSendMarketing: hasAdminScope(role, "marketing.send"),
+    canManageMarketingAutomations: hasAdminScope(role, "marketing.automation.manage"),
     canReadCustomers: hasAdminScope(role, "customers.read"),
     canWriteCrm: hasAdminScope(role, "crm.write"),
     canReadSuppliers: hasAdminScope(role, "suppliers.read"),

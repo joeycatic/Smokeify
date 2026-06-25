@@ -4,6 +4,6 @@ import { getGrowthOverviewSafe } from "@/lib/growthService";
 import AdminGrowthClient from "./AdminGrowthClient";
 
 export default async function AdminGrowthPage() {
-  if (!(await requireAdminScope("analytics.read"))) notFound();
+  if (!(await requireAdminScope(["analytics.read", "marketing.read"]))) notFound();
   return <AdminGrowthClient initialOverview={await getGrowthOverviewSafe()} />;
 }

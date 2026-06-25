@@ -9,7 +9,7 @@ export default async function AdminEmailTestingPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdminScope("ops.read"))) notFound();
+  if (!(await requireAdminScope(["ops.read", "marketing.send"]))) notFound();
   const resolvedSearchParams = await searchParams;
   const audienceSummary = await getNewsletterAudienceSummary();
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams?.storefront);
