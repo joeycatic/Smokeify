@@ -49,9 +49,34 @@ type AuditEntry = {
   createdAt: string;
 };
 
+type AnalyzerRun = {
+  id: string;
+  storefront: "Smokeify" | "Growvault";
+  userEmail: string | null;
+  provider: string;
+  model: string;
+  latencyMs: number | null;
+  confidence: number;
+  healthStatus: string;
+  species: string;
+  reviewStatus: string;
+  safetyFlags: string[];
+  createdAt: string;
+  issues: Array<{
+    id: string;
+    label: string;
+    confidence: number;
+    severity: string;
+  }>;
+  feedbackCount: number;
+  incorrectFeedbackCount: number;
+};
+
 type Props = {
   user: UserData;
   recentOrders: OrderRow[];
+  analyzerRuns: AnalyzerRun[];
+  analyzerBridgeError: string | null;
   auditLogs: AuditEntry[];
   actorRole: UserRole;
 };
@@ -121,6 +146,36 @@ const ORDER_STATUS_META: Record<string, string> = {
   refunded: "border-white/10 bg-white/[0.04] text-slate-300",
 };
 
+const ANALYZER_STOREFRONT_META: Record<
+  AnalyzerRun["storefront"],
+  { label: string; className: string }
+> = {
+  Smokeify: {
+    label: "Smokeify",
+    className: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+  },
+  Growvault: {
+    label: "Growvault",
+    className: "border-lime-400/20 bg-lime-400/10 text-lime-200",
+  },
+};
+
+const ANALYZER_HEALTH_META: Record<string, string> = {
+  HEALTHY: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+  WARNING: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+  CRITICAL: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+};
+
+const ANALYZER_REVIEW_META: Record<string, string> = {
+  UNREVIEWED: "border-white/10 bg-white/[0.04] text-slate-300",
+  REVIEWED_OK: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+  REVIEWED_INCORRECT: "border-orange-400/20 bg-orange-400/10 text-orange-200",
+  REVIEWED_UNSAFE: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+  NEEDS_PROMPT_FIX: "border-violet-400/20 bg-violet-400/10 text-violet-200",
+  NEEDS_RECOMMENDATION_FIX: "border-sky-400/20 bg-sky-400/10 text-sky-200",
+  PRIVACY_REVIEW: "border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200",
+};
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("de-DE", {
     dateStyle: "medium",
@@ -133,6 +188,10 @@ function formatMoney(cents: number) {
     style: "currency",
     currency: "EUR",
   }).format(cents / 100);
+}
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function serializeUserForm(form: UserFormState) {
@@ -182,6 +241,8 @@ function createEmptyUser(user: UserData, form: UserFormState, updatedAt: string)
 export default function AdminUserEditClient({
   user,
   recentOrders,
+  analyzerRuns,
+  analyzerBridgeError,
   auditLogs,
   actorRole,
 }: Props) {
@@ -334,6 +395,17 @@ export default function AdminUserEditClient({
     () => recentOrders.reduce((sum, order) => sum + order.amountTotal, 0),
     [recentOrders]
   );
+  const analyzerSourceCounts = useMemo(
+    () =>
+      analyzerRuns.reduce(
+        (counts, run) => ({
+          Smokeify: counts.Smokeify + (run.storefront === "Smokeify" ? 1 : 0),
+          Growvault: counts.Growvault + (run.storefront === "Growvault" ? 1 : 0),
+        }),
+        { Smokeify: 0, Growvault: 0 }
+      ),
+    [analyzerRuns]
+  );
   const displayName =
     [account.firstName, account.lastName].filter(Boolean).join(" ") ||
     account.name ||
@@ -358,6 +430,11 @@ export default function AdminUserEditClient({
       value: String(recentOrders.length),
       detail:
         recentOrders.length > 0 ? `${formatMoney(recentOrderTotal)} across latest orders` : "No recent orders",
+    },
+    {
+      label: "Analyzer",
+      value: String(analyzerRuns.length),
+      detail: `${analyzerSourceCounts.Smokeify} Smokeify · ${analyzerSourceCounts.Growvault} Growvault`,
     },
     {
       label: "Marketing",
@@ -623,6 +700,26 @@ export default function AdminUserEditClient({
             </Field>
           </SectionCard>
 
+          <SectionCard
+            title="Analyzer runs"
+            description="Plant analyzer activity connected to this account across Smokeify and Growvault."
+          >
+            {analyzerBridgeError ? (
+              <div className="rounded-[22px] border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                Growvault runs could not be loaded: {analyzerBridgeError}
+              </div>
+            ) : null}
+            {analyzerRuns.length === 0 ? (
+              <EmptyState>No Smokeify or Growvault analyzer runs found for this user.</EmptyState>
+            ) : (
+              <div className="space-y-3">
+                {analyzerRuns.map((run) => (
+                  <AnalyzerRunRow key={`${run.storefront}:${run.id}`} run={run} />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard title="Recent orders" description="Latest order activity connected to this user account.">
             {recentOrders.length === 0 ? (
               <EmptyState>No recent orders found for this user.</EmptyState>
@@ -802,6 +899,82 @@ export default function AdminUserEditClient({
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
+  const storefrontMeta = ANALYZER_STOREFRONT_META[run.storefront];
+  const issueLabels = run.issues.map((issue) => issue.label).filter(Boolean);
+
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-[#070a0f] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={storefrontMeta.className}>{storefrontMeta.label}</Badge>
+            <Badge
+              className={
+                ANALYZER_HEALTH_META[run.healthStatus] ??
+                "border-white/10 bg-white/[0.04] text-slate-300"
+              }
+            >
+              {run.healthStatus}
+            </Badge>
+            <Badge
+              className={
+                ANALYZER_REVIEW_META[run.reviewStatus] ??
+                "border-white/10 bg-white/[0.04] text-slate-300"
+              }
+            >
+              {run.reviewStatus}
+            </Badge>
+          </div>
+          <div className="mt-3 text-sm font-semibold text-white">
+            {run.species || "Unknown plant"}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+            <span>{formatDateTime(run.createdAt)}</span>
+            <span>Confidence {formatPercent(run.confidence)}</span>
+            {run.latencyMs ? <span>{run.latencyMs}ms</span> : null}
+            <span>
+              {run.provider}/{run.model}
+            </span>
+          </div>
+          {issueLabels.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {issueLabels.slice(0, 6).map((label) => (
+                <span
+                  key={`${run.id}:${label}`}
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-slate-500">No stored issue labels.</div>
+          )}
+        </div>
+        <div className="shrink-0 text-right text-xs text-slate-500">
+          <div className="font-mono">{run.id}</div>
+          <div className="mt-2">
+            Feedback: {run.feedbackCount}
+            {run.incorrectFeedbackCount > 0 ? (
+              <span className="font-semibold text-orange-200">
+                {" "}
+                ({run.incorrectFeedbackCount} disputed)
+              </span>
+            ) : null}
+          </div>
+          {run.safetyFlags.length > 0 ? (
+            <div className="mt-1 font-semibold text-rose-200">
+              {run.safetyFlags.length} safety flag
+              {run.safetyFlags.length === 1 ? "" : "s"}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
