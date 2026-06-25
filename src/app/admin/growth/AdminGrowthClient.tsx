@@ -52,6 +52,7 @@ type Overview = {
     productTitle: string | null;
     _count: { _all: number };
   }>;
+  unavailableReason?: string | null;
 };
 
 const emptyArticle = {
@@ -80,6 +81,7 @@ export default function AdminGrowthClient({
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(
     null,
   );
+  const growthUnavailable = Boolean(overview.unavailableReason);
 
   const callGrowth = async (
     key: string,
@@ -135,6 +137,11 @@ export default function AdminGrowthClient({
           <AdminNotice tone={notice.tone}>{notice.text}</AdminNotice>
         </div>
       ) : null}
+      {overview.unavailableReason ? (
+        <div className="mt-5">
+          <AdminNotice tone="error">{overview.unavailableReason}</AdminNotice>
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <AdminMetricCard label="Abonnenten" value={String(overview.metrics.activeSubscribers)} detail="aktiv" tone="emerald" />
@@ -157,6 +164,7 @@ export default function AdminGrowthClient({
               <input
                 className="mt-4 h-5 w-5 accent-lime-300"
                 type="checkbox"
+                disabled={growthUnavailable}
                 checked={config.payload.welcomeEnabled}
                 onChange={(event) =>
                   setConfig((current) => ({
@@ -172,6 +180,7 @@ export default function AdminGrowthClient({
               <input
                 className="mt-4 h-5 w-5 accent-lime-300"
                 type="checkbox"
+                disabled={growthUnavailable}
                 checked={config.payload.recoveryEnabled}
                 onChange={(event) =>
                   setConfig((current) => ({
@@ -212,7 +221,7 @@ export default function AdminGrowthClient({
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <AdminButton
-              disabled={pending === "config"}
+              disabled={growthUnavailable || pending === "config"}
               onClick={() =>
                 void callGrowth(
                   "config",
@@ -233,7 +242,7 @@ export default function AdminGrowthClient({
             </AdminButton>
             <AdminButton
               tone="secondary"
-              disabled={pending === "welcome"}
+              disabled={growthUnavailable || pending === "welcome"}
               onClick={() =>
                 void callGrowth(
                   "welcome",
@@ -269,7 +278,7 @@ export default function AdminGrowthClient({
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <AdminButton
-              disabled={pending === "cross-sells"}
+              disabled={growthUnavailable || pending === "cross-sells"}
               onClick={() =>
                 void callGrowth(
                   "cross-sells",
@@ -321,7 +330,7 @@ export default function AdminGrowthClient({
           </div>
           <div className="mt-5 flex gap-2">
             <AdminButton
-              disabled={pending === "article"}
+              disabled={growthUnavailable || pending === "article"}
               onClick={() =>
                 void callGrowth(
                   "article",

@@ -11,6 +11,14 @@ import {
 import { ensureCustomizerPresetsSeeded } from "@/lib/customizerPresetStore";
 
 export const GROWTH_CONFIG_KEY = "growvault-growth";
+const GROWTH_BOOTSTRAP_MESSAGE =
+  "Growth control plane tables are missing. Apply the growth Prisma migration before using these controls.";
+const GROWTH_TABLE_NAMES = [
+  "GrowthConfig",
+  "WelcomeSeriesEnrollment",
+  "WelcomeSeriesAttempt",
+  "ContentArticle",
+];
 
 export type GrowthConfigPayload = {
   welcomeEnabled: boolean;
@@ -30,6 +38,43 @@ export const DEFAULT_GROWTH_CONFIG: GrowthConfigPayload = {
     { stepIndex: 3, delayHours: 120, enabled: true },
   ],
   contentCadenceDays: 7,
+};
+
+export type GrowthOverview = {
+  config: {
+    enabled: boolean;
+    payload: GrowthConfigPayload;
+  };
+  metrics: {
+    activeSubscribers: number;
+    activeWelcome: number;
+    welcomeSent: number;
+    pendingBackInStock: number;
+    crossSells: number;
+    crossSellCoverage: number;
+    presets: number;
+    articles: number;
+    publishedArticles: number;
+  };
+  articles: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    status: string;
+    excerpt: string;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    keyword: string | null;
+    cluster: string | null;
+    body: Prisma.JsonValue;
+    scheduledAt: Date | null;
+  }>;
+  backInStock: Array<{
+    productId: string;
+    productTitle: string | null;
+    _count: { _all: number };
+  }>;
+  unavailableReason?: string | null;
 };
 
 const asConfig = (value: Prisma.JsonValue | null | undefined): GrowthConfigPayload => {
@@ -57,6 +102,41 @@ const asConfig = (value: Prisma.JsonValue | null | undefined): GrowthConfigPaylo
       : DEFAULT_GROWTH_CONFIG.welcomeSteps,
   };
 };
+
+export function isGrowthControlPlaneMissingError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (error.code !== "P2021") return false;
+
+  const table = typeof error.meta?.table === "string" ? error.meta.table : "";
+  if (GROWTH_TABLE_NAMES.some((name) => table.includes(name))) return true;
+
+  return GROWTH_TABLE_NAMES.some((name) => error.message.includes(name));
+}
+
+export function getGrowthBootstrapMessage() {
+  return GROWTH_BOOTSTRAP_MESSAGE;
+}
+
+const getUnavailableGrowthOverview = (reason: string): GrowthOverview => ({
+  config: {
+    enabled: false,
+    payload: DEFAULT_GROWTH_CONFIG,
+  },
+  metrics: {
+    activeSubscribers: 0,
+    activeWelcome: 0,
+    welcomeSent: 0,
+    pendingBackInStock: 0,
+    crossSells: 0,
+    crossSellCoverage: 0,
+    presets: 0,
+    articles: 0,
+    publishedArticles: 0,
+  },
+  articles: [],
+  backInStock: [],
+  unavailableReason: reason,
+});
 
 export async function getGrowthConfig() {
   const config = await prisma.growthConfig.upsert({
@@ -270,7 +350,7 @@ export async function runWelcomeSeries(input?: { limit?: number; bypassPaused?: 
   return { paused: false, processed: due.length, sent, failed };
 }
 
-export async function getGrowthOverview() {
+export async function getGrowthOverview(): Promise<GrowthOverview> {
   await ensureCustomizerPresetsSeeded();
   const config = await getGrowthConfig();
   const [
@@ -296,6 +376,19 @@ export async function getGrowthOverview() {
       where: { storefront: "GROW", status: "PUBLISHED" },
     }),
   ]);
+  const recentArticles = await prisma.contentArticle.findMany({
+    where: { storefront: "GROW" },
+    orderBy: [{ scheduledAt: "asc" }, { updatedAt: "desc" }],
+    take: 20,
+  });
+  const backInStock = await prisma.backInStockRequest.groupBy({
+    by: ["productId", "productTitle"] as const,
+    where: { notifiedAt: null },
+    _count: { _all: true },
+    orderBy: { _count: { productId: "desc" } },
+    take: 10,
+  });
+
   return {
     config,
     metrics: {
@@ -309,19 +402,18 @@ export async function getGrowthOverview() {
       articles,
       publishedArticles,
     },
-    articles: await prisma.contentArticle.findMany({
-      where: { storefront: "GROW" },
-      orderBy: [{ scheduledAt: "asc" }, { updatedAt: "desc" }],
-      take: 20,
-    }),
-    backInStock: await prisma.backInStockRequest.groupBy({
-      by: ["productId", "productTitle"],
-      where: { notifiedAt: null },
-      _count: { _all: true },
-      orderBy: { _count: { productId: "desc" } },
-      take: 10,
-    }),
+    articles: recentArticles,
+    backInStock,
   };
+}
+
+export async function getGrowthOverviewSafe() {
+  try {
+    return await getGrowthOverview();
+  } catch (error) {
+    if (!isGrowthControlPlaneMissingError(error)) throw error;
+    return getUnavailableGrowthOverview(getGrowthBootstrapMessage());
+  }
 }
 
 export async function generateGrowthCrossSells(limit = 100) {
