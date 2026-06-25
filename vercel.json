@@ -13,6 +13,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/growth-welcome",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/admin-reports",
       "schedule": "0 * * * *"
     },

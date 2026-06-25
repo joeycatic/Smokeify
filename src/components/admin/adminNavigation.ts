@@ -151,6 +151,7 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
     icon: ChartBarSquareIcon,
     items: [
       { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
+      { href: "/admin/growth", label: "Growth Hub", icon: ChartBarSquareIcon, scope: "analytics.read" },
       {
         href: "/admin/recommendations",
         label: "Recommendations",

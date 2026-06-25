@@ -49,7 +49,7 @@ const DEFAULT_STEPS: CheckoutRecoveryStepConfig[] = [
   {
     stepIndex: 1,
     enabled: true,
-    delayMinutes: 45,
+    delayMinutes: 60,
     promoCode: null,
     promoMessage: null,
   },
@@ -62,7 +62,7 @@ const DEFAULT_STEPS: CheckoutRecoveryStepConfig[] = [
   },
   {
     stepIndex: 3,
-    enabled: true,
+    enabled: false,
     delayMinutes: 72 * 60,
     promoCode: null,
     promoMessage: null,

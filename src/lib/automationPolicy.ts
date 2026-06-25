@@ -8,6 +8,7 @@ import {
 export const AUTOMATION_HANDLERS = [
   "admin.script.run",
   "checkout.recovery.run",
+  "growth.welcome.run",
   "supplier.stock.sync",
   "supplier.stock.daily_report",
   "supplier.pricing.sync",
@@ -67,6 +68,14 @@ export const AUTOMATION_SCHEDULE_DEFAULTS = [
     maxAttempts: 3,
     defaultStatus: "PAUSED" as const,
     defaultPayload: serializeCheckoutRecoveryConfig(DEFAULT_CHECKOUT_RECOVERY_CONFIG),
+  },
+  {
+    key: "growth-welcome-run",
+    label: "GrowVault welcome series",
+    handler: "growth.welcome.run" as AutomationHandler,
+    cronExpression: "*/15 * * * *",
+    maxAttempts: 3,
+    defaultStatus: "PAUSED" as const,
   },
   {
     key: "supplier-stock-sync",

@@ -136,6 +136,14 @@ export async function GET(request: Request) {
       where: { email },
       data: { newsletterOptIn: false, newsletterOptInAt: null },
     }),
+    prisma.welcomeSeriesEnrollment.updateMany({
+      where: { email },
+      data: {
+        status: "UNSUBSCRIBED",
+        unsubscribedAt: new Date(),
+        nextSendAt: null,
+      },
+    }),
   ]);
 
   return new NextResponse(

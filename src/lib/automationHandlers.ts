@@ -22,6 +22,8 @@ import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import type { AutomationHandler } from "@/lib/automationPolicy";
 import { runCheckoutRecoveryCampaign } from "@/lib/checkoutRecoveryService";
 import { buildCatalogHygieneAlerts } from "@/lib/adminCatalogHygiene";
+import { runWelcomeSeries } from "@/lib/growthService";
+import { notifyBackInStockForVariants } from "@/lib/backInStockNotifications";
 
 type AutomationActor = {
   id?: string | null;
@@ -40,6 +42,16 @@ function getOriginForAutomation() {
 async function runSupplierStockSync() {
   const { runSupplierSync } = await import("./supplierStockSync.mjs");
   const result = await runSupplierSync({ prisma });
+  const restockedVariantIds = Array.isArray(result.changes)
+    ? result.changes
+        .filter(
+          (change: { previous?: number; next?: number }) =>
+            Number(change.previous ?? 0) <= 0 && Number(change.next ?? 0) > 0,
+        )
+        .map((change: { variantId?: string }) => change.variantId)
+        .filter((id: unknown): id is string => typeof id === "string")
+    : [];
+  const backInStock = await notifyBackInStockForVariants(restockedVariantIds);
   const lowStockVariants = await prisma.variant.findMany({
     include: {
       inventory: true,
@@ -66,6 +78,7 @@ async function runSupplierStockSync() {
       durationMs: result.durationMs,
       lowStockCount: risky.length,
       lowStockVariantIds: risky.slice(0, 25).map((variant) => variant.id),
+      backInStock,
     },
   } satisfies AutomationHandlerResult;
 }
@@ -351,6 +364,21 @@ export async function executeAutomationHandler(input: {
           ? "Checkout recovery is paused."
           : `Checkout recovery processed ${result.processed} candidate(s).`,
         data: result as unknown as Record<string, unknown>,
+      } satisfies AutomationHandlerResult;
+    }
+    case "growth.welcome.run": {
+      const result = await runWelcomeSeries({
+        limit:
+          typeof input.payload.limit === "number" && Number.isFinite(input.payload.limit)
+            ? Math.floor(input.payload.limit)
+            : undefined,
+        bypassPaused: input.payload.bypassPaused === true,
+      });
+      return {
+        summary: result.paused
+          ? "GrowVault welcome series is paused."
+          : `GrowVault welcome series processed ${result.processed} enrollment(s).`,
+        data: result,
       } satisfies AutomationHandlerResult;
     }
     case "supplier.stock.daily_report":
