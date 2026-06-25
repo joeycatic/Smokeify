@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   Bars3Icon,
+  ClockIcon,
   Cog6ToothIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -35,17 +37,33 @@ const AdminConnectionStatus = dynamic(
   },
 );
 
+const ADMIN_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const ADMIN_IDLE_TICK_MS = 1000;
+const ADMIN_ACTIVITY_THROTTLE_MS = 1000;
+
 type AdminShellProps = {
   children: React.ReactNode;
   userEmail: string | null;
   userRole: "USER" | "ADMIN" | "STAFF";
 };
 
+function formatIdleRemaining(ms: number) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function AdminShell({ children, userEmail, userRole }: AdminShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() ?? "";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [idleRemainingMs, setIdleRemainingMs] = useState(ADMIN_IDLE_TIMEOUT_MS);
+  const expiresAtRef = useRef(Date.now() + ADMIN_IDLE_TIMEOUT_MS);
+  const lastActivityRef = useRef(Date.now());
+  const signingOutRef = useRef(false);
   const dashboardStorefront = storefrontFromAdminPath(pathname);
   const supportsStorefrontScope = adminPathSupportsStorefrontScope(pathname);
   const supportsAllStorefrontScope = adminPathSupportsAllStorefrontScope(pathname);
@@ -73,6 +91,8 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
     () => getActiveAdminNavItem(pathname, visibleWorkspaces, activeWorkspace),
     [activeWorkspace, pathname, visibleWorkspaces],
   );
+  const returnTo = `${pathname}${searchParamString ? `?${searchParamString}` : ""}`;
+  const adminLoginUrl = `/auth/admin?returnTo=${encodeURIComponent(returnTo)}`;
 
   const currentTitle = useMemo(() => {
     const hiddenTitle = getAdminHiddenRouteTitle(pathname);
@@ -110,6 +130,62 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
     const query = params.toString();
     return query ? `${pathname}?${query}` : pathname;
   };
+
+  const startAdminSignOut = useCallback(() => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setIdleRemainingMs(0);
+    void signOut({ callbackUrl: adminLoginUrl });
+  }, [adminLoginUrl]);
+
+  const refreshIdleDeadline = useCallback(() => {
+    if (signingOutRef.current) return;
+    const now = Date.now();
+    if (now >= expiresAtRef.current) {
+      startAdminSignOut();
+      return;
+    }
+    if (now - lastActivityRef.current < ADMIN_ACTIVITY_THROTTLE_MS) return;
+    lastActivityRef.current = now;
+    expiresAtRef.current = now + ADMIN_IDLE_TIMEOUT_MS;
+    setIdleRemainingMs(ADMIN_IDLE_TIMEOUT_MS);
+  }, [startAdminSignOut]);
+
+  useEffect(() => {
+    expiresAtRef.current = Date.now() + ADMIN_IDLE_TIMEOUT_MS;
+    lastActivityRef.current = Date.now();
+    setIdleRemainingMs(ADMIN_IDLE_TIMEOUT_MS);
+  }, [pathname, searchParamString]);
+
+  useEffect(() => {
+    const activityEvents = [
+      "pointerdown",
+      "pointermove",
+      "keydown",
+      "wheel",
+      "touchstart",
+      "scroll",
+      "focus",
+    ] as const;
+    const options: AddEventListenerOptions = { passive: true, capture: true };
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, refreshIdleDeadline, options);
+    });
+
+    const intervalId = window.setInterval(() => {
+      const remaining = expiresAtRef.current - Date.now();
+      setIdleRemainingMs(Math.max(0, remaining));
+      if (remaining > 0) return;
+      startAdminSignOut();
+    }, ADMIN_IDLE_TICK_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, refreshIdleDeadline, options);
+      });
+    };
+  }, [refreshIdleDeadline, startAdminSignOut]);
 
   return (
     <div className="admin-theme admin-dark admin-shell min-h-screen w-full overflow-x-hidden bg-[#05070a] text-slate-100">
@@ -255,6 +331,22 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
               </div>
 
               <div className="admin-header-controls flex min-w-0 shrink-0 items-center gap-1.5 sm:ml-auto sm:gap-2 xl:w-auto xl:flex-nowrap xl:justify-end">
+                <div
+                  className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold tabular-nums sm:h-10 sm:gap-2 sm:px-3 ${
+                    idleRemainingMs <= 60_000
+                      ? "border-red-300/25 bg-red-400/10 text-red-100"
+                      : idleRemainingMs <= 120_000
+                        ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+                        : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                  }`}
+                  title="Admin AFK timer resets on activity. At 0:00 you must log in again."
+                  aria-label={`Admin AFK logout in ${formatIdleRemaining(idleRemainingMs)}`}
+                >
+                  <ClockIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">AFK</span>
+                  <span>{formatIdleRemaining(idleRemainingMs)}</span>
+                </div>
+
                 <AdminCommandBar
                   key={pathname}
                   groups={visibleWorkspaces}
@@ -351,6 +443,12 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-400">User</span>
                         <span className="truncate font-medium text-slate-100">{userEmail ?? "admin"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">AFK logout</span>
+                        <span className="font-mono text-sm font-semibold text-emerald-100">
+                          {formatIdleRemaining(idleRemainingMs)}
+                        </span>
                       </div>
                     </div>
                   </div>
