@@ -40,6 +40,7 @@ const AdminConnectionStatus = dynamic(
 const ADMIN_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const ADMIN_IDLE_TICK_MS = 1000;
 const ADMIN_ACTIVITY_THROTTLE_MS = 1000;
+const ADMIN_IDLE_TIMER_VISIBLE_AFTER_MS = 60 * 1000;
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -102,6 +103,8 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
 
     return "Admin";
   }, [activeItem, pathname]);
+  const idleElapsedMs = Math.max(0, ADMIN_IDLE_TIMEOUT_MS - idleRemainingMs);
+  const showIdleTimer = idleElapsedMs >= ADMIN_IDLE_TIMER_VISIBLE_AFTER_MS;
 
   const navHref = (href: string) => {
     if (!adminPathSupportsStorefrontScope(href)) {
@@ -331,21 +334,23 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
               </div>
 
               <div className="admin-header-controls flex min-w-0 shrink-0 items-center gap-1.5 sm:ml-auto sm:gap-2 xl:w-auto xl:flex-nowrap xl:justify-end">
-                <div
-                  className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold tabular-nums sm:h-10 sm:gap-2 sm:px-3 ${
-                    idleRemainingMs <= 60_000
-                      ? "border-red-300/25 bg-red-400/10 text-red-100"
-                      : idleRemainingMs <= 120_000
-                        ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-                        : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-                  }`}
-                  title="Admin AFK timer resets on activity. At 0:00 you must log in again."
-                  aria-label={`Admin AFK logout in ${formatIdleRemaining(idleRemainingMs)}`}
-                >
-                  <ClockIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">AFK</span>
-                  <span>{formatIdleRemaining(idleRemainingMs)}</span>
-                </div>
+                {showIdleTimer ? (
+                  <div
+                    className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold tabular-nums sm:h-10 sm:gap-2 sm:px-3 ${
+                      idleRemainingMs <= 60_000
+                        ? "border-red-300/25 bg-red-400/10 text-red-100"
+                        : idleRemainingMs <= 120_000
+                          ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+                          : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                    }`}
+                    title="Admin AFK timer resets on activity. At 0:00 you must log in again."
+                    aria-label={`Admin AFK logout in ${formatIdleRemaining(idleRemainingMs)}`}
+                  >
+                    <ClockIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">AFK</span>
+                    <span>{formatIdleRemaining(idleRemainingMs)}</span>
+                  </div>
+                ) : null}
 
                 <AdminCommandBar
                   key={pathname}
@@ -444,12 +449,14 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
                         <span className="text-slate-400">User</span>
                         <span className="truncate font-medium text-slate-100">{userEmail ?? "admin"}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-400">AFK logout</span>
-                        <span className="font-mono text-sm font-semibold text-emerald-100">
-                          {formatIdleRemaining(idleRemainingMs)}
-                        </span>
-                      </div>
+                      {showIdleTimer ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-400">AFK logout</span>
+                          <span className="font-mono text-sm font-semibold text-emerald-100">
+                            {formatIdleRemaining(idleRemainingMs)}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
