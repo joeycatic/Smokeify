@@ -20,6 +20,24 @@ enum VerificationPurpose {
   PASSWORD_RESET
 }
 
+enum NewsletterInterest {
+  BEGINNER_SETUP
+  PLANT_TROUBLESHOOTING
+  CLIMATE_AND_AIRFLOW
+  NUTRIENTS_AND_PH
+  OFFERS_AND_NEW_ARRIVALS
+}
+
+enum NewsletterSource {
+  FOOTER
+  NEWSLETTER_OFFER_POPUP
+  BLOG_GUIDE
+  PLANT_ANALYZER
+  PLANT_CASE_LIBRARY
+  REGISTER
+  UNKNOWN
+}
+
 enum ReturnResolutionType {
   REFUND
   STORE_CREDIT
@@ -498,17 +516,96 @@ model User {
 }
 
 model NewsletterSubscriber {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  userId         String?   @unique
-  subscribedAt   DateTime  @default(now())
-  unsubscribedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id              String               @id @default(cuid())
+  email           String               @unique
+  userId          String?              @unique
+  interests       NewsletterInterest[] @default([])
+  source          NewsletterSource?
+  sourcePath      String?
+  locale          String?
+  sourceContext   Json?
+  lastSegmentedAt DateTime?
+  subscribedAt    DateTime             @default(now())
+  unsubscribedAt  DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+}
+
+model GrowthConfig {
+  key        String     @id
+  storefront Storefront
+  enabled    Boolean    @default(false)
+  payload    Json
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([storefront, enabled])
+}
+
+model WelcomeSeriesEnrollment {
+  id                String     @id @default(cuid())
+  storefront        Storefront
+  email             String
+  status            String     @default("ACTIVE")
+  discountCode      String?
+  discountExpiresAt DateTime?
+  nextStep          Int        @default(1)
+  nextSendAt        DateTime?
+  completedAt       DateTime?
+  unsubscribedAt    DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  attempts WelcomeSeriesAttempt[]
+
+  @@unique([storefront, email])
+  @@index([status, nextSendAt])
+}
+
+model WelcomeSeriesAttempt {
+  id           String    @id @default(cuid())
+  enrollmentId String
+  stepIndex    Int
+  status       String    @default("PENDING")
+  scheduledFor DateTime
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  enrollment WelcomeSeriesEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, stepIndex])
+  @@index([status, scheduledFor])
+}
+
+model ContentArticle {
+  id             String     @id @default(cuid())
+  storefront     Storefront @default(GROW)
+  slug           String
+  status         String     @default("DRAFT")
+  title          String
+  excerpt        String
+  seoTitle       String?
+  seoDescription String?
+  keyword        String?
+  searchIntent   String?
+  cluster        String?
+  body           Json
+  internalLinks  Json?
+  cta            Json?
+  scheduledAt    DateTime?
+  publishedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([storefront, slug])
+  @@index([storefront, status, publishedAt])
+  @@index([status, scheduledAt])
 }
 
 model Account {
@@ -625,22 +722,27 @@ model SearchBoostRule {
 }
 
 model BackInStockRequest {
-  id           String    @id @default(cuid())
-  email        String
-  productId    String
-  productTitle String?
-  variantId    String
-  variantTitle String?
-  userId       String?
-  notifiedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String      @id @default(cuid())
+  email         String
+  productId     String
+  productTitle  String?
+  variantId     String
+  variantTitle  String?
+  userId        String?
+  storefront    Storefront?
+  notifiedAt    DateTime?
+  attemptCount  Int         @default(0)
+  lastError     String?
+  lastAttemptAt DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([email, variantId])
   @@index([productId])
   @@index([userId])
+  @@index([storefront, notifiedAt])
 }
 
 model Supplier {
