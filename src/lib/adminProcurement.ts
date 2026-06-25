@@ -1,4 +1,5 @@
 import "server-only";
+import { notifyBackInStockForVariants } from "@/lib/backInStockNotifications";
 
 import {
   Prisma,
@@ -741,6 +742,9 @@ export async function receivePurchaseOrder(input: {
       note: normalizeNote(input.note),
     },
   });
+  await notifyBackInStockForVariants(
+    normalizedLines.map(({ purchaseOrderItem }) => purchaseOrderItem.variantId),
+  );
 
   return serializePurchaseOrder(updated);
 }

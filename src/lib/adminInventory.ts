@@ -6,6 +6,7 @@ import type {
   AdminInventoryAdjustmentMode,
   AdminInventoryReasonCode,
 } from "@/lib/adminInventoryShared";
+import { notifyBackInStockForVariants } from "@/lib/backInStockNotifications";
 export { isAdminInventoryReasonCode } from "@/lib/adminInventoryShared";
 
 type AdminActor = {
@@ -118,6 +119,9 @@ export async function applyAdminInventoryAdjustment(input: ApplyAdminInventoryAd
       sourceReference: input.sourceReference?.trim() || null,
     },
   });
+  if (beforeOnHand <= 0 && updated.inventory.quantityOnHand > 0) {
+    await notifyBackInStockForVariants([variant.id]);
+  }
 
   return {
     variant: {

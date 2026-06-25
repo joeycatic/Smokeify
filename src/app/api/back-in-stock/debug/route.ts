@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const rows = await prisma.backInStockRequest.findMany({
     where: { notifiedAt: null },
     orderBy: { createdAt: "desc" },

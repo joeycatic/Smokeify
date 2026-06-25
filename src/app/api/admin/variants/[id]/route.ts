@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { parseCents, requireAdmin } from "@/lib/adminCatalog";
-import { sendResendEmail } from "@/lib/resend";
+import { notifyBackInStockForVariants } from "@/lib/backInStockNotifications";
 import { logAdminAction } from "@/lib/adminAuditLog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
@@ -207,34 +207,7 @@ export async function PATCH(
     const available =
       (variant.inventory.quantityOnHand ?? 0) -
       (variant.inventory.reserved ?? 0);
-    if (available > 0) {
-      const requests = await prisma.backInStockRequest.findMany({
-        where: { variantId: id, notifiedAt: null },
-      });
-      if (requests.length) {
-        const productTitle = variant.product?.title ?? "Dein Artikel";
-        const variantTitle = variant.title ? ` (${variant.title})` : "";
-        await Promise.all(
-          requests.map((request) =>
-            sendResendEmail({
-              to: request.email,
-              subject: "Artikel wieder verfugbar",
-              html: `
-                <div style="font-family: Arial, sans-serif; line-height: 1.5;">
-                  <p><strong>${productTitle}${variantTitle}</strong></p>
-                  <p>Der Artikel ist wieder verfugbar.</p>
-                </div>
-              `,
-              text: `${productTitle}${variantTitle}\n\nDer Artikel ist wieder verfugbar.`,
-            })
-          )
-        );
-        await prisma.backInStockRequest.updateMany({
-          where: { variantId: id, notifiedAt: null },
-          data: { notifiedAt: new Date() },
-        });
-      }
-    }
+    if (available > 0) await notifyBackInStockForVariants([id]);
   }
 
   if (
