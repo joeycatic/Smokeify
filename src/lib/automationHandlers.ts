@@ -38,9 +38,7 @@ function getOriginForAutomation() {
 }
 
 async function runSupplierStockSync() {
-  const { runSupplierSync } = await import(
-    /* turbopackIgnore: true */ "./supplierStockSync.mjs"
-  );
+  const { runSupplierSync } = await import("./supplierStockSync.mjs");
   const result = await runSupplierSync({ prisma });
   const lowStockVariants = await prisma.variant.findMany({
     include: {

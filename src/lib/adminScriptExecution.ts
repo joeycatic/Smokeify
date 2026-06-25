@@ -139,9 +139,7 @@ async function executeInternalSupplierSync() {
   let stdout = "";
   let stderr = "";
 
-  const { runSupplierSync } = await import(
-    /* turbopackIgnore: true */ "./supplierStockSync.mjs"
-  );
+  const { runSupplierSync } = await import("./supplierStockSync.mjs");
   const result = await runSupplierSync({
     prisma,
     logger: {
