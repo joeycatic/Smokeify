@@ -1124,6 +1124,25 @@ textarea {
   isolation: isolate;
 }
 
+.analytics-commerce {
+  --analytics-ink: #080d12;
+  --analytics-panel: #090e13;
+  --analytics-accent: #67e8f9;
+  --analytics-warning: #fbbf24;
+  width: 100%;
+  max-width: 1680px;
+  margin-inline: auto;
+}
+
+.analytics-commerce summary::-webkit-details-marker {
+  display: none;
+}
+
+.analytics-commerce :where(button, a, summary, input):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--analytics-accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
 .admin-shell__backdrop {
   position: fixed;
   inset: 0;

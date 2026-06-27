@@ -110,6 +110,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import {
+  loadAdminAnalyticsLive,
   loadAdminAnalyticsOverview,
   loadAdminAnalyticsSecondary,
 } from "@/lib/adminAnalyticsPageData";
@@ -346,16 +347,43 @@ beforeEach(() => {
 });
 
 describe("adminAnalyticsPageData", () => {
+  it("returns a lightweight storefront-scoped live snapshot", async () => {
+    mockGetActiveSessionSnapshot.mockResolvedValueOnce({
+      activeVisitorCount: 4,
+      topPages: [
+        {
+          path: "/products",
+          pageType: "listing",
+          count: 3,
+          lastSeenAt: new Date("2026-05-19T12:00:00.000Z"),
+        },
+      ],
+      trafficSources: [{ label: "Direct / unknown", count: 4 }],
+    });
+
+    const result = await loadAdminAnalyticsLive("MAIN");
+
+    expect(mockGetActiveSessionSnapshot).toHaveBeenCalledWith("MAIN");
+    expect(result.live.activeVisitorCount).toBe(4);
+    expect(result.live.topPages[0]?.shareOfVisitors).toBe(0.75);
+    expect(result.refreshedAt).toEqual(expect.any(String));
+  });
+
   it("threads range and storefront scope through overview helpers and order queries", async () => {
     const result = await loadAdminAnalyticsOverview(90, "GROW");
 
     expect(mockGetActiveSessionSnapshot).toHaveBeenCalledWith("GROW");
-    expect(mockGetFunnelSnapshot).toHaveBeenCalledWith(90, "GROW");
-    expect(mockGetFunnelComparison).toHaveBeenCalledWith(90, "GROW");
-    expect(mockGetFunnelTrend).toHaveBeenCalledWith(90, "GROW");
-    expect(mockGetOrderComparisons).toHaveBeenCalledWith(90, "GROW");
-    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(90, "GROW");
-    expect(mockGetFinancePageData).toHaveBeenCalledWith(90, "GROW");
+    const expectedRange = expect.objectContaining({
+      kind: "preset",
+      days: 90,
+      bucketKind: "week",
+    });
+    expect(mockGetFunnelSnapshot).toHaveBeenCalledWith(expectedRange, "GROW");
+    expect(mockGetFunnelComparison).toHaveBeenCalledWith(expectedRange, "GROW");
+    expect(mockGetFunnelTrend).toHaveBeenCalledWith(expectedRange, "GROW");
+    expect(mockGetOrderComparisons).toHaveBeenCalledWith(expectedRange, "GROW");
+    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(expectedRange, "GROW");
+    expect(mockGetFinancePageData).toHaveBeenCalledWith(expectedRange, "GROW");
 
     expect(orderCount).toHaveBeenCalledWith({ where: { sourceStorefront: "GROW" } });
     expect(orderAggregate).toHaveBeenCalledWith({
@@ -396,8 +424,14 @@ describe("adminAnalyticsPageData", () => {
   it("applies storefront scope to secondary analytics queries and inventory rows", async () => {
     const result = await loadAdminAnalyticsSecondary(365, "MAIN");
 
-    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(365, "MAIN");
-    expect(mockGetProductPerformance).toHaveBeenCalledWith(365, "MAIN");
+    expect(mockGetCustomerRevenueMix).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "preset", days: 365, bucketKind: "month" }),
+      "MAIN",
+    );
+    expect(mockGetProductPerformance).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "preset", days: 365, bucketKind: "month" }),
+      "MAIN",
+    );
     expect(variantFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import { loadAdminAnalyticsOverview } from "@/lib/adminAnalyticsPageData";
+import {
+  parseAdminAnalyticsMetric,
+  resolveAdminAnalyticsRange,
+} from "@/lib/adminAnalyticsRange";
 import { measureServerExecution } from "@/lib/perf";
-import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
 import {
   parseAdminStorefrontScope,
   storefrontScopeToStorefront,
@@ -16,19 +19,25 @@ export default async function AdminAnalyticsPage({
 }) {
   if (!(await requireAdminScope("analytics.read"))) notFound();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
+  const range = resolveAdminAnalyticsRange({
+    days: resolvedSearchParams?.days,
+    from: resolvedSearchParams?.from,
+    to: resolvedSearchParams?.to,
+  });
+  const metric = parseAdminAnalyticsMetric(resolvedSearchParams?.metric);
   const storefrontScope = parseAdminStorefrontScope(resolvedSearchParams?.storefront);
   const storefront = storefrontScopeToStorefront(storefrontScope);
   const { result: initialOverview } = await measureServerExecution(
     "admin.analytics.overview",
-    () => loadAdminAnalyticsOverview(days, storefront),
+    () => loadAdminAnalyticsOverview(range, storefront),
   );
 
   return (
     <div className="w-full text-slate-100">
       <AdminAnalyticsClient
         initialOverview={initialOverview}
-        initialDays={days}
+        initialRange={range}
+        initialMetric={metric}
         initialStorefrontScope={storefrontScope}
       />
     </div>

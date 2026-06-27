@@ -1,18 +1,30 @@
-import type { AdminTimeRangeDays } from "@/lib/adminTimeRange";
+import type {
+  AdminAnalyticsMetric,
+  AdminAnalyticsRange,
+  AdminAnalyticsPresetDays,
+} from "@/lib/adminAnalyticsRange";
 import type { AdminStorefrontScope } from "@/lib/storefronts";
 
 export type AdminAnalyticsLocation = {
-  days: AdminTimeRangeDays;
+  range: Pick<AdminAnalyticsRange, "kind" | "days" | "from" | "to">;
   storefront: AdminStorefrontScope;
+  metric?: AdminAnalyticsMetric;
 };
 
 export function buildAdminAnalyticsQuery({
-  days,
+  range,
   storefront,
+  metric,
 }: AdminAnalyticsLocation) {
   const params = new URLSearchParams();
-  params.set("days", String(days));
+  if (range.kind === "custom") {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  } else {
+    params.set("days", String(range.days));
+  }
   params.set("storefront", storefront);
+  if (metric && metric !== "revenue") params.set("metric", metric);
   return params.toString();
 }
 
@@ -22,11 +34,23 @@ export function buildAdminAnalyticsHref(location: AdminAnalyticsLocation) {
 
 export function buildAdminAnalyticsApiHref(
   location: AdminAnalyticsLocation,
-  section?: "overview" | "secondary",
+  section?: "overview" | "secondary" | "live",
 ) {
   const params = new URLSearchParams(buildAdminAnalyticsQuery(location));
   if (section) {
     params.set("section", section);
   }
   return `/api/admin/analytics?${params.toString()}`;
+}
+
+export function buildAdminAnalyticsPresetHref(
+  days: AdminAnalyticsPresetDays,
+  storefront: AdminStorefrontScope,
+  metric?: AdminAnalyticsMetric,
+) {
+  return buildAdminAnalyticsHref({
+    range: { kind: "preset", days, from: "", to: "" },
+    storefront,
+    metric,
+  });
 }

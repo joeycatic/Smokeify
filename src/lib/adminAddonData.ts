@@ -37,10 +37,14 @@ import {
   type StorefrontAllocationInput,
 } from "@/lib/expenseAllocations";
 import {
-  buildAdminTimeBuckets,
   getAdminTimeWindowStart,
   type AdminTimeRangeDays,
 } from "@/lib/adminTimeRange";
+import {
+  buildAdminAnalyticsBuckets,
+  resolveAdminAnalyticsRange,
+  type AdminAnalyticsRange,
+} from "@/lib/adminAnalyticsRange";
 import { STOREFRONT_LABELS, STOREFRONTS, type StorefrontCode } from "@/lib/storefronts";
 
 const getDateDaysAgo = (daysAgo: number) => {
@@ -255,11 +259,15 @@ export async function getExpensesSince(since: Date) {
 }
 
 export async function getFinancePageData(
-  days: AdminTimeRangeDays = 30,
+  rangeInput: AdminTimeRangeDays | AdminAnalyticsRange = 30,
   storefront: Storefront | null = null,
 ) {
-  const currentStart = getAdminTimeWindowStart(days);
-  const previousStart = getDateDaysAgo(days * 2 - 1);
+  const range =
+    typeof rangeInput === "number"
+      ? resolveAdminAnalyticsRange({ days: String(rangeInput) })
+      : rangeInput;
+  const currentStart = range.start;
+  const previousStart = range.previousStart;
   const [orders, expenseQuery, latestRecognizedOrder] = await Promise.all([
     getFinanceOrdersSinceForStorefront(previousStart, storefront),
     queryExpensesSince(previousStart),
@@ -284,12 +292,26 @@ export async function getFinancePageData(
         .filter((expense) => expense.grossAmount > 0 || expense.vatAmount > 0)
     : expenseQuery.expenses;
   const currency = orders[0]?.currency ?? expenses[0]?.currency ?? "EUR";
-  const currentOrders = orders.filter((order) => order.createdAt >= currentStart);
-  const previousOrders = orders.filter((order) => order.createdAt < currentStart);
-  const currentExpenses = expenses.filter((expense) => expense.documentDate >= currentStart);
-  const previousExpenses = expenses.filter((expense) => expense.documentDate < currentStart);
+  const currentOrders = orders.filter(
+    (order) => order.createdAt >= currentStart && order.createdAt < range.endExclusive,
+  );
+  const previousOrders = orders.filter(
+    (order) =>
+      order.createdAt >= range.previousStart &&
+      order.createdAt < range.previousEndExclusive,
+  );
+  const currentExpenses = expenses.filter(
+    (expense) =>
+      expense.documentDate >= currentStart && expense.documentDate < range.endExclusive,
+  );
+  const previousExpenses = expenses.filter(
+    (expense) =>
+      expense.documentDate >= range.previousStart &&
+      expense.documentDate < range.previousEndExclusive,
+  );
   const allCurrentExpenses = expenseQuery.expenses.filter(
-    (expense) => expense.documentDate >= currentStart,
+    (expense) =>
+      expense.documentDate >= currentStart && expense.documentDate < range.endExclusive,
   );
   const currentFinance = buildFinanceRollup(currentOrders, currency);
   const previousFinance = buildFinanceRollup(previousOrders, currency);
@@ -305,11 +327,11 @@ export async function getFinancePageData(
   };
   const vatSummary = buildVatSummary(
     currentOrders,
-    new Date(),
+    new Date(Math.min(Date.now(), range.endExclusive.getTime() - 1)),
     buildVatOptionsFromExpenses(currentExpenseSummary),
   );
 
-  const trendBuckets = buildAdminTimeBuckets(days, "de-DE").map((bucket) => ({
+  const trendBuckets = buildAdminAnalyticsBuckets(range).map((bucket) => ({
     key: bucket.key,
     label: bucket.label,
     start: bucket.start,
@@ -387,7 +409,7 @@ export async function getFinancePageData(
     expenseByCategory,
     expenseMigrationRequired: expenseQuery.migrationRequired,
     currentStart,
-    currentEnd: new Date(),
+    currentEnd: new Date(Math.min(Date.now(), range.endExclusive.getTime() - 1)),
     latestRecognizedOrderAt: latestRecognizedOrder?.createdAt ?? null,
   };
 }

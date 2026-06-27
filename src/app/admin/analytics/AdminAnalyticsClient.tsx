@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DonutChart,
   HorizontalBarsChart,
@@ -10,8 +11,6 @@ import {
   AdminDetailPanel,
   AdminRankingTable,
   type AdminRankingTableColumn,
-  AdminScopeChip,
-  AdminStickyToolbar,
 } from "@/components/admin/AdminAnalyticsPrimitives";
 import {
   AdminButton,
@@ -23,18 +22,21 @@ import {
 } from "@/components/admin/AdminWorkspace";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
+  ADMIN_ANALYTICS_PRESET_OPTIONS,
+  getBerlinDateKey,
+  type AdminAnalyticsMetric,
+  type AdminAnalyticsRange,
+} from "@/lib/adminAnalyticsRange";
+import {
   buildAdminAnalyticsApiHref,
   buildAdminAnalyticsHref,
 } from "@/lib/adminAnalyticsUrl";
 import { formatAdminMoney, formatAdminPercent } from "@/lib/adminFormatting";
 import type {
+  AdminAnalyticsLivePayload,
   AdminAnalyticsOverviewPayload,
   AdminAnalyticsSecondaryPayload,
 } from "@/lib/adminAnalyticsPageData";
-import {
-  ADMIN_TIME_RANGE_OPTIONS,
-  type AdminTimeRangeDays,
-} from "@/lib/adminTimeRange";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
   type AdminStorefrontScope,
@@ -324,6 +326,11 @@ const emptyOperations = {
 const emptySecondaryPayload = {
   scope: {
     days: 30,
+    kind: "preset",
+    label: "30 days",
+    from: "",
+    to: "",
+    bucketKind: "day",
     storefront: null,
     currentStart: new Date(0),
     currentEnd: new Date(0),
@@ -391,17 +398,10 @@ const emptySecondaryPayload = {
   operations: emptyOperations,
 } satisfies AdminAnalyticsSecondaryPayload;
 
-const toneBadgeClassName = {
-  slate: "border-white/10 bg-white/[0.06] text-slate-100",
-  emerald: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-  violet: "border-violet-400/20 bg-violet-400/10 text-violet-100",
-  amber: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-};
-
-const windowCopy: Record<
-  AdminTimeRangeDays,
-  { label: string; adjective: string; horizon: string }
-> = {
+const windowCopy: Record<number, { label: string; adjective: string; horizon: string }> = {
+  1: { label: "Today", adjective: "daily", horizon: "today in Berlin" },
+  7: { label: "7 days", adjective: "7-day", horizon: "current 7-day window" },
+  14: { label: "14 days", adjective: "14-day", horizon: "current 14-day window" },
   30: { label: "30 days", adjective: "30-day", horizon: "current 30-day window" },
   90: { label: "3 months", adjective: "3-month", horizon: "current 3-month window" },
   365: { label: "1 year", adjective: "1-year", horizon: "current yearly window" },
@@ -576,59 +576,6 @@ function OperationsTabs({
         </button>
       ))}
     </div>
-  );
-}
-
-function CommandDeck({
-  metrics,
-  currency,
-  storefrontLabel,
-  rangeLabel,
-  updatedAt,
-}: {
-  metrics: ExecutiveMetric[];
-  currency: string;
-  storefrontLabel: string;
-  rangeLabel: string;
-  updatedAt: string;
-}) {
-  return (
-    <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,20,0.98),rgba(4,8,14,0.98))] px-4 py-5 shadow-[0_40px_100px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(129,140,248,0.14),transparent_28%)]" />
-      <div className="relative">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-              All-store Admin
-            </p>
-            <h1 className="mt-3 text-[clamp(2rem,3vw,3rem)] font-semibold tracking-tight text-white">
-              Analytics
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Finance-safe revenue truth first, acquisition quality second, and compact
-              operational context without forcing the page into a dashboard mosaic.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
-                {storefrontLabel}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
-                {rangeLabel}
-              </span>
-              <span className="rounded-full border border-cyan-300/25 bg-cyan-300/12 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                Refreshed {formatUpdatedAt(updatedAt)}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((metric) => (
-              <MetricTile key={metric.id} metric={metric} currency={currency} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -868,62 +815,6 @@ function ActionCenter({
         </div>
       </div>
     </section>
-  );
-}
-
-function MetricTile({
-  metric,
-  currency,
-}: {
-  metric: ExecutiveMetric;
-  currency: string;
-}) {
-  const metricValue = metric.value as number | string;
-  let displayValue: string;
-  switch (metric.kind) {
-    case "currency":
-      displayValue =
-        typeof metricValue === "number"
-          ? formatPrice(metricValue, currency)
-          : String(metricValue);
-      break;
-    case "percent":
-      displayValue =
-        typeof metricValue === "number" ? percent(metricValue) : String(metricValue);
-      break;
-    case "status":
-      displayValue = formatVatStatus(String(metricValue));
-      break;
-    case "count":
-    default:
-      displayValue =
-        typeof metricValue === "number" ? formatCount(metricValue) : String(metricValue);
-      break;
-  }
-
-  const badgeLabel =
-    metric.kind === "status" && typeof metric.contextValue === "number"
-      ? formatPrice(metric.contextValue, currency)
-      : formatDelta(metric.deltaRatio);
-
-  return (
-    <div className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.06]">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_40%)] opacity-70" />
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3">
-          <p className="max-w-[14ch] text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            {metric.label}
-          </p>
-          <span
-            className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${toneBadgeClassName[metric.tone]}`}
-          >
-            {badgeLabel}
-          </span>
-        </div>
-        <div className="mt-4 text-xl font-semibold text-white sm:text-2xl">{displayValue}</div>
-        <div className="mt-2 text-xs leading-5 text-slate-400">{metric.footnote}</div>
-      </div>
-    </div>
   );
 }
 
@@ -1449,7 +1340,7 @@ function RevenueWorkspace({
   onSelectStage,
 }: {
   data: RevenueConversionData;
-  days: AdminTimeRangeDays;
+  days: number;
   storefrontScope: AdminStorefrontScope;
   selectedStage: string;
   onSelectStage: (value: string) => void;
@@ -1758,7 +1649,7 @@ function RevenueWorkspace({
           />
           <AdminDetailPanel
             eyebrow="Finance truth"
-            title={`${windowCopy[days].adjective} accounting read`}
+            title={`${windowCopy[days]?.adjective ?? `${days}-day`} accounting read`}
             description="Server-side finance and VAT remain the authority for recognized revenue, contribution, and tax readiness."
             metrics={[
               { label: "Net revenue", value: formatPrice(data.finance.netRevenueCents, currency) },
@@ -1806,7 +1697,7 @@ function AcquisitionWorkspace({
 }: {
   live: LiveSnapshot;
   trafficSources: TrafficSource[];
-  days: AdminTimeRangeDays;
+  days: number;
   storefrontScope: AdminStorefrontScope;
   selectedSourceLabel: string | null;
   onSelectSourceLabel: (value: string | null) => void;
@@ -2050,7 +1941,7 @@ function OperationsWorkspace({
 }: {
   data: OperationsData;
   currency: string;
-  days: AdminTimeRangeDays;
+  days: number;
   storefrontScope: AdminStorefrontScope;
   activeTab: OperationsTabId;
   onChangeTab: (tab: OperationsTabId) => void;
@@ -2593,29 +2484,381 @@ function OperationsWorkspace({
   );
 }
 
+type CommerceMetricDefinition = {
+  id: AdminAnalyticsMetric | "aov" | "live";
+  label: string;
+  value: number;
+  previous: number | null;
+  kind: "currency" | "count" | "percent";
+  helper: string;
+};
+
+const commerceMetricTone: Record<CommerceMetricDefinition["id"], string> = {
+  revenue: "from-cyan-300/16 to-cyan-300/[0.02]",
+  margin: "from-emerald-300/14 to-emerald-300/[0.02]",
+  orders: "from-sky-300/14 to-sky-300/[0.02]",
+  conversion: "from-amber-300/14 to-amber-300/[0.02]",
+  aov: "from-white/[0.08] to-white/[0.01]",
+  live: "from-emerald-300/14 to-emerald-300/[0.02]",
+};
+
+function metricDisplay(metric: CommerceMetricDefinition, currency: string) {
+  if (metric.kind === "currency") return formatPrice(metric.value, currency);
+  if (metric.kind === "percent") return percent(metric.value);
+  return formatCount(metric.value);
+}
+
+function metricDelta(metric: CommerceMetricDefinition) {
+  if (metric.previous === null) return "Live now";
+  if (metric.previous === 0) return metric.value > 0 ? "New activity" : "No change";
+  return `${formatDelta((metric.value - metric.previous) / metric.previous)} vs prior`;
+}
+
+function CommerceKpiGrid({
+  metrics,
+  currency,
+  activeMetric,
+  onSelectMetric,
+}: {
+  metrics: CommerceMetricDefinition[];
+  currency: string;
+  activeMetric: AdminAnalyticsMetric;
+  onSelectMetric: (metric: AdminAnalyticsMetric) => void;
+}) {
+  return (
+    <section aria-label="Commerce pulse metrics" className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 2xl:grid-cols-6">
+      {metrics.map((metric) => {
+        const interactive = metric.id !== "aov" && metric.id !== "live";
+        const active = interactive && metric.id === activeMetric;
+        return (
+          <button
+            key={metric.id}
+            type="button"
+            disabled={!interactive}
+            aria-pressed={interactive ? active : undefined}
+            onClick={() => interactive && onSelectMetric(metric.id as AdminAnalyticsMetric)}
+            className={`group relative min-h-[8.75rem] overflow-hidden rounded-2xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:p-4 ${
+              active
+                ? "border-cyan-300/45 bg-[#101b22] shadow-[inset_0_0_0_1px_rgba(103,232,249,0.08)]"
+                : "border-white/10 bg-[#0a0f14] hover:border-white/20"
+            } ${!interactive ? "cursor-default" : "hover:-translate-y-0.5"}`}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${commerceMetricTone[metric.id]}`} />
+            <div className="relative flex h-full flex-col justify-between gap-4">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:text-[11px]">
+                  {metric.label}
+                </span>
+                {interactive ? (
+                  <span className={`mt-0.5 h-2 w-2 rounded-full ${active ? "bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.8)]" : "bg-white/15"}`} />
+                ) : null}
+              </div>
+              <div>
+                <div className="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  {metricDisplay(metric, currency)}
+                </div>
+                <div className="mt-1.5 text-[11px] leading-4 text-slate-400">
+                  {metricDelta(metric)} · {metric.helper}
+                </div>
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </section>
+  );
+}
+
+function CommerceTrendExplorer({
+  data,
+  activeMetric,
+  currency,
+}: {
+  data: RevenueConversionData;
+  activeMetric: AdminAnalyticsMetric;
+  currency: string;
+}) {
+  const [activeIndex, setActiveIndex] = useState(Math.max(data.trend.length - 1, 0));
+  useEffect(() => setActiveIndex(Math.max(data.trend.length - 1, 0)), [data.trend]);
+
+  const config = {
+    revenue: {
+      label: "Net revenue",
+      description: "Order-backed revenue after VAT and refunds.",
+      value: (point: RevenueConversionData["trend"][number]) => point.netRevenueCents,
+      format: (value: number) => formatPrice(value, currency),
+      color: "#67e8f9",
+    },
+    margin: {
+      label: "Contribution margin",
+      description: "Net revenue after product cost and payment fees.",
+      value: (point: RevenueConversionData["trend"][number]) => point.contributionMarginCents,
+      format: (value: number) => formatPrice(value, currency),
+      color: "#6ee7b7",
+    },
+    orders: {
+      label: "Paid orders",
+      description: "Recognized paid order volume in each interval.",
+      value: (point: RevenueConversionData["trend"][number]) => point.paidOrders,
+      format: formatCount,
+      color: "#7dd3fc",
+    },
+    conversion: {
+      label: "Session conversion",
+      description: "Consented sessions that reached a paid purchase.",
+      value: (point: RevenueConversionData["trend"][number]) => point.sessionConversionRate,
+      format: percent,
+      color: "#fbbf24",
+    },
+  } satisfies Record<AdminAnalyticsMetric, {
+    label: string;
+    description: string;
+    value: (point: RevenueConversionData["trend"][number]) => number;
+    format: (value: number) => string;
+    color: string;
+  }>;
+  const selectedConfig = config[activeMetric];
+
+  if (data.trend.length === 0) {
+    return <div className="flex min-h-72 items-center justify-center text-sm text-slate-500">No trend data for this range.</div>;
+  }
+
+  const width = 900;
+  const height = 310;
+  const padding = { left: 36, right: 24, top: 24, bottom: 42 };
+  const values = data.trend.map(selectedConfig.value);
+  const minValue = Math.min(0, ...values);
+  const maxValue = Math.max(1, ...values);
+  const spread = Math.max(maxValue - minValue, 1);
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const points = data.trend.map((point, index) => ({
+    point,
+    value: values[index],
+    x: padding.left + (data.trend.length === 1 ? chartWidth / 2 : (chartWidth * index) / (data.trend.length - 1)),
+    y: padding.top + chartHeight - ((values[index] - minValue) / spread) * chartHeight,
+  }));
+  const line = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const area = `${line} L ${points.at(-1)?.x ?? width - padding.right} ${padding.top + chartHeight} L ${points[0]?.x ?? padding.left} ${padding.top + chartHeight} Z`;
+  const selected = points[Math.min(activeIndex, points.length - 1)];
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#080d12]" aria-label={`${selectedConfig.label} trend`}>
+      <div className="flex flex-col gap-3 border-b border-white/8 px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Selected signal</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-white sm:text-xl">{selectedConfig.label}</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-400">{selectedConfig.description}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-right">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{selected.point.label}</div>
+          <div className="mt-1 font-mono text-base font-semibold text-white">{selectedConfig.format(selected.value)}</div>
+        </div>
+      </div>
+      <div className="p-3 sm:p-5">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[15rem] w-full sm:h-[18rem]" role="img" aria-label={`${selectedConfig.label} across ${data.trend.length} intervals`}>
+          <defs>
+            <linearGradient id={`commerce-${activeMetric}-fill`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={selectedConfig.color} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={selectedConfig.color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0, 1, 2, 3].map((lineIndex) => {
+            const y = padding.top + (chartHeight / 3) * lineIndex;
+            return <line key={lineIndex} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,.13)" strokeDasharray="3 7" />;
+          })}
+          <path d={area} fill={`url(#commerce-${activeMetric}-fill)`} />
+          <path d={line} fill="none" stroke={selectedConfig.color} strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          <line x1={selected.x} x2={selected.x} y1={padding.top} y2={padding.top + chartHeight} stroke="rgba(226,232,240,.24)" strokeDasharray="3 5" />
+          {points.map((entry, index) => (
+            <g
+              key={`${entry.point.label}-${index}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${entry.point.label}: ${selectedConfig.format(entry.value)}`}
+              onFocus={() => setActiveIndex(index)}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => setActiveIndex(index)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") setActiveIndex(index);
+              }}
+              className="cursor-pointer outline-none"
+            >
+              <circle cx={entry.x} cy={entry.y} r={index === activeIndex ? 6 : 3.5} fill={index === activeIndex ? selectedConfig.color : "#0b1218"} stroke={selectedConfig.color} strokeWidth="2" />
+              <rect x={entry.x - 18} y={padding.top} width="36" height={chartHeight} fill="transparent" />
+            </g>
+          ))}
+        </svg>
+        <div className="mt-2 grid grid-cols-4 gap-2 text-[9px] uppercase tracking-[0.12em] text-slate-500 sm:grid-cols-8">
+          {data.trend.slice(-8).map((point) => <span key={point.label} className="truncate">{point.label}</span>)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DecisionStack({ items, currency }: { items: ActionItem[]; currency: string }) {
+  const topItems = items.slice(0, 3);
+  return (
+    <aside className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-4" aria-labelledby="decision-stack-title">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/70">Decision queue</p>
+          <h2 id="decision-stack-title" className="mt-1.5 text-lg font-semibold text-white">What needs attention</h2>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-300">Top {topItems.length}</span>
+      </div>
+      <div className="mt-4 space-y-2.5">
+        {topItems.length ? topItems.map((item, index) => (
+          <article key={item.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-slate-500">0{index + 1}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${severityClassName[item.severity]}`}>{item.severity}</span>
+              <span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{issueTypeLabel[item.type]}</span>
+            </div>
+            <h3 className="mt-2.5 text-sm font-semibold leading-5 text-white">{item.title}</h3>
+            <p className="mt-1.5 text-xs leading-5 text-slate-400">{item.summary}</p>
+            <div className="mt-3 flex items-end justify-between gap-3 border-t border-white/8 pt-2.5">
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">{item.primaryMetricLabel}</div>
+                <div className="mt-1 font-mono text-sm font-semibold text-slate-100">{formatActionMetric(item.primaryMetricValue, item.primaryMetricKind, currency)}</div>
+              </div>
+              {item.links[0] ? <a href={item.links[0].href} className="inline-flex min-h-11 items-center rounded-lg border border-cyan-300/20 bg-cyan-300/8 px-3 text-xs font-semibold text-cyan-100 hover:bg-cyan-300/14">{item.links[0].label}</a> : null}
+            </div>
+          </article>
+        )) : (
+          <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4 text-sm leading-6 text-emerald-100">No high-confidence commerce issues were detected for this range.</div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function CommerceFunnel({
+  funnel,
+  selectedStage,
+  onSelectStage,
+}: {
+  funnel: RevenueConversionData["funnel"];
+  selectedStage: string;
+  onSelectStage: (stage: string) => void;
+}) {
+  const stages = [
+    { label: "Sessions", value: funnel.sessions },
+    { label: "Product views", value: funnel.productViews },
+    { label: "Add to cart", value: funnel.addToCart },
+    { label: "Begin checkout", value: funnel.beginCheckout },
+    { label: "Payment handoff", value: funnel.paymentInfo },
+    { label: "Paid orders", value: funnel.paidOrders },
+  ];
+  const selected = stages.find((stage) => stage.label === selectedStage) ?? stages[0];
+  const selectedIndex = stages.indexOf(selected);
+  const previous = selectedIndex > 0 ? stages[selectedIndex - 1] : null;
+  const stageRate = previous && previous.value > 0 ? selected.value / previous.value : selectedIndex === 0 ? 1 : 0;
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-5" aria-labelledby="funnel-title">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Conversion path</p>
+          <h2 id="funnel-title" className="mt-1.5 text-lg font-semibold text-white">Where intent becomes revenue</h2>
+        </div>
+        <div className="text-xs text-slate-400">Select any stage for context</div>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        {stages.map((stage, index) => {
+          const active = stage.label === selected.label;
+          const width = funnel.sessions > 0 ? Math.max((stage.value / funnel.sessions) * 100, stage.value > 0 ? 8 : 0) : 0;
+          return (
+            <button key={stage.label} type="button" aria-pressed={active} onClick={() => onSelectStage(stage.label)} className={`min-h-[7.25rem] rounded-xl border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${active ? "border-cyan-300/35 bg-cyan-300/[0.07]" : "border-white/8 bg-white/[0.025] hover:border-white/18"}`}>
+              <div className="flex items-center justify-between gap-2"><span className="font-mono text-[9px] text-slate-500">0{index + 1}</span><span className="font-mono text-base font-semibold text-white">{formatCount(stage.value)}</span></div>
+              <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{stage.label}</div>
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-cyan-300" style={{ width: `${width}%` }} /></div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-white/8 bg-black/15 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-slate-300"><strong className="text-white">{selected.label}</strong> captured {formatCount(selected.value)} sessions/orders.</span>
+        <span className="font-mono text-cyan-100">{previous ? `${percent(stageRate)} from ${previous.label.toLowerCase()}` : "Entry volume"}</span>
+      </div>
+    </section>
+  );
+}
+
+function CommerceProductRisk({ data, currency }: { data: OperationsData; currency: string }) {
+  const [view, setView] = useState<"products" | "inventory">("products");
+  const rows = view === "products" ? data.merchandising.leaders.slice(0, 5) : data.inventory.risk.rows.slice(0, 5);
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-5" aria-labelledby="commerce-board-title">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Merchandising</p><h2 id="commerce-board-title" className="mt-1.5 text-lg font-semibold text-white">Products and stock risk</h2></div>
+        <div className="flex gap-1 rounded-xl border border-white/10 bg-black/20 p-1" role="tablist" aria-label="Commerce board view">
+          {(["products", "inventory"] as const).map((option) => <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)} className={`min-h-11 rounded-lg px-3 text-xs font-semibold capitalize ${view === option ? "bg-cyan-200 text-slate-950" : "text-slate-300 hover:bg-white/[0.06]"}`}>{option}</button>)}
+        </div>
+      </div>
+      <div className="mt-4 divide-y divide-white/8 overflow-hidden rounded-xl border border-white/8">
+        {rows.length ? rows.map((row) => {
+          const inventoryRow = "riskLevel" in row;
+          return (
+            <div key={inventoryRow ? row.variantId : row.productId} className="grid gap-3 bg-white/[0.018] p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+              <div className="min-w-0"><div className="truncate text-sm font-semibold text-white">{row.productTitle}</div><div className="mt-1 truncate text-xs text-slate-500">{inventoryRow ? `${row.variantTitle} · ${row.sku ?? "No SKU"}` : row.priorityReason}</div></div>
+              <div className="flex items-center justify-between gap-5 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{inventoryRow ? "Available" : "Revenue"}</span><div className="font-mono text-sm font-semibold text-slate-100">{inventoryRow ? formatCount(row.available) : formatPrice(row.revenueCents, currency)}</div></div>
+              <div className="flex items-center justify-between gap-5 sm:min-w-24 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{inventoryRow ? "Cover" : "CVR"}</span><div className={`font-mono text-sm font-semibold ${inventoryRow && row.riskLevel === "critical" ? "text-rose-200" : "text-cyan-100"}`}>{inventoryRow ? (row.coverDays === null ? "No velocity" : `${row.coverDays}d`) : percent(row.conversionRate)}</div></div>
+            </div>
+          );
+        }) : <div className="p-5 text-sm text-slate-500">No {view} data is available for this range.</div>}
+      </div>
+    </section>
+  );
+}
+
+function AnalyticsDisclosure({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-2xl border border-white/10 bg-[#080c11]">
+      <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300/70 sm:px-5">
+        <div><div className="text-sm font-semibold text-white">{title}</div><div className="mt-1 text-xs text-slate-500">{description}</div></div>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-lg text-slate-400 transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="border-t border-white/8 p-3 sm:p-5">{children}</div>
+    </details>
+  );
+}
+
 export default function AdminAnalyticsClient({
   initialOverview,
-  initialDays,
+  initialRange,
+  initialMetric,
   initialStorefrontScope,
 }: {
   initialOverview: AdminAnalyticsOverviewPayload;
-  initialDays: AdminTimeRangeDays;
+  initialRange: AdminAnalyticsRange;
+  initialMetric: AdminAnalyticsMetric;
   initialStorefrontScope: AdminStorefrontScope;
 }) {
+  const router = useRouter();
   const location = useMemo(
     () => ({
-      days: initialDays,
+      range: initialRange,
       storefront: initialStorefrontScope,
+      metric: initialMetric,
     }),
-    [initialDays, initialStorefrontScope],
+    [initialMetric, initialRange, initialStorefrontScope],
   );
 
   const [overview, setOverview] = useState(initialOverview);
   const [secondary, setSecondary] = useState<AdminAnalyticsSecondaryPayload>(emptySecondaryPayload);
+  const [activeMetric, setActiveMetric] = useState<AdminAnalyticsMetric>(initialMetric);
   const [loading, setLoading] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [error, setError] = useState("");
   const [secondaryError, setSecondaryError] = useState("");
+  const [customRangeOpen, setCustomRangeOpen] = useState(initialRange.kind === "custom");
+  const [customFrom, setCustomFrom] = useState(initialRange.from);
+  const [customTo, setCustomTo] = useState(initialRange.to);
+  const [customError, setCustomError] = useState("");
+  const [liveRefreshedAt, setLiveRefreshedAt] = useState(
+    initialOverview.executive?.updatedAt ?? "",
+  );
 
   const [selectedStage, setSelectedStage] = useState("Sessions");
   const [selectedSourceLabel, setSelectedSourceLabel] = useState<string | null>(null);
@@ -2628,7 +2871,10 @@ export default function AdminAnalyticsClient({
 
   useEffect(() => {
     setOverview(initialOverview);
-  }, [initialOverview]);
+    setActiveMetric(initialMetric);
+    setCustomFrom(initialRange.from);
+    setCustomTo(initialRange.to);
+  }, [initialMetric, initialOverview, initialRange.from, initialRange.to]);
 
   const loadOverview = useCallback(async () => {
     const { response, data } = await fetchAdminJson<AdminAnalyticsOverviewPayload & { error?: string }>(
@@ -2668,6 +2914,22 @@ export default function AdminAnalyticsClient({
     setSecondary(data);
   }, [location]);
 
+  const loadLive = useCallback(async () => {
+    const { response, data } = await fetchAdminJson<AdminAnalyticsLivePayload & { error?: string }>(
+      buildAdminAnalyticsApiHref(location, "live"),
+      { method: "GET", cache: "no-store" },
+    );
+    if (!response.ok) return;
+    setOverview((current) => ({
+      ...current,
+      acquisition: {
+        ...(current.acquisition ?? {}),
+        live: data.live,
+      },
+    }));
+    setLiveRefreshedAt(data.refreshedAt);
+  }, [location]);
+
   useEffect(() => {
     setSecondaryLoading(true);
     setSecondaryError("");
@@ -2681,6 +2943,18 @@ export default function AdminAnalyticsClient({
         setSecondaryLoading(false);
       });
   }, [loadSecondary]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadLive();
+    };
+    const interval = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadLive]);
 
   const refreshAnalytics = useCallback(async () => {
     setLoading(true);
@@ -2720,7 +2994,91 @@ export default function AdminAnalyticsClient({
 
   const currency = revenueConversion.periodComparison.currency || revenueConversion.finance.currency;
   const selectedStorefrontLabel = ADMIN_STOREFRONT_SCOPE_LABELS[initialStorefrontScope];
-  const rangeCopy = windowCopy[initialDays];
+  const commerceMetrics: CommerceMetricDefinition[] = [
+    {
+      id: "revenue",
+      label: "Net revenue",
+      value: revenueConversion.finance.netRevenueCents,
+      previous: revenueConversion.previousFinance.netRevenueCents,
+      kind: "currency",
+      helper: "after VAT + refunds",
+    },
+    {
+      id: "margin",
+      label: "Contribution",
+      value: revenueConversion.finance.contributionMarginCents,
+      previous: revenueConversion.previousFinance.contributionMarginCents,
+      kind: "currency",
+      helper: "after COGS + fees",
+    },
+    {
+      id: "orders",
+      label: "Paid orders",
+      value: revenueConversion.periodComparison.paidOrders.current,
+      previous: revenueConversion.periodComparison.paidOrders.previous,
+      kind: "count",
+      helper: "recognized volume",
+    },
+    {
+      id: "conversion",
+      label: "Session CVR",
+      value: revenueConversion.funnel.sessionToOrderRate,
+      previous: revenueConversion.funnelComparison.sessionToOrderRate.previous,
+      kind: "percent",
+      helper: "consented sessions",
+    },
+    {
+      id: "aov",
+      label: "Average order",
+      value: revenueConversion.periodComparison.aov.current,
+      previous: revenueConversion.periodComparison.aov.previous,
+      kind: "currency",
+      helper: "paid-order average",
+    },
+    {
+      id: "live",
+      label: "Live visitors",
+      value: liveSnapshot.activeVisitorCount,
+      previous: null,
+      kind: "count",
+      helper: "rolling active window",
+    },
+  ];
+
+  const selectMetric = useCallback((metric: AdminAnalyticsMetric) => {
+    setActiveMetric(metric);
+    const href = buildAdminAnalyticsHref({
+      range: initialRange,
+      storefront: initialStorefrontScope,
+      metric,
+    });
+    window.history.replaceState(window.history.state, "", href);
+  }, [initialRange, initialStorefrontScope]);
+
+  const applyCustomRange = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCustomError("");
+    const fromMs = Date.parse(`${customFrom}T00:00:00Z`);
+    const toMs = Date.parse(`${customTo}T00:00:00Z`);
+    const days = Math.floor((toMs - fromMs) / 86_400_000) + 1;
+    if (!customFrom || !customTo || !Number.isFinite(days) || days < 1) {
+      setCustomError("Choose a valid start and end date.");
+      return;
+    }
+    if (days > 365) {
+      setCustomError("Custom ranges can cover at most 365 days.");
+      return;
+    }
+    if (customTo > getBerlinDateKey()) {
+      setCustomError("The end date cannot be in the future.");
+      return;
+    }
+    router.push(buildAdminAnalyticsHref({
+      range: { kind: "custom", days, from: customFrom, to: customTo },
+      storefront: initialStorefrontScope,
+      metric: activeMetric,
+    }));
+  };
 
   useEffect(() => {
     setSelectedSourceLabel(trafficSources[0]?.label ?? null);
@@ -2733,112 +3091,91 @@ export default function AdminAnalyticsClient({
   useEffect(() => {
     setSelectedActionId(null);
     setSelectedIssueType("all");
-  }, [initialDays, initialStorefrontScope]);
+  }, [initialRange, initialStorefrontScope]);
 
   return (
-    <div className="space-y-5 pb-10">
-      <CommandDeck
-        metrics={executive.metrics}
-        currency={currency}
-        storefrontLabel={selectedStorefrontLabel}
-        rangeLabel={rangeCopy.label}
-        updatedAt={executive.updatedAt}
-      />
-
-      <AdminStickyToolbar>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Window
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {ADMIN_TIME_RANGE_OPTIONS.map((option) => (
-                  <AdminScopeChip
-                    key={option.value}
-                    href={buildAdminAnalyticsHref({
-                      days: option.value,
-                      storefront: initialStorefrontScope,
-                    })}
-                    active={option.value === initialDays}
-                  >
-                    {option.label}
-                  </AdminScopeChip>
-                ))}
-              </div>
+    <div className="analytics-commerce space-y-4 pb-10 sm:space-y-5">
+      <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#080d12] px-4 py-5 sm:px-6 sm:py-6">
+        <div className="pointer-events-none absolute inset-0 opacity-80 [background-image:linear-gradient(rgba(103,232,249,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,.035)_1px,transparent_1px)] [background-size:32px_32px]" />
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-300/8 blur-3xl" />
+        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <span>Commerce intelligence</span><span className="h-1 w-1 rounded-full bg-cyan-300" /><span>{selectedStorefrontLabel}</span>
             </div>
-
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Revenue pulse</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Order-backed money, conversion friction, and stock exposure in one decision surface.</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
-              {rangeCopy.horizon}
-            </span>
-            <AdminButton type="button" onClick={() => void refreshAnalytics()} disabled={loading}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </AdminButton>
+          <div className="grid grid-cols-2 gap-2 text-xs sm:flex sm:flex-wrap sm:justify-end">
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-slate-500">Window</span><span className="mt-1 block font-semibold text-slate-200">{initialRange.label}</span></div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-slate-500">Updated</span><span className="mt-1 block font-semibold text-slate-200">{formatUpdatedAt(executive.updatedAt)}</span></div>
           </div>
         </div>
-      </AdminStickyToolbar>
+      </header>
 
-      {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
-      {secondaryError ? <AdminNotice tone="warning">{secondaryError}</AdminNotice> : null}
-      {secondaryLoading ? (
-        <AdminNotice tone="info">
-          Supporting workspaces are still loading. Revenue and conversion truth are already available while acquisition and operations continue to resolve.
-        </AdminNotice>
-      ) : null}
-      {initialStorefrontScope !== "ALL" ? (
-        <AdminNotice tone="info">
-          This workspace is scoped to {selectedStorefrontLabel}. Orders, analytics events, and finance rollups are filtered to explicit storefront attribution only.
-        </AdminNotice>
-      ) : null}
+      <section className="sticky top-[4.9rem] z-20 rounded-2xl border border-white/10 bg-[#070c11]/94 p-2.5 shadow-[0_14px_34px_rgba(0,0,0,.28)] backdrop-blur-xl sm:top-[4.25rem] sm:p-3" aria-label="Analytics range controls">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="admin-scroll-x -mx-1 flex gap-1.5 px-1 pb-0.5">
+            {ADMIN_ANALYTICS_PRESET_OPTIONS.map((option) => (
+              <a key={option.value} href={buildAdminAnalyticsHref({ range: { kind: "preset", days: option.value, from: "", to: "" }, storefront: initialStorefrontScope, metric: activeMetric })} className={`inline-flex min-h-11 shrink-0 items-center rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "preset" && initialRange.days === option.value ? "border-cyan-200/35 bg-cyan-200 text-slate-950" : "border-white/10 bg-white/[0.035] text-slate-300 hover:border-white/20"}`}>{option.label}</a>
+            ))}
+            <button type="button" aria-expanded={customRangeOpen} onClick={() => setCustomRangeOpen((current) => !current)} className={`min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "custom" ? "border-cyan-200/35 bg-cyan-200 text-slate-950" : "border-white/10 bg-white/[0.035] text-slate-300 hover:border-white/20"}`}>Custom</button>
+          </div>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <span className="hidden text-[10px] uppercase tracking-[0.14em] text-slate-500 sm:inline">Live {formatUpdatedAt(liveRefreshedAt)}</span>
+            <AdminButton type="button" onClick={() => void refreshAnalytics()} disabled={loading}>{loading ? "Refreshing…" : "Refresh all"}</AdminButton>
+          </div>
+        </div>
+        {customRangeOpen ? (
+          <form onSubmit={applyCustomRange} className="mt-3 grid gap-3 border-t border-white/8 pt-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="mt-1.5 block min-h-11 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-sm text-white" /></label>
+            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">To<input type="date" value={customTo} min={customFrom} max={getBerlinDateKey()} onChange={(event) => setCustomTo(event.target.value)} className="mt-1.5 block min-h-11 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-sm text-white" /></label>
+            <button type="submit" className="min-h-11 rounded-xl bg-cyan-200 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-100">Apply range</button>
+            {customError ? <p className="text-xs text-rose-200 sm:col-span-3" role="alert">{customError}</p> : null}
+          </form>
+        ) : null}
+      </section>
 
-      <ActionCenter
-        items={actionItems}
-        selectedIssueType={selectedIssueType}
-        onSelectIssueType={setSelectedIssueType}
-        selectedActionId={selectedActionId}
-        onSelectActionId={setSelectedActionId}
-        currency={currency}
-        overviewTrust={overview.trust}
-        secondaryTrust={secondary.trust}
-        marginTrend={overview.marginTrend}
-        currentStart={overview.scope?.currentStart}
-        currentEnd={overview.scope?.currentEnd}
-      />
+      <div className="space-y-2" aria-live="polite">
+        {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
+        {secondaryError ? <AdminNotice tone="warning">{secondaryError}</AdminNotice> : null}
+        {secondaryLoading ? (
+          <AdminNotice tone="info">
+            Supporting workspaces are still loading. Revenue and conversion truth are already available while acquisition and operations continue to resolve.
+          </AdminNotice>
+        ) : null}
+        {initialStorefrontScope !== "ALL" ? (
+          <AdminNotice tone="info">
+            This workspace is scoped to {selectedStorefrontLabel}. Orders, analytics events, and finance rollups are filtered to explicit storefront attribution only.
+          </AdminNotice>
+        ) : null}
+      </div>
 
-      <RevenueWorkspace
-        data={revenueConversion}
-        days={initialDays}
-        storefrontScope={initialStorefrontScope}
-        selectedStage={selectedStage}
-        onSelectStage={setSelectedStage}
-      />
+      <CommerceKpiGrid metrics={commerceMetrics} currency={currency} activeMetric={activeMetric} onSelectMetric={selectMetric} />
 
-      <AcquisitionWorkspace
-        live={liveSnapshot}
-        trafficSources={trafficSources}
-        days={initialDays}
-        storefrontScope={initialStorefrontScope}
-        selectedSourceLabel={selectedSourceLabel}
-        onSelectSourceLabel={setSelectedSourceLabel}
-      />
+      <div className="grid gap-4 xl:grid-cols-12">
+        <div className="xl:col-span-8"><CommerceTrendExplorer data={revenueConversion} activeMetric={activeMetric} currency={currency} /></div>
+        <div className="xl:col-span-4"><DecisionStack items={actionItems} currency={currency} /></div>
+      </div>
 
-      <OperationsWorkspace
-        data={operations}
-        currency={currency}
-        days={initialDays}
-        storefrontScope={initialStorefrontScope}
-        activeTab={activeOperationsTab}
-        onChangeTab={setActiveOperationsTab}
-        productBoard={productBoard}
-        onChangeProductBoard={setProductBoard}
-        productQuery={productQuery}
-        onChangeProductQuery={setProductQuery}
-        selectedRowId={selectedOperationRowId}
-        onSelectRowId={setSelectedOperationRowId}
-      />
+      <CommerceFunnel funnel={revenueConversion.funnel} selectedStage={selectedStage} onSelectStage={setSelectedStage} />
+      <CommerceProductRisk data={operations} currency={currency} />
+
+      <section className="space-y-2.5" aria-label="Supporting analytics">
+        <div className="px-1 pb-1"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Progressive detail</p><h2 className="mt-1.5 text-lg font-semibold text-white">Supporting workspaces</h2></div>
+        <AnalyticsDisclosure title="All ranked actions" description="Finance, conversion, inventory, returns, recovery, discounts, and acquisition signals.">
+          <ActionCenter items={actionItems} selectedIssueType={selectedIssueType} onSelectIssueType={setSelectedIssueType} selectedActionId={selectedActionId} onSelectActionId={setSelectedActionId} currency={currency} overviewTrust={overview.trust} secondaryTrust={secondary.trust} marginTrend={overview.marginTrend} currentStart={overview.scope?.currentStart} currentEnd={overview.scope?.currentEnd} />
+        </AnalyticsDisclosure>
+        <AnalyticsDisclosure title="Revenue and checkout detail" description="Full finance comparison and the complete checkout-step explorer.">
+          <RevenueWorkspace data={revenueConversion} days={initialRange.days} storefrontScope={initialStorefrontScope} selectedStage={selectedStage} onSelectStage={setSelectedStage} />
+        </AnalyticsDisclosure>
+        <AnalyticsDisclosure title="Acquisition and live traffic" description="Event-backed sessions and checkout intent; no inferred revenue attribution.">
+          <AcquisitionWorkspace live={liveSnapshot} trafficSources={trafficSources} days={initialRange.days} storefrontScope={initialStorefrontScope} selectedSourceLabel={selectedSourceLabel} onSelectSourceLabel={setSelectedSourceLabel} />
+        </AnalyticsDisclosure>
+        <AnalyticsDisclosure title="Operations, accounting, and system detail" description="Payments, discounts, customers, returns, recovery, VAT, and system quality.">
+          <OperationsWorkspace data={operations} currency={currency} days={initialRange.days} storefrontScope={initialStorefrontScope} activeTab={activeOperationsTab} onChangeTab={setActiveOperationsTab} productBoard={productBoard} onChangeProductBoard={setProductBoard} productQuery={productQuery} onChangeProductQuery={setProductQuery} selectedRowId={selectedOperationRowId} onSelectRowId={setSelectedOperationRowId} />
+        </AnalyticsDisclosure>
+      </section>
     </div>
   );
 }

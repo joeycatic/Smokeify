@@ -8,6 +8,11 @@ import {
   isMissingProcessedWebhookStorageError,
 } from "@/lib/adminStorageGuards";
 import { ACTIVE_ANALYTICS_WINDOW_MINUTES } from "@/lib/analyticsShared";
+import {
+  buildAdminAnalyticsBuckets,
+  resolveAdminAnalyticsRange,
+  type AdminAnalyticsRange,
+} from "@/lib/adminAnalyticsRange";
 import { buildAdminTimeBuckets, type AdminTimeRangeDays } from "@/lib/adminTimeRange";
 
 export const PAID_ORDER_STATUSES = ["paid", "succeeded", "refunded", "partially_refunded"];
@@ -172,6 +177,31 @@ function buildTrendBuckets(days: number) {
       revenueCents: 0,
     };
   });
+}
+
+type AnalyticsRangeInput = number | AdminAnalyticsRange;
+
+function resolveRangeInput(input: AnalyticsRangeInput) {
+  return typeof input === "number"
+    ? resolveAdminAnalyticsRange({ days: String(input) })
+    : input;
+}
+
+function buildTrendBucketsForRange(input: AnalyticsRangeInput) {
+  if (typeof input === "number") return buildTrendBuckets(input);
+  return buildAdminAnalyticsBuckets(input).map((bucket) => ({
+    label: bucket.label,
+    key: bucket.key,
+    start: bucket.start,
+    endExclusive: bucket.endExclusive,
+    sessions: new Set<string>(),
+    productViews: new Set<string>(),
+    addToCart: new Set<string>(),
+    beginCheckout: new Set<string>(),
+    purchases: new Set<string>(),
+    paidOrders: 0,
+    revenueCents: 0,
+  }));
 }
 
 export async function getActiveSessionSnapshot(storefront: Storefront | null = null) {
@@ -412,16 +442,26 @@ async function getFunnelSnapshotForRange(
   };
 }
 
-export async function getFunnelSnapshot(days = 30, storefront: Storefront | null = null) {
-  return getFunnelSnapshotForRange(getDateDaysAgo(days - 1), undefined, storefront);
+export async function getFunnelSnapshot(
+  rangeInput: AnalyticsRangeInput = 30,
+  storefront: Storefront | null = null,
+) {
+  const range = resolveRangeInput(rangeInput);
+  return getFunnelSnapshotForRange(range.start, range.endExclusive, storefront);
 }
 
-export async function getFunnelComparison(days = 30, storefront: Storefront | null = null) {
-  const currentStart = getDateDaysAgo(days - 1);
-  const previousStart = getDateDaysAgo(days * 2 - 1);
+export async function getFunnelComparison(
+  rangeInput: AnalyticsRangeInput = 30,
+  storefront: Storefront | null = null,
+) {
+  const range = resolveRangeInput(rangeInput);
   const [current, previous] = await Promise.all([
-    getFunnelSnapshotForRange(currentStart, undefined, storefront),
-    getFunnelSnapshotForRange(previousStart, currentStart, storefront),
+    getFunnelSnapshotForRange(range.start, range.endExclusive, storefront),
+    getFunnelSnapshotForRange(
+      range.previousStart,
+      range.previousEndExclusive,
+      storefront,
+    ),
   ]);
 
   return {
@@ -448,13 +488,13 @@ export async function getFunnelComparison(days = 30, storefront: Storefront | nu
 }
 
 export async function getFunnelTrend(
-  days = 14,
+  rangeInput: AnalyticsRangeInput = 14,
   storefront: Storefront | null = null,
 ): Promise<FunnelTrendPoint[]> {
-  const since = getDateDaysAgo(days - 1);
+  const range = resolveRangeInput(rangeInput);
   const paidOrdersPromise = prisma.order.findMany({
     where: {
-      createdAt: { gte: since },
+      createdAt: { gte: range.start, lt: range.endExclusive },
       paymentStatus: { in: PAID_ORDER_STATUSES },
       ...buildOrderStorefrontFilter(storefront),
     },
@@ -468,7 +508,7 @@ export async function getFunnelTrend(
   try {
     events = await prisma.analyticsEvent.findMany({
       where: {
-        createdAt: { gte: since },
+        createdAt: { gte: range.start, lt: range.endExclusive },
         eventName: { in: ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"] },
         ...buildEventStorefrontFilter(storefront),
       },
@@ -485,7 +525,7 @@ export async function getFunnelTrend(
   }
 
   const paidOrders = await paidOrdersPromise;
-  const buckets = buildTrendBuckets(days);
+  const buckets = buildTrendBucketsForRange(rangeInput);
   const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
 
   for (const event of events) {
@@ -529,12 +569,14 @@ export async function getFunnelTrend(
   });
 }
 
-export async function getOrderComparisons(days = 30, storefront: Storefront | null = null) {
-  const currentStart = getDateDaysAgo(days - 1);
-  const previousStart = getDateDaysAgo(days * 2 - 1);
+export async function getOrderComparisons(
+  rangeInput: AnalyticsRangeInput = 30,
+  storefront: Storefront | null = null,
+) {
+  const range = resolveRangeInput(rangeInput);
   const orders = await prisma.order.findMany({
     where: {
-      createdAt: { gte: previousStart },
+      createdAt: { gte: range.previousStart, lt: range.endExclusive },
       ...buildOrderStorefrontFilter(storefront),
     },
     select: {
@@ -555,7 +597,7 @@ export async function getOrderComparisons(days = 30, storefront: Storefront | nu
 
   for (const order of orders) {
     const paymentStatus = order.paymentStatus.trim().toLowerCase();
-    const isCurrent = order.createdAt >= currentStart;
+    const isCurrent = order.createdAt >= range.start;
     const isPaid = PAID_ORDER_STATUSES.includes(paymentStatus);
     const isRefunded = order.amountRefunded > 0 || paymentStatus === "refunded";
     if (!isPaid && !isRefunded) continue;
@@ -591,12 +633,15 @@ export async function getOrderComparisons(days = 30, storefront: Storefront | nu
   };
 }
 
-export async function getCustomerRevenueMix(days = 30, storefront: Storefront | null = null) {
-  const since = getDateDaysAgo(days - 1);
+export async function getCustomerRevenueMix(
+  rangeInput: AnalyticsRangeInput = 30,
+  storefront: Storefront | null = null,
+) {
+  const range = resolveRangeInput(rangeInput);
   const [recentOrders, registeredFirstOrders, guestFirstOrders] = await Promise.all([
     prisma.order.findMany({
       where: {
-        createdAt: { gte: since },
+        createdAt: { gte: range.start, lt: range.endExclusive },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         ...buildOrderStorefrontFilter(storefront),
       },
@@ -630,14 +675,14 @@ export async function getCustomerRevenueMix(days = 30, storefront: Storefront | 
   const registeredFirstMap = new Map(
     registeredFirstOrders
       .filter((entry): entry is typeof entry & { userId: string } => Boolean(entry.userId))
-      .map((entry) => [entry.userId, entry._min.createdAt ?? since])
+      .map((entry) => [entry.userId, entry._min.createdAt ?? range.start])
   );
   const guestFirstMap = new Map(
     guestFirstOrders
       .filter(
         (entry): entry is typeof entry & { customerEmail: string } => Boolean(entry.customerEmail)
       )
-      .map((entry) => [entry.customerEmail.toLowerCase(), entry._min.createdAt ?? since])
+      .map((entry) => [entry.customerEmail.toLowerCase(), entry._min.createdAt ?? range.start])
   );
 
   let newRevenueCents = 0;
@@ -655,7 +700,7 @@ export async function getCustomerRevenueMix(days = 30, storefront: Storefront | 
     const firstOrderAt = order.userId
       ? registeredFirstMap.get(order.userId)
       : guestFirstMap.get(order.customerEmail?.toLowerCase() ?? "");
-    const isNewCustomer = firstOrderAt ? firstOrderAt >= since : false;
+    const isNewCustomer = firstOrderAt ? firstOrderAt >= range.start : false;
 
     if (isNewCustomer) {
       newRevenueCents += order.amountTotal;
@@ -676,15 +721,18 @@ export async function getCustomerRevenueMix(days = 30, storefront: Storefront | 
   };
 }
 
-export async function getProductPerformance(days = 30, storefront: Storefront | null = null) {
-  const since = getDateDaysAgo(days - 1);
+export async function getProductPerformance(
+  rangeInput: AnalyticsRangeInput = 30,
+  storefront: Storefront | null = null,
+) {
+  const range = resolveRangeInput(rangeInput);
   const performanceEventNames = ["view_item", "add_to_cart", "begin_checkout"] as const;
   const salesGroupsPromise = prisma.orderItem.groupBy({
     by: ["variantId", "productId", "name"] as const,
     where: {
       variantId: { not: null },
       order: {
-        createdAt: { gte: since },
+        createdAt: { gte: range.start, lt: range.endExclusive },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         ...buildOrderStorefrontFilter(storefront),
       },
@@ -702,7 +750,7 @@ export async function getProductPerformance(days = 30, storefront: Storefront | 
   try {
     eventGroups = await prisma.analyticsEvent.findMany({
       where: {
-        createdAt: { gte: since },
+        createdAt: { gte: range.start, lt: range.endExclusive },
         variantId: { not: null },
         eventName: { in: [...performanceEventNames] },
         ...buildEventStorefrontFilter(storefront),

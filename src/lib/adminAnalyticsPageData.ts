@@ -1,11 +1,14 @@
 import type { Storefront } from "@prisma/client";
 import type { AdminTimeRangeDays } from "@/lib/adminTimeRange";
+import {
+  resolveAdminAnalyticsRange,
+  type AdminAnalyticsRange,
+} from "@/lib/adminAnalyticsRange";
 import { isMissingAnalyticsStorageError } from "@/lib/adminStorageGuards";
 import {
   PAID_ORDER_STATUSES,
   getActiveSessionSnapshot,
   getCustomerRevenueMix,
-  getDateDaysAgo,
   getFunnelComparison,
   getFunnelSnapshot,
   getFunnelTrend,
@@ -170,13 +173,17 @@ const getExecutiveMetrics = ({
   },
 ];
 
-async function getTrafficSourceGroups(rangeStart: Date, storefront: Storefront | null) {
+async function getTrafficSourceGroups(
+  rangeStart: Date,
+  rangeEnd: Date,
+  storefront: Storefront | null,
+) {
   try {
     const [sourceSessions, sourceCheckouts] = await Promise.all([
       prisma.analyticsEvent.groupBy({
         by: ["utmSource", "utmMedium", "utmCampaign"],
         where: {
-          createdAt: { gte: rangeStart },
+          createdAt: { gte: rangeStart, lt: rangeEnd },
           eventName: "page_view",
           ...buildScopedEventFilter(storefront),
         },
@@ -185,7 +192,7 @@ async function getTrafficSourceGroups(rangeStart: Date, storefront: Storefront |
       prisma.analyticsEvent.groupBy({
         by: ["utmSource", "utmMedium", "utmCampaign"],
         where: {
-          createdAt: { gte: rangeStart },
+          createdAt: { gte: rangeStart, lt: rangeEnd },
           eventName: "begin_checkout",
           ...buildScopedEventFilter(storefront),
         },
@@ -212,12 +219,16 @@ async function getTrafficSourceGroups(rangeStart: Date, storefront: Storefront |
 }
 
 export async function loadAdminAnalyticsOverview(
-  days: AdminTimeRangeDays = 30,
+  rangeInput: AdminTimeRangeDays | AdminAnalyticsRange = 30,
   storefront: Storefront | null = null,
 ) {
+  const range =
+    typeof rangeInput === "number"
+      ? resolveAdminAnalyticsRange({ days: String(rangeInput) })
+      : rangeInput;
+  const days = range.days;
   const now = new Date();
-  const currentWindowStart = getDateDaysAgo(days - 1);
-  const totalVelocityWindowStart = getDateDaysAgo(29);
+  const currentWindowStart = range.start;
 
   const [
     activeSnapshot,
@@ -235,12 +246,12 @@ export async function loadAdminAnalyticsOverview(
     recentOrders,
   ] = await Promise.all([
     getActiveSessionSnapshot(storefront),
-    getFunnelSnapshot(days, storefront),
-    getFunnelComparison(days, storefront),
-    getFunnelTrend(days, storefront),
-    getOrderComparisons(days, storefront),
-    getCustomerRevenueMix(days, storefront),
-    getFinancePageData(days, storefront),
+    getFunnelSnapshot(range, storefront),
+    getFunnelComparison(range, storefront),
+    getFunnelTrend(range, storefront),
+    getOrderComparisons(range, storefront),
+    getCustomerRevenueMix(range, storefront),
+    getFinancePageData(range, storefront),
     prisma.order.count({ where: buildScopedOrderFilter(storefront) }),
     prisma.order.count({ where: { status: "fulfilled", ...buildScopedOrderFilter(storefront) } }),
     prisma.order.count({
@@ -256,7 +267,7 @@ export async function loadAdminAnalyticsOverview(
     }),
     prisma.order.findMany({
       where: {
-        createdAt: { gte: totalVelocityWindowStart },
+        createdAt: { gte: range.start, lt: range.endExclusive },
         ...buildScopedOrderFilter(storefront),
       },
       select: {
@@ -295,8 +306,14 @@ export async function loadAdminAnalyticsOverview(
     return sum + order.amountTotal;
   }, 0);
 
-  const revenueTrend = funnelTrend.map((entry) => ({
+  const revenueTrend = funnelTrend.map((entry, index) => ({
     label: entry.label,
+    grossRevenueCents:
+      financePageData.trend?.[index]?.grossRevenueCents ?? entry.revenueCents,
+    netRevenueCents:
+      financePageData.trend?.[index]?.netRevenueCents ?? entry.revenueCents,
+    contributionMarginCents:
+      financePageData.trend?.[index]?.contributionMarginCents ?? 0,
     revenueCents: entry.revenueCents,
     paidOrders: entry.paidOrders,
     sessions: entry.sessions,
@@ -322,7 +339,7 @@ export async function loadAdminAnalyticsOverview(
         : 0,
   }));
 
-  const previousWindowStart = getDateDaysAgo(days * 2 - 1);
+  const previousWindowStart = range.previousStart;
   const actionItems = sortActionItems([
     ...(financePageData.currentFinance.netRevenueCents <
     financePageData.previousFinance.netRevenueCents * 0.9
@@ -371,7 +388,7 @@ export async function loadAdminAnalyticsOverview(
         ]
       : []),
     ...(funnelSnapshot.checkoutAbandonmentRate >= 0.45 &&
-    funnelSnapshot.beginCheckout >= 3
+    funnelSnapshot.beginCheckout >= 5
       ? [
           buildActionItem({
             id: "checkout-abandonment",
@@ -412,8 +429,9 @@ export async function loadAdminAnalyticsOverview(
           }),
         ]
       : []),
-    ...(orderComparisons.refundRate.current >= 0.08 ||
-    (orderComparisons.refundRate.deltaRatio ?? 0) >= 0.5
+    ...(orderComparisons.paidOrders.current >= 5 &&
+    (orderComparisons.refundRate.current >= 0.08 ||
+      (orderComparisons.refundRate.deltaRatio ?? 0) >= 0.5)
       ? [
           buildActionItem({
             id: "refund-rate-pressure",
@@ -507,11 +525,16 @@ export async function loadAdminAnalyticsOverview(
   return {
     scope: {
       days,
+      kind: range.kind,
+      label: range.label,
+      from: range.from,
+      to: range.to,
+      bucketKind: range.bucketKind,
       storefront,
       currentStart: financePageData.currentStart,
       currentEnd: financePageData.currentEnd,
       previousStart: previousWindowStart,
-      previousEnd: currentWindowStart,
+      previousEnd: range.previousEndExclusive,
     },
     trust: {
       revenueSource: "orders_and_finance",
@@ -519,9 +542,9 @@ export async function loadAdminAnalyticsOverview(
       moneyAuthority: "server",
       refreshedAt: now.toISOString(),
       currentWindowStart: financePageData.currentStart.toISOString(),
-      currentWindowEnd: financePageData.currentEnd.toISOString(),
+      currentWindowEnd: range.endExclusive.toISOString(),
       previousWindowStart: previousWindowStart.toISOString(),
-      previousWindowEnd: currentWindowStart.toISOString(),
+      previousWindowEnd: range.previousEndExclusive.toISOString(),
     },
     actionCenter: {
       items: actionItems,
@@ -630,10 +653,16 @@ export async function loadAdminAnalyticsOverview(
 }
 
 export async function loadAdminAnalyticsSecondary(
-  days: AdminTimeRangeDays = 30,
+  rangeInput: AdminTimeRangeDays | AdminAnalyticsRange = 30,
   storefront: Storefront | null = null,
 ) {
-  const rangeStart = getDateDaysAgo(days - 1);
+  const range =
+    typeof rangeInput === "number"
+      ? resolveAdminAnalyticsRange({ days: String(rangeInput) })
+      : rangeInput;
+  const days = range.days;
+  const rangeStart = range.start;
+  const rangeEnd = range.endExclusive;
 
   const [
     customerRevenueMix,
@@ -664,8 +693,8 @@ export async function loadAdminAnalyticsSecondary(
     approvedReturnRequests,
     rejectedReturnRequests,
   ] = await Promise.all([
-    getCustomerRevenueMix(days, storefront),
-    getProductPerformance(days, storefront),
+    getCustomerRevenueMix(range, storefront),
+    getProductPerformance(range, storefront),
     prisma.variant.findMany({
       where: storefront
         ? {
@@ -679,19 +708,35 @@ export async function loadAdminAnalyticsSecondary(
         inventory: true,
       },
     }),
-    prisma.plantAnalysisRun.count(),
+    prisma.plantAnalysisRun.count({
+      where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
+    }),
     prisma.plantAnalysisRun.count({
       where: {
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         model: {
           in: ["gpt-4o", process.env.AI_MODEL_STRONG ?? "gpt-4o"],
         },
       },
     }),
-    prisma.plantAnalysisFeedback.count(),
-    prisma.plantAnalysisFeedback.count({ where: { isCorrect: true } }),
-    prisma.plantAnalysisRun.count({ where: { confidence: { lt: 0.65 } } }),
+    prisma.plantAnalysisFeedback.count({
+      where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
+    }),
+    prisma.plantAnalysisFeedback.count({
+      where: {
+        isCorrect: true,
+        createdAt: { gte: rangeStart, lt: rangeEnd },
+      },
+    }),
+    prisma.plantAnalysisRun.count({
+      where: {
+        confidence: { lt: 0.65 },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
+      },
+    }),
     prisma.plantAnalysisIssue.groupBy({
       by: ["label"],
+      where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
       _count: { _all: true },
       orderBy: { _count: { label: "desc" } },
       take: 8,
@@ -702,6 +747,7 @@ export async function loadAdminAnalyticsSecondary(
         id: true,
         orders: {
           where: {
+            createdAt: { gte: rangeStart, lt: rangeEnd },
             paymentStatus: { in: PAID_ORDER_STATUSES },
             ...buildScopedOrderFilter(storefront),
           },
@@ -712,6 +758,7 @@ export async function loadAdminAnalyticsSecondary(
     prisma.order.groupBy({
       by: ["customerEmail"],
       where: {
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         userId: null,
         paymentStatus: { in: PAID_ORDER_STATUSES },
         customerEmail: { not: null },
@@ -720,11 +767,11 @@ export async function loadAdminAnalyticsSecondary(
       _sum: { amountTotal: true },
       _count: { id: true },
     }),
-    getTrafficSourceGroups(rangeStart, storefront),
+    getTrafficSourceGroups(rangeStart, rangeEnd, storefront),
     prisma.order.groupBy({
       by: ["discountCode"],
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         discountCode: { not: null },
         ...buildScopedOrderFilter(storefront),
@@ -737,7 +784,7 @@ export async function loadAdminAnalyticsSecondary(
     prisma.order.groupBy({
       by: ["paymentMethod"],
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         ...buildScopedOrderFilter(storefront),
       },
@@ -749,7 +796,7 @@ export async function loadAdminAnalyticsSecondary(
       where: {
         variantId: { not: null },
         order: {
-          createdAt: { gte: rangeStart },
+          createdAt: { gte: rangeStart, lt: rangeEnd },
           paymentStatus: { in: PAID_ORDER_STATUSES },
           ...buildScopedOrderFilter(storefront),
         },
@@ -758,34 +805,34 @@ export async function loadAdminAnalyticsSecondary(
     }),
     prisma.checkoutRecoverySession.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         ...buildScopedCheckoutRecoveryFilter(storefront),
       },
     }),
     prisma.checkoutRecoverySession.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         consentGranted: true,
         ...buildScopedCheckoutRecoveryFilter(storefront),
       },
     }),
     prisma.checkoutRecoverySession.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         completedAt: { not: null },
         ...buildScopedCheckoutRecoveryFilter(storefront),
       },
     }),
     prisma.checkoutRecoverySession.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         suppressedAt: { not: null },
         ...buildScopedCheckoutRecoveryFilter(storefront),
       },
     }),
     prisma.order.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         recoveredFromCheckoutSessionId: { not: null },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         ...buildScopedOrderFilter(storefront),
@@ -793,7 +840,7 @@ export async function loadAdminAnalyticsSecondary(
     }),
     prisma.order.aggregate({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         recoveredFromCheckoutSessionId: { not: null },
         paymentStatus: { in: PAID_ORDER_STATUSES },
         ...buildScopedOrderFilter(storefront),
@@ -802,41 +849,41 @@ export async function loadAdminAnalyticsSecondary(
     }),
     prisma.checkoutRecoveryAttempt.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         status: "FAILED",
         ...buildScopedCheckoutRecoveryAttemptFilter(storefront),
       },
     }),
     prisma.checkoutRecoveryAttempt.count({
       where: {
-        scheduledFor: { lte: new Date() },
+        scheduledFor: { gte: rangeStart, lt: rangeEnd, lte: new Date() },
         status: "PENDING",
         ...buildScopedCheckoutRecoveryAttemptFilter(storefront),
       },
     }),
     prisma.returnRequest.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         ...(storefront ? { order: { sourceStorefront: storefront } } : {}),
       },
     }),
     prisma.returnRequest.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         status: "PENDING",
         ...(storefront ? { order: { sourceStorefront: storefront } } : {}),
       },
     }),
     prisma.returnRequest.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         status: "APPROVED",
         ...(storefront ? { order: { sourceStorefront: storefront } } : {}),
       },
     }),
     prisma.returnRequest.count({
       where: {
-        createdAt: { gte: rangeStart },
+        createdAt: { gte: rangeStart, lt: rangeEnd },
         status: "REJECTED",
         ...(storefront ? { order: { sourceStorefront: storefront } } : {}),
       },
@@ -1422,9 +1469,14 @@ export async function loadAdminAnalyticsSecondary(
   return {
     scope: {
       days,
+      kind: range.kind,
+      label: range.label,
+      from: range.from,
+      to: range.to,
+      bucketKind: range.bucketKind,
       storefront,
       currentStart: rangeStart,
-      currentEnd: new Date(),
+      currentEnd: new Date(Math.min(Date.now(), rangeEnd.getTime() - 1)),
     },
     trust: {
       eventStorage: sourceQuality.eventStorage,
@@ -1498,10 +1550,32 @@ export async function loadAdminAnalyticsSecondary(
   };
 }
 
+export async function loadAdminAnalyticsLive(storefront: Storefront | null = null) {
+  const snapshot = await getActiveSessionSnapshot(storefront);
+  return {
+    live: {
+      activeVisitorCount: snapshot.activeVisitorCount,
+      topPages: snapshot.topPages.map((page) => ({
+        ...page,
+        shareOfVisitors:
+          snapshot.activeVisitorCount > 0
+            ? page.count / snapshot.activeVisitorCount
+            : 0,
+      })),
+      trafficSources: snapshot.trafficSources,
+    },
+    refreshedAt: new Date().toISOString(),
+  };
+}
+
 export type AdminAnalyticsOverviewPayload = Awaited<
   ReturnType<typeof loadAdminAnalyticsOverview>
 >;
 
 export type AdminAnalyticsSecondaryPayload = Awaited<
   ReturnType<typeof loadAdminAnalyticsSecondary>
+>;
+
+export type AdminAnalyticsLivePayload = Awaited<
+  ReturnType<typeof loadAdminAnalyticsLive>
 >;
